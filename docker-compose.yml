@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  web:
+    build:
+      context: src/backend
+    restart: always
+    ports:
+      - 8000:8000
+    volumes:
+      - ./:/code
+    networks:
+      - dtm-network
+    container_name: api
+
+  db:
+    image: postgis/postgis:14-3.4-alpine
+    restart: always
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data/
+    env_file: .env
+    networks:
+      - dtm-network
+    container_name: db
+
+networks:
+  dtm-network:
+    name: dtm-network
