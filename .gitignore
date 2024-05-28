@@ -1,0 +1,77 @@
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+src/backend/osm-fieldwork
+
+__pycache__
+credentials.txt
+odk2odm_venv/
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode
+
+# test scripts and files
+db.sqlite3
+
+# emacs
+*~
+
+# mac
+.DS_Store
+
+# ignore settings
+**/*.env
+
+# ignore python environments
+venv
+fmtm-env
+
+# project related
+temp_webmaps/local_only
+temp_webmaps/Naivasha
+
+# node & pnpm
+**/**/node_modules
+**/**/package-lock.json
+**/**/yarn.lock
+**/**/.pnpm-store
+
+# pdm
+**/**/.pdm.toml
+**/**/pdm.toml
+**/**/.pdm-python
+**/**/__pypackages__
+
+# mkdocs
+site
+docs/apidocs
+coverage
+**/**/coverage*
+
+# Bash install script
+envsubst
+
+# Scripts
+**/openapi.json
+
+# Chart dependencies
+chart/charts
