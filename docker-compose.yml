@@ -1,14 +1,19 @@
 version: "3"
 
+volumes:
+  dtm_db_data:
+
+
 services:
   web:
     build:
-      context: src/backend
+      context: .
+      dockerfile: src/backend/Dockerfile
     restart: always
     ports:
       - 8000:8000
     volumes:
-      - ./:/code
+      - ./src/backend/app:/opt/app
     networks:
       - dtm-network
     container_name: api
@@ -17,7 +22,7 @@ services:
     image: postgis/postgis:14-3.4-alpine
     restart: always
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data/
+      - dtm_db_data:/var/lib/postgresql/data/
     env_file: .env
     networks:
       - dtm-network
