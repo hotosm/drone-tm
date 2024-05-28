@@ -14,6 +14,7 @@ services:
       - 8000:8000
     volumes:
       - ./src/backend/app:/opt/app
+    env_file: .env
     networks:
       - dtm-network
     container_name: api
