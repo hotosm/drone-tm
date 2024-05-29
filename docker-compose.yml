@@ -11,9 +11,9 @@ services:
       dockerfile: src/backend/Dockerfile
     restart: always
     ports:
-      - 8000:8000
+      - 8002:8000
     volumes:
-      - ./src/backend/app:/opt/app
+      - ./src/backend:/project/src/backend
     env_file: .env
     networks:
       - dtm-network

@@ -1,0 +1,31 @@
+[project]
+name = "DTM"
+version = "0.1.0"
+description = "Drone Tasking Manager"
+authors = [
+    {name = "HOTOSM", email = "sysadmin@hotosm.org"},
+]
+dependencies = [
+    "fastapi==0.111.0",
+    "geojson==3.1.0",
+    "uvicorn==0.22.0",
+    "pydantic==2.5.2",
+    "pydantic-settings==2.1.0",
+    "geojson-pydantic==1.0.1",
+    "python-dotenv==1.0.0",
+    "ipython==8.14.0",
+    "werkzeug==3.0.1",
+    "python-jose[cryptography]==3.3.0",
+    "shapely==2.0.2",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "GPL-3.0-only"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
