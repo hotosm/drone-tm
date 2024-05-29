@@ -3,7 +3,6 @@ version: "3"
 volumes:
   dtm_db_data:
 
-
 services:
   web:
     build:
