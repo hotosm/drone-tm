@@ -1,4 +1,93 @@
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        description: trims trailing whitespace.
+        entry: trailing-whitespace-fixer
+        language: python
+        types: [text]
+        stages: [commit, push, manual]
+
+      - id: end-of-file-fixer
+        name: fix end of files
+        description: ensures that a file is either empty, or ends with one newline.
+        entry: end-of-file-fixer
+        language: python
+        types: [text]
+        stages: [commit, push, manual]
+
+      - id: detect-aws-credentials
+        name: detect aws credentials
+        description: detects *your* aws credentials from the aws cli credentials file.
+        entry: detect-aws-credentials
+        language: python
+        types: [text]
+        args:
+          - "--allow-missing-credentials"
+
+      - id: detect-private-key
+        name: detect private key
+        description: detects the presence of private keys.
+        entry: detect-private-key
+        language: python
+        types: [text]
+
+      - id: check-executables-have-shebangs
+        name: check that executables have shebangs
+        description: ensures that (non-binary) executables have a shebang.
+        entry: check-executables-have-shebangs
+        language: python
+        types: [text, executable]
+        stages: [commit, push, manual]
+
+      - id: check-shebang-scripts-are-executable
+        name: check that scripts with shebangs are executable
+        description: ensures that (non-binary) files with a shebang are executable.
+        entry: check-shebang-scripts-are-executable
+        language: python
+        types: [text]
+        stages: [commit, push, manual]
+
+      - id: check-json
+        name: check json
+        description: checks json files for parseable syntax.
+        entry: check-json
+        language: python
+        files: \.(json|template)$
+        types: [json]
+
+      - id: pretty-format-json
+        name: pretty format json
+        description: sets a standard for formatting json files.
+        entry: pretty-format-json
+        language: python
+        types: [text]
+        files: \.(json|template)$
+        exclude: ^nginx/
+        args:
+          - "--autofix"
+
+      - id: check-merge-conflict
+        name: check for merge conflicts
+        description: checks for files that contain merge conflict strings.
+        entry: check-merge-conflict
+        language: python
+        types: [text]
+
+      - id: check-yaml
+        name: YAML File check
+        description: Checks if YAML File is valid and there are not any indention errors.
+
+      - id: check-added-large-files
+        name: check for added large files
+        description: prevents giant files from being committed.
+        entry: check-added-large-files
+        language: python
+        stages: [commit, push, manual]
+        args: ["--maxkb=10240"]
+
   # Versioning: Commit messages & changelog
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v3.13.0
