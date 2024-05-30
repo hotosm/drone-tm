@@ -1,8 +1,8 @@
 from functools import lru_cache
 from pydantic import BeforeValidator, TypeAdapter, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
-from typing import Annotated, Optional, Union
-from pydantic.networks import HttpUrl
+from typing import Annotated, Optional, Union, Any
+from pydantic.networks import HttpUrl, PostgresDsn
 
 HttpUrlStr = Annotated[
     str,
@@ -45,6 +45,30 @@ class Settings(BaseSettings):
         elif isinstance(val, list):
             default_origins += val
             return default_origins
+
+    API_PREFIX: str = "/"
+
+    POSTGRES_HOST: Optional[str] = "dtm-db"
+    POSTGRES_USER: Optional[str] = "dtm"
+    POSTGRES_PASSWORD: Optional[str] = "dtm"
+    POSTGRES_DB: Optional[str] = "dtm"
+
+    DTM_DB_URL: Optional[PostgresDsn] = None
+
+    @field_validator("DTM_DB_URL", mode="after")
+    @classmethod
+    def assemble_db_connection(cls, v: Optional[str], info: ValidationInfo) -> Any:
+        """Build Postgres connection from environment variables."""
+        if isinstance(v, str):
+            return v
+        pg_url = PostgresDsn.build(
+            scheme="postgresql",
+            username=info.data.get("POSTGRES_USER"),
+            password=info.data.get("POSTGRES_PASSWORD"),
+            host=info.data.get("POSTGRES_HOST"),
+            path=info.data.get("POSTGRES_DB", ""),
+        )
+        return pg_url
 
 
 @lru_cache

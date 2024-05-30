@@ -6,9 +6,9 @@ authors = [
     {name = "HOTOSM", email = "sysadmin@hotosm.org"},
 ]
 dependencies = [
-    "fastapi==0.111.0",
+    "fastapi==0.104.1",
     "geojson==3.1.0",
-    "uvicorn==0.22.0",
+    "uvicorn==0.24.0",
     "pydantic==2.5.2",
     "pydantic-settings==2.1.0",
     "geojson-pydantic==1.0.1",
@@ -17,6 +17,10 @@ dependencies = [
     "werkzeug==3.0.1",
     "python-jose[cryptography]==3.3.0",
     "shapely==2.0.2",
+    "sqlalchemy==2.0.23",
+    "SQLAlchemy-Utils==0.41.1",
+    "geoalchemy2==0.14.2",
+    "psycopg2>=2.9.9"
 ]
 requires-python = ">=3.10"
 readme = "README.md"
