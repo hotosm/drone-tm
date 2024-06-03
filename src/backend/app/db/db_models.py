@@ -105,8 +105,6 @@ class DbTask(Base):
     project_task_index = cast(int, Column(Integer))
     project_task_name = cast(str, Column(String))
     outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
-    geometry_geojson = cast(str, Column(String))
-    feature_count = cast(int, Column(Integer))
     task_status = cast(TaskStatus, Column(Enum(TaskStatus), default=TaskStatus.READY))
     locked_by = cast(
         int,
