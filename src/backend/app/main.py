@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.projects import project_routes
 
 
 def get_application() -> FastAPI:
@@ -23,6 +24,8 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["Content-Disposition"],
     )
+
+    _app.include_router(project_routes.router)
 
     return _app
 
