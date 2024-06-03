@@ -75,3 +75,6 @@ envsubst
 
 # Chart dependencies
 chart/charts
+
+#Docker
+DockerData/

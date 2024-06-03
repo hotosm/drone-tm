@@ -1,0 +1,23 @@
+# Virtual envs
+venv/
+ENV/
+DockerData/
+
+# Postgresql
+postgres_data
+./postgres_data
+postgres_data/
+
+#redis
+_redis_data
+redis
+
+#Container
+nginx
+sock
+logs
+static
+media
+redis
+_redis_data
+logs
