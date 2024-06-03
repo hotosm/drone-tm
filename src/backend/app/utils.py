@@ -238,3 +238,34 @@ def get_address_from_lat_lon(latitude, longitude):
         return None
 
     return address_str
+
+
+def multipolygon_to_polygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon]):
+    """Converts a GeoJSON FeatureCollection of MultiPolygons to Polygons.
+
+    Args:
+        features : A GeoJSON FeatureCollection containing MultiPolygons/Polygons.
+
+    Returns:
+        geojson.FeatureCollection: A GeoJSON FeatureCollection containing Polygons.
+    """
+    geojson_feature = []
+    features = parse_featcol(features)
+
+    # handles both collection or single feature
+    features = features.get("features", [features])
+
+    for feature in features:
+        properties = feature["properties"]
+        geom = shape(feature["geometry"])
+        if geom.geom_type == "Polygon":
+            geojson_feature.append(
+                geojson.Feature(geometry=geom, properties=properties)
+            )
+        elif geom.geom_type == "MultiPolygon":
+            geojson_feature.extend(
+                geojson.Feature(geometry=polygon_coords, properties=properties)
+                for polygon_coords in geom.geoms
+            )
+
+    return geojson.FeatureCollection(geojson_feature)
