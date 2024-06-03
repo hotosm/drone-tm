@@ -138,6 +138,9 @@ class DbProject(Base):
 
     id = cast(int, Column(Integer, primary_key=True))
     name = cast(str, Column(String))
+    short_description = cast(str, Column(String))
+    description = cast(str, Column(String))
+    per_task_instructions = cast(str, Column(String))
     location_str = cast(str, Column(String))
     created = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
     last_updated = cast(datetime, Column(DateTime, default=timestamp))
