@@ -6,6 +6,9 @@ from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from fastapi import HTTPException
+from app.utils import merge_multipolygon
+from fmtm_splitter.splitter import split_by_square
+from fastapi.concurrency import run_in_threadpool
 
 
 async def create_project_with_project_info(
@@ -67,3 +70,19 @@ async def create_tasks_from_geojson(
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
+
+
+async def preview_split_by_square(boundary: str, meters: int):
+    """Preview split by square for a project boundary.
+
+    Use a lambda function to remove the "z" dimension from each
+    coordinate in the feature's geometry.
+    """
+    boundary = merge_multipolygon(boundary)
+
+    return await run_in_threadpool(
+        lambda: split_by_square(
+            boundary,
+            meters=meters,
+        )
+    )

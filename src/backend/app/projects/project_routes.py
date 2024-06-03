@@ -1,6 +1,8 @@
+import os
 import json
+import geojson
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from loguru import logger as log
 
@@ -65,3 +67,24 @@ async def upload_project_task_boundaries(
     await project_crud.create_tasks_from_geojson(db, project_id, task_boundaries)
 
     return {"message": "Project Boundary Uploaded", "project_id": f"{project_id}"}
+
+
+@router.post("/preview-split-by-square/")
+async def preview_split_by_square(
+    project_geojson: UploadFile = File(...), dimension: int = Form(100)
+):
+    """Preview splitting by square."""
+
+    # Validating for .geojson File.
+    file_name = os.path.splitext(project_geojson.filename)
+    file_ext = file_name[1]
+    allowed_extensions = [".geojson", ".json"]
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+
+    # read entire file
+    content = await project_geojson.read()
+    boundary = geojson.loads(content)
+
+    result = await project_crud.preview_split_by_square(boundary, dimension)
+    return result
