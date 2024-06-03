@@ -64,8 +64,6 @@ def geojson_to_geometry(
     geometry = features[0].get("geometry")
 
     shapely_geom = shape(geometry)
-    print("shapely = ", shapely_geom)
-    print(" from shape = ", from_shape(shapely_geom))
 
     return from_shape(shapely_geom)
 
