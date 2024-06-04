@@ -25,6 +25,7 @@ dependencies = [
     "loguru>=0.7.2",
     "python-multipart>=0.0.9",
     "fmtm-splitter>=1.2.1",
+    "minio>=7.2.7",
 ]
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-only"}
