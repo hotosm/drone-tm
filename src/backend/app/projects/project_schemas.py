@@ -72,3 +72,8 @@ class ProjectOut(BaseModel):
         geometry = wkb.loads(bytes(self.outline.data))
         bbox = geometry.bounds  # Calculate bounding box
         return geometry_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, self.id)
+
+
+class PresignedUrlRequest(BaseModel):
+    image_name: str
+    expiry: int  # Expiry time in seconds

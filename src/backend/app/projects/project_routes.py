@@ -1,6 +1,7 @@
 import os
 import json
 import geojson
+from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
@@ -10,16 +11,19 @@ from app.projects import project_schemas, project_crud
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.utils import multipolygon_to_polygon
+from app.s3 import s3_client
+from app.config import settings
 
 
 router = APIRouter(
     prefix="/projects",
-    tags=["projects"],
     responses={404: {"description": "Not found"}},
 )
 
 
-@router.post("/create_project", response_model=project_schemas.ProjectOut)
+@router.post(
+    "/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut
+)
 async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Session = Depends(database.get_db),
@@ -40,7 +44,7 @@ async def create_project(
     return project
 
 
-@router.post("/{project_id}/upload-task-boundaries")
+@router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])
 async def upload_project_task_boundaries(
     project_id: int,
     task_geojson: UploadFile = File(...),
@@ -69,7 +73,7 @@ async def upload_project_task_boundaries(
     return {"message": "Project Boundary Uploaded", "project_id": f"{project_id}"}
 
 
-@router.post("/preview-split-by-square/")
+@router.post("/preview-split-by-square/", tags=["Projects"])
 async def preview_split_by_square(
     project_geojson: UploadFile = File(...), dimension: int = Form(100)
 ):
@@ -88,3 +92,38 @@ async def preview_split_by_square(
 
     result = await project_crud.preview_split_by_square(boundary, dimension)
     return result
+
+
+@router.post("/generate-presigned-url/", tags=["Image Upload"])
+async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
+    """
+    Generate a pre-signed URL for uploading an image to S3 Bucket.
+
+    This endpoint generates a pre-signed URL that allows users to upload an image to
+    an S3 bucket. The URL expires after a specified duration.
+
+    Args:
+
+        image_name: The name of the image you want to upload
+        expiry : Expiry time in hours
+
+    Returns:
+
+        str: The pre-signed URL to upload the image
+    """
+    try:
+        # Generate a pre-signed URL for an object
+        client = s3_client()
+
+        url = client.presigned_put_object(
+            settings.S3_BUCKET_NAME,
+            f"publicuploads/{data.image_name}",
+            expires=timedelta(hours=data.expiry),
+        )
+
+        return url
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to generate pre-signed URL. {e}",
+        )
