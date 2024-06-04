@@ -27,6 +27,40 @@ services:
     networks:
       - dtm-network
     container_name: db
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
+      start_period: 5s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  minio:
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
+    restart: always
+    command: server /export --console-address 0.0.0.0:9090 --address 0.0.0.0:9000
+    volumes:
+      - ./DockerData/minio_data:/export
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dtm_user}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-somelongpassword}
+      MINIO_CONSOLE_ADDRESS: ":9090"
+      MINIO_ENDPOINT: ${S3_ENDPOINT:-http://s3:9000}
+    ports:
+      - 9000:9000
+      - 9090:9090
+    networks:
+      - dtm-network
+
+  createbuckets:
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
+    entrypoint: >
+      /bin/sh -c " mc config host add minio http://minio:9000 \$S3_ACCESS_KEY \$S3_SECRET_KEY; mc mb minio/\$S3_BUCKET_NAME; mc anonymous set download minio/\$S3_BUCKET_NAME/publicuploads/; exit 0; "
+    env_file:
+      - .env
+    depends_on:
+      - minio
+    networks:
+      - dtm-network
 
 networks:
   dtm-network:
