@@ -104,3 +104,7 @@ class HTTPStatus(IntEnum):
     # Server Error
     INTERNAL_SERVER_ERROR = 500
     NOT_IMPLEMENTED = 501
+
+
+class DroneType(IntEnum):
+    DJI_MINI_4_PRO = 1
