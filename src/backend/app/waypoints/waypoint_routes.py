@@ -105,7 +105,9 @@ async def generate_kmz_file(
                     gimble_angle,
                 )
             )
-        output_file_name = create_xml(placemark_data, finish_action)
+        output_file_name = create_xml(
+            placemark_data, finish_action, generate_each_points
+        )
         return FileResponse(
             output_file_name, media_type="application/zip", filename="output.kmz"
         )

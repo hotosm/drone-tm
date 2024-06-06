@@ -357,7 +357,7 @@ def create_mission_config(finish_action_value):
     return mission_config
 
 
-def create_folder(placemarks):
+def create_folder(placemarks, generate_each_points):
     folder = ET.Element("Folder")
 
     template_id = ET.SubElement(folder, "wpml:templateId")
@@ -379,7 +379,7 @@ def create_folder(placemarks):
     auto_flight_speed.text = "2.5"
 
     for index, placemark_data in enumerate(placemarks):
-        placemark = create_placemark(index, *placemark_data)
+        placemark = create_placemark(index, *placemark_data, generate_each_points)
         folder.append(placemark)
 
     return folder
@@ -397,9 +397,9 @@ def create_kml(mission_config, folder):
     return kml
 
 
-def create_xml(placemarks, finish_action):
+def create_xml(placemarks, finish_action, generate_each_points: bool = False):
     mission_config = create_mission_config(finish_action)
-    folder = create_folder(placemarks)
+    folder = create_folder(placemarks, generate_each_points)
     kml = create_kml(mission_config, folder)
 
     tree = ET.ElementTree(kml)
