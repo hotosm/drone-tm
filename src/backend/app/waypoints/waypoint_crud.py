@@ -386,7 +386,9 @@ def create_xml(placemarks, finish_action):
     return output_file_name
 
 
-async def generate_waypoints_within_polygon(aoi, distance_between_lines):
+async def generate_waypoints_within_polygon(
+    aoi, distance_between_lines, generate_each_points
+):
     # 1 degree = 111 km
     # 1 km = 1/111 degree
     # 1 metre = 1/111000 degree
@@ -413,22 +415,32 @@ async def generate_waypoints_within_polygon(aoi, distance_between_lines):
             x += distance_between_lines
         y += distance_between_lines
 
-        # Add waypoints ensuring at least two points at each end of the line
-        if x_row_waypoints:
+        if generate_each_points:
             if row_count % 2 == 0:
-                waypoints.append(x_row_waypoints[0])
-                if len(x_row_waypoints) > 1:
-                    waypoints.append(x_row_waypoints[1])  # Append second point
-                if len(x_row_waypoints) > 2:
-                    waypoints.append(x_row_waypoints[-2])  # Append second-to-last point
-                    waypoints.append(x_row_waypoints[-1])  # Append last point
+                waypoints.extend(x_row_waypoints)
             else:
-                if len(x_row_waypoints) > 2:
-                    waypoints.append(x_row_waypoints[-1])  # Append last point
-                    waypoints.append(x_row_waypoints[-2])  # Append second-to-last point
-                if len(x_row_waypoints) > 1:
-                    waypoints.append(x_row_waypoints[1])  # Append second point
-                waypoints.append(x_row_waypoints[0])  # Append first point
+                waypoints.extend(reversed(x_row_waypoints))
+        else:
+            # Add waypoints ensuring at least two points at each end of the line
+            if x_row_waypoints:
+                if row_count % 2 == 0:
+                    waypoints.append(x_row_waypoints[0])
+                    if len(x_row_waypoints) > 1:
+                        waypoints.append(x_row_waypoints[1])  # Append second point
+                    if len(x_row_waypoints) > 2:
+                        waypoints.append(
+                            x_row_waypoints[-2]
+                        )  # Append second-to-last point
+                        waypoints.append(x_row_waypoints[-1])  # Append last point
+                else:
+                    if len(x_row_waypoints) > 2:
+                        waypoints.append(x_row_waypoints[-1])  # Append last point
+                        waypoints.append(
+                            x_row_waypoints[-2]
+                        )  # Append second-to-last point
+                    if len(x_row_waypoints) > 1:
+                        waypoints.append(x_row_waypoints[1])  # Append second point
+                    waypoints.append(x_row_waypoints[0])  # Append first point
 
         row_count += 1
         angle = angle * -1
