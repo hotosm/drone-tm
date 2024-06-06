@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import Token
 from app.config import settings
 from app.users import user_crud
+from app.db import database
 
 router = APIRouter(
     prefix="/projects",
@@ -16,13 +17,14 @@ router = APIRouter(
 
 @router.post("/login/access-token")
 def login_access_token(
-    session: Session, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(database.get_db),
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
     user = user_crud.authenticate(
-        session=session, email=form_data.username, password=form_data.password
+        session=db, email=form_data.username, password=form_data.password
     )
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
