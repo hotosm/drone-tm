@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from shapely.geometry import Polygon
 from app.models.enums import DroneType
 from math import radians, sin, cos, sqrt, atan2
+from xml.etree.ElementTree import Element
 
 
 def haversine_distance(coord1, coord2):
@@ -146,6 +147,74 @@ def create_zip_file(waylines_path_uid):
     return output_file_name
 
 
+def take_photo_action(action_group_element: Element, index: str):
+    action = ET.SubElement(action_group_element, "wpml:action")
+    action_id = ET.SubElement(action, "wpml:actionId")
+    action_id.text = str(index)
+    action_actuator_func = ET.SubElement(action, "wpml:actionActuatorFunc")
+    action_actuator_func.text = "takePhoto"
+    action_actuator_func_param = ET.SubElement(action, "wpml:actionActuatorFuncParam")
+    payload_position_index = ET.SubElement(
+        action_actuator_func_param, "wpml:payloadPositionIndex"
+    )
+    payload_position_index.text = "0"
+
+
+def gimble_rotate_action(
+    action_group_element: Element, index: str, gimble_pitch_rotate_angle: str
+):
+    action1 = ET.SubElement(action_group_element, "wpml:action")
+    action1_id = ET.SubElement(action1, "wpml:actionId")
+    action1_id.text = str(index)
+    action1_actuator_func = ET.SubElement(action1, "wpml:actionActuatorFunc")
+    action1_actuator_func.text = "gimbalRotate"
+    action1_actuator_func_param = ET.SubElement(action1, "wpml:actionActuatorFuncParam")
+    gimbal_heading_yaw_base = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalHeadingYawBase"
+    )
+    gimbal_heading_yaw_base.text = "aircraft"
+    gimbal_rotate_mode = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalRotateMode"
+    )
+    gimbal_rotate_mode.text = "absoluteAngle"
+    gimbal_pitch_rotate_enable = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalPitchRotateEnable"
+    )
+    gimbal_pitch_rotate_enable.text = "1"
+    gimbal_pitch_rotate_angle = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalPitchRotateAngle"
+    )
+    gimbal_pitch_rotate_angle.text = str(gimble_pitch_rotate_angle)
+    gimbal_roll_rotate_enable = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalRollRotateEnable"
+    )
+    gimbal_roll_rotate_enable.text = "0"
+    gimbal_roll_rotate_angle = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalRollRotateAngle"
+    )
+    gimbal_roll_rotate_angle.text = "0"
+    gimbal_yaw_rotate_enable = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalYawRotateEnable"
+    )
+    gimbal_yaw_rotate_enable.text = "0"
+    gimbal_yaw_rotate_angle = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalYawRotateAngle"
+    )
+    gimbal_yaw_rotate_angle.text = "0"
+    gimbal_rotate_time_enable = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalRotateTimeEnable"
+    )
+    gimbal_rotate_time_enable.text = "0"
+    gimbal_rotate_time = ET.SubElement(
+        action1_actuator_func_param, "wpml:gimbalRotateTime"
+    )
+    gimbal_rotate_time.text = "0"
+    payload_position_index = ET.SubElement(
+        action1_actuator_func_param, "wpml:payloadPositionIndex"
+    )
+    payload_position_index.text = "0"
+
+
 def create_placemark(
     index,
     coordinates,
@@ -153,6 +222,7 @@ def create_placemark(
     waypoint_speed,
     waypoint_heading_angle,
     gimble_angle,
+    take_photo: bool = False,
 ):
     placemark = ET.Element("Placemark")
 
@@ -218,56 +288,13 @@ def create_placemark(
         action_group1_trigger, "wpml:actionTriggerType"
     )
     action_group1_trigger_type.text = "reachPoint"
-    action1 = ET.SubElement(action_group1, "wpml:action")
-    action1_id = ET.SubElement(action1, "wpml:actionId")
-    action1_id.text = "1"
-    action1_actuator_func = ET.SubElement(action1, "wpml:actionActuatorFunc")
-    action1_actuator_func.text = "gimbalRotate"
-    action1_actuator_func_param = ET.SubElement(action1, "wpml:actionActuatorFuncParam")
-    gimbal_heading_yaw_base = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalHeadingYawBase"
-    )
-    gimbal_heading_yaw_base.text = "aircraft"
-    gimbal_rotate_mode = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRotateMode"
-    )
-    gimbal_rotate_mode.text = "absoluteAngle"
-    gimbal_pitch_rotate_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalPitchRotateEnable"
-    )
-    gimbal_pitch_rotate_enable.text = "1"
-    gimbal_pitch_rotate_angle = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalPitchRotateAngle"
-    )
-    gimbal_pitch_rotate_angle.text = "-90"
-    gimbal_roll_rotate_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRollRotateEnable"
-    )
-    gimbal_roll_rotate_enable.text = "0"
-    gimbal_roll_rotate_angle = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRollRotateAngle"
-    )
-    gimbal_roll_rotate_angle.text = "0"
-    gimbal_yaw_rotate_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalYawRotateEnable"
-    )
-    gimbal_yaw_rotate_enable.text = "0"
-    gimbal_yaw_rotate_angle = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalYawRotateAngle"
-    )
-    gimbal_yaw_rotate_angle.text = "0"
-    gimbal_rotate_time_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRotateTimeEnable"
-    )
-    gimbal_rotate_time_enable.text = "0"
-    gimbal_rotate_time = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRotateTime"
-    )
-    gimbal_rotate_time.text = "0"
-    payload_position_index = ET.SubElement(
-        action1_actuator_func_param, "wpml:payloadPositionIndex"
-    )
-    payload_position_index.text = "0"
+
+    if take_photo:
+        # Take photo action
+        take_photo_action(action_group1, "1")
+    else:
+        # Gimble rotate action
+        gimble_rotate_action(action_group1, "1", "-90")
 
     action_group2 = ET.SubElement(placemark, "wpml:actionGroup")
     action_group2_id = ET.SubElement(action_group2, "wpml:actionGroupId")
