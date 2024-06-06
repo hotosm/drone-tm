@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.projects import project_routes
+from app.waypoints import waypoint_routes
+
 from loguru import logger as log
 
 
@@ -75,6 +77,7 @@ def get_application() -> FastAPI:
     )
 
     _app.include_router(project_routes.router)
+    _app.include_router(waypoint_routes.router)
 
     return _app
 
