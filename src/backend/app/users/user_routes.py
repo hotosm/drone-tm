@@ -46,16 +46,17 @@ def register_user(
     Create new user without the need to be logged in.
     """
     user = user_crud.get_user_by_email(db, user_in.email_address)
-    user = user_crud.get_user_by_username(db, user_in.username)
-
-    print("user = ", user)
-
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this email already exists in the system",
         )
-    # user_create = UserCreate.model_validate(user_in)
-    print("user in = ", user_in)
+    user = user_crud.get_user_by_username(db, user_in.username)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="The user with this username already exists in the system",
+        )
+
     user = user_crud.create_user(db, user_in)
     return user
