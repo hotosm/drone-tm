@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
-from app.users.user_schemas import Token
+from app.users.user_schemas import Token, UserPublic, UserRegister
 from app.config import settings
 from app.users import user_crud
 from app.db import database
@@ -35,3 +35,27 @@ def login_access_token(
             user.id, expires_delta=access_token_expires
         )
     )
+
+
+@router.post("/signup", response_model=UserPublic)
+def register_user(
+    user_in: UserRegister,
+    db: Session = Depends(database.get_db),
+):
+    """
+    Create new user without the need to be logged in.
+    """
+    user = user_crud.get_user_by_email(db, user_in.email_address)
+    user = user_crud.get_user_by_username(db, user_in.username)
+
+    print("user = ", user)
+
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="The user with this email already exists in the system",
+        )
+    # user_create = UserCreate.model_validate(user_in)
+    print("user in = ", user_in)
+    user = user_crud.create_user(db, user_in)
+    return user
