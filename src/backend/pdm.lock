@@ -601,7 +601,7 @@ summary = "A small Python utility to set file creation time on Windows"
 lock_version = "4.2"
 cross_platform = true
 groups = ["default"]
-content_hash = "sha256:df5c5758e5b6d8b73212b4b578808095a345b6f83006068bf7c97f37d5619c52"
+content_hash = "sha256:da24a3eda93376faa34eb28a1afb27224ea220c7857564ba11e3d1fdd9d8b0a2"
 
 [metadata.files]
 "annotated-types 0.7.0" = [
