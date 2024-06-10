@@ -57,8 +57,8 @@ summary = "Specifications for callback functions passed in to an API"
 
 [[package]]
 name = "bcrypt"
-version = "4.1.3"
-requires_python = ">=3.7"
+version = "4.0.1"
+requires_python = ">=3.6"
 summary = "Modern password hashing for your software and your servers"
 
 [[package]]
@@ -617,7 +617,7 @@ summary = "A small Python utility to set file creation time on Windows"
 lock_version = "4.2"
 cross_platform = true
 groups = ["default"]
-content_hash = "sha256:d08689bbc29d16bd5dd55503de7a0022987f3089e6fb5121ed336dad880e5836"
+content_hash = "sha256:f90880fe374522a5ab8d4c9b6467424643ebebf7c85229337d271684097db279"
 
 [metadata.files]
 "annotated-types 0.7.0" = [
@@ -667,34 +667,28 @@ content_hash = "sha256:d08689bbc29d16bd5dd55503de7a0022987f3089e6fb5121ed336dad8
     {url = "https://files.pythonhosted.org/packages/4c/1c/ff6546b6c12603d8dd1070aa3c3d273ad4c07f5771689a7b69a550e8c951/backcall-0.2.0-py2.py3-none-any.whl", hash = "sha256:fbbce6a29f263178a1f7915c1940bde0ec2b2a967566fe1c65c1dfb7422bd255"},
     {url = "https://files.pythonhosted.org/packages/a2/40/764a663805d84deee23043e1426a9175567db89c8b3287b5c2ad9f71aa93/backcall-0.2.0.tar.gz", hash = "sha256:5cbdbf27be5e7cfadb448baf0aa95508f91f2bbc6c6437cd9cd06e2a4c215e1e"},
 ]
-"bcrypt 4.1.3" = [
-    {url = "https://files.pythonhosted.org/packages/0f/e8/183ead5dd8124e463d0946dfaf86c658225adde036aede8384d21d1794d0/bcrypt-4.1.3-cp37-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:8cbb119267068c2581ae38790e0d1fbae65d0725247a930fc9900c285d95725d"},
-    {url = "https://files.pythonhosted.org/packages/12/d4/13b86b1bb2969a804c2347d0ad72fc3d3d9f5cf0d876c84451c6480e19bc/bcrypt-4.1.3-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ec3c2e1ca3e5c4b9edb94290b356d082b721f3f50758bce7cce11d8a7c89ce84"},
-    {url = "https://files.pythonhosted.org/packages/20/02/c23ca3cf171798af16361576ef43bfc3192e3c3a679bc557e046b02c7188/bcrypt-4.1.3-pp310-pypy310_pp73-manylinux_2_28_aarch64.whl", hash = "sha256:cb9c707c10bddaf9e5ba7cdb769f3e889e60b7d4fea22834b261f51ca2b89fed"},
-    {url = "https://files.pythonhosted.org/packages/23/85/283450ee672719e216a5e1b0e80cb0c8f225bc0814cbb893155ee4fdbb9e/bcrypt-4.1.3-cp39-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:551b320396e1d05e49cc18dd77d970accd52b322441628aca04801bbd1d52a73"},
-    {url = "https://files.pythonhosted.org/packages/29/3c/6e478265f68eff764571676c0773086d15378fdf5347ddf53e5025c8b956/bcrypt-4.1.3-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:3a5be252fef513363fe281bafc596c31b552cf81d04c5085bc5dac29670faa08"},
-    {url = "https://files.pythonhosted.org/packages/2c/fd/0d2d7cc6fc816010f6c6273b778e2f147e2eca1144975b6b71e344b26ca0/bcrypt-4.1.3-cp39-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:31adb9cbb8737a581a843e13df22ffb7c84638342de3708a98d5c986770f2834"},
-    {url = "https://files.pythonhosted.org/packages/2d/5e/edcb4ec57b056ca9d5f9fde31fcda10cc635def48867edff5cc09a348a4f/bcrypt-4.1.3-cp37-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:6cac78a8d42f9d120b3987f82252bdbeb7e6e900a5e1ba37f6be6fe4e3848286"},
-    {url = "https://files.pythonhosted.org/packages/2f/f6/9c0a6de7ef78d573e10d0b7de3ef82454e2e6eb6fada453ea6c2b8fb3f0a/bcrypt-4.1.3-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3d3b317050a9a711a5c7214bf04e28333cf528e0ed0ec9a4e55ba628d0f07c1a"},
-    {url = "https://files.pythonhosted.org/packages/37/43/14dcb5f503e5cd02ebac4404278c8decaaa3b08a1e4db23d60db48666745/bcrypt-4.1.3-pp39-pypy39_pp73-manylinux_2_28_aarch64.whl", hash = "sha256:f44a97780677e7ac0ca393bd7982b19dbbd8d7228c1afe10b128fd9550eef5f1"},
-    {url = "https://files.pythonhosted.org/packages/3b/5d/121130cc85009070fe4e4f5937b213a00db143147bc6c8677b3fd03deec8/bcrypt-4.1.3-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:01746eb2c4299dd0ae1670234bf77704f581dd72cc180f444bfe74eb80495b64"},
-    {url = "https://files.pythonhosted.org/packages/4c/6a/ce950d4350c734bc5d9b7196a58fedbdc94f564c00b495a1222984431e03/bcrypt-4.1.3-cp37-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:4fb253d65da30d9269e0a6f4b0de32bd657a0208a6f4e43d3e645774fb5457f3"},
-    {url = "https://files.pythonhosted.org/packages/5b/ac/bcb7d3ac8a1107b103f4a95c5be088b984d8045d4150294459a657870bd9/bcrypt-4.1.3-cp37-abi3-win32.whl", hash = "sha256:037c5bf7c196a63dcce75545c8874610c600809d5d82c305dd327cd4969995bf"},
-    {url = "https://files.pythonhosted.org/packages/63/56/45312e49c195cd30e1bf4b7f0e039e8b3c46802cd55485947ddcb96caa27/bcrypt-4.1.3-cp37-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:094fd31e08c2b102a14880ee5b3d09913ecf334cd604af27e1013c76831f7b05"},
-    {url = "https://files.pythonhosted.org/packages/67/32/6b7ea165d67175a72147f6089e9c5e46f034aab3f48cc4299be1eb3fbf2b/bcrypt-4.1.3-pp39-pypy39_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:d84702adb8f2798d813b17d8187d27076cca3cd52fe3686bb07a9083930ce650"},
-    {url = "https://files.pythonhosted.org/packages/69/57/3856b1728018f5ce85bb678a76e939cb154a2e1f9c5aa69b83ec5652b111/bcrypt-4.1.3-cp37-abi3-win_amd64.whl", hash = "sha256:8a893d192dfb7c8e883c4576813bf18bb9d59e2cfd88b68b725990f033f1b978"},
-    {url = "https://files.pythonhosted.org/packages/75/35/036d69e46c60394f2ffb474c9a4b3783e84395bf4ad55176771f603069ca/bcrypt-4.1.3-cp39-abi3-win32.whl", hash = "sha256:6004f5229b50f8493c49232b8e75726b568535fd300e5039e255d919fc3a07f2"},
-    {url = "https://files.pythonhosted.org/packages/7c/8d/ad2efe0ec57ed3c25e588c4543d946a1c72f8ee357a121c0e382d8aaa93f/bcrypt-4.1.3-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4a8bea4c152b91fd8319fef4c6a790da5c07840421c2b785084989bf8bbb7455"},
-    {url = "https://files.pythonhosted.org/packages/97/00/21e34b365b895e6faf9cc5d4e7b97dd419e08f8a7df119792ec206b4a3fa/bcrypt-4.1.3-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:5f7cd3399fbc4ec290378b541b0cf3d4398e4737a65d0f938c7c0f9d5e686611"},
-    {url = "https://files.pythonhosted.org/packages/9c/64/a016d23b6f513282d8b7f9dd91342929a2e970b2e2c2576d9b76f8f2ee5a/bcrypt-4.1.3-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:6717543d2c110a155e6821ce5670c1f512f602eabb77dba95717ca76af79867d"},
-    {url = "https://files.pythonhosted.org/packages/a4/9a/4aa31d1de9369737cfa734a60c3d125ecbd1b3ae2c6499986d0ac160ea8b/bcrypt-4.1.3-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f5698ce5292a4e4b9e5861f7e53b1d89242ad39d54c3da451a93cac17b61921a"},
-    {url = "https://files.pythonhosted.org/packages/a8/eb/fbea8d2b370a4cc7f5f0aff9f492177a5813e130edeab9dd388ddd3ef1dc/bcrypt-4.1.3-cp39-abi3-macosx_10_12_universal2.whl", hash = "sha256:0d4cf6ef1525f79255ef048b3489602868c47aea61f375377f0d00514fe4a78c"},
-    {url = "https://files.pythonhosted.org/packages/af/a1/36aa84027ef45558b30a485bc5b0606d5e7357b27b10cc49dce3944f4d1d/bcrypt-4.1.3-cp37-abi3-musllinux_1_1_aarch64.whl", hash = "sha256:193bb49eeeb9c1e2db9ba65d09dc6384edd5608d9d672b4125e9320af9153a15"},
-    {url = "https://files.pythonhosted.org/packages/b1/46/fada28872f3f3e121868f4cd2d61dcdc7085a07821debf1320cafeabc0db/bcrypt-4.1.3-cp39-abi3-win_amd64.whl", hash = "sha256:2505b54afb074627111b5a8dc9b6ae69d0f01fea65c2fcaea403448c503d3991"},
-    {url = "https://files.pythonhosted.org/packages/ca/e9/0b36987abbcd8c9210c7b86673d88ff0a481b4610630710fb80ba5661356/bcrypt-4.1.3.tar.gz", hash = "sha256:2ee15dd749f5952fe3f0430d0ff6b74082e159c50332a1413d51b5689cf06623"},
-    {url = "https://files.pythonhosted.org/packages/e0/c9/069b0c3683ce969b328b7b3e3218f9d5981d0629f6091b3b1dfa72928f75/bcrypt-4.1.3-cp39-abi3-musllinux_1_1_aarch64.whl", hash = "sha256:c4c8d9b3e97209dd7111bf726e79f638ad9224b4691d1c7cfefa571a09b1b2d6"},
-    {url = "https://files.pythonhosted.org/packages/f6/79/5dd98e9f67701be98d52f7ee181aa3b078d45eab62ed5f9aa987676d049c/bcrypt-4.1.3-pp310-pypy310_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:9f8ea645eb94fb6e7bea0cf4ba121c07a3a182ac52876493870033141aa687bc"},
-    {url = "https://files.pythonhosted.org/packages/fe/4e/e424a74f0749998d8465c162c5cb9d9f210a5b60444f4120eff0af3fa800/bcrypt-4.1.3-cp37-abi3-macosx_10_12_universal2.whl", hash = "sha256:48429c83292b57bf4af6ab75809f8f4daf52aa5d480632e53707805cc1ce9b74"},
+"bcrypt 4.0.1" = [
+    {url = "https://files.pythonhosted.org/packages/13/68/f3184c1f15581ebd936125b4da04cba0995f97ecd5ee8f4262c8ebba2646/bcrypt-4.0.1-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:705b2cea8a9ed3d55b4491887ceadb0106acf7c6387699fca771af56b1cdeeda"},
+    {url = "https://files.pythonhosted.org/packages/28/ed/3c443bfbfdb37cd7c0d055b961311f49049ab4a00f45ba3bfd10d33a9443/bcrypt-4.0.1-pp37-pypy37_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:b3b85202d95dd568efcb35b53936c5e3b3600c7cdcc6115ba461df3a8e89f38d"},
+    {url = "https://files.pythonhosted.org/packages/2c/be/376341b47e1e3fc424c9df1af60b5aedbd5ab04f73ccdf4107e42d92ef09/bcrypt-4.0.1-pp38-pypy38_pp73-manylinux_2_24_x86_64.whl", hash = "sha256:5ad4d32a28b80c5fa6671ccfb43676e8c1cc232887759d1cd7b6f56ea4355215"},
+    {url = "https://files.pythonhosted.org/packages/41/16/49ff5146fb815742ad58cafb5034907aa7f166b1344d0ddd7fd1c818bd17/bcrypt-4.0.1-cp36-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0eaa47d4661c326bfc9d08d16debbc4edf78778e6aaba29c1bc7ce67214d4410"},
+    {url = "https://files.pythonhosted.org/packages/41/86/05248719aa42a4fe1ca379d45794198700e992b91d389bfaa69533fc3331/bcrypt-4.0.1-pp38-pypy38_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:b57adba8a1444faf784394de3436233728a1ecaeb6e07e8c22c8848f179b893c"},
+    {url = "https://files.pythonhosted.org/packages/46/81/d8c22cd7e5e1c6a7d48e41a1d1d46c92f17dae70a54d9814f746e6027dec/bcrypt-4.0.1-cp36-abi3-win_amd64.whl", hash = "sha256:8a68f4341daf7522fe8d73874de8906f3a339048ba406be6ddc1b3ccb16fc0d9"},
+    {url = "https://files.pythonhosted.org/packages/5e/01/098b798dc6c6984f2d5026269e80d7cad22d6ecacd5989bdf35a9c99a03d/bcrypt-4.0.1-pp39-pypy39_pp73-manylinux_2_24_x86_64.whl", hash = "sha256:2b3ac11cf45161628f1f3733263e63194f22664bf4d0c0f3ab34099c02134665"},
+    {url = "https://files.pythonhosted.org/packages/64/fe/da28a5916128d541da0993328dc5cf4b43dfbf6655f2c7a2abe26ca2dc88/bcrypt-4.0.1-cp36-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ca3204d00d3cb2dfed07f2d74a25f12fc12f73e606fcaa6975d1f7ae69cacbb2"},
+    {url = "https://files.pythonhosted.org/packages/77/2c/53c17079898584306eafdc937e0c7cc1bf8e2fe17e9909716ef3f9d6555d/bcrypt-4.0.1-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cbb03eec97496166b704ed663a53680ab57c5084b2fc98ef23291987b525cb7d"},
+    {url = "https://files.pythonhosted.org/packages/78/d4/3b2657bd58ef02b23a07729b0df26f21af97169dbd0b5797afa9e97ebb49/bcrypt-4.0.1-cp36-abi3-macosx_10_10_universal2.whl", hash = "sha256:b1023030aec778185a6c16cf70f359cbb6e0c289fd564a7cfa29e727a1c38f8f"},
+    {url = "https://files.pythonhosted.org/packages/7d/50/e683d8418974a602ba40899c8a5c38b3decaf5a4d36c32fc65dce454d8a8/bcrypt-4.0.1-cp36-abi3-manylinux_2_24_x86_64.whl", hash = "sha256:a522427293d77e1c29e303fc282e2d71864579527a04ddcfda6d4f8396c6c36a"},
+    {url = "https://files.pythonhosted.org/packages/87/69/edacb37481d360d06fc947dab5734aaf511acb7d1a1f9e2849454376c0f8/bcrypt-4.0.1-cp36-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:e9a51bbfe7e9802b5f3508687758b564069ba937748ad7b9e890086290d2f79e"},
+    {url = "https://files.pythonhosted.org/packages/8c/ae/3af7d006aacf513975fd1948a6b4d6f8b4a307f8a244e1a3d3774b297aad/bcrypt-4.0.1.tar.gz", hash = "sha256:27d375903ac8261cfe4047f6709d16f7d18d39b1ec92aaf72af989552a650ebd"},
+    {url = "https://files.pythonhosted.org/packages/99/a5/ff4aaf2adbefb2c9808d49cec37f65e0572c4ce856b13b194fd87a6cbd14/bcrypt-4.0.1-pp37-pypy37_pp73-manylinux_2_24_x86_64.whl", hash = "sha256:67a97e1c405b24f19d08890e7ae0c4f7ce1e56a712a016746c8b2d7732d65d4b"},
+    {url = "https://files.pythonhosted.org/packages/aa/48/fd2b197a9741fa790ba0b88a9b10b5e88e62ff5cf3e1bc96d8354d7ce613/bcrypt-4.0.1-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ae88eca3024bb34bb3430f964beab71226e761f51b912de5133470b649d82344"},
+    {url = "https://files.pythonhosted.org/packages/aa/ca/6a534669890725cbb8c1fb4622019be31813c8edaa7b6d5b62fc9360a17e/bcrypt-4.0.1-cp36-abi3-win32.whl", hash = "sha256:2caffdae059e06ac23fce178d31b4a702f2a3264c20bfb5ff541b338194d8fab"},
+    {url = "https://files.pythonhosted.org/packages/d8/f6/43ade4d37a3319baee9aec53f636411e70c18f0e4add9cc44a18f517af5f/bcrypt-4.0.1-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bf4fa8b2ca74381bb5442c089350f09a3f17797829d958fad058d6e44d9eb83c"},
+    {url = "https://files.pythonhosted.org/packages/dd/4f/3632a69ce344c1551f7c9803196b191a8181c6a1ad2362c225581ef0d383/bcrypt-4.0.1-cp36-abi3-musllinux_1_1_aarch64.whl", hash = "sha256:089098effa1bc35dc055366740a067a2fc76987e8ec75349eb9484061c54f535"},
+    {url = "https://files.pythonhosted.org/packages/ec/0a/1582790232fef6c2aa201f345577306b8bfe465c2c665dec04c86a016879/bcrypt-4.0.1-cp36-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_24_aarch64.whl", hash = "sha256:08d2947c490093a11416df18043c27abe3921558d2c03e2076ccb28a116cb6d0"},
+    {url = "https://files.pythonhosted.org/packages/fb/4b/e255df2000c2de4df524740b5f1d0a31157a1f7715b3eaf2e8f9c5c0acbb/bcrypt-4.0.1-pp39-pypy39_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:3100851841186c25f127731b9fa11909ab7b1df6fc4b9f8353f4f1fd952fbf71"},
+    {url = "https://files.pythonhosted.org/packages/fb/a7/ee4561fd9b78ca23c8e5591c150cc58626a5dfb169345ab18e1c2c664ee0/bcrypt-4.0.1-cp36-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:fbdaec13c5105f0c4e5c52614d04f0bca5f5af007910daa8b6b12095edaa67b3"},
 ]
 "certifi 2024.2.2" = [
     {url = "https://files.pythonhosted.org/packages/71/da/e94e26401b62acd6d91df2b52954aceb7f561743aa5ccc32152886c76c96/certifi-2024.2.2.tar.gz", hash = "sha256:0569859f95fc761b18b45ef421b1290a0f65f147e92a1e5eb3e635f9a5e4e66f"},
