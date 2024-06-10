@@ -1,3 +1,4 @@
+import secrets
 from functools import lru_cache
 from pydantic import BeforeValidator, TypeAdapter, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
@@ -47,6 +48,7 @@ class Settings(BaseSettings):
             return default_origins
 
     API_PREFIX: str = "/"
+    SECRET_KEY: str = secrets.token_urlsafe(32)
 
     POSTGRES_HOST: Optional[str] = "dtm-db"
     POSTGRES_USER: Optional[str] = "dtm"
