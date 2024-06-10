@@ -54,8 +54,8 @@ def get_user_by_username(db: Session, username: str):
 #     return db.query(db_models.DbUser).filter(db_models.DbUser.username==username).first()
 
 
-def authenticate(db: Session, email: str, password: str) -> db_models.DbUser | None:
-    db_user = get_user_by_username(db, email)
+def authenticate(db: Session, username: str, password: str) -> db_models.DbUser | None:
+    db_user = get_user_by_username(db, username)
     if not db_user:
         return None
     if not verify_password(password, db_user.password):
@@ -65,6 +65,7 @@ def authenticate(db: Session, email: str, password: str) -> db_models.DbUser | N
 
 def create_user(db: Session, user_create: UserCreate):
     db_obj = db_models.DbUser(
+        is_active=True,  # FIXME: set to false by default, activate through email
         password=get_password_hash(user_create.password),
         **user_create.model_dump(exclude=["password"]),
     )

@@ -5,15 +5,15 @@ from pydantic.functional_validators import field_validator
 class UserBase(BaseModel):
     username: str
     email_address: EmailStr
-    is_active: bool = False
+    is_active: bool = True
     is_superuser: bool = False
     name: str
 
 
 class User(BaseModel):
     email_address: EmailStr
-    is_active: bool = True
-    is_superuser: bool = False
+    is_active: bool
+    is_superuser: bool
     name: str
 
 
