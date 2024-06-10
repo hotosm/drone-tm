@@ -26,9 +26,19 @@ dependencies = [
     "python-multipart>=0.0.9",
     "fmtm-splitter>=1.2.1",
     "minio>=7.2.7",
+    "pyjwt>=2.8.0",
+    "passlib[bcrypt]==1.7.4",
+    "bcrypt==4.0.1",
+    "email-validator>=2.1.1",
 ]
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-only"}
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.5.0",
+    "black>=23.11.0",
+]
 
 [build-system]
 requires = ["pdm-backend"]

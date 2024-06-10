@@ -1,3 +1,4 @@
+import secrets
 from functools import lru_cache
 from pydantic import BeforeValidator, TypeAdapter, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
@@ -47,6 +48,7 @@ class Settings(BaseSettings):
             return default_origins
 
     API_PREFIX: str = "/"
+    SECRET_KEY: str = secrets.token_urlsafe(32)
 
     POSTGRES_HOST: Optional[str] = "dtm-db"
     POSTGRES_USER: Optional[str] = "dtm"
@@ -75,6 +77,8 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: Optional[str] = ""
     S3_BUCKET_NAME: str = "dtm-data"
     S3_DOWNLOAD_ROOT: Optional[str] = None
+
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
 
 
 @lru_cache

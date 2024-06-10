@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     DateTime,
     SmallInteger,
+    Boolean,
     Enum,
     Index,
     desc,
@@ -36,12 +37,15 @@ class DbUser(Base):
     __tablename__ = "users"
 
     id = cast(int, Column(BigInteger, primary_key=True))
-    username = cast(str, Column(String, unique=True))
-    profile_img = cast(str, Column(String))
+    username = cast(str, Column(String, nullable=False, unique=True))
+    password = cast(str, Column(String))
+    is_active = cast(bool, Column(Boolean, default=False))
+    is_superuser = cast(bool, Column(Boolean, default=False))
+    profile_img = cast(str, Column(String, nullable=True))
     name = cast(str, Column(String))
     city = cast(str, Column(String))
     country = cast(str, Column(String))
-    email_address = cast(str, Column(String))
+    email_address = cast(str, Column(String, nullable=False, unique=True))
 
 
 class DbOrganisation(Base):
