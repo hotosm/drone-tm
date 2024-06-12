@@ -10,7 +10,7 @@ from app.db import database
 
 
 router = APIRouter(
-    prefix="/projects",
+    prefix="/users",
     tags=["users"],
     responses={404: {"description": "Not found"}},
 )
