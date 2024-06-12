@@ -35,6 +35,9 @@ RUN pdm install --check --prod --no-editable
 # Run stage (final stage)
 FROM python:$PYTHON_BASE
 
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODES 1
+
 RUN set -ex \
 && apt-get update \
 && DEBIAN_FRONTEND=noninteractive apt-get install \
@@ -65,4 +68,4 @@ COPY src /project/src
 
 # Set the entrypoint for the container
 ENTRYPOINT ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
-    "--workers", "4", "--log-level", "critical", "--no-access-log", "--reload"]
+    "--workers", "4", "--log-level", "info", "--reload"]
