@@ -35,6 +35,10 @@ def get_logger():
         if logger_name == "urllib3":
             # Don't hook urllib3, called on each OTEL trace
             continue
+
+        if logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"]:
+            logging.getLogger(logger_name).addHandler(InterceptHandler())
+
         if "." not in logger_name:
             logging.getLogger(logger_name).addHandler(InterceptHandler())
 
@@ -67,6 +71,8 @@ def get_application() -> FastAPI:
 
     # Set custom logger
     _app.logger = get_logger()
+
+    print("cors = ", settings.EXTRA_CORS_ORIGINS)
 
     _app.add_middleware(
         CORSMiddleware,
