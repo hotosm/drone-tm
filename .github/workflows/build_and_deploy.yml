@@ -6,6 +6,10 @@ on:
       - feat-ci
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_REGION: ap-south-1
   ECR_REGISTRY: 685797548389.dkr.ecr.ap-south-1.amazonaws.com
