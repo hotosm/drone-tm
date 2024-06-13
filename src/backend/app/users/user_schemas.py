@@ -17,8 +17,14 @@ class User(BaseModel):
     name: str
 
 
+# Contents of JWT token
+class TokenPayload(BaseModel):
+    sub: int | None = None
+
+
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
 
 

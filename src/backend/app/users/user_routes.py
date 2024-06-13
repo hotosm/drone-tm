@@ -31,11 +31,14 @@ def login_access_token(
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return Token(
-        access_token=user_crud.create_access_token(
-            user.id, expires_delta=access_token_expires
-        )
+    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+
+    access_token, refresh_token = user_crud.create_access_token(
+        user.id,
+        expires_delta=access_token_expires,
+        refresh_token_expiry=refresh_token_expires,
     )
+    return Token(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/signup", response_model=UserPublic)
