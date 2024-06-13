@@ -11,15 +11,26 @@ from sqlalchemy import text
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
 ALGORITHM = "HS256"
 
 
-def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
+def create_access_token(
+    subject: str | Any, expires_delta: timedelta, refresh_token_expiry: timedelta
+):
     expire = datetime.utcnow() + expires_delta
-    to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    refresh_expire = datetime.utcnow() + refresh_token_expiry
+
+    to_encode_access_token = {"exp": expire, "sub": str(subject)}
+    to_encode_refresh_token = {"exp": refresh_expire, "sub": str(subject)}
+
+    access_token = jwt.encode(
+        to_encode_access_token, settings.SECRET_KEY, algorithm=ALGORITHM
+    )
+    refresh_token = jwt.encode(
+        to_encode_refresh_token, settings.SECRET_KEY, algorithm=ALGORITHM
+    )
+
+    return access_token, refresh_token
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
