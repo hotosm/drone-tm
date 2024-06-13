@@ -17,7 +17,7 @@ config = context.config
 # This line sets up loggers basically.
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.FMTM_DB_URL)
+config.set_main_option("sqlalchemy.url", settings.DTM_DB_URL.unicode_string())
 
 
 if config.config_file_name is not None:
