@@ -1,4 +1,4 @@
-name: NAXA Boilerplate CICD
+name: Build and Deploy Drone Tasking Manager
 
 on:
   push:
@@ -32,6 +32,7 @@ jobs:
         with:
           audience: sts.amazonaws.com
           aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GH-Actions-${{ github.run_id }}-${{ github.run_attempt }}
           role-to-assume: arn:aws:iam::685797548389:role/GithubActionsS3Administrator
 
       - name: Login to Amazon ECR
@@ -79,6 +80,8 @@ jobs:
           force-new-deployment: true
           spec: |
             {
-              "taskDefinition": ${{ steps.get-web-app-task-definition.outputs.TASK_DEFINITION_ARN }}
+              "taskDefinition": ${{ steps.get-web-app-task-definition.outputs.TASK_DEFINITION_ARN }},
+              "cluster": "dtm-ecs-cluster",
+              "serviceName": "dtm"
             }
           wait-until-deployment-complete: true
