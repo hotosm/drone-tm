@@ -3,7 +3,7 @@ name: Build and Deploy Drone Tasking Manager
 on:
   push:
     branches:
-      - feat-ci
+      - main
   workflow_dispatch:
 
 permissions:
@@ -42,8 +42,8 @@ jobs:
       - name: Build and Push Docker Image
         id: build-image
         run: |
-          docker build -f ./src/backend/Dockerfile -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
-          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          docker build -f ./src/backend/Dockerfile -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.ref_name }} .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.ref_name }}
 
       - name: Image Digest
         run: echo ImageDigest:${{ steps.build-image.outputs.imageDigest }}
