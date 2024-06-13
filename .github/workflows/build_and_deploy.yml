@@ -1,0 +1,79 @@
+name: NAXA Boilerplate CICD
+
+on:
+  push:
+    branches:
+      - feat-ci
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: 685797548389.dkr.ecr.ap-south-1.amazonaws.com
+  ECR_REPOSITORY: dtmweb
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::685797548389:role/GithubActionsS3Administrator
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push Docker Image
+        id: build-image
+        run: |
+          docker build -f ./src/backend/Dockerfile -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Image Digest
+        run: echo ImageDigest:${{ steps.build-image.outputs.imageDigest }}
+
+  deploy_to_ecs:
+    name: Deploy to ECS
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::685797548389:role/GithubActionsS3Administrator
+
+      - name: Get Web App task definition
+        id: get-web-app-task-definition
+        shell: bash
+        run: |
+          TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition fastapi-tdf --region ap-south-1 --query 'taskDefinition.taskDefinitionArn')
+          echo "TASK_DEFINITION_ARN=${TASK_DEFINITION_ARN}" >> $GITHUB_OUTPUT
+
+      - name: ECS Service
+        uses: scribd/amazon-ecs-service-action@v1
+        with:
+          force-new-deployment: true
+          spec: |
+            {
+              "taskDefinition": "${{ steps.get-web-app-task-definition.outputs.TASK_DEFINITION_ARN }}"
+            }
+          wait-until-deployment-complete: true
