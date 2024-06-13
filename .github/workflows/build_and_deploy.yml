@@ -33,7 +33,7 @@ jobs:
           audience: sts.amazonaws.com
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: GH-Actions-${{ github.run_id }}-${{ github.run_attempt }}
-          role-to-assume: arn:aws:iam::685797548389:role/GithubActionsS3Administrator
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -65,13 +65,13 @@ jobs:
           audience: sts.amazonaws.com
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: GH-Actions-${{ github.run_id }}-${{ github.run_attempt }}
-          role-to-assume: arn:aws:iam::685797548389:role/GithubActionsS3Administrator
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
 
       - name: Get Web App task definition
         id: get-web-app-task-definition
         shell: bash
         run: |
-          TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition fastapi-tdf --region ap-south-1 --query 'taskDefinition.taskDefinitionArn')
+          TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition fastapi-tdf --region ${{ env.AWS_REGION }} --query 'taskDefinition.taskDefinitionArn')
           echo "TASK_DEFINITION_ARN=${TASK_DEFINITION_ARN}" >> $GITHUB_OUTPUT
 
       - name: ECS Service
@@ -81,7 +81,7 @@ jobs:
           spec: |
             {
               "taskDefinition": ${{ steps.get-web-app-task-definition.outputs.TASK_DEFINITION_ARN }},
-              "cluster": "dtm-ecs-cluster",
-              "serviceName": "dtm"
+              "cluster": "${{ secrets.ECS_CLUSTER_NAME }}",
+              "serviceName": "${{ secrets.ECS_SERVICE_NAME }}"
             }
           wait-until-deployment-complete: true
