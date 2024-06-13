@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.projects import project_routes
 from app.waypoints import waypoint_routes
+from fastapi.responses import RedirectResponse
 
 from app.users import user_routes
 from loguru import logger as log
@@ -94,5 +95,6 @@ api = get_application()
 
 
 @api.get("/")
-def read_root():
-    return {"Hello": "World"}
+async def home():
+    """Redirect home to docs."""
+    return RedirectResponse("/docs")
