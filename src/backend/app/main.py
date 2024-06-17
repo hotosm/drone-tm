@@ -73,8 +73,6 @@ def get_application() -> FastAPI:
     # Set custom logger
     _app.logger = get_logger()
 
-    print("cors = ", settings.EXTRA_CORS_ORIGINS)
-
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.EXTRA_CORS_ORIGINS,

@@ -63,6 +63,9 @@ WORKDIR /project/src/backend/
 # Set environment PATH
 ENV PATH="/project/.venv/bin:$PATH"
 
+# Install PDM in runtime stage
+RUN pip install -U pdm
+
 # Copy the source files to the final image
 COPY src /project/src
 
