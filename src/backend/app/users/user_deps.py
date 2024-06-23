@@ -1,7 +1,7 @@
 import jwt
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
@@ -11,7 +11,8 @@ from app.db import database
 from app.users import user_crud, user_schemas
 from app.db.db_models import DbUser
 from app.users.auth import Auth
-
+from app.users.user_schemas import AuthUser
+from loguru import logger as log
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_PREFIX}/users/login")
 
@@ -72,3 +73,23 @@ async def init_google_auth():
             "https://www.googleapis.com/auth/userinfo.profile",
         ],
     )
+
+
+async def login_required(
+    request: Request, access_token: str = Header(None)
+) -> AuthUser:
+    """Dependency to inject into endpoints requiring login."""
+
+    google_auth = await init_google_auth()
+
+    if not access_token:
+        raise HTTPException(status_code=401, detail="No access token provided")
+
+    try:
+        google_user = google_auth.deserialize_access_token(access_token)
+    except ValueError as e:
+        log.error(e)
+        log.error("Failed to deserialise access token")
+        raise HTTPException(status_code=401, detail="Access token not valid") from e
+
+    return AuthUser(**google_user)
