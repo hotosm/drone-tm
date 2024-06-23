@@ -1,5 +1,6 @@
+import json
 from loguru import logger as log
-from fastapi import Depends
+from fastapi import Depends, Request
 from app.users.user_routes import router
 from fastapi.responses import JSONResponse
 from app.users.user_deps import init_google_auth
@@ -23,3 +24,12 @@ async def login_url(google_auth=Depends(init_google_auth)):
     login_url = google_auth.login()
     log.debug(f"Login URL returned: {login_url}")
     return JSONResponse(content=login_url, status_code=200)
+
+
+@router.get("/callback/")
+async def callback(request: Request, google_auth=Depends(init_google_auth)):
+    """Performs token exchange between Google and DTM API"""
+
+    access_token = google_auth.callback(str(request.url))
+
+    return json.loads(access_token)
