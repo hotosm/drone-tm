@@ -1,5 +1,14 @@
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
+from typing import Optional
+
+
+class AuthUser(BaseModel):
+    """The user model returned from Google OAuth2."""
+
+    id: int
+    email: EmailStr
+    img_url: Optional[str] = None
 
 
 class UserBase(BaseModel):
