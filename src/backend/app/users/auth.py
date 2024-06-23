@@ -22,7 +22,7 @@ class Token(BaseModel):
 
 
 class Auth:
-    """Main class for OSM login."""
+    """Main class for Google login."""
 
     def __init__(
         self,
@@ -46,9 +46,9 @@ class Auth:
         )
 
     def login(self) -> dict:
-        """Generate login URL from OSM session.
+        """Generate login URL from Google session.
 
-        Provides a login URL using the session created by osm
+        Provides a login URL using the session created by Google
         client id and redirect uri supplied.
 
         Returns:
@@ -58,7 +58,7 @@ class Auth:
         return json.loads(Login(login_url=login_url).model_dump_json())
 
     def callback(self, callback_url: str) -> str:
-        """Performs token exchange between OSM and the callback website.
+        """Performs token exchange between Google and the callback website.
 
         Core will use Oauth secret key from configuration while deserializing token,
         provides access token that can be used for authorized endpoints.
@@ -79,7 +79,7 @@ class Auth:
         user_api_url = "https://www.googleapis.com/oauth2/v1/userinfo"
         resp = self.oauth.get(user_api_url)
         if resp.status_code != 200:
-            raise ValueError("Invalid response from OSM")
+            raise ValueError("Invalid response from Google")
         data = resp.json().get("user")
         serializer = URLSafeSerializer(self.secret_key)
         user_data = {
@@ -102,7 +102,7 @@ class Auth:
             access_token(str): The access token from Auth.callback()
 
         Returns:
-            user_data(dict): A JSON of user data from OSM.
+            user_data(dict): A JSON of user data from Google.
         """
         deserializer = URLSafeSerializer(self.secret_key)
 

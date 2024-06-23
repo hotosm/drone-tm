@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class AuthUser(BaseModel):
-    """The user model returned from OSM OAuth2."""
+    """The user model returned from Google OAuth2."""
 
     id: int
     email: EmailStr
