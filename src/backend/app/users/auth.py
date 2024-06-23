@@ -27,6 +27,7 @@ class Auth:
     def __init__(
         self,
         authorization_url,
+        token_url,
         client_id,
         client_secret,
         secret_key,
@@ -35,6 +36,7 @@ class Auth:
     ):
         """Set object params and get OAuth2 session."""
         self.authorization_url = authorization_url
+        self.token_url = token_url
         self.client_secret = client_secret
         self.secret_key = secret_key
         self.oauth = OAuth2Session(
@@ -68,13 +70,13 @@ class Auth:
         Returns:
             access_token(str): The decoded access token.
         """
-        token_url = f"{self.osm_url}/oauth2/token"
         self.oauth.fetch_token(
-            token_url,
+            self.token_url,
             authorization_response=callback_url,
             client_secret=self.client_secret,
         )
-        user_api_url = f"{self.osm_url}/api/0.6/user/details.json"
+
+        user_api_url = "https://www.googleapis.com/oauth2/v1/userinfo"
         resp = self.oauth.get(user_api_url)
         if resp.status_code != 200:
             raise ValueError("Invalid response from OSM")

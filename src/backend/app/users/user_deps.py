@@ -61,6 +61,7 @@ async def init_google_auth():
 
     return Auth(
         authorization_url="https://accounts.google.com/o/oauth2/v2/auth",
+        token_url="https://www.googleapis.com/oauth2/v4/token",
         client_id=settings.GOOGLE_CLIENT_ID,
         client_secret=settings.GOOGLE_CLIENT_SECRET,
         secret_key=settings.SECRET_KEY,
