@@ -50,10 +50,10 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/"
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
-    POSTGRES_HOST: Optional[str] = "dtm-db"
+    POSTGRES_HOST: Optional[str] = "db"
     POSTGRES_USER: Optional[str] = "dtm"
     POSTGRES_PASSWORD: Optional[str] = "dtm"
-    POSTGRES_DB: Optional[str] = "dtm"
+    POSTGRES_DB: Optional[str] = "datm-db"
 
     DTM_DB_URL: Optional[PostgresDsn] = None
 

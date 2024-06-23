@@ -62,6 +62,23 @@ services:
     networks:
       - dtm-network
 
+  migrations:
+    build:
+      context: .
+      dockerfile: src/backend/Dockerfile
+    container_name: dtm_migrations
+    volumes:
+      - ./src/backend:/project/src/backend
+    depends_on:
+      - web
+      - db
+    env_file:
+      - .env
+    networks:
+      - dtm-network
+    entrypoint: ["pdm", "run", "alembic", "upgrade", "head"]
+    restart: "no"
+
 networks:
   dtm-network:
     name: dtm-network
