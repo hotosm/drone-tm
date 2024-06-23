@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 1  # 1 day
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 day
 
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8002"
+
 
 @lru_cache
 def get_settings():
