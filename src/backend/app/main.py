@@ -6,7 +6,7 @@ from app.config import settings
 from app.projects import project_routes
 from app.waypoints import waypoint_routes
 from fastapi.responses import RedirectResponse
-
+from app.users import oauth_routes
 from app.users import user_routes
 from loguru import logger as log
 
@@ -85,6 +85,7 @@ def get_application() -> FastAPI:
     _app.include_router(project_routes.router)
     _app.include_router(waypoint_routes.router)
     _app.include_router(user_routes.router)
+    _app.include_router(oauth_routes.router)
 
     return _app
 
