@@ -10,6 +10,7 @@ from app.config import settings
 from app.db import database
 from app.users import user_crud, user_schemas
 from app.db.db_models import DbUser
+from app.users.auth import Auth
 
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_PREFIX}/users/login")
@@ -53,3 +54,20 @@ def get_current_active_superuser(current_user: CurrentUser):
             status_code=403, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+
+async def init_google_auth():
+    """Initialise Auth object for google login"""
+
+    return Auth(
+        authorization_url="https://accounts.google.com/o/oauth2/v2/auth",
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+        secret_key=settings.SECRET_KEY,
+        login_redirect_uri=settings.GOOGLE_LOGIN_REDIRECT_URI,
+        scope=[
+            "openid",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
+        ],
+    )
