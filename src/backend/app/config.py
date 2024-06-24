@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     POSTGRES_HOST: Optional[str] = "db"
     POSTGRES_USER: Optional[str] = "dtm"
     POSTGRES_PASSWORD: Optional[str] = "dtm"
-    POSTGRES_DB: Optional[str] = "datm-db"
+    POSTGRES_DB: Optional[str] = "dtm_db"
 
     DTM_DB_URL: Optional[PostgresDsn] = None
 

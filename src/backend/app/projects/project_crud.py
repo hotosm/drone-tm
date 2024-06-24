@@ -1,7 +1,9 @@
 import json
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.projects import project_schemas
 from app.db import db_models
+from app.models.enums import HTTPStatus
 from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
@@ -9,7 +11,62 @@ from fastapi import HTTPException
 from app.utils import merge_multipolygon
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
+from app.db import database
+from fastapi import Depends
 
+async def get_project_by_id(
+    db: Session = Depends(database.get_db), project_id: Optional[int] = None
+) -> db_models.DbProject:
+    """Get a single project by id."""
+    if not project_id:
+        return None
+
+    db_project = db.query(db_models.DbProject).filter(db_models.DbProject.id == project_id).first()
+    if not db_project:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Project with ID {project_id} does not exist",
+        )
+    return db_project
+
+async def get_projects(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+):
+    """Get all projects."""
+    db_projects = (
+        db.query(db_models.DbProject)
+        .order_by(db_models.DbProject.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    project_count = db.query(db_models.DbProject).count()
+    return project_count, await convert_to_app_projects(db_projects)
+
+async def convert_to_app_projects(
+    db_projects: List[db_models.DbProject],
+) -> List[project_schemas.ProjectInfo]:
+    """Legacy function to convert db models --> Pydantic.
+
+    TODO refactor to use Pydantic model methods instead.
+    """
+    if db_projects and len(db_projects) > 0:
+        filtered_projects = [
+            {
+                "id": project.id,
+                "name": project.name,
+                "short_description": project.short_description,
+                "description": project.description,
+                "per_task_instructions": project.per_task_instructions,
+                "outline": None
+            }
+            for project in db_projects if project is not None
+        ]
+        return [project_schemas.ProjectOut(**project) for project in filtered_projects]
+    else:
+        return []
 
 async def create_project_with_project_info(
     db: Session, project_metadata: project_schemas.ProjectIn
