@@ -21,7 +21,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-@router.post("/create_project", tags=["Projects"], response_model=project_schemas.ProjectInfo)
+@router.post("/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut)
 async def create_project(
     project_metadata: project_schemas.ProjectIn,
     db: Database = Depends(database.encode_db),
@@ -62,7 +62,7 @@ async def create_project(
 
     # Fetch the newly created project using the returned ID
     select_query = """
-        SELECT *
+        SELECT id, name, short_description, description, per_task_instructions, outline
         FROM projects
         WHERE id = :id
     """
@@ -164,10 +164,10 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
 async def read_projects(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(database.get_db),
+    db: Database = Depends(database.encode_db)
 ):
-    """Return all projects."""
-    total_count, projects = await project_crud.get_projects(db, skip, limit)
+    "Return all projects"
+    projects = await project_crud.get_projects(db, skip, limit)
     return projects
 
 @router.get("/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut)

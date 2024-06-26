@@ -8,12 +8,13 @@ from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from fastapi import HTTPException
-from app.utils import geometry_to_geojson, merge_multipolygon
+from app.utils import geometry_to_geojson, merge_multipolygon, str_to_geojson
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from app.db import database
 from fastapi import Depends
 from asyncio import gather
+from databases import Database
 
 async def get_project_by_id(
     db: Session = Depends(database.get_db), project_id: Optional[int] = None
@@ -26,39 +27,38 @@ async def get_project_by_id(
     )
     return await convert_to_app_project(db_project)
 
-async def convert_to_app_project(db_project: db_models.DbProject):
-    """Legacy function to convert db models --> Pydantic.
-
-    TODO refactor to use Pydantic model methods instead.
-    """
-    if not db_project:
-        log.debug("convert_to_app_project called, but no project provided")
-        return None
-
-    app_project = db_project
-
-    if db_project.outline:
-        app_project.outline_geojson = geometry_to_geojson(
-            db_project.outline, {"id": db_project.id}, db_project.id
-        )
-    app_project.tasks = db_project.tasks
-    return app_project
 
 async def get_projects(
-    db: Session,
+    db:Database,
     skip: int = 0,
     limit: int = 100,
 ):
     """Get all projects."""
-    db_projects = (
-        db.query(db_models.DbProject)
-        .order_by(db_models.DbProject.id.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    project_count = db.query(db_models.DbProject).count()
-    return project_count, await convert_to_app_projects(db_projects)
+    raw_sql = """
+        SELECT id, name, short_description, description, per_task_instructions, outline
+        FROM projects 
+        ORDER BY id DESC 
+        OFFSET :skip 
+        LIMIT :limit;
+        """
+    db_projects = await db.fetch_all(raw_sql, {'skip': skip, 'limit': limit})
+    return  await convert_to_app_projects(db_projects)
+
+# async def get_projects(
+#     db: Session,
+#     skip: int = 0,
+#     limit: int = 100,
+# ):
+#     """Get all projects."""
+#     db_projects = (
+#         db.query(db_models.DbProject)
+#         .order_by(db_models.DbProject.id.desc())
+#         .offset(skip)
+#         .limit(limit)
+#         .all()
+#     )
+#     project_count = db.query(db_models.DbProject).count()
+#     return project_count, await convert_to_app_projects(db_projects)
 
 async def convert_to_app_projects(
     db_projects: List[db_models.DbProject],
@@ -79,21 +79,25 @@ async def convert_to_app_projects(
     else:
         return []
 
-async def create_project_with_project_info(
-    db: Session, project_metadata: project_schemas.ProjectIn
-):
-    """Create a project in database."""
-    db_project = db_models.DbProject(
-        author_id=1, **project_metadata.model_dump(exclude=["outline_geojson"])
-    )
-    db.add(db_project)
-    db.commit()
-    db.refresh(db_project)
-    return db_project
+async def convert_to_app_project(db_project: db_models.DbProject):
+    """Legacy function to convert db models --> Pydantic.
 
+    TODO refactor to use Pydantic model methods instead.
+    """
+    if not db_project:
+        log.debug("convert_to_app_project called, but no project provided")
+        return None
+    app_project = db_project
+
+    if db_project.outline:
+        
+        app_project.outline_geojson = str_to_geojson(
+            db_project.outline, {"id": db_project.id}, db_project.id
+        )
+    return app_project
 
 async def create_tasks_from_geojson(
-    db: Session,
+    db: Database,
     project_id: int,
     boundaries: str,
 ):
@@ -115,7 +119,7 @@ async def create_tasks_from_geojson(
                 polygon["geometry"]["type"] = "Polygon"
                 polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
                     0
-                ]
+                ]                  
             values={
                 "project_id": project_id,
                 "outline": wkblib.dumps(shape(polygon["geometry"]), hex=True),
@@ -130,9 +134,8 @@ async def create_tasks_from_geojson(
                 f"Project ID {project_id} | "
                 f"Task index {index}"
             )
-        log.debug("COMPLETE: creating project boundary, based on task boundaries")
-
-        return True
+            log.debug("COMPLETE: creating project boundary, based on task boundaries")
+            return True
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e

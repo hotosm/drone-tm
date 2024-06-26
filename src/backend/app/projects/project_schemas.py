@@ -8,6 +8,7 @@ from app.utils import (
     geojson_to_geometry,
     read_wkb,
     merge_multipolygon,
+    str_to_geojson,
     write_wkb,
     geometry_to_geojson,
 )
@@ -69,9 +70,11 @@ class ProjectOut(BaseModel):
         """Compute the geojson outline from WKBElement outline."""
         if not self.outline:
             return None
-        geometry = wkb.loads(bytes(self.outline.data))
-        bbox = geometry.bounds  # Calculate bounding box
-        return geometry_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, self.id)
+        wkb_data = bytes.fromhex(self.outline)
+        geom = wkb.loads(wkb_data)
+        # geometry = wkb.loads(bytes(self.outline.data))
+        bbox = geom.bounds  # Calculate bounding box
+        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, self.id)
 
 
 class PresignedUrlRequest(BaseModel):
