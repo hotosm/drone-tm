@@ -15,7 +15,7 @@ from app.utils import (
 
 class ProjectInfo(BaseModel):
     """Basic project info."""
-
+    id: int
     name: str
     short_description: str
     description: str

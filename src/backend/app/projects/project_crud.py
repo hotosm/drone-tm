@@ -48,22 +48,20 @@ async def create_tasks_from_geojson(
                 polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
                     0
                 ]
-
-            db_task = db_models.DbTask(
-                project_id=project_id,
-                outline=wkblib.dumps(shape(polygon["geometry"]), hex=True),
-                project_task_index=index + 1,
-            )
-            db.add(db_task)
+            values={
+                "project_id": project_id,
+                "outline": wkblib.dumps(shape(polygon["geometry"]), hex=True),
+                "project_task_index": index + 1,
+            }    
+            query = """ INSERT INTO tasks (project_id,outline,project_task_index) VALUES ( :project_id, :outline, :project_task_index);"""
+            
+            await db.execute(query, values=values)
+            # db.add(db_task)
             log.debug(
                 "Created database task | "
                 f"Project ID {project_id} | "
                 f"Task index {index}"
             )
-
-        # Commit all tasks and update project location in db
-        db.commit()
-
         log.debug("COMPLETE: creating project boundary, based on task boundaries")
 
         return True

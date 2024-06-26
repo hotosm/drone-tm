@@ -13,42 +13,92 @@ from app.models.enums import HTTPStatus
 from app.utils import multipolygon_to_polygon
 from app.s3 import s3_client
 from app.config import settings
-
+from databases import Database
 
 router = APIRouter(
     prefix="/projects",
     responses={404: {"description": "Not found"}},
 )
 
-
-@router.post(
-    "/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut
-)
+@router.post("/create_project", tags=["Projects"], response_model=project_schemas.ProjectInfo)
 async def create_project(
-    project_info: project_schemas.ProjectIn,
-    db: Session = Depends(database.get_db),
+    project_metadata: project_schemas.ProjectIn,
+    db: Database = Depends(database.encode_db),
 ):
-    """Create a project in  database."""
+    """
+    Create a project in the database using a raw SQL query.
+    """
+    # Prepare the values
+    values = {
+        "author_id": 1,
+        "name": project_metadata.name,
+        "short_description": project_metadata.short_description,
+        "description": project_metadata.description,
+        "per_task_instructions": project_metadata.per_task_instructions,
+        "status": "DRAFT",
+        "visibility": "PUBLIC",
+        "mapper_level":"INTERMEDIATE",
+        "priority": "MEDIUM",
+        "outline":str(project_metadata.outline)
+    }
+    # Construct the SQL query
+    query = """
+        INSERT INTO projects (
+            author_id, name, short_description, description, per_task_instructions, status, visibility,mapper_level,priority, outline, created
+        )
+        VALUES (
+            :author_id, :name, :short_description, :description, :per_task_instructions, :status, :visibility, :mapper_level, :priority, :outline, CURRENT_TIMESTAMP
+        )
+        RETURNING id
+    """
+    new_project_id = await db.execute(query, values=values)
 
-    log.info(
-        f"Attempting creation of project "
-        f"{project_info.name} in organisation {project_info.organisation_id}"
-    )
-
-    project = await project_crud.create_project_with_project_info(db, project_info)
-    if not project:
+    if not new_project_id:
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
+            status_code=500,
+            detail="Project could not be created"
         )
 
-    return project
+    # Fetch the newly created project using the returned ID
+    select_query = """
+        SELECT *
+        FROM projects
+        WHERE id = :id
+    """
+    new_project = await db.fetch_one(query=select_query, values={"id": new_project_id})
+
+    if not new_project:
+        raise HTTPException(
+            status_code=500,
+            detail="Project creation failed."
+        )
+    return new_project
+
+# @router.post(
+#     "/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut
+# )
+# async def create_project(
+#     project_info: project_schemas.ProjectIn,
+#     db: Session = Depends(database.get_db),
+# ):
+#     """Create a project in  database."""
+#     log.info(
+#         f"Attempting creation of project "
+#         f"{project_info.name} in organisation {project_info.organisation_id}"
+#     )
+    # project = await project_crud.create_project_with_project_info(db, project_info)
+#     if not project:
+#         raise HTTPException(
+#             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
+#         )
+#     return project
 
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])
 async def upload_project_task_boundaries(
     project_id: int,
     task_geojson: UploadFile = File(...),
-    db: Session = Depends(database.get_db),
+    db: Database = Depends(database.encode_db),
 ):
     """Set project task boundaries using split GeoJSON from frontend.
 
