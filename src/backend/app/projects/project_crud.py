@@ -1,15 +1,83 @@
 import json
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.projects import project_schemas
 from app.db import db_models
+from app.models.enums import HTTPStatus
 from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from fastapi import HTTPException
-from app.utils import merge_multipolygon
+from app.utils import geometry_to_geojson, merge_multipolygon
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
+from app.db import database
+from fastapi import Depends
+from asyncio import gather
 
+async def get_project_by_id(
+    db: Session = Depends(database.get_db), project_id: Optional[int] = None
+) -> db_models.DbProject:
+    """Get a single project by id."""
+    db_project = (
+        db.query(db_models.DbProject)
+        .filter(db_models.DbProject.id == project_id)
+        .first()
+    )
+    return await convert_to_app_project(db_project)
+
+async def convert_to_app_project(db_project: db_models.DbProject):
+    """Legacy function to convert db models --> Pydantic.
+
+    TODO refactor to use Pydantic model methods instead.
+    """
+    if not db_project:
+        log.debug("convert_to_app_project called, but no project provided")
+        return None
+
+    app_project = db_project
+
+    if db_project.outline:
+        app_project.outline_geojson = geometry_to_geojson(
+            db_project.outline, {"id": db_project.id}, db_project.id
+        )
+    app_project.tasks = db_project.tasks
+    return app_project
+
+async def get_projects(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+):
+    """Get all projects."""
+    db_projects = (
+        db.query(db_models.DbProject)
+        .order_by(db_models.DbProject.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    project_count = db.query(db_models.DbProject).count()
+    return project_count, await convert_to_app_projects(db_projects)
+
+async def convert_to_app_projects(
+    db_projects: List[db_models.DbProject],
+) -> List[project_schemas.ProjectOut]:
+    """Legacy function to convert db models --> Pydantic.
+
+    TODO refactor to use Pydantic model methods instead.
+    """
+    if db_projects and len(db_projects) > 0:
+
+        async def convert_project(project):
+            return await convert_to_app_project(project)
+
+        app_projects = await gather(
+            *[convert_project(project) for project in db_projects]
+        )
+        return [project for project in app_projects if project is not None]
+    else:
+        return []
 
 async def create_project_with_project_info(
     db: Session, project_metadata: project_schemas.ProjectIn
