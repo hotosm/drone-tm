@@ -74,25 +74,6 @@ async def create_project(
         )
     return new_project
 
-# @router.post(
-#     "/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut
-# )
-# async def create_project(
-#     project_info: project_schemas.ProjectIn,
-#     db: Session = Depends(database.get_db),
-# ):
-#     """Create a project in  database."""
-#     log.info(
-#         f"Attempting creation of project "
-#         f"{project_info.name} in organisation {project_info.organisation_id}"
-#     )
-    # project = await project_crud.create_project_with_project_info(db, project_info)
-#     if not project:
-#         raise HTTPException(
-#             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
-#         )
-#     return project
-
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])
 async def upload_project_task_boundaries(
