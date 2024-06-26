@@ -1,0 +1,8 @@
+node_modules
+dist
+vite.config.ts
+src/vite-env.d.ts
+src/schemas/types/vite-env.d.ts
+src/constants/Proxies.ts
+tailwind.config.js
+postcss.config.js

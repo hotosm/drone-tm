@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.naxatw-text {
+  @apply naxatw-font-primary naxatw-tracking-normal;
+}
+
+@layer base {
+  html {
+    @apply naxatw-text-grey-800;
+  }
+  h1 {
+    @apply naxatw-text naxatw-text-[3.625rem] naxatw-font-bold naxatw-leading-[4rem];
+  }
+  h2 {
+    @apply naxatw-text naxatw-text-[2.375rem] naxatw-font-bold naxatw-leading-[2.75rem];
+  }
+  h3 {
+    @apply naxatw-text naxatw-text-[1.625rem] naxatw-font-bold naxatw-leading-[2rem];
+  }
+  h4 {
+    @apply naxatw-text naxatw-text-[1.25rem] naxatw-font-normal naxatw-leading-[1.75rem];
+  }
+  h5 {
+    @apply naxatw-text naxatw-text-[1.063rem] naxatw-font-normal naxatw-leading-[1.375];
+  }
+  h6 {
+    @apply naxatw-text naxatw-text-[1rem] naxatw-leading-[1.25];
+  }
+  p {
+    @apply naxatw-text;
+  }
+  span {
+    @apply naxatw-text-body-md;
+  }
+  a {
+    @apply naxatw-cursor-pointer naxatw-select-none naxatw-text-[13px];
+  }
+}
+
+@layer components {
+  .naxatw-input {
+    @apply naxatw-m-0 naxatw-block naxatw-h-[48px] naxatw-w-full naxatw-rounded-lg naxatw-border naxatw-border-solid naxatw-border-grey-300 naxatw-bg-white naxatw-bg-clip-padding naxatw-px-3 naxatw-py-[13px] naxatw-font-normal naxatw-text-grey-900 naxatw-transition naxatw-ease-in-out focus:naxatw-border-grey-800 focus:naxatw-bg-white focus:naxatw-text-grey-700 focus:naxatw-outline-none;
+  }
+  .naxatw-label {
+    @apply naxatw-flex naxatw-w-full naxatw-text-[15px] naxatw-font-bold naxatw-text-grey-800;
+  }
+  .naxatw-input.naxatw-input-disabled {
+    @apply naxatw-cursor-not-allowed naxatw-select-none naxatw-bg-grey-100 naxatw-text-grey-400;
+  }
+  .naxatw-label.naxatw-label-disabled {
+    @apply naxatw-cursor-not-allowed naxatw-select-none naxatw-text-grey-300;
+  }
+  .naxatw-btn-text {
+    @apply naxatw-text-[13.4px] naxatw-font-bold;
+  }
+}
+
+@layer utilities {
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+  @layer responsive {
+    /* Chrome, Safari and Opera */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none; /* IE and Edge */
+      scrollbar-width: none; /* Firefox */
+    }
+
+    .scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+      transition: scrollbar-color 0.3s;
+
+      &:hover {
+        scrollbar-color: #989898 transparent;
+      }
+
+      &:not(:hover)::-webkit-scrollbar-thumb {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        border-radius: 5px;
+        transition: background 0.3s;
+        background: #989898;
+      }
+    }
+  }
+}
+
+.naxatw-color-input {
+  -webkit-appearance: none;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+}
+.naxatw-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 8px;
+  padding: 0;
+}
+.naxatw-color-input::-webkit-color-swatch-wrapper {
+  border: none;
+  border-radius: 8px;
+  padding: 0;
+}
+
+.naxatw-icon-lg {
+  @apply naxatw-text-[27px];
+}
+
+.naxatw-icon-md {
+  @apply naxatw-text-[24px];
+}
+
+tr:nth-child(even) {
+  background-color: #e6e6e6;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  transition: background-color 5000s ease-in-out 0s;
+}

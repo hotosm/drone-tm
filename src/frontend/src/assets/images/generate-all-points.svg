@@ -1,0 +1,16 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="80" height="80" fill="white"/>
+<path d="M9 52H23" stroke="#D73F37" stroke-linecap="round"/>
+<path d="M23 27H36" stroke="#D73F37" stroke-linecap="round"/>
+<path d="M36 52H49" stroke="#D73F37" stroke-linecap="round"/>
+<path d="M49 27H63" stroke="#D73F37" stroke-linecap="round"/>
+<path d="M23 52L23 27" stroke="#D73F37" stroke-linecap="round"/>
+<path d="M36 52L36 27" stroke="#D73F37" stroke-linecap="round"/>
+<path d="M49 52L49 27" stroke="#D73F37" stroke-linecap="round"/>
+<rect x="21.25" y="50.25" width="3.5" height="3.5" rx="1.75" fill="#D73F37" stroke="white" stroke-width="0.5"/>
+<rect x="21.25" y="25.25" width="3.5" height="3.5" rx="1.75" fill="#D73F37" stroke="white" stroke-width="0.5"/>
+<rect x="34.25" y="25.25" width="3.5" height="3.5" rx="1.75" fill="#D73F37" stroke="white" stroke-width="0.5"/>
+<rect x="34.25" y="50.25" width="3.5" height="3.5" rx="1.75" fill="#D73F37" stroke="white" stroke-width="0.5"/>
+<rect x="47.25" y="50.25" width="3.5" height="3.5" rx="1.75" fill="#D73F37" stroke="white" stroke-width="0.5"/>
+<rect x="47.25" y="25.25" width="3.5" height="3.5" rx="1.75" fill="#D73F37" stroke="white" stroke-width="0.5"/>
+</svg>

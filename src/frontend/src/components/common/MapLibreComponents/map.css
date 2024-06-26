@@ -1,0 +1,12 @@
+.maplibregl-ctrl-attrib-button {
+  display: none !important;
+}
+
+.maplibregl-popup {
+  max-width: 18rem !important;
+}
+
+.maplibregl-popup-content {
+  padding: 0;
+  border-radius: 8px;
+}
