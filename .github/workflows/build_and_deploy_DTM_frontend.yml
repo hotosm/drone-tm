@@ -75,4 +75,4 @@ jobs:
         run: |
           pwd
           ls -alh
-          aws s3 cp --recursive ./dist/* s3://dronetm/
+          aws s3 cp --recursive ./dist s3://dronetm
