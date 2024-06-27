@@ -49,14 +49,14 @@ def get_user_by_email(db: Session, email: str):
     return data
 
 async def get_user_email(db: Database, email: str):
-    query = "SELECT * FROM users WHERE email_address = :email LIMIT 1;"
-    result = await db.fetch_one(query = query, values={"email": email})
+    query = f"SELECT * FROM users WHERE email_address = '{email}' LIMIT 1;"
+    result = await db.fetch_one(query)
     return result
 
 
 async def get_user_username(db: Database, username: str):
-    query = "SELECT * FROM users WHERE username = :username LIMIT 1;"
-    result = await db.fetch_one(query = query, values={"username": username})
+    query = f"SELECT * FROM users WHERE username = '{username}' LIMIT 1;"
+    result = await db.fetch_one(query=query)
     return result
 
 def get_user_by_username(db: Session, username: str):
@@ -83,22 +83,14 @@ async def authenticate(db: Database, username: str, password: str) -> db_models.
 
 
 async def create_user(db: Database, user_create: UserCreate):    
-    query = """
-        INSERT INTO users (username, password, is_active, name, email_address, is_superuser)
-        VALUES (:username, :password, :is_active, :name, :email_address, :is_superuser)
-        RETURNING id
-        """
-    values = {
-        "username": user_create.username,        
-        "password": get_password_hash(user_create.password),
-        "is_active": True,
-        "name": user_create.name,
-        "email_address": user_create.email_address,
-        "is_superuser": False,
-    }
-    _id = await db.execute(query=query, values=values)
-    raw_query = "SELECT * from users WHERE id = :db_obj_id LIMIT 1"
-    db_obj = await db.fetch_one(query = raw_query, values={"db_obj_id": _id})    
+    query = f"""
+    INSERT INTO users (username, password, is_active, name, email_address, is_superuser)
+    VALUES ('{user_create.username}', '{get_password_hash(user_create.password)}', {True}, '{user_create.name}', '{user_create.email_address}', {False})
+    RETURNING id
+    """
+    _id = await db.execute(query)
+    raw_query = f"SELECT * from users WHERE id = {_id} LIMIT 1"
+    db_obj = await db.fetch_one(query=raw_query)
     if not db_obj:
         raise HTTPException(
             status_code=500,

@@ -29,45 +29,39 @@ async def create_project(
     """
     Create a project in the database using a raw SQL query.
     """
-    # Prepare the values
-    values = {
-        "author_id": 1,
-        "name": project_metadata.name,
-        "short_description": project_metadata.short_description,
-        "description": project_metadata.description,
-        "per_task_instructions": project_metadata.per_task_instructions,
-        "status": "DRAFT",
-        "visibility": "PUBLIC",
-        "mapper_level":"INTERMEDIATE",
-        "priority": "MEDIUM",
-        "outline":str(project_metadata.outline)
-    }
-    # Construct the SQL query
-    query = """
-        INSERT INTO projects (
-            author_id, name, short_description, description, per_task_instructions, status, visibility,mapper_level,priority, outline, created
-        )
-        VALUES (
-            :author_id, :name, :short_description, :description, :per_task_instructions, :status, :visibility, :mapper_level, :priority, :outline, CURRENT_TIMESTAMP
-        )
-        RETURNING id
+    query = f"""
+    INSERT INTO projects (
+        author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
+    )
+    VALUES (
+        1, 
+        '{project_metadata.name}', 
+        '{project_metadata.short_description}', 
+        '{project_metadata.description}', 
+        '{project_metadata.per_task_instructions}', 
+        'DRAFT', 
+        'PUBLIC', 
+        'INTERMEDIATE', 
+        'MEDIUM', 
+        '{str(project_metadata.outline)}', 
+        CURRENT_TIMESTAMP
+    )
+    RETURNING id
     """
-    new_project_id = await db.execute(query, values=values)
+    new_project_id = await db.execute(query)
 
     if not new_project_id:
         raise HTTPException(
             status_code=500,
             detail="Project could not be created"
         )
-
     # Fetch the newly created project using the returned ID
-    select_query = """
+    select_query = f"""
         SELECT id, name, short_description, description, per_task_instructions, outline
         FROM projects
-        WHERE id = :id
+        WHERE id = '{new_project_id}'
     """
-    new_project = await db.fetch_one(query=select_query, values={"id": new_project_id})
-
+    new_project = await db.fetch_one(query=select_query)
     if not new_project:
         raise HTTPException(
             status_code=500,

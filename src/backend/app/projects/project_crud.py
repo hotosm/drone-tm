@@ -120,22 +120,17 @@ async def create_tasks_from_geojson(
                 polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
                     0
                 ]                  
-            values={
-                "project_id": project_id,
-                "outline": wkblib.dumps(shape(polygon["geometry"]), hex=True),
-                "project_task_index": index + 1,
-            }    
-            query = """ INSERT INTO tasks (project_id,outline,project_task_index) VALUES ( :project_id, :outline, :project_task_index);"""
+            query = f""" INSERT INTO tasks (project_id,outline,project_task_index) VALUES ( '{project_id}', '{wkblib.dumps(shape(polygon["geometry"]), hex=True)}', '{index + 1}');"""
             
-            await db.execute(query, values=values)
-            # db.add(db_task)
-            log.debug(
-                "Created database task | "
-                f"Project ID {project_id} | "
-                f"Task index {index}"
-            )
-            log.debug("COMPLETE: creating project boundary, based on task boundaries")
-            return True
+            result = await db.execute(query)
+            if result:
+                log.debug(
+                    "Created database task | "
+                    f"Project ID {project_id} | "
+                    f"Task index {index}"
+                )
+                log.debug("COMPLETE: creating project boundary, based on task boundaries")
+                return True
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
