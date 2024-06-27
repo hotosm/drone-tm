@@ -1,14 +1,19 @@
+import os
 import logging
 import sys
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.projects import project_routes
 from app.waypoints import waypoint_routes
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from app.users import oauth_routes
 from app.users import user_routes
 from loguru import logger as log
+from fastapi.templating import Jinja2Templates
+
+root = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=f'templates')
 
 
 class InterceptHandler(logging.Handler):
@@ -94,6 +99,10 @@ api = get_application()
 
 
 @api.get("/")
-async def home():
-    """Redirect home to docs."""
-    return RedirectResponse("/docs")
+async def home(request: Request):
+    try:
+        """Return Frontend HTML"""
+        return templates.TemplateResponse(name="index.html", context={"request": request})
+    except:
+        """Fall back if tempalate missing. Redirect home to docs."""
+        return RedirectResponse("/docs")
