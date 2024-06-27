@@ -1,10 +1,13 @@
+import { useEffect } from 'react';
 import { useTypedSelector } from '@Store/hooks';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import { Map } from 'maplibre-gl';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import getBbox from '@turf/bbox';
+import { FeatureCollection } from 'geojson';
 
 export default function MapSection() {
   const { map, isMapLoaded } = useMapLibreGLMap({
@@ -19,6 +22,12 @@ export default function MapSection() {
   const splitGeojson = useTypedSelector(
     state => state.createproject.splitGeojson,
   );
+
+  useEffect(() => {
+    if (!splitGeojson) return;
+    const bbox = getBbox(splitGeojson as FeatureCollection);
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 30 });
+  }, [splitGeojson, map]);
 
   return (
     <MapContainer
