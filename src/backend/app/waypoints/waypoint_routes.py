@@ -11,9 +11,10 @@ from app.waypoints.waypoint_crud import (
     haversine_distance,
     calculate_distance_between_2_lines,
 )
+from app.config import settings
 
 router = APIRouter(
-    prefix="/waypoint",
+    prefix=f"{settings.API_PREFIX}/waypoint",
     tags=["waypoint"],
     responses={404: {"description": "Not found"}},
 )

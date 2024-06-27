@@ -6,11 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.projects import project_routes
 from app.waypoints import waypoint_routes
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import RedirectResponse, JSONResponse
 from app.users import oauth_routes
 from app.users import user_routes
 from loguru import logger as log
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
+
 
 root = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=f'templates')
@@ -73,6 +75,9 @@ def get_application() -> FastAPI:
             "url": "https://raw.githubusercontent.com/hotosm/fmtm/main/LICENSE.md",
         },
         debug=settings.DEBUG,
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
+        redoc_url="/api/redoc"
     )
 
     # Set custom logger
@@ -106,3 +111,23 @@ async def home(request: Request):
     except:
         """Fall back if tempalate missing. Redirect home to docs."""
         return RedirectResponse("/docs")
+
+
+known_browsers = ["Mozilla", "Chrome", "Safari", "Opera", "Edge", "Firefox"]
+
+@api.exception_handler(404)
+async def custom_404_handler(request: Request, _):
+    """Return Frontend HTML or throw 404 Response on 404 requests."""
+    try:
+        query_params = dict(request.query_params)
+        user_agent = request.headers.get("User-Agent", "")
+        format = query_params.get("format")
+        is_browser = any(browser in user_agent for browser in known_browsers)
+        if format == "json" or not is_browser:
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+        return templates.TemplateResponse(name="index.html", context={"request": request})
+    
+    except:
+        """Fall back if tempalate missing. Redirect home to docs."""
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+    

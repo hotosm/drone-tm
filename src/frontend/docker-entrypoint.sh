@@ -1,18 +1,21 @@
 #!/bin/sh
 set -e
 
+MINIO_HOST_URL=${MINIO_HOST_URL:-http://localhost:9000}
+FRONTEND_BUCKET_NAME=${FRONTEND_BUCKET_NAME:-frontend-static}
+
 mcli config host add minio http://minio:9000 $S3_ACCESS_KEY $S3_SECRET_KEY
 
-mcli mb minio/frontend-static || echo "Failed to create bucket in MinIO"
-mcli anonymous set download minio/frontend-static/staticfiles || echo "Failed setting staticfiles dir as public in MinIO"
+mcli mb minio/${FRONTEND_BUCKET_NAME} || echo "Failed to create bucket in MinIO"
+mcli anonymous set download minio/${FRONTEND_BUCKET_NAME}/staticfiles || echo "Failed setting staticfiles dir as public in MinIO"
 
-mcli cp --recursive /tmp/dist/* minio/frontend-static/staticfiles
+mcli cp --recursive /tmp/dist/* minio/${FRONTEND_BUCKET_NAME}/staticfiles
 
 export MAIN_CSS=$(basename $(ls /tmp/dist/assets/index-*.css))
 export MAIN_JS=$(basename $(ls /tmp/dist/assets/index-*.js))
 
 cat <<EOF | envsubst >/tmp/index.html
-{% with s3_link="http://localhost:9000/frontend-static/staticfiles" %}
+{% with s3_link="${MINIO_HOST_URL}/${FRONTEND_BUCKET_NAME}/staticfiles" %}
 <!doctype html>
 <html lang="en">
   <head>

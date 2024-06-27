@@ -9,10 +9,8 @@ services:
       context: .
       dockerfile: src/backend/Dockerfile
     restart: always
-    # deploy:
-    #   replicas: 2
     ports:
-      - 8002:8000
+      - ${BACKEND_WEB_APP_PORT:-8000}:8000
     volumes:
       - ./src/backend:/project/src/backend
     env_file: .env
@@ -23,10 +21,9 @@ services:
     build:
       context: .
       dockerfile: src/frontend/Dockerfile
-      target: ${DOCKER_TARGET}
-    # restart: always
+      target: ${DOCKER_TARGET:-development}
     ports:
-      - 8001:3040
+      - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     env_file: .env
     networks:
       - dtm-network
@@ -61,7 +58,6 @@ services:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dtm_user}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-somelongpassword}
       MINIO_CONSOLE_ADDRESS: ":9090"
-      # MINIO_ENDPOINT: ${S3_ENDPOINT:-http://s3:9000}
     ports:
       - 9000:9000
       - 9090:9090
