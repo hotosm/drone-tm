@@ -110,7 +110,7 @@ async def home(request: Request):
         return templates.TemplateResponse(name="index.html", context={"request": request})
     except:
         """Fall back if tempalate missing. Redirect home to docs."""
-        return RedirectResponse("/docs")
+        return RedirectResponse(f"{settings.API_PREFIX}/docs")
 
 
 known_browsers = ["Mozilla", "Chrome", "Safari", "Opera", "Edge", "Firefox"]
