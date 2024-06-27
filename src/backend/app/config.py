@@ -47,7 +47,7 @@ class Settings(BaseSettings):
             default_origins += val
             return default_origins
 
-    API_PREFIX: str = "/"
+    API_PREFIX: str = "/api"
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
     POSTGRES_HOST: Optional[str] = "db"
@@ -83,7 +83,7 @@ class Settings(BaseSettings):
 
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
-    GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8002"
+    GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
 
 
 @lru_cache

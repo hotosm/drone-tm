@@ -14,10 +14,11 @@ from app.utils import multipolygon_to_polygon
 from app.s3 import s3_client
 from app.config import settings
 from app.db import db_models
+from app.config import settings
 
 
 router = APIRouter(
-    prefix="/projects",
+    prefix=f"{settings.API_PREFIX}/projects",
     responses={404: {"description": "Not found"}},
 )
 
