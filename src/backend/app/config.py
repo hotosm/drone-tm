@@ -1,4 +1,5 @@
 import secrets
+import os
 from functools import lru_cache
 from pydantic import BeforeValidator, TypeAdapter, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
@@ -20,7 +21,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
-    EXTRA_CORS_ORIGINS: Optional[Union[str, list[str]]] = []
+    EXTRA_CORS_ORIGINS: Optional[Union[str, list[str]]] = os.environ.get("EXTRA_CORS_ORIGINS","").split(",")
 
     @field_validator("EXTRA_CORS_ORIGINS", mode="before")
     @classmethod
