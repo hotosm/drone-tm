@@ -4,47 +4,38 @@ from app.config import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-
+database = Database(settings.DTM_DB_URL.unicode_string())
 Base = declarative_base()
+DtmMetadata = Base.metadata
 
-class DatabaseConnection:
-  """Manages database connection and session creation."""
-
-  def __init__(self):
-    self.database = Database(settings.DTM_DB_URL.unicode_string())
-    self.engine = create_engine(
-        settings.DTM_DB_URL.unicode_string(),
-        pool_size=20,
-        max_overflow=-1,
-    )
-    self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-
-  async def connect(self):
-    """Connect to the database."""
-    await self.database.connect()
-
-  async def disconnect(self):
-    """Disconnect from the database."""
-    await self.database.disconnect()
-
-  def create_db_session(self):
-    """Create a new SQLAlchemy DB session."""
-    db = self.SessionLocal()
-    try:
-      yield db
-    finally:
-      db.close()
-
-db_connection = DatabaseConnection()  # Create a single instance
+engine = create_engine(
+    settings.DTM_DB_URL.unicode_string(),
+    pool_size=20,
+    max_overflow=-1,
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
-  """Yield a new database session."""
-  yield db_connection.create_db_session()
+    """Create SQLAlchemy DB session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
+##encode databases..
+async def connect_db():
+    """Connect to the database."""
+    await database.connect()
+    
+async def disconnect_db():
+    """Disconnect from the database."""
+    await database.disconnect()
+    
 async def encode_db():
-  """Get the encode database connection"""
-  try:
-    await db_connection.connect()
-    yield db_connection.database
-  finally:
-    await db_connection.disconnect()
+    """Get the database connection"""
+    try:
+        await connect_db()
+        yield database
+    finally:
+        await disconnect_db()

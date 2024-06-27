@@ -1,6 +1,6 @@
 import jwt
 from typing import Annotated
-
+from databases import Database
 from fastapi import Depends, HTTPException, Request, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
@@ -16,7 +16,10 @@ from loguru import logger as log
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_PREFIX}/users/login")
 
-
+# SessionDep = Annotated[
+#     Database,
+#     Depends(database.encode_db),
+# ]
 SessionDep = Annotated[
     Session,
     Depends(database.get_db),
