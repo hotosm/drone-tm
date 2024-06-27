@@ -51,7 +51,7 @@ jobs:
         id: write_env
         working-directory: ./src/frontend/
         run: |
-          echo ${{ secrets.ENVIRONMENT_VARIABLES }} > .env
+          echo ${{ vars.FRONTEND_ENV_VARS }} > .env
 
       - name: Install dependencies
         working-directory: ./src/frontend/
@@ -75,4 +75,4 @@ jobs:
         run: |
           pwd
           ls -alh
-          aws s3 cp --recursive ./dist/* s3://dronetm
+          aws s3 cp --recursive ./dist/* s3://dronetm/
