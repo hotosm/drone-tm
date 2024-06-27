@@ -1,0 +1,78 @@
+name: Build and Deploy Drone Tasking Manager Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/frontend/**
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  S3_BUCKET: dronetm
+
+jobs:
+  build:
+    name: Build JavaScript assets
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Use Node.js 19.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 19.x
+
+      - name: Install yarn
+        working-directory: ./src/frontend/
+        run: npm install -g yarn
+
+      - name: Cache node_modules
+        uses: actions/cache@v2
+        with:
+          path: ./src/frontend/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Write Environment Variables
+        id: write_env
+        working-directory: ./src/frontend/
+        run: |
+          echo ${{ secrets.ENVIRONMENT_VARIABLES }} > .env
+
+      - name: Install dependencies
+        working-directory: ./src/frontend/
+        run: yarn
+
+      - name: Generate build
+        working-directory: ./src/frontend/
+        run: |
+          yarn build
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GH-Actions-${{ github.run_id }}-${{ github.run_attempt }}
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+
+      - name: Copy Static Files to S3
+        working-directory: ./src/frontend/
+        run: |
+          pwd
+          ls -alh
+          aws s3 cp --recursive ./dist/* s3://dronetm
