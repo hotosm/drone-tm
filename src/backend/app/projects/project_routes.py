@@ -22,7 +22,7 @@ router = APIRouter(
 )
 
 
-@router.delete('/projects/{project_id}', tags=["Projects"])
+@router.delete('/{project_id}', tags=["Projects"])
 def delete_project_by_id(
     project_id: int,
     db: Session = Depends(database.get_db)
