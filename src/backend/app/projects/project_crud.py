@@ -16,6 +16,44 @@ from fastapi import Depends
 from asyncio import gather
 from databases import Database
 
+async def create_project_with_project_info(db: Database, project_metadata: project_schemas.ProjectIn):
+    """Create a project in database."""
+    query = f"""
+    INSERT INTO projects (
+        author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
+    )
+    VALUES (
+        1, 
+        '{project_metadata.name}', 
+        '{project_metadata.short_description}', 
+        '{project_metadata.description}', 
+        '{project_metadata.per_task_instructions}', 
+        'DRAFT', 
+        'PUBLIC', 
+        'INTERMEDIATE', 
+        'MEDIUM', 
+        '{str(project_metadata.outline)}', 
+        CURRENT_TIMESTAMP
+    )
+    RETURNING id
+    """
+    new_project_id = await db.execute(query)
+
+    if not new_project_id:
+        raise HTTPException(
+            status_code=500,
+            detail="Project could not be created"
+        )
+    # Fetch the newly created project using the returned ID
+    select_query = f"""
+        SELECT id, name, short_description, description, per_task_instructions, outline
+        FROM projects
+        WHERE id = '{new_project_id}'
+    """
+    new_project = await db.fetch_one(query=select_query)
+    return new_project
+
+
 async def get_project_by_id(
     db: Session = Depends(database.get_db), project_id: Optional[int] = None
 ) -> db_models.DbProject:

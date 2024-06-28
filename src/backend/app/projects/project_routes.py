@@ -23,51 +23,16 @@ router = APIRouter(
 
 @router.post("/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut)
 async def create_project(
-    project_metadata: project_schemas.ProjectIn,
+    project_info: project_schemas.ProjectIn,
     db: Database = Depends(database.encode_db),
 ):
-    """
-    Create a project in the database using a raw SQL query.
-    """
-    query = f"""
-    INSERT INTO projects (
-        author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
-    )
-    VALUES (
-        1, 
-        '{project_metadata.name}', 
-        '{project_metadata.short_description}', 
-        '{project_metadata.description}', 
-        '{project_metadata.per_task_instructions}', 
-        'DRAFT', 
-        'PUBLIC', 
-        'INTERMEDIATE', 
-        'MEDIUM', 
-        '{str(project_metadata.outline)}', 
-        CURRENT_TIMESTAMP
-    )
-    RETURNING id
-    """
-    new_project_id = await db.execute(query)
-
-    if not new_project_id:
+    """Create a project in  database."""
+    project = await project_crud.create_project_with_project_info(db, project_info)
+    if not project:
         raise HTTPException(
-            status_code=500,
-            detail="Project could not be created"
+            status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
         )
-    # Fetch the newly created project using the returned ID
-    select_query = f"""
-        SELECT id, name, short_description, description, per_task_instructions, outline
-        FROM projects
-        WHERE id = '{new_project_id}'
-    """
-    new_project = await db.fetch_one(query=select_query)
-    if not new_project:
-        raise HTTPException(
-            status_code=500,
-            detail="Project creation failed."
-        )
-    return new_project
+    return project
 
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])
