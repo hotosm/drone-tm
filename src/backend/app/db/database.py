@@ -7,7 +7,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 Base = declarative_base()
 
 class DatabaseConnection:
-  """Manages database connection (sqlalchemy & aync databases)"""
+  """Manages database connection (sqlalchemy & encode databases)"""
   def __init__(self):
     self.database = Database(settings.DTM_DB_URL.unicode_string(), min_size=5, max_size=20)
     # self.database = Database(settings.DTM_DB_URL.unicode_string())
