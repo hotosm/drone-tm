@@ -30,7 +30,7 @@ class DatabaseConnection:
     """Create a new SQLAlchemy DB session."""
     db = self.SessionLocal()
     try:
-      yield db
+      return db
     finally:
       db.close()
       
