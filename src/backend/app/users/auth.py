@@ -80,12 +80,14 @@ class Auth:
         resp = self.oauth.get(user_api_url)
         if resp.status_code != 200:
             raise ValueError("Invalid response from Google")
-        data = resp.json().get("user")
+
+        data = resp.json()
         serializer = URLSafeSerializer(self.secret_key)
         user_data = {
             "id": data.get("id"),
-            "username": data.get("display_name"),
-            "img_url": data.get("img").get("href") if data.get("img") else None,
+            "email": data.get("email"),
+            "name": data.get("name"),
+            "img_url": data.get("picture") if data.get("picture") else None,
         }
         token = serializer.dumps(user_data)
         access_token = base64.b64encode(bytes(token, "utf-8")).decode("utf-8")
