@@ -8,17 +8,14 @@ RUN mkdir -p /app
 WORKDIR /app
 COPY ./src/frontend /app
 
-# Install node packages
-FROM base as package_installation
-RUN yarn
-
 # Run development environment
-FROM package_installation as development
+FROM base as development
 RUN env | tee .env
-ENTRYPOINT [ "yarn", "start", "--host", "0.0.0.0" ]
+ENTRYPOINT ["/bin/sh", "-c" , "yarn && yarn start --host 0.0.0.0"]
 
 # Generate frontend build files
-FROM package_installation as build
+FROM base as build
+RUN yarn
 RUN yarn build
 
 # Copy static files to minio and generated index.html to backend services
@@ -28,4 +25,3 @@ RUN apk update && apk add minio-client envsubst
 COPY --from=build /app/dist /tmp/dist
 COPY ./src/frontend/docker-entrypoint.sh /docker-entrypoint.sh
 ENTRYPOINT [ "/docker-entrypoint.sh" ]
-
