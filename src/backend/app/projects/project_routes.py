@@ -14,7 +14,6 @@ from app.utils import multipolygon_to_polygon
 from app.s3 import s3_client
 from app.config import settings
 from app.db import db_models
-from app.config import settings
 
 
 router = APIRouter(
@@ -130,6 +129,7 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
             detail=f"Failed to generate pre-signed URL. {e}",
         )
 
+
 @router.get("/", tags=["Projects"], response_model=list[project_schemas.ProjectOut])
 async def read_projects(
     skip: int = 0,
@@ -140,7 +140,10 @@ async def read_projects(
     total_count, projects = await project_crud.get_projects(db, skip, limit)
     return projects
 
-@router.get("/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut)
+
+@router.get(
+    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut
+)
 async def read_project(
     db: Session = Depends(database.get_db),
     project: db_models.DbProject = Depends(project_crud.get_project_by_id),

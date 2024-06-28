@@ -11,11 +11,10 @@ from app.users import oauth_routes
 from app.users import user_routes
 from loguru import logger as log
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
 
 
 root = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory=f'templates')
+templates = Jinja2Templates(directory="templates")
 
 
 class InterceptHandler(logging.Handler):
@@ -77,7 +76,7 @@ def get_application() -> FastAPI:
         debug=settings.DEBUG,
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
-        redoc_url="/api/redoc"
+        redoc_url="/api/redoc",
     )
 
     # Set custom logger
@@ -107,13 +106,16 @@ api = get_application()
 async def home(request: Request):
     try:
         """Return Frontend HTML"""
-        return templates.TemplateResponse(name="index.html", context={"request": request})
-    except:
+        return templates.TemplateResponse(
+            name="index.html", context={"request": request}
+        )
+    except Exception:
         """Fall back if tempalate missing. Redirect home to docs."""
         return RedirectResponse(f"{settings.API_PREFIX}/docs")
 
 
 known_browsers = ["Mozilla", "Chrome", "Safari", "Opera", "Edge", "Firefox"]
+
 
 @api.exception_handler(404)
 async def custom_404_handler(request: Request, _):
@@ -125,9 +127,10 @@ async def custom_404_handler(request: Request, _):
         is_browser = any(browser in user_agent for browser in known_browsers)
         if format == "json" or not is_browser:
             return JSONResponse(status_code=404, content={"detail": "Not found"})
-        return templates.TemplateResponse(name="index.html", context={"request": request})
-    
-    except:
+        return templates.TemplateResponse(
+            name="index.html", context={"request": request}
+        )
+
+    except Exception:
         """Fall back if tempalate missing. Redirect home to docs."""
         return JSONResponse(status_code=404, content={"detail": "Not found"})
-    
