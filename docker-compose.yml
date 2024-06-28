@@ -1,14 +1,14 @@
 version: "3"
 
-volumes:
-  dtm_db_data:
-
 services:
   backend:
     build:
       context: .
       dockerfile: src/backend/Dockerfile
     restart: always
+    depends_on:
+      - db
+      - minio
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
     volumes:
@@ -22,8 +22,12 @@ services:
       context: .
       dockerfile: src/frontend/Dockerfile
       target: ${DOCKER_TARGET:-development}
+      args:
+        - STATIC_BASE_URL=${STATIC_BASE_URL:-http://localhost:9000/frontendstatic/}
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
+    depends_on:
+      - minio
     env_file: .env
     networks:
       - dtm-network
