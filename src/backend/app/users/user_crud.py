@@ -1,6 +1,6 @@
+import time
 import jwt
 from app.config import settings
-from datetime import datetime, timedelta
 from typing import Any
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -12,26 +12,45 @@ from fastapi import HTTPException
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-ALGORITHM = "HS256"
 
+def create_access_token(subject: str | Any):
+    expire = int(time.time()) + settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    refresh_expire = int(time.time()) + settings.REFRESH_TOKEN_EXPIRE_MINUTES
 
-def create_access_token(
-    subject: str | Any, expires_delta: timedelta, refresh_token_expiry: timedelta
-):
-    expire = datetime.utcnow() + expires_delta
-    refresh_expire = datetime.utcnow() + refresh_token_expiry
-
-    to_encode_access_token = {"exp": expire, "sub": str(subject)}
-    to_encode_refresh_token = {"exp": refresh_expire, "sub": str(subject)}
-
+    # access token
+    subject["exp"] = expire
     access_token = jwt.encode(
-        to_encode_access_token, settings.SECRET_KEY, algorithm=ALGORITHM
+        subject, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
+
+    # refresh token
+    subject["exp"] = refresh_expire
     refresh_token = jwt.encode(
-        to_encode_refresh_token, settings.SECRET_KEY, algorithm=ALGORITHM
+        subject, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
 
     return access_token, refresh_token
+
+
+def verify_token(token: str):
+    """Verifies the access token and returns the payload if valid.
+
+    Args:
+        token (str): The access token to be verified.
+
+    Returns:
+        dict: The payload of the access token if verification is successful.
+
+    Raises:
+        HTTPException: If the token has expired or credentials could not be validated.
+    """
+    secret_key = settings.SECRET_KEY
+    try:
+        return jwt.decode(token, str(secret_key), algorithms=[settings.ALGORITHM])
+    except jwt.ExpiredSignatureError as e:
+        raise HTTPException(status_code=401, detail="Token has expired") from e
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Could not validate token") from e
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

@@ -7,7 +7,9 @@ from app.db import database
 from app.users.user_routes import router
 from app.users.user_deps import init_google_auth, login_required
 from app.users.user_schemas import AuthUser
+from app.users import user_crud
 from app.config import settings
+
 
 if settings.DEBUG:
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -39,7 +41,11 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
 
     callback_url = str(request.url)
     access_token = google_auth.callback(callback_url).get("access_token")
-    return access_token
+
+    user_data = google_auth.deserialize_access_token(access_token)
+    access_token, refresh_token = user_crud.create_access_token(user_data)
+
+    return {"access_token": access_token, "refresh_token": refresh_token}
 
 
 @router.get("/my-info/")

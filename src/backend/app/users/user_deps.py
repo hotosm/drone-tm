@@ -83,16 +83,17 @@ async def login_required(
 ) -> AuthUser:
     """Dependency to inject into endpoints requiring login."""
 
-    google_auth = await init_google_auth()
+    if not access_token:
+        raise HTTPException(status_code=401, detail="No access token provided")
 
     if not access_token:
         raise HTTPException(status_code=401, detail="No access token provided")
 
     try:
-        google_user = google_auth.deserialize_access_token(access_token)
-    except ValueError as e:
+        user = user_crud.verify_token(access_token)
+    except HTTPException as e:
         log.error(e)
-        log.error("Failed to deserialise access token")
+        log.error("Failed to verify access token")
         raise HTTPException(status_code=401, detail="Access token not valid") from e
 
-    return AuthUser(**google_user)
+    return AuthUser(**user)

@@ -13,7 +13,6 @@ from databases import Database
 from app.users import user_schemas
 from app.config import settings
 
-
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/users",
     tags=["users"],
@@ -34,14 +33,9 @@ async def login_access_token(
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
 
-    access_token, refresh_token = user_crud.create_access_token(
-        user.id,
-        expires_delta=access_token_expires,
-        refresh_token_expiry=refresh_token_expires,
-    )
+    access_token, refresh_token = user_crud.create_access_token(user.id)
+
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 # @router.post("/login/")
