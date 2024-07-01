@@ -14,7 +14,7 @@ permissions:
 
 env:
   AWS_REGION: ap-south-1
-  S3_BUCKET: dronetm
+  S3_BUCKET: dronetm.naxa.com.np
 
 jobs:
   build:
@@ -75,4 +75,4 @@ jobs:
         run: |
           pwd
           ls -alh
-          aws s3 cp --recursive ./dist s3://dronetm
+          aws s3 cp --recursive ./dist s3://${{ env.S3_BUCKET }}
