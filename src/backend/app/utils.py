@@ -41,6 +41,7 @@ def str_to_geojson(
         return Feature(**geojson)
     return {}
 
+
 def geometry_to_geojson(
     geometry: WKBElement, properties: Optional[dict] = None, id: Optional[int] = None
 ) -> Union[Feature, dict]:
@@ -56,6 +57,7 @@ def geometry_to_geojson(
         }
         return Feature(**geojson)
     return {}
+
 
 def geojson_to_geometry(
     geojson: Union[FeatCol, Feature, MultiPolygon, Polygon],
