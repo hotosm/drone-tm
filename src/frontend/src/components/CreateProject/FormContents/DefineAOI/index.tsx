@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { setCreateProjectState } from '@Store/actions/createproject';
 import { FlexColumn } from '@Components/common/Layouts';
@@ -12,6 +13,9 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
   const { setValue } = formProps;
 
+  const uploadedGeojson = useTypedSelector(
+    state => state.createproject.uploadedGeojson,
+  );
   const uploadAreaOption = useTypedSelector(
     state => state.createproject.uploadAreaOption,
   );
@@ -26,7 +30,6 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
           dispatch(
             setCreateProjectState({ uploadedGeojson: convertedGeojson }),
           );
-          setValue('outline_geojson', convertedGeojson);
         }
       });
     } catch (err: any) {
@@ -34,6 +37,11 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
       console.log(err);
     }
   };
+
+  useEffect(() => {
+    if (!uploadedGeojson) return;
+    setValue('outline_geojson', uploadedGeojson);
+  }, [uploadedGeojson]);
 
   return (
     <FlexColumn>
