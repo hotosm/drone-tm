@@ -93,7 +93,7 @@ async def upload_project_task_boundaries(
 
     Returns:
         dict: JSON containing success message, project ID, and number of tasks.
-    """    
+    """
     # read entire file
     content = await task_geojson.read()
     task_boundaries = json.loads(content)
@@ -163,9 +163,7 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
 
 @router.get("/", tags=["Projects"], response_model=list[project_schemas.ProjectOut])
 async def read_projects(
-    skip: int = 0,
-    limit: int = 100,
-    db: Database = Depends(database.encode_db)
+    skip: int = 0, limit: int = 100, db: Database = Depends(database.encode_db)
 ):
     "Return all projects"
     projects = await project_crud.get_projects(db, skip, limit)
