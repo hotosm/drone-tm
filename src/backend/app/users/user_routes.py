@@ -32,7 +32,9 @@ def login_access_token(
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
-    access_token, refresh_token = user_crud.create_access_token(user.id)
+    user_info = {"id": user.id, "email": user.email_address}
+
+    access_token, refresh_token = user_crud.create_access_token(user_info)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
