@@ -1,6 +1,5 @@
 # ARG for the base image
 ARG NODE_BASE=18.16.0-bullseye-slim
-ARG STATIC_BASE_URL http://localhost:9000/frontendstatic/
 
 # Base image with frontend code
 FROM node:${NODE_BASE} as base
@@ -11,13 +10,11 @@ COPY ./src/frontend /app
 
 # Run development environment
 FROM base as development
-RUN env | tee .env
-ENTRYPOINT ["/bin/sh", "-c" , "yarn && yarn start --host 0.0.0.0"]
+ENTRYPOINT ["/bin/sh", "-c", "env | tee .env ; yarn; yarn start --host 0.0.0.0;"]
 
 # Generate frontend build files
 FROM base as build
-ARG STATIC_BASE_URL
-ENV STATIC_BASE_URL ${STATIC_BASE_URL}
+COPY ../.env .env
 RUN yarn
 RUN yarn build
 

@@ -2,13 +2,13 @@ import os
 from loguru import logger as log
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 from app.db import database
 from app.users.user_routes import router
 from app.users.user_deps import init_google_auth, login_required
 from app.users.user_schemas import AuthUser, Token
 from app.users import user_crud
 from app.config import settings
+from databases import Database
 
 
 if settings.DEBUG:
@@ -43,7 +43,7 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
     access_token = google_auth.callback(callback_url).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)
-    access_token, refresh_token = user_crud.create_access_token(user_data)
+    access_token, refresh_token = await user_crud.create_access_token(user_data)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -58,9 +58,9 @@ def update_token(user_data: AuthUser = Depends(login_required)):
 
 @router.get("/my-info/")
 async def my_data(
-    db: Session = Depends(database.get_db),
+    db: Database = Depends(database.encode_db),
     user_data: AuthUser = Depends(login_required),
 ):
     """Read access token and get user details from Google"""
 
-    return user_data
+    return await user_crud.get_or_create_user(db, user_data)

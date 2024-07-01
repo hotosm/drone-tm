@@ -22,8 +22,6 @@ services:
       context: .
       dockerfile: src/frontend/Dockerfile
       target: ${DOCKER_TARGET:-development}
-      args:
-        - STATIC_BASE_URL=${STATIC_BASE_URL:-http://localhost:9000/frontendstatic/}
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:

@@ -10,12 +10,12 @@ from app.utils import (
     merge_multipolygon,
     str_to_geojson,
     write_wkb,
-    geometry_to_geojson,
 )
 
 
 class ProjectInfo(BaseModel):
     """Basic project info."""
+
     id: int
     name: str
     short_description: str
