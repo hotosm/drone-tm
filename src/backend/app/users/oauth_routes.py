@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db import database
 from app.users.user_routes import router
 from app.users.user_deps import init_google_auth, login_required
-from app.users.user_schemas import AuthUser
+from app.users.user_schemas import AuthUser, Token
 from app.users import user_crud
 from app.config import settings
 
@@ -45,7 +45,15 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
     user_data = google_auth.deserialize_access_token(access_token)
     access_token, refresh_token = user_crud.create_access_token(user_data)
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return Token(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.get("/refresh-token", response_model=Token)
+def update_token(user_data: AuthUser = Depends(login_required)):
+    """Refresh access token"""
+
+    access_token, refresh_token = user_crud.create_access_token(user_data.model_dump())
+    return Token(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.get("/my-info/")
