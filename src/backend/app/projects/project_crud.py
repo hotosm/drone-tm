@@ -15,7 +15,6 @@ from fastapi import Depends
 from asyncio import gather
 from databases import Database
 from app.models.enums import HTTPStatus
-from shapely.geometry import Polygon
 
 
 async def create_project_with_project_info(
@@ -104,10 +103,7 @@ async def convert_to_app_tasks(
 
         app_tasks = await gather(
             *[convert_task(task) for task in db_tasks]
-        )
-        # Calculate total area of all boxes
-        # total_area = sum(_getArea(task.outline) for task in app_tasks if task.outline is not None)
-        
+        )        
         return [task for task in app_tasks if task is not None]
     else:
         return []    
