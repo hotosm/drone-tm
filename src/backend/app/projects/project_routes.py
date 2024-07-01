@@ -22,11 +22,8 @@ router = APIRouter(
 )
 
 
-@router.delete('/{project_id}', tags=["Projects"])
-def delete_project_by_id(
-    project_id: int,
-    db: Session = Depends(database.get_db)
-):
+@router.delete("/{project_id}", tags=["Projects"])
+def delete_project_by_id(project_id: int, db: Session = Depends(database.get_db)):
     """
     Delete a project by its ID, along with all associated tasks.
 
@@ -41,20 +38,28 @@ def delete_project_by_id(
         HTTPException: If the project is not found.
     """
     # Query for the project
-    project = db.query(db_models.DbProject).filter(db_models.DbProject.id == project_id).first()
+    project = (
+        db.query(db_models.DbProject)
+        .filter(db_models.DbProject.id == project_id)
+        .first()
+    )
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
 
     # Query and delete associated tasks
-    tasks = db.query(db_models.DbTask).filter(db_models.DbTask.project_id == project_id).all()
+    tasks = (
+        db.query(db_models.DbTask)
+        .filter(db_models.DbTask.project_id == project_id)
+        .all()
+    )
     for task in tasks:
         db.delete(task)
-    
+
     # Delete the project
     db.delete(project)
     db.commit()
     return {"message": f"Project ID: {project_id} is deleted successfully."}
-    
+
 
 @router.post(
     "/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut

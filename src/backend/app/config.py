@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = "dtm-data"
     S3_DOWNLOAD_ROOT: Optional[str] = None
 
+    ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 1  # 1 day
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 day
 
