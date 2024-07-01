@@ -26,7 +26,7 @@ export default function ProjectCard({
   return (
     <div
       onClick={onProjectCardClick}
-      className="!naxatw-col-span-1 naxatw-max-h-[19.25rem] naxatw-cursor-pointer naxatw-rounded-md naxatw-border naxatw-border-grey-400 naxatw-p-[0.625rem] hover:naxatw-shadow-lg"
+      className="!naxatw-col-span-1 naxatw-max-h-[19.25rem] naxatw-cursor-pointer naxatw-rounded-md naxatw-border naxatw-border-grey-400 naxatw-p-[0.625rem] naxatw-transition-all naxatw-duration-300 naxatw-ease-in-out hover:-naxatw-translate-y-1 hover:naxatw-scale-100 hover:naxatw-shadow-xl"
     >
       <MapSection containerId={containerId} geojson={geojson} />
       <p className="naxatw-mt-2 naxatw-text-body-sm">ID: #{id}</p>
