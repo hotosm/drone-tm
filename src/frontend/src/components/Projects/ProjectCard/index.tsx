@@ -1,18 +1,37 @@
+import { useNavigate } from 'react-router-dom';
 import MapSection from './MapSection';
+import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 
-export default function ProjectCard({ containerId }: { containerId: string }) {
+interface IProjectCardProps {
+  containerId: string;
+  id: number;
+  title: string;
+  description: string;
+  geojson: GeojsonType;
+}
+
+export default function ProjectCard({
+  containerId,
+  id,
+  title,
+  description,
+  geojson,
+}: IProjectCardProps) {
+  const navigate = useNavigate();
+
+  const onProjectCardClick = () => {
+    navigate(`/project/${id}`);
+  };
+
   return (
-    <div className="!naxatw-col-span-1 naxatw-rounded-md naxatw-border naxatw-border-grey-400 naxatw-p-[0.625rem]">
-      <MapSection containerId={containerId} />
-      <p className="naxatw-mt-2 naxatw-text-body-sm">ID: #12468</p>
-      <p className="naxatw-text-body-btn naxatw-text-grey-800">
-        Lorem ipsum dolor sit amet consectur
-      </p>
-      <p className="naxatw-text-body-sm">
-        Cameroon RoLorem ipsum dolor sit amet consec.Lorem ipsum dolor sit amet
-        consectetur.Lorem ipsum dolor sit amet consectetur.ad Assessment for
-        Sustainable Development in Rural Communities in Africa
-      </p>
+    <div
+      onClick={onProjectCardClick}
+      className="!naxatw-col-span-1 naxatw-max-h-[19.25rem] naxatw-cursor-pointer naxatw-rounded-md naxatw-border naxatw-border-grey-400 naxatw-p-[0.625rem] hover:naxatw-shadow-lg"
+    >
+      <MapSection containerId={containerId} geojson={geojson} />
+      <p className="naxatw-mt-2 naxatw-text-body-sm">ID: #{id}</p>
+      <p className="naxatw-text-body-btn naxatw-text-grey-800">{title}</p>
+      <p className="naxatw-line-clamp-4 naxatw-text-body-sm">{description}</p>
     </div>
   );
 }
