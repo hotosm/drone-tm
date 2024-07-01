@@ -17,11 +17,48 @@ from databases import Database
 from app.db import db_models
 
 router = APIRouter(
-    prefix="/projects",
+    prefix=f"{settings.API_PREFIX}/projects",
     responses={404: {"description": "Not found"}},
 )
 
-@router.post("/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut)
+
+@router.delete('/{project_id}', tags=["Projects"])
+def delete_project_by_id(
+    project_id: int,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Delete a project by its ID, along with all associated tasks.
+
+    Args:
+        project_id (int): The ID of the project to delete.
+        db (Session): The database session dependency.
+
+    Returns:
+        dict: A confirmation message.
+
+    Raises:
+        HTTPException: If the project is not found.
+    """
+    # Query for the project
+    project = db.query(db_models.DbProject).filter(db_models.DbProject.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    # Query and delete associated tasks
+    tasks = db.query(db_models.DbTask).filter(db_models.DbTask.project_id == project_id).all()
+    for task in tasks:
+        db.delete(task)
+    
+    # Delete the project
+    db.delete(project)
+    db.commit()
+    return {"message": f"Project ID: {project_id} is deleted successfully."}
+    
+
+@router.post(
+    "/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut
+)
 async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Database = Depends(database.encode_db),
@@ -51,8 +88,7 @@ async def upload_project_task_boundaries(
 
     Returns:
         dict: JSON containing success message, project ID, and number of tasks.
-    """
-
+    """    
     # read entire file
     content = await task_geojson.read()
     task_boundaries = json.loads(content)
@@ -119,6 +155,7 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
             detail=f"Failed to generate pre-signed URL. {e}",
         )
 
+
 @router.get("/", tags=["Projects"], response_model=list[project_schemas.ProjectOut])
 async def read_projects(
     skip: int = 0,
@@ -129,7 +166,10 @@ async def read_projects(
     projects = await project_crud.get_projects(db, skip, limit)
     return projects
 
-@router.get("/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut)
+
+@router.get(
+    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut
+)
 async def read_project(
     db: Session = Depends(database.get_db),
     project: db_models.DbProject = Depends(project_crud.get_project_by_id),

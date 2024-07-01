@@ -11,8 +11,11 @@ from app.users import user_crud
 from app.db import database
 from databases import Database
 from app.users import user_schemas
+from app.config import settings
+
+
 router = APIRouter(
-    prefix="/users",
+    prefix=f"{settings.API_PREFIX}/users",
     tags=["users"],
     responses={404: {"description": "Not found"}},
 )

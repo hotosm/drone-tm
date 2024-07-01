@@ -1,9 +1,11 @@
-name: Build and Deploy Drone Tasking Manager
+name: Build and Deploy Drone Tasking Manager Backend
 
 on:
   push:
     branches:
       - main
+    paths:
+      - src/backend/**
   workflow_dispatch:
 
 permissions:

@@ -1,5 +1,4 @@
 import os
-import json
 from loguru import logger as log
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse
@@ -40,7 +39,7 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
 
     callback_url = str(request.url)
     access_token = google_auth.callback(callback_url).get("access_token")
-    return json.loads(access_token)
+    return access_token
 
 
 @router.get("/my-info/")

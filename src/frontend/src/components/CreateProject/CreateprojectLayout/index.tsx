@@ -1,0 +1,142 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-console */
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
+import { FlexRow } from '@Components/common/Layouts';
+import {
+  StepComponentMap,
+  stepDescriptionComponents,
+} from '@Constants/createProject';
+import { Button } from '@Components/RadixComponents/Button';
+import { setCreateProjectState } from '@Store/actions/createproject';
+import {
+  BasicInformationForm,
+  DefineAOIForm,
+  KeyParametersForm,
+  ContributionsForm,
+  GenerateTaskForm,
+} from '@Components/CreateProject/FormContents';
+import { postCreateProject } from '@Services/createproject';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
+
+/**
+ * This function looks up the provided map of components to find and return
+ * the component associated with the current active step. If no component
+ * is found for the given step, it returns an empty fragment.
+ *
+ * @param {StepComponentMap} componentsMap - An object mapping step numbers to React functional components.
+ * @param {number} activeStep - The current active step number.
+ * @returns {JSX.Element} - The React component for the active step, or an empty fragment if not found.
+ */
+const getActiveStepDescription = (
+  componentsMap: StepComponentMap,
+  activeStep: number,
+): JSX.Element => {
+  const Component = componentsMap[activeStep];
+  return Component ? <Component /> : <></>;
+};
+
+const getActiveStepForm = (activeStep: number, formProps: any) => {
+  switch (activeStep) {
+    case 1:
+      return <BasicInformationForm formProps={formProps} />;
+    case 2:
+      return <DefineAOIForm formProps={formProps} />;
+    case 3:
+      return <KeyParametersForm formProps={formProps} />;
+    case 4:
+      return <ContributionsForm formProps={formProps} />;
+    case 5:
+      return <GenerateTaskForm formProps={formProps} />;
+    default:
+      return <></>;
+  }
+};
+
+export default function CreateprojectLayout() {
+  const dispatch = useTypedDispatch();
+  const navigate = useNavigate();
+  const activeStep = useTypedSelector(state => state.createproject.activeStep);
+
+  const initialState = {
+    name: '',
+    short_description: '',
+    description: '',
+    organisation_id: 1,
+    outline_geojson: {},
+  };
+
+  const { mutate } = useMutation<any, any, any, unknown>({
+    mutationFn: postCreateProject,
+    onSuccess: (res: any) => {
+      toast.success('Project Created Successfully');
+      navigate('/');
+    },
+    onError: err => {
+      toast.error(err.message);
+    },
+  });
+
+  const onSubmit = (data: any) => {
+    if (activeStep < 5) return;
+    mutate(data);
+  };
+
+  const { register, setValue, handleSubmit } = useForm({
+    defaultValues: initialState,
+  });
+
+  const formProps = {
+    register,
+    setValue,
+  };
+
+  const onPrevBtnClick = () => {
+    dispatch(setCreateProjectState({ activeStep: activeStep - 1 }));
+  };
+
+  const onNextBtnClick = () => {
+    handleSubmit(onSubmit)();
+    if (activeStep === 5) return;
+    dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
+  };
+
+  return (
+    <section className="project-form-layout">
+      <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
+        {/* description */}
+        <div className="description naxatw-col-span-1 naxatw-h-[32.625rem] naxatw-animate-fade-up naxatw-bg-white">
+          {getActiveStepDescription(stepDescriptionComponents, activeStep)}
+        </div>
+
+        {/* form section */}
+        <div className="form naxatw-relative naxatw-col-span-3 naxatw-bg-white">
+          {getActiveStepForm(activeStep, formProps)}
+          <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-w-full naxatw-justify-between naxatw-px-10">
+            {activeStep !== 1 ? (
+              <Button
+                onClick={onPrevBtnClick}
+                className="!naxatw-text-red"
+                leftIcon="chevron_left"
+              >
+                Previous
+              </Button>
+            ) : (
+              <div />
+            )}
+            <Button
+              onClick={onNextBtnClick}
+              type="submit"
+              className="!naxatw-bg-red !naxatw-text-white"
+              rightIcon="chevron_right"
+            >
+              {activeStep === 5 ? 'Save' : 'Next'}
+            </Button>
+          </FlexRow>
+        </div>
+      </div>
+    </section>
+  );
+}
