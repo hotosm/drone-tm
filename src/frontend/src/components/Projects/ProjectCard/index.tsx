@@ -20,7 +20,7 @@ export default function ProjectCard({
   const navigate = useNavigate();
 
   const onProjectCardClick = () => {
-    navigate(`/project/${id}`);
+    navigate(`/projects/${id}`);
   };
 
   return (

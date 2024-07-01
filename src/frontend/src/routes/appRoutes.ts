@@ -10,7 +10,7 @@ import IndividualProject from '@Components/IndividualProject';
 const appRoutes: IRoute[] = [
   ...userRoutes,
   {
-    path: '/',
+    path: '/projects',
     name: 'Projects ',
     component: Projects,
     authenticated: true,
@@ -34,7 +34,7 @@ const appRoutes: IRoute[] = [
     authenticated: true,
   },
   {
-    path: '/project/:id',
+    path: '/projects/:id',
     name: 'Individual Project',
     component: IndividualProject,
     authenticated: true,

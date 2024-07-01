@@ -75,7 +75,7 @@ export default function CreateprojectLayout() {
     mutationFn: postTaskBoundary,
     onSuccess: () => {
       toast.success('Project Boundary Uploaded');
-      navigate('/');
+      navigate('/projects');
     },
     onError: err => {
       toast.error(err.message);
