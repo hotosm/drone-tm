@@ -13,8 +13,8 @@ from app.models.enums import HTTPStatus
 from app.utils import multipolygon_to_polygon
 from app.s3 import s3_client
 from app.config import settings
+from databases import Database
 from app.db import db_models
-
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -66,21 +66,14 @@ def delete_project_by_id(project_id: int, db: Session = Depends(database.get_db)
 )
 async def create_project(
     project_info: project_schemas.ProjectIn,
-    db: Session = Depends(database.get_db),
+    db: Database = Depends(database.encode_db),
 ):
     """Create a project in  database."""
-
-    log.info(
-        f"Attempting creation of project "
-        f"{project_info.name} in organisation {project_info.organisation_id}"
-    )
-
     project = await project_crud.create_project_with_project_info(db, project_info)
     if not project:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
         )
-
     return project
 
 
@@ -88,7 +81,7 @@ async def create_project(
 async def upload_project_task_boundaries(
     project_id: int,
     task_geojson: UploadFile = File(...),
-    db: Session = Depends(database.get_db),
+    db: Database = Depends(database.encode_db),
 ):
     """Set project task boundaries using split GeoJSON from frontend.
 
@@ -100,8 +93,7 @@ async def upload_project_task_boundaries(
 
     Returns:
         dict: JSON containing success message, project ID, and number of tasks.
-    """
-
+    """    
     # read entire file
     content = await task_geojson.read()
     task_boundaries = json.loads(content)
@@ -173,10 +165,10 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
 async def read_projects(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(database.get_db),
+    db: Database = Depends(database.encode_db)
 ):
-    """Return all projects."""
-    total_count, projects = await project_crud.get_projects(db, skip, limit)
+    "Return all projects"
+    projects = await project_crud.get_projects(db, skip, limit)
     return projects
 
 

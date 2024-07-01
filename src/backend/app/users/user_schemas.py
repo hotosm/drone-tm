@@ -17,8 +17,7 @@ class UserBase(BaseModel):
     is_active: bool = True
     is_superuser: bool = False
     name: str
-
-
+    
 class User(BaseModel):
     email_address: EmailStr
     is_active: bool
