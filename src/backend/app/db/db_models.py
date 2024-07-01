@@ -25,6 +25,7 @@ from app.models.enums import (
     ProjectVisibility,
     MappingLevel,
     ProjectPriority,
+    UserRole,
 )
 from sqlalchemy.orm import (
     object_session,
@@ -36,16 +37,16 @@ from app.utils import timestamp
 class DbUser(Base):
     __tablename__ = "users"
 
-    id = cast(int, Column(BigInteger, primary_key=True))
+    id = cast(str, Column(String, primary_key=True))
     username = cast(str, Column(String, nullable=False, unique=True))
     password = cast(str, Column(String))
     is_active = cast(bool, Column(Boolean, default=False))
     is_superuser = cast(bool, Column(Boolean, default=False))
     profile_img = cast(str, Column(String, nullable=True))
     name = cast(str, Column(String))
-    city = cast(str, Column(String))
-    country = cast(str, Column(String))
     email_address = cast(str, Column(String, nullable=False, unique=True))
+    role = cast(UserRole, Column(Enum(UserRole), default=UserRole.DRONE_PILOT))
+    date_registered = cast(datetime, Column(DateTime, default=timestamp))
 
 
 class DbOrganisation(Base):
