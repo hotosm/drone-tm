@@ -1,6 +1,5 @@
 import json
 from typing import List, Optional
-from sqlalchemy.orm import Session
 from app.projects import project_schemas
 from app.db import db_models
 from loguru import logger as log
@@ -13,82 +12,95 @@ from fastapi.concurrency import run_in_threadpool
 from app.db import database
 from fastapi import Depends
 from asyncio import gather
-from databases import Database
 from app.models.enums import HTTPStatus
 
 
 async def create_project_with_project_info(
-    db: Database, project_metadata: project_schemas.ProjectIn
+    db, project_metadata: project_schemas.ProjectIn
 ):
     """Create a project in database."""
-    query = f"""
-    INSERT INTO projects (
-        author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
-    )
-    VALUES (
-        1,
-        '{project_metadata.name}',
-        '{project_metadata.short_description}',
-        '{project_metadata.description}',
-        '{project_metadata.per_task_instructions}',
-        'DRAFT',
-        'PUBLIC',
-        'INTERMEDIATE',
-        'MEDIUM',
-        '{str(project_metadata.outline)}',
-        CURRENT_TIMESTAMP
-    )
-    RETURNING id
+    query = """
+        INSERT INTO projects (
+            author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
+        )
+        VALUES (
+            :author_id,
+            :name,
+            :short_description,
+            :description,
+            :per_task_instructions,
+            :status,
+            :visibility,
+            :mapper_level,
+            :priority,
+            :outline,
+            CURRENT_TIMESTAMP
+        )
+        RETURNING id
     """
-    new_project_id = await db.execute(query)
+    new_project_id = await db.execute(query, values = {
+        "author_id": 1,
+        "name": project_metadata.name,
+        "short_description": project_metadata.short_description,
+        "description": project_metadata.description,
+        "per_task_instructions": project_metadata.per_task_instructions,
+        "status": "DRAFT",
+        "visibility": "PUBLIC",
+        "mapper_level": "INTERMEDIATE",
+        "priority": "MEDIUM",
+        "outline": str(project_metadata.outline),
+    })
 
     if not new_project_id:
         raise HTTPException(status_code=500, detail="Project could not be created")
     # Fetch the newly created project using the returned ID
-    select_query = f"""
+    select_query = """
         SELECT id, name, short_description, description, per_task_instructions, outline
         FROM projects
-        WHERE id = '{new_project_id}'
+        WHERE id = :new_project_id
     """
-    new_project = await db.fetch_one(query=select_query)
+    
+    new_project = await db.fetch_one(select_query,{"new_project_id": new_project_id})
     return new_project
 
 
 async def get_project_by_id(
-    db: Database = Depends(database.encode_db), project_id: Optional[int] = None
-) -> db_models.DbProject:
+    db = Depends(database.encode_db), project_id: Optional[int] = None
+):
     """Get a single project &  all associated tasks by ID."""
-    #check the project in Database
-    raw_sql = f"""SELECT id, short_description,total_tasks FROM projects WHERE id = '{project_id}' LIMIT 1;"""
-    raw_sql = f"""
-    SELECT 
-        projects.id, 
-        projects.short_description, 
+    # check the project in Database
+    raw_sql = """
+    SELECT
+        projects.id,
+        projects.short_description,
         projects.description,
         projects.author_id,
         users.name AS author_name
-    FROM projects 
-    JOIN users ON projects.author_id = users.id 
-    WHERE projects.id = '{project_id}' 
+    FROM projects
+    JOIN users ON projects.author_id = users.id
+    WHERE projects.id = :project_id
     LIMIT 1;
     """
 
-    project =  await db.fetch_one(query=raw_sql)
-    if not project:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Project not found.")
+    project_record = await db.fetch_one(raw_sql, {"project_id": project_id})
+    if not project_record:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Project not found."
+        )
 
     # get tasks of project
-    query = f""" SELECT * from tasks WHERE project_id = '{project_id}';"""
-    all_tasks = await db.fetch_all(query=query)    
-    tasks =   await convert_to_app_tasks(all_tasks)
+    query = """ SELECT * from tasks WHERE project_id = :project_id;"""
+    task_records = await db.fetch_all(query, {"project_id": project_id})
+    tasks = await convert_to_app_tasks(task_records)
     # Count the total tasks
     task_count = len(tasks)
     return {
-        "project": project,
+        "project": project_record,
         "task_count": task_count,
         "tasks": tasks,
     }
-    
+
+
 async def convert_to_app_tasks(
     db_tasks: List[db_models.DbTask],
 ) -> List[project_schemas.TaskOut]:
@@ -99,18 +111,20 @@ async def convert_to_app_tasks(
     if db_tasks and len(db_tasks) > 0:
 
         async def convert_task(task):
-            return await convert_to_app_task(task)
-
-        app_tasks = await gather(
-            *[convert_task(task) for task in db_tasks]
-        )        
+            return project_schemas.TaskOut(
+                id=task.id,
+                project_task_index=task.project_task_index,
+                project_task_name=task.project_task_name,
+                outline=task.outline
+            )
+        app_tasks = await gather(*[convert_task(task) for task in db_tasks])
         return [task for task in app_tasks if task is not None]
     else:
-        return []    
+        return []
 
 
 async def get_projects(
-    db: Database,
+    db,
     skip: int = 0,
     limit: int = 100,
 ):
@@ -175,7 +189,7 @@ async def convert_to_app_task(db_task: db_models.DbTask):
 
 
 async def create_tasks_from_geojson(
-    db: Database,
+    db,
     project_id: int,
     boundaries: str,
 ):
@@ -198,9 +212,15 @@ async def create_tasks_from_geojson(
                 polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
                     0
                 ]
-            query = f""" INSERT INTO tasks (project_id,outline,project_task_index) VALUES ( '{project_id}', '{wkblib.dumps(shape(polygon["geometry"]), hex=True)}', '{index + 1}');"""
-
-            result = await db.execute(query)
+            query = """
+                INSERT INTO tasks (project_id, outline, project_task_index)
+                VALUES (:project_id, :outline, :project_task_index);"""
+                
+            result = await db.execute(query, values = {
+                "project_id": project_id,
+                "outline": wkblib.dumps(shape(polygon["geometry"]), hex=True),
+                "project_task_index": index + 1,
+            })
             if result:
                 log.debug(
                     "Created database task | "
