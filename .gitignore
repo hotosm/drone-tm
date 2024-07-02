@@ -78,3 +78,6 @@ chart/charts
 
 #Docker
 DockerData/
+
+#Backend Template
+src/backend/templates/*

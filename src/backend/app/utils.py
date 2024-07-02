@@ -11,6 +11,7 @@ from geoalchemy2.shape import from_shape, to_shape
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 from fastapi import HTTPException
+from shapely import wkb
 
 
 log = logging.getLogger(__name__)
@@ -22,6 +23,23 @@ def timestamp():
     Used to insert a current timestamp into Pydantic models.
     """
     return datetime.now(timezone.utc)
+
+
+def str_to_geojson(
+    result: str, properties: Optional[dict] = None, id: Optional[int] = None
+) -> Union[Feature, dict]:
+    """Convert SQLAlchemy geometry to GeoJSON."""
+    if result:
+        wkb_data = bytes.fromhex(result)
+        geom = wkb.loads(wkb_data)
+        geojson = {
+            "type": "Feature",
+            "geometry": mapping(geom),
+            "properties": properties,
+            "id": id,
+        }
+        return Feature(**geojson)
+    return {}
 
 
 def geometry_to_geojson(

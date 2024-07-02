@@ -3,17 +3,55 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.projects import project_schemas
 from app.db import db_models
-from app.models.enums import HTTPStatus
 from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from fastapi import HTTPException
-from app.utils import geometry_to_geojson, merge_multipolygon
+from app.utils import merge_multipolygon, str_to_geojson
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from app.db import database
 from fastapi import Depends
 from asyncio import gather
+from databases import Database
+
+
+async def create_project_with_project_info(
+    db: Database, project_metadata: project_schemas.ProjectIn
+):
+    """Create a project in database."""
+    query = f"""
+    INSERT INTO projects (
+        author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
+    )
+    VALUES (
+        1,
+        '{project_metadata.name}',
+        '{project_metadata.short_description}',
+        '{project_metadata.description}',
+        '{project_metadata.per_task_instructions}',
+        'DRAFT',
+        'PUBLIC',
+        'INTERMEDIATE',
+        'MEDIUM',
+        '{str(project_metadata.outline)}',
+        CURRENT_TIMESTAMP
+    )
+    RETURNING id
+    """
+    new_project_id = await db.execute(query)
+
+    if not new_project_id:
+        raise HTTPException(status_code=500, detail="Project could not be created")
+    # Fetch the newly created project using the returned ID
+    select_query = f"""
+        SELECT id, name, short_description, description, per_task_instructions, outline
+        FROM projects
+        WHERE id = '{new_project_id}'
+    """
+    new_project = await db.fetch_one(query=select_query)
+    return new_project
+
 
 async def get_project_by_id(
     db: Session = Depends(database.get_db), project_id: Optional[int] = None
@@ -26,39 +64,40 @@ async def get_project_by_id(
     )
     return await convert_to_app_project(db_project)
 
-async def convert_to_app_project(db_project: db_models.DbProject):
-    """Legacy function to convert db models --> Pydantic.
-
-    TODO refactor to use Pydantic model methods instead.
-    """
-    if not db_project:
-        log.debug("convert_to_app_project called, but no project provided")
-        return None
-
-    app_project = db_project
-
-    if db_project.outline:
-        app_project.outline_geojson = geometry_to_geojson(
-            db_project.outline, {"id": db_project.id}, db_project.id
-        )
-    app_project.tasks = db_project.tasks
-    return app_project
 
 async def get_projects(
-    db: Session,
+    db: Database,
     skip: int = 0,
     limit: int = 100,
 ):
     """Get all projects."""
-    db_projects = (
-        db.query(db_models.DbProject)
-        .order_by(db_models.DbProject.id.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    project_count = db.query(db_models.DbProject).count()
-    return project_count, await convert_to_app_projects(db_projects)
+    raw_sql = """
+        SELECT id, name, short_description, description, per_task_instructions, outline
+        FROM projects
+        ORDER BY id DESC
+        OFFSET :skip
+        LIMIT :limit;
+        """
+    db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
+    return await convert_to_app_projects(db_projects)
+
+
+# async def get_projects(
+#     db: Session,
+#     skip: int = 0,
+#     limit: int = 100,
+# ):
+#     """Get all projects."""
+#     db_projects = (
+#         db.query(db_models.DbProject)
+#         .order_by(db_models.DbProject.id.desc())
+#         .offset(skip)
+#         .limit(limit)
+#         .all()
+#     )
+#     project_count = db.query(db_models.DbProject).count()
+#     return project_count, await convert_to_app_projects(db_projects)
+
 
 async def convert_to_app_projects(
     db_projects: List[db_models.DbProject],
@@ -79,21 +118,23 @@ async def convert_to_app_projects(
     else:
         return []
 
-async def create_project_with_project_info(
-    db: Session, project_metadata: project_schemas.ProjectIn
-):
-    """Create a project in database."""
-    db_project = db_models.DbProject(
-        author_id=1, **project_metadata.model_dump(exclude=["outline_geojson"])
-    )
-    db.add(db_project)
-    db.commit()
-    db.refresh(db_project)
-    return db_project
+
+async def convert_to_app_project(db_project: db_models.DbProject):
+    """Legacy function to convert db models --> Pydantic."""
+    if not db_project:
+        log.debug("convert_to_app_project called, but no project provided")
+        return None
+    app_project = db_project
+
+    if db_project.outline:
+        app_project.outline_geojson = str_to_geojson(
+            db_project.outline, {"id": db_project.id}, db_project.id
+        )
+    return app_project
 
 
 async def create_tasks_from_geojson(
-    db: Session,
+    db: Database,
     project_id: int,
     boundaries: str,
 ):
@@ -116,25 +157,19 @@ async def create_tasks_from_geojson(
                 polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
                     0
                 ]
+            query = f""" INSERT INTO tasks (project_id,outline,project_task_index) VALUES ( '{project_id}', '{wkblib.dumps(shape(polygon["geometry"]), hex=True)}', '{index + 1}');"""
 
-            db_task = db_models.DbTask(
-                project_id=project_id,
-                outline=wkblib.dumps(shape(polygon["geometry"]), hex=True),
-                project_task_index=index + 1,
-            )
-            db.add(db_task)
-            log.debug(
-                "Created database task | "
-                f"Project ID {project_id} | "
-                f"Task index {index}"
-            )
-
-        # Commit all tasks and update project location in db
-        db.commit()
-
-        log.debug("COMPLETE: creating project boundary, based on task boundaries")
-
-        return True
+            result = await db.execute(query)
+            if result:
+                log.debug(
+                    "Created database task | "
+                    f"Project ID {project_id} | "
+                    f"Task index {index}"
+                )
+                log.debug(
+                    "COMPLETE: creating project boundary, based on task boundaries"
+                )
+                return True
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e

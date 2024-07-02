@@ -1,6 +1,5 @@
 import jwt
 from typing import Annotated
-
 from fastapi import Depends, HTTPException, Request, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
@@ -16,7 +15,10 @@ from loguru import logger as log
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_PREFIX}/users/login")
 
-
+# SessionDep = Annotated[
+#     Database,
+#     Depends(database.encode_db),
+# ]
 SessionDep = Annotated[
     Session,
     Depends(database.get_db),
@@ -80,16 +82,17 @@ async def login_required(
 ) -> AuthUser:
     """Dependency to inject into endpoints requiring login."""
 
-    google_auth = await init_google_auth()
+    if not access_token:
+        raise HTTPException(status_code=401, detail="No access token provided")
 
     if not access_token:
         raise HTTPException(status_code=401, detail="No access token provided")
 
     try:
-        google_user = google_auth.deserialize_access_token(access_token)
-    except ValueError as e:
+        user = user_crud.verify_token(access_token)
+    except HTTPException as e:
         log.error(e)
-        log.error("Failed to deserialise access token")
+        log.error("Failed to verify access token")
         raise HTTPException(status_code=401, detail="Access token not valid") from e
 
-    return AuthUser(**google_user)
+    return AuthUser(**user)

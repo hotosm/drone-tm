@@ -47,7 +47,7 @@ class Settings(BaseSettings):
             default_origins += val
             return default_origins
 
-    API_PREFIX: str = "/"
+    API_PREFIX: str = "/api"
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
     POSTGRES_HOST: Optional[str] = "db"
@@ -78,12 +78,13 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = "dtm-data"
     S3_DOWNLOAD_ROOT: Optional[str] = None
 
+    ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 1  # 1 day
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 day
 
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
-    GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8002"
+    GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
 
 
 @lru_cache
