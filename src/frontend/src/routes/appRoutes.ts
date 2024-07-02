@@ -5,11 +5,12 @@ import CreateProject from '@Components/CreateProject';
 import GoogleAuth from '@Components/GoogleAuth';
 import userRoutes from '@UserModule/routes';
 import { IRoute } from './types';
+import IndividualProject from '@Components/IndividualProject';
 
 const appRoutes: IRoute[] = [
   ...userRoutes,
   {
-    path: '/',
+    path: '/projects',
     name: 'Projects ',
     component: Projects,
     authenticated: true,
@@ -30,6 +31,12 @@ const appRoutes: IRoute[] = [
     path: '/create-project',
     name: 'Create Project',
     component: CreateProject,
+    authenticated: true,
+  },
+  {
+    path: '/projects/:id',
+    name: 'Individual Project',
+    component: IndividualProject,
     authenticated: true,
   },
   {

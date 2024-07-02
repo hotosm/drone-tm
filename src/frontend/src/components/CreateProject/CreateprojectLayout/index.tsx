@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-console */
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
@@ -17,9 +15,11 @@ import {
   ContributionsForm,
   GenerateTaskForm,
 } from '@Components/CreateProject/FormContents';
-import { postCreateProject } from '@Services/createproject';
+import { postCreateProject, postTaskBoundary } from '@Services/createproject';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
+import prepareFormData from '@Utils/prepareFormData';
 
 /**
  * This function looks up the provided map of components to find and return
@@ -59,6 +59,9 @@ export default function CreateprojectLayout() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const activeStep = useTypedSelector(state => state.createproject.activeStep);
+  const splitGeojson = useTypedSelector(
+    state => state.createproject.splitGeojson,
+  );
 
   const initialState = {
     name: '',
@@ -68,11 +71,26 @@ export default function CreateprojectLayout() {
     outline_geojson: {},
   };
 
-  const { mutate } = useMutation<any, any, any, unknown>({
+  const { mutate: uploadTaskBoundary } = useMutation<any, any, any, unknown>({
+    mutationFn: postTaskBoundary,
+    onSuccess: () => {
+      toast.success('Project Boundary Uploaded');
+      navigate('/projects');
+    },
+    onError: err => {
+      toast.error(err.message);
+    },
+  });
+
+  const { mutate: createProject } = useMutation<any, any, any, unknown>({
     mutationFn: postCreateProject,
     onSuccess: (res: any) => {
       toast.success('Project Created Successfully');
-      navigate('/');
+      dispatch(setCreateProjectState({ projectId: res.data.id }));
+      if (!splitGeojson) return;
+      const geojson = convertGeojsonToFile(splitGeojson);
+      const formData = prepareFormData({ task_geojson: geojson });
+      uploadTaskBoundary({ id: res.data.id, data: formData });
     },
     onError: err => {
       toast.error(err.message);
@@ -81,10 +99,11 @@ export default function CreateprojectLayout() {
 
   const onSubmit = (data: any) => {
     if (activeStep < 5) return;
-    mutate(data);
+    createProject(data);
+    reset();
   };
 
-  const { register, setValue, handleSubmit } = useForm({
+  const { register, setValue, handleSubmit, reset } = useForm({
     defaultValues: initialState,
   });
 

@@ -1,8 +1,20 @@
+import { useEffect } from 'react';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
+import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
+import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import getBbox from '@turf/bbox';
+import { FeatureCollection } from 'geojson';
 
-export default function MapSection({ containerId }: { containerId: string }) {
+export default function MapSection({
+  containerId,
+  geojson,
+}: {
+  containerId: string;
+  geojson: GeojsonType;
+}) {
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId,
     mapOptions: {
@@ -12,6 +24,13 @@ export default function MapSection({ containerId }: { containerId: string }) {
     },
     disableRotation: true,
   });
+
+  useEffect(() => {
+    if (!geojson) return;
+    const bbox = getBbox(geojson as FeatureCollection);
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 30 });
+  }, [geojson, map]);
+
   return (
     <MapContainer
       containerId={containerId}
@@ -22,6 +41,15 @@ export default function MapSection({ containerId }: { containerId: string }) {
         height: '150px',
       }}
     >
+      {geojson && (
+        <VectorLayer
+          map={map as Map}
+          isMapLoaded={isMapLoaded}
+          id={containerId}
+          geojson={geojson}
+          visibleOnMap={!!geojson}
+        />
+      )}
       <BaseLayerSwitcher />
     </MapContainer>
   );
