@@ -237,7 +237,6 @@ class Drone(Base):
     weight = cast(int, Column(Integer, nullable=True))
     max_battery_health = cast(int, Column(Integer, nullable=True))
     created = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
-    name = cast(str, Column(String, unique=True, nullable=False))
 
 
 class DroneFlight(Base):
