@@ -1,30 +1,28 @@
 from datetime import datetime
 from typing import cast
 from sqlalchemy import (
-    BigInteger,
     Column,
     String,
     Integer,
     ForeignKey,
-    ForeignKeyConstraint,
     DateTime,
     SmallInteger,
     Boolean,
+    Float,
     Enum,
     Index,
-    desc,
+    ARRAY,
+    LargeBinary,
 )
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.database import Base
 from geoalchemy2 import Geometry, WKBElement
 from app.models.enums import (
     TaskStatus,
-    TaskAction,
     TaskSplitType,
     ProjectStatus,
     ProjectVisibility,
-    MappingLevel,
-    ProjectPriority,
     UserRole,
 )
 from sqlalchemy.orm import (
@@ -62,76 +60,31 @@ class DbOrganisation(Base):
     url = cast(str, Column(String))
 
 
-class DbTaskHistory(Base):
-    """Describes the history associated with a task."""
-
-    __tablename__ = "task_history"
-
-    id = cast(int, Column(Integer, primary_key=True))
-    project_id = cast(int, Column(Integer, ForeignKey("projects.id"), index=True))
-    task_id = cast(int, Column(Integer, nullable=False))
-    action = cast(TaskAction, Column(Enum(TaskAction), nullable=False))
-    action_text = cast(str, Column(String))
-    action_date = cast(datetime, Column(DateTime, nullable=False, default=timestamp))
-    user_id = cast(
-        int,
-        Column(
-            BigInteger,
-            ForeignKey("users.id", name="fk_users"),
-            index=True,
-            nullable=False,
-        ),
-    )
-
-    # Define relationships
-    user = relationship(DbUser, uselist=False, backref="task_history_user")
-    actioned_by = relationship(DbUser, overlaps="task_history_user,user")
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            [task_id, project_id], ["tasks.id", "tasks.project_id"], name="fk_tasks"
-        ),
-        Index("idx_task_history_composite", "task_id", "project_id"),
-        Index("idx_task_history_project_id_user_id", "user_id", "project_id"),
-        {},
-    )
-
-
 class DbTask(Base):
     """Describes an individual mapping Task."""
 
     __tablename__ = "tasks"
 
     # Table has composite PK on (id and project_id)
-    id = cast(int, Column(Integer, primary_key=True, autoincrement=True))
+    id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
     project_id = cast(
-        int, Column(Integer, ForeignKey("projects.id"), index=True, primary_key=True)
+        str, Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
     )
     project_task_index = cast(int, Column(Integer))
-    project_task_name = cast(str, Column(String))
     outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
     task_status = cast(TaskStatus, Column(Enum(TaskStatus), default=TaskStatus.READY))
     locked_by = cast(
-        int,
-        Column(BigInteger, ForeignKey("users.id", name="fk_users_locked"), index=True),
+        str,
+        Column(String, ForeignKey("users.id", name="fk_users_locked"), index=True),
     )
     mapped_by = cast(
-        int,
-        Column(BigInteger, ForeignKey("users.id", name="fk_users_mapper"), index=True),
+        str,
+        Column(String, ForeignKey("users.id", name="fk_users_mapper"), index=True),
     )
     validated_by = cast(
-        int,
-        Column(
-            BigInteger, ForeignKey("users.id", name="fk_users_validator"), index=True
-        ),
+        str,
+        Column(String, ForeignKey("users.id", name="fk_users_validator"), index=True),
     )
-
-    # Define relationships
-    task_history = relationship(
-        DbTaskHistory, cascade="all", order_by=desc(DbTaskHistory.action_date)
-    )
-    lock_holder = relationship(DbUser, foreign_keys=[locked_by])
-    mapper = relationship(DbUser, foreign_keys=[mapped_by])
 
 
 class DbProject(Base):
@@ -139,18 +92,18 @@ class DbProject(Base):
 
     __tablename__ = "projects"
 
-    id = cast(int, Column(Integer, primary_key=True))
+    id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
     name = cast(str, Column(String))
     short_description = cast(str, Column(String))
     description = cast(str, Column(String))
     per_task_instructions = cast(str, Column(String))
-    location_str = cast(str, Column(String))
     created = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
     last_updated = cast(datetime, Column(DateTime, default=timestamp))
 
     # GEOMETRY
     outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
     centroid = cast(WKBElement, Column(Geometry("POINT", srid=4326)))
+    no_fly_zones = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
 
     organisation_id = cast(
         int,
@@ -162,11 +115,22 @@ class DbProject(Base):
     )
     organisation = relationship(DbOrganisation, backref="projects")
 
+    # flight params
+    gsd = cast(float, Column(Float, nullable=True))  # in cm_px
+    camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
+    gimble_angles = cast(list, Column(ARRAY(SmallInteger), nullable=True))  # degrees
+    is_terrain_follow = cast(bool, Column(Boolean, default=False))
+    dem_url = cast(str, Column(String, nullable=False))
+    hashtags = cast(list, Column(ARRAY(String)))  # Project hashtag
+
+    output_orthophoto_url = cast(str, Column(String, nullable=True))
+    output_pointcloud_url = cast(str, Column(String, nullable=True))
+
     # PROJECT CREATION
     author_id = cast(
-        int,
+        str,
         Column(
-            BigInteger,
+            String,
             ForeignKey("users.id", name="fk_users"),
             nullable=False,
         ),
@@ -185,19 +149,6 @@ class DbProject(Base):
         ),
     )
 
-    mapper_level = cast(
-        MappingLevel,
-        Column(
-            Enum(MappingLevel),
-            default=MappingLevel.INTERMEDIATE,
-            nullable=False,
-            index=True,
-        ),
-    )
-
-    priority = cast(
-        ProjectPriority, Column(Enum(ProjectPriority), default=ProjectPriority.MEDIUM)
-    )
     task_split_type = cast(TaskSplitType, Column(Enum(TaskSplitType), nullable=True))
     task_split_dimension = cast(int, Column(SmallInteger, nullable=True))
 
@@ -244,3 +195,67 @@ class DbProject(Base):
             .with_parent(self)
             .count()
         )
+
+
+class TaskEvent(Base):
+    __tablename__ = "task_events"
+
+    event_id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
+    project_id = cast(
+        str, Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    )
+    task_id = cast(
+        str, Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
+    )
+    user_id = cast(str, Column(String(100), ForeignKey("users.id"), nullable=False))
+    detail = cast(str, Column(String))
+
+    state = cast(TaskStatus, Column(Enum(TaskStatus), nullable=False))
+    created_at = cast(datetime, Column(DateTime, default=timestamp))
+
+    __table_args__ = (
+        Index("idx_task_event_composite", "task_id", "project_id"),
+        Index("idx_task_event_project_id_user_id", "user_id", "project_id"),
+    )
+
+
+class Drone(Base):
+    __tablename__ = "drones"
+
+    id = cast(int, Column(Integer, primary_key=True, autoincrement=True))
+    model = cast(str, Column(String, unique=True, nullable=False))
+    manufacturer = cast(str, Column(String))
+    camera_model = cast(str, Column(String))
+    sensor_width = cast(float, Column(Float, nullable=True))
+    sensor_height = cast(float, Column(Float, nullable=True))
+    max_battery_health = cast(int, Column(Integer, nullable=True))
+    focal_length = cast(float, Column(Float, nullable=True))
+    image_width = cast(int, Column(Integer, nullable=True))
+    image_height = cast(int, Column(Integer, nullable=True))
+    max_altitude = cast(int, Column(Integer, nullable=True))
+    max_speed = cast(float, Column(Float, nullable=True))
+    weight = cast(int, Column(Integer, nullable=True))
+    max_battery_health = cast(int, Column(Integer, nullable=True))
+    created = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
+    name = cast(str, Column(String, unique=True, nullable=False))
+
+
+class DroneFlight(Base):
+    __tablename__ = "drone_flights"
+
+    flight_id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
+    drone_id = cast(int, Column(Integer, ForeignKey("drones.id"), nullable=False))
+    task_id = cast(
+        str, Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
+    )
+    user_id = cast(str, Column(String(100), ForeignKey("users.id"), nullable=False))
+    flight_start = cast(datetime, Column(DateTime))
+    flight_end = cast(datetime, Column(DateTime))
+    user_estimated_battery_time_minutes = cast(int, Column(SmallInteger))
+    override_camera_bearings = cast(list, Column(ARRAY(SmallInteger)))
+    override_gimble_angles_degrees = cast(int, Column(ARRAY(SmallInteger)))
+    override_height_from_ground_meters = cast(int, Column(SmallInteger))
+    override_image_overlap_percent = cast(int, Column(SmallInteger))
+    waypoint_file = cast(bytes, Column(LargeBinary))
+    imagery_data_url = cast(str, Column(String))
+    created_at = cast(datetime, Column(DateTime, default=timestamp))
