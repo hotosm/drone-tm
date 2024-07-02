@@ -1,4 +1,5 @@
 import { useTypedDispatch } from '@Store/hooks';
+import { useNavigate } from 'react-router-dom';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import Image from '@Components/RadixComponents/Image';
@@ -12,6 +13,7 @@ import { slideVariants } from '@Constants/animations';
 
 export default function SignInOverlay() {
   const dispatch = useTypedDispatch();
+  const navigate = useNavigate();
 
   return (
     <motion.section
@@ -38,7 +40,14 @@ export default function SignInOverlay() {
         >
           <h5>Project Creator</h5>
           <Image src={projectCreator} />
-          <Button className="!naxatw-bg-landing-red" rightIcon="east">
+          <Button
+            className="!naxatw-bg-landing-red"
+            rightIcon="east"
+            onClick={() => {
+              dispatch(setCommonState({ signInAs: 'Project Creator' }));
+              navigate('/login');
+            }}
+          >
             I&apos;m a Project Creator
           </Button>
         </FlexColumn>
@@ -48,7 +57,14 @@ export default function SignInOverlay() {
         >
           <h5>Drone Operator</h5>
           <Image src={droneOperator} />
-          <Button className="!naxatw-bg-landing-red" rightIcon="east">
+          <Button
+            className="!naxatw-bg-landing-red"
+            rightIcon="east"
+            onClick={() => {
+              dispatch(setCommonState({ signInAs: 'Drone Operator' }));
+              navigate('/login');
+            }}
+          >
             I&apos;m a Drone Operator
           </Button>
         </FlexColumn>
