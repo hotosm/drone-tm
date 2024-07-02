@@ -8,7 +8,7 @@ interface IProtectedRoute {
 }
 export default function ProtectedRoute({
   isAuthenticated,
-  redirectPath = '/login',
+  redirectPath = '/',
   children,
 }: IProtectedRoute): ReactElement {
   if (!isAuthenticated) {

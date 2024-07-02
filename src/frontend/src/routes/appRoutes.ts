@@ -4,11 +4,18 @@ import UserProfile from '@Views/UserProfile';
 import CreateProject from '@Components/CreateProject';
 import GoogleAuth from '@Components/GoogleAuth';
 import userRoutes from '@UserModule/routes';
+import LandingPage from '@Views/LandingPage';
 import { IRoute } from './types';
 import IndividualProject from '@Components/IndividualProject';
 
 const appRoutes: IRoute[] = [
   ...userRoutes,
+    {
+    path: '/',
+    name: 'Landing Page',
+    component: LandingPage,
+    authenticated: false,
+  },
   {
     path: '/projects',
     name: 'Projects ',

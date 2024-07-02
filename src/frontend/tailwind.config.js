@@ -10,14 +10,26 @@ module.exports = {
   theme: {
     container: {
       center: true,
-      padding: '2rem',
+      padding: {
+        DEFAULT: '1.25rem',
+        sm: '1.25rem',
+        md: '2.125rem',
+        lg: '4.125rem',
+        xl: '8rem',
+        '2xl': '8rem',
+      },
       screens: {
-        '2xl': '1400px',
+        sm: '640px',
+        md: '768px',
+        lg: '1024px',
+        xl: '1280px',
+        '2xl': '1440px',
       },
     },
     extend: {
       fontFamily: {
         primary: ['Barlow Condensed', 'sans-serif'],
+        secondary: ['Manrope', 'sans-serif'],
       },
       height: {
         'screen-nav': 'calc(100vh - 57px)',
@@ -42,6 +54,12 @@ module.exports = {
           700: '#616161',
           800: '#484848',
           900: '#212121',
+        },
+        landing: {
+          blue: '#1B66AF',
+          white: '#FBF8F3',
+          red: '#D73F3F',
+          grey: '#464646',
         },
       },
 
