@@ -12,6 +12,7 @@ export interface CommonState {
   showPromptDialog: boolean;
   promptDialogContent: PromptDialogContentsType;
   showMap: boolean;
+  openSignInMenu: boolean;
   userProfileActiveTab: number;
 }
 
@@ -21,6 +22,7 @@ const initialState: CommonState = {
   showPromptDialog: false,
   promptDialogContent: null,
   showMap: false,
+  openSignInMenu: false,
   userProfileActiveTab: 1,
 };
 
