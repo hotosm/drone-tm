@@ -3,6 +3,7 @@ import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
 import persist from '@Store/persist';
 
 export interface CreateProjectState {
+  projectId: number | null;
   activeStep: number;
   uploadAreaOption: 'draw' | 'upload_file';
   keyParamOption: 'basic' | 'advanced';
@@ -14,6 +15,7 @@ export interface CreateProjectState {
 }
 
 const initialState: CreateProjectState = {
+  projectId: null,
   activeStep: 1,
   uploadAreaOption: 'upload_file',
   keyParamOption: 'basic',

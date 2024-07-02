@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Flex } from '@Components/common/Layouts';
+import { toast } from 'react-toastify';
 
 const { BASE_URL } = process.env;
 
@@ -18,12 +19,17 @@ function GoogleAuth() {
     const loginRedirect = async () => {
       if (authcode) {
         const callbackUrl = `${BASE_URL}/users/callback/?code=${authcode}&state=${state}`;
+        const userDetailsUrl = `${BASE_URL}/users/me/`;
 
         const completeLogin = async () => {
-          await fetch(callbackUrl, { credentials: 'include' });
+          const response = await fetch(callbackUrl, { credentials: 'include' });
+          const token = await response.json();
+          localStorage.setItem('token', token);
         };
-
         await completeLogin();
+
+        toast.success('Logged In Successfully');
+        navigate('/user-profile');
       }
       setIsReadyToRedirect(true);
     };

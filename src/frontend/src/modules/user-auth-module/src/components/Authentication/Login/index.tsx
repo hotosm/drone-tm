@@ -40,7 +40,7 @@ export default function Login() {
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('refresh', res.data.refresh_token);
       toast.success('Logged In Successfully');
-      navigate('/');
+      navigate('/projects');
     },
     onError: err => {
       toast.error(err.response.data.detail);
