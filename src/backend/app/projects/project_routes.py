@@ -13,7 +13,6 @@ from app.models.enums import HTTPStatus
 from app.utils import multipolygon_to_polygon
 from app.s3 import s3_client
 from app.config import settings
-from databases import Database
 from app.db import db_models
 
 router = APIRouter(
@@ -66,7 +65,7 @@ def delete_project_by_id(project_id: int, db: Session = Depends(database.get_db)
 )
 async def create_project(
     project_info: project_schemas.ProjectIn,
-    db: Database = Depends(database.encode_db),
+    db = Depends(database.encode_db),
 ):
     """Create a project in  database."""
     project = await project_crud.create_project_with_project_info(db, project_info)
@@ -81,7 +80,7 @@ async def create_project(
 async def upload_project_task_boundaries(
     project_id: int,
     task_geojson: UploadFile = File(...),
-    db: Database = Depends(database.encode_db),
+    db = Depends(database.encode_db),
 ):
     """Set project task boundaries using split GeoJSON from frontend.
 
@@ -93,12 +92,14 @@ async def upload_project_task_boundaries(
 
     Returns:
         dict: JSON containing success message, project ID, and number of tasks.
-    """    
-    #check the project in Database
-    raw_sql = f"""SELECT id FROM projects WHERE id = '{project_id}' LIMIT 1;"""
-    project =  await db.fetch_one(query=raw_sql)
+    """
+    # check the project in Database
+    raw_sql = f"""SELECT id FROM projects WHERE id = :project_id LIMIT 1;"""
+    project = await db.fetch_one(raw_sql,{"project_id": project_id})
     if not project:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Project not found.")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Project not found."
+        )
 
     # read entire file
     content = await task_geojson.read()
@@ -169,18 +170,17 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
 
 @router.get("/", tags=["Projects"], response_model=list[project_schemas.ProjectOut])
 async def read_projects(
-    skip: int = 0, limit: int = 100, db: Database = Depends(database.encode_db)
+    skip: int = 0, limit: int = 100, db = Depends(database.encode_db)
 ):
     "Return all projects"
     projects = await project_crud.get_projects(db, skip, limit)
     return projects
 
 
-@router.get(
-    "/{project_id}", tags=["Projects"])
+@router.get("/{project_id}", tags=["Projects"])
 async def read_project(
     project_id: int,
-    db: Session = Depends(database.encode_db),
+    db = Depends(database.encode_db),
 ):
     """Get a specific project and all associated tasks by ID."""
     project = await project_crud.get_project_by_id(db, project_id)

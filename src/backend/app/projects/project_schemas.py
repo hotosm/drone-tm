@@ -3,7 +3,7 @@ from typing import Any, Optional, Union
 from geojson_pydantic import Feature, FeatureCollection, Polygon
 from app.models.enums import TaskSplitType
 from shapely import wkb
-
+from typing import List, Optional
 from app.utils import (
     geojson_to_geometry,
     read_wkb,
@@ -12,7 +12,25 @@ from app.utils import (
     write_wkb,
 )
 
+class TaskOut(BaseModel):
+    """Base project model."""
 
+    id: int
+    project_task_index: int
+    project_task_name: Optional[str] = None
+    outline: Any = Field(exclude=True)
+
+    @computed_field
+    @property
+    def outline_geojson(self) -> Optional[Feature]:
+        """Compute the geojson outline from WKBElement outline."""
+        if not self.outline:
+            return None
+        wkb_data = bytes.fromhex(self.outline)
+        geom = wkb.loads(wkb_data)
+        bbox = geom.bounds  # Calculate bounding box
+        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, self.id)
+    
 class ProjectInfo(BaseModel):
     """Basic project info."""
 
@@ -53,26 +71,6 @@ class ProjectIn(BaseModel):
             return None
         return write_wkb(read_wkb(self.outline).centroid)
 
-
-class TaskOut(BaseModel):
-    """Base project model."""
-
-    id: int
-    project_task_index: int
-    project_task_name: str
-    outline: Any = Field(exclude=True)
-
-    @computed_field
-    @property
-    def outline_geojson(self) -> Optional[Feature]:
-        """Compute the geojson outline from WKBElement outline."""
-        if not self.outline:
-            return None
-        wkb_data = bytes.fromhex(self.outline)
-        geom = wkb.loads(wkb_data)
-        bbox = geom.bounds  # Calculate bounding box
-        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, self.id)
-    
 class ProjectOut(BaseModel):
     """Base project model."""
 
