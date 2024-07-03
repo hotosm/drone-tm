@@ -5,14 +5,14 @@ import { Button } from '@Components/RadixComponents/Button';
 export default function DataTablePagination({ table }: any) {
   return (
     <FlexRow className="naxatw-justify-between naxatw-py-2">
-      <FlexRow className="naxatw-items-center naxatw-gap-2 ">
+      <FlexRow className="naxatw-items-center naxatw-gap-2">
         Row per page
         <select
           value={table.getState().pagination.pageSize}
           onChange={e => {
             table.setPageSize(Number(e.target.value));
           }}
-          className=" naxatw-rounded-lg naxatw-border-2 naxatw-border-grey-500 naxatw-p-1.5"
+          className="naxatw-rounded-lg naxatw-border-2 naxatw-border-grey-500 naxatw-p-1.5"
         >
           {[10, 25, 50, 100].map(page => (
             <option key={page} value={page}>
@@ -55,7 +55,7 @@ export default function DataTablePagination({ table }: any) {
           Next
         </Button>
 
-        <FlexRow className="naxatw-items-center naxatw-gap-1 ">
+        <FlexRow className="naxatw-items-center naxatw-gap-1">
           <div>Page</div>
           <strong>
             {table.getState().pagination.pageIndex + 1} of &nbsp;

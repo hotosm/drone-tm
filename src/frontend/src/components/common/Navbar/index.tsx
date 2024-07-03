@@ -17,7 +17,11 @@ export default function Navbar() {
               key={id}
               to={link}
               className={({ isActive }) =>
-                `${isActive ? 'naxatw-border-b-2 naxatw-border-red' : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'} -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
+                `${
+                  isActive
+                    ? 'naxatw-border-b-2 naxatw-border-red'
+                    : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
+                } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
               }
             >
               {linkName}

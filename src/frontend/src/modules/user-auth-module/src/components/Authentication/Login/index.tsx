@@ -69,8 +69,7 @@ export default function Login() {
     <>
       <Flex
         gap={5}
-        className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center
-        "
+        className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
       >
         <Image src={Person} />
         <h3>Sign In - {signInAs}</h3>
@@ -111,8 +110,7 @@ export default function Login() {
             />
             <Icon
               name={showPassword ? 'visibility' : 'visibility_off'}
-              className="naxatw-absolute naxatw-right-2 naxatw-top-1/2 naxatw-cursor-pointer
-              naxatw-text-sm naxatw-text-grey-600"
+              className="naxatw-absolute naxatw-right-2 naxatw-top-1/2 naxatw-cursor-pointer naxatw-text-sm naxatw-text-grey-600"
               onClick={() => handleShow()}
             />
           </FormControl>

@@ -109,10 +109,7 @@ export default function Select({
     <div className="naxatw-relative">
       <div
         ref={dropdownRef}
-        className={`naxatw-group naxatw-relative naxatw-flex naxatw-h-9 naxatw-w-full naxatw-cursor-pointer
-        naxatw-items-center naxatw-justify-between naxatw-rounded-md naxatw-border naxatw-border-gray-800
-        hover:naxatw-border-red
-        ${className}`}
+        className={`naxatw-group naxatw-relative naxatw-flex naxatw-h-9 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-between naxatw-rounded-md naxatw-border naxatw-border-gray-800 hover:naxatw-border-red ${className}`}
         onClick={toggleDropdown}
       >
         {withSearch ? (
@@ -143,8 +140,7 @@ export default function Select({
         {showClearIcon ? (
           <Icon
             name="clear"
-            className="hover:naxatw-text-primary-400 naxatw-absolute naxatw-right-0 
-              naxatw-items-center !naxatw-text-base"
+            className="hover:naxatw-text-primary-400 naxatw-absolute naxatw-right-0 naxatw-items-center !naxatw-text-base"
             onClick={() => setSearchText('')}
           />
         ) : (
@@ -160,15 +156,14 @@ export default function Select({
 
       {isOpen && (
         <ul
-          className={`scrollbar naxatw-absolute  naxatw-z-20 naxatw-flex naxatw-max-h-[150px] naxatw-w-full
-           naxatw-animate-flip-down naxatw-flex-col naxatw-overflow-auto naxatw-rounded-md naxatw-border naxatw-bg-white naxatw-shadow-lg
-             naxatw-duration-300 ${getPosition(position)} `}
+          className={`scrollbar naxatw-absolute naxatw-z-20 naxatw-flex naxatw-max-h-[150px] naxatw-w-full naxatw-animate-flip-down naxatw-flex-col naxatw-overflow-auto naxatw-rounded-md naxatw-border naxatw-bg-white naxatw-shadow-lg naxatw-duration-300 ${getPosition(
+            position,
+          )} `}
         >
           {options && filterOptions.length > 0 ? (
             filterOptions.map(option => (
               <li
-                className="hover:naxatw-bg-primary-50 naxatw-flex naxatw-cursor-pointer naxatw-list-none naxatw-items-start naxatw-px-4
-                naxatw-py-2.5 naxatw-text-sm naxatw-text-grey-800"
+                className="hover:naxatw-bg-primary-50 naxatw-flex naxatw-cursor-pointer naxatw-list-none naxatw-items-start naxatw-px-4 naxatw-py-2.5 naxatw-text-sm naxatw-text-grey-800"
                 key={option[valueKey]}
                 onClick={() => handleOptionClick(option[valueKey])}
               >

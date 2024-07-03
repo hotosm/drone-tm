@@ -16,8 +16,7 @@ export default function Flex({
   return (
     <div
       className={cn(
-        `naxatw-flex naxatw-flex-col ${newClassNames}
-      ${className}`,
+        `naxatw-flex naxatw-flex-col ${newClassNames} ${className}`,
       )}
       {...rest}
       style={{

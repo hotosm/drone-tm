@@ -40,7 +40,7 @@ export default function Footer() {
           variants={fadeUpVariant}
           initial="hidden"
           whileInView="visible"
-          className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-8 naxatw-border-b naxatw-border-t naxatw-border-landing-white naxatw-px-5 naxatw-py-8 naxatw-text-landing-grey md:naxatw-flex-row  md:naxatw-px-9 lg:naxatw-px-32"
+          className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-8 naxatw-border-b naxatw-border-t naxatw-border-landing-white naxatw-px-5 naxatw-py-8 naxatw-text-landing-grey md:naxatw-flex-row md:naxatw-px-9 lg:naxatw-px-32"
         >
           <div className="naxatw-text-center md:naxatw-text-start">
             <span className="naxatw-font-medium">Developed & Designed by</span>

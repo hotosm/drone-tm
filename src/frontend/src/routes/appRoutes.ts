@@ -10,7 +10,7 @@ import IndividualProject from '@Components/IndividualProject';
 
 const appRoutes: IRoute[] = [
   ...userRoutes,
-    {
+  {
     path: '/',
     name: 'Landing Page',
     component: LandingPage,

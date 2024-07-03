@@ -45,37 +45,26 @@ export default function Modal({
         tabIndex={-1}
         className={`${
           show ? '' : ''
-        } naxatw-h-modal naxatw-fixed naxatw-inset-0 naxatw-z-[11111] naxatw-flex 
-          naxatw-h-screen naxatw-w-screen naxatw-justify-center naxatw-overflow-y-auto naxatw-overflow-x-hidden
-          naxatw-bg-grey-700/50 naxatw-p-4 md:naxatw-inset-0 md:naxatw-h-full
-      `}
+        } naxatw-h-modal naxatw-fixed naxatw-inset-0 naxatw-z-[11111] naxatw-flex naxatw-h-screen naxatw-w-screen naxatw-justify-center naxatw-overflow-y-auto naxatw-overflow-x-hidden naxatw-bg-grey-700/50 naxatw-p-4 md:naxatw-inset-0 md:naxatw-h-full`}
         style={{ zIndex }}
       >
         <div
           ref={nodeRef}
           className="naxatw-fixed naxatw-inset-0 naxatw-overflow-y-auto"
         >
-          <div
-            className="naxatw-flex naxatw-min-h-full naxatw-items-center 
-            naxatw-justify-center naxatw-p-4"
-          >
-            <div
-              className="naxatw-relative naxatw-flex naxatw-h-full naxatw-w-full
-              naxatw-max-w-2xl naxatw-flex-col naxatw-items-center naxatw-justify-center md:naxatw-h-auto"
-            >
+          <div className="naxatw-flex naxatw-min-h-full naxatw-items-center naxatw-justify-center naxatw-p-4">
+            <div className="naxatw-relative naxatw-flex naxatw-h-full naxatw-w-full naxatw-max-w-2xl naxatw-flex-col naxatw-items-center naxatw-justify-center md:naxatw-h-auto">
               <div
-                className={`naxatw-relative naxatw-max-h-[calc(100vh-4rem)] naxatw-w-[42rem] naxatw-overflow-hidden
-                   naxatw-rounded-[20px] naxatw-bg-white naxatw-shadow ${className}`}
+                className={`naxatw-relative naxatw-max-h-[calc(100vh-4rem)] naxatw-w-[42rem] naxatw-overflow-hidden naxatw-rounded-[20px] naxatw-bg-white naxatw-shadow ${className}`}
               >
                 <div
-                  className={`naxatw-flex naxatw-items-start naxatw-justify-between
-                    naxatw-rounded-t-[20px] naxatw-px-7 ${
-                      !subtitle && title ? 'naxatw-py-5' : 'naxatw-py-5'
-                    }`}
+                  className={`naxatw-flex naxatw-items-start naxatw-justify-between naxatw-rounded-t-[20px] naxatw-px-7 ${
+                    !subtitle && title ? 'naxatw-py-5' : 'naxatw-py-5'
+                  }`}
                 >
                   {headerContent || (
                     <div className="naxatw-space-y-1">
-                      <h3 className="naxatw-font-bold ">{title}</h3>
+                      <h3 className="naxatw-font-bold">{title}</h3>
                       <p className="naxatw-text-body-lg">{subtitle}</p>
                     </div>
                   )}
@@ -83,9 +72,7 @@ export default function Modal({
                   {!hideCloseButton && (
                     <button
                       type="button"
-                      className="naxatw-ml-auto naxatw-inline-flex naxatw-items-center 
-                      naxatw-rounded-lg naxatw-bg-transparent naxatw-p-1.5 naxatw-text-sm
-                      naxatw-text-grey-800 hover:naxatw-bg-grey-200 hover:naxatw-text-grey-900"
+                      className="naxatw-ml-auto naxatw-inline-flex naxatw-items-center naxatw-rounded-lg naxatw-bg-transparent naxatw-p-1.5 naxatw-text-sm naxatw-text-grey-800 hover:naxatw-bg-grey-200 hover:naxatw-text-grey-900"
                       onClick={onClose}
                     >
                       <i className="material-icons">close</i>
@@ -94,10 +81,7 @@ export default function Modal({
                   )}
                 </div>
                 <div className="naxatw-flex">
-                  <div
-                    className="scrollbar naxatw-max-h-[calc(100vh-10rem)] naxatw-grow naxatw-overflow-y-auto
-                      naxatw-px-10 naxatw-pb-5"
-                  >
+                  <div className="scrollbar naxatw-max-h-[calc(100vh-10rem)] naxatw-grow naxatw-overflow-y-auto naxatw-px-10 naxatw-pb-5">
                     {children}
                   </div>
                 </div>

@@ -49,8 +49,7 @@ export default function ChartHeader({
             tabIndex={0}
             role="button"
             onKeyDown={() => {}}
-            className="actions naxatw-w-40px naxatw-flex naxatw-cursor-pointer
-           naxatw-rounded-lg naxatw-p-1 hover:naxatw-bg-primary-50"
+            className="actions naxatw-w-40px hover:naxatw-bg-primary-50 naxatw-flex naxatw-cursor-pointer naxatw-rounded-lg naxatw-p-1"
           >
             <ToolTip
               name="download"
@@ -62,8 +61,7 @@ export default function ChartHeader({
       </div>
       {toggle && (
         <FlexColumn
-          className=" naxatw-absolute naxatw-right-2 naxatw-top-8 naxatw-z-[100] naxatw-w-[8.3rem]
-         naxatw-rounded naxatw-border naxatw-bg-white naxatw-text-center naxatw-text-sm naxatw-shadow-sm"
+          className="naxatw-absolute naxatw-right-2 naxatw-top-8 naxatw-z-[100] naxatw-w-[8.3rem] naxatw-rounded naxatw-border naxatw-bg-white naxatw-text-center naxatw-text-sm naxatw-shadow-sm"
           data-html2canvas-ignore
         >
           <div
@@ -71,7 +69,7 @@ export default function ChartHeader({
             tabIndex={0}
             onKeyDown={() => {}}
             onClick={handleDownloadPng}
-            className="naxatw-py-3 hover:naxatw-bg-primary-50"
+            className="hover:naxatw-bg-primary-50 naxatw-py-3"
           >
             Export as PNG
           </div>
@@ -80,7 +78,7 @@ export default function ChartHeader({
             tabIndex={0}
             onKeyDown={() => {}}
             onClick={handleDownloadCsv}
-            className="naxatw-py-3 hover:naxatw-bg-primary-50"
+            className="hover:naxatw-bg-primary-50 naxatw-py-3"
           >
             Export as CSV
           </div>

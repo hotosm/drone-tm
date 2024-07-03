@@ -41,7 +41,7 @@ const CustomizedLabel = (props: any) => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="custom-tooltip naxatw-relative naxatw-z-20 naxatw-rounded-xl naxatw-border-2 naxatw-bg-white naxatw-px-3 naxatw-py-2 naxatw-text-sm naxatw-text-primary-400">
+      <div className="custom-tooltip naxatw-text-primary-400 naxatw-relative naxatw-z-20 naxatw-rounded-xl naxatw-border-2 naxatw-bg-white naxatw-px-3 naxatw-py-2 naxatw-text-sm">
         <p className="label naxatw-font-bold">{label}</p>
         {payload?.map((item: any) => {
           if (item.dataKey !== 'name')

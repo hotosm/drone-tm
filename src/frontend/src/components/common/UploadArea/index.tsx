@@ -100,14 +100,13 @@ export default function FileUpload({
   return (
     <FlexColumn gap={2}>
       <FlexColumn
-        className="naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border-2
-          naxatw-border-dashed  naxatw-bg-grey-100 naxatw-py-2.5 "
+        className="naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border-2 naxatw-border-dashed naxatw-bg-grey-100 naxatw-py-2.5"
         //   @ts-ignore
         onClick={onFileUpload}
       >
         <Icon
           name="cloud_upload"
-          className="naxatw-text-primary-600 naxatw-text-3xl "
+          className="naxatw-text-primary-600 naxatw-text-3xl"
         />
         <p className="naxatw-text-xs naxatw-text-grey-600">
           {placeholder || 'Please upload picture (jpeg, png file format)'}
@@ -123,7 +122,7 @@ export default function FileUpload({
       </FlexColumn>
       <FlexColumn
         gap={2}
-        className="scrollbar naxatw-max-h-52 naxatw-overflow-auto "
+        className="scrollbar naxatw-max-h-52 naxatw-overflow-auto"
       >
         {/* @ts-ignore */}
         {uploadedFiles.map(({ file, id, previewURL }) => (

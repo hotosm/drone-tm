@@ -8,7 +8,7 @@ const numberOfColumns = 6;
 export default function TableSkeleton() {
   return (
     <FlexColumn className="naxatw-mt-3 naxatw-h-[72vh] naxatw-rounded-md naxatw-border naxatw-pt-6 naxatw-shadow-lg">
-      <FlexRow className="naxatw-items-center naxatw-space-x-20 naxatw-border-b-[1px] naxatw-px-10 naxatw-pb-5 ">
+      <FlexRow className="naxatw-items-center naxatw-space-x-20 naxatw-border-b-[1px] naxatw-px-10 naxatw-pb-5">
         <Skeleton className="naxatw-h-4 naxatw-w-1/12 xl:naxatw-h-6" />
         {Array.from({ length: numberOfColumns }).map((__, index) => (
           <Skeleton
@@ -22,7 +22,7 @@ export default function TableSkeleton() {
           key={idx}
           className="naxatw-space-x-20 naxatw-border-b-[1px] naxatw-px-10 naxatw-py-3 xl:naxatw-py-4"
         >
-          <Skeleton className="naxatw-h-4 naxatw-w-1/12 " />
+          <Skeleton className="naxatw-h-4 naxatw-w-1/12" />
           {Array.from({ length: numberOfColumns }).map((__, index) => (
             <Skeleton key={index} className="naxatw-h-4 naxatw-w-1/4" />
           ))}

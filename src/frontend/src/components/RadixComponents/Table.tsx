@@ -9,7 +9,7 @@ const Table = React.forwardRef<
     <table
       ref={ref}
       className={cn(
-        'naxatw-relative  naxatw-w-full naxatw-caption-bottom naxatw-text-sm ',
+        'naxatw-relative naxatw-w-full naxatw-caption-bottom naxatw-text-sm',
         className,
       )}
       {...props}
@@ -82,7 +82,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      'naxatw-border-r-[1px] naxatw-border-white naxatw-bg-primary-400 naxatw-p-2 naxatw-font-bold naxatw-text-white [&:has([role=checkbox])]:naxatw-pr-0',
+      'naxatw-bg-primary-400 naxatw-border-r-[1px] naxatw-border-white naxatw-p-2 naxatw-font-bold naxatw-text-white [&:has([role=checkbox])]:naxatw-pr-0',
       className,
     )}
     {...props}
@@ -109,7 +109,7 @@ const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
 >(({ className, ...props }, ref) => (
-  <caption ref={ref} className={cn('naxatw-mt-4 ', className)} {...props} />
+  <caption ref={ref} className={cn('naxatw-mt-4', className)} {...props} />
 ));
 TableCaption.displayName = 'TableCaption';
 

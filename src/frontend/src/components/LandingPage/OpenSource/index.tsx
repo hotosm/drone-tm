@@ -9,10 +9,10 @@ export default function OpenSource() {
       <div className="naxatw-container !naxatw-max-w-full naxatw-pt-10 md:naxatw-pt-40">
         <FlexColumn className="naxatw-items-center naxatw-gap-10 naxatw-text-center">
           <div>
-            <p className="naxatw-text-[2rem] naxatw-leading-[2.688rem] naxatw-text-landing-red md:naxatw-text-[4.375rem] md:naxatw-leading-[5rem] ">
+            <p className="naxatw-text-[2rem] naxatw-leading-[2.688rem] naxatw-text-landing-red md:naxatw-text-[4.375rem] md:naxatw-leading-[5rem]">
               Open Source
             </p>
-            <p className="naxatw-text-[2rem] naxatw-leading-[2.688rem] naxatw-text-landing-red md:naxatw-text-[4.375rem] md:naxatw-leading-[5rem] ">
+            <p className="naxatw-text-[2rem] naxatw-leading-[2.688rem] naxatw-text-landing-red md:naxatw-text-[4.375rem] md:naxatw-leading-[5rem]">
               Drone Tasking Manager
             </p>
           </div>

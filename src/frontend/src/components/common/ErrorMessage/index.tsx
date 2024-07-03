@@ -13,7 +13,7 @@ export default function ErrorMessage({
   return (
     <p
       className={cn(
-        `naxatw-text-sm naxatw-font-normal naxatw-text-red-400 ${
+        `naxatw-text-red-400 naxatw-text-sm naxatw-font-normal ${
           disabled ? 'naxatw-text-grey-600' : ''
         }`,
         className,

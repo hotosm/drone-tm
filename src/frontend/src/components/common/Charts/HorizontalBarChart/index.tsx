@@ -8,7 +8,7 @@ export default function HorizontalBarChart({ data }: IChartProps) {
     : [];
   return (
     <div className="in-label scrollbar naxatw-h-full naxatw-w-full naxatw-overflow-auto">
-      <div className="cover naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-2  naxatw-pr-2">
+      <div className="cover naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-2 naxatw-pr-2">
         {finalData?.map((item: any) => (
           <HorizontalBarLabel
             key={item.name}
