@@ -24,6 +24,7 @@ from app.models.enums import (
     ProjectStatus,
     ProjectVisibility,
     UserRole,
+    State,
 )
 from sqlalchemy.orm import (
     object_session,
@@ -202,7 +203,7 @@ class TaskEvent(Base):
     user_id = cast(str, Column(String(100), ForeignKey("users.id"), nullable=False))
     comment = cast(str, Column(String))
 
-    state = cast(TaskStatus, Column(Enum(TaskStatus), nullable=False))
+    state = cast(State, Column(Enum(TaskStatus), nullable=False))
     created_at = cast(datetime, Column(DateTime, default=timestamp))
 
     __table_args__ = (
