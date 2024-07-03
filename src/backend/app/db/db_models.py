@@ -73,18 +73,6 @@ class DbTask(Base):
     project_task_index = cast(int, Column(Integer))
     outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
     task_status = cast(TaskStatus, Column(Enum(TaskStatus), default=TaskStatus.READY))
-    locked_by = cast(
-        str,
-        Column(String, ForeignKey("users.id", name="fk_users_locked"), index=True),
-    )
-    mapped_by = cast(
-        str,
-        Column(String, ForeignKey("users.id", name="fk_users_mapper"), index=True),
-    )
-    validated_by = cast(
-        str,
-        Column(String, ForeignKey("users.id", name="fk_users_validator"), index=True),
-    )
 
 
 class DbProject(Base):
