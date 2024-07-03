@@ -116,6 +116,7 @@ class DbProject(Base):
     organisation = relationship(DbOrganisation, backref="projects")
 
     # flight params
+    overlap = cast(float, Column(Float, nullable=True))  # in cm_px
     gsd = cast(float, Column(Float, nullable=True))  # in cm_px
     camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
     gimble_angles = cast(list, Column(ARRAY(SmallInteger), nullable=True))  # degrees
