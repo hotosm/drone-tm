@@ -3,11 +3,11 @@ name: Test Frontend Static Build
 on:
   pull_request:
     branches:
-      - master
+      - main
       - develop
       - staging
     paths:
-    - src/frontend/**
+      - src/frontend/**
   workflow_dispatch:
 
 permissions:
