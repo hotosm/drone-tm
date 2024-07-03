@@ -39,7 +39,11 @@ const RadioButton: React.FC<RadioButtonProps> = ({
       </div>
     )}
     <div
-      className={`naxatw-flex ${direction === 'column' ? 'naxatw-flex-col' : 'naxatw-flex-wrap naxatw-gap-x-16'}`}
+      className={`naxatw-flex ${
+        direction === 'column'
+          ? 'naxatw-flex-col'
+          : 'naxatw-flex-wrap naxatw-gap-x-16'
+      }`}
     >
       {options.map(option => {
         return (
@@ -65,10 +69,12 @@ const RadioButton: React.FC<RadioButtonProps> = ({
             />
             <label
               htmlFor={option.value}
-              className={`naxatw-mb-[2px] naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-bg-white naxatw-text-base naxatw-text-gray-500  ${className}`}
+              className={`naxatw-mb-[2px] naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-bg-white naxatw-text-base naxatw-text-gray-500 ${className}`}
             >
               <p
-                className={`${option?.disabled === true ? 'naxatw-cursor-not-allowed' : ''}`}
+                className={`${
+                  option?.disabled === true ? 'naxatw-cursor-not-allowed' : ''
+                }`}
               >
                 {option.label}
               </p>

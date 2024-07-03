@@ -5,7 +5,7 @@ export default function Navbar() {
     <header>
       <FlexRow
         gap={10}
-        className="naxatw-border-landing-white naxatw-bg-landing-red naxatw-text-landing-white naxatw-justify-center naxatw-px-20 naxatw-py-2 naxatw-text-xs lg:naxatw-justify-end"
+        className="naxatw-justify-center naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white lg:naxatw-justify-end"
       >
         <FlexRow
           gap={5}

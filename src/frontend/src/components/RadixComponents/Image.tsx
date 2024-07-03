@@ -17,7 +17,7 @@ export default function Image({
 }: IProps): JSX.Element {
   return (
     <div
-      className={`image-cover naxatw-aspect-${aspectRation} ${styleClass}}  `}
+      className={`image-cover naxatw-aspect-${aspectRation} ${styleClass}} `}
       style={{ aspectRatio: aspectRation }}
     >
       <img src={src} alt={alt} width={width} className={className} />

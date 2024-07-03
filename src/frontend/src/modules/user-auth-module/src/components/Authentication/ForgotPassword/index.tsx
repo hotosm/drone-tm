@@ -36,8 +36,7 @@ export default function ForgotPassword() {
   return (
     <Flex
       gap={5}
-      className="naxatw-bg-primary-50 naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center
-        naxatw-justify-center"
+      className="naxatw-bg-primary-50 naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
     >
       <Flex className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-font-semibold">
         <Icon
@@ -76,7 +75,7 @@ export default function ForgotPassword() {
           <ErrorMessage message={error?.response?.data?.Message || ''} />
         </FormControl>
 
-        <FlexRow className="naxatw-items-center naxatw-justify-between ">
+        <FlexRow className="naxatw-items-center naxatw-justify-between">
           <Button type="submit">Reset Password</Button>
 
           <Button

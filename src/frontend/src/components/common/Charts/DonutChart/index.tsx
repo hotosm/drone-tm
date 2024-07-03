@@ -7,7 +7,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     const tooltipTextColor = payload[0].payload.fill; // dynamic => changes acc to fill
     return (
       <div
-        className="custom-tooltip naxatw-relative naxatw-z-20 naxatw-rounded-xl naxatw-border-2 naxatw-bg-white naxatw-px-3 naxatw-py-2 naxatw-text-sm "
+        className="custom-tooltip naxatw-relative naxatw-z-20 naxatw-rounded-xl naxatw-border-2 naxatw-bg-white naxatw-px-3 naxatw-py-2 naxatw-text-sm"
         style={{ color: tooltipTextColor }}
       >
         <p className="label naxatw-font-bold">

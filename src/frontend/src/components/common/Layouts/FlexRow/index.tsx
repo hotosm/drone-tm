@@ -10,10 +10,7 @@ export default function FlexRow({
 }: IFlexContainerProps) {
   return (
     <div
-      className={cn(
-        `naxatw-flex naxatw-flex-row
-      ${className}`,
-      )}
+      className={cn(`naxatw-flex naxatw-flex-row ${className}`)}
       {...rest}
       style={{
         gap: gap ? `${gap * 0.25}rem` : '',

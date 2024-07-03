@@ -19,18 +19,19 @@ export default function DataCard({
 }: DataCardProps) {
   return (
     <RoundedContainer
-      className={cn(`${className} naxatw-w-full naxatw-min-w-[180px] naxatw-bg-primary-50 naxatw-px-5 naxatw-py-4
-      naxatw-shadow-md md:!naxatw-h-28`)}
+      className={cn(
+        `${className} naxatw-bg-primary-50 naxatw-w-full naxatw-min-w-[180px] naxatw-px-5 naxatw-py-4 naxatw-shadow-md md:!naxatw-h-28`,
+      )}
     >
       <FlexColumn>
         <h5>{title}</h5>
-        <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-text-[38px] naxatw-font-bold naxatw-text-primary-400 ">
+        <FlexRow className="naxatw-text-primary-400 naxatw-items-center naxatw-justify-between naxatw-text-[38px] naxatw-font-bold">
           <FlexRow>
             <div>{formatNumberWithCommas(count)}</div>
           </FlexRow>
           <Icon
             name={iconName}
-            className="!naxatw-text-[38px] naxatw-text-primary-200 "
+            className="naxatw-text-primary-200 !naxatw-text-[38px]"
           />
         </FlexRow>
       </FlexColumn>

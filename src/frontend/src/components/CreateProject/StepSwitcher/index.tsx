@@ -47,7 +47,7 @@ export default function StepSwitcher({
                       activeStep === index
                         ? 'currentstep-pointer pulse-animation naxatw-border-red'
                         : ''
-                    } naxatw-flex naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border-[0.15rem] lg:naxatw-h-7 lg:naxatw-w-7 xl:naxatw-h-9 xl:naxatw-w-9  ${
+                    } naxatw-flex naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border-[0.15rem] lg:naxatw-h-7 lg:naxatw-w-7 xl:naxatw-h-9 xl:naxatw-w-9 ${
                       activeStep > index
                         ? 'naxatw-border-red naxatw-bg-red'
                         : 'naxatw-bg-transparent'

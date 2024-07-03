@@ -35,10 +35,7 @@ export default function PopupUI({ data = {} }: IPopupUIProps) {
   );
 
   return (
-    <ul
-      className="scrollbar naxatw-flex naxatw-h-[12.5rem] naxatw-flex-col 
-    naxatw-overflow-y-auto naxatw-border-y-[1px] naxatw-border-y-grey-500 naxatw-text-grey-800"
-    >
+    <ul className="scrollbar naxatw-flex naxatw-h-[12.5rem] naxatw-flex-col naxatw-overflow-y-auto naxatw-border-y-[1px] naxatw-border-y-grey-500 naxatw-text-grey-800">
       {popupData &&
         Object.keys(popupData).map(key => (
           <li
@@ -46,7 +43,7 @@ export default function PopupUI({ data = {} }: IPopupUIProps) {
             className="naxatw-flex naxatw-items-center naxatw-py-1.5 odd:naxatw-bg-grey-100"
           >
             <p className="naxatw-w-1/2 naxatw-text-body-sm">{key}</p>
-            <p className=" naxatw-w-1/2 naxatw-text-body-sm naxatw-font-bold">
+            <p className="naxatw-w-1/2 naxatw-text-body-sm naxatw-font-bold">
               {popupData[key]?.toString() || '-'}
             </p>
           </li>
