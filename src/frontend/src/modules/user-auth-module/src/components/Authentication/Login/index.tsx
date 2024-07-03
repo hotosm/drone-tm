@@ -140,6 +140,14 @@ export default function Login() {
           >
             Log In
           </Button>
+          <Button
+            leftIcon="west"
+            variant="ghost"
+            className="naxatw-py-5 !naxatw-text-red"
+            onClick={() => navigate('/')}
+          >
+            Go Back
+          </Button>
         </form>
       </Flex>
     </>
