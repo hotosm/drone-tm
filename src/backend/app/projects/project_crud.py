@@ -13,10 +13,10 @@ from app.db import database
 from fastapi import Depends
 from asyncio import gather
 from app.models.enums import HTTPStatus
-
+from databases import Database
 
 async def create_project_with_project_info(
-    db, project_metadata: project_schemas.ProjectIn
+    db: Database, project_metadata: project_schemas.ProjectIn
 ):
     """Create a project in database."""
     query = """
@@ -65,7 +65,7 @@ async def create_project_with_project_info(
 
 
 async def get_project_by_id(
-    db = Depends(database.encode_db), project_id: Optional[int] = None
+    db: Database = Depends(database.encode_db), project_id: Optional[int] = None
 ):
     """Get a single project &  all associated tasks by ID."""
     # check the project in Database
@@ -124,7 +124,7 @@ async def convert_to_app_tasks(
 
 
 async def get_projects(
-    db,
+    db: Database,
     skip: int = 0,
     limit: int = 100,
 ):
@@ -189,7 +189,7 @@ async def convert_to_app_task(db_task: db_models.DbTask):
 
 
 async def create_tasks_from_geojson(
-    db,
+    db: Database,
     project_id: int,
     boundaries: str,
 ):
