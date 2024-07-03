@@ -21,6 +21,24 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 19.x
+      
+      - name: Install yarn
+        working-directory: ./src/frontend/
+        run: npm install -g yarn
+
+      - name: Cache node_modules
+        uses: actions/cache@v2
+        with:
+          path: ./src/frontend/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: ./src/frontend/
+        run: yarn
 
       - name: Install dependencies
         run: |
