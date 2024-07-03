@@ -21,20 +21,10 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 19.x
-      
+
       - name: Install yarn
         working-directory: ./src/frontend/
         run: npm install -g yarn
-
-      - name: Cache node_modules
-        uses: actions/cache@v2
-        with:
-          path: ./src/frontend/node_modules
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
 
       - name: Install dependencies
         working-directory: ./src/frontend/
@@ -45,7 +35,17 @@ jobs:
           npm install -D tailwindcss postcss autoprefixer concurrently
           npm install -D prettier prettier-plugin-tailwindcss
 
-      - name: Cache node_modules
+      - name: Cache node_modules for frontend
+        uses: actions/cache@v2
+        with:
+          path: ./src/frontend/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Cache node_modules for pre commit
         uses: actions/cache@v2
         with:
           path: ./node_modules
