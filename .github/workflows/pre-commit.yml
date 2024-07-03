@@ -17,6 +17,24 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Use Node.js 19.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 19.x
+
+      - name: Install dependencies
+        run: |
+          npm install -D tailwindcss postcss autoprefixer concurrently
+          npm install -D prettier prettier-plugin-tailwindcss
+
+      - name: Cache node_modules
+        uses: actions/cache@v2
+        with:
+          path: ./node_modules
+          key: ${{ runner.os }}-precommit
+          restore-keys: |
+            ${{ runner.os }}-precommit
+
       - name: Set up Python 3.9.17
         uses: actions/setup-python@v2
         with:
