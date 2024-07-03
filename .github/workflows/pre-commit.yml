@@ -3,7 +3,7 @@ name: Precommit Code Check
 on:
   pull_request:
     branches:
-      - master
+      - main
       - develop
       - staging
   push:
