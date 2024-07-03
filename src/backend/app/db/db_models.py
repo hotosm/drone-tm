@@ -125,6 +125,7 @@ class DbProject(Base):
 
     output_orthophoto_url = cast(str, Column(String, nullable=True))
     output_pointcloud_url = cast(str, Column(String, nullable=True))
+    output_raw_url = cast(str, Column(String, nullable=True))
 
     # PROJECT CREATION
     author_id = cast(
@@ -208,7 +209,7 @@ class TaskEvent(Base):
         str, Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
     )
     user_id = cast(str, Column(String(100), ForeignKey("users.id"), nullable=False))
-    detail = cast(str, Column(String))
+    comment = cast(str, Column(String))
 
     state = cast(TaskStatus, Column(Enum(TaskStatus), nullable=False))
     created_at = cast(datetime, Column(DateTime, default=timestamp))
@@ -256,5 +257,18 @@ class DroneFlight(Base):
     override_height_from_ground_meters = cast(int, Column(SmallInteger))
     override_image_overlap_percent = cast(int, Column(SmallInteger))
     waypoint_file = cast(bytes, Column(LargeBinary))
-    imagery_data_url = cast(str, Column(String))
+    created_at = cast(datetime, Column(DateTime, default=timestamp))
+
+
+class GroundControlPoint(Base):
+    __tablename__ = "ground_control_points"
+
+    id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
+    project_id = cast(
+        str, Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    )
+    image_relative_path = cast(str, Column(String))
+    pixel_x = cast(int, Column(SmallInteger))
+    pixel_y = cast(int, Column(SmallInteger))
+    reference_point = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
     created_at = cast(datetime, Column(DateTime, default=timestamp))
