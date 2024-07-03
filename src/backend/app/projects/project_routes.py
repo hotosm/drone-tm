@@ -14,6 +14,7 @@ from app.utils import multipolygon_to_polygon
 from app.s3 import s3_client
 from app.config import settings
 from app.db import db_models
+from databases import Database
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -65,7 +66,7 @@ def delete_project_by_id(project_id: int, db: Session = Depends(database.get_db)
 )
 async def create_project(
     project_info: project_schemas.ProjectIn,
-    db = Depends(database.encode_db),
+    db: Database = Depends(database.encode_db),
 ):
     """Create a project in  database."""
     project = await project_crud.create_project_with_project_info(db, project_info)
@@ -80,7 +81,7 @@ async def create_project(
 async def upload_project_task_boundaries(
     project_id: int,
     task_geojson: UploadFile = File(...),
-    db = Depends(database.encode_db),
+    db: Database = Depends(database.encode_db),
 ):
     """Set project task boundaries using split GeoJSON from frontend.
 
@@ -170,7 +171,7 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
 
 @router.get("/", tags=["Projects"], response_model=list[project_schemas.ProjectOut])
 async def read_projects(
-    skip: int = 0, limit: int = 100, db = Depends(database.encode_db)
+    skip: int = 0, limit: int = 100, db: Database = Depends(database.encode_db)
 ):
     "Return all projects"
     projects = await project_crud.get_projects(db, skip, limit)
@@ -180,7 +181,7 @@ async def read_projects(
 @router.get("/{project_id}", tags=["Projects"])
 async def read_project(
     project_id: int,
-    db = Depends(database.encode_db),
+    db: Database = Depends(database.encode_db),
 ):
     """Get a specific project and all associated tasks by ID."""
     project = await project_crud.get_project_by_id(db, project_id)
