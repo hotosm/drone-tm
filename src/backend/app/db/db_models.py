@@ -264,3 +264,22 @@ class GroundControlPoint(Base):
     pixel_y = cast(int, Column(SmallInteger))
     reference_point = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
     created_at = cast(datetime, Column(DateTime, default=timestamp))
+
+
+class DbUserProfile(Base):
+    __tablename__ = "user_profile"
+    user_id = cast(str, Column(String, ForeignKey("users.id"), primary_key=True))
+    phone_number = cast(str, Column(String))
+    country = cast(str, Column(String))
+    city = cast(str, Column(String))
+
+    # for project creator
+    organization_name = cast(str, Column(String, nullable=True))
+    organization_address = cast(str, Column(String, nullable=True))
+    job_title = cast(str, Column(String, nullable=True))
+
+    notify_for_projects_within_km = cast(int, Column(SmallInteger, nullable=True))
+    experience_years = cast(int, Column(SmallInteger, nullable=True))
+    drone_you_own = cast(str, Column(String, nullable=True))
+    certified_drone_operator = cast(bool, Column(Boolean, default=False))
+    certificate = cast(bytes, Column(LargeBinary, nullable=True))
