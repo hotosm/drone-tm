@@ -86,7 +86,6 @@ async def get_project_by_id(
     """
 
     project_record = await db.fetch_one(raw_sql, {"project_id": project_id})
-    # Fetch associated tasks
     query = """ SELECT * from tasks WHERE project_id = :project_id;"""
     task_records = await db.fetch_all(query, {"project_id": project_id})
    
@@ -116,55 +115,7 @@ async def get_projects(
         LIMIT :limit;
         """
     db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
-    return await convert_to_app_projects(db_projects)
-
-
-async def convert_to_app_projects(
-    db_projects: List[db_models.DbProject],
-) -> List[project_schemas.ProjectOut]:
-    """Legacy function to convert db models --> Pydantic.
-
-    TODO refactor to use Pydantic model methods instead.
-    """
-    if db_projects and len(db_projects) > 0:
-
-        async def convert_project(project):
-            return await convert_to_app_project(project)
-
-        app_projects = await gather(
-            *[convert_project(project) for project in db_projects]
-        )
-        return [project for project in app_projects if project is not None]
-    else:
-        return []
-
-
-async def convert_to_app_project(db_project: db_models.DbProject):
-    """Legacy function to convert db models --> Pydantic."""
-    if not db_project:
-        log.debug("convert_to_app_project called, but no project provided")
-        return None
-    app_project = db_project
-
-    if db_project.outline:
-        app_project.outline_geojson = str_to_geojson(
-            db_project.outline, {"id": db_project.id}, db_project.id
-        )
-    return app_project
-
-
-async def convert_to_app_task(db_task: db_models.DbTask):
-    """Legacy function to convert db models --> Pydantic."""
-    if not db_task:
-        return None
-    app_task = db_task
-
-    if app_task.outline:
-        
-        app_task = str_to_geojson(
-            app_task.outline, {"id": app_task.id}, app_task.id
-        )
-    return app_task
+    return db_projects
 
 
 async def create_tasks_from_geojson(
