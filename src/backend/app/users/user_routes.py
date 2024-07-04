@@ -1,13 +1,20 @@
 from typing import Any
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Response, HTTPException, Depends
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
-from app.users.user_schemas import Token, UserPublic, UserRegister
-from app.users.user_deps import CurrentUser
+from app.users.user_schemas import (
+    Token,
+    UserPublic,
+    UserRegister,
+    ProfileUpdate,
+    AuthUser,
+)
+from app.users.user_deps import CurrentUser, login_required
 from app.config import settings
 from app.users import user_crud
 from app.db import database
+from app.models.enums import HTTPStatus
 from databases import Database
 
 
@@ -48,13 +55,13 @@ async def register_user(
     """
     Create new user without the need to be logged in.
     """
-    user = await user_crud.get_user_email(db, user_in.email_address)
+    user = await user_crud.get_user_by_email(db, user_in.email_address)
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this email already exists in the system",
         )
-    user = await user_crud.get_user_username(db, user_in.username)
+    user = await user_crud.get_user_by_username(db, user_in.username)
     if user:
         raise HTTPException(
             status_code=400,
@@ -83,3 +90,35 @@ def read_user_me(current_user: CurrentUser) -> Any:
     Get current user.
     """
     return current_user
+
+
+@router.post("/{user_id}/profile")
+async def update_user_profile(
+    user_id: str,
+    profile_update: ProfileUpdate,
+    db: Database = Depends(database.encode_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    """
+    Update user profile based on provided user_id and profile_update data.
+    Args:
+        user_id (int): The ID of the user whose profile is being updated.
+        profile_update (UserProfileUpdate): Updated profile data to apply.
+    Returns:
+        dict: Updated user profile information.
+    Raises:
+        HTTPException: If user with given user_id is not found in the database.
+    """
+
+    user = await user_crud.get_user_by_id(db, user_id)
+    if user.id != user_id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="You are not authorized to update profile",
+        )
+
+    if not user:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+
+    user = await user_crud.update_user_profile(db, user_id, profile_update)
+    return Response(status_code=HTTPStatus.OK)

@@ -274,9 +274,9 @@ class DbUserProfile(Base):
     city = cast(str, Column(String))
 
     # for project creator
-    organization_name = cast(str, Column(String, nullable=True))  #
-    organization_address = cast(str, Column(String, nullable=True))  #
-    job_title = cast(str, Column(String, nullable=True))  #
+    organization_name = cast(str, Column(String, nullable=True))
+    organization_address = cast(str, Column(String, nullable=True))
+    job_title = cast(str, Column(String, nullable=True))
 
     notify_for_projects_within_km = cast(int, Column(SmallInteger, nullable=True))
     experience_years = cast(int, Column(SmallInteger, nullable=True))
