@@ -1,4 +1,5 @@
 import { useTypedDispatch } from '@Store/hooks';
+import useAuth from '@Hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
@@ -14,6 +15,7 @@ import { slideVariants } from '@Constants/animations';
 export default function SignInOverlay() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   return (
     <motion.section
@@ -45,7 +47,11 @@ export default function SignInOverlay() {
             rightIcon="east"
             onClick={() => {
               dispatch(setCommonState({ signInAs: 'Project Creator' }));
-              navigate('/login');
+              if (isAuthenticated()) {
+                navigate('/projects');
+              } else {
+                navigate('/login');
+              }
             }}
           >
             I&apos;m a Project Creator
@@ -62,7 +68,11 @@ export default function SignInOverlay() {
             rightIcon="east"
             onClick={() => {
               dispatch(setCommonState({ signInAs: 'Drone Operator' }));
-              navigate('/login');
+              if (isAuthenticated()) {
+                navigate('/projects');
+              } else {
+                navigate('/login');
+              }
             }}
           >
             I&apos;m a Drone Operator
