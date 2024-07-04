@@ -100,6 +100,24 @@ async def get_project_by_id(
         "task_count": len(task_records)
     }
 
+    if not project_record:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Project not found."
+        )
+
+    # get tasks of project
+    query = """ SELECT * from tasks WHERE project_id = :project_id;"""
+    task_records = await db.fetch_all(query, {"project_id": project_id})
+    tasks = await convert_to_app_tasks(task_records)
+    # Count the total tasks
+    task_count = len(tasks)
+    return {
+        "project": project_record,
+        "task_count": task_count,
+        "tasks": tasks,
+    }
+
+
 
 async def get_projects(
     db: Database,

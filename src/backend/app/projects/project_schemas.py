@@ -11,7 +11,7 @@ from app.utils import (
     str_to_geojson,
     write_wkb,
 )
-        
+
 class ProjectInfo(BaseModel):
     """Basic project info."""
 
@@ -51,6 +51,7 @@ class ProjectIn(BaseModel):
         if not self.outline:
             return None
         return write_wkb(read_wkb(self.outline).centroid)
+
 
 class TaskOut(BaseModel):
     """Base project model."""
