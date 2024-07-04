@@ -111,7 +111,7 @@ async def update_user_profile(
     """
 
     user = await user_crud.get_user_by_id(db, user_id)
-    if user.id != user_id:
+    if user_data.id != user_id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
             detail="You are not authorized to update profile",
