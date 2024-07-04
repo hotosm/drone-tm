@@ -72,9 +72,12 @@ async def get_project_by_id(
     raw_sql = """
     SELECT
         projects.id,
+        projects.name,
         projects.short_description,
         projects.description,
+        projects.per_task_instructions,
         projects.author_id,
+        projects.outline,
         users.name AS author_name
     FROM projects
     JOIN users ON projects.author_id = users.id
@@ -83,44 +86,20 @@ async def get_project_by_id(
     """
 
     project_record = await db.fetch_one(raw_sql, {"project_id": project_id})
-    if not project_record:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="Project not found."
-        )
-
-    # get tasks of project
+    # Fetch associated tasks
     query = """ SELECT * from tasks WHERE project_id = :project_id;"""
     task_records = await db.fetch_all(query, {"project_id": project_id})
-    tasks = await convert_to_app_tasks(task_records)
-    # Count the total tasks
-    task_count = len(tasks)
-    return {
-        "project": project_record,
-        "task_count": task_count,
-        "tasks": tasks,
+   
+    return  {
+        "id": project_record["id"],
+        "name": project_record["name"],
+        "short_description": project_record["short_description"],
+        "description": project_record["description"],
+        "per_task_instructions": project_record["per_task_instructions"],
+        "outline": project_record["outline"],
+        "tasks": task_records,
+        "task_count": len(task_records)
     }
-
-
-async def convert_to_app_tasks(
-    db_tasks: List[db_models.DbTask],
-) -> List[project_schemas.TaskOut]:
-    """Legacy function to convert db models --> Pydantic.
-
-    TODO refactor to use Pydantic model methods instead.
-    """
-    if db_tasks and len(db_tasks) > 0:
-
-        async def convert_task(task):
-            return project_schemas.TaskOut(
-                id=task.id,
-                project_task_index=task.project_task_index,
-                project_task_name=task.project_task_name,
-                outline=task.outline
-            )
-        app_tasks = await gather(*[convert_task(task) for task in db_tasks])
-        return [task for task in app_tasks if task is not None]
-    else:
-        return []
 
 
 async def get_projects(

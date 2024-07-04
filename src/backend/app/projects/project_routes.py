@@ -176,7 +176,7 @@ async def read_projects(
     return projects
 
 
-@router.get("/{project_id}", tags=["Projects"])
+@router.get("/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut)
 async def read_project(
     project_id: int,
     db: Database = Depends(database.encode_db),
