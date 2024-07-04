@@ -114,3 +114,51 @@ class UserRole(IntEnum, Enum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
     BOTH = 3
+
+
+class State(int, Enum):
+    """The state of a task.
+
+    The state can be:
+    - ``unlocked to map``
+    - ``locked for mapping``
+    - ``unlocked to validate``
+    - ``locked for validation``
+    - ``unlocked done``
+    """
+
+    UNLOCKED_TO_MAP = 0
+    LOCKED_FOR_MAPPING = 1
+    UNLOCKED_TO_VALIDATE = 2
+    LOCKED_FOR_VALIDATION = 3
+    UNLOCKED_DONE = 4
+
+
+class EventType(str, Enum):
+    """Events that can be used via the API to update a state
+
+    Specify the event type for ``POST`` to:
+    ``/project/{pid}/event`` .
+
+    Possible values are:
+
+    - ``map`` -- Set to *locked for mapping*, i.e. mapping in progress.
+    - ``finish`` -- Set to *unlocked to validate*, i.e. is mapped.
+    - ``validate`` -- Request recent task ready to be validate.
+    - ``good`` -- Set the state to *unlocked done*.
+    - ``bad`` -- Set the state *unlocked to map* again, to be mapped once again.
+    - ``split`` -- Set the state *unlocked done* then generate additional subdivided task areas.
+    - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked for mapping* passing in the required user id.
+    - ``comment`` -- Keep the state the same, but simply add a comment.
+
+    Note that ``task_id`` must be specified in the endpoint too.
+    """
+
+    MAP = "map"
+    FINISH = "finish"
+    VALIDATE = "validate"
+    GOOD = "good"
+    BAD = "bad"
+    SPLIT = "split"
+    ASSIGN = "assign"
+    COMMENT = "comment"

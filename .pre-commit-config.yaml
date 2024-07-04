@@ -58,17 +58,6 @@ repos:
         files: \.(json|template)$
         types: [json]
 
-      - id: pretty-format-json
-        name: pretty format json
-        description: sets a standard for formatting json files.
-        entry: pretty-format-json
-        language: python
-        types: [text]
-        files: \.(json|template)$
-        exclude: ^nginx/
-        args:
-          - "--autofix"
-
       - id: check-merge-conflict
         name: check for merge conflicts
         description: checks for files that contain merge conflict strings.
