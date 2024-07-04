@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.projects import project_schemas
@@ -20,26 +21,42 @@ async def create_project_with_project_info(
     db: Database, project_metadata: project_schemas.ProjectIn
 ):
     """Create a project in database."""
-    query = f"""
-    INSERT INTO projects (
-        author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
-    )
-    VALUES (
-        1,
-        '{project_metadata.name}',
-        '{project_metadata.short_description}',
-        '{project_metadata.description}',
-        '{project_metadata.per_task_instructions}',
-        'DRAFT',
-        'PUBLIC',
-        'INTERMEDIATE',
-        'MEDIUM',
-        '{str(project_metadata.outline)}',
-        CURRENT_TIMESTAMP
-    )
-    RETURNING id
+    project_id = uuid.uuid4()
+    query = """
+        INSERT INTO projects (
+            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, dem_url, created
+        )
+        VALUES (
+            :project_id,
+            :author_id,
+            :name,
+            :short_description,
+            :description,
+            :per_task_instructions,
+            :status,
+            :visibility,
+            :outline,
+            :dem_url,
+            CURRENT_TIMESTAMP
+        )
+        RETURNING id
     """
-    new_project_id = await db.execute(query)
+    # new_project_id = await db.execute(query)
+    new_project_id = await db.execute(
+        query,
+        values={
+            "project_id": project_id,
+            "author_id": str(110878106282210575794),  # TODO: update this
+            "name": project_metadata.name,
+            "short_description": project_metadata.short_description,
+            "description": project_metadata.description,
+            "per_task_instructions": project_metadata.per_task_instructions,
+            "status": "DRAFT",
+            "visibility": "PUBLIC",
+            "outline": str(project_metadata.outline),
+            "dem_url": project_metadata.dem_url,
+        },
+    )
 
     if not new_project_id:
         raise HTTPException(status_code=500, detail="Project could not be created")
@@ -135,7 +152,7 @@ async def convert_to_app_project(db_project: db_models.DbProject):
 
 async def create_tasks_from_geojson(
     db: Database,
-    project_id: int,
+    project_id: uuid.UUID,
     boundaries: str,
 ):
     """Create tasks for a project, from provided task boundaries."""
@@ -150,26 +167,43 @@ async def create_tasks_from_geojson(
             polygons = boundaries["features"]
         log.debug(f"Processing {len(polygons)} task geometries")
         for index, polygon in enumerate(polygons):
-            # If the polygon is a MultiPolygon, convert it to a Polygon
-            if polygon["geometry"]["type"] == "MultiPolygon":
-                log.debug("Converting MultiPolygon to Polygon")
-                polygon["geometry"]["type"] = "Polygon"
-                polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
-                    0
-                ]
-            query = f""" INSERT INTO tasks (project_id,outline,project_task_index) VALUES ( '{project_id}', '{wkblib.dumps(shape(polygon["geometry"]), hex=True)}', '{index + 1}');"""
+            try:
+                # If the polygon is a MultiPolygon, convert it to a Polygon
+                if polygon["geometry"]["type"] == "MultiPolygon":
+                    log.debug("Converting MultiPolygon to Polygon")
+                    polygon["geometry"]["type"] = "Polygon"
+                    polygon["geometry"]["coordinates"] = polygon["geometry"][
+                        "coordinates"
+                    ][0]
 
-            result = await db.execute(query)
-            if result:
-                log.debug(
-                    "Created database task | "
-                    f"Project ID {project_id} | "
-                    f"Task index {index}"
+                task_id = str(uuid.uuid4())
+                query = """
+                    INSERT INTO tasks (id, project_id, outline, project_task_index)
+                    VALUES (:id, :project_id, :outline, :project_task_index);"""
+
+                result = await db.execute(
+                    query,
+                    values={
+                        "id": task_id,
+                        "project_id": project_id,
+                        "outline": wkblib.dumps(shape(polygon["geometry"]), hex=True),
+                        "project_task_index": index + 1,
+                    },
                 )
-                log.debug(
-                    "COMPLETE: creating project boundary, based on task boundaries"
-                )
-                return True
+
+                if result:
+                    log.debug(
+                        "Created database task | "
+                        f"Project ID {project_id} | "
+                        f"Task index {index}"
+                    )
+                    log.debug(
+                        "COMPLETE: creating project boundary, based on task boundaries"
+                    )
+                    return True
+            except Exception as e:
+                log.exception(e)
+                raise HTTPException(e) from e
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e

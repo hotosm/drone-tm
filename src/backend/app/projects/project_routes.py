@@ -1,5 +1,6 @@
 import os
 import json
+import uuid
 import geojson
 from datetime import timedelta
 
@@ -79,7 +80,7 @@ async def create_project(
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])
 async def upload_project_task_boundaries(
-    project_id: int,
+    project_id: uuid.UUID,
     task_geojson: UploadFile = File(...),
     db: Database = Depends(database.encode_db),
 ):

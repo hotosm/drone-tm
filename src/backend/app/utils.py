@@ -26,7 +26,7 @@ def timestamp():
 
 
 def str_to_geojson(
-    result: str, properties: Optional[dict] = None, id: Optional[int] = None
+    result: str, properties: Optional[dict] = None, id: Optional[str] = None
 ) -> Union[Feature, dict]:
     """Convert SQLAlchemy geometry to GeoJSON."""
     if result:
