@@ -19,12 +19,12 @@ jobs:
     name: Build JavaScript assets
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.ref_name }}
+      name: ${{ github.ref_name }} 
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.ref }}
 
       - name: Use Node.js 19.x
         uses: actions/setup-node@v1
