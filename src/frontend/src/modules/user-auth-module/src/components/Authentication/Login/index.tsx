@@ -72,7 +72,7 @@ export default function Login() {
         className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
       >
         <Image src={Person} />
-        <h3>Sign In - {signInAs}</h3>
+        <h3>{signInAs}</h3>
 
         {/* google login button */}
         <div
@@ -80,16 +80,27 @@ export default function Login() {
           onClick={() => setOnSignUpBtnClick(true)}
         >
           <Image src={googleIcon} />
-          <span className="naxatw-text-body-btn">Sign in with Google</span>
+          <span className="naxatw-text-body-btn">Continue with Google</span>
         </div>
         {/* google login button */}
 
+        <FlexRow
+          className="naxatw-w-full naxatw-items-center naxatw-justify-center"
+          gap={3}
+        >
+          <hr className="naxatw-w-[26%]" />
+          <span>or</span>
+          <hr className="naxatw-w-[26%]" />
+        </FlexRow>
+
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="naxatw-flex naxatw-w-[60%] naxatw-flex-col naxatw-gap-5 naxatw-pt-7"
+          className="naxatw-flex naxatw-w-[60%] naxatw-flex-col naxatw-gap-5"
         >
           <FormControl>
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username" required>
+              Email
+            </Label>
             <Input
               id="username"
               type="text"
@@ -100,7 +111,9 @@ export default function Login() {
           </FormControl>
 
           <FormControl className="naxatw-relative">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" required>
+              Password
+            </Label>
             <Input
               id="password"
               placeholder="*******"
@@ -110,7 +123,7 @@ export default function Login() {
             />
             <Icon
               name={showPassword ? 'visibility' : 'visibility_off'}
-              className="naxatw-absolute naxatw-right-2 naxatw-top-1/2 naxatw-cursor-pointer naxatw-text-sm naxatw-text-grey-600"
+              className="naxatw-absolute naxatw-right-2 naxatw-top-[55%] naxatw-cursor-pointer naxatw-text-sm naxatw-text-grey-600"
               onClick={() => handleShow()}
             />
           </FormControl>
@@ -131,7 +144,6 @@ export default function Login() {
               Forgot Your Password?
             </Button>
           </FlexRow>
-
           <Button
             className="!naxatw-bg-red naxatw-py-5"
             type="submit"
@@ -146,7 +158,7 @@ export default function Login() {
             className="naxatw-py-5 !naxatw-text-red"
             onClick={() => navigate('/')}
           >
-            Go Back
+            Back
           </Button>
         </form>
       </Flex>
