@@ -176,8 +176,6 @@ async def update_user_profile(
     """
 
     try:
-        print("notification = ", profile_update.notify_for_projects_within_km)
-
         profile_query = """
         INSERT INTO user_profile (user_id, phone_number, country, city, organization_name, organization_address, job_title, notify_for_projects_within_km,
                                     experience_years, drone_you_own, certified_drone_operator)

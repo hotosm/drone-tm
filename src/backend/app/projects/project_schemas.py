@@ -34,7 +34,7 @@ class ProjectIn(BaseModel):
     organisation_id: Optional[int] = None
     task_split_type: Optional[TaskSplitType] = None
     task_split_dimension: Optional[int] = None
-    dem_url: Optional[str]
+    dem_url: Optional[str] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
 
     @computed_field
