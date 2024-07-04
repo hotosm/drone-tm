@@ -19,10 +19,10 @@ jobs:
     name: Build JavaScript assets
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.ref_name }} 
+      name: ${{ github.ref_name }}
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.ref }}
 
