@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.projects import project_schemas
@@ -7,7 +8,7 @@ from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from fastapi import HTTPException
-from app.utils import geometry_to_geojson, merge_multipolygon, str_to_geojson
+from app.utils import merge_multipolygon, str_to_geojson
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from app.db import database
@@ -17,34 +18,50 @@ from databases import Database
 from app.models.enums import HTTPStatus
 from shapely.geometry import Polygon
 
-async def create_project_with_project_info(db: Database, project_metadata: project_schemas.ProjectIn):
+
+async def create_project_with_project_info(
+    db: Database, project_metadata: project_schemas.ProjectIn
+):
     """Create a project in database."""
-    query = f"""
-    INSERT INTO projects (
-        author_id, name, short_description, description, per_task_instructions, status, visibility, mapper_level, priority, outline, created
-    )
-    VALUES (
-        1, 
-        '{project_metadata.name}', 
-        '{project_metadata.short_description}', 
-        '{project_metadata.description}', 
-        '{project_metadata.per_task_instructions}', 
-        'DRAFT', 
-        'PUBLIC', 
-        'INTERMEDIATE', 
-        'MEDIUM', 
-        '{str(project_metadata.outline)}', 
-        CURRENT_TIMESTAMP
-    )
-    RETURNING id
+    project_id = uuid.uuid4()
+    query = """
+        INSERT INTO projects (
+            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, dem_url, created
+        )
+        VALUES (
+            :project_id,
+            :author_id,
+            :name,
+            :short_description,
+            :description,
+            :per_task_instructions,
+            :status,
+            :visibility,
+            :outline,
+            :dem_url,
+            CURRENT_TIMESTAMP
+        )
+        RETURNING id
     """
-    new_project_id = await db.execute(query)
+    # new_project_id = await db.execute(query)
+    new_project_id = await db.execute(
+        query,
+        values={
+            "project_id": project_id,
+            "author_id": str(110878106282210575794),  # TODO: update this
+            "name": project_metadata.name,
+            "short_description": project_metadata.short_description,
+            "description": project_metadata.description,
+            "per_task_instructions": project_metadata.per_task_instructions,
+            "status": "DRAFT",
+            "visibility": "PUBLIC",
+            "outline": str(project_metadata.outline),
+            "dem_url": project_metadata.dem_url,
+        },
+    )
 
     if not new_project_id:
-        raise HTTPException(
-            status_code=500,
-            detail="Project could not be created"
-        )
+        raise HTTPException(status_code=500, detail="Project could not be created")
     # Fetch the newly created project using the returned ID
     select_query = f"""
         SELECT id, name, short_description, description, per_task_instructions, outline
@@ -53,7 +70,6 @@ async def create_project_with_project_info(db: Database, project_metadata: proje
     """
     new_project = await db.fetch_one(query=select_query)
     return new_project
-
 
 
 async def get_project_by_id(
@@ -113,21 +129,23 @@ async def convert_to_app_tasks(
     else:
         return []    
 
+
 async def get_projects(
-    db:Database,
+    db: Database,
     skip: int = 0,
     limit: int = 100,
 ):
     """Get all projects."""
     raw_sql = """
         SELECT id, name, short_description, description, per_task_instructions, outline
-        FROM projects 
-        ORDER BY id DESC 
-        OFFSET :skip 
+        FROM projects
+        ORDER BY id DESC
+        OFFSET :skip
         LIMIT :limit;
         """
-    db_projects = await db.fetch_all(raw_sql, {'skip': skip, 'limit': limit})
-    return  await convert_to_app_projects(db_projects)
+    db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
+    return await convert_to_app_projects(db_projects)
+
 
 async def convert_to_app_projects(
     db_projects: List[db_models.DbProject],
@@ -148,6 +166,7 @@ async def convert_to_app_projects(
     else:
         return []
 
+
 async def convert_to_app_project(db_project: db_models.DbProject):
     """Legacy function to convert db models --> Pydantic."""
     if not db_project:
@@ -156,28 +175,15 @@ async def convert_to_app_project(db_project: db_models.DbProject):
     app_project = db_project
 
     if db_project.outline:
-        
         app_project.outline_geojson = str_to_geojson(
             db_project.outline, {"id": db_project.id}, db_project.id
         )
     return app_project
 
-async def convert_to_app_task(db_task: db_models.DbTask):
-    """Legacy function to convert db models --> Pydantic."""
-    if not db_task:
-        return None
-    app_task = db_task
-
-    if app_task.outline:
-        
-        app_task = str_to_geojson(
-            app_task.outline, {"id": app_task.id}, app_task.id
-        )
-    return app_task
 
 async def create_tasks_from_geojson(
     db: Database,
-    project_id: int,
+    project_id: uuid.UUID,
     boundaries: str,
 ):
     """Create tasks for a project, from provided task boundaries."""
@@ -192,24 +198,43 @@ async def create_tasks_from_geojson(
             polygons = boundaries["features"]
         log.debug(f"Processing {len(polygons)} task geometries")
         for index, polygon in enumerate(polygons):
-            # If the polygon is a MultiPolygon, convert it to a Polygon
-            if polygon["geometry"]["type"] == "MultiPolygon":
-                log.debug("Converting MultiPolygon to Polygon")
-                polygon["geometry"]["type"] = "Polygon"
-                polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
-                    0
-                ]                  
-            query = f""" INSERT INTO tasks (project_id,outline,project_task_index) VALUES ( '{project_id}', '{wkblib.dumps(shape(polygon["geometry"]), hex=True)}', '{index + 1}');"""
-            
-            result = await db.execute(query)
-            if result:
-                log.debug(
-                    "Created database task | "
-                    f"Project ID {project_id} | "
-                    f"Task index {index}"
+            try:
+                # If the polygon is a MultiPolygon, convert it to a Polygon
+                if polygon["geometry"]["type"] == "MultiPolygon":
+                    log.debug("Converting MultiPolygon to Polygon")
+                    polygon["geometry"]["type"] = "Polygon"
+                    polygon["geometry"]["coordinates"] = polygon["geometry"][
+                        "coordinates"
+                    ][0]
+
+                task_id = str(uuid.uuid4())
+                query = """
+                    INSERT INTO tasks (id, project_id, outline, project_task_index)
+                    VALUES (:id, :project_id, :outline, :project_task_index);"""
+
+                result = await db.execute(
+                    query,
+                    values={
+                        "id": task_id,
+                        "project_id": project_id,
+                        "outline": wkblib.dumps(shape(polygon["geometry"]), hex=True),
+                        "project_task_index": index + 1,
+                    },
                 )
-                log.debug("COMPLETE: creating project boundary, based on task boundaries")
-                return True
+
+                if result:
+                    log.debug(
+                        "Created database task | "
+                        f"Project ID {project_id} | "
+                        f"Task index {index}"
+                    )
+                    log.debug(
+                        "COMPLETE: creating project boundary, based on task boundaries"
+                    )
+                    return True
+            except Exception as e:
+                log.exception(e)
+                raise HTTPException(e) from e
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e

@@ -35,19 +35,12 @@ export default function ToolTip({
           <TooltipTrigger onClick={onClick}>
             <Icon
               name={name}
-              className={`naxatw-text-grey-500 hover:naxatw-animate-pulse hover:naxatw-text-primary-400 ${iconClassName}`}
+              className={`hover:naxatw-text-primary-400 naxatw-text-grey-500 hover:naxatw-animate-pulse ${iconClassName}`}
             />
           </TooltipTrigger>
           {message && (
             <TooltipContent
-              className="data-[state=delayed-open]:data-[side=top]:naxatw-animate-slideDownAndFade 
-                data-[state=delayed-open]:data-[side=right]:naxatw-animate-slideLeftAndFade 
-                data-[state=delayed-open]:data-[side=left]:naxatw-animate-slideRightAndFade 
-                data-[state=delayed-open]:data-[side=bottom]:naxatw-animate-slideUpAndFade 
-                naxatw-max-w-xs naxatw-select-none naxatw-rounded naxatw-bg-grey-900 naxatw-px-[15px] naxatw-py-[10px] 
-                naxatw-text-sm naxatw-leading-none naxatw-text-white
-                naxatw-shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px]
-                naxatw-will-change-[transform,opacity]"
+              className="data-[state=delayed-open]:data-[side=top]:naxatw-animate-slideDownAndFade data-[state=delayed-open]:data-[side=right]:naxatw-animate-slideLeftAndFade data-[state=delayed-open]:data-[side=left]:naxatw-animate-slideRightAndFade data-[state=delayed-open]:data-[side=bottom]:naxatw-animate-slideUpAndFade naxatw-max-w-xs naxatw-select-none naxatw-rounded naxatw-bg-grey-900 naxatw-px-[15px] naxatw-py-[10px] naxatw-text-sm naxatw-leading-none naxatw-text-white naxatw-shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] naxatw-will-change-[transform,opacity]"
               side={side}
               sideOffset={10}
             >

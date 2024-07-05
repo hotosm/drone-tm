@@ -1,0 +1,68 @@
+name: Precommit Code Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - staging
+  push:
+    branches:
+      - "*"
+
+jobs:
+  precommit:
+    name: Code Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Use Node.js 19.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 19.x
+
+      - name: Install yarn
+        working-directory: ./src/frontend/
+        run: npm install -g yarn
+
+      - name: Install dependencies
+        working-directory: ./src/frontend/
+        run: yarn
+
+      - name: Install dependencies
+        run: |
+          npm install -D tailwindcss postcss autoprefixer concurrently
+          npm install -D prettier prettier-plugin-tailwindcss
+
+      - name: Cache node_modules for frontend
+        uses: actions/cache@v2
+        with:
+          path: ./src/frontend/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Cache node_modules for pre commit
+        uses: actions/cache@v2
+        with:
+          path: ./node_modules
+          key: ${{ runner.os }}-precommit
+          restore-keys: |
+            ${{ runner.os }}-precommit
+
+      - name: Set up Python 3.9.17
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9.17
+
+      - name: Check Version
+        run: python --version
+
+      - name: PreCommit
+        uses: pre-commit/action@v2.0.3

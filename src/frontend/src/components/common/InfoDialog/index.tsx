@@ -24,8 +24,7 @@ const InfoDialog: React.FC<InfoDialogProps> = ({ status, children }) => {
 
   return (
     <div
-      className={`${infoStatus.bgColor} naxatw-mb-10 naxatw-flex naxatw-w-full naxatw-items-center
-      naxatw-gap-2 naxatw-rounded-md naxatw-p-3 naxatw-opacity-40`}
+      className={`${infoStatus.bgColor} naxatw-mb-10 naxatw-flex naxatw-w-full naxatw-items-center naxatw-gap-2 naxatw-rounded-md naxatw-p-3 naxatw-opacity-40`}
     >
       <Icon name={infoStatus.icon} className="naxatw-text-grey-200" />
       <span className="naxatw-text-base naxatw-text-grey-200">{children}</span>

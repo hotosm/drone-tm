@@ -24,8 +24,8 @@ mcli anonymous set download minio/${FRONTEND_BUCKET_NAME} || echo "Failed settin
 
 mcli cp --recursive /tmp/dist/* minio/${FRONTEND_BUCKET_NAME}
 
-for container in $(docker ps -a -q --filter "label=com.docker.compose.service=backend"); do
-  docker cp /tmp/dist/index.html $container:/project/src/backend/templates/index.html
+for backend_container in $(docker ps -a -q --filter "label=com.docker.compose.service=backend"); do
+  docker cp /tmp/dist/index.html $backend_container:/project/src/backend/templates/index.html
 done
 
 echo "======================================================"

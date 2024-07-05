@@ -6,7 +6,7 @@ from typing import Optional
 class AuthUser(BaseModel):
     """The user model returned from Google OAuth2."""
 
-    id: int
+    id: str
     email: EmailStr
     img_url: Optional[str] = None
 
@@ -17,7 +17,8 @@ class UserBase(BaseModel):
     is_active: bool = True
     is_superuser: bool = False
     name: str
-    
+
+
 class User(BaseModel):
     email_address: EmailStr
     is_active: bool
@@ -71,3 +72,16 @@ class UserRegister(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+
+
+class ProfileUpdate(BaseModel):
+    phone_number: Optional[str]
+    country: Optional[str]
+    city: Optional[str]
+    organization_name: Optional[str]
+    organization_address: Optional[str]
+    job_title: Optional[str]
+    notify_for_projects_within_km: Optional[int]
+    drone_you_own: Optional[str]
+    experience_years: Optional[int]
+    certified_drone_operator: Optional[bool]

@@ -15,11 +15,8 @@ export default function ChartLegend<T>({
   if (type === 'donut') {
     const maxValue = getSumOfKey(data as PieChartDataItem[], 'value');
     return (
-      <div className="naxatw-w-full ">
-        <div
-          className="cover scrollbar naxatw-flex naxatw-max-h-[140px] 
-        naxatw-flex-col naxatw-justify-start naxatw-gap-1.5 naxatw-overflow-y-auto"
-        >
+      <div className="naxatw-w-full">
+        <div className="cover scrollbar naxatw-flex naxatw-max-h-[140px] naxatw-flex-col naxatw-justify-start naxatw-gap-1.5 naxatw-overflow-y-auto">
           {data.map((key: any, index: any) => (
             <DonutLegendItem
               key={key.name}
@@ -41,8 +38,8 @@ export default function ChartLegend<T>({
     removeKeyFromObject(data[0], 'name' as keyof (typeof data)[0]),
   );
   return (
-    <div className="naxatw-flex naxatw-w-full naxatw-justify-center ">
-      <div className="cover naxatw-flex naxatw-gap-4 ">
+    <div className="naxatw-flex naxatw-w-full naxatw-justify-center">
+      <div className="cover naxatw-flex naxatw-gap-4">
         {keys.map((key, index) => (
           <LegendItem key={key} color={fills[index] || '#0088F8'} name={key} />
         ))}

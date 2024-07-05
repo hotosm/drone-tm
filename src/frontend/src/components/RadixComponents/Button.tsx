@@ -7,8 +7,8 @@ import Icon from '@Components/common/Icon';
 import Spinner from '@Components/common/Spinner';
 
 const buttonVariants = cva(
-  `naxatw-inline-flex naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-sm 
-  naxatw-font-bold naxatw-transition-colors focus-visible:naxatw-outline-none focus-visible:naxatw-ring-2 
+  `naxatw-inline-flex naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-sm
+  naxatw-font-bold naxatw-transition-colors focus-visible:naxatw-outline-none focus-visible:naxatw-ring-2
   focus-visible:ring-ring focus-visible:naxatw-ring-offset-2 disabled:naxatw-opacity-50 disabled:naxatw-pointer-events-none`,
   {
     variants: {
@@ -17,7 +17,7 @@ const buttonVariants = cva(
           'naxatw-bg-primary-400 naxatw-text-white hover:naxatw-shadow-top hover:naxatw-shadow-primary-400',
         destructive:
           'naxatw-bg-red-500 naxatw-text-white hover:naxatw-shadow-top hover:naxatw-shadow-red-500',
-        outline: `naxatw-border naxatw-text-primary-400 naxatw-border-primary-400 naxatw-border-input 
+        outline: `naxatw-border naxatw-text-primary-400 naxatw-border-primary-400 naxatw-border-input
         hover:naxatw-shadow-top naxatw-bg-white`,
         secondary:
           'naxatw-bg-white naxatw-text-primary-400 naxatw-border naxatw-border-primary-400 hover:naxatw-shadow-top',

@@ -1,6 +1,5 @@
 import jwt
 from typing import Annotated
-from databases import Database
 from fastapi import Depends, HTTPException, Request, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError

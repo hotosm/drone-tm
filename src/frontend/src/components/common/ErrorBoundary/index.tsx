@@ -38,11 +38,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         .trim()
         .split(' (');
       return (
-        <div className=" naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-1 naxatw-bg-pink-200 naxatw-p-4">
-          <div className="title  naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center">
+        <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-1 naxatw-bg-pink-200 naxatw-p-4">
+          <div className="title naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center">
             <Icon
               name="running_with_errors"
-              className="naxatw-text-4xl naxatw-text-red-600"
+              className="naxatw-text-red-600 naxatw-text-4xl"
             />
             <p className="naxatw-text-lg naxatw-font-bold naxatw-text-gray-800">
               {' '}
@@ -53,7 +53,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             href={errorLocation}
             target="_blank"
             rel="noopener noreferrer"
-            className="naxatw-text-sm naxatw-text-red-600 naxatw-underline"
+            className="naxatw-text-red-600 naxatw-text-sm naxatw-underline"
           >
             {fileName}
           </a>

@@ -1,3 +1,4 @@
+import uuid
 from pydantic import BaseModel, computed_field, Field
 from typing import Any, Optional, Union
 from geojson_pydantic import Feature, FeatureCollection, Polygon
@@ -10,12 +11,12 @@ from app.utils import (
     merge_multipolygon,
     str_to_geojson,
     write_wkb,
-    geometry_to_geojson,
 )
 
 
 class ProjectInfo(BaseModel):
     """Basic project info."""
+
     id: int
     name: str
     short_description: str
@@ -33,6 +34,7 @@ class ProjectIn(BaseModel):
     organisation_id: Optional[int] = None
     task_split_type: Optional[TaskSplitType] = None
     task_split_dimension: Optional[int] = None
+    dem_url: Optional[str] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
 
     @computed_field
@@ -76,7 +78,7 @@ class TaskOut(BaseModel):
 class ProjectOut(BaseModel):
     """Base project model."""
 
-    id: int
+    id: uuid.UUID
     name: str
     short_description: str
     description: str
@@ -93,7 +95,7 @@ class ProjectOut(BaseModel):
         geom = wkb.loads(wkb_data)
         # geometry = wkb.loads(bytes(self.outline.data))
         bbox = geom.bounds  # Calculate bounding box
-        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, self.id)
+        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, str(self.id))
 
 
 class PresignedUrlRequest(BaseModel):

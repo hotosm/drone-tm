@@ -1,15 +1,4 @@
 {
-  "name": "starterkit-v2",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "start": "vite",
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "lint": "eslint ./src/ --ext .ts,.tsx --fix"
-  },
   "dependencies": {
     "@mapbox/mapbox-gl-draw": "^1.4.2",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",
@@ -26,6 +15,7 @@
     "@tanstack/react-table": "^8.9.3",
     "@terraformer/wkt": "^2.2.0",
     "@turf/area": "^7.0.0",
+    "@turf/bbox": "^7.0.0",
     "@turf/centroid": "^7.0.0",
     "@turf/flatten": "^7.0.0",
     "@turf/length": "^7.0.0",
@@ -43,6 +33,7 @@
     "date-fns": "^2.30.0",
     "dom-to-code": "^1.5.4",
     "dotenv": "^16.0.3",
+    "framer-motion": "^11.2.9",
     "geojson": "^0.5.0",
     "geojson-validation": "^1.0.2",
     "html2canvas": "^1.4.1",
@@ -99,5 +90,16 @@
       "eslint --fix",
       "prettier --cache --write"
     ]
-  }
+  },
+  "name": "starterkit-v2",
+  "private": true,
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite",
+    "lint": "eslint ./src/ --ext .ts,.tsx --fix",
+    "preview": "vite preview",
+    "start": "vite"
+  },
+  "type": "module",
+  "version": "0.0.0"
 }

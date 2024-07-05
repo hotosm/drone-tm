@@ -11,7 +11,7 @@ import { Button } from '@Components/RadixComponents/Button';
 import Icon from '@Components/common/Icon';
 import { Flex, FlexRow } from '@Components/common/Layouts';
 import Person from '@Assets/images/person.svg';
-import { useTypedDispatch } from '@Store/hooks';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { signInGoogle, signInUser } from '@Services/common';
 import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
@@ -32,6 +32,7 @@ export default function Login() {
   const handleShow = () => {
     return setShowPassword(prev => !prev);
   };
+  const signInAs = useTypedSelector(state => state.common.signInAs);
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: signInUser,
@@ -40,7 +41,7 @@ export default function Login() {
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('refresh', res.data.refresh_token);
       toast.success('Logged In Successfully');
-      navigate('/');
+      navigate('/projects');
     },
     onError: err => {
       toast.error(err.response.data.detail);
@@ -68,11 +69,10 @@ export default function Login() {
     <>
       <Flex
         gap={5}
-        className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center
-        "
+        className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
       >
         <Image src={Person} />
-        <h3>Sign In</h3>
+        <h3>Sign In - {signInAs}</h3>
 
         {/* google login button */}
         <div
@@ -110,8 +110,7 @@ export default function Login() {
             />
             <Icon
               name={showPassword ? 'visibility' : 'visibility_off'}
-              className="naxatw-absolute naxatw-right-2 naxatw-top-1/2 naxatw-cursor-pointer
-              naxatw-text-sm naxatw-text-grey-600"
+              className="naxatw-absolute naxatw-right-2 naxatw-top-1/2 naxatw-cursor-pointer naxatw-text-sm naxatw-text-grey-600"
               onClick={() => handleShow()}
             />
           </FormControl>

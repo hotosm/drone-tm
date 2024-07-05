@@ -22,12 +22,11 @@ export default function SearchInput({
 }: ISearchInputProps) {
   return (
     <FlexRow
-      className={`naxatw-group naxatw-relative naxatw-w-full naxatw-items-center 
-        naxatw-border-b-2 hover:naxatw-border-b-primary-400 ${className}`}
+      className={`hover:naxatw-border-b-primary-400 naxatw-group naxatw-relative naxatw-w-full naxatw-items-center naxatw-border-b-2 ${className}`}
     >
       <Icon
         name="search"
-        className="naxatw-text-grey-500 group-hover:naxatw-text-primary-400"
+        className="group-hover:naxatw-text-primary-400 naxatw-text-grey-500"
       />
       <Input
         type="text"

@@ -77,10 +77,10 @@ export default function ChartContainer<T>({
         className={`card ${
           // eslint-disable-next-line no-nested-ternary
           type === 'donut'
-            ? 'naxatw-col-span-12 naxatw-flex  naxatw-h-full naxatw-items-center sm:naxatw-col-span-6 md:naxatw-col-span-12 lg:naxatw-col-span-6 '
+            ? 'naxatw-col-span-12 naxatw-flex naxatw-h-full naxatw-items-center sm:naxatw-col-span-6 md:naxatw-col-span-12 lg:naxatw-col-span-6'
             : yLabel
               ? 'naxatw-col-span-12'
-              : 'naxatw-col-span-12  naxatw-h-full naxatw-overflow-y-hidden'
+              : 'naxatw-col-span-12 naxatw-h-full naxatw-overflow-y-hidden'
         } ${scrollable ? 'scrollbar naxatw-overflow-auto' : ''}`}
       >
         {chart && chart({ data, fills, scrollable })}
@@ -94,7 +94,7 @@ export default function ChartContainer<T>({
         <div
           className={`legend ${
             type === 'donut'
-              ? 'naxatw-col-span-12 naxatw-flex naxatw-items-center naxatw-justify-start  sm:naxatw-col-span-6 md:naxatw-col-span-12 lg:naxatw-col-span-6'
+              ? 'naxatw-col-span-12 naxatw-flex naxatw-items-center naxatw-justify-start sm:naxatw-col-span-6 md:naxatw-col-span-12 lg:naxatw-col-span-6'
               : 'naxatw-col-span-11 naxatw-col-start-1 naxatw-col-end-13'
           } `}
         >

@@ -12,7 +12,7 @@ export default function Grid({
   return (
     <div
       className={cn(
-        `naxatw-grid  md:naxatw-grid-cols-2 ${
+        `naxatw-grid md:naxatw-grid-cols-2 ${
           gap ? `naxatw-gap-x-2` : ''
         } ${className}`,
       )}

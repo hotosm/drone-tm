@@ -1,0 +1,61 @@
+name: Test Frontend Static Build
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - staging
+    paths:
+      - src/frontend/**
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build JavaScript assets
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Use Node.js 19.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 19.x
+
+      - name: Install yarn
+        working-directory: ./src/frontend/
+        run: npm install -g yarn
+
+      - name: Cache node_modules
+        uses: actions/cache@v2
+        with:
+          path: ./src/frontend/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Write Environment Variables
+        id: write_env
+        working-directory: ./src/frontend/
+        run: |
+          echo ${{ vars.FRONTEND_ENV_VARS }} > .env
+
+      - name: Install dependencies
+        working-directory: ./src/frontend/
+        run: yarn
+
+      - name: Generate build
+        working-directory: ./src/frontend/
+        run: |
+          yarn build

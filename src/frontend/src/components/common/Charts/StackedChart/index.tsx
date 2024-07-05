@@ -51,9 +51,7 @@ export default function StackedChart({
   return (
     <RoundedContainer
       ref={componentRef}
-      className={`naxatw-flex naxatw-min-h-full naxatw-w-full naxatw-flex-1
-      naxatw-flex-col naxatw-rounded-xl naxatw-bg-primary-50 naxatw-px-5
-       naxatw-py-3 naxatw-shadow-md ${className}`}
+      className={`naxatw-bg-primary-50 naxatw-flex naxatw-min-h-full naxatw-w-full naxatw-flex-1 naxatw-flex-col naxatw-rounded-xl naxatw-px-5 naxatw-py-3 naxatw-shadow-md ${className}`}
     >
       {hasHeader && header && (
         <div className="head naxatw-col-span-12 naxatw-h-fit">
@@ -69,7 +67,7 @@ export default function StackedChart({
       )}
       {isDataEmpty ? (
         <FlexColumn className={`${hasDownloadBtn ? 'naxatw-gap-5' : ''}`}>
-          <FlexRow className=" naxatw-mt-1 naxatw-overflow-hidden naxatw-rounded">
+          <FlexRow className="naxatw-mt-1 naxatw-overflow-hidden naxatw-rounded">
             {updatedData.map(({ name, color, width }) => (
               <div
                 key={name}
@@ -103,17 +101,16 @@ export default function StackedChart({
                 <FlexRow
                   className={` ${
                     labelAlignment === 'vertical'
-                      ? ' naxatw-gap-10'
+                      ? 'naxatw-gap-10'
                       : 'naxatw-w-full naxatw-gap-0.5'
                   }`}
                 >
                   <FlexRow
-                    className={`naxatw-items-center naxatw-text-sm naxatw-capitalize naxatw-text-grey-800
-              ${
-                labelAlignment === 'horizontal'
-                  ? 'naxatw-pt-0.5'
-                  : 'naxatw-w-40'
-              } `}
+                    className={`naxatw-items-center naxatw-text-sm naxatw-capitalize naxatw-text-grey-800 ${
+                      labelAlignment === 'horizontal'
+                        ? 'naxatw-pt-0.5'
+                        : 'naxatw-w-40'
+                    } `}
                   >
                     {name}
                   </FlexRow>

@@ -12,6 +12,10 @@ body {
   font-family: 'Barlow Condensed', sans-serif;
 }
 
+.landing-page p {
+  font-family: 'Manrope', sans-serif !important;
+}
+
 @keyframes slideInFromLeft {
   from {
     opacity: 0;
