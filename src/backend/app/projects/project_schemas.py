@@ -81,7 +81,7 @@ class ProjectOut(BaseModel):
     description: str
     per_task_instructions: Optional[str] = None
     outline: Any = Field(exclude=True)
-    tasks: list[TaskOut] = None
+    tasks: list[TaskOut] = []
     task_count: int = None
 
     @computed_field

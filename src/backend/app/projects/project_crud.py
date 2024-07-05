@@ -68,7 +68,6 @@ async def get_project_by_id(
     db: Database = Depends(database.encode_db), project_id: Optional[int] = None
 ):
     """Get a single project &  all associated tasks by ID."""
-    # check the project in Database
     raw_sql = """
     SELECT
         projects.id,
@@ -88,17 +87,9 @@ async def get_project_by_id(
     project_record = await db.fetch_one(raw_sql, {"project_id": project_id})
     query = """ SELECT * from tasks WHERE project_id = :project_id;"""
     task_records = await db.fetch_all(query, {"project_id": project_id})
-   
-    return  {
-        "id": project_record["id"],
-        "name": project_record["name"],
-        "short_description": project_record["short_description"],
-        "description": project_record["description"],
-        "per_task_instructions": project_record["per_task_instructions"],
-        "outline": project_record["outline"],
-        "tasks": task_records,
-        "task_count": len(task_records)
-    }
+    project_record.tasks = task_records
+    project_record.task_count = len(task_records)
+    return project_record
 
 
 async def get_projects(
