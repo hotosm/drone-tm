@@ -1,22 +1,15 @@
 import json
 import uuid
-from typing import List, Optional
-from sqlalchemy.orm import Session
+from typing import Optional
 from app.projects import project_schemas
-from app.db import db_models
 from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from fastapi import HTTPException
-from app.utils import merge_multipolygon, str_to_geojson
+from app.utils import merge_multipolygon
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
-from app.db import database
-from fastapi import Depends
-from asyncio import gather
 from databases import Database
-from app.models.enums import HTTPStatus
-from shapely.geometry import Polygon
 
 
 async def create_project_with_project_info(

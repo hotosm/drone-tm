@@ -90,7 +90,6 @@ async def upload_project_task_boundaries(
     AuthUser = Depends(login_required)
     
 ):
-    # eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEwMTAzOTg0NDM3NTkzNzgxNTcxMCIsImVtYWlsIjoicHJhZGlwdGhhcGEubmF4YUBnbWFpbC5jb20iLCJuYW1lIjoiUHJhZGlwIFRoYXBhIiwiaW1nX3VybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0lUSHRHU2o4d0FIVURQZFlSYzV1RUwxM0pKTkJCREp2b3d6OWFiVVI4MTFKTjhOUT1zOTYtYyIsImV4cCI6MTcyMDI1NTY2OH0.4vIpN7wFmodeAD1CxhkP2NfPlOuIfH7u-qk4Npg9VWI
     """Set project task boundaries using split GeoJSON from frontend.
 
     Each polygon in the uploaded geojson are made into single task.
