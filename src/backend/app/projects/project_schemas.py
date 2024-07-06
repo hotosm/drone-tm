@@ -73,7 +73,8 @@ class TaskOut(BaseModel):
         geom = wkb.loads(wkb_data)
         bbox = geom.bounds  # Calculate bounding box
         return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, str(self.id))
-    
+
+
 class ProjectOut(BaseModel):
     """Base project model."""
 

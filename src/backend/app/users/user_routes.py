@@ -6,7 +6,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     Token,
     UserPublic,
-    UserRegister,
     ProfileUpdate,
     AuthUser,
 )

@@ -4,7 +4,7 @@ from app.config import settings
 from typing import Any
 from passlib.context import CryptContext
 from app.db import db_models
-from app.users.user_schemas import UserCreate, AuthUser, ProfileUpdate
+from app.users.user_schemas import AuthUser, ProfileUpdate
 from databases import Database
 from fastapi import HTTPException
 from app.models.enums import UserRole
@@ -93,6 +93,7 @@ async def authenticate(
     if not verify_password(password, db_user["password"]):
         return None
     return db_user
+
 
 async def get_or_create_user(
     db: Database,

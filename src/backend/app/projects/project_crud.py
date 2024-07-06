@@ -65,7 +65,7 @@ async def create_project_with_project_info(
 
 
 async def get_project_by_id(
-    db: Database,  author_id: uuid.UUID, project_id: Optional[int] = None
+    db: Database, author_id: uuid.UUID, project_id: Optional[int] = None
 ):
     """Get a single project &  all associated tasks by ID."""
     raw_sql = """
@@ -87,7 +87,7 @@ async def get_project_by_id(
     project_record.tasks = task_records
     project_record.task_count = len(task_records)
     return project_record
-    
+
 
 async def get_projects(
     db: Database,
@@ -104,6 +104,7 @@ async def get_projects(
         """
     db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
     return db_projects
+
 
 async def create_tasks_from_geojson(
     db: Database,

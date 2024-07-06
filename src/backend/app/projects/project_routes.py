@@ -26,7 +26,11 @@ router = APIRouter(
 
 
 @router.delete("/{project_id}", tags=["Projects"])
-def delete_project_by_id(project_id: uuid.UUID, db: Session = Depends(database.get_db), AuthUser = Depends(login_required)):
+def delete_project_by_id(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+    AuthUser=Depends(login_required),
+):
     """
     Delete a project by its ID, along with all associated tasks.
 
@@ -70,11 +74,13 @@ def delete_project_by_id(project_id: uuid.UUID, db: Session = Depends(database.g
 async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Database = Depends(database.encode_db),
-    user_data: AuthUser = Depends(login_required)
+    user_data: AuthUser = Depends(login_required),
 ):
     """Create a project in  database."""
     author_id = user_data.id
-    project = await project_crud.create_project_with_project_info(db,author_id, project_info)
+    project = await project_crud.create_project_with_project_info(
+        db, author_id, project_info
+    )
     if not project:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
@@ -87,8 +93,7 @@ async def upload_project_task_boundaries(
     project_id: uuid.UUID,
     task_geojson: UploadFile = File(...),
     db: Database = Depends(database.encode_db),
-    AuthUser = Depends(login_required)
-    
+    AuthUser=Depends(login_required),
 ):
     """Set project task boundaries using split GeoJSON from frontend.
 
@@ -100,12 +105,14 @@ async def upload_project_task_boundaries(
 
     Returns:
         dict: JSON containing success message, project ID, and number of tasks.
-    """    
-    #check the project in Database
+    """
+    # check the project in Database
     raw_sql = f"""SELECT id FROM projects WHERE id = '{project_id}' LIMIT 1;"""
-    project =  await db.fetch_one(query=raw_sql)
+    project = await db.fetch_one(query=raw_sql)
     if not project:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Project not found.")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Project not found."
+        )
     # read entire file
     content = await task_geojson.read()
     task_boundaries = json.loads(content)
@@ -119,8 +126,9 @@ async def upload_project_task_boundaries(
 
 @router.post("/preview-split-by-square/", tags=["Projects"])
 async def preview_split_by_square(
-    project_geojson: UploadFile = File(...), dimension: int = Form(100),
-    AuthUser = (login_required)
+    project_geojson: UploadFile = File(...),
+    dimension: int = Form(100),
+    AuthUser=(login_required),
 ):
     """Preview splitting by square."""
 
@@ -179,7 +187,7 @@ async def read_projects(
     skip: int = 0,
     limit: int = 100,
     db: Database = Depends(database.encode_db),
-    user_data: AuthUser = Depends(login_required)
+    user_data: AuthUser = Depends(login_required),
 ):
     "Return all projects"
     projects = await project_crud.get_projects(db, skip, limit)
@@ -187,11 +195,12 @@ async def read_projects(
 
 
 @router.get(
-    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut)
+    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut
+)
 async def read_project(
     project_id: uuid.UUID,
     db: Database = Depends(database.encode_db),
-    user_data: AuthUser = Depends(login_required)
+    user_data: AuthUser = Depends(login_required),
 ):
     """Get a specific project and all associated tasks by ID."""
     author_id = user_data.id
