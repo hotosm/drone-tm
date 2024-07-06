@@ -40,6 +40,8 @@ services:
     volumes:
       - ./DockerData/dtm_db_data:/var/lib/postgresql/data/
     env_file: .env
+    ports:
+      - 5434:5432
     networks:
       - dtm-network
     container_name: db

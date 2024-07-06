@@ -20,16 +20,16 @@ from shapely.geometry import Polygon
 
 
 async def create_project_with_project_info(
-    db: Database, project_metadata: project_schemas.ProjectIn
+    db: Database, author_id: uuid.UUID, project_metadata: project_schemas.ProjectIn
 ):
     """Create a project in database."""
-    project_id = uuid.uuid4()
+    _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
             id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, dem_url, created
         )
         VALUES (
-            :project_id,
+            :id,
             :author_id,
             :name,
             :short_description,
@@ -43,12 +43,11 @@ async def create_project_with_project_info(
         )
         RETURNING id
     """
-    # new_project_id = await db.execute(query)
-    new_project_id = await db.execute(
+    project_id = await db.execute(
         query,
         values={
-            "project_id": project_id,
-            "author_id": str(110878106282210575794),  # TODO: update this
+            "id": _id,
+            "author_id": author_id,
             "name": project_metadata.name,
             "short_description": project_metadata.short_description,
             "description": project_metadata.description,
@@ -60,75 +59,42 @@ async def create_project_with_project_info(
         },
     )
 
-    if not new_project_id:
+    if not project_id:
         raise HTTPException(status_code=500, detail="Project could not be created")
     # Fetch the newly created project using the returned ID
     select_query = f"""
         SELECT id, name, short_description, description, per_task_instructions, outline
         FROM projects
-        WHERE id = '{new_project_id}'
+        WHERE id = '{project_id}'
     """
     new_project = await db.fetch_one(query=select_query)
     return new_project
 
 
 async def get_project_by_id(
-    db: Database = Depends(database.encode_db), project_id: Optional[int] = None
-) -> db_models.DbProject:
+    db: Database,  author_id: uuid.UUID, project_id: Optional[int] = None
+):
     """Get a single project &  all associated tasks by ID."""
-    #check the project in Database
-    raw_sql = f"""SELECT id, short_description,total_tasks FROM projects WHERE id = '{project_id}' LIMIT 1;"""
-    raw_sql = f"""
-    SELECT 
-        projects.id, 
-        projects.short_description, 
+    raw_sql = """
+    SELECT
+        projects.id,
+        projects.name,
+        projects.short_description,
         projects.description,
-        projects.author_id,
-        users.name AS author_name
-    FROM projects 
-    JOIN users ON projects.author_id = users.id 
-    WHERE projects.id = '{project_id}' 
+        projects.per_task_instructions,
+        projects.outline
+    FROM projects
+    WHERE projects.author_id = :author_id
     LIMIT 1;
     """
 
-    project =  await db.fetch_one(query=raw_sql)
-    if not project:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Project not found.")
-
-    # get tasks of project
-    query = f""" SELECT * from tasks WHERE project_id = '{project_id}';"""
-    all_tasks = await db.fetch_all(query=query)    
-    tasks =   await convert_to_app_tasks(all_tasks)
-    # Count the total tasks
-    task_count = len(tasks)
-    return {
-        "project": project,
-        "task_count": task_count,
-        "tasks": tasks,
-    }
+    project_record = await db.fetch_one(raw_sql, {"author_id": author_id})
+    query = """ SELECT id, project_task_index, outline FROM tasks WHERE project_id = :project_id;"""
+    task_records = await db.fetch_all(query, {"project_id": project_id})
+    project_record.tasks = task_records
+    project_record.task_count = len(task_records)
+    return project_record
     
-async def convert_to_app_tasks(
-    db_tasks: List[db_models.DbTask],
-) -> List[project_schemas.TaskOut]:
-    """Legacy function to convert db models --> Pydantic.
-
-    TODO refactor to use Pydantic model methods instead.
-    """
-    if db_tasks and len(db_tasks) > 0:
-
-        async def convert_task(task):
-            return await convert_to_app_task(task)
-
-        app_tasks = await gather(
-            *[convert_task(task) for task in db_tasks]
-        )
-        # Calculate total area of all boxes
-        # total_area = sum(_getArea(task.outline) for task in app_tasks if task.outline is not None)
-        
-        return [task for task in app_tasks if task is not None]
-    else:
-        return []    
-
 
 async def get_projects(
     db: Database,
@@ -144,42 +110,7 @@ async def get_projects(
         LIMIT :limit;
         """
     db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
-    return await convert_to_app_projects(db_projects)
-
-
-async def convert_to_app_projects(
-    db_projects: List[db_models.DbProject],
-) -> List[project_schemas.ProjectOut]:
-    """Legacy function to convert db models --> Pydantic.
-
-    TODO refactor to use Pydantic model methods instead.
-    """
-    if db_projects and len(db_projects) > 0:
-
-        async def convert_project(project):
-            return await convert_to_app_project(project)
-
-        app_projects = await gather(
-            *[convert_project(project) for project in db_projects]
-        )
-        return [project for project in app_projects if project is not None]
-    else:
-        return []
-
-
-async def convert_to_app_project(db_project: db_models.DbProject):
-    """Legacy function to convert db models --> Pydantic."""
-    if not db_project:
-        log.debug("convert_to_app_project called, but no project provided")
-        return None
-    app_project = db_project
-
-    if db_project.outline:
-        app_project.outline_geojson = str_to_geojson(
-            db_project.outline, {"id": db_project.id}, db_project.id
-        )
-    return app_project
-
+    return db_projects
 
 async def create_tasks_from_geojson(
     db: Database,
