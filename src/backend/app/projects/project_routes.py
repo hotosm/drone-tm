@@ -190,7 +190,8 @@ async def read_projects(
     user_data: AuthUser = Depends(login_required),
 ):
     "Return all projects"
-    projects = await project_crud.get_projects(db, skip, limit)
+    author_id = user_data.id
+    projects = await project_crud.get_projects(db, author_id, skip, limit)
     return projects
 
 

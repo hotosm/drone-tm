@@ -91,6 +91,7 @@ async def get_project_by_id(
 
 async def get_projects(
     db: Database,
+    author_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
 ):
@@ -98,11 +99,14 @@ async def get_projects(
     raw_sql = """
         SELECT id, name, short_description, description, per_task_instructions, outline
         FROM projects
+        WHERE author_id = :author_id
         ORDER BY id DESC
         OFFSET :skip
         LIMIT :limit;
         """
-    db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
+    db_projects = await db.fetch_all(
+        raw_sql, {"author_id": author_id, "skip": skip, "limit": limit}
+    )
     return db_projects
 
 
