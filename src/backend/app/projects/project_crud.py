@@ -52,8 +52,6 @@ async def create_project_with_project_info(
         },
     )
 
-    if not project_id:
-        raise HTTPException(status_code=500, detail="Project could not be created")
     # Fetch the newly created project using the returned ID
     select_query = f"""
         SELECT id, name, short_description, description, per_task_instructions, outline

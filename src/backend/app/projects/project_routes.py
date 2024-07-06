@@ -29,7 +29,7 @@ router = APIRouter(
 def delete_project_by_id(
     project_id: uuid.UUID,
     db: Session = Depends(database.get_db),
-    AuthUser=Depends(login_required),
+    user: AuthUser = Depends(login_required)
 ):
     """
     Delete a project by its ID, along with all associated tasks.
@@ -93,7 +93,7 @@ async def upload_project_task_boundaries(
     project_id: uuid.UUID,
     task_geojson: UploadFile = File(...),
     db: Database = Depends(database.encode_db),
-    AuthUser=Depends(login_required),
+    user: AuthUser = Depends(login_required)
 ):
     """Set project task boundaries using split GeoJSON from frontend.
 
@@ -128,8 +128,8 @@ async def upload_project_task_boundaries(
 async def preview_split_by_square(
     project_geojson: UploadFile = File(...),
     dimension: int = Form(100),
-    AuthUser=(login_required),
-):
+    user: AuthUser = Depends(login_required)
+    ):
     """Preview splitting by square."""
 
     # Validating for .geojson File.
