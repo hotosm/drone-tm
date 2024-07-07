@@ -4,7 +4,7 @@ from app.config import settings
 from typing import Any
 from passlib.context import CryptContext
 from app.db import db_models
-from app.users.user_schemas import UserCreate, AuthUser, ProfileUpdate
+from app.users.user_schemas import AuthUser, ProfileUpdate
 from databases import Database
 from fastapi import HTTPException
 from app.models.enums import UserRole
@@ -93,29 +93,6 @@ async def authenticate(
     if not verify_password(password, db_user["password"]):
         return None
     return db_user
-
-
-# def authenticate(db: Session, username: str, password: str) -> db_models.DbUser | None:
-#     db_user = get_user_by_username(db, username)
-#     if not db_user:
-#         return None
-#     if not verify_password(password, db_user.password):
-#         return None
-#     return db_user
-
-
-async def create_user(db: Database, user_create: UserCreate):
-    query = f"""
-    INSERT INTO users (username, password, is_active, name, email_address, is_superuser)
-    VALUES ('{user_create.username}', '{get_password_hash(user_create.password)}', {True}, '{user_create.name}', '{user_create.email_address}', {False})
-    RETURNING id
-    """
-    _id = await db.execute(query)
-    raw_query = f"SELECT * from users WHERE id = {_id} LIMIT 1"
-    db_obj = await db.fetch_one(query=raw_query)
-    if not db_obj:
-        raise HTTPException(status_code=500, detail="User could not be created")
-    return db_obj
 
 
 async def get_or_create_user(
