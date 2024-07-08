@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Depends
 from app.config import settings
-from app.models.enums import EventType
+from app.models.enums import EventType, State
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -43,18 +43,45 @@ async def new_event(
                 "Done: locked for mapping",
             )
         case EventType.FINISH:
-            return await task_crud.finish(
+            return await task_crud.update_task_state(
                 db,
                 detail.project_id,
                 detail.task_id,
                 user_id,
                 "Done: unlocked to validate",
+                State.LOCKED_FOR_MAPPING,
+                State.UNLOCKED_TO_VALIDATE,
             )
         case EventType.VALIDATE:
-            pass
+            return await task_crud.update_task_state(
+                db,
+                detail.project_id,
+                detail.task_id,
+                user_id,
+                "Done: locked for validation",
+                State.UNLOCKED_TO_VALIDATE,
+                State.LOCKED_FOR_VALIDATION,
+            )
         case EventType.GOOD:
-            pass
+            return await task_crud.update_task_state(
+                db,
+                detail.project_id,
+                detail.task_id,
+                user_id,
+                "Done: Task is Good",
+                State.LOCKED_FOR_VALIDATION,
+                State.UNLOCKED_DONE,
+            )
+
         case EventType.BAD:
-            pass
+            return await task_crud.update_task_state(
+                db,
+                detail.project_id,
+                detail.task_id,
+                user_id,
+                "Done: needs to redo",
+                State.LOCKED_FOR_VALIDATION,
+                State.UNLOCKED_TO_MAP,
+            )
 
     return True
