@@ -1,5 +1,6 @@
 import uuid
 from databases import Database
+from app.models.enums import State
 
 
 async def all_tasks_states(db: Database, project_id: uuid.UUID):
@@ -76,8 +77,8 @@ async def map_task(
         "task_id": str(task_id),
         "user_id": str(user_id),
         "comment": comment,
-        "unlocked_to_map_state": "UNLOCKED_TO_MAP",
-        "locked_for_mapping_state": "LOCKED_FOR_MAPPING",
+        "unlocked_to_map_state": State.UNLOCKED_TO_MAP.name,
+        "locked_for_mapping_state": State.LOCKED_FOR_MAPPING.name,
     }
 
     await db.fetch_one(query, values)
@@ -113,8 +114,8 @@ async def finish(
         "task_id": str(task_id),
         "user_id": str(user_id),
         "comment": comment,
-        "unlocked_to_validate_state": "UNLOCKED_TO_VALIDATE",
-        "locked_for_mapping_state": "LOCKED_FOR_MAPPING",
+        "unlocked_to_validate_state": State.UNLOCKED_TO_VALIDATE.name,
+        "locked_for_mapping_state": State.LOCKED_FOR_MAPPING.name,
     }
 
     r = await db.fetch_one(query, values)
