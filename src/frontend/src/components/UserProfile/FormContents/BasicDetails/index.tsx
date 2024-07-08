@@ -1,19 +1,9 @@
 import { Flex, FlexColumn } from '@Components/common/Layouts';
-import {
-  FormControl,
-  FormGroup,
-  Input,
-  Label,
-  Select,
-} from '@Components/common/FormUI';
-import { UserProfileDetailsType } from '@Components/GoogleAuth';
-import { useForm } from 'react-hook-form';
+import { FormControl, Input, Label } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/ErrorMessage';
 
 export default function BasicDetails({ formProps }: { formProps: any }) {
   const { register } = formProps;
-
-  console.log(formProps.formState.errors, 'formProps.formState.errors');
 
   // const userProfile: UserProfileDetailsType =
   //   localStorage.getItem('userprofile');

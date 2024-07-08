@@ -11,7 +11,7 @@ import {
 } from '@Components/UserProfile/FormContents';
 import { useMutation } from '@tanstack/react-query';
 import { postUserProfile } from '@Services/common';
-import { IUserProfileDetailsType } from '@Components/GoogleAuth';
+import { IUserProfileDetailsType } from '@Components/GoogleAuth/types';
 import Tab from './UserProfileTabs';
 
 const getActiveFormContent = (activeTab: number, formProps: any) => {
