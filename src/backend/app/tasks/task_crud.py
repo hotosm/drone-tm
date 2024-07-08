@@ -1,5 +1,4 @@
 import uuid
-from app.models.enums import State
 from databases import Database
 
 
@@ -8,22 +7,87 @@ async def all_tasks_states(db: Database, project_id: uuid.UUID):
         SELECT DISTINCT ON (task_id) project_id, task_id, state
         FROM task_events
         WHERE project_id=:project_id
+        ORDER BY task_id, created_at DESC
         """
     r = await db.fetch_all(query, {"project_id": str(project_id)})
 
     return [dict(r) for r in r]
 
 
-async def update_task_event(
-    db: Database,
-    project_id: uuid.UUID,
-    user_id: str,
-    task_id: uuid.UUID,
-    state: State,
-) -> None:
-    event_id = str(uuid.uuid4())
-    comment = "comment"
+async def map_task(
+    db: Database, project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, comment: str
+):
+    query = """
+        WITH latest_events AS (
+            SELECT DISTINCT ON (task_id)
+                project_id,
+                task_id,
+                user_id,
+                comment,
+                state
+            FROM task_events
+            WHERE project_id = :project_id
+            ORDER BY task_id, created_at DESC
+        ),
+        valid_tasks AS (
+            SELECT *
+            FROM latest_events
+            WHERE state = :unlocked_to_map_state
+        ),
+        missing_task AS (
+            SELECT
+                CAST(:project_id AS UUID) AS project_id,
+                CAST(:task_id AS UUID) AS task_id,
+                :user_id AS user_id,
+                :comment AS comment,
+                CAST(:locked_for_mapping_state AS State) AS state
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM task_events
+                WHERE project_id = :project_id
+                AND task_id = :task_id
+            )
+        )
+        INSERT INTO task_events (event_id, project_id, task_id, user_id, comment, state, created_at)
+        SELECT
+            gen_random_uuid(),
+            project_id,
+            task_id,
+            user_id,
+            comment,
+            state,
+            now()
+        FROM valid_tasks
+        UNION ALL
+        SELECT
+            gen_random_uuid(),
+            project_id,
+            task_id,
+            user_id,
+            comment,
+            state,
+            now()
+        FROM missing_task
+        RETURNING project_id, task_id, user_id;
+    """
 
+    values = {
+        "project_id": str(project_id),
+        "task_id": str(task_id),
+        "user_id": str(user_id),
+        "comment": comment,
+        "unlocked_to_map_state": "UNLOCKED_TO_MAP",
+        "locked_for_mapping_state": "LOCKED_FOR_MAPPING",
+    }
+
+    await db.fetch_one(query, values)
+
+    return {"project_id": project_id, "task_id": task_id}
+
+
+async def finish(
+    db: Database, project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, comment: str
+):
     query = """
         WITH last AS (
             SELECT *
@@ -35,22 +99,22 @@ async def update_task_event(
         locked AS (
             SELECT *
             FROM last
-            WHERE user_id = :user_id AND state = :state
+            WHERE user_id = :user_id AND state = :locked_for_mapping_state
         )
-        INSERT INTO public.task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
-        SELECT :event_id, project_id, task_id, user_id, :state, :comment, now()
+        INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
+        SELECT gen_random_uuid(), project_id, task_id, user_id, :unlocked_to_validate_state, :comment, now()
         FROM last
         WHERE user_id = :user_id
         RETURNING project_id, task_id, user_id;
-    """
+        """
 
     values = {
         "project_id": str(project_id),
         "task_id": str(task_id),
         "user_id": str(user_id),
-        "state": str(state.name),
-        "event_id": event_id,
         "comment": comment,
+        "unlocked_to_validate_state": "UNLOCKED_TO_VALIDATE",
+        "locked_for_mapping_state": "LOCKED_FOR_MAPPING",
     }
 
     r = await db.fetch_one(query, values)
@@ -59,5 +123,4 @@ async def update_task_event(
     assert r["project_id"] == project_id
     assert r["task_id"] == task_id
     assert r["user_id"] == user_id
-
-    return None
+    return r
