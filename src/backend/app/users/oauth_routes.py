@@ -63,4 +63,9 @@ async def my_data(
 ):
     """Read access token and get user details from Google"""
 
-    return await user_crud.get_or_create_user(db, user_data)
+    user_info = await user_crud.get_or_create_user(db, user_data)
+    has_user_profile = await user_crud.get_userprofile_by_userid(db, user_info.id)
+
+    user_info_dict = user_info.model_dump()
+    user_info_dict["has_user_profile"] = bool(has_user_profile)
+    return user_info_dict

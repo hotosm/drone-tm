@@ -76,11 +76,14 @@ export default function ForgotPassword() {
         </FormControl>
 
         <FlexRow className="naxatw-items-center naxatw-justify-between">
-          <Button type="submit">Reset Password</Button>
+          <Button type="submit" className="naxatw-bg-red">
+            Reset Password
+          </Button>
 
           <Button
             variant="ghost"
-            className="naxatw-text-primary-500"
+            leftIcon="west"
+            className="naxatw-text-red"
             onClick={() => {
               navigate('/login');
             }}
