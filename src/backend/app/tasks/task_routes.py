@@ -35,7 +35,7 @@ async def new_event(
 
     match detail.event:
         case EventType.MAP:
-            await task_crud.map_task(
+            return await task_crud.map_task(
                 db,
                 detail.project_id,
                 detail.task_id,
@@ -43,7 +43,7 @@ async def new_event(
                 "Done: locked for mapping",
             )
         case EventType.FINISH:
-            await task_crud.finish(
+            return await task_crud.finish(
                 db,
                 detail.project_id,
                 detail.task_id,

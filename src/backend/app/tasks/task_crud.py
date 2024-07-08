@@ -68,7 +68,7 @@ async def map_task(
             state,
             now()
         FROM missing_task
-        RETURNING project_id, task_id, user_id;
+        RETURNING project_id, task_id, user_id, comment, state;
     """
 
     values = {
@@ -82,7 +82,7 @@ async def map_task(
 
     await db.fetch_one(query, values)
 
-    return {"project_id": project_id, "task_id": task_id}
+    return {"project_id": project_id, "task_id": task_id, "comment": comment}
 
 
 async def finish(
@@ -105,7 +105,7 @@ async def finish(
         SELECT gen_random_uuid(), project_id, task_id, user_id, :unlocked_to_validate_state, :comment, now()
         FROM last
         WHERE user_id = :user_id
-        RETURNING project_id, task_id, user_id;
+        RETURNING project_id, task_id, user_id, state;
         """
 
     values = {
@@ -123,4 +123,5 @@ async def finish(
     assert r["project_id"] == project_id
     assert r["task_id"] == task_id
     assert r["user_id"] == user_id
-    return r
+
+    return {"project_id": project_id, "task_id": task_id, "comment": comment}
