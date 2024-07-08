@@ -1,3 +1,4 @@
+import { UserProfileDetailsType } from '@Components/GoogleAuth/types';
 import { api } from '.';
 
 export const signInUser = (data: any) => api.post('/users/login/', data);
@@ -8,5 +9,10 @@ export const signInCallBackUrl = () => api.get('/users/callback/');
 
 export const logoutUser = () => api.post('/user/logout/');
 
-export const postUserProfile = ({ userId, userProfile }) =>
-  api.post(`/users/${userId}/profile`, { data: userProfile });
+export const postUserProfile = ({
+  userId,
+  userProfile,
+}: {
+  userId: number;
+  userProfile: UserProfileDetailsType;
+}) => api.post(`/users/${userId}/profile`, { data: userProfile });
