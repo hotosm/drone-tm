@@ -58,14 +58,14 @@ export const stepSwticherData = [
 
 export const uploadAreaOptions = [
   {
-    name: 'upload_area',
-    value: 'draw',
-    label: 'Draw',
+    name: 'Yes',
+    value: 'yes',
+    label: 'Yes',
   },
   {
-    name: 'upload_area',
-    value: 'upload_file',
-    label: 'Upload File',
+    name: 'No',
+    value: 'no',
+    label: 'No',
   },
 ];
 

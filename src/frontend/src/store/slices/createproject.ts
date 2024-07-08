@@ -5,7 +5,7 @@ import persist from '@Store/persist';
 export interface CreateProjectState {
   projectId: number | null;
   activeStep: number;
-  uploadAreaOption: 'draw' | 'upload_file';
+  uploadNoFlyZone: 'yes' | 'no';
   keyParamOption: 'basic' | 'advanced';
   contributionsOption: 'public' | 'invite_with_email';
   generateTaskOption: 'divide_hexagon' | 'divide_rectangle';
@@ -17,7 +17,7 @@ export interface CreateProjectState {
 const initialState: CreateProjectState = {
   projectId: null,
   activeStep: 1,
-  uploadAreaOption: 'upload_file',
+  uploadNoFlyZone: 'no',
   keyParamOption: 'basic',
   contributionsOption: 'public',
   generateTaskOption: 'divide_rectangle',

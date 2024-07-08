@@ -16,8 +16,8 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
   const uploadedGeojson = useTypedSelector(
     state => state.createproject.uploadedGeojson,
   );
-  const uploadAreaOption = useTypedSelector(
-    state => state.createproject.uploadAreaOption,
+  const uploadNoFlyZone = useTypedSelector(
+    state => state.createproject.uploadNoFlyZone,
   );
 
   const handleFileChange = (file: Record<string, any>[]) => {
@@ -48,21 +48,32 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
       <div className="naxatw-bg-white">
         <div className="naxatw-grid naxatw-grid-cols-3">
           <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
-            <RadioButton
-              topic="Select one of the option to upload area"
-              options={uploadAreaOptions}
-              direction="column"
-              onChangeData={(val: 'draw' | 'upload_file') => {
-                dispatch(setCreateProjectState({ uploadAreaOption: val }));
-                dispatch(
-                  setCreateProjectState({
-                    measureType: val === 'draw' ? 'area' : null,
-                  }),
-                );
-              }}
-              value={uploadAreaOption}
-            />
-            {uploadAreaOption === 'upload_file' ? (
+            <p className="naxatw-text-body-btn">
+              Define or Upload project area
+            </p>
+            <div className="naxatw-mt-2">
+              <FileUpload
+                // @ts-ignore
+                register={() => {}}
+                setValue={() => {}}
+                multiple={false}
+                onChange={handleFileChange}
+                fileAccept=".geojson, .kml"
+                placeholder="*The supported file formats are zipped shapefile, geojson or kml files."
+              />
+            </div>
+            <div className="naxatw-mt-2">
+              <RadioButton
+                topic="No flying zone present in project area ?"
+                options={uploadAreaOptions}
+                direction="column"
+                onChangeData={(val: 'yes' | 'no') => {
+                  dispatch(setCreateProjectState({ uploadNoFlyZone: val }));
+                }}
+                value={uploadNoFlyZone}
+              />
+            </div>
+            {uploadNoFlyZone === 'yes' && (
               <div className="naxatw-mt-2">
                 <FileUpload
                   // @ts-ignore
@@ -74,10 +85,6 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
                   placeholder="*The supported file formats are zipped shapefile, geojson or kml files."
                 />
               </div>
-            ) : (
-              <p className="naxatw-mt-4 naxatw-text-body-btn naxatw-text-red">
-                Note: Start Drawing on the Map
-              </p>
             )}
           </div>
           <div className="naxatw-col-span-2 naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6]">
