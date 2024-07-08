@@ -25,8 +25,10 @@ async def task_states(
     return await task_crud.all_tasks_states(db, project_id)
 
 
-@router.post("/update-event/")
+@router.post("/event/{project_id}/{task_id}")
 async def new_event(
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
     detail: task_schemas.NewEvent,
     user_data: AuthUser = Depends(login_required),
     db: Database = Depends(database.encode_db),
@@ -37,16 +39,16 @@ async def new_event(
         case EventType.MAP:
             return await task_crud.map_task(
                 db,
-                detail.project_id,
-                detail.task_id,
+                project_id,
+                task_id,
                 user_id,
                 "Done: locked for mapping",
             )
         case EventType.FINISH:
             return await task_crud.update_task_state(
                 db,
-                detail.project_id,
-                detail.task_id,
+                project_id,
+                task_id,
                 user_id,
                 "Done: unlocked to validate",
                 State.LOCKED_FOR_MAPPING,
@@ -55,8 +57,8 @@ async def new_event(
         case EventType.VALIDATE:
             return await task_crud.update_task_state(
                 db,
-                detail.project_id,
-                detail.task_id,
+                project_id,
+                task_id,
                 user_id,
                 "Done: locked for validation",
                 State.UNLOCKED_TO_VALIDATE,
@@ -65,8 +67,8 @@ async def new_event(
         case EventType.GOOD:
             return await task_crud.update_task_state(
                 db,
-                detail.project_id,
-                detail.task_id,
+                project_id,
+                task_id,
                 user_id,
                 "Done: Task is Good",
                 State.LOCKED_FOR_VALIDATION,
@@ -76,8 +78,8 @@ async def new_event(
         case EventType.BAD:
             return await task_crud.update_task_state(
                 db,
-                detail.project_id,
-                detail.task_id,
+                project_id,
+                task_id,
                 user_id,
                 "Done: needs to redo",
                 State.LOCKED_FOR_VALIDATION,
