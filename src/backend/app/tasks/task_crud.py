@@ -19,58 +19,32 @@ async def map_task(
     db: Database, project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, comment: str
 ):
     query = """
-        WITH latest_events AS (
-            SELECT DISTINCT ON (task_id)
-                project_id,
-                task_id,
-                user_id,
-                comment,
-                state
-            FROM task_events
-            WHERE project_id = :project_id
-            ORDER BY task_id, created_at DESC
-        ),
-        valid_tasks AS (
-            SELECT *
-            FROM latest_events
-            WHERE state = :unlocked_to_map_state
-        ),
-        missing_task AS (
-            SELECT
-                CAST(:project_id AS UUID) AS project_id,
-                CAST(:task_id AS UUID) AS task_id,
-                :user_id AS user_id,
-                :comment AS comment,
-                CAST(:locked_for_mapping_state AS State) AS state
-            WHERE NOT EXISTS (
-                SELECT 1
+            WITH last AS (
+                SELECT *
                 FROM task_events
-                WHERE project_id = :project_id
-                AND task_id = :task_id
+                WHERE project_id= :project_id AND task_id= :task_id
+                ORDER BY created_at DESC
+                LIMIT 1
+            ),
+            released AS (
+                SELECT COUNT(*) = 0 AS no_record
+                FROM task_events
+                WHERE project_id= :project_id AND task_id= :task_id AND state = :unlocked_to_map_state
             )
-        )
-        INSERT INTO task_events (event_id, project_id, task_id, user_id, comment, state, created_at)
-        SELECT
-            gen_random_uuid(),
-            project_id,
-            task_id,
-            user_id,
-            comment,
-            state,
-            now()
-        FROM valid_tasks
-        UNION ALL
-        SELECT
-            gen_random_uuid(),
-            project_id,
-            task_id,
-            user_id,
-            comment,
-            state,
-            now()
-        FROM missing_task
-        RETURNING project_id, task_id, user_id, comment, state;
-    """
+            INSERT INTO task_events (event_id, project_id, task_id, user_id, comment, state, created_at)
+
+            SELECT
+                gen_random_uuid(),
+                :project_id,
+                :task_id,
+                :user_id,
+                :comment,
+                :locked_for_mapping_state,
+                now()
+            FROM last
+            RIGHT JOIN released ON true
+            WHERE (last.state = :unlocked_to_map_state OR released.no_record = true);
+            """
 
     values = {
         "project_id": str(project_id),
