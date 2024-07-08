@@ -1,18 +1,18 @@
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { UserProfileHeader } from '@Components/UserProfile';
+import { useForm } from 'react-hook-form';
 import { tabOptions } from '@Constants/index';
 import { setCommonState } from '@Store/actions/common';
 import { Button } from '@Components/RadixComponents/Button';
 import {
   BasicDetails,
   OrganizationDetails,
-  PasswordSection,
+  // PasswordSection,
 } from '@Components/UserProfile/FormContents';
-import Tab from './UserProfileTabs';
-import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { postUserProfile } from '@Services/common';
-import { UserProfileDetailsType } from '@Components/GoogleAuth';
+import { IUserProfileDetailsType } from '@Components/GoogleAuth';
+import Tab from './UserProfileTabs';
 
 const getActiveFormContent = (activeTab: number, formProps: any) => {
   switch (activeTab) {
@@ -33,8 +33,9 @@ export default function UserProfile() {
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
-  const userProfile: UserProfileDetailsType =
-    localStorage.getItem('userprofile');
+  const userProfile = localStorage.getItem(
+    'userprofile',
+  ) as IUserProfileDetailsType;
 
   const initialState = {
     name: null,
@@ -47,7 +48,7 @@ export default function UserProfile() {
     confirm_password: null,
   };
 
-  const { register, setValue, handleSubmit, reset, formState } = useForm({
+  const { register, setValue, handleSubmit, formState } = useForm({
     defaultValues: initialState,
   });
 
@@ -59,18 +60,19 @@ export default function UserProfile() {
 
   const { mutate: updateUserProfile } = useMutation<any, any, any, unknown>({
     mutationFn: postUserProfile,
-    onSuccess: (res: any) => {
+    onSuccess: () => {
       alert('updated');
       // toast.success('UserProfile Updated Successfully');
     },
     onError: err => {
+      // eslint-disable-next-line no-console
+      console.log(err);
       // toast.error(err.message);
     },
   });
 
   const onSubmit = (data: any) => {
-    console.log(data, 'data');
-    updateUserProfile(userProfile.id, data);
+    updateUserProfile(userProfile?.id, data);
     // if (userProfileActiveTab < 3) return;
     // createProject(data);
     // reset();
@@ -110,10 +112,10 @@ export default function UserProfile() {
             {userProfileActiveTab !== 1 && (
               <Button
                 className="naxatw-absolute naxatw-bottom-4 naxatw-left-4 naxatw-bg-red"
-                leftIcon={'chevron_left'}
+                leftIcon="chevron_left"
                 onClick={onBackBtnClick}
               >
-                {'Back'}
+                Back
               </Button>
             )}
             <Button

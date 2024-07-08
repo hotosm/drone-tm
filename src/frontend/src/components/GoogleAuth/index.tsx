@@ -11,6 +11,8 @@ export interface UserProfileDetailsType {
   has_user_profile: boolean;
 }
 
+export type IUserProfileDetailsType = UserProfileDetailsType | null;
+
 const { BASE_URL } = process.env;
 
 function GoogleAuth() {
@@ -41,7 +43,6 @@ function GoogleAuth() {
           const userDetails = await response2.json();
           localStorage.setItem('userprofile', userDetails);
           setUserProfileDetails(userDetails);
-          console.log(userDetails, 'userDetails');
         };
         await completeLogin();
         toast.success('Logged In Successfully');
