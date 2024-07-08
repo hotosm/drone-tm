@@ -3,15 +3,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Flex } from '@Components/common/Layouts';
 import { toast } from 'react-toastify';
-
-export interface UserProfileDetailsType {
-  id: string;
-  email: string;
-  img_url: string;
-  has_user_profile: boolean;
-}
-
-export type IUserProfileDetailsType = UserProfileDetailsType | null;
+import { UserProfileDetailsType } from './types';
 
 const { BASE_URL } = process.env;
 

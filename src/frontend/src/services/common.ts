@@ -1,4 +1,4 @@
-import { UserProfileDetailsType } from '@Components/GoogleAuth';
+import { UserProfileDetailsType } from '@Components/GoogleAuth/types';
 import { api } from '.';
 
 export const signInUser = (data: any) => api.post('/users/login/', data);
