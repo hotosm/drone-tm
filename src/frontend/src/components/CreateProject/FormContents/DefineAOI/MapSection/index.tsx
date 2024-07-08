@@ -1,15 +1,15 @@
+import { useEffect } from 'react';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import MeasureTool from '@Components/common/MapLibreComponents/MeasureTool';
-import { setCreateProjectState } from '@Store/actions/createproject';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import getBbox from '@turf/bbox';
-import { useEffect } from 'react';
+import { FlexRow } from '@Components/common/Layouts';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
+import getBbox from '@turf/bbox';
+import MapTools from '../MapTools';
 
 export default function MapSection() {
   const dispatch = useTypedDispatch();
@@ -24,9 +24,6 @@ export default function MapSection() {
 
   const uploadedGeojson = useTypedSelector(
     state => state.createproject.uploadedGeojson,
-  );
-  const measureType = useTypedSelector(
-    state => state.createproject.measureType,
   );
 
   useEffect(() => {
@@ -44,19 +41,13 @@ export default function MapSection() {
         height: '448px',
       }}
     >
+      <MapTools />
       <VectorLayer
         map={map as Map}
         isMapLoaded={isMapLoaded}
         id="uploaded-area"
         geojson={uploadedGeojson as GeojsonType}
         visibleOnMap={!!uploadedGeojson}
-      />
-      <MeasureTool
-        enable={!!measureType}
-        measureType={measureType}
-        onDrawComplete={geojson => {
-          dispatch(setCreateProjectState({ uploadedGeojson: geojson }));
-        }}
       />
       <BaseLayerSwitcher />
     </MapContainer>
