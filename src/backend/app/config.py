@@ -1,9 +1,17 @@
 import secrets
 from functools import lru_cache
-from pydantic import BeforeValidator, TypeAdapter, ValidationInfo, field_validator
+from pydantic import (
+    BeforeValidator,
+    TypeAdapter,
+    ValidationInfo,
+    field_validator,
+    computed_field,
+    EmailStr,
+)
 from pydantic_settings import BaseSettings
 from typing import Annotated, Optional, Union, Any
 from pydantic.networks import HttpUrl, PostgresDsn
+
 
 HttpUrlStr = Annotated[
     str,
@@ -16,7 +24,7 @@ HttpUrlStr = Annotated[
 class Settings(BaseSettings):
     """Main settings class, defining environment variables."""
 
-    APP_NAME: str = "DTM"
+    APP_NAME: str = "Drone Tasking Manager"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
@@ -85,6 +93,21 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
+
+    # SMTP Configurations
+    SMTP_TLS: bool = True
+    SMTP_SSL: bool = False
+    SMTP_PORT: int = 587
+    SMTP_HOST: Optional[str] = None
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAILS_FROM_EMAIL: Optional[EmailStr] = None
+    EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
+
+    @computed_field
+    @property
+    def emails_enabled(self) -> bool:
+        return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
 
 
 @lru_cache
