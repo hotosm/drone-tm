@@ -2,8 +2,9 @@ import logging
 import geojson
 import requests
 import shapely
+import emails
 from datetime import datetime, timezone
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from geojson_pydantic import Feature, MultiPolygon, Polygon
 from geojson_pydantic import FeatureCollection as FeatCol
 from geoalchemy2 import WKBElement
@@ -11,7 +12,11 @@ from geoalchemy2.shape import from_shape, to_shape
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 from fastapi import HTTPException
+from app.config import settings
 from shapely import wkb
+from jinja2 import Template
+from pathlib import Path
+from dataclasses import dataclass
 
 
 log = logging.getLogger(__name__)
@@ -287,3 +292,50 @@ def multipolygon_to_polygon(features: Union[Feature, FeatCol, MultiPolygon, Poly
             )
 
     return geojson.FeatureCollection(geojson_feature)
+
+
+@dataclass
+class EmailData:
+    html_content: str
+    subject: str
+
+
+def render_email_template(template_name: str, context: dict[str, Any]) -> str:
+    template_str = (
+        Path(__file__).parent / "email-templates" / template_name
+    ).read_text()
+    html_content = Template(template_str).render(context)
+    return html_content
+
+
+def send_email(
+    email_to: str,
+    subject: str = "",
+    html_content: str = "",
+) -> None:
+    assert settings.emails_enabled, "no provided configuration for email variables"
+    message = emails.Message(
+        subject=subject,
+        html=html_content,
+        mail_from=(settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL),
+    )
+    smtp_options = {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT}
+    if settings.SMTP_TLS:
+        smtp_options["tls"] = True
+    elif settings.SMTP_SSL:
+        smtp_options["ssl"] = True
+    if settings.SMTP_USER:
+        smtp_options["user"] = settings.SMTP_USER
+    if settings.SMTP_PASSWORD:
+        smtp_options["password"] = settings.SMTP_PASSWORD
+    response = message.send(to=email_to, smtp=smtp_options)
+    logging.info(f"send email result: {response}")
+
+
+def test_email(email_to: str, subject: str = "Test email") -> None:
+    html_content = render_email_template(
+        template_name="email_template.html",
+        context={"project_name": settings.APP_NAME, "email": email_to},
+    )
+
+    send_email(email_to=email_to, subject=subject, html_content=html_content)
