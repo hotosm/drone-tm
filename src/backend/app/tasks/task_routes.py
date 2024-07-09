@@ -36,13 +36,42 @@ async def new_event(
     user_id = user_data.id
 
     match detail.event:
-        case EventType.MAP:
-            return await task_crud.map_task(
+        case EventType.REQUESTS:
+            # TODO: send notification here after this function
+            return await task_crud.request_mapping(
                 db,
                 project_id,
                 task_id,
                 user_id,
-                "Done: locked for mapping",
+                "Request for mapping",
+            )
+        case EventType.MAP:
+            # TODO: send notification here after this function
+            requested_user_id = await task_crud.get_requested_user_id(
+                db, project_id, task_id
+            )
+            return await task_crud.update_task_state(
+                db,
+                project_id,
+                task_id,
+                requested_user_id,
+                "Request accepted for mapping",
+                State.REQUEST_FOR_MAPPING,
+                State.LOCKED_FOR_MAPPING,
+            )
+        case EventType.REJECTED:
+            # TODO: send notification here after this function
+            requested_user_id = await task_crud.get_requested_user_id(
+                db, project_id, task_id
+            )
+            return await task_crud.update_task_state(
+                db,
+                project_id,
+                task_id,
+                requested_user_id,
+                "Request for mapping rejected",
+                State.REQUEST_FOR_MAPPING,
+                State.UNLOCKED_TO_MAP,
             )
         case EventType.FINISH:
             return await task_crud.update_task_state(
