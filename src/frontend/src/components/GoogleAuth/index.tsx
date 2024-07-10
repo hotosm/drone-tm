@@ -25,25 +25,32 @@ function GoogleAuth() {
         const userDetailsUrl = `${BASE_URL}/users/my-info/`;
 
         const completeLogin = async () => {
+          // fetch callback api
           const response = await fetch(callbackUrl, { credentials: 'include' });
           const token = await response.json();
           localStorage.setItem('token', token.access_token);
+
+          // fetch user details
           const response2 = await fetch(userDetailsUrl, {
             credentials: 'include',
             headers: { 'access-token': token.access_token },
           });
           const userDetails = await response2.json();
+
+          // stringify the response and set it to local storage
           const userDetailsString = JSON.stringify(userDetails);
           localStorage.setItem('userprofile', userDetailsString);
           setUserProfileDetails(userDetails);
+
+          // navigate according the user
+          if (userDetails?.has_user_profile) {
+            navigate('/projects');
+          } else {
+            navigate('/user-profile');
+          }
         };
         await completeLogin();
         toast.success('Logged In Successfully');
-        if (userProfileDetails?.has_user_profile) {
-          navigate('/projects');
-        } else {
-          navigate('/user-profile');
-        }
       }
       setIsReadyToRedirect(true);
     };
