@@ -73,7 +73,7 @@ export default function UserProfile() {
     experience_years: null,
     certified_drone_operator: false,
     drone_you_own: null,
-    role: isDroneOperator ? 2 : 1,
+    role: isDroneOperator ? 'DRONE_PILOT' : 'PROJECT_CREATOR',
   };
 
   const { register, setValue, handleSubmit, formState, control } = useForm({

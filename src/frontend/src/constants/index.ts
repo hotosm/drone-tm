@@ -48,7 +48,6 @@ export const projectCreatorKeys = [
   'organization_name',
   'organization_address',
   'job_title',
-  'password',
   'confirm_password',
   'country_code',
 ];
@@ -59,7 +58,6 @@ export const droneOperatorKeys = [
   'experience_years',
   'certified_drone_operator',
   'drone_you_own',
-  'password',
   'confirm_password',
   'country_code',
 ];

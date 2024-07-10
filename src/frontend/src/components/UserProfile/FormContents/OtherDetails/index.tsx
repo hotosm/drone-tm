@@ -31,6 +31,7 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
             type="number"
             {...register('notify_for_projects_within_km', {
               required: 'Required',
+              valueAsNumber: true,
             })}
           />
           <ErrorMessage
@@ -47,6 +48,7 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
             type="number"
             {...register('experience_years', {
               required: 'Required',
+              valueAsNumber: true,
             })}
           />
           <ErrorMessage
