@@ -79,12 +79,6 @@ async def get_user_by_email(db: Database, email: str):
     return result
 
 
-async def get_user_by_username(db: Database, username: str):
-    query = "SELECT * FROM users WHERE username = :username LIMIT 1;"
-    result = await db.fetch_one(query, {"username": username})
-    return result
-
-
 async def authenticate(
     db: Database, email: EmailStr, password: str
 ) -> db_models.DbUser | None:

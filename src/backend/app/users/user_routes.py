@@ -1,11 +1,9 @@
-from typing import Any
 from datetime import timedelta
 from fastapi import APIRouter, Response, HTTPException, Depends
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     Token,
-    UserPublic,
     ProfileUpdate,
     AuthUser,
 )
@@ -57,14 +55,6 @@ def update_token(current_user: CurrentUser):
         refresh_token_expiry=refresh_token_expires,
     )
     return Token(access_token=access_token, refresh_token=refresh_token)
-
-
-@router.get("/me", response_model=UserPublic)
-def read_user_me(current_user: CurrentUser) -> Any:
-    """
-    Get current user.
-    """
-    return current_user
 
 
 @router.post("/{user_id}/profile")

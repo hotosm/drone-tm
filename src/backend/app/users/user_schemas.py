@@ -14,7 +14,6 @@ class AuthUser(BaseModel):
 
 
 class UserBase(BaseModel):
-    username: str
     email_address: EmailStr
     is_active: bool = True
     is_superuser: bool = False
