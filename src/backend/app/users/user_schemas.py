@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
 from typing import Optional
+from app.models.enums import UserRole
 
 
 class AuthUser(BaseModel):
@@ -8,6 +9,7 @@ class AuthUser(BaseModel):
 
     id: str
     email: EmailStr
+    name: str
     img_url: Optional[str] = None
 
 
@@ -85,3 +87,4 @@ class ProfileUpdate(BaseModel):
     drone_you_own: Optional[str]
     experience_years: Optional[int]
     certified_drone_operator: Optional[bool]
+    role: Optional[UserRole] = UserRole.DRONE_PILOT
