@@ -1,5 +1,5 @@
 import { UserProfileDetailsType } from '@Components/GoogleAuth/types';
-import { api } from '.';
+import { api, authenticatedUser } from '.';
 
 export const signInUser = (data: any) => api.post('/users/login/', data);
 
@@ -11,8 +11,11 @@ export const logoutUser = () => api.post('/user/logout/');
 
 export const postUserProfile = ({
   userId,
-  userProfile,
+  data,
 }: {
   userId: number;
-  userProfile: UserProfileDetailsType;
-}) => api.post(`/users/${userId}/profile`, { data: userProfile });
+  data: UserProfileDetailsType;
+}) =>
+  authenticatedUser(api).post(`/users/${userId}/profile`, data, {
+    headers: { 'Content-Type': 'application/json' },
+  });
