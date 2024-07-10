@@ -203,7 +203,7 @@ class TaskEvent(Base):
     user_id = cast(str, Column(String(100), ForeignKey("users.id"), nullable=False))
     comment = cast(str, Column(String))
 
-    state = cast(State, Column(Enum(TaskStatus), nullable=False))
+    state = cast(State, Column(Enum(State), nullable=False))
     created_at = cast(datetime, Column(DateTime, default=timestamp))
 
     __table_args__ = (
