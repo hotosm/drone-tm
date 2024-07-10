@@ -17,7 +17,11 @@ export default function PasswordSection({ formProps }: { formProps: any }) {
             className="naxatw-mt-1"
             placeholder="Enter Password"
             {...register('password', {
-              required: 'Required',
+              required: 'Password is Required',
+              minLength: {
+                value: 8,
+                message: 'Password must have at least 8 characters',
+              },
             })}
           />
           <ErrorMessage message={formState.errors?.password?.message} />
@@ -29,10 +33,10 @@ export default function PasswordSection({ formProps }: { formProps: any }) {
             className="naxatw-mt-1"
             placeholder="Enter Password Again"
             {...register('confirm_password', {
-              required: 'Required',
+              required: 'Type password Again',
             })}
           />
-          <ErrorMessage message={formState.errors?.password?.message} />
+          <ErrorMessage message={formState.errors?.confirm_password?.message} />
         </FormControl>
       </FlexColumn>
     </section>

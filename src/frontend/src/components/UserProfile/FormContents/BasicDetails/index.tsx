@@ -22,7 +22,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Name"
             className="naxatw-mt-1"
             {...register('name', {
-              required: 'Required',
+              required: 'Name is Required',
             })}
           />
           <ErrorMessage message={formState.errors?.name?.message} />
@@ -34,7 +34,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
             name="country"
             defaultValue=""
             rules={{
-              required: 'Required',
+              required: 'Country is Required',
             }}
             render={({ field: { value, onChange } }) => (
               <Select
@@ -55,7 +55,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
             placeholder="Enter City"
             className="naxatw-mt-1"
             {...register('city', {
-              required: 'Required',
+              required: 'City is Required',
             })}
           />
           <ErrorMessage message={formState.errors?.city?.message} />
@@ -67,7 +67,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               placeholder="+977"
               className="naxatw-mt-1 naxatw-w-14"
               {...register('country_code', {
-                required: 'Required',
+                required: 'Phone Number is Required',
               })}
             />
             <Input
@@ -75,11 +75,11 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               className="naxatw-mt-1 naxatw-w-full"
               type="number"
               {...register('phone_number', {
-                required: 'Required',
+                required: 'Phone Number is Required',
               })}
             />
           </div>
-          <ErrorMessage message={formState.errors?.phone?.message} />
+          <ErrorMessage message={formState.errors?.phone_number?.message} />
         </FormControl>
       </FlexColumn>
     </section>

@@ -17,7 +17,7 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Organization Name"
             className="naxatw-mt-1"
             {...register('organization_name', {
-              required: 'Required',
+              required: 'Organization name is Required',
             })}
           />
           <ErrorMessage
@@ -30,7 +30,7 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Organization Address"
             className="naxatw-mt-1"
             {...register('organization_address', {
-              required: 'Required',
+              required: 'Organization Address is Required',
             })}
           />
           <ErrorMessage
@@ -43,7 +43,7 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Job Title"
             className="naxatw-mt-1"
             {...register('job_title', {
-              required: 'Required',
+              required: 'Job Title is Required',
             })}
           />
           <ErrorMessage
