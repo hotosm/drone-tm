@@ -13,9 +13,15 @@ interface TabProps {
   tabOptions: ITabOptions[];
   onTabChange: (index: number) => void;
   activeTab?: number;
+  clickable?: boolean;
 }
 
-const Tab: React.FC<TabProps> = ({ tabOptions, onTabChange, activeTab }) => {
+const Tab: React.FC<TabProps> = ({
+  tabOptions,
+  onTabChange,
+  activeTab,
+  clickable = false,
+}) => {
   const [activeTabx, setActiveTab] = useState(activeTab);
 
   useEffect(() => {
@@ -23,6 +29,7 @@ const Tab: React.FC<TabProps> = ({ tabOptions, onTabChange, activeTab }) => {
   }, [activeTab]);
 
   const handleTabClick = (index: number) => {
+    if (!clickable) return;
     setActiveTab(index);
     onTabChange(index);
   };
