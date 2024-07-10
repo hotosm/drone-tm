@@ -301,6 +301,27 @@ class EmailData:
 
 
 def render_email_template(template_name: str, context: dict[str, Any]) -> str:
+    """
+    Render an email template with the given context.
+
+    Args:
+        template_name (str): The name of the template file to be rendered.
+        context (dict[str, Any]): A dictionary containing the context variables to be used in the template.
+
+    Returns:
+        str: The rendered HTML content of the email template.
+
+    Example:
+        html_content = render_email_template(
+            template_name="welcome_email.html",
+            context={"username": "John Doe", "welcome_message": "Welcome to our service!"}
+        )
+
+    This function reads the specified email template from the 'email-templates' directory,
+    then uses the `Template` class from the `jinja2` library to render the template with
+    the provided context variables.
+    """
+
     template_str = (
         Path(__file__).parent / "email-templates" / template_name
     ).read_text()
@@ -313,6 +334,29 @@ def send_email(
     subject: str = "",
     html_content: str = "",
 ) -> None:
+    """
+    Send an email with the given subject and HTML content to the specified recipient.
+
+    Args:
+        email_to (str): The recipient's email address.
+        subject (str, optional): The subject of the email. Defaults to an empty string.
+        html_content (str, optional): The HTML content of the email. Defaults to an empty string.
+
+    Raises:
+        AssertionError: If email configuration is not provided or emails are disabled.
+
+    Example:
+        send_email(
+            email_to="recipient@example.com",
+            subject="Hello World",
+            html_content="<h1>Hello, this is a test email.</h1>"
+        )
+
+    This function uses the `emails` library to construct and send an email. The SMTP server settings
+    are configured from global `settings` and include host, port, user credentials, and encryption options
+    (TLS or SSL).
+    """
+
     assert settings.emails_enabled, "no provided configuration for email variables"
     message = emails.Message(
         subject=subject,
