@@ -77,14 +77,14 @@ class UserCreate(UserBase):
 
 
 class ProfileUpdate(BaseModel):
-    phone_number: Optional[str]
-    country: Optional[str]
-    city: Optional[str]
-    organization_name: Optional[str]
-    organization_address: Optional[str]
-    job_title: Optional[str]
-    notify_for_projects_within_km: Optional[int]
-    drone_you_own: Optional[str]
-    experience_years: Optional[int]
-    certified_drone_operator: Optional[bool]
-    role: Optional[UserRole] = UserRole.DRONE_PILOT
+    phone_number: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    organization_name: Optional[str] = None
+    organization_address: Optional[str] = None
+    job_title: Optional[str] = None
+    notify_for_projects_within_km: Optional[int] = None
+    drone_you_own: Optional[str] = None
+    experience_years: Optional[int] = None
+    certified_drone_operator: Optional[bool] = False
+    role: Optional[UserRole] = UserRole.DRONE_PILOT.name
