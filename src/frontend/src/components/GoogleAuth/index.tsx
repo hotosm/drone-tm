@@ -27,13 +27,14 @@ function GoogleAuth() {
         const completeLogin = async () => {
           const response = await fetch(callbackUrl, { credentials: 'include' });
           const token = await response.json();
-          localStorage.setItem('token', token);
+          localStorage.setItem('token', token.access_token);
           const response2 = await fetch(userDetailsUrl, {
             credentials: 'include',
             headers: { 'access-token': token.access_token },
           });
           const userDetails = await response2.json();
-          localStorage.setItem('userprofile', userDetails);
+          const userDetailsString = JSON.stringify(userDetails);
+          localStorage.setItem('userprofile', userDetailsString);
           setUserProfileDetails(userDetails);
         };
         await completeLogin();
