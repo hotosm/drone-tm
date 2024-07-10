@@ -76,7 +76,6 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               type="number"
               {...register('phone_number', {
                 required: 'Phone Number is Required',
-                valueAsNumber: true,
               })}
             />
           </div>
