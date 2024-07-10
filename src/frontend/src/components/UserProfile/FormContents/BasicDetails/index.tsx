@@ -1,18 +1,18 @@
 import { Flex, FlexColumn } from '@Components/common/Layouts';
-import { FormControl, Input, Label } from '@Components/common/FormUI';
+import { FormControl, Select, Input, Label } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/ErrorMessage';
+import { countriesWithPhoneCodes } from '@Constants/countryCode';
+import { Controller } from 'react-hook-form';
 
 export default function BasicDetails({ formProps }: { formProps: any }) {
-  const { register } = formProps;
+  const { register, formState, control } = formProps;
 
-  // const userProfile: UserProfileDetailsType =
-  //   localStorage.getItem('userprofile');
   return (
-    <section className="naxatw-px-14 naxatw-py-10">
+    <section className="naxatw-px-14">
       <Flex>
-        <p className="naxatw-text-3xl">Basic Details</p>
+        <p className="naxatw-text-lg naxatw-font-bold">Basic Details</p>
       </Flex>
-      <FlexColumn gap={5}>
+      <FlexColumn gap={5} className="naxatw-mt-5">
         <Flex className="naxatw-h-14 naxatw-w-14 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-grey-600">
           <h4>SK</h4>
         </Flex>
@@ -22,45 +22,43 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Name"
             className="naxatw-mt-1"
             {...register('name', {
-              required: 'Required',
+              required: 'Name is Required',
             })}
           />
-          <ErrorMessage message={formProps.formState.errors?.name?.message} />
+          <ErrorMessage message={formState.errors?.name?.message} />
         </FormControl>
         <FormControl>
           <Label required>Country</Label>
-          <Input
-            placeholder="Enter Country"
-            className="naxatw-mt-1"
-            {...register('country', {
-              required: 'Required',
-            })}
+          <Controller
+            control={control}
+            name="country"
+            defaultValue=""
+            rules={{
+              required: 'Country is Required',
+            }}
+            render={({ field: { value, onChange } }) => (
+              <Select
+                placeholder="Choose a Country"
+                options={countriesWithPhoneCodes}
+                labelKey="label"
+                valueKey="label"
+                selectedOption={value}
+                onChange={onChange}
+              />
+            )}
           />
-          <ErrorMessage
-            message={formProps.formState.errors?.country?.message}
-          />
+          <ErrorMessage message={formState.errors?.country?.message} />
         </FormControl>
-        {/* <FormControl>
-          <Label required>Country</Label>
-          <Select
-            options={[]}
-            placeholder="Choose Country"
-            className="naxatw-mt-1"
-            {...register('country', {
-              required: 'Required',
-            })}
-          />
-        </FormControl> */}
         <FormControl>
           <Label required>City</Label>
           <Input
             placeholder="Enter City"
             className="naxatw-mt-1"
             {...register('city', {
-              required: 'Required',
+              required: 'City is Required',
             })}
           />
-          <ErrorMessage message={formProps.formState.errors?.city?.message} />
+          <ErrorMessage message={formState.errors?.city?.message} />
         </FormControl>
         <FormControl>
           <Label required>Phone number</Label>
@@ -69,20 +67,19 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               placeholder="+977"
               className="naxatw-mt-1 naxatw-w-14"
               {...register('country_code', {
-                required: 'Required',
+                required: 'Phone Number is Required',
               })}
             />
             <Input
               placeholder="Enter Phone number"
               className="naxatw-mt-1 naxatw-w-full"
-              {...register('phone', {
-                required: 'Required',
+              type="number"
+              {...register('phone_number', {
+                required: 'Phone Number is Required',
               })}
             />
           </div>
-          <ErrorMessage
-            message={formProps.formState.errors?.country?.message}
-          />
+          <ErrorMessage message={formState.errors?.phone_number?.message} />
         </FormControl>
       </FlexColumn>
     </section>
