@@ -188,6 +188,22 @@ async def update_user_profile(
                 "certified_drone_operator": profile_update.certified_drone_operator,
             },
         )
+
+        # If password is provided, update the users table
+        if profile_update.password:
+            password_update_query = """
+            UPDATE users
+            SET password = :password
+            WHERE id = :user_id;
+            """
+            await db.execute(
+                password_update_query,
+                {
+                    "password": get_password_hash(profile_update.password),
+                    "user_id": user_id,
+                },
+            )
+
         return True
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

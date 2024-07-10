@@ -88,3 +88,4 @@ class ProfileUpdate(BaseModel):
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
     role: Optional[UserRole] = UserRole.DRONE_PILOT.name
+    password: Optional[str] = None
