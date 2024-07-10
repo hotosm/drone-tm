@@ -113,7 +113,6 @@ class DroneType(IntEnum):
 class UserRole(IntEnum, Enum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
-    BOTH = 3
 
 
 class State(int, Enum):
