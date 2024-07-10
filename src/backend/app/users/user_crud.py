@@ -7,6 +7,8 @@ from app.db import db_models
 from app.users.user_schemas import AuthUser, ProfileUpdate
 from databases import Database
 from fastapi import HTTPException
+from pydantic import EmailStr
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -84,9 +86,9 @@ async def get_user_by_username(db: Database, username: str):
 
 
 async def authenticate(
-    db: Database, username: str, password: str
+    db: Database, email: EmailStr, password: str
 ) -> db_models.DbUser | None:
-    db_user = await get_user_by_username(db, username)
+    db_user = await get_user_by_email(db, email)
     if not db_user:
         return None
     if not verify_password(password, db_user["password"]):
@@ -105,7 +107,7 @@ async def get_or_create_user(
                     id, name, email_address, profile_img, is_active, is_superuser, date_registered
                     )
                 VALUES (
-                    :user_id, :name, :email_address, :profile_img, False, False, now()
+                    :user_id, :name, :email_address, :profile_img, True, False, now()
                     )
             ON CONFLICT (id)
                 DO UPDATE SET profile_img = :profile_img;
