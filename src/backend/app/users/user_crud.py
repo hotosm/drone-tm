@@ -7,7 +7,6 @@ from app.db import db_models
 from app.users.user_schemas import AuthUser, ProfileUpdate
 from databases import Database
 from fastapi import HTTPException
-from app.models.enums import UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -103,10 +102,10 @@ async def get_or_create_user(
     try:
         update_sql = """
             INSERT INTO users (
-                    id, username, email_address, profile_img, role
+                    id, name, email_address, profile_img, is_active, is_superuser, date_registered
                     )
                 VALUES (
-                    :user_id, :username, :email_address, :profile_img, :role
+                    :user_id, :name, :email_address, :profile_img, False, False, now()
                     )
             ON CONFLICT (id)
                 DO UPDATE SET profile_img = :profile_img;
@@ -116,10 +115,9 @@ async def get_or_create_user(
             update_sql,
             {
                 "user_id": str(user_data.id),
-                "username": user_data.email,  # FIXME: remove this
+                "name": user_data.name,
                 "email_address": user_data.email,
                 "profile_img": user_data.img_url,
-                "role": UserRole.DRONE_PILOT.name,
             },
         )
         return user_data
@@ -154,12 +152,13 @@ async def update_user_profile(
 
     try:
         profile_query = """
-        INSERT INTO user_profile (user_id, phone_number, country, city, organization_name, organization_address, job_title, notify_for_projects_within_km,
+        INSERT INTO user_profile (user_id, role, phone_number, country, city, organization_name, organization_address, job_title, notify_for_projects_within_km,
                                     experience_years, drone_you_own, certified_drone_operator)
-        VALUES (:user_id, :phone_number, :country, :city, :organization_name, :organization_address, :job_title, :notify_for_projects_within_km ,
+        VALUES (:user_id, :role, :phone_number, :country, :city, :organization_name, :organization_address, :job_title, :notify_for_projects_within_km ,
                 :experience_years, :drone_you_own, :certified_drone_operator)
         ON CONFLICT (user_id)
         DO UPDATE SET
+            role = :role,
             phone_number = :phone_number,
             country = :country,
             city = :city,
@@ -176,6 +175,7 @@ async def update_user_profile(
             profile_query,
             {
                 "user_id": user_id,
+                "role": profile_update.role,
                 "phone_number": profile_update.phone_number,
                 "country": profile_update.country,
                 "city": profile_update.city,
@@ -188,6 +188,22 @@ async def update_user_profile(
                 "certified_drone_operator": profile_update.certified_drone_operator,
             },
         )
+
+        # If password is provided, update the users table
+        if profile_update.password:
+            password_update_query = """
+            UPDATE users
+            SET password = :password
+            WHERE id = :user_id;
+            """
+            await db.execute(
+                password_update_query,
+                {
+                    "password": get_password_hash(profile_update.password),
+                    "user_id": user_id,
+                },
+            )
+
         return True
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
