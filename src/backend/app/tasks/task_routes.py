@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from app.config import settings
 from app.models.enums import EventType, State
 from app.tasks import task_schemas, task_crud
@@ -7,6 +7,7 @@ from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from databases import Database
 from app.db import database
+from app.utils import send_email, render_email_template
 
 
 router = APIRouter(
@@ -27,6 +28,7 @@ async def task_states(
 
 @router.post("/event/{project_id}/{task_id}")
 async def new_event(
+    background_tasks: BackgroundTasks,
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     detail: task_schemas.NewEvent,
@@ -37,14 +39,26 @@ async def new_event(
 
     match detail.event:
         case EventType.REQUESTS:
-            # TODO: send notification here after this function
-            return await task_crud.request_mapping(
+            data = await task_crud.request_mapping(
                 db,
                 project_id,
                 task_id,
                 user_id,
                 "Request for mapping",
             )
+
+            # email notification
+            html_content = render_email_template(
+                template_name="template.html",
+                context={},
+            )
+            background_tasks.add_task(
+                send_email,
+                user_data.email,
+                "Request for mapping",
+                html_content,
+            )
+            return data
         case EventType.MAP:
             # TODO: send notification here after this function
             requested_user_id = await task_crud.get_requested_user_id(
