@@ -87,5 +87,10 @@ class ProfileUpdate(BaseModel):
     drone_you_own: Optional[str] = None
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
-    role: Optional[UserRole] = UserRole.DRONE_PILOT.name
+    role: Optional[UserRole] = UserRole.DRONE_PILOT
     password: Optional[str] = None
+
+    @field_validator("role", mode="after")
+    @classmethod
+    def integer_role_to_string(cls, value: UserRole) -> str:
+        return str(value.name)
