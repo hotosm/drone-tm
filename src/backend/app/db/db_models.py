@@ -37,13 +37,12 @@ class DbUser(Base):
     __tablename__ = "users"
 
     id = cast(str, Column(String, primary_key=True))
-    username = cast(str, Column(String, nullable=False, unique=True))
+    email_address = cast(str, Column(String, nullable=False, unique=True))
     password = cast(str, Column(String))
+    name = cast(str, Column(String))
     is_active = cast(bool, Column(Boolean, default=False))
     is_superuser = cast(bool, Column(Boolean, default=False))
     profile_img = cast(str, Column(String, nullable=True))
-    name = cast(str, Column(String))
-    email_address = cast(str, Column(String, nullable=False, unique=True))
     date_registered = cast(datetime, Column(DateTime, default=timestamp))
 
 
