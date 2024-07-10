@@ -6,7 +6,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     Token,
     UserPublic,
-    UserRegister,
     ProfileUpdate,
     AuthUser,
 )
@@ -45,30 +44,6 @@ async def login_access_token(
     access_token, refresh_token = await user_crud.create_access_token(user_info)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
-
-
-@router.post("/signup", response_model=UserPublic)
-async def register_user(
-    user_in: UserRegister,
-    db: Database = Depends(database.encode_db),
-):
-    """
-    Create new user without the need to be logged in.
-    """
-    user = await user_crud.get_user_by_email(db, user_in.email_address)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists in the system",
-        )
-    user = await user_crud.get_user_by_username(db, user_in.username)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this username already exists in the system",
-        )
-    user = await user_crud.create_user(db, user_in)
-    return user
 
 
 @router.get("/refresh_token")

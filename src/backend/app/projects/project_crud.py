@@ -1,33 +1,28 @@
 import json
 import uuid
-from typing import List, Optional
-from sqlalchemy.orm import Session
+from typing import Optional
 from app.projects import project_schemas
-from app.db import db_models
 from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from fastapi import HTTPException
-from app.utils import merge_multipolygon, str_to_geojson
+from app.utils import merge_multipolygon
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
-from app.db import database
-from fastapi import Depends
-from asyncio import gather
 from databases import Database
 
 
 async def create_project_with_project_info(
-    db: Database, project_metadata: project_schemas.ProjectIn
+    db: Database, author_id: uuid.UUID, project_metadata: project_schemas.ProjectIn
 ):
     """Create a project in database."""
-    project_id = uuid.uuid4()
+    _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
             id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, dem_url, created
         )
         VALUES (
-            :project_id,
+            :id,
             :author_id,
             :name,
             :short_description,
@@ -41,12 +36,11 @@ async def create_project_with_project_info(
         )
         RETURNING id
     """
-    # new_project_id = await db.execute(query)
-    new_project_id = await db.execute(
+    project_id = await db.execute(
         query,
         values={
-            "project_id": project_id,
-            "author_id": str(110878106282210575794),  # TODO: update this
+            "id": _id,
+            "author_id": author_id,
             "name": project_metadata.name,
             "short_description": project_metadata.short_description,
             "description": project_metadata.description,
@@ -58,32 +52,44 @@ async def create_project_with_project_info(
         },
     )
 
-    if not new_project_id:
-        raise HTTPException(status_code=500, detail="Project could not be created")
     # Fetch the newly created project using the returned ID
     select_query = f"""
         SELECT id, name, short_description, description, per_task_instructions, outline
         FROM projects
-        WHERE id = '{new_project_id}'
+        WHERE id = '{project_id}'
     """
     new_project = await db.fetch_one(query=select_query)
     return new_project
 
 
 async def get_project_by_id(
-    db: Session = Depends(database.get_db), project_id: Optional[int] = None
-) -> db_models.DbProject:
-    """Get a single project by id."""
-    db_project = (
-        db.query(db_models.DbProject)
-        .filter(db_models.DbProject.id == project_id)
-        .first()
-    )
-    return await convert_to_app_project(db_project)
+    db: Database, author_id: uuid.UUID, project_id: Optional[int] = None
+):
+    """Get a single project &  all associated tasks by ID."""
+    raw_sql = """
+    SELECT
+        projects.id,
+        projects.name,
+        projects.short_description,
+        projects.description,
+        projects.per_task_instructions,
+        projects.outline
+    FROM projects
+    WHERE projects.author_id = :author_id
+    LIMIT 1;
+    """
+
+    project_record = await db.fetch_one(raw_sql, {"author_id": author_id})
+    query = """ SELECT id, project_task_index, outline FROM tasks WHERE project_id = :project_id;"""
+    task_records = await db.fetch_all(query, {"project_id": project_id})
+    project_record.tasks = task_records
+    project_record.task_count = len(task_records)
+    return project_record
 
 
 async def get_projects(
     db: Database,
+    author_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
 ):
@@ -91,63 +97,15 @@ async def get_projects(
     raw_sql = """
         SELECT id, name, short_description, description, per_task_instructions, outline
         FROM projects
+        WHERE author_id = :author_id
         ORDER BY id DESC
         OFFSET :skip
         LIMIT :limit;
         """
-    db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
-    return await convert_to_app_projects(db_projects)
-
-
-# async def get_projects(
-#     db: Session,
-#     skip: int = 0,
-#     limit: int = 100,
-# ):
-#     """Get all projects."""
-#     db_projects = (
-#         db.query(db_models.DbProject)
-#         .order_by(db_models.DbProject.id.desc())
-#         .offset(skip)
-#         .limit(limit)
-#         .all()
-#     )
-#     project_count = db.query(db_models.DbProject).count()
-#     return project_count, await convert_to_app_projects(db_projects)
-
-
-async def convert_to_app_projects(
-    db_projects: List[db_models.DbProject],
-) -> List[project_schemas.ProjectOut]:
-    """Legacy function to convert db models --> Pydantic.
-
-    TODO refactor to use Pydantic model methods instead.
-    """
-    if db_projects and len(db_projects) > 0:
-
-        async def convert_project(project):
-            return await convert_to_app_project(project)
-
-        app_projects = await gather(
-            *[convert_project(project) for project in db_projects]
-        )
-        return [project for project in app_projects if project is not None]
-    else:
-        return []
-
-
-async def convert_to_app_project(db_project: db_models.DbProject):
-    """Legacy function to convert db models --> Pydantic."""
-    if not db_project:
-        log.debug("convert_to_app_project called, but no project provided")
-        return None
-    app_project = db_project
-
-    if db_project.outline:
-        app_project.outline_geojson = str_to_geojson(
-            db_project.outline, {"id": db_project.id}, db_project.id
-        )
-    return app_project
+    db_projects = await db.fetch_all(
+        raw_sql, {"author_id": author_id, "skip": skip, "limit": limit}
+    )
+    return db_projects
 
 
 async def create_tasks_from_geojson(

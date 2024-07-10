@@ -56,14 +56,11 @@ class ProjectIn(BaseModel):
         return write_wkb(read_wkb(self.outline).centroid)
 
 
-class ProjectOut(BaseModel):
+class TaskOut(BaseModel):
     """Base project model."""
 
     id: uuid.UUID
-    name: str
-    short_description: str
-    description: str
-    per_task_instructions: Optional[str] = None
+    project_task_index: int
     outline: Any = Field(exclude=True)
 
     @computed_field
@@ -74,7 +71,30 @@ class ProjectOut(BaseModel):
             return None
         wkb_data = bytes.fromhex(self.outline)
         geom = wkb.loads(wkb_data)
-        # geometry = wkb.loads(bytes(self.outline.data))
+        bbox = geom.bounds  # Calculate bounding box
+        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, str(self.id))
+
+
+class ProjectOut(BaseModel):
+    """Base project model."""
+
+    id: uuid.UUID
+    name: str
+    short_description: str
+    description: str
+    per_task_instructions: Optional[str] = None
+    outline: Any = Field(exclude=True)
+    tasks: list[TaskOut] = []
+    task_count: int = None
+
+    @computed_field
+    @property
+    def outline_geojson(self) -> Optional[Feature]:
+        """Compute the geojson outline from WKBElement outline."""
+        if not self.outline:
+            return None
+        wkb_data = bytes.fromhex(self.outline)
+        geom = wkb.loads(wkb_data)
         bbox = geom.bounds  # Calculate bounding box
         return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, str(self.id))
 

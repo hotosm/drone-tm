@@ -4,10 +4,9 @@ from app.config import settings
 from typing import Any
 from passlib.context import CryptContext
 from app.db import db_models
-from app.users.user_schemas import UserCreate, AuthUser, ProfileUpdate
+from app.users.user_schemas import AuthUser, ProfileUpdate
 from databases import Database
 from fastapi import HTTPException
-from app.models.enums import UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -95,29 +94,6 @@ async def authenticate(
     return db_user
 
 
-# def authenticate(db: Session, username: str, password: str) -> db_models.DbUser | None:
-#     db_user = get_user_by_username(db, username)
-#     if not db_user:
-#         return None
-#     if not verify_password(password, db_user.password):
-#         return None
-#     return db_user
-
-
-async def create_user(db: Database, user_create: UserCreate):
-    query = f"""
-    INSERT INTO users (username, password, is_active, name, email_address, is_superuser)
-    VALUES ('{user_create.username}', '{get_password_hash(user_create.password)}', {True}, '{user_create.name}', '{user_create.email_address}', {False})
-    RETURNING id
-    """
-    _id = await db.execute(query)
-    raw_query = f"SELECT * from users WHERE id = {_id} LIMIT 1"
-    db_obj = await db.fetch_one(query=raw_query)
-    if not db_obj:
-        raise HTTPException(status_code=500, detail="User could not be created")
-    return db_obj
-
-
 async def get_or_create_user(
     db: Database,
     user_data: AuthUser,
@@ -126,10 +102,10 @@ async def get_or_create_user(
     try:
         update_sql = """
             INSERT INTO users (
-                    id, username, email_address, profile_img, role
+                    id, name, email_address, profile_img, is_active, is_superuser, date_registered
                     )
                 VALUES (
-                    :user_id, :username, :email_address, :profile_img, :role
+                    :user_id, :name, :email_address, :profile_img, False, False, now()
                     )
             ON CONFLICT (id)
                 DO UPDATE SET profile_img = :profile_img;
@@ -139,10 +115,9 @@ async def get_or_create_user(
             update_sql,
             {
                 "user_id": str(user_data.id),
-                "username": user_data.email,  # FIXME: remove this
+                "name": user_data.name,
                 "email_address": user_data.email,
                 "profile_img": user_data.img_url,
-                "role": UserRole.DRONE_PILOT.name,
             },
         )
         return user_data
@@ -177,12 +152,13 @@ async def update_user_profile(
 
     try:
         profile_query = """
-        INSERT INTO user_profile (user_id, phone_number, country, city, organization_name, organization_address, job_title, notify_for_projects_within_km,
+        INSERT INTO user_profile (user_id, role, phone_number, country, city, organization_name, organization_address, job_title, notify_for_projects_within_km,
                                     experience_years, drone_you_own, certified_drone_operator)
-        VALUES (:user_id, :phone_number, :country, :city, :organization_name, :organization_address, :job_title, :notify_for_projects_within_km ,
+        VALUES (:user_id, :role, :phone_number, :country, :city, :organization_name, :organization_address, :job_title, :notify_for_projects_within_km ,
                 :experience_years, :drone_you_own, :certified_drone_operator)
         ON CONFLICT (user_id)
         DO UPDATE SET
+            role = :role,
             phone_number = :phone_number,
             country = :country,
             city = :city,
@@ -199,6 +175,7 @@ async def update_user_profile(
             profile_query,
             {
                 "user_id": user_id,
+                "role": profile_update.role,
                 "phone_number": profile_update.phone_number,
                 "country": profile_update.country,
                 "city": profile_update.city,
@@ -211,6 +188,22 @@ async def update_user_profile(
                 "certified_drone_operator": profile_update.certified_drone_operator,
             },
         )
+
+        # If password is provided, update the users table
+        if profile_update.password:
+            password_update_query = """
+            UPDATE users
+            SET password = :password
+            WHERE id = :user_id;
+            """
+            await db.execute(
+                password_update_query,
+                {
+                    "password": get_password_hash(profile_update.password),
+                    "user_id": user_id,
+                },
+            )
+
         return True
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

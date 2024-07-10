@@ -1,6 +1,6 @@
 import Image from '@Components/RadixComponents/Image';
 import { NavLink } from 'react-router-dom';
-import dtmLogo from '@Assets/images/dtm-logo.svg';
+import dtmLogo from '@Assets/images/LandingPage/DTM-logo-red.svg';
 import { navLinks } from '@Constants/index';
 import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
@@ -10,7 +10,11 @@ export default function Navbar() {
   return (
     <nav className="naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
       <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-px-16">
-        <Image src={dtmLogo} alt="DTM-logo" />
+        <Image
+          src={dtmLogo}
+          alt="DTM-logo"
+          className="naxatw-h-8 naxatw-w-40"
+        />
         <FlexRow className="naxatw-gap-4">
           {navLinks.map(({ id, link, linkName }) => (
             <NavLink
