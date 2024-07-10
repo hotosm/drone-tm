@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
 from typing import Optional
+from app.models.enums import UserRole
 
 
 class AuthUser(BaseModel):
@@ -8,6 +9,7 @@ class AuthUser(BaseModel):
 
     id: str
     email: EmailStr
+    name: str
     img_url: Optional[str] = None
 
 
@@ -75,13 +77,20 @@ class UserCreate(UserBase):
 
 
 class ProfileUpdate(BaseModel):
-    phone_number: Optional[str]
-    country: Optional[str]
-    city: Optional[str]
-    organization_name: Optional[str]
-    organization_address: Optional[str]
-    job_title: Optional[str]
-    notify_for_projects_within_km: Optional[int]
-    drone_you_own: Optional[str]
-    experience_years: Optional[int]
-    certified_drone_operator: Optional[bool]
+    phone_number: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    organization_name: Optional[str] = None
+    organization_address: Optional[str] = None
+    job_title: Optional[str] = None
+    notify_for_projects_within_km: Optional[int] = None
+    drone_you_own: Optional[str] = None
+    experience_years: Optional[int] = None
+    certified_drone_operator: Optional[bool] = False
+    role: Optional[UserRole] = UserRole.DRONE_PILOT
+    password: Optional[str] = None
+
+    @field_validator("role", mode="after")
+    @classmethod
+    def integer_role_to_string(cls, value: UserRole) -> str:
+        return str(value.name)

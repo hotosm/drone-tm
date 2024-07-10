@@ -113,13 +113,13 @@ class DroneType(IntEnum):
 class UserRole(IntEnum, Enum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
-    BOTH = 3
 
 
 class State(int, Enum):
     """The state of a task.
 
     The state can be:
+    - ``request for mapping``
     - ``unlocked to map``
     - ``locked for mapping``
     - ``unlocked to validate``
@@ -127,6 +127,7 @@ class State(int, Enum):
     - ``unlocked done``
     """
 
+    REQUEST_FOR_MAPPING = -1
     UNLOCKED_TO_MAP = 0
     LOCKED_FOR_MAPPING = 1
     UNLOCKED_TO_VALIDATE = 2
@@ -142,6 +143,7 @@ class EventType(str, Enum):
 
     Possible values are:
 
+    - ``request`` -- Request a task to be mapped.
     - ``map`` -- Set to *locked for mapping*, i.e. mapping in progress.
     - ``finish`` -- Set to *unlocked to validate*, i.e. is mapped.
     - ``validate`` -- Request recent task ready to be validate.
@@ -154,6 +156,8 @@ class EventType(str, Enum):
     Note that ``task_id`` must be specified in the endpoint too.
     """
 
+    REQUESTS = "request"
+    REJECTED = "reject"
     MAP = "map"
     FINISH = "finish"
     VALIDATE = "validate"

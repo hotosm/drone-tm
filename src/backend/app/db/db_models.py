@@ -37,14 +37,12 @@ class DbUser(Base):
     __tablename__ = "users"
 
     id = cast(str, Column(String, primary_key=True))
-    username = cast(str, Column(String, nullable=False, unique=True))
+    email_address = cast(str, Column(String, nullable=False, unique=True))
     password = cast(str, Column(String))
+    name = cast(str, Column(String))
     is_active = cast(bool, Column(Boolean, default=False))
     is_superuser = cast(bool, Column(Boolean, default=False))
     profile_img = cast(str, Column(String, nullable=True))
-    name = cast(str, Column(String))
-    email_address = cast(str, Column(String, nullable=False, unique=True))
-    role = cast(UserRole, Column(Enum(UserRole), default=UserRole.DRONE_PILOT))
     date_registered = cast(datetime, Column(DateTime, default=timestamp))
 
 
@@ -73,7 +71,6 @@ class DbTask(Base):
     )
     project_task_index = cast(int, Column(Integer))
     outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
-    task_status = cast(TaskStatus, Column(Enum(TaskStatus), default=TaskStatus.READY))
 
 
 class DbProject(Base):
@@ -203,7 +200,7 @@ class TaskEvent(Base):
     user_id = cast(str, Column(String(100), ForeignKey("users.id"), nullable=False))
     comment = cast(str, Column(String))
 
-    state = cast(State, Column(Enum(TaskStatus), nullable=False))
+    state = cast(State, Column(Enum(State), nullable=False))
     created_at = cast(datetime, Column(DateTime, default=timestamp))
 
     __table_args__ = (
@@ -269,6 +266,7 @@ class GroundControlPoint(Base):
 class DbUserProfile(Base):
     __tablename__ = "user_profile"
     user_id = cast(str, Column(String, ForeignKey("users.id"), primary_key=True))
+    role = cast(UserRole, Column(Enum(UserRole), default=UserRole.DRONE_PILOT))
     phone_number = cast(str, Column(String))
     country = cast(str, Column(String))
     city = cast(str, Column(String))

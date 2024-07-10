@@ -9,6 +9,7 @@ from app.waypoints import waypoint_routes
 from fastapi.responses import RedirectResponse, JSONResponse
 from app.users import oauth_routes
 from app.users import user_routes
+from app.tasks import task_routes
 from loguru import logger as log
 from fastapi.templating import Jinja2Templates
 
@@ -95,6 +96,7 @@ def get_application() -> FastAPI:
     _app.include_router(waypoint_routes.router)
     _app.include_router(user_routes.router)
     _app.include_router(oauth_routes.router)
+    _app.include_router(task_routes.router)
 
     return _app
 
