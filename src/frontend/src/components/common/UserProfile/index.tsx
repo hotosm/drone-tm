@@ -26,7 +26,7 @@ export default function UserProfile() {
       icon: 'logout',
       onClick: () => {
         localStorage.clear();
-        navigate('/login');
+        navigate('/');
         toast.success('Logged Out Successfully');
       },
     },
