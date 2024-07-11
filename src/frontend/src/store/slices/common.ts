@@ -13,8 +13,8 @@ export interface CommonState {
   promptDialogContent: PromptDialogContentsType;
   showMap: boolean;
   openSignInMenu: boolean;
-  signInAs: 'Project Creator' | 'Drone Operator';
   userProfileActiveTab: number;
+  isCertifiedDroneUser: 'yes' | 'no';
 }
 
 const initialState: CommonState = {
@@ -24,8 +24,8 @@ const initialState: CommonState = {
   promptDialogContent: null,
   showMap: false,
   openSignInMenu: false,
-  signInAs: 'Project Creator',
   userProfileActiveTab: 1,
+  isCertifiedDroneUser: 'no',
 };
 
 const setCommonState: CaseReducer<

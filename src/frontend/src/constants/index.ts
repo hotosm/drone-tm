@@ -29,3 +29,35 @@ export const tabOptions = [
     value: 3,
   },
 ];
+
+export const droneOperatorOptions = [
+  {
+    name: 'Yes',
+    value: 'yes',
+    label: 'Yes',
+  },
+  {
+    name: 'No',
+    value: 'no',
+    label: 'No',
+  },
+];
+
+// keys only present in project creator form
+export const projectCreatorKeys = [
+  'organization_name',
+  'organization_address',
+  'job_title',
+  'confirm_password',
+  'country_code',
+];
+
+// keys only present in drone operator form
+export const droneOperatorKeys = [
+  'notify_for_projects_within_km',
+  'experience_years',
+  'certified_drone_operator',
+  'drone_you_own',
+  'confirm_password',
+  'country_code',
+];

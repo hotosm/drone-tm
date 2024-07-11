@@ -46,7 +46,7 @@ export default function SignInOverlay() {
             className="!naxatw-bg-landing-red"
             rightIcon="east"
             onClick={() => {
-              dispatch(setCommonState({ signInAs: 'Project Creator' }));
+              localStorage.setItem('signedInAs', 'Project Creator');
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {
@@ -67,7 +67,7 @@ export default function SignInOverlay() {
             className="!naxatw-bg-landing-red"
             rightIcon="east"
             onClick={() => {
-              dispatch(setCommonState({ signInAs: 'Drone Operator' }));
+              localStorage.setItem('signedInAs', 'Drone Operator');
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {
