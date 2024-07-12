@@ -69,7 +69,7 @@ def delete_project_by_id(
 
 
 @router.post(
-    "/create_project", tags=["Projects"], response_model=project_schemas.ProjectOut
+    "/create_project", tags=["Projects"]
 )
 async def create_project(
     project_info: project_schemas.ProjectIn,
@@ -78,14 +78,14 @@ async def create_project(
 ):
     """Create a project in  database."""
     author_id = user_data.id
-    project = await project_crud.create_project_with_project_info(
+    project_id = await project_crud.create_project_with_project_info(
         db, author_id, project_info
     )
-    if not project:
+    if not project_id:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
         )
-    return project
+    return { "message": "Project successfully created","project_id": project_id}
 
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])

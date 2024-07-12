@@ -19,8 +19,7 @@ async def create_project_with_project_info(
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, dem_url, created
-        )
+            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, created)
         VALUES (
             :id,
             :author_id,
@@ -31,36 +30,42 @@ async def create_project_with_project_info(
             :status,
             :visibility,
             :outline,
+            :no_fly_zones,
             :dem_url,
+            :output_orthophoto_url,
+            :output_pointcloud_url,
+            :output_raw_url,
+            :task_split_dimension,
             CURRENT_TIMESTAMP
         )
         RETURNING id
     """
-    project_id = await db.execute(
-        query,
-        values={
-            "id": _id,
-            "author_id": author_id,
-            "name": project_metadata.name,
-            "short_description": project_metadata.short_description,
-            "description": project_metadata.description,
-            "per_task_instructions": project_metadata.per_task_instructions,
-            "status": "DRAFT",
-            "visibility": "PUBLIC",
-            "outline": str(project_metadata.outline),
-            "dem_url": project_metadata.dem_url,
-        },
-    )
-
-    # Fetch the newly created project using the returned ID
-    select_query = f"""
-        SELECT id, name, short_description, description, per_task_instructions, outline
-        FROM projects
-        WHERE id = '{project_id}'
-    """
-    new_project = await db.fetch_one(query=select_query)
-    return new_project
-
+    try:
+        project_id = await db.execute(
+            query,
+            values={
+                "id": _id,
+                "author_id": author_id,
+                "name": project_metadata.name,
+                "short_description": project_metadata.short_description,
+                "description": project_metadata.description,
+                "per_task_instructions": project_metadata.per_task_instructions,
+                "status": "DRAFT",
+                "visibility": "PUBLIC",
+                "outline": str(project_metadata.outline),
+                "no_fly_zones": str(project_metadata.no_fly_zones),
+                "dem_url": project_metadata.dem_url,
+                "output_orthophoto_url": project_metadata.output_orthophoto_url,
+                "output_pointcloud_url": project_metadata.output_pointcloud_url,
+                "output_raw_url": project_metadata.output_raw_url,
+                "task_split_dimension": project_metadata.task_split_dimension
+            },
+        )
+        return project_id
+    
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(e) from e
 
 async def get_project_by_id(
     db: Database, author_id: uuid.UUID, project_id: Optional[int] = None
