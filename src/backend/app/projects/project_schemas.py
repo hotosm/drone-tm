@@ -8,6 +8,7 @@ from datetime import date
 
 from app.utils import (
     geojson_to_geometry,
+    multipolygon_to_polygon,
     read_wkb,
     merge_multipolygon,
     str_to_geojson,
@@ -52,7 +53,7 @@ class ProjectIn(BaseModel):
         if not self.outline_no_fly_zones:
             return None
 
-        outline = merge_multipolygon(self.outline_no_fly_zones)
+        outline = multipolygon_to_polygon(self.outline_no_fly_zones)
         return geojson_to_geometry(outline)
 
     @computed_field
