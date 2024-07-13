@@ -4,6 +4,7 @@ from typing import Any, Optional, Union
 from geojson_pydantic import Feature, FeatureCollection, Polygon
 from app.models.enums import TaskSplitType
 from shapely import wkb
+from datetime import date
 
 from app.utils import (
     geojson_to_geometry,
@@ -42,7 +43,7 @@ class ProjectIn(BaseModel):
     output_orthophoto_url: Optional[str] = None
     output_pointcloud_url: Optional[str] = None
     output_raw_url: Optional[str] = None
-    task_split_dimension: int
+    deadline: Optional[date] = None
 
     @computed_field
     @property
