@@ -60,14 +60,15 @@ async def create_project_with_project_info(
                 "output_pointcloud_url": project_metadata.output_pointcloud_url,
                 "output_raw_url": project_metadata.output_raw_url,
                 "task_split_dimension": project_metadata.task_split_dimension,
-                "deadline": project_metadata.deadline
+                "deadline": project_metadata.deadline,
             },
         )
         return project_id
-    
+
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
+
 
 async def get_project_by_id(
     db: Database, author_id: uuid.UUID, project_id: Optional[int] = None

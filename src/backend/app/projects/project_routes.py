@@ -68,9 +68,7 @@ def delete_project_by_id(
     return {"message": f"Project ID: {project_id} is deleted successfully."}
 
 
-@router.post(
-    "/create_project", tags=["Projects"]
-)
+@router.post("/create_project", tags=["Projects"])
 async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Database = Depends(database.encode_db),
@@ -85,7 +83,7 @@ async def create_project(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
         )
-    return { "message": "Project successfully created","project_id": project_id}
+    return {"message": "Project successfully created", "project_id": project_id}
 
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])

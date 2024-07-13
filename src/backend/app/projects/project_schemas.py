@@ -37,7 +37,7 @@ class ProjectIn(BaseModel):
     task_split_dimension: Optional[int] = None
     dem_url: Optional[str] = None
     gsd_cm_px: float = None
-    is_terrain_follow:  bool = False
+    is_terrain_follow: bool = False
     outline_no_fly_zones: Union[FeatureCollection, Feature, Polygon]
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
     output_orthophoto_url: Optional[str] = None
@@ -54,7 +54,7 @@ class ProjectIn(BaseModel):
 
         outline = merge_multipolygon(self.outline_no_fly_zones)
         return geojson_to_geometry(outline)
-    
+
     @computed_field
     @property
     def outline(self) -> Optional[Any]:
