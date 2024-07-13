@@ -1,6 +1,5 @@
 import logging
 import geojson
-from geojson import Feature
 import requests
 import shapely
 from datetime import datetime, timezone
