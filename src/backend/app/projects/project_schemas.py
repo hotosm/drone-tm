@@ -44,7 +44,7 @@ class ProjectIn(BaseModel):
     output_orthophoto_url: Optional[str] = None
     output_pointcloud_url: Optional[str] = None
     output_raw_url: Optional[str] = None
-    deadline: Optional[date] = None
+    deadline_at: Optional[date] = None
 
     @computed_field
     @property

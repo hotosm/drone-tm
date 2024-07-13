@@ -19,7 +19,7 @@ async def create_project_with_project_info(
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline, created)
+            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, created_at)
         VALUES (
             :id,
             :author_id,
@@ -36,7 +36,7 @@ async def create_project_with_project_info(
             :output_pointcloud_url,
             :output_raw_url,
             :task_split_dimension,
-            :deadline,
+            :deadline_at,
             CURRENT_TIMESTAMP
         )
         RETURNING id
@@ -60,7 +60,7 @@ async def create_project_with_project_info(
                 "output_pointcloud_url": project_metadata.output_pointcloud_url,
                 "output_raw_url": project_metadata.output_raw_url,
                 "task_split_dimension": project_metadata.task_split_dimension,
-                "deadline": project_metadata.deadline,
+                "deadline_at": project_metadata.deadline_at,
             },
         )
         return project_id
