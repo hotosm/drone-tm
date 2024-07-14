@@ -2,7 +2,7 @@ import uuid
 from pydantic import BaseModel, computed_field, Field
 from typing import Any, Optional, Union
 from geojson_pydantic import Feature, FeatureCollection, Polygon
-from app.models.enums import TaskSplitType
+from app.models.enums import ProjectVisibility
 from shapely import wkb
 from datetime import date
 
@@ -33,8 +33,6 @@ class ProjectIn(BaseModel):
     short_description: str
     description: str
     per_task_instructions: Optional[str] = None
-    organisation_id: Optional[int] = None
-    task_split_type: Optional[TaskSplitType] = None
     task_split_dimension: Optional[int] = None
     dem_url: Optional[str] = None
     gsd_cm_px: float = None
@@ -45,6 +43,7 @@ class ProjectIn(BaseModel):
     output_pointcloud_url: Optional[str] = None
     output_raw_url: Optional[str] = None
     deadline_at: Optional[date] = None
+    visibility: Optional[ProjectVisibility] = ProjectVisibility.PUBLIC
 
     @computed_field
     @property

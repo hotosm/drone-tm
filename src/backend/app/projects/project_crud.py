@@ -10,6 +10,7 @@ from app.utils import merge_multipolygon
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from databases import Database
+from app.models.enums import ProjectStatus
 
 
 async def create_project_with_project_info(
@@ -51,8 +52,8 @@ async def create_project_with_project_info(
                 "short_description": project_metadata.short_description,
                 "description": project_metadata.description,
                 "per_task_instructions": project_metadata.per_task_instructions,
-                "status": "DRAFT",
-                "visibility": "PUBLIC",
+                "status": ProjectStatus.DRAFT.name,
+                "visibility": project_metadata.visibility.name,
                 "outline": str(project_metadata.outline),
                 "no_fly_zones": str(project_metadata.no_fly_zones),
                 "dem_url": project_metadata.dem_url,
