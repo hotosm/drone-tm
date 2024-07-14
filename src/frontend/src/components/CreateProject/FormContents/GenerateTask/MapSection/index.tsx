@@ -19,15 +19,18 @@ export default function MapSection() {
     disableRotation: true,
   });
 
+  const uploadedProjectArea = useTypedSelector(
+    state => state.createproject.uploadedProjectArea,
+  );
   const splitGeojson = useTypedSelector(
     state => state.createproject.splitGeojson,
   );
 
   useEffect(() => {
-    if (!splitGeojson) return;
-    const bbox = getBbox(splitGeojson as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 30 });
-  }, [splitGeojson, map]);
+    if (!uploadedProjectArea) return;
+    const bbox = getBbox(uploadedProjectArea as FeatureCollection);
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
+  }, [map, uploadedProjectArea]);
 
   return (
     <MapContainer
@@ -38,6 +41,21 @@ export default function MapSection() {
         height: '448px',
       }}
     >
+      <VectorLayer
+        map={map as Map}
+        isMapLoaded={isMapLoaded}
+        id="uploaded-project-area"
+        geojson={uploadedProjectArea as GeojsonType}
+        visibleOnMap={!!uploadedProjectArea}
+        layerOptions={{
+          type: 'fill',
+          paint: {
+            'fill-color': '#328ffd',
+            'fill-outline-color': '#D33A38',
+            'fill-opacity': 0.2,
+          },
+        }}
+      />
       <VectorLayer
         map={map as Map}
         isMapLoaded={isMapLoaded}

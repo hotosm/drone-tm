@@ -2,11 +2,15 @@
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
 import RadioButton from '@Components/common/RadioButton';
-import { KeyParametersOptions } from '@Constants/createProject';
+import { KeyParametersOptions, terrainOptions } from '@Constants/createProject';
 import { setCreateProjectState } from '@Store/actions/createproject';
+import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 
 export default function KeyParameters({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
+
+  const { register, formState } = formProps;
+
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
   );
@@ -22,10 +26,26 @@ export default function KeyParameters({ formProps }: { formProps: any }) {
         value={keyParamOption}
       />
       {keyParamOption === 'basic' ? (
-        <FormControl className="naxatw-mt-4 naxatw-gap-1">
-          <Label>Ground Sampling Distance (meter)</Label>
-          <Input placeholder="Enter GSD in meter" />
-        </FormControl>
+        <>
+          <FormControl className="naxatw-mt-4 naxatw-gap-1">
+            <Label>Ground Sampling Distance (meter)</Label>
+            <Input
+              placeholder="Enter GSD in meter"
+              type="number"
+              {...register('gsd', {
+                required: 'GSD is required',
+              })}
+            />
+            <ErrorMessage message={formState?.errors?.gsd?.message} />
+          </FormControl>
+          <RadioButton
+            options={terrainOptions}
+            topic="Choose terrain"
+            direction="column"
+            onChangeData={() => {}}
+            value="flat"
+          />
+        </>
       ) : (
         <>
           <FormControl className="naxatw-mt-4 naxatw-gap-1">
