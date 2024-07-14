@@ -104,7 +104,7 @@ export default function FileUpload({
         //   @ts-ignore
         onClick={onFileUpload}
       >
-        <Icon name="backup" className="naxatw-text-3xl  naxatw-text-red" />
+        <Icon name="backup" className="naxatw-text-3xl naxatw-text-red" />
         <p className="naxatw-mt-1 naxatw-text-center naxatw-text-xs naxatw-leading-4 naxatw-text-grey-600">
           {placeholder || 'Please upload picture (jpeg, png file format)'}
         </p>

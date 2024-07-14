@@ -46,13 +46,13 @@ export const stepSwticherData = [
     url: '/',
     step: 4,
     label: '04',
-    name: 'Conditions for contributions',
+    name: 'Generate Task',
   },
   {
     url: '/',
     step: 5,
     label: '05',
-    name: 'Generate Task',
+    name: 'Conditions for contributions',
   },
 ];
 
@@ -79,6 +79,19 @@ export const KeyParametersOptions = [
     name: 'advanced',
     value: 'advanced',
     label: 'Advanced',
+  },
+];
+
+export const terrainOptions = [
+  {
+    name: 'Flat',
+    value: 'flat',
+    label: 'Flat',
+  },
+  {
+    name: 'hilly',
+    value: 'hilly',
+    label: 'Hilly',
   },
 ];
 

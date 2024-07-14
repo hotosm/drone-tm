@@ -47,9 +47,9 @@ const getActiveStepForm = (activeStep: number, formProps: any) => {
     case 3:
       return <KeyParametersForm formProps={formProps} />;
     case 4:
-      return <ContributionsForm formProps={formProps} />;
-    case 5:
       return <GenerateTaskForm formProps={formProps} />;
+    case 5:
+      return <ContributionsForm formProps={formProps} />;
     default:
       return <></>;
   }
@@ -65,10 +65,16 @@ export default function CreateprojectLayout() {
 
   const initialState = {
     name: '',
-    short_description: '',
     description: '',
-    organisation_id: 1,
-    outline_geojson: {},
+    outline_geojson: null,
+    noflyzone_geojson: null,
+    gsd: null,
+    final_output_type: null,
+    is_terrain_follow: '',
+    task_split_type: 1,
+    per_task_instructions: '',
+    publish: '',
+    submission: '',
   };
 
   const { mutate: uploadTaskBoundary } = useMutation<any, any, any, unknown>({
@@ -97,29 +103,29 @@ export default function CreateprojectLayout() {
     },
   });
 
-  const onSubmit = (data: any) => {
-    if (activeStep < 5) return;
-    createProject(data);
-    reset();
-  };
-
-  const { register, setValue, handleSubmit, reset } = useForm({
-    defaultValues: initialState,
-  });
+  const { register, setValue, handleSubmit, reset, formState, trigger } =
+    useForm({
+      defaultValues: initialState,
+    });
 
   const formProps = {
     register,
     setValue,
+    formState,
+    trigger,
   };
 
   const onPrevBtnClick = () => {
     dispatch(setCreateProjectState({ activeStep: activeStep - 1 }));
   };
 
-  const onNextBtnClick = () => {
-    handleSubmit(onSubmit)();
-    if (activeStep === 5) return;
-    dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
+  const onSubmit = (data: any) => {
+    if (activeStep !== 5) {
+      dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
+      return;
+    }
+    createProject(data);
+    reset();
   };
 
   return (
@@ -146,7 +152,10 @@ export default function CreateprojectLayout() {
               <div />
             )}
             <Button
-              onClick={onNextBtnClick}
+              onClick={e => {
+                e.preventDefault();
+                handleSubmit(onSubmit)();
+              }}
               type="submit"
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
