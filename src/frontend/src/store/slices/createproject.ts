@@ -8,11 +8,11 @@ export interface CreateProjectState {
   keyParamOption: 'basic' | 'advanced';
   contributionsOption: 'public' | 'invite_with_email';
   generateTaskOption: 'divide_hexagon' | 'divide_rectangle';
-  measureType: 'length' | 'area' | null;
   isNoflyzonePresent: 'yes' | 'no';
   uploadedProjectArea: Record<string, any> | null;
   uploadedNoFlyZone: Record<string, any> | null;
   splitGeojson: Record<string, any> | null;
+  isTerrainFollow: string;
 }
 
 const initialState: CreateProjectState = {
@@ -21,11 +21,11 @@ const initialState: CreateProjectState = {
   keyParamOption: 'basic',
   contributionsOption: 'public',
   generateTaskOption: 'divide_rectangle',
-  measureType: null,
   isNoflyzonePresent: 'no',
   uploadedProjectArea: null,
   uploadedNoFlyZone: null,
   splitGeojson: null,
+  isTerrainFollow: 'flat',
 };
 
 const setCreateProjectState: CaseReducer<
