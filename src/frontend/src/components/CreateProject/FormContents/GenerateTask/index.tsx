@@ -1,20 +1,19 @@
-/* eslint-disable no-unused-vars */
-import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { toast } from 'react-toastify';
-import { setCreateProjectState } from '@Store/actions/createproject';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
 import { Button } from '@Components/RadixComponents/Button';
+import { toast } from 'react-toastify';
+import { setCreateProjectState } from '@Store/actions/createproject';
 import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
-import { postPreviewSplitBySquare } from '@Services/createproject';
 import prepareFormData from '@Utils/prepareFormData';
+import { postPreviewSplitBySquare } from '@Services/createproject';
 import MapSection from './MapSection';
 
 export default function GenerateTask({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
 
-  const [dimension, setDimension] = useState<number | null>(null);
+  const { register, watch } = formProps;
+  const dimension = watch('dimension');
 
   const uploadedProjectArea = useTypedSelector(
     state => state.createproject.uploadedProjectArea,
@@ -23,7 +22,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
   const geojsonFile =
     !!uploadedProjectArea && convertGeojsonToFile(uploadedProjectArea);
 
-  const payload = prepareFormData({ project_geojson: geojsonFile });
+  const payload = prepareFormData({ project_geojson: geojsonFile, dimension });
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: postPreviewSplitBySquare,
@@ -46,14 +45,18 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
               placeholder="Enter Distance (in m)"
               type="number"
               className="naxatw-mt-1"
-              value={dimension as number}
-              onChange={e => setDimension(+e.target.value)}
+              value={dimension}
+              {...register('dimension', {
+                required: 'Required',
+                valueAsNumber: true,
+              })}
             />
           </FormControl>
           <Button
             withLoader
             isLoading={isLoading}
             rightIcon="settings"
+            disabled={!dimension}
             className="naxatw-mt-4 naxatw-bg-red"
             onClick={() => {
               if (!uploadedProjectArea) return;
