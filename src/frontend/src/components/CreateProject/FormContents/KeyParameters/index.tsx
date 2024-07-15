@@ -1,18 +1,26 @@
-/* eslint-disable no-unused-vars */
+/* eslint-disable camelcase */
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
 import RadioButton from '@Components/common/RadioButton';
-import { KeyParametersOptions, terrainOptions } from '@Constants/createProject';
-import { setCreateProjectState } from '@Store/actions/createproject';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
+import { UseFormPropsType } from '@Components/common/FormUI/types';
+import { setCreateProjectState } from '@Store/actions/createproject';
+import { KeyParametersOptions, terrainOptions } from '@Constants/createProject';
 
-export default function KeyParameters({ formProps }: { formProps: any }) {
+export default function KeyParameters({
+  formProps,
+}: {
+  formProps: UseFormPropsType;
+}) {
   const dispatch = useTypedDispatch();
 
-  const { register, formState } = formProps;
+  const { register, errors } = formProps;
 
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
+  );
+  const isTerrainFollow = useTypedSelector(
+    state => state.createproject.isTerrainFollow,
   );
 
   return (
@@ -32,18 +40,25 @@ export default function KeyParameters({ formProps }: { formProps: any }) {
             <Input
               placeholder="Enter GSD in meter"
               type="number"
-              {...register('gsd', {
+              {...register('gsd_cm_px', {
                 required: 'GSD is required',
+                valueAsNumber: true,
               })}
             />
-            <ErrorMessage message={formState?.errors?.gsd?.message} />
+            <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
           </FormControl>
           <RadioButton
             options={terrainOptions}
             topic="Choose terrain"
             direction="column"
-            onChangeData={() => {}}
-            value="flat"
+            onChangeData={val => {
+              dispatch(
+                setCreateProjectState({
+                  isTerrainFollow: val,
+                }),
+              );
+            }}
+            value={isTerrainFollow}
           />
         </>
       ) : (
