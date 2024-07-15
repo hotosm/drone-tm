@@ -1,13 +1,7 @@
-import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
-import { FlexRow } from '@Components/common/Layouts';
-import {
-  StepComponentMap,
-  stepDescriptionComponents,
-} from '@Constants/createProject';
-import { Button } from '@Components/RadixComponents/Button';
-import { setCreateProjectState } from '@Store/actions/createproject';
+import { useMutation } from '@tanstack/react-query';
+import { FieldValues, useForm } from 'react-hook-form';
 import {
   BasicInformationForm,
   DefineAOIForm,
@@ -15,9 +9,16 @@ import {
   ContributionsForm,
   GenerateTaskForm,
 } from '@Components/CreateProject/FormContents';
+import { UseFormPropsType } from '@Components/common/FormUI/types';
+import { FlexRow } from '@Components/common/Layouts';
+import { Button } from '@Components/RadixComponents/Button';
+import { setCreateProjectState } from '@Store/actions/createproject';
 import { postCreateProject, postTaskBoundary } from '@Services/createproject';
-import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import {
+  StepComponentMap,
+  stepDescriptionComponents,
+} from '@Constants/createProject';
 import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
 import prepareFormData from '@Utils/prepareFormData';
 
@@ -38,7 +39,7 @@ const getActiveStepDescription = (
   return Component ? <Component /> : <></>;
 };
 
-const getActiveStepForm = (activeStep: number, formProps: any) => {
+const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
   switch (activeStep) {
     case 1:
       return <BasicInformationForm formProps={formProps} />;
@@ -62,19 +63,23 @@ export default function CreateprojectLayout() {
   const splitGeojson = useTypedSelector(
     state => state.createproject.splitGeojson,
   );
+  const isTerrainFollow = useTypedSelector(
+    state => state.createproject.isTerrainFollow,
+  );
 
-  const initialState = {
+  const initialState: FieldValues = {
     name: '',
+    short_description: '',
     description: '',
     outline_geojson: null,
-    noflyzone_geojson: null,
-    gsd: null,
-    final_output_type: null,
+    outline_no_fly_zones: null,
+    gsd_cm_px: null,
+    dimension: null,
     is_terrain_follow: '',
     task_split_type: 1,
     per_task_instructions: '',
-    publish: '',
-    submission: '',
+    deadline_at: '',
+    visibility: 0,
   };
 
   const { mutate: uploadTaskBoundary } = useMutation<any, any, any, unknown>({
@@ -92,27 +97,38 @@ export default function CreateprojectLayout() {
     mutationFn: postCreateProject,
     onSuccess: (res: any) => {
       toast.success('Project Created Successfully');
-      dispatch(setCreateProjectState({ projectId: res.data.id }));
+      dispatch(setCreateProjectState({ projectId: res.data.project_id }));
       if (!splitGeojson) return;
       const geojson = convertGeojsonToFile(splitGeojson);
       const formData = prepareFormData({ task_geojson: geojson });
-      uploadTaskBoundary({ id: res.data.id, data: formData });
+      uploadTaskBoundary({ id: res.data.project_id, data: formData });
     },
     onError: err => {
       toast.error(err.message);
     },
   });
 
-  const { register, setValue, handleSubmit, reset, formState, trigger } =
-    useForm({
-      defaultValues: initialState,
-    });
+  const {
+    register,
+    setValue,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    control,
+    getValues,
+    watch,
+  } = useForm({
+    defaultValues: initialState,
+  });
 
   const formProps = {
     register,
     setValue,
-    formState,
-    trigger,
+    reset,
+    errors,
+    control,
+    getValues,
+    watch,
   };
 
   const onPrevBtnClick = () => {
@@ -120,12 +136,25 @@ export default function CreateprojectLayout() {
   };
 
   const onSubmit = (data: any) => {
+    if (activeStep === 4 && !splitGeojson) return;
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
       return;
     }
-    createProject(data);
+    const payload = {
+      ...data,
+      is_terrain_follow: isTerrainFollow === 'hilly',
+    };
+    createProject(payload);
     reset();
+    dispatch(
+      setCreateProjectState({
+        activeStep: 1,
+        splitGeojson: null,
+        uploadedProjectArea: null,
+        uploadedNoFlyZone: null,
+      }),
+    );
   };
 
   return (
