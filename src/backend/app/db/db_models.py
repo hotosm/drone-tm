@@ -83,9 +83,9 @@ class DbProject(Base):
     short_description = cast(str, Column(String))
     description = cast(str, Column(String))
     per_task_instructions = cast(str, Column(String))
-    created = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
+    created_at = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
     last_updated = cast(datetime, Column(DateTime, default=timestamp))
-
+    deadline_at = cast(datetime, Column(DateTime, default=timestamp))
     # GEOMETRY
     outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
     centroid = cast(WKBElement, Column(Geometry("POINT", srid=4326)))

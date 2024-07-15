@@ -2,11 +2,13 @@ import uuid
 from pydantic import BaseModel, computed_field, Field
 from typing import Any, Optional, Union
 from geojson_pydantic import Feature, FeatureCollection, Polygon
-from app.models.enums import TaskSplitType
+from app.models.enums import ProjectVisibility
 from shapely import wkb
+from datetime import date
 
 from app.utils import (
     geojson_to_geometry,
+    multipolygon_to_polygon,
     read_wkb,
     merge_multipolygon,
     str_to_geojson,
@@ -31,11 +33,27 @@ class ProjectIn(BaseModel):
     short_description: str
     description: str
     per_task_instructions: Optional[str] = None
-    organisation_id: Optional[int] = None
-    task_split_type: Optional[TaskSplitType] = None
     task_split_dimension: Optional[int] = None
     dem_url: Optional[str] = None
+    gsd_cm_px: float = None
+    is_terrain_follow: bool = False
+    outline_no_fly_zones: Union[FeatureCollection, Feature, Polygon]
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
+    output_orthophoto_url: Optional[str] = None
+    output_pointcloud_url: Optional[str] = None
+    output_raw_url: Optional[str] = None
+    deadline_at: Optional[date] = None
+    visibility: Optional[ProjectVisibility] = ProjectVisibility.PUBLIC
+
+    @computed_field
+    @property
+    def no_fly_zones(self) -> Optional[Any]:
+        """Compute WKBElement geom from geojson."""
+        if not self.outline_no_fly_zones:
+            return None
+
+        outline = multipolygon_to_polygon(self.outline_no_fly_zones)
+        return geojson_to_geometry(outline)
 
     @computed_field
     @property
