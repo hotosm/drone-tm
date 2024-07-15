@@ -1,17 +1,20 @@
-/* eslint-disable no-unused-vars */
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { FormControl, Label, Input } from '@Components/common/FormUI';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import RadioButton from '@Components/common/RadioButton';
-import { contributionsOptions } from '@Constants/createProject';
 import { FlexColumn } from '@Components/common/Layouts';
+import { FormControl, Label, Input } from '@Components/common/FormUI';
+import RadioButton from '@Components/common/RadioButton';
 import ErrorMessage from '@Components/common/ErrorMessage';
+import { UseFormPropsType } from '@Components/common/FormUI/types';
+import { setCreateProjectState } from '@Store/actions/createproject';
+import { contributionsOptions } from '@Constants/createProject';
 
-export default function Conditions({ formProps }: { formProps: any }) {
+export default function Conditions({
+  formProps,
+}: {
+  formProps: UseFormPropsType;
+}) {
   const dispatch = useTypedDispatch();
 
-  const { register, formState } = formProps;
-
+  const { register, errors } = formProps;
   const contributionsOption = useTypedSelector(
     state => state.createproject.contributionsOption,
   );
@@ -27,7 +30,7 @@ export default function Conditions({ formProps }: { formProps: any }) {
           })}
         />
         <ErrorMessage
-          message={formState?.errors?.per_task_instructions?.message}
+          message={errors?.per_task_instructions?.message as string}
         />
       </FormControl>
       <RadioButton
@@ -41,7 +44,13 @@ export default function Conditions({ formProps }: { formProps: any }) {
       />
       <FormControl className="naxatw-gap-1">
         <Label>Deadline for Submission</Label>
-        <Input placeholder="Enter GSD in meter" />
+        <Input
+          placeholder="Enter Deadline in meter"
+          {...register('deadline_at', {
+            required: 'Deadline is required',
+          })}
+        />
+        <ErrorMessage message={errors?.deadline_at?.message as string} />
       </FormControl>
     </FlexColumn>
   );

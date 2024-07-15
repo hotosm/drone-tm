@@ -1,8 +1,13 @@
 import { FormControl, Label, Input } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
+import { UseFormPropsType } from '@Components/common/FormUI/types';
 
-export default function BasicInformation({ formProps }: { formProps: any }) {
-  const { register, formState } = formProps;
+export default function BasicInformation({
+  formProps,
+}: {
+  formProps: UseFormPropsType;
+}) {
+  const { register, errors } = formProps;
 
   return (
     <div className="naxatw-px-10 naxatw-py-5">
@@ -14,7 +19,7 @@ export default function BasicInformation({ formProps }: { formProps: any }) {
             required: 'Name of the project is required',
           })}
         />
-        <ErrorMessage message={formState.errors?.name?.message} />
+        <ErrorMessage message={errors?.name?.message as string} />
       </FormControl>
       <FormControl className="naxatw-mt-5 naxatw-gap-1">
         <Label required>Description of the project</Label>
@@ -25,7 +30,7 @@ export default function BasicInformation({ formProps }: { formProps: any }) {
             required: 'Description is Required',
           })}
         />
-        <ErrorMessage message={formState.errors?.description?.message} />
+        <ErrorMessage message={errors?.description?.message as string} />
       </FormControl>
     </div>
   );
