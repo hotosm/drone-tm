@@ -11,7 +11,7 @@ import type {
 export interface UseFormPropsType {
   register: UseFormRegister<FieldValues>;
   control: Control;
-  errors: FieldErrors<FieldValues>;
+  errors?: FieldErrors<FieldValues>;
   setValue: UseFormSetValue<FieldValues>;
   getValues?: UseFormGetValues<FieldValues>;
   watch?: UseFormWatch<FieldValues>;
