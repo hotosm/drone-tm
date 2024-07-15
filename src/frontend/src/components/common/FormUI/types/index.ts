@@ -14,5 +14,5 @@ export interface UseFormPropsType {
   errors?: FieldErrors<FieldValues>;
   setValue: UseFormSetValue<FieldValues>;
   getValues?: UseFormGetValues<FieldValues>;
-  watch?: UseFormWatch<FieldValues>;
+  watch: UseFormWatch<FieldValues>;
 }
