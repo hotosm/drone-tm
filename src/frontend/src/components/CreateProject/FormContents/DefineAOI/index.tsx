@@ -1,20 +1,28 @@
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import { Controller } from 'react-hook-form';
+import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
+import { UseFormPropsType } from '@Components/common/FormUI/types';
+import { FormControl } from '@Components/common/FormUI';
 import { Button } from '@Components/RadixComponents/Button';
 import RadioButton from '@Components/common/RadioButton';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import FileUpload from '@Components/common/UploadArea';
 import { setCreateProjectState } from '@Store/actions/createproject';
-import { uploadAreaOptions } from '@Constants/createProject';
-import { validateGeoJSON } from '@Utils/convertLayerUtils';
 import flatten from '@turf/flatten';
 import area from '@turf/area';
 import { FeatureCollection } from 'geojson';
+import { uploadAreaOptions } from '@Constants/createProject';
+import { validateGeoJSON } from '@Utils/convertLayerUtils';
 import MapSection from './MapSection';
 
-export default function DefineAOI({ formProps }: { formProps: any }) {
+export default function DefineAOI({
+  formProps,
+}: {
+  formProps: UseFormPropsType;
+}) {
   const dispatch = useTypedDispatch();
 
-  const { setValue } = formProps;
+  const { setValue, control, errors } = formProps;
 
   const uploadedProjectArea = useTypedSelector(
     state => state.createproject.uploadedProjectArea,
@@ -28,7 +36,6 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
 
   const projectArea =
     uploadedProjectArea && area(uploadedProjectArea as FeatureCollection);
-
   const noFlyZoneArea =
     uploadedNoFlyZone && area(uploadedNoFlyZone as FeatureCollection);
 
@@ -43,7 +50,6 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
             setCreateProjectState({ uploadedProjectArea: convertedGeojson }),
           );
           setValue('outline_geojson', convertedGeojson);
-          trigger('outline_geojson');
         }
       });
     } catch (err: any) {
@@ -62,7 +68,7 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
           dispatch(
             setCreateProjectState({ uploadedNoFlyZone: convertedGeojson }),
           );
-          setValue('noflyzone_geojson', convertedGeojson);
+          setValue('outline_no_fly_zones', convertedGeojson);
         }
       });
     } catch (err: any) {
@@ -93,17 +99,28 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
                   <span>or</span>
                   <hr className="naxatw-w-[40%]" />
                 </FlexRow>
-                <div className="naxatw-mt-2">
-                  <FileUpload
-                    // @ts-ignore
-                    register={() => {}}
-                    setValue={() => {}}
-                    multiple={false}
-                    onChange={handleProjectAreaFileChange}
-                    fileAccept=".geojson, .kml"
-                    placeholder="Upload project area  (zipped shapefile, geojson or kml files)"
+                <FormControl className="naxatw-mt-2">
+                  <Controller
+                    control={control}
+                    name="outline_geojson"
+                    rules={{
+                      required: 'Project Area is Required',
+                    }}
+                    render={({ field: { value } }) => (
+                      <FileUpload
+                        name="outline_geojson"
+                        data={value}
+                        onChange={handleProjectAreaFileChange}
+                        fileAccept=".geojson, .kml"
+                        placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                        {...formProps}
+                      />
+                    )}
                   />
-                </div>
+                  <ErrorMessage
+                    message={errors?.outline_geojson?.message as string}
+                  />
+                </FormControl>
               </>
             ) : (
               <>
@@ -122,10 +139,6 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
                 <p className="naxatw-mt-2 naxatw-text-body-md">
                   Total Area: {Math.trunc(projectArea as number)} m2
                 </p>
-              </>
-            )}
-            {uploadedProjectArea && (
-              <>
                 <div className="naxatw-mt-2">
                   <RadioButton
                     topic="No flying zone present in project area?"
@@ -186,6 +199,22 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
                           fileAccept=".geojson, .kml"
                           placeholder="Upload project area (zipped shapefile, geojson or kml files)"
                         />
+                        <FormControl className="naxatw-mt-2">
+                          <Controller
+                            control={control}
+                            name="outline_no_fly_zones"
+                            render={({ field: { value } }) => (
+                              <FileUpload
+                                name="outline_no_fly_zones"
+                                data={value}
+                                onChange={handleNoFlyZoneFileChange}
+                                fileAccept=".geojson, .kml"
+                                placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                                {...formProps}
+                              />
+                            )}
+                          />
+                        </FormControl>
                       </>
                     )}
                   </div>
