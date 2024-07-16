@@ -59,6 +59,7 @@ const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
 export default function CreateprojectLayout() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
+
   const activeStep = useTypedSelector(state => state.createproject.activeStep);
   const splitGeojson = useTypedSelector(
     state => state.createproject.splitGeojson,
@@ -75,17 +76,44 @@ export default function CreateprojectLayout() {
     outline_no_fly_zones: null,
     gsd_cm_px: null,
     dimension: null,
-    is_terrain_follow: '',
+    is_terrain_follow: null,
     task_split_type: 1,
     per_task_instructions: '',
     deadline_at: '',
     visibility: 0,
   };
 
-  const { mutate: uploadTaskBoundary } = useMutation<any, any, any, unknown>({
+  const {
+    register,
+    setValue,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    control,
+    getValues,
+    watch,
+  } = useForm({
+    defaultValues: initialState,
+  });
+
+  const { mutate: uploadTaskBoundary, isLoading } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
     mutationFn: postTaskBoundary,
     onSuccess: () => {
       toast.success('Project Boundary Uploaded');
+      reset();
+      dispatch(
+        setCreateProjectState({
+          activeStep: 1,
+          splitGeojson: null,
+          uploadedProjectArea: null,
+          uploadedNoFlyZone: null,
+        }),
+      );
       navigate('/projects');
     },
     onError: err => {
@@ -106,19 +134,6 @@ export default function CreateprojectLayout() {
     onError: err => {
       toast.error(err.message);
     },
-  });
-
-  const {
-    register,
-    setValue,
-    handleSubmit,
-    reset,
-    formState: { errors },
-    control,
-    getValues,
-    watch,
-  } = useForm({
-    defaultValues: initialState,
   });
 
   const formProps = {
@@ -146,15 +161,6 @@ export default function CreateprojectLayout() {
       is_terrain_follow: isTerrainFollow === 'hilly',
     };
     createProject(payload);
-    reset();
-    dispatch(
-      setCreateProjectState({
-        activeStep: 1,
-        splitGeojson: null,
-        uploadedProjectArea: null,
-        uploadedNoFlyZone: null,
-      }),
-    );
   };
 
   return (
@@ -188,6 +194,8 @@ export default function CreateprojectLayout() {
               type="submit"
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
+              withLoader
+              isLoading={isLoading}
             >
               {activeStep === 5 ? 'Save' : 'Next'}
             </Button>

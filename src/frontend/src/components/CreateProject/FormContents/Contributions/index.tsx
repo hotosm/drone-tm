@@ -15,6 +15,7 @@ export default function Conditions({
   const dispatch = useTypedDispatch();
 
   const { register, errors } = formProps;
+
   const contributionsOption = useTypedSelector(
     state => state.createproject.contributionsOption,
   );
@@ -43,13 +44,17 @@ export default function Conditions({
         value={contributionsOption}
       />
       <FormControl className="naxatw-gap-1">
-        <Label>Deadline for Submission</Label>
-        <Input
-          placeholder="Enter Deadline in meter"
-          {...register('deadline_at', {
-            required: 'Deadline is required',
-          })}
-        />
+        <div className="naxatw-w-full">
+          <Label>Deadline for Submission</Label>
+          <Input
+            placeholder="Deadline for Submission"
+            type="date"
+            className="naxatw-mt-1"
+            {...register('deadline_at', {
+              required: 'Deadline forRequired',
+            })}
+          />
+        </div>
         <ErrorMessage message={errors?.deadline_at?.message as string} />
       </FormControl>
     </FlexColumn>

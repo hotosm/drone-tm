@@ -190,15 +190,6 @@ export default function DefineAOI({
                           <span>or</span>
                           <hr className="naxatw-w-[40%]" />
                         </FlexRow>
-                        <FileUpload
-                          // @ts-ignore
-                          register={() => {}}
-                          setValue={() => {}}
-                          multiple={false}
-                          onChange={handleNoFlyZoneFileChange}
-                          fileAccept=".geojson, .kml"
-                          placeholder="Upload project area (zipped shapefile, geojson or kml files)"
-                        />
                         <FormControl className="naxatw-mt-2">
                           <Controller
                             control={control}
