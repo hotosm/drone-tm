@@ -1,13 +1,7 @@
-import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
-import { FlexRow } from '@Components/common/Layouts';
-import {
-  StepComponentMap,
-  stepDescriptionComponents,
-} from '@Constants/createProject';
-import { Button } from '@Components/RadixComponents/Button';
-import { setCreateProjectState } from '@Store/actions/createproject';
+import { useMutation } from '@tanstack/react-query';
+import { FieldValues, useForm } from 'react-hook-form';
 import {
   BasicInformationForm,
   DefineAOIForm,
@@ -15,9 +9,16 @@ import {
   ContributionsForm,
   GenerateTaskForm,
 } from '@Components/CreateProject/FormContents';
+import { UseFormPropsType } from '@Components/common/FormUI/types';
+import { FlexRow } from '@Components/common/Layouts';
+import { Button } from '@Components/RadixComponents/Button';
+import { setCreateProjectState } from '@Store/actions/createproject';
 import { postCreateProject, postTaskBoundary } from '@Services/createproject';
-import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import {
+  StepComponentMap,
+  stepDescriptionComponents,
+} from '@Constants/createProject';
 import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
 import prepareFormData from '@Utils/prepareFormData';
 
@@ -38,7 +39,7 @@ const getActiveStepDescription = (
   return Component ? <Component /> : <></>;
 };
 
-const getActiveStepForm = (activeStep: number, formProps: any) => {
+const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
   switch (activeStep) {
     case 1:
       return <BasicInformationForm formProps={formProps} />;
@@ -47,9 +48,9 @@ const getActiveStepForm = (activeStep: number, formProps: any) => {
     case 3:
       return <KeyParametersForm formProps={formProps} />;
     case 4:
-      return <ContributionsForm formProps={formProps} />;
-    case 5:
       return <GenerateTaskForm formProps={formProps} />;
+    case 5:
+      return <ContributionsForm formProps={formProps} />;
     default:
       return <></>;
   }
@@ -58,23 +59,61 @@ const getActiveStepForm = (activeStep: number, formProps: any) => {
 export default function CreateprojectLayout() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
+
   const activeStep = useTypedSelector(state => state.createproject.activeStep);
   const splitGeojson = useTypedSelector(
     state => state.createproject.splitGeojson,
   );
+  const isTerrainFollow = useTypedSelector(
+    state => state.createproject.isTerrainFollow,
+  );
 
-  const initialState = {
+  const initialState: FieldValues = {
     name: '',
     short_description: '',
     description: '',
-    organisation_id: 1,
-    outline_geojson: {},
+    outline_geojson: null,
+    outline_no_fly_zones: null,
+    gsd_cm_px: null,
+    dimension: null,
+    is_terrain_follow: null,
+    task_split_type: 1,
+    per_task_instructions: '',
+    deadline_at: '',
+    visibility: 0,
   };
 
-  const { mutate: uploadTaskBoundary } = useMutation<any, any, any, unknown>({
+  const {
+    register,
+    setValue,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    control,
+    getValues,
+    watch,
+  } = useForm({
+    defaultValues: initialState,
+  });
+
+  const { mutate: uploadTaskBoundary, isLoading } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
     mutationFn: postTaskBoundary,
     onSuccess: () => {
       toast.success('Project Boundary Uploaded');
+      reset();
+      dispatch(
+        setCreateProjectState({
+          activeStep: 1,
+          splitGeojson: null,
+          uploadedProjectArea: null,
+          uploadedNoFlyZone: null,
+        }),
+      );
       navigate('/projects');
     },
     onError: err => {
@@ -86,40 +125,42 @@ export default function CreateprojectLayout() {
     mutationFn: postCreateProject,
     onSuccess: (res: any) => {
       toast.success('Project Created Successfully');
-      dispatch(setCreateProjectState({ projectId: res.data.id }));
+      dispatch(setCreateProjectState({ projectId: res.data.project_id }));
       if (!splitGeojson) return;
       const geojson = convertGeojsonToFile(splitGeojson);
       const formData = prepareFormData({ task_geojson: geojson });
-      uploadTaskBoundary({ id: res.data.id, data: formData });
+      uploadTaskBoundary({ id: res.data.project_id, data: formData });
     },
     onError: err => {
       toast.error(err.message);
     },
   });
 
-  const onSubmit = (data: any) => {
-    if (activeStep < 5) return;
-    createProject(data);
-    reset();
-  };
-
-  const { register, setValue, handleSubmit, reset } = useForm({
-    defaultValues: initialState,
-  });
-
   const formProps = {
     register,
     setValue,
+    reset,
+    errors,
+    control,
+    getValues,
+    watch,
   };
 
   const onPrevBtnClick = () => {
     dispatch(setCreateProjectState({ activeStep: activeStep - 1 }));
   };
 
-  const onNextBtnClick = () => {
-    handleSubmit(onSubmit)();
-    if (activeStep === 5) return;
-    dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
+  const onSubmit = (data: any) => {
+    if (activeStep === 4 && !splitGeojson) return;
+    if (activeStep !== 5) {
+      dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
+      return;
+    }
+    const payload = {
+      ...data,
+      is_terrain_follow: isTerrainFollow === 'hilly',
+    };
+    createProject(payload);
   };
 
   return (
@@ -146,10 +187,15 @@ export default function CreateprojectLayout() {
               <div />
             )}
             <Button
-              onClick={onNextBtnClick}
+              onClick={e => {
+                e.preventDefault();
+                handleSubmit(onSubmit)();
+              }}
               type="submit"
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
+              withLoader
+              isLoading={isLoading}
             >
               {activeStep === 5 ? 'Save' : 'Next'}
             </Button>

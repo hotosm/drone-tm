@@ -46,26 +46,26 @@ export const stepSwticherData = [
     url: '/',
     step: 4,
     label: '04',
-    name: 'Conditions for contributions',
+    name: 'Generate Task',
   },
   {
     url: '/',
     step: 5,
     label: '05',
-    name: 'Generate Task',
+    name: 'Conditions for contributions',
   },
 ];
 
 export const uploadAreaOptions = [
   {
-    name: 'upload_area',
-    value: 'draw',
-    label: 'Draw',
+    name: 'Yes',
+    value: 'yes',
+    label: 'Yes',
   },
   {
-    name: 'upload_area',
-    value: 'upload_file',
-    label: 'Upload File',
+    name: 'No',
+    value: 'no',
+    label: 'No',
   },
 ];
 
@@ -79,6 +79,19 @@ export const KeyParametersOptions = [
     name: 'advanced',
     value: 'advanced',
     label: 'Advanced',
+  },
+];
+
+export const terrainOptions = [
+  {
+    name: 'Flat',
+    value: 'flat',
+    label: 'Flat',
+  },
+  {
+    name: 'hilly',
+    value: 'hilly',
+    label: 'Hilly',
   },
 ];
 

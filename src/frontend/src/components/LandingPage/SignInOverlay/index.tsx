@@ -1,6 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { useTypedDispatch } from '@Store/hooks';
 import useAuth from '@Hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import Image from '@Components/RadixComponents/Image';

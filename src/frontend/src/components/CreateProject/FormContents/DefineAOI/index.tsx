@@ -1,26 +1,45 @@
-import { useEffect } from 'react';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import { FlexColumn } from '@Components/common/Layouts';
+import { Controller } from 'react-hook-form';
+import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
+import { UseFormPropsType } from '@Components/common/FormUI/types';
+import { FormControl } from '@Components/common/FormUI';
+import { Button } from '@Components/RadixComponents/Button';
 import RadioButton from '@Components/common/RadioButton';
-import { uploadAreaOptions } from '@Constants/createProject';
+import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import FileUpload from '@Components/common/UploadArea';
-import { validateGeoJSON } from '@Utils/convertLayerUtils';
+import { setCreateProjectState } from '@Store/actions/createproject';
 import flatten from '@turf/flatten';
+import area from '@turf/area';
+import { FeatureCollection } from 'geojson';
+import { uploadAreaOptions } from '@Constants/createProject';
+import { validateGeoJSON } from '@Utils/convertLayerUtils';
 import MapSection from './MapSection';
 
-export default function DefineAOI({ formProps }: { formProps: any }) {
+export default function DefineAOI({
+  formProps,
+}: {
+  formProps: UseFormPropsType;
+}) {
   const dispatch = useTypedDispatch();
-  const { setValue } = formProps;
 
-  const uploadedGeojson = useTypedSelector(
-    state => state.createproject.uploadedGeojson,
+  const { setValue, control, errors } = formProps;
+
+  const uploadedProjectArea = useTypedSelector(
+    state => state.createproject.uploadedProjectArea,
   );
-  const uploadAreaOption = useTypedSelector(
-    state => state.createproject.uploadAreaOption,
+  const uploadedNoFlyZone = useTypedSelector(
+    state => state.createproject.uploadedNoFlyZone,
+  );
+  const isNoflyzonePresent = useTypedSelector(
+    state => state.createproject.isNoflyzonePresent,
   );
 
-  const handleFileChange = (file: Record<string, any>[]) => {
+  const projectArea =
+    uploadedProjectArea && area(uploadedProjectArea as FeatureCollection);
+  const noFlyZoneArea =
+    uploadedNoFlyZone && area(uploadedNoFlyZone as FeatureCollection);
+
+  const handleProjectAreaFileChange = (file: Record<string, any>[]) => {
     if (!file) return;
     const geojson = validateGeoJSON(file[0]?.file);
     try {
@@ -28,8 +47,9 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
         if (typeof z === 'object' && !Array.isArray(z) && z !== null) {
           const convertedGeojson = flatten(z);
           dispatch(
-            setCreateProjectState({ uploadedGeojson: convertedGeojson }),
+            setCreateProjectState({ uploadedProjectArea: convertedGeojson }),
           );
+          setValue('outline_geojson', convertedGeojson);
         }
       });
     } catch (err: any) {
@@ -38,46 +58,159 @@ export default function DefineAOI({ formProps }: { formProps: any }) {
     }
   };
 
-  useEffect(() => {
-    if (!uploadedGeojson) return;
-    setValue('outline_geojson', uploadedGeojson);
-  }, [uploadedGeojson]);
+  const handleNoFlyZoneFileChange = (file: Record<string, any>[]) => {
+    if (!file) return;
+    const geojson = validateGeoJSON(file[0]?.file);
+    try {
+      geojson.then(z => {
+        if (typeof z === 'object' && !Array.isArray(z) && z !== null) {
+          const convertedGeojson = flatten(z);
+          dispatch(
+            setCreateProjectState({ uploadedNoFlyZone: convertedGeojson }),
+          );
+          setValue('outline_no_fly_zones', convertedGeojson);
+        }
+      });
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.log(err);
+    }
+  };
 
   return (
     <FlexColumn>
       <div className="naxatw-bg-white">
         <div className="naxatw-grid naxatw-grid-cols-3">
           <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
-            <RadioButton
-              topic="Select one of the option to upload area"
-              options={uploadAreaOptions}
-              direction="column"
-              onChangeData={(val: 'draw' | 'upload_file') => {
-                dispatch(setCreateProjectState({ uploadAreaOption: val }));
-                dispatch(
-                  setCreateProjectState({
-                    measureType: val === 'draw' ? 'area' : null,
-                  }),
-                );
-              }}
-              value={uploadAreaOption}
-            />
-            {uploadAreaOption === 'upload_file' ? (
-              <div className="naxatw-mt-2">
-                <FileUpload
-                  // @ts-ignore
-                  register={() => {}}
-                  setValue={() => {}}
-                  multiple={false}
-                  onChange={handleFileChange}
-                  fileAccept=".geojson, .kml"
-                  placeholder="*The supported file formats are zipped shapefile, geojson or kml files."
-                />
-              </div>
+            <p className="naxatw-text-body-btn">Project Area</p>
+            {!uploadedProjectArea ? (
+              <>
+                <Button
+                  className="naxatw-mt-2 naxatw-bg-red naxatw-text-white"
+                  rightIcon="draw"
+                >
+                  Draw Project Area
+                </Button>
+                <FlexRow
+                  className="naxatw-mt-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
+                  gap={3}
+                >
+                  <hr className="naxatw-w-[40%]" />
+                  <span>or</span>
+                  <hr className="naxatw-w-[40%]" />
+                </FlexRow>
+                <FormControl className="naxatw-mt-2">
+                  <Controller
+                    control={control}
+                    name="outline_geojson"
+                    rules={{
+                      required: 'Project Area is Required',
+                    }}
+                    render={({ field: { value } }) => (
+                      <FileUpload
+                        name="outline_geojson"
+                        data={value}
+                        onChange={handleProjectAreaFileChange}
+                        fileAccept=".geojson, .kml"
+                        placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                        {...formProps}
+                      />
+                    )}
+                  />
+                  <ErrorMessage
+                    message={errors?.outline_geojson?.message as string}
+                  />
+                </FormControl>
+              </>
             ) : (
-              <p className="naxatw-mt-4 naxatw-text-body-btn naxatw-text-red">
-                Note: Start Drawing on the Map
-              </p>
+              <>
+                <Button
+                  variant="ghost"
+                  className="naxatw-mt-2 naxatw-border naxatw-border-red naxatw-text-red"
+                  rightIcon="restart_alt"
+                  onClick={() => {
+                    dispatch(
+                      setCreateProjectState({ uploadedProjectArea: null }),
+                    );
+                  }}
+                >
+                  Reset Project Area
+                </Button>
+                <p className="naxatw-mt-2 naxatw-text-body-md">
+                  Total Area: {Math.trunc(projectArea as number)} m2
+                </p>
+                <div className="naxatw-mt-2">
+                  <RadioButton
+                    topic="No flying zone present in project area?"
+                    options={uploadAreaOptions}
+                    direction="column"
+                    onChangeData={(val: 'yes' | 'no') => {
+                      dispatch(
+                        setCreateProjectState({ isNoflyzonePresent: val }),
+                      );
+                    }}
+                    value={isNoflyzonePresent}
+                  />
+                </div>
+                {isNoflyzonePresent === 'yes' && (
+                  <div className="naxatw-mt-2">
+                    {uploadedNoFlyZone ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          className="naxatw-mb-2 naxatw-border naxatw-border-red naxatw-text-red"
+                          rightIcon="restart_alt"
+                          onClick={() =>
+                            dispatch(
+                              setCreateProjectState({
+                                uploadedNoFlyZone: null,
+                              }),
+                            )
+                          }
+                        >
+                          Reset No Fly Zone
+                        </Button>
+                        <p className="naxatw-mt-2 naxatw-text-body-md">
+                          Total Area: {Math.trunc(noFlyZoneArea as number)} m2
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          className="naxatw-mb-2 naxatw-bg-red naxatw-text-white"
+                          rightIcon="draw"
+                        >
+                          Draw No Fly Zone
+                        </Button>
+                        <FlexRow
+                          className="naxatw-my-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
+                          gap={3}
+                        >
+                          <hr className="naxatw-w-[40%]" />
+                          <span>or</span>
+                          <hr className="naxatw-w-[40%]" />
+                        </FlexRow>
+                        <FormControl className="naxatw-mt-2">
+                          <Controller
+                            control={control}
+                            name="outline_no_fly_zones"
+                            render={({ field: { value } }) => (
+                              <FileUpload
+                                name="outline_no_fly_zones"
+                                data={value}
+                                onChange={handleNoFlyZoneFileChange}
+                                fileAccept=".geojson, .kml"
+                                placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                                {...formProps}
+                              />
+                            )}
+                          />
+                        </FormControl>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="naxatw-col-span-2 naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6]">

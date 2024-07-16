@@ -1,18 +1,15 @@
-import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
+import { useEffect } from 'react';
+import { useTypedSelector } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import MeasureTool from '@Components/common/MapLibreComponents/MeasureTool';
-import { setCreateProjectState } from '@Store/actions/createproject';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import getBbox from '@turf/bbox';
-import { useEffect } from 'react';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
+import getBbox from '@turf/bbox';
 
 export default function MapSection() {
-  const dispatch = useTypedDispatch();
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
       zoom: 5,
@@ -22,18 +19,18 @@ export default function MapSection() {
     disableRotation: true,
   });
 
-  const uploadedGeojson = useTypedSelector(
-    state => state.createproject.uploadedGeojson,
+  const uploadedProjectArea = useTypedSelector(
+    state => state.createproject.uploadedProjectArea,
   );
-  const measureType = useTypedSelector(
-    state => state.createproject.measureType,
+  const uploadedNoFlyZone = useTypedSelector(
+    state => state.createproject.uploadedNoFlyZone,
   );
 
   useEffect(() => {
-    if (!uploadedGeojson) return;
-    const bbox = getBbox(uploadedGeojson as FeatureCollection);
+    if (!uploadedProjectArea) return;
+    const bbox = getBbox(uploadedProjectArea as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [map, uploadedGeojson]);
+  }, [map, uploadedProjectArea]);
 
   return (
     <MapContainer
@@ -47,15 +44,31 @@ export default function MapSection() {
       <VectorLayer
         map={map as Map}
         isMapLoaded={isMapLoaded}
-        id="uploaded-area"
-        geojson={uploadedGeojson as GeojsonType}
-        visibleOnMap={!!uploadedGeojson}
+        id="uploaded-project-area"
+        geojson={uploadedProjectArea as GeojsonType}
+        visibleOnMap={!!uploadedProjectArea}
+        layerOptions={{
+          type: 'fill',
+          paint: {
+            'fill-color': '#328ffd',
+            'fill-outline-color': '#D33A38',
+            'fill-opacity': 0.2,
+          },
+        }}
       />
-      <MeasureTool
-        enable={!!measureType}
-        measureType={measureType}
-        onDrawComplete={geojson => {
-          dispatch(setCreateProjectState({ uploadedGeojson: geojson }));
+      <VectorLayer
+        map={map as Map}
+        isMapLoaded={isMapLoaded}
+        id="uploaded-no-fly-zone"
+        geojson={uploadedNoFlyZone as GeojsonType}
+        visibleOnMap={!!uploadedNoFlyZone}
+        layerOptions={{
+          type: 'fill',
+          paint: {
+            'fill-color': '#404040',
+            'fill-outline-color': '#D33A38',
+            'fill-opacity': 0.5,
+          },
         }}
       />
       <BaseLayerSwitcher />

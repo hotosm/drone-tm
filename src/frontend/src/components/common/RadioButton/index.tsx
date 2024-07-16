@@ -33,7 +33,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
   <div>
     {topic && (
       <div>
-        <p className="naxatw-mb-2 naxatw-text-base naxatw-font-[600]">
+        <p className="naxatw-mb-2 naxatw-text-body-btn naxatw-font-[600]">
           {topic} {required && <span className="naxatw-text-red">*</span>}
         </p>
       </div>
@@ -69,7 +69,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
             />
             <label
               htmlFor={option.value}
-              className={`naxatw-mb-[2px] naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-bg-white naxatw-text-base naxatw-text-gray-500 ${className}`}
+              className={`naxatw-mb-[2px] naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-bg-white naxatw-text-sm naxatw-text-gray-500 ${className}`}
             >
               <p
                 className={`${

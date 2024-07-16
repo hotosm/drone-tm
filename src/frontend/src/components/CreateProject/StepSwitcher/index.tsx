@@ -71,7 +71,7 @@ export default function StepSwitcher({
                   </div>
                   {data?.length > index && (
                     <div
-                      className={`naxatw-mx-4 naxatw-w-[6rem] naxatw-border-t-[3px] xl:naxatw-w-[10rem] 2xl:naxatw-w-[12rem] ${
+                      className={`naxatw-mx-4 naxatw-w-[6rem] naxatw-border-t-[3px] xl:naxatw-w-[9rem] 2xl:naxatw-w-[12rem] ${
                         activeStep - 1 >= index
                           ? 'naxatw-border-solid naxatw-border-red'
                           : 'naxatw-border-dashed'
