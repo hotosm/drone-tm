@@ -1,10 +1,10 @@
 /* eslint-disable import/prefer-default-export */
 import { authenticated, api } from '.';
 
-export const getProjectsList = (id?: number) => {
-  const endpoint = `/projects${id ? `/${id}` : '/'}`;
-  return authenticated(api).get(endpoint);
-};
+export const getProjectsList = () => authenticated(api).get('/projects/');
+
+export const getProjectDetail = (id: string) =>
+  authenticated(api).get(`/projects/${id}`);
 
 export const postCreateProject = (data: any) =>
   authenticated(api).post('/projects/create_project', data, {
