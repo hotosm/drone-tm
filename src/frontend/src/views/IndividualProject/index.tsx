@@ -31,7 +31,15 @@ export default function IndividualProject() {
     state => state.project.individualProjectActiveTab,
   );
 
-  const { data: projectData } = useGetProjectsDetailQuery(id as string);
+  const { data: projectData } = useGetProjectsDetailQuery(id as string, {
+    onSuccess: (res: any) =>
+      dispatch(
+        setProjectState({
+          tasksGeojson: res.tasks,
+          projectArea: res.outline_geojson,
+        }),
+      ),
+  });
 
   return (
     <section className="individual project naxatw-h-screen-nav naxatw-px-16 naxatw-py-8 xl:naxatw-px-20">
@@ -72,7 +80,7 @@ export default function IndividualProject() {
           </div>
         </div>
         <div className="naxatw-h-[36.375rem] naxatw-w-[62.5%] naxatw-overflow-hidden naxatw-rounded-md">
-          <MapSection data={projectData || {}} />
+          <MapSection />
         </div>
       </Flex>
     </section>

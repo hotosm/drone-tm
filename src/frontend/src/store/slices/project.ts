@@ -4,10 +4,14 @@ import persist from '@Store/persist';
 
 export interface ProjectState {
   individualProjectActiveTab: string;
+  tasksGeojson: Record<string, any>[] | null;
+  projectArea: Record<string, any> | null;
 }
 
 const initialState: ProjectState = {
   individualProjectActiveTab: 'tasks',
+  tasksGeojson: null,
+  projectArea: null,
 };
 
 const setProjectState: CaseReducer<
