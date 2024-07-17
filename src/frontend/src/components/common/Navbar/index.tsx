@@ -1,12 +1,13 @@
 import Image from '@Components/RadixComponents/Image';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import dtmLogo from '@Assets/images/LandingPage/DTM-logo-red.svg';
-import { navLinks } from '@Constants/index';
 import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
 import Icon from '../Icon';
 
 export default function Navbar() {
+  const { pathname } = useLocation();
+
   return (
     <nav className="naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
       <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-px-16">
@@ -16,21 +17,30 @@ export default function Navbar() {
           className="naxatw-h-8 naxatw-w-40"
         />
         <FlexRow className="naxatw-gap-4">
-          {navLinks.map(({ id, link, linkName }) => (
-            <NavLink
-              key={id}
-              to={link}
-              className={({ isActive }) =>
-                `${
-                  isActive
-                    ? 'naxatw-border-b-2 naxatw-border-red'
-                    : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
-                } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
-              }
-            >
-              {linkName}
-            </NavLink>
-          ))}
+          <NavLink
+            to="/projects"
+            className={({ isActive }) =>
+              `${
+                isActive || pathname.includes('project')
+                  ? 'naxatw-border-b-2 naxatw-border-red'
+                  : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
+              } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
+            }
+          >
+            Projects
+          </NavLink>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `${
+                isActive
+                  ? 'naxatw-border-b-2 naxatw-border-red'
+                  : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
+              } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
+            }
+          >
+            Dashboard
+          </NavLink>
         </FlexRow>
         <FlexRow className="naxatw-items-center" gap={2}>
           <Icon name="notifications" />
