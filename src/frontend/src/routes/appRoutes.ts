@@ -5,7 +5,7 @@ import CreateProject from '@Components/CreateProject';
 import GoogleAuth from '@Components/GoogleAuth';
 import userRoutes from '@UserModule/routes';
 import LandingPage from '@Views/LandingPage';
-import IndividualProject from '@Components/IndividualProject';
+import IndividualProject from '@Views/IndividualProject';
 import { IRoute } from './types';
 
 const appRoutes: IRoute[] = [
