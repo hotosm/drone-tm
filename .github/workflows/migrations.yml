@@ -37,4 +37,4 @@ jobs:
         shell: bash
         run: |
           TASK_ID=`aws ecs list-tasks --cluster ${{ secrets.ECS_CLUSTER_NAME }} --service ${{ secrets.ECS_SERVICE_NAME }} | jq -r .taskArns[0]`
-          aws ecs execute-command --cluster dtm-ecs-cluster --task $TASK_ID --region ${{env.AWS_REGION}} --interactive --command "/bin/bash -c 'pdm run alembic upgrade head'"
+          aws ecs execute-command --cluster ${{ secrets.ECS_CLUSTER_NAME }} --task $TASK_ID --region ${{env.AWS_REGION}} --interactive --command "/bin/bash -c 'pdm run alembic upgrade head'"

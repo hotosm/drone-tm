@@ -4,8 +4,8 @@
 [metadata]
 groups = ["default"]
 strategy = ["cross_platform", "inherit_metadata"]
-lock_version = "4.4.1"
-content_hash = "sha256:290d9c3f29acfe809ff147f097a4a0ddd95fd5ca93cdd7f1509537775cd02541"
+lock_version = "4.4.2"
+content_hash = "sha256:1c8fe05d30976d92fb421238dddbe87fffb2adf94b4c54df2e1500c4fd84873a"
 
 [[package]]
 name = "alembic"
@@ -523,6 +523,16 @@ dependencies = [
 files = [
     {file = "fmtm-splitter-1.2.2.tar.gz", hash = "sha256:9384dbf00c0e53e24e1f13046ae6693e13567ff3dc0f59f29f4a96ac4a54105e"},
     {file = "fmtm_splitter-1.2.2-py3-none-any.whl", hash = "sha256:bbef78cf0e1f2b67f8c8aeaadb7fd2927bfd333d216927059a12abbbb04a5742"},
+]
+
+[[package]]
+name = "gdal"
+version = "3.6.2"
+requires_python = ">=3.6.0"
+summary = "GDAL: Geospatial Data Abstraction Library"
+groups = ["default"]
+files = [
+    {file = "GDAL-3.6.2.tar.gz", hash = "sha256:a167cde1813707d91a938dad1a22f280f5ad28c45980d42e948fb8c59f890f5a"},
 ]
 
 [[package]]
