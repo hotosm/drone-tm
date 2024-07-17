@@ -1,13 +1,14 @@
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import { useEffect } from 'react';
-import { LngLatBoundsLike } from 'maplibre-gl';
-import { FeatureCollection } from 'geojson';
+import { useTypedSelector } from '@Store/hooks';
+import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
+import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
+import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
+import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import getBbox from '@turf/bbox';
+import { FeatureCollection } from 'geojson';
 
-export default function MapSection({ data }: { data: any }) {
+export default function MapSection() {
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
       zoom: 5,
@@ -17,11 +18,14 @@ export default function MapSection({ data }: { data: any }) {
     disableRotation: true,
   });
 
+  const tasksGeojson = useTypedSelector(state => state.project.tasksGeojson);
+  const projectArea = useTypedSelector(state => state.project.projectArea);
+
   useEffect(() => {
-    if (!data?.outline_geojson) return;
-    const bbox = getBbox(data?.outline_geojson as FeatureCollection);
+    if (!projectArea) return;
+    const bbox = getBbox(projectArea as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [data?.outline_geojson, map]);
+  }, [map, projectArea]);
 
   return (
     <MapContainer
@@ -32,20 +36,23 @@ export default function MapSection({ data }: { data: any }) {
         height: '582px',
       }}
     >
-      {data?.outline_geojson && (
+      {tasksGeojson?.map(singleTask => (
         <VectorLayer
-          id="outline-layer"
-          geojson={data.outline_geojson}
-          style={{
+          map={map as Map}
+          key={singleTask.id}
+          id={singleTask.id}
+          visibleOnMap={!!singleTask?.outline_geojson}
+          geojson={singleTask?.outline_geojson}
+          layerOptions={{
             type: 'fill',
             paint: {
               'fill-color': '#328ffd',
-              'fill-outline-color': '#D33A38',
-              'fill-opacity': 0.2,
+              'fill-outline-color': '#484848',
+              'fill-opacity': 0.5,
             },
           }}
         />
-      )}
+      ))}
       <BaseLayerSwitcher />
     </MapContainer>
   );
