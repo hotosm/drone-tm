@@ -1,6 +1,6 @@
 import Image from '@Components/RadixComponents/Image';
 import { NavLink, useLocation } from 'react-router-dom';
-import dtmLogo from '@Assets/images/LandingPage/DTM-logo-red.svg';
+import dtmLogo from '@Assets/images/DTM-logo-black.svg';
 import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
 import Icon from '../Icon';
