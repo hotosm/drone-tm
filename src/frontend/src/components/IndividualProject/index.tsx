@@ -1,10 +1,6 @@
-import { useParams } from 'react-router-dom';
+import MapSection from './MapSection';
+import Tasks from './Tasks';
+import Instructions from './Instructions';
+import Contributions from './Contributions';
 
-export default function IndividualProject() {
-  const { id } = useParams();
-  return (
-    <section>
-      <h4>This is {id} project section</h4>
-    </section>
-  );
-}
+export { MapSection, Tasks, Instructions, Contributions };

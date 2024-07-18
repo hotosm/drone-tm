@@ -6,21 +6,27 @@ import React, { useState, useEffect, act } from 'react';
 interface ITabOptions {
   id: number;
   label: string;
-  value: number;
+  value: number | string;
 }
 
 interface TabProps {
   tabOptions: ITabOptions[];
-  onTabChange: (index: number) => void;
-  activeTab?: number;
+  className?: string;
+  activeClassName?: string;
+  onTabChange: (index: number | string) => void;
+  activeTab?: number | string;
   clickable?: boolean;
+  orientation: 'row' | 'column';
 }
 
 const Tab: React.FC<TabProps> = ({
   tabOptions,
+  className,
+  activeClassName,
   onTabChange,
   activeTab,
   clickable = false,
+  orientation = 'column',
 }) => {
   const [activeTabx, setActiveTab] = useState(activeTab);
 
@@ -28,23 +34,23 @@ const Tab: React.FC<TabProps> = ({
     setActiveTab(activeTab);
   }, [activeTab]);
 
-  const handleTabClick = (index: number) => {
+  const handleTabClick = (index: number | string) => {
     if (!clickable) return;
     setActiveTab(index);
     onTabChange(index);
   };
 
   return (
-    <div>
+    <div className={`${orientation === 'column' ? '' : 'naxatw-flex'}`}>
       {tabOptions.map(tab => (
         <div
           key={tab.id}
-          className={`naxatw-cursor-pointer hover:naxatw-bg-red hover:naxatw-bg-opacity-10 ${
-            activeTabx === tab.id
-              ? 'naxatw-bg-red naxatw-bg-opacity-10 naxatw-text-red'
+          className={`${className} naxatw-cursor-pointer hover:naxatw-bg-red hover:naxatw-bg-opacity-10 ${
+            activeTabx === tab.value
+              ? `${activeClassName} naxatw-bg-red naxatw-bg-opacity-10 naxatw-text-red`
               : ''
           }`}
-          onClick={() => handleTabClick(tab.id)}
+          onClick={() => handleTabClick(tab.value)}
         >
           <p className="naxatw-px-5 naxatw-py-3 naxatw-text-body-lg">
             {tab.label}

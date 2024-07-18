@@ -30,6 +30,24 @@ export const tabOptions = [
   },
 ];
 
+export const projectOptions = [
+  {
+    id: 1,
+    label: 'TASKS',
+    value: 'tasks',
+  },
+  {
+    id: 2,
+    label: 'INSTRUCTIONS',
+    value: 'instructions',
+  },
+  {
+    id: 3,
+    label: 'CONTRIBUTIONS',
+    value: 'contributions',
+  },
+];
+
 export const droneOperatorOptions = [
   {
     name: 'Yes',

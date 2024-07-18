@@ -20,7 +20,7 @@ import { postUserProfile } from '@Services/common';
 import { toast } from 'react-toastify';
 import { removeKeysFromObject } from '@Utils/index';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import Tab from './UserProfileTabs';
+import Tab from '@Components/common/Tabs';
 
 const getActiveFormContent = (
   activeTab: number,
@@ -126,6 +126,7 @@ export default function UserProfile() {
         <div className="naxatw-grid naxatw-h-[38rem] naxatw-grid-cols-3 naxatw-gap-14 naxatw-bg-white naxatw-py-5">
           <div className="naxatw-col-span-1">
             <Tab
+              orientation="column"
               onTabChange={() => {}}
               tabOptions={tabOptions}
               activeTab={userProfileActiveTab}
