@@ -1,8 +1,8 @@
 import uuid
-from pydantic import BaseModel, computed_field, Field
+from pydantic import BaseModel, computed_field, Field, validator
 from typing import Any, Optional, Union
 from geojson_pydantic import Feature, FeatureCollection, Polygon
-from app.models.enums import ProjectVisibility
+from app.models.enums import ProjectVisibility, State
 from shapely import wkb
 from datetime import date
 
@@ -21,7 +21,6 @@ class ProjectInfo(BaseModel):
 
     id: int
     name: str
-    short_description: str
     description: str
     per_task_instructions: Optional[str] = None
 
@@ -30,7 +29,6 @@ class ProjectIn(BaseModel):
     """Upload new project."""
 
     name: str
-    short_description: str
     description: str
     per_task_instructions: Optional[str] = None
     task_split_dimension: Optional[int] = None
@@ -80,6 +78,17 @@ class TaskOut(BaseModel):
     id: uuid.UUID
     project_task_index: int
     outline: Any = Field(exclude=True)
+    state: Optional[State] = None
+    contributor: Optional[str] = None
+
+    @validator("state", pre=True, always=True)
+    def validate_state(cls, v):
+        if isinstance(v, str):
+            try:
+                v = State[v]
+            except KeyError:
+                raise ValueError(f"Invalid state: {v}")
+        return v
 
     @computed_field
     @property
@@ -98,12 +107,11 @@ class ProjectOut(BaseModel):
 
     id: uuid.UUID
     name: str
-    short_description: str
     description: str
     per_task_instructions: Optional[str] = None
     outline: Any = Field(exclude=True)
-    tasks: list[TaskOut] = []
     task_count: int = None
+    tasks: list[TaskOut] = []
 
     @computed_field
     @property
