@@ -20,12 +20,11 @@ async def create_project_with_project_info(
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, created_at)
+            id, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, created_at)
         VALUES (
             :id,
             :author_id,
             :name,
-            :short_description,
             :description,
             :per_task_instructions,
             :status,
@@ -49,7 +48,6 @@ async def create_project_with_project_info(
                 "id": _id,
                 "author_id": author_id,
                 "name": project_metadata.name,
-                "short_description": project_metadata.short_description,
                 "description": project_metadata.description,
                 "per_task_instructions": project_metadata.per_task_instructions,
                 "status": ProjectStatus.DRAFT.name,
@@ -79,7 +77,6 @@ async def get_project_by_id(
     SELECT
         projects.id,
         projects.name,
-        projects.short_description,
         projects.description,
         projects.per_task_instructions,
         projects.outline
@@ -89,7 +86,20 @@ async def get_project_by_id(
     """
 
     project_record = await db.fetch_one(raw_sql, {"author_id": author_id})
-    query = """ SELECT id, project_task_index, outline FROM tasks WHERE project_id = :project_id;"""
+    query = """
+    SELECT
+        tasks.id As id,
+        tasks.project_task_index AS project_task_index,
+        tasks.outline AS outline,
+        task_events.state AS state,
+        users.name AS contributor
+
+    FROM tasks
+    LEFT JOIN task_events ON tasks.id = task_events.task_id
+    LEFT JOIN users ON task_events.user_id = users.id
+    WHERE tasks.project_id = :project_id;
+    """
+
     task_records = await db.fetch_all(query, {"project_id": project_id})
     project_record.tasks = task_records
     project_record.task_count = len(task_records)
@@ -103,9 +113,9 @@ async def get_projects(
 ):
     """Get all projects."""
     raw_sql = """
-        SELECT id, name, short_description, description, per_task_instructions, outline
+        SELECT id, name, description, per_task_instructions, outline
         FROM projects
-        ORDER BY created DESC
+        ORDER BY created_at DESC
         OFFSET :skip
         LIMIT :limit;
         """
