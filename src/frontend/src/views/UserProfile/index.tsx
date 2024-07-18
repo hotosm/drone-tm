@@ -19,6 +19,7 @@ import { useMutation } from '@tanstack/react-query';
 import { postUserProfile } from '@Services/common';
 import { toast } from 'react-toastify';
 import { removeKeysFromObject } from '@Utils/index';
+import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import Tab from './UserProfileTabs';
 
 const getActiveFormContent = (
@@ -54,8 +55,7 @@ export default function UserProfile() {
     state => state.common.userProfileActiveTab,
   );
 
-  const userProfileString = localStorage.getItem('userprofile');
-  const userProfile = userProfileString && JSON.parse(userProfileString);
+  const userProfile = getLocalStorageValue('userprofile');
 
   const initialState = {
     name: '',

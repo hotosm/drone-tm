@@ -3,9 +3,12 @@ import { FormControl, Select, Input, Label } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { countriesWithPhoneCodes } from '@Constants/countryCode';
 import { Controller } from 'react-hook-form';
+import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 export default function BasicDetails({ formProps }: { formProps: any }) {
   const { register, formState, control } = formProps;
+
+  const userProfile = getLocalStorageValue('userprofile');
 
   return (
     <section className="naxatw-px-14">
@@ -13,8 +16,8 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
         <p className="naxatw-text-lg naxatw-font-bold">Basic Details</p>
       </Flex>
       <FlexColumn gap={5} className="naxatw-mt-5">
-        <Flex className="naxatw-h-14 naxatw-w-14 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-grey-600">
-          <h4>SK</h4>
+        <Flex className="naxatw-h-14 naxatw-w-14 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
+          <img src={userProfile.img_url} alt="profilepic" />
         </Flex>
         <FormControl>
           <Label required>Name</Label>
