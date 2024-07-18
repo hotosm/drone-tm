@@ -15,9 +15,19 @@ import { setProjectState } from '@Store/actions/project';
 import { projectOptions } from '@Constants/index';
 
 // function to render the content based on active tab
-const getActiveTabContent = (activeTab: string) => {
+const getActiveTabContent = (
+  activeTab: string,
+  data: Record<string, any>,
+  isProjectDataLoading: boolean,
+) => {
   if (activeTab === 'tasks') return <Tasks />;
-  if (activeTab === 'instructions') return <Instructions />;
+  if (activeTab === 'instructions')
+    return (
+      <Instructions
+        projectData={data}
+        isProjectDataLoading={isProjectDataLoading}
+      />
+    );
   if (activeTab === 'contributions') return <Contributions />;
   return <></>;
 };
@@ -31,15 +41,16 @@ export default function IndividualProject() {
     state => state.project.individualProjectActiveTab,
   );
 
-  const { data: projectData } = useGetProjectsDetailQuery(id as string, {
-    onSuccess: (res: any) =>
-      dispatch(
-        setProjectState({
-          tasksGeojson: res.tasks,
-          projectArea: res.outline_geojson,
-        }),
-      ),
-  });
+  const { data: projectData, isLoading: isProjectDataLoading } =
+    useGetProjectsDetailQuery(id as string, {
+      onSuccess: (res: any) =>
+        dispatch(
+          setProjectState({
+            tasksGeojson: res.tasks,
+            projectArea: res.outline_geojson,
+          }),
+        ),
+    });
 
   return (
     <section className="individual project naxatw-h-screen-nav naxatw-px-16 naxatw-py-8 xl:naxatw-px-20">
@@ -76,7 +87,11 @@ export default function IndividualProject() {
             clickable
           />
           <div className="naxatw-h-[92.5%] naxatw-border-t">
-            {getActiveTabContent(individualProjectActiveTab)}
+            {getActiveTabContent(
+              individualProjectActiveTab,
+              projectData as Record<string, any>,
+              isProjectDataLoading,
+            )}
           </div>
         </div>
         <div className="naxatw-h-[36.375rem] naxatw-w-[62.5%] naxatw-overflow-hidden naxatw-rounded-md">
