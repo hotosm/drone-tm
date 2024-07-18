@@ -11,12 +11,15 @@ RUN set -ex \
     -y --no-install-recommends \
         "build-essential" \
         "gcc" \
+        "g++" \
         "libpcre3-dev" \
         "libpq-dev" \
         "libspatialindex-dev" \
         "libproj-dev" \
         "libgeos-dev" \
         "git" \
+        "gdal-bin" \
+        "libgdal-dev" \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PDM
@@ -52,6 +55,8 @@ RUN set -ex \
     "libspatialindex-c6" \
     "libproj25" \
     "libgeos-c1v5" \
+    "gdal-bin" \
+    "libgdal-dev" \
 && rm -rf /var/lib/apt/lists/*
 
 # Retrieve packages from build stage
