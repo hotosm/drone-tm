@@ -82,3 +82,6 @@ DockerData/
 
 #Backend Template
 src/backend/templates/*
+
+# precommit
+.ruff_cache/
