@@ -1,0 +1,79 @@
+name: Build and Deploy Drone Tasking Manager
+
+on:
+  push:
+    branches:
+      - nischal/ci
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    environment:
+      name: main
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Login to dockerhub
+        run: |
+          echo ${{ secrets.DOCKERHUB_PAT }} | docker login registry-1.docker.io -u naxa --password-stdin
+
+      - name: Build and Push Backend Docker Image
+        id: build-backend-image
+        run: |
+          docker build -f ./src/backend/Dockerfile -t naxa/dronetm:backend .
+          docker push naxa/dronetm:backend
+
+      - name: Build and Push Frontend Docker Image
+        id: build-frontend-image
+        run: |
+          docker build -f ./src/backend/Dockerfile -t naxa/dronetm:backend .
+          docker push naxa/dronetm:backend
+
+  deploy_to_vm:
+    name: Deploy to VM
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GH-Actions-${{ github.run_id }}-${{ github.run_attempt }}
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+
+      - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: "${{ secrets.SSH_PRIVATE_KEY }}"
+
+      - name: Add host keys to known_hosts
+        run: |
+          ssh-keyscan "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: create env file
+        run: |
+          echo ${{ secrets.BACKEND_ENV_VARS }} > .env
+      
+      - name: Deploy to VM
+        run: |
+          docker compose --file docker-compose.yml up \
+            --detach --remove-orphans --force-recreate
+        env:
+          DOCKER_HOST: "ssh://${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
+          
