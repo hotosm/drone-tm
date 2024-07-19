@@ -22,21 +22,33 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Login to dockerhub
-        run: |
-          echo ${{ secrets.DOCKERHUB_PAT }} | docker login registry-1.docker.io -u naxa --password-stdin
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Build and Push Backend Docker Image
-        id: build-backend-image
-        run: |
-          docker build -f ./src/backend/Dockerfile -t naxa/dronetm:backend .
-          docker push naxa/dronetm:backend
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build and Push Frontend Docker Image
-        id: build-frontend-image
-        run: |
-          docker build -f ./src/backend/Dockerfile -t naxa/dronetm:backend .
-          docker push naxa/dronetm:backend
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: naxa
+          password: ${{ secrets.DOCKERHUB_PAT }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: naxa/dronetm:backend
+          file: ./src/backend/Dockerfile
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: naxa/dronetm:frontend
+          file: ./src/frontend/Dockerfile
 
   deploy_to_vm:
     name: Deploy to VM
@@ -49,13 +61,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          audience: sts.amazonaws.com
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GH-Actions-${{ github.run_id }}-${{ github.run_attempt }}
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          username: naxa
+          password: ${{ secrets.DOCKERHUB_PAT }}
 
       - name: Setup SSH Key
         uses: webfactory/ssh-agent@v0.8.0
@@ -72,6 +82,7 @@ jobs:
       
       - name: Deploy to VM
         run: |
+          docker compose --file docker-compose.yml pull
           docker compose --file docker-compose.yml up \
             --detach --remove-orphans --force-recreate
         env:
