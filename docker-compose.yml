@@ -33,7 +33,6 @@ services:
       - dtm-network
     volumes:
       - ${PROJECT_DIR:-.}/src/frontend:/app
-      - ${PROJECT_DIR:-.}/src/frontend/docker-entrypoint.sh:/docker-entrypoint.sh
       - /var/run/docker.sock:/var/run/docker.sock
 
   db:
