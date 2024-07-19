@@ -2,7 +2,6 @@ version: "3"
 
 services:
   backend:
-    image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
     build:
       context: .
       dockerfile: src/backend/Dockerfile
@@ -19,7 +18,6 @@ services:
       - dtm-network
 
   frontend:
-    image: naxa/dronetm:${FRONTEND_TARGET_OVERRIDE:-frontend}
     build:
       context: .
       dockerfile: src/frontend/Dockerfile
@@ -78,7 +76,6 @@ services:
       - dtm-network
 
   migrations:
-    image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
     build:
       context: .
       dockerfile: src/backend/Dockerfile
