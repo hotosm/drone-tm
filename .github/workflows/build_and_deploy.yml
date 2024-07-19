@@ -42,6 +42,10 @@ jobs:
           tags: naxa/dronetm:backend
           file: ./src/backend/Dockerfile
 
+      - name: Write Environment Variables for Frontend
+        run: |
+          echo ${{ vars.FRONTEND_ENV_VARS }} > .env
+
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
