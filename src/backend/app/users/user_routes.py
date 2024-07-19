@@ -42,7 +42,7 @@ async def login_access_token(
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
-
+@router.patch("/{user_id}/profile")
 @router.post("/{user_id}/profile")
 async def update_user_profile(
     user_id: str,
