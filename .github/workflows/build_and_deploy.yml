@@ -1,0 +1,95 @@
+name: Build and Deploy Drone Tasking Manager
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: naxa
+          password: ${{ secrets.DOCKERHUB_PAT }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: naxa/dronetm:backend
+          file: ./src/backend/Dockerfile
+
+      - name: Write Environment Variables for Frontend
+        run: |
+          echo ${{ vars.FRONTEND_ENV_VARS }} > .env
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          target: live
+          tags: naxa/dronetm:frontend
+          file: ./src/frontend/Dockerfile
+
+  deploy_to_vm:
+    name: Deploy to VM
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: naxa
+          password: ${{ secrets.DOCKERHUB_PAT }}
+
+      - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: "${{ secrets.SSH_PRIVATE_KEY }}"
+
+      - name: Add host keys to known_hosts
+        run: |
+          ssh-keyscan "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: create env file
+        run: |
+          echo '${{ secrets.BACKEND_ENV_VARS }}' > .env
+      
+      - name: Deploy to VM
+        run: |
+          docker compose --file docker-compose.vm.yml --env-file .env pull
+          docker compose --file docker-compose.vm.yml --env-file .env up \
+            --detach --remove-orphans --force-recreate
+        env:
+          DOCKER_HOST: "ssh://${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
+          

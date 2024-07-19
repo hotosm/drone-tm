@@ -46,6 +46,7 @@ RUN set -ex \
 && DEBIAN_FRONTEND=noninteractive apt-get install \
 -y --no-install-recommends \
     "nano" \
+    "curl" \
     "gettext-base" \
     "libpcre3" \
     "libpq5" \
@@ -75,5 +76,6 @@ RUN pip install -U pdm
 COPY src /project/src
 
 # Set the entrypoint for the container
-ENTRYPOINT ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
+ENTRYPOINT [ "/project/src/backend/docker-entrypoint.sh" ]
+CMD ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
     "--workers", "4", "--log-level", "info", "--reload"]
