@@ -82,7 +82,7 @@ jobs:
 
       - name: create env file
         run: |
-          echo ${{ secrets.BACKEND_ENV_VARS }} > .env
+          echo '${{ secrets.BACKEND_ENV_VARS }}' > .env
 
       - name: copy file via ssh
         uses: appleboy/scp-action@v0.1.7
