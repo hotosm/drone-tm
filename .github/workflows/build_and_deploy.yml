@@ -60,7 +60,7 @@ jobs:
       - build
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.ref_name }}
+      name: main
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
