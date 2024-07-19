@@ -3,7 +3,7 @@ name: Build and Deploy Drone Tasking Manager
 on:
   push:
     branches:
-      - nischal/ci
+      - main
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ jobs:
     name: Build Docker image
     runs-on: ubuntu-latest
     environment:
-      name: main
+      name: ${{ github.ref_name }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
@@ -61,7 +61,7 @@ jobs:
       - build
     runs-on: ubuntu-latest
     environment:
-      name: main
+      name: ${{ github.ref_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
