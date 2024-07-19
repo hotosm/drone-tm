@@ -51,6 +51,7 @@ jobs:
         with:
           context: .
           push: true
+          target: live
           tags: naxa/dronetm:frontend
           file: ./src/frontend/Dockerfile
 
@@ -83,23 +84,9 @@ jobs:
       - name: create env file
         run: |
           echo '${{ secrets.BACKEND_ENV_VARS }}' > .env
-
-      - name: copy file via ssh
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          source: ".env"
-          target: /srv/Projects/Drone-TM
       
       - name: Deploy to VM
         run: |
-          pwd
-          ls -alh
-          cat .env
-          source .env
           docker compose --file docker-compose.vm.yml --env-file .env pull
           docker compose --file docker-compose.vm.yml --env-file .env up \
             --detach --remove-orphans --force-recreate
