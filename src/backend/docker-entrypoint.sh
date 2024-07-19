@@ -40,7 +40,7 @@ get_frontend_index_html() {
     if [ ! -f /project/src/backend/templates/index.html ]
     then
         echo "/project/src/backend/templates/index.html file does not exist...trying to download from object storage.."
-        wget ${S3_ENDPOINT}/${FRONTEND_BUCKET_NAME}/index.html -O /project/src/backend/templates/index.html || echo "Failed to download index.html... Please retry manually for now...."
+        curl --fail --create-dirs ${S3_ENDPOINT}/${FRONTEND_BUCKET_NAME}/index.html --output /project/src/backend/templates/index.html || echo "Failed to download index.html... Please retry manually for now...."
     else
         echo "/project/src/backend/templates/index.html found. Continuing..."
     fi
