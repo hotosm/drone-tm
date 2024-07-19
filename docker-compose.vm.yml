@@ -3,37 +3,23 @@ version: "3"
 services:
   backend:
     image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
-    build:
-      context: .
-      dockerfile: src/backend/Dockerfile
     restart: always
     depends_on:
       - db
       - minio
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
-    volumes:
-      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     env_file: .env
     networks:
       - dtm-network
 
   frontend:
     image: naxa/dronetm:${FRONTEND_TARGET_OVERRIDE:-frontend}
-    build:
-      context: .
-      dockerfile: src/frontend/Dockerfile
-      target: ${FRONTEND_TARGET_OVERRIDE:-development}
-    ports:
-      - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:
       - minio
     env_file: .env
     networks:
       - dtm-network
-    volumes:
-      - ${PROJECT_DIR:-.}/src/frontend:/app
-      - /var/run/docker.sock:/var/run/docker.sock
 
   db:
     image: postgis/postgis:14-3.4-alpine
@@ -79,9 +65,6 @@ services:
 
   migrations:
     image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
-    build:
-      context: .
-      dockerfile: src/backend/Dockerfile
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:

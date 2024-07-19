@@ -86,8 +86,9 @@ jobs:
       
       - name: Deploy to VM
         run: |
-          docker compose --file docker-compose.yml --env-file .env pull
-          docker compose --file docker-compose.yml --env-file .env up \
+          source .env
+          docker compose --file docker-compose.vm.yml --env-file .env pull
+          docker compose --file docker-compose.vm.yml --env-file .env up \
             --detach --remove-orphans --force-recreate
         env:
           DOCKER_HOST: "ssh://${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
