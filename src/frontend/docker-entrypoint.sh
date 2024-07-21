@@ -5,6 +5,7 @@ if [[ -z "${S3_ACCESS_KEY}" ]]; then
   echo "Missing environment variable S3_ACCESS_KEY"
   exit 0
 fi
+
 if [[ -z "${S3_SECRET_KEY}" ]]; then
   echo "Missing environment variable S3_SECRET_KEY"
   exit 0
