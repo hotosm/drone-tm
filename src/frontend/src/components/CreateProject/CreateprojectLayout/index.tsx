@@ -164,7 +164,7 @@ export default function CreateprojectLayout() {
   };
 
   return (
-    <section className="project-form-layout">
+    <section className="project-form-layout naxatw-bg-[#FAFAFA]">
       <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
         {/* description */}
         <div className="description naxatw-col-span-1 naxatw-h-[32.625rem] naxatw-animate-fade-up naxatw-bg-white">

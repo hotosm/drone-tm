@@ -82,7 +82,9 @@ export default function DefineAOI({
       <div className="naxatw-bg-white">
         <div className="naxatw-grid naxatw-grid-cols-3">
           <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
-            <p className="naxatw-text-body-btn">Project Area</p>
+            <p className="naxatw-text-body-btn">
+              Project Area <span className="naxatw-text-red">*</span>
+            </p>
             {!uploadedProjectArea ? (
               <>
                 <Button

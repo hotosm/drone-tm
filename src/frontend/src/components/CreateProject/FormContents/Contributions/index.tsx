@@ -23,7 +23,7 @@ export default function Conditions({
   return (
     <FlexColumn gap={5} className="naxatw-px-10 naxatw-py-5">
       <FormControl>
-        <Label>Instructions for Drone Operators</Label>
+        <Label required>Instructions for Drone Operators</Label>
         <Input
           placeholder="Enter Instructions for Drone Operators"
           {...register('per_task_instructions', {
@@ -35,6 +35,7 @@ export default function Conditions({
         />
       </FormControl>
       <RadioButton
+        required
         topic="Publish"
         options={contributionsOptions}
         direction="column"
@@ -45,7 +46,7 @@ export default function Conditions({
       />
       <FormControl className="naxatw-gap-1">
         <div className="naxatw-w-full">
-          <Label>Deadline for Submission</Label>
+          <Label required>Deadline for Submission</Label>
           <Input
             placeholder="Deadline for Submission"
             type="date"
