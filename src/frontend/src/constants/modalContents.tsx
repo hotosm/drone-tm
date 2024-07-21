@@ -1,6 +1,10 @@
 import { ReactElement } from 'react';
+import ExitCreateProjectModal from '@Components/CreateProject/ExitCreateProjectModal';
 
-export type ModalContentsType = 'sign-up-success' | null;
+export type ModalContentsType =
+  | 'sign-up-success'
+  | 'quit-create-project'
+  | null;
 export type PromptDialogContentsType = 'delete-layer' | null;
 
 type ModalReturnType = {
@@ -16,6 +20,11 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
       return {
         title: '',
         content: <></>,
+      };
+    case 'quit-create-project':
+      return {
+        title: 'Unsaved Changes!',
+        content: <ExitCreateProjectModal />,
       };
     default:
       return {
