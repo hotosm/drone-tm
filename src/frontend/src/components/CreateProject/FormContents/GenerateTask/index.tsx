@@ -40,9 +40,9 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
       <div className="naxatw-grid naxatw-grid-cols-3 naxatw-bg-white">
         <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
           <FormControl>
-            <Label required>Dimension of Square (meter)</Label>
+            <Label required>Dimension of Square (km)</Label>
             <Input
-              placeholder="Enter Distance (in m)"
+              placeholder="Enter Distance (in km)"
               type="number"
               className="naxatw-mt-1"
               value={dimension}
