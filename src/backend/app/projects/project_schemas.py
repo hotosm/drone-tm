@@ -35,7 +35,7 @@ class ProjectIn(BaseModel):
     dem_url: Optional[str] = None
     gsd_cm_px: float = None
     is_terrain_follow: bool = False
-    outline_no_fly_zones: Union[FeatureCollection, Feature, Polygon]
+    outline_no_fly_zones: Optional[Union[FeatureCollection, Feature, Polygon]] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
     output_orthophoto_url: Optional[str] = None
     output_pointcloud_url: Optional[str] = None
