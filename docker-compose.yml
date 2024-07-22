@@ -31,6 +31,7 @@ services:
       - ${PROJECT_DIR:-.}/src/frontend:/app
       - /var/run/docker.sock:/var/run/docker.sock
 
+  # If error, please upgrade the db `bash contrib/pg-upgrade/upgrade-db.sh`
   db:
     image: postgis/postgis:16-3.4-alpine
     volumes:
