@@ -10,8 +10,8 @@ export interface CreateProjectState {
   contributionsOption: 'public' | 'invite_with_email';
   generateTaskOption: 'divide_hexagon' | 'divide_rectangle';
   isNoflyzonePresent: 'yes' | 'no';
-  uploadedProjectArea: GeojsonType | null;
-  uploadedNoFlyZone: GeojsonType | null;
+  projectArea: GeojsonType | null;
+  noFlyZone: GeojsonType | null;
   drawProjectAreaEnable: boolean;
   drawNoFlyZoneEnable: boolean;
   drawnProjectArea: GeojsonType | null;
@@ -27,8 +27,8 @@ const initialState: CreateProjectState = {
   contributionsOption: 'public',
   generateTaskOption: 'divide_rectangle',
   isNoflyzonePresent: 'no',
-  uploadedProjectArea: null,
-  uploadedNoFlyZone: null,
+  projectArea: null,
+  noFlyZone: null,
   drawProjectAreaEnable: false,
   drawNoFlyZoneEnable: false,
   drawnProjectArea: null,
@@ -45,11 +45,23 @@ const setCreateProjectState: CaseReducer<
   ...action.payload,
 });
 
+const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = state => ({
+  ...state,
+  isNoflyzonePresent: initialState.isNoflyzonePresent,
+  projectArea: initialState.projectArea,
+  noFlyZone: initialState.noFlyZone,
+  drawProjectAreaEnable: initialState.drawProjectAreaEnable,
+  drawNoFlyZoneEnable: initialState.drawNoFlyZoneEnable,
+  drawnProjectArea: initialState.drawnProjectArea,
+  drawnNoFlyZone: initialState.drawnNoFlyZone,
+});
+
 const createProjectSlice = createSlice({
   name: 'create project',
   initialState,
   reducers: {
     setCreateProjectState,
+    resetUploadedAndDrawnAreas,
   },
 });
 
