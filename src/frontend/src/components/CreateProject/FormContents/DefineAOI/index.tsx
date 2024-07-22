@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { Controller } from 'react-hook-form';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
@@ -13,6 +14,7 @@ import area from '@turf/area';
 import { FeatureCollection } from 'geojson';
 import { uploadAreaOptions } from '@Constants/createProject';
 import { validateGeoJSON } from '@Utils/convertLayerUtils';
+import Icon from '@Components/common/Icon';
 import MapSection from './MapSection';
 
 export default function DefineAOI({
@@ -24,6 +26,8 @@ export default function DefineAOI({
 
   const { setValue, control, errors } = formProps;
 
+  const [resetDrawTool, setResetDrawTool] = useState<null | (() => void)>(null);
+
   const uploadedProjectArea = useTypedSelector(
     state => state.createproject.uploadedProjectArea,
   );
@@ -33,6 +37,32 @@ export default function DefineAOI({
   const isNoflyzonePresent = useTypedSelector(
     state => state.createproject.isNoflyzonePresent,
   );
+  const drawProjectAreaEnable = useTypedSelector(
+    state => state.createproject.drawProjectAreaEnable,
+  );
+  const drawnProjectArea = useTypedSelector(
+    state => state.createproject.drawnProjectArea,
+  );
+
+  const handleResetButtonClick = useCallback((resetFunction: any) => {
+    setResetDrawTool(() => resetFunction);
+  }, []);
+
+  const handleDrawProjectAreaClick = () => {
+    if (!drawProjectAreaEnable) {
+      dispatch(setCreateProjectState({ drawProjectAreaEnable: true }));
+      return;
+    }
+    dispatch(
+      setCreateProjectState({
+        uploadedProjectArea: drawnProjectArea,
+        drawProjectAreaEnable: false,
+      }),
+    );
+    if (resetDrawTool) {
+      resetDrawTool();
+    }
+  };
 
   const projectArea =
     uploadedProjectArea && area(uploadedProjectArea as FeatureCollection);
@@ -87,42 +117,63 @@ export default function DefineAOI({
             </p>
             {!uploadedProjectArea ? (
               <>
-                <Button
-                  className="naxatw-mt-2 naxatw-bg-red naxatw-text-white"
-                  rightIcon="draw"
-                >
-                  Draw Project Area
-                </Button>
-                <FlexRow
-                  className="naxatw-mt-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
-                  gap={3}
-                >
-                  <hr className="naxatw-w-[40%]" />
-                  <span>or</span>
-                  <hr className="naxatw-w-[40%]" />
+                <FlexRow gap={3} className="naxatw-items-center">
+                  <Button
+                    className="naxatw-mt-2 naxatw-bg-red naxatw-text-white"
+                    rightIcon="draw"
+                    onClick={handleDrawProjectAreaClick}
+                  >
+                    {drawnProjectArea ? 'Save Drawn Area' : 'Draw Project Area'}
+                  </Button>
+                  {drawnProjectArea && (
+                    <Icon
+                      name="restart_alt"
+                      className="naxatw-text-red"
+                      onClick={() => {
+                        dispatch(
+                          setCreateProjectState({ drawnProjectArea: null }),
+                        );
+                        if (resetDrawTool) {
+                          resetDrawTool();
+                        }
+                      }}
+                    />
+                  )}
                 </FlexRow>
-                <FormControl className="naxatw-mt-2">
-                  <Controller
-                    control={control}
-                    name="outline_geojson"
-                    rules={{
-                      required: 'Project Area is Required',
-                    }}
-                    render={({ field: { value } }) => (
-                      <FileUpload
+                {!drawProjectAreaEnable && (
+                  <>
+                    <FlexRow
+                      className="naxatw-mt-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
+                      gap={3}
+                    >
+                      <hr className="naxatw-w-[40%]" />
+                      <span>or</span>
+                      <hr className="naxatw-w-[40%]" />
+                    </FlexRow>
+                    <FormControl className="naxatw-mt-2">
+                      <Controller
+                        control={control}
                         name="outline_geojson"
-                        data={value}
-                        onChange={handleProjectAreaFileChange}
-                        fileAccept=".geojson, .kml"
-                        placeholder="Upload project area (zipped shapefile, geojson or kml files)"
-                        {...formProps}
+                        rules={{
+                          required: 'Project Area is Required',
+                        }}
+                        render={({ field: { value } }) => (
+                          <FileUpload
+                            name="outline_geojson"
+                            data={value}
+                            onChange={handleProjectAreaFileChange}
+                            fileAccept=".geojson, .kml"
+                            placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                            {...formProps}
+                          />
+                        )}
                       />
-                    )}
-                  />
-                  <ErrorMessage
-                    message={errors?.outline_geojson?.message as string}
-                  />
-                </FormControl>
+                      <ErrorMessage
+                        message={errors?.outline_geojson?.message as string}
+                      />
+                    </FormControl>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -216,7 +267,7 @@ export default function DefineAOI({
             )}
           </div>
           <div className="naxatw-col-span-2 naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6]">
-            <MapSection />
+            <MapSection onResetButtonClick={handleResetButtonClick} />
           </div>
         </div>
       </div>

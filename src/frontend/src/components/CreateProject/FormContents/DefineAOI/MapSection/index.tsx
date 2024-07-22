@@ -1,5 +1,6 @@
+/* eslint-disable no-unused-vars */
 import { useEffect } from 'react';
-import { useTypedSelector } from '@Store/hooks';
+import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
@@ -8,8 +9,17 @@ import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
 import getBbox from '@turf/bbox';
+import useDrawTool from '@Components/common/MapLibreComponents/useDrawTool';
+import { drawStyles } from '@Constants/map';
+import { setCreateProjectState } from '@Store/actions/createproject';
 
-export default function MapSection() {
+export default function MapSection({
+  onResetButtonClick,
+}: {
+  onResetButtonClick: (reset: any) => void;
+}) {
+  const dispatch = useTypedDispatch();
+
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
       zoom: 5,
@@ -18,6 +28,26 @@ export default function MapSection() {
     },
     disableRotation: true,
   });
+
+  const drawProjectAreaEnable = useTypedSelector(
+    state => state.createproject.drawProjectAreaEnable,
+  );
+
+  const handleDrawEnd = (geojson: GeojsonType | null) => {
+    dispatch(setCreateProjectState({ drawnProjectArea: geojson }));
+  };
+
+  const { resetDraw } = useDrawTool({
+    map,
+    enable: drawProjectAreaEnable,
+    drawMode: 'draw_polygon',
+    styles: drawStyles,
+    onDrawEnd: handleDrawEnd,
+  });
+
+  useEffect(() => {
+    onResetButtonClick(resetDraw);
+  }, [onResetButtonClick, resetDraw]);
 
   const uploadedProjectArea = useTypedSelector(
     state => state.createproject.uploadedProjectArea,
