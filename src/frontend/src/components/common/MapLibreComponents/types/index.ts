@@ -42,7 +42,7 @@ export interface ILayer {
 export type GeojsonType = GeoJsonTypes | FeatureCollection | Feature;
 
 export interface IVectorLayer extends ILayer {
-  geojson: GeojsonType;
+  geojson: GeojsonType | null;
 }
 
 type InteractionsType = 'hover' | 'select';
