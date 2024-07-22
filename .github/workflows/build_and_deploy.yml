@@ -84,7 +84,7 @@ jobs:
       - name: create env file
         run: |
           echo '${{ secrets.BACKEND_ENV_VARS }}' > .env
-      
+
       - name: Deploy to VM
         run: |
           docker compose --file docker-compose.vm.yml --env-file .env pull
@@ -92,4 +92,3 @@ jobs:
             --detach --remove-orphans --force-recreate
         env:
           DOCKER_HOST: "ssh://${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
-          
