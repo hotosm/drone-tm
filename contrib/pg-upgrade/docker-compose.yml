@@ -71,7 +71,7 @@ services:
       db-upgrade-version:
         condition: service_completed_successfully
     volumes:
-      - ${PROJECT_DIR:-.}/DockerData/dtm_db_data:/var/lib/postgresql/14/data
+      - pg-14-data:/var/lib/postgresql/14/data
       - pg-16-data:/var/lib/postgresql/16/data
     restart: "no"
     entrypoint: /bin/sh -c
