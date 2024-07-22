@@ -3,16 +3,56 @@ from databases import Database
 from app.models.enums import State
 
 
+async def get_all_tasks(db: Database, project_id: uuid.UUID):
+    query = """
+        SELECT id FROM tasks WHERE project_id = :project_id
+    """
+    values = {"project_id": str(project_id)}
+
+    data = await db.fetch_all(query, values)
+
+    # Extracting the list of IDs from the data
+    task_ids = [task["id"] for task in data]
+
+    return task_ids
+
+
 async def all_tasks_states(db: Database, project_id: uuid.UUID):
     query = """
         SELECT DISTINCT ON (task_id) project_id, task_id, state
         FROM task_events
-        WHERE project_id=:project_id
+        WHERE project_id = :project_id
         ORDER BY task_id, created_at DESC
-        """
+    """
+
     r = await db.fetch_all(query, {"project_id": str(project_id)})
 
-    return [dict(r) for r in r]
+    # Extract task_ids and corresponding states from the query result
+    existing_tasks = [dict(r) for r in r]
+
+    # Get all task_ids from the tasks table
+    task_ids = await get_all_tasks(db, project_id)
+
+    # Create a set of existing task_ids for quick lookup
+    existing_task_ids = {task["task_id"] for task in existing_tasks}
+
+    # task ids that are not in task_events table
+    remaining_task_ids = [x for x in task_ids if x not in existing_task_ids]
+
+    # Add missing tasks with state as "UNLOCKED_FOR_MAPPING"
+    remaining_tasks = [
+        {
+            "project_id": str(project_id),
+            "task_id": task_id,
+            "state": State.UNLOCKED_TO_MAP.name,
+        }
+        for task_id in remaining_task_ids
+    ]
+
+    # Combine both existing tasks and remaining tasks
+    combined_tasks = existing_tasks + remaining_tasks
+
+    return combined_tasks
 
 
 async def request_mapping(
