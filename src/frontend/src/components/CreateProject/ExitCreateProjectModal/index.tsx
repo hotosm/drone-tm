@@ -18,7 +18,10 @@ export default function ExitCreateProjectModal() {
         <Button
           variant="ghost"
           className="naxatw-text-red"
-          onClick={() => navigate('/projects')}
+          onClick={() => {
+            navigate('/projects');
+            dispatch(toggleModal(null));
+          }}
         >
           Leave
         </Button>
