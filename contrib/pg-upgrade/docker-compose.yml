@@ -8,6 +8,7 @@ volumes:
     name: drone-tm-pg-16-data
 
 services:
+  # Check if the upgrade has already be complete --> v16
   db-check-upgrade:
     image: postgis/postgis:16-3.4-alpine
     volumes:
@@ -46,6 +47,7 @@ services:
         cp -r /var/lib/postgresql/old/data/* /var/lib/postgresql/new/data/
         echo 'Copied postgres data to docker volume'
 
+  # Do the actual db upgrade
   db-upgrade-version:
     image: ghcr.io/hotosm/fmtm/pg-upgrade:14-to-16
     build: contrib/pg-upgrade
@@ -62,6 +64,7 @@ services:
       POSTGRES_INITDB_ARGS: -U ${POSTGRES_USER}
     restart: "no"
 
+  # Replace the generated pg_hba.conf access file with the original
   db-config-hba:
     image: postgis/postgis:16-3.4-alpine
     depends_on:
@@ -79,6 +82,7 @@ services:
           /var/lib/postgresql/16/data/
         echo 'Copied pg_hba.conf to new postgres dir'
 
+  # Start the db so we can run maintenance tasks
   db-startup:
     image: postgis/postgis:16-3.4-alpine
     depends_on:
@@ -97,6 +101,7 @@ services:
       timeout: 5s
       retries: 3
 
+  # Run maintenance, db vacuum
   db-upgrade:
     image: postgis/postgis:16-3.4-alpine
     depends_on:
