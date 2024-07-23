@@ -49,7 +49,7 @@ services:
 
   # Do the actual db upgrade
   db-upgrade-version:
-    image: ghcr.io/hotosm/fmtm/pg-upgrade:14-to-16
+    image: ghcr.io/hotosm/drone-tm/pg-upgrade:14-to-16
     build: contrib/pg-upgrade
     depends_on:
       db-to-volume:
