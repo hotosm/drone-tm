@@ -3,6 +3,10 @@ name: Build and Deploy Drone Tasking Manager
 on:
   push:
     branches: [main]
+    paths:
+      # Workflow is triggered only if src changes
+      - src/**
+  # Allow manual trigger
   workflow_dispatch:
 
 permissions:
