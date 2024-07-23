@@ -100,15 +100,12 @@ export default function FileUpload({
   return (
     <FlexColumn gap={2}>
       <FlexColumn
-        className="naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border-2 naxatw-border-dashed naxatw-bg-grey-100 naxatw-py-2.5"
+        className="naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border-2 naxatw-border-dashed naxatw-bg-white naxatw-px-1.5 naxatw-py-2.5"
         //   @ts-ignore
         onClick={onFileUpload}
       >
-        <Icon
-          name="cloud_upload"
-          className="naxatw-text-primary-600 naxatw-text-3xl"
-        />
-        <p className="naxatw-text-xs naxatw-text-grey-600">
+        <Icon name="backup" className="naxatw-text-3xl naxatw-text-red" />
+        <p className="naxatw-mt-1 naxatw-text-center naxatw-text-xs naxatw-leading-4 naxatw-text-grey-600">
           {placeholder || 'Please upload picture (jpeg, png file format)'}
         </p>
         <Input

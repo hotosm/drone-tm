@@ -1,12 +1,15 @@
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { FormControl, Input, Label } from '@Components/common/FormUI';
-import { FlexColumn } from '@Components/common/Layouts';
+import { Flex, FlexColumn } from '@Components/common/Layouts';
 
 export default function OrganizationDetails({ formProps }: { formProps: any }) {
   const { register } = formProps;
 
   return (
-    <section className="naxatw-px-14 naxatw-py-10">
+    <section className="naxatw-px-14">
+      <Flex>
+        <p className="naxatw-text-lg naxatw-font-bold">Organization Details</p>
+      </Flex>
       <FlexColumn gap={5}>
         <FormControl>
           <Label required>Organization Name</Label>
@@ -14,7 +17,7 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Organization Name"
             className="naxatw-mt-1"
             {...register('organization_name', {
-              required: 'Required',
+              required: 'Organization name is Required',
             })}
           />
           <ErrorMessage
@@ -27,7 +30,7 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Organization Address"
             className="naxatw-mt-1"
             {...register('organization_address', {
-              required: 'Required',
+              required: 'Organization Address is Required',
             })}
           />
           <ErrorMessage
@@ -40,7 +43,7 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
             placeholder="Enter Job Title"
             className="naxatw-mt-1"
             {...register('job_title', {
-              required: 'Required',
+              required: 'Job Title is Required',
             })}
           />
           <ErrorMessage

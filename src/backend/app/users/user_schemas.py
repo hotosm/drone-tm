@@ -14,7 +14,6 @@ class AuthUser(BaseModel):
 
 
 class UserBase(BaseModel):
-    username: str
     email_address: EmailStr
     is_active: bool = True
     is_superuser: bool = False
@@ -87,5 +86,10 @@ class ProfileUpdate(BaseModel):
     drone_you_own: Optional[str] = None
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
-    role: Optional[UserRole] = UserRole.DRONE_PILOT.name
+    role: Optional[UserRole] = None
     password: Optional[str] = None
+
+    @field_validator("role", mode="after")
+    @classmethod
+    def integer_role_to_string(cls, value: UserRole) -> str:
+        return str(value.name)

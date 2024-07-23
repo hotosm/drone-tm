@@ -11,12 +11,15 @@ RUN set -ex \
     -y --no-install-recommends \
         "build-essential" \
         "gcc" \
+        "g++" \
         "libpcre3-dev" \
         "libpq-dev" \
         "libspatialindex-dev" \
         "libproj-dev" \
         "libgeos-dev" \
         "git" \
+        "gdal-bin" \
+        "libgdal-dev" \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PDM
@@ -43,6 +46,7 @@ RUN set -ex \
 && DEBIAN_FRONTEND=noninteractive apt-get install \
 -y --no-install-recommends \
     "nano" \
+    "curl" \
     "gettext-base" \
     "libpcre3" \
     "libpq5" \
@@ -52,6 +56,8 @@ RUN set -ex \
     "libspatialindex-c6" \
     "libproj25" \
     "libgeos-c1v5" \
+    "gdal-bin" \
+    "libgdal-dev" \
 && rm -rf /var/lib/apt/lists/*
 
 # Retrieve packages from build stage
@@ -70,5 +76,6 @@ RUN pip install -U pdm
 COPY src /project/src
 
 # Set the entrypoint for the container
-ENTRYPOINT ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
+ENTRYPOINT [ "/project/src/backend/docker-entrypoint.sh" ]
+CMD ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
     "--workers", "4", "--log-level", "info", "--reload"]

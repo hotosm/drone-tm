@@ -52,6 +52,7 @@ temp_webmaps/Naivasha
 # node & pnpm
 **/**/node_modules
 **/**/package-lock.json
+**/**/package.json
 **/**/yarn.lock
 **/**/.pnpm-store
 
@@ -81,3 +82,6 @@ DockerData/
 
 #Backend Template
 src/backend/templates/*
+
+# precommit
+.ruff_cache/

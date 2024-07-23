@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drone Tasking Manager Invite</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .email-container {
+        max-width: 600px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        margin: 20px;
+      }
+
+      .header {
+        background-color: #d73f3f;
+        color: #ffffff;
+        text-align: center;
+        padding: 25px;
+        border-radius: 10px 10px 0 0;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 26px;
+      }
+
+      .content {
+        padding: 25px;
+      }
+
+      .content p {
+        font-size: 16px;
+        line-height: 1.5;
+        color: #333333;
+      }
+
+      .task {
+        margin: 20px 0;
+        background-color: #f9f9f9;
+        padding: 20px;
+        border: 1px solid #eeeeee;
+        border-radius: 8px;
+      }
+
+      .task h2 {
+        margin: 0 0 10px;
+        font-size: 20px;
+        color: #d73f3f;
+      }
+
+      .task p {
+        margin: 5px 0;
+        color: #555555;
+      }
+
+      .task-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .task-details p {
+        margin: 0;
+        font-size: 16px;
+        color: #555555;
+      }
+
+      .task-button {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 24px;
+        background-color: #d73f3f;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+      }
+
+      .task-button:hover {
+        background-color: #a33030;
+      }
+
+      .footer {
+        background-color: #f4f4f4;
+        text-align: center;
+        padding: 20px;
+        color: #666666;
+        font-size: 14px;
+        border-radius: 0 0 10px 10px;
+      }
+      body {
+        margin: auto;
+        width: 65%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
+        <h1>Drone Tasking Manager Invite</h1>
+      </div>
+      <div class="content">
+        <p>Hello</p>
+        <p>
+          Thank you for participating in our mapping project. Your contribution
+          is invaluable to our efforts in improving humanitarian responses
+          worldwide.
+        </p>
+        <p>Please find below the details of your mapping task:</p>
+        <p>{{requested_user_name}} has requested this task for mapping.</p>
+        <div class="task">
+          <h2>Mapping Task Details</h2>
+          <div class="task-details">
+            <p><strong>Task ID:</strong> #1234</p>
+            <p><strong>Project:</strong> Drone Tasking Manager</p>
+            <p>
+              <strong>Description:</strong> Drone Tasking Manager Project
+              Description
+            </p>
+          </div>
+          <a href="https://dronetm-dev.naxa.com.np" class="task-button"
+            >Start Mapping</a
+          >
+        </div>
+      </div>
+      <div class="footer">
+        <p>Thank you for your support,</p>
+        <p>The HOTOSM Team</p>
+      </div>
+    </div>
+  </body>
+</html>

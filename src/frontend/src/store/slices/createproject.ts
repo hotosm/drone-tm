@@ -5,25 +5,27 @@ import persist from '@Store/persist';
 export interface CreateProjectState {
   projectId: number | null;
   activeStep: number;
-  uploadAreaOption: 'draw' | 'upload_file';
   keyParamOption: 'basic' | 'advanced';
   contributionsOption: 'public' | 'invite_with_email';
   generateTaskOption: 'divide_hexagon' | 'divide_rectangle';
-  measureType: 'length' | 'area' | null;
-  uploadedGeojson: Record<string, any> | null;
+  isNoflyzonePresent: 'yes' | 'no';
+  uploadedProjectArea: Record<string, any> | null;
+  uploadedNoFlyZone: Record<string, any> | null;
   splitGeojson: Record<string, any> | null;
+  isTerrainFollow: string;
 }
 
 const initialState: CreateProjectState = {
   projectId: null,
   activeStep: 1,
-  uploadAreaOption: 'upload_file',
   keyParamOption: 'basic',
   contributionsOption: 'public',
   generateTaskOption: 'divide_rectangle',
-  measureType: null,
-  uploadedGeojson: null,
+  isNoflyzonePresent: 'no',
+  uploadedProjectArea: null,
+  uploadedNoFlyZone: null,
   splitGeojson: null,
+  isTerrainFollow: 'flat',
 };
 
 const setCreateProjectState: CaseReducer<

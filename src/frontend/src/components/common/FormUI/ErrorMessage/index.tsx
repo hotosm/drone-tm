@@ -6,7 +6,7 @@ export default function ErrorMessage({ message }: IErrorMessageProp) {
   return (
     <span
       role="alert"
-      className="naxatw-text-red-500 naxatw-px-1 naxatw-pt-2 naxatw-text-sm"
+      className="naxatw-px-1 naxatw-pt-2 naxatw-text-sm naxatw-text-red"
     >
       {message}
     </span>

@@ -11,6 +11,9 @@ export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
 
+  const userProfilex = localStorage.getItem('userprofile');
+  const userProfile = userProfilex && JSON.parse(userProfilex);
+
   const settingOptions = [
     {
       id: 1,
@@ -26,7 +29,7 @@ export default function UserProfile() {
       icon: 'logout',
       onClick: () => {
         localStorage.clear();
-        navigate('/login');
+        navigate('/');
         toast.success('Logged Out Successfully');
       },
     },
@@ -39,7 +42,10 @@ export default function UserProfile() {
       onBlur={() => setToggle(false)}
     >
       <div onClick={() => setToggle(!toggle)}>
-        <UserAvatar className="naxatw-cursor-pointer" name="Prajwal" />
+        <UserAvatar
+          className="naxatw-cursor-pointer naxatw-overflow-hidden"
+          imageSource={userProfile?.img_url}
+        />
       </div>
       {toggle && (
         <div className="slide-in-top naxatw-absolute naxatw-right-0 naxatw-top-[3rem] naxatw-z-20">

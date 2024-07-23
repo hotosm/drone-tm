@@ -1,12 +1,14 @@
 import uuid
-from pydantic import BaseModel, computed_field, Field
+from pydantic import BaseModel, computed_field, Field, validator
 from typing import Any, Optional, Union
 from geojson_pydantic import Feature, FeatureCollection, Polygon
-from app.models.enums import TaskSplitType
+from app.models.enums import ProjectVisibility, State
 from shapely import wkb
+from datetime import date
 
 from app.utils import (
     geojson_to_geometry,
+    multipolygon_to_polygon,
     read_wkb,
     merge_multipolygon,
     str_to_geojson,
@@ -19,7 +21,6 @@ class ProjectInfo(BaseModel):
 
     id: int
     name: str
-    short_description: str
     description: str
     per_task_instructions: Optional[str] = None
 
@@ -28,14 +29,29 @@ class ProjectIn(BaseModel):
     """Upload new project."""
 
     name: str
-    short_description: str
     description: str
     per_task_instructions: Optional[str] = None
-    organisation_id: Optional[int] = None
-    task_split_type: Optional[TaskSplitType] = None
     task_split_dimension: Optional[int] = None
     dem_url: Optional[str] = None
+    gsd_cm_px: float = None
+    is_terrain_follow: bool = False
+    outline_no_fly_zones: Optional[Union[FeatureCollection, Feature, Polygon]] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
+    output_orthophoto_url: Optional[str] = None
+    output_pointcloud_url: Optional[str] = None
+    output_raw_url: Optional[str] = None
+    deadline_at: Optional[date] = None
+    visibility: Optional[ProjectVisibility] = ProjectVisibility.PUBLIC
+
+    @computed_field
+    @property
+    def no_fly_zones(self) -> Optional[Any]:
+        """Compute WKBElement geom from geojson."""
+        if not self.outline_no_fly_zones:
+            return None
+
+        outline = multipolygon_to_polygon(self.outline_no_fly_zones)
+        return geojson_to_geometry(outline)
 
     @computed_field
     @property
@@ -62,6 +78,17 @@ class TaskOut(BaseModel):
     id: uuid.UUID
     project_task_index: int
     outline: Any = Field(exclude=True)
+    state: Optional[State] = None
+    contributor: Optional[str] = None
+
+    @validator("state", pre=True, always=True)
+    def validate_state(cls, v):
+        if isinstance(v, str):
+            try:
+                v = State[v]
+            except KeyError:
+                raise ValueError(f"Invalid state: {v}")
+        return v
 
     @computed_field
     @property
@@ -80,12 +107,11 @@ class ProjectOut(BaseModel):
 
     id: uuid.UUID
     name: str
-    short_description: str
     description: str
     per_task_instructions: Optional[str] = None
     outline: Any = Field(exclude=True)
-    tasks: list[TaskOut] = []
     task_count: int = None
+    tasks: list[TaskOut] = []
 
     @computed_field
     @property

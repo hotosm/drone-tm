@@ -11,7 +11,7 @@ import { Button } from '@Components/RadixComponents/Button';
 import Icon from '@Components/common/Icon';
 import { Flex, FlexRow } from '@Components/common/Layouts';
 import Person from '@Assets/images/person.svg';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import { useTypedDispatch } from '@Store/hooks';
 import { signInGoogle, signInUser } from '@Services/common';
 import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
@@ -32,7 +32,8 @@ export default function Login() {
   const handleShow = () => {
     return setShowPassword(prev => !prev);
   };
-  const signInAs = useTypedSelector(state => state.common.signInAs);
+
+  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: signInUser,
@@ -72,7 +73,7 @@ export default function Login() {
         className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
       >
         <Image src={Person} />
-        <h3>{signInAs}</h3>
+        <h3>{signedInAs}</h3>
 
         {/* google login button */}
         <div

@@ -9,6 +9,7 @@ from app.utils import merge_multipolygon
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from databases import Database
+from app.models.enums import ProjectStatus
 
 
 async def create_project_with_project_info(
@@ -18,47 +19,53 @@ async def create_project_with_project_info(
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, author_id, name, short_description, description, per_task_instructions, status, visibility, outline, dem_url, created
-        )
+            id, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, created_at)
         VALUES (
             :id,
             :author_id,
             :name,
-            :short_description,
             :description,
             :per_task_instructions,
             :status,
             :visibility,
             :outline,
+            :no_fly_zones,
             :dem_url,
+            :output_orthophoto_url,
+            :output_pointcloud_url,
+            :output_raw_url,
+            :task_split_dimension,
+            :deadline_at,
             CURRENT_TIMESTAMP
         )
         RETURNING id
     """
-    project_id = await db.execute(
-        query,
-        values={
-            "id": _id,
-            "author_id": author_id,
-            "name": project_metadata.name,
-            "short_description": project_metadata.short_description,
-            "description": project_metadata.description,
-            "per_task_instructions": project_metadata.per_task_instructions,
-            "status": "DRAFT",
-            "visibility": "PUBLIC",
-            "outline": str(project_metadata.outline),
-            "dem_url": project_metadata.dem_url,
-        },
-    )
+    try:
+        project_id = await db.execute(
+            query,
+            values={
+                "id": _id,
+                "author_id": author_id,
+                "name": project_metadata.name,
+                "description": project_metadata.description,
+                "per_task_instructions": project_metadata.per_task_instructions,
+                "status": ProjectStatus.DRAFT.name,
+                "visibility": project_metadata.visibility.name,
+                "outline": str(project_metadata.outline),
+                "no_fly_zones": str(project_metadata.no_fly_zones),
+                "dem_url": project_metadata.dem_url,
+                "output_orthophoto_url": project_metadata.output_orthophoto_url,
+                "output_pointcloud_url": project_metadata.output_pointcloud_url,
+                "output_raw_url": project_metadata.output_raw_url,
+                "task_split_dimension": project_metadata.task_split_dimension,
+                "deadline_at": project_metadata.deadline_at,
+            },
+        )
+        return project_id
 
-    # Fetch the newly created project using the returned ID
-    select_query = f"""
-        SELECT id, name, short_description, description, per_task_instructions, outline
-        FROM projects
-        WHERE id = '{project_id}'
-    """
-    new_project = await db.fetch_one(query=select_query)
-    return new_project
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(e) from e
 
 
 async def get_project_by_id(db: Database, project_id: uuid.UUID):
@@ -75,7 +82,6 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
     SELECT
         projects.id,
         projects.name,
-        projects.short_description,
         projects.description,
         projects.per_task_instructions,
         projects.outline
@@ -96,22 +102,19 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
 
 async def get_projects(
     db: Database,
-    author_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
 ):
     """Get all projects."""
     raw_sql = """
-        SELECT id, name, short_description, description, per_task_instructions, outline
+        SELECT id, name, description, per_task_instructions, outline
         FROM projects
-        WHERE author_id = :author_id
-        ORDER BY id DESC
+        ORDER BY created_at DESC
         OFFSET :skip
         LIMIT :limit;
         """
-    db_projects = await db.fetch_all(
-        raw_sql, {"author_id": author_id, "skip": skip, "limit": limit}
-    )
+    db_projects = await db.fetch_all(raw_sql, {"skip": skip, "limit": limit})
+
     return db_projects
 
 

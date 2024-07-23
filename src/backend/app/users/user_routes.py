@@ -1,15 +1,12 @@
-from typing import Any
-from datetime import timedelta
 from fastapi import APIRouter, Response, HTTPException, Depends
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     Token,
-    UserPublic,
     ProfileUpdate,
     AuthUser,
 )
-from app.users.user_deps import CurrentUser, login_required
+from app.users.user_deps import login_required
 from app.config import settings
 from app.users import user_crud
 from app.db import database
@@ -46,27 +43,7 @@ async def login_access_token(
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.get("/refresh_token")
-def update_token(current_user: CurrentUser):
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-
-    access_token, refresh_token = user_crud.create_access_token(
-        current_user.id,
-        expires_delta=access_token_expires,
-        refresh_token_expiry=refresh_token_expires,
-    )
-    return Token(access_token=access_token, refresh_token=refresh_token)
-
-
-@router.get("/me", response_model=UserPublic)
-def read_user_me(current_user: CurrentUser) -> Any:
-    """
-    Get current user.
-    """
-    return current_user
-
-
+@router.patch("/{user_id}/profile")
 @router.post("/{user_id}/profile")
 async def update_user_profile(
     user_id: str,

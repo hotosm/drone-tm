@@ -1,29 +1,28 @@
-/* eslint-disable no-unused-vars */
 import { useMutation } from '@tanstack/react-query';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import { FormControl, Label, Input } from '@Components/common/FormUI';
+import { Button } from '@Components/RadixComponents/Button';
 import { toast } from 'react-toastify';
 import { setCreateProjectState } from '@Store/actions/createproject';
-import RadioButton from '@Components/common/RadioButton';
-import { Button } from '@Components/RadixComponents/Button';
-import { generateTaskOptions } from '@Constants/createProject';
 import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
-import { postPreviewSplitBySquare } from '@Services/createproject';
 import prepareFormData from '@Utils/prepareFormData';
+import { postPreviewSplitBySquare } from '@Services/createproject';
 import MapSection from './MapSection';
 
 export default function GenerateTask({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
-  const generateTaskOption = useTypedSelector(
-    state => state.createproject.generateTaskOption,
-  );
-  const uploadedGeojson = useTypedSelector(
-    state => state.createproject.uploadedGeojson,
+
+  const { register, watch } = formProps;
+  const dimension = watch('dimension');
+
+  const uploadedProjectArea = useTypedSelector(
+    state => state.createproject.uploadedProjectArea,
   );
 
   const geojsonFile =
-    !!uploadedGeojson && convertGeojsonToFile(uploadedGeojson);
+    !!uploadedProjectArea && convertGeojsonToFile(uploadedProjectArea);
 
-  const payload = prepareFormData({ project_geojson: geojsonFile });
+  const payload = prepareFormData({ project_geojson: geojsonFile, dimension });
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: postPreviewSplitBySquare,
@@ -40,22 +39,27 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
     <div>
       <div className="naxatw-grid naxatw-grid-cols-3 naxatw-bg-white">
         <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
-          <RadioButton
-            topic="Select an option to choose the task"
-            options={generateTaskOptions}
-            direction="column"
-            onChangeData={val => {
-              dispatch(setCreateProjectState({ generateTaskOption: val }));
-            }}
-            value={generateTaskOption}
-          />
+          <FormControl>
+            <Label>Dimension of Square (meter)</Label>
+            <Input
+              placeholder="Enter Distance (in m)"
+              type="number"
+              className="naxatw-mt-1"
+              value={dimension}
+              {...register('dimension', {
+                required: 'Required',
+                valueAsNumber: true,
+              })}
+            />
+          </FormControl>
           <Button
             withLoader
             isLoading={isLoading}
             rightIcon="settings"
+            disabled={!dimension}
             className="naxatw-mt-4 naxatw-bg-red"
             onClick={() => {
-              if (!uploadedGeojson) return;
+              if (!uploadedProjectArea) return;
               mutate(payload);
             }}
           >

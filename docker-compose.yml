@@ -12,7 +12,7 @@ services:
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
     volumes:
-      - ./src/backend:/project/src/backend
+      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     env_file: .env
     networks:
       - dtm-network
@@ -21,7 +21,7 @@ services:
     build:
       context: .
       dockerfile: src/frontend/Dockerfile
-      target: ${DOCKER_TARGET:-development}
+      target: ${FRONTEND_TARGET_OVERRIDE:-development}
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:
@@ -30,19 +30,17 @@ services:
     networks:
       - dtm-network
     volumes:
-      - ./src/frontend:/app
+      - ${PROJECT_DIR:-.}/src/frontend:/app
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./src/frontend/docker-entrypoint.sh:/docker-entrypoint.sh
 
   db:
     image: postgis/postgis:14-3.4-alpine
     restart: always
     volumes:
-      - ./DockerData/dtm_db_data:/var/lib/postgresql/data/
+      - ${PROJECT_DIR:-.}/DockerData/dtm_db_data:/var/lib/postgresql/data/
     env_file: .env
     networks:
       - dtm-network
-    container_name: db
     healthcheck:
       test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
       start_period: 5s
@@ -55,7 +53,7 @@ services:
     restart: always
     command: server /export --console-address 0.0.0.0:9090 --address 0.0.0.0:9000
     volumes:
-      - ./DockerData/minio_data:/export
+      - ${PROJECT_DIR:-.}/DockerData/minio_data:/export
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dtm_user}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-somelongpassword}
@@ -81,9 +79,8 @@ services:
     build:
       context: .
       dockerfile: src/backend/Dockerfile
-    container_name: dtm_migrations
     volumes:
-      - ./src/backend:/project/src/backend
+      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:
       - backend
       - db

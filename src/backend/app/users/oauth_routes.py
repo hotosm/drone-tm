@@ -49,10 +49,12 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
 
 
 @router.get("/refresh-token", response_model=Token)
-def update_token(user_data: AuthUser = Depends(login_required)):
+async def update_token(user_data: AuthUser = Depends(login_required)):
     """Refresh access token"""
 
-    access_token, refresh_token = user_crud.create_access_token(user_data.model_dump())
+    access_token, refresh_token = await user_crud.create_access_token(
+        user_data.model_dump()
+    )
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
