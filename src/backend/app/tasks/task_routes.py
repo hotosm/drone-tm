@@ -8,7 +8,7 @@ from app.users.user_schemas import AuthUser
 from app.users.user_crud import get_user_by_id
 from databases import Database
 from app.db import database
-from app.utils import send_email, render_email_template
+from app.utils import send_notification_email, render_email_template
 from app.projects.project_crud import get_project_by_id
 
 
@@ -63,7 +63,7 @@ async def new_event(
                 },
             )
             background_tasks.add_task(
-                send_email,
+                send_notification_email,
                 user_data.email,
                 "Request for mapping",
                 html_content,

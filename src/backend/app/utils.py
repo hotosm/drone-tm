@@ -2,7 +2,6 @@ import logging
 import geojson
 import requests
 import shapely
-import emails
 from datetime import datetime, timezone
 from typing import Optional, Union, Any
 from geojson_pydantic import Feature, MultiPolygon, Polygon
@@ -17,6 +16,10 @@ from shapely import wkb
 from jinja2 import Template
 from pathlib import Path
 from dataclasses import dataclass
+
+from email.mime.text import MIMEText
+from email.utils import formataddr
+from aiosmtplib import send as send_email
 
 
 log = logging.getLogger(__name__)
@@ -331,11 +334,7 @@ def render_email_template(template_name: str, context: dict[str, Any]) -> str:
     return html_content
 
 
-def send_email(
-    email_to: str,
-    subject: str = "",
-    html_content: str = "",
-) -> None:
+async def send_notification_email(email_to, subject, html_content):
     """
     Send an email with the given subject and HTML content to the specified recipient.
 
@@ -353,29 +352,26 @@ def send_email(
             subject="Hello World",
             html_content="<h1>Hello, this is a test email.</h1>"
         )
-
-    This function uses the `emails` library to construct and send an email. The SMTP server settings
-    are configured from global `settings` and include host, port, user credentials, and encryption options
-    (TLS or SSL).
     """
-
     assert settings.emails_enabled, "no provided configuration for email variables"
-    message = emails.Message(
-        subject=subject,
-        html=html_content,
-        mail_from=(settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL),
+
+    message = MIMEText(html_content, "html")
+    message["Subject"] = subject
+    message["From"] = formataddr(
+        (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL)
     )
-    smtp_options = {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT}
-    if settings.SMTP_TLS:
-        smtp_options["tls"] = True
-    elif settings.SMTP_SSL:
-        smtp_options["ssl"] = True
-    if settings.SMTP_USER:
-        smtp_options["user"] = settings.SMTP_USER
-    if settings.SMTP_PASSWORD:
-        smtp_options["password"] = settings.SMTP_PASSWORD
-    response = message.send(to=email_to, smtp=smtp_options)
-    logging.info(f"send email result: {response}")
+    message["To"] = email_to
+    try:
+        log.debug("Sending email message")
+        await send_email(
+            message,
+            hostname=settings.SMTP_HOST,
+            port=settings.SMTP_PORT,
+            username=settings.SMTP_USER,
+            password=settings.SMTP_PASSWORD,
+        )
+    except Exception as e:
+        log.error(f"Error sending email: {e}")
 
 
 def test_email(email_to: str, subject: str = "Test email") -> None:
@@ -384,4 +380,6 @@ def test_email(email_to: str, subject: str = "Test email") -> None:
         context={"project_name": settings.APP_NAME, "email": email_to},
     )
 
-    send_email(email_to=email_to, subject=subject, html_content=html_content)
+    send_notification_email(
+        email_to=email_to, subject=subject, html_content=html_content
+    )
