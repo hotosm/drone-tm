@@ -87,8 +87,9 @@ jobs:
 
       - name: Deploy to VM
         run: |
-          docker compose --file docker-compose.vm.yml --env-file .env pull
+          bash contrib/pg-upgrade/upgrade-db.sh
+ 
           docker compose --file docker-compose.vm.yml --env-file .env up \
-            --detach --remove-orphans --force-recreate
+            --detach --remove-orphans --force-recreate --pull=always
         env:
           DOCKER_HOST: "ssh://${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
