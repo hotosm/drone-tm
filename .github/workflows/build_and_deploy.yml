@@ -2,8 +2,7 @@ name: Build and Deploy Drone Tasking Manager
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
