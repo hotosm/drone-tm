@@ -65,4 +65,4 @@ plugins:
 
 nav:
   - Home: index.md
-  - API Docs: https://hotosm.github.io/swagger/?url=https://hotosm.github.io/drone-tm/openapi.json
+  # - API Docs: https://hotosm.github.io/swagger/?url=https://hotosm.github.io/drone-tm/openapi.json

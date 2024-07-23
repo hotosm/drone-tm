@@ -11,16 +11,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_openapi_json:
-    uses: hotosm/gh-workflows/.github/workflows/openapi_build.yml@1.6.0
-    with:
-      image: ghcr.io/${{ github.repository }}/backend:ci-${{ github.ref_name }}
-      example_env_file_path: ".env.sample"
-      output_path: docs/openapi.json
+  # build_openapi_json:
+  #   uses: hotosm/gh-workflows/.github/workflows/openapi_build.yml@1.6.0
+  #   with:
+  #     image: ghcr.io/${{ github.repository }}/backend:ci-${{ github.ref_name }}
+  #     example_env_file_path: ".env.sample"
+  #     output_path: docs/openapi.json
 
   publish_docs:
     uses: hotosm/gh-workflows/.github/workflows/mkdocs_build.yml@1.6.0
-    needs:
-      - build_openapi_json
-    with:
-      openapi: true
+    # needs:
+    #   - build_openapi_json
+    # with:
+    #   openapi: true
