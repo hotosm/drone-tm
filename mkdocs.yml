@@ -3,8 +3,8 @@ site_description: Community-driven drone imagery generation.
 # strict: true
 site_url: "https://hotosm.github.io/drone-tm/"
 
-repo_name: "hotosm/Drone-TM"
-repo_url: "https://github.com/hotosm/Drone-TM/"
+repo_name: "hotosm/drone-tm"
+repo_url: "https://github.com/hotosm/drone-tm/"
 edit_uri: "edit/main/docs/"
 
 extra:

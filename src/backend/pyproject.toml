@@ -1,5 +1,5 @@
 [project]
-name = "Drone-TM"
+name = "drone-tm"
 version = "0.1.0"
 description = "Community-driven drone imagery generation"
 authors = [

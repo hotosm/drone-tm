@@ -72,7 +72,7 @@ def get_application() -> FastAPI:
         description="HOTOSM Drone Tasking Manager",
         license_info={
             "name": "GPL-3.0-only",
-            "url": "https://raw.githubusercontent.com/hotosm/Drone-TM/main/LICENSE.md",
+            "url": "https://raw.githubusercontent.com/hotosm/drone-tm/main/LICENSE.md",
         },
         debug=settings.DEBUG,
         docs_url="/api/docs",
