@@ -69,11 +69,11 @@ async def create_project_with_project_info(
 
 
 async def get_project_by_id(db: Database, project_id: uuid.UUID):
-    "Get a single project object by project_id"
+    "Get a single database project object by project_id"
 
     query = """ select * from projects where id=:project_id"""
-    result = db.fetch_one(query, {"project_id": project_id})
-    return [dict(r) for r in result]
+    result = await db.fetch_one(query, {"project_id": project_id})
+    return result
 
 
 async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
