@@ -52,6 +52,9 @@ wait_for_minio &
 get_frontend_index_html &
 wait
 
+# Migrations
+pdm run alembic upgrade head
+
 exec "$@"
 
 exit 0
