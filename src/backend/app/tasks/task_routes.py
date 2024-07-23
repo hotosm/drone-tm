@@ -5,10 +5,12 @@ from app.models.enums import EventType, State
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
+from app.users.user_crud import get_user_by_id
 from databases import Database
 from app.db import database
 from app.utils import send_email, render_email_template
 from app.projects.project_crud import get_project_by_id
+
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",
@@ -47,13 +49,14 @@ async def new_event(
                 "Request for mapping",
             )
 
-            project = await get_project_by_id(db, project_id)
-
             # email notification
+            project = await get_project_by_id(db, project_id)
+            author = await get_user_by_id(db, project.author_id)
+
             html_content = render_email_template(
                 template_name="mapping_requests.html",
                 context={
-                    "requested_user_name": user_data.name,
+                    "name": author.name,
                     "drone_operator_name": user_data.name,
                     "task_id": task_id,
                     "project_name": project.name,
