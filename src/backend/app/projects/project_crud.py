@@ -1,6 +1,5 @@
 import json
 import uuid
-from typing import Optional
 from app.projects import project_schemas
 from loguru import logger as log
 import shapely.wkb as wkblib
@@ -62,11 +61,17 @@ async def create_project_with_project_info(
     return new_project
 
 
-async def get_project_by_id(
-    db: Database, author_id: uuid.UUID, project_id: Optional[int] = None
-):
+async def get_project_by_id(db: Database, project_id: uuid.UUID):
+    "Get a single project object by project_id"
+
+    query = """ select * from projects where id=:project_id"""
+    result = db.fetch_one(query, {"project_id": project_id})
+    return [dict(r) for r in result]
+
+
+async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
     """Get a single project &  all associated tasks by ID."""
-    raw_sql = """
+    query = """
     SELECT
         projects.id,
         projects.name,
@@ -75,14 +80,16 @@ async def get_project_by_id(
         projects.per_task_instructions,
         projects.outline
     FROM projects
-    WHERE projects.author_id = :author_id
+    WHERE projects.id = :project_id
     LIMIT 1;
     """
 
-    project_record = await db.fetch_one(raw_sql, {"author_id": author_id})
+    project_record = await db.fetch_one(query, {"project_id": project_id})
+    if not project_record:
+        return None
     query = """ SELECT id, project_task_index, outline FROM tasks WHERE project_id = :project_id;"""
     task_records = await db.fetch_all(query, {"project_id": project_id})
-    project_record.tasks = task_records
+    project_record.tasks = task_records if task_records is not None else []
     project_record.task_count = len(task_records)
     return project_record
 

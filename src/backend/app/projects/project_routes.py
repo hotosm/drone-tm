@@ -204,8 +204,7 @@ async def read_project(
     user_data: AuthUser = Depends(login_required),
 ):
     """Get a specific project and all associated tasks by ID."""
-    author_id = user_data.id
-    project = await project_crud.get_project_by_id(db, author_id, project_id)
+    project = await project_crud.get_project_info_by_id(db, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
