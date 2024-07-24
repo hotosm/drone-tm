@@ -32,14 +32,20 @@ export default function MapSection({
   const drawProjectAreaEnable = useTypedSelector(
     state => state.createproject.drawProjectAreaEnable,
   );
+  const drawNoFlyZoneEnable = useTypedSelector(
+    state => state.createproject.drawNoFlyZoneEnable,
+  );
 
   const handleDrawEnd = (geojson: GeojsonType | null) => {
-    dispatch(setCreateProjectState({ drawnProjectArea: geojson }));
+    if (drawProjectAreaEnable) {
+      dispatch(setCreateProjectState({ drawnProjectArea: geojson }));
+    }
+    dispatch(setCreateProjectState({ drawnNoFlyZone: geojson }));
   };
 
   const { resetDraw } = useDrawTool({
     map,
-    enable: drawProjectAreaEnable,
+    enable: drawProjectAreaEnable || drawNoFlyZoneEnable,
     drawMode: 'draw_polygon',
     styles: drawStyles,
     onDrawEnd: handleDrawEnd,
@@ -49,18 +55,16 @@ export default function MapSection({
     onResetButtonClick(resetDraw);
   }, [onResetButtonClick, resetDraw]);
 
-  const uploadedProjectArea = useTypedSelector(
-    state => state.createproject.uploadedProjectArea,
+  const projectArea = useTypedSelector(
+    state => state.createproject.projectArea,
   );
-  const uploadedNoFlyZone = useTypedSelector(
-    state => state.createproject.uploadedNoFlyZone,
-  );
+  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
 
   useEffect(() => {
-    if (!uploadedProjectArea) return;
-    const bbox = getBbox(uploadedProjectArea as FeatureCollection);
+    if (!projectArea) return;
+    const bbox = getBbox(projectArea as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [map, uploadedProjectArea]);
+  }, [map, projectArea]);
 
   return (
     <MapContainer
@@ -75,8 +79,8 @@ export default function MapSection({
         map={map as Map}
         isMapLoaded={isMapLoaded}
         id="uploaded-project-area"
-        geojson={uploadedProjectArea as GeojsonType}
-        visibleOnMap={!!uploadedProjectArea}
+        geojson={projectArea as GeojsonType}
+        visibleOnMap={!!projectArea}
         layerOptions={{
           type: 'fill',
           paint: {
@@ -90,8 +94,8 @@ export default function MapSection({
         map={map as Map}
         isMapLoaded={isMapLoaded}
         id="uploaded-no-fly-zone"
-        geojson={uploadedNoFlyZone as GeojsonType}
-        visibleOnMap={!!uploadedNoFlyZone}
+        geojson={noFlyZone as GeojsonType}
+        visibleOnMap={!!noFlyZone}
         layerOptions={{
           type: 'fill',
           paint: {
