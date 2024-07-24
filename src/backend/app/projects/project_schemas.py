@@ -1,6 +1,6 @@
 import uuid
 from pydantic import BaseModel, computed_field, Field, validator
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
 from geojson_pydantic import Feature, FeatureCollection, Polygon
 from app.models.enums import ProjectVisibility, State
 from shapely import wkb
@@ -126,5 +126,7 @@ class ProjectOut(BaseModel):
 
 
 class PresignedUrlRequest(BaseModel):
-    image_name: str
-    expiry: int  # Expiry time in seconds
+    project_id: uuid.UUID
+    task_id: uuid.UUID
+    image_name: List[str]
+    expiry: int  # Expiry time in hours

@@ -93,7 +93,7 @@ jobs:
       - name: Deploy to VM
         run: |
           bash contrib/pg-upgrade/upgrade-db.sh
- 
+
           docker compose --file docker-compose.vm.yml --env-file .env up \
             --detach --remove-orphans --force-recreate --pull=always
         env:

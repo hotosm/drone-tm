@@ -164,7 +164,9 @@ async def preview_split_by_square(
 
 
 @router.post("/generate-presigned-url/", tags=["Image Upload"])
-async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
+async def generate_presigned_url(
+    data: project_schemas.PresignedUrlRequest, user: AuthUser = Depends(login_required)
+):
     """
     Generate a pre-signed URL for uploading an image to S3 Bucket.
 
@@ -183,14 +185,19 @@ async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
     try:
         # Generate a pre-signed URL for an object
         client = s3_client()
+        urls = []
+        for image in data.image_name:
+            image_path = f"publicuploads/{data.project_id}/{data.task_id}/{image}"
 
-        url = client.presigned_put_object(
-            settings.S3_BUCKET_NAME,
-            f"publicuploads/{data.image_name}",
-            expires=timedelta(hours=data.expiry),
-        )
+            url = client.get_presigned_url(
+                "PUT",
+                settings.S3_BUCKET_NAME,
+                image_path,
+                expires=timedelta(hours=data.expiry),
+            )
+            urls.append({"image_name": image, "url": url})
 
-        return url
+        return urls
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
