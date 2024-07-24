@@ -43,6 +43,8 @@ export type GeojsonType = GeoJsonTypes | FeatureCollection | Feature;
 
 export interface IVectorLayer extends ILayer {
   geojson: GeojsonType | null;
+  interactions?: string[];
+  onFeatureSelect?: (properties: Record<string, any>) => void;
 }
 
 type InteractionsType = 'hover' | 'select';
