@@ -6,12 +6,14 @@ export interface ProjectState {
   individualProjectActiveTab: string;
   tasksData: Record<string, any>[] | null;
   projectArea: Record<string, any> | null;
+  selectedTaskId: string;
 }
 
 const initialState: ProjectState = {
   individualProjectActiveTab: 'tasks',
   tasksData: null,
   projectArea: null,
+  selectedTaskId: '',
 };
 
 const setProjectState: CaseReducer<
