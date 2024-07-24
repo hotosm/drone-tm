@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { Popup } from 'maplibre-gl';
 import type { MapMouseEvent } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '@Components/common/MapLibreComponents/map.css';
 import { Button } from '@Components/RadixComponents/Button';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import { IAsyncPopup } from '../types';
@@ -21,6 +23,7 @@ export default function AsyncPopup({
   handleBtnClick,
   isLoading = false,
   onClose,
+  buttonText = 'View More',
 }: IAsyncPopup) {
   const [properties, setProperties] = useState<Record<string, any> | null>(
     null,
@@ -70,7 +73,7 @@ export default function AsyncPopup({
         {isLoading ? (
           <Skeleton className="naxatw-my-3 naxatw-h-4 naxatw-w-1/2 naxatw-rounded-md naxatw-bg-grey-100 naxatw-shadow-sm" />
         ) : (
-          <p className="naxatw-btn-text naxatw-text-primary-400">{title}</p>
+          <p className="naxatw-text-body-btn naxatw-text-red">{title}</p>
         )}
         <span
           role="button"
@@ -86,11 +89,11 @@ export default function AsyncPopup({
       {!isLoading && (
         <div className="naxatw-p-3">
           <Button
-            variant="ghost"
+            className="naxatw-bg-red naxatw-font-primary naxatw-text-white"
             size="sm"
             onClick={() => handleBtnClick?.(properties)}
           >
-            View More
+            {buttonText}
           </Button>
         </div>
       )}
