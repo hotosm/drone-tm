@@ -1,16 +1,21 @@
-/* eslint-disable object-shorthand */
-import { useEffect, useState } from 'react';
-import { useTypedSelector } from '@Store/hooks';
+/* eslint-disable no-unused-vars */
+import { useCallback, useEffect, useState } from 'react';
+import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
-import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import PopupUI from '@Components/common/MapLibreComponents/PopupUI';
+import { setProjectState } from '@Store/actions/project';
 
 export default function MapSection() {
+  const dispatch = useTypedDispatch();
+
   const [tasksBoundaryLayer, setTasksBoundaryLayer] = useState<Record<
     string,
     any
@@ -25,8 +30,10 @@ export default function MapSection() {
     disableRotation: true,
   });
 
+  const selectedTaskId = useTypedSelector(
+    state => state.project.selectedTaskId,
+  );
   const tasksData = useTypedSelector(state => state.project.tasksData);
-  const projectArea = useTypedSelector(state => state.project.projectArea);
 
   // create combined geojson from individual tasks from the API
   useEffect(() => {
@@ -37,9 +44,7 @@ export default function MapSection() {
         geometry: { ...taskObj.outline_geojson.geometry },
         properties: {
           ...taskObj.outline_geojson.properties,
-          locked_by_user: taskObj?.locked_by_uid,
         },
-        id: `${taskObj.id}_${taskObj.task_status}`,
       };
     });
     const taskBoundariesFeatcol = {
@@ -50,16 +55,21 @@ export default function MapSection() {
           name: 'EPSG:3857',
         },
       },
-      features: features,
+      features,
     };
     setTasksBoundaryLayer(taskBoundariesFeatcol);
   }, [map, tasksData]);
 
+  // zoom to layer in the project area
   useEffect(() => {
-    if (!projectArea) return;
-    const bbox = getBbox(projectArea as FeatureCollection);
+    if (!tasksBoundaryLayer) return;
+    const bbox = getBbox(tasksBoundaryLayer as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [map, projectArea]);
+  }, [map, tasksBoundaryLayer]);
+
+  const getPopupUI = useCallback((properties: Record<string, any>) => {
+    return <PopupUI data={{ GSD: 3, altitude: 100, gimble_angle: -90 }} />;
+  }, []);
 
   return (
     <MapContainer
@@ -67,7 +77,7 @@ export default function MapSection() {
       isMapLoaded={isMapLoaded}
       style={{
         width: '100%',
-        height: '582px',
+        height: '100%',
       }}
     >
       {tasksBoundaryLayer && (
@@ -87,6 +97,15 @@ export default function MapSection() {
           }}
         />
       )}
+      <AsyncPopup
+        map={map as Map}
+        popupUI={getPopupUI}
+        title={`Task #${selectedTaskId}`}
+        fetchPopupData={(properties: Record<string, any>) => {
+          dispatch(setProjectState({ selectedTaskId: properties.id }));
+        }}
+        buttonText="Lock For Mapping"
+      />
       <BaseLayerSwitcher />
     </MapContainer>
   );
