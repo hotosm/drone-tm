@@ -5,11 +5,9 @@ from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 import geojson
 from datetime import timedelta
-
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from loguru import logger as log
-
 from app.projects import project_schemas, project_crud
 from app.db import database
 from app.models.enums import HTTPStatus
@@ -18,6 +16,8 @@ from app.s3 import s3_client
 from app.config import settings
 from databases import Database
 from app.db import db_models
+from shapely.geometry import shape, mapping
+from shapely.ops import unary_union
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -125,6 +125,7 @@ async def upload_project_task_boundaries(
 @router.post("/preview-split-by-square/", tags=["Projects"])
 async def preview_split_by_square(
     project_geojson: UploadFile = File(...),
+    no_fly_zones: UploadFile = File(default=None),
     dimension: int = Form(100),
     user: AuthUser = Depends(login_required),
 ):
@@ -140,8 +141,25 @@ async def preview_split_by_square(
     # read entire file
     content = await project_geojson.read()
     boundary = geojson.loads(content)
+    project_shape = shape(boundary["features"][0]["geometry"])
 
-    result = await project_crud.preview_split_by_square(boundary, dimension)
+    # If no_fly_zones is provided, read and parse it
+    if no_fly_zones:
+        no_fly_content = await no_fly_zones.read()
+        no_fly_zones_geojson = geojson.loads(no_fly_content)
+        no_fly_shapes = [
+            shape(feature["geometry"]) for feature in no_fly_zones_geojson["features"]
+        ]
+        no_fly_union = unary_union(no_fly_shapes)
+
+        # Calculate the difference between the project shape and no-fly zones
+        new_outline = project_shape.difference(no_fly_union)
+    else:
+        new_outline = project_shape
+    result_geojson = geojson.Feature(geometry=mapping(new_outline))
+
+    result = await project_crud.preview_split_by_square(result_geojson, dimension)
+
     return result
 
 

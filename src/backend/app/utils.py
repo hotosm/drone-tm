@@ -8,7 +8,7 @@ from geojson_pydantic import Feature, MultiPolygon, Polygon
 from geojson_pydantic import FeatureCollection as FeatCol
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape, to_shape
-from shapely.geometry import mapping, shape
+from shapely.geometry import mapping, shape, MultiPolygon as ShapelyMultiPolygon
 from shapely.ops import unary_union
 from fastapi import HTTPException
 from shapely import wkb
@@ -75,13 +75,15 @@ def geojson_to_geometry(
     features = parsed_geojson.get("features", [])
 
     if len(features) > 1:
-        # TODO code to merge all geoms into multipolygon
-        # TODO do not use convex hull
-        pass
+        geometries = [shape(feature.get("geometry")) for feature in features]
+        merged_geometry = unary_union(geometries)
+        if not isinstance(merged_geometry, ShapelyMultiPolygon):
+            merged_geometry = ShapelyMultiPolygon([merged_geometry])
+        shapely_geom = merged_geometry
+    else:
+        geometry = features[0].get("geometry")
 
-    geometry = features[0].get("geometry")
-
-    shapely_geom = shape(geometry)
+        shapely_geom = shape(geometry)
 
     return from_shape(shapely_geom)
 

@@ -12,6 +12,7 @@ export default function ProjectsHeader() {
   const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
 
   const showMap = useTypedSelector(state => state.common.showMap);
+
   return (
     <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-py-3">
       <h5 className="naxatw-font-bold">Projects</h5>
