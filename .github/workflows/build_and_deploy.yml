@@ -17,7 +17,6 @@ jobs:
   build:
     name: Build Docker image
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     environment:
       name: ${{ github.ref_name }}
     steps:
@@ -61,7 +60,6 @@ jobs:
 
   deploy_to_vm:
     name: Deploy to VM
-    timeout-minutes: 15
     needs:
       - build
     runs-on: ubuntu-latest
