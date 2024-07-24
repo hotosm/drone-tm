@@ -18,6 +18,7 @@ import { FeatureCollection } from 'geojson';
 import { uploadAreaOptions } from '@Constants/createProject';
 import { validateGeoJSON } from '@Utils/convertLayerUtils';
 import Icon from '@Components/common/Icon';
+import { toast } from 'react-toastify';
 import MapSection from './MapSection';
 
 export default function DefineAOI({
@@ -60,6 +61,20 @@ export default function DefineAOI({
       dispatch(setCreateProjectState({ drawProjectAreaEnable: true }));
       return;
     }
+    const drawnArea =
+      drawnProjectArea && area(drawnProjectArea as FeatureCollection);
+    if (drawnArea && drawnArea > 1000000) {
+      toast.error('Drawn Area should not exceed 100km²');
+      dispatch(
+        setCreateProjectState({
+          drawProjectAreaEnable: false,
+          drawnProjectArea: null,
+        }),
+      );
+      // @ts-ignore
+      resetDrawTool();
+      return;
+    }
     dispatch(
       setCreateProjectState({
         projectArea: drawnProjectArea,
@@ -75,6 +90,20 @@ export default function DefineAOI({
   const handleDrawNoFlyZoneClick = () => {
     if (!drawNoFlyZoneEnable) {
       dispatch(setCreateProjectState({ drawNoFlyZoneEnable: true }));
+      return;
+    }
+    const drawnNoFlyZoneArea =
+      drawnProjectArea && area(drawnNoFlyZone as FeatureCollection);
+    if (drawnNoFlyZoneArea && drawnNoFlyZoneArea > 1000000) {
+      toast.error('Drawn Area should not exceed 100km²');
+      dispatch(
+        setCreateProjectState({
+          drawNoFlyZoneEnable: false,
+          drawnNoFlyZone: null,
+        }),
+      );
+      // @ts-ignore
+      resetDrawTool();
       return;
     }
     dispatch(
@@ -208,7 +237,7 @@ export default function DefineAOI({
                   Reset Project Area
                 </Button>
                 <p className="naxatw-mt-2 naxatw-text-body-md">
-                  Total Area: {Math.trunc(totalProjectArea as number)} m2
+                  Total Area: {Math.trunc(totalProjectArea as number)} m²
                 </p>
                 <div className="naxatw-mt-2">
                   <RadioButton
