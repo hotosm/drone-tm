@@ -164,7 +164,9 @@ async def preview_split_by_square(
 
 
 @router.post("/generate-presigned-url/", tags=["Image Upload"])
-async def generate_presigned_url(data: project_schemas.PresignedUrlRequest):
+async def generate_presigned_url(
+    data: project_schemas.PresignedUrlRequest, user: AuthUser = Depends(login_required)
+):
     """
     Generate a pre-signed URL for uploading an image to S3 Bucket.
 
