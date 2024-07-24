@@ -1,4 +1,6 @@
-import { useEffect, useMemo } from 'react';
+/* eslint-disable no-param-reassign */
+import { useEffect, useMemo, useRef } from 'react';
+import { MapMouseEvent } from 'maplibre-gl';
 import { IVectorLayer } from '../types';
 
 export default function VectorLayer({
@@ -6,10 +8,17 @@ export default function VectorLayer({
   id,
   geojson,
   isMapLoaded,
+  interactions = [],
   layerOptions,
+  onFeatureSelect,
   visibleOnMap = true,
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
+  const hasInteractions = useRef(false);
+
+  useEffect(() => {
+    hasInteractions.current = !!interactions.length;
+  }, [interactions]);
 
   useEffect(() => {
     if (!map || !isMapLoaded || !geojson) return;
@@ -37,6 +46,42 @@ export default function VectorLayer({
       map.removeLayer(sourceId);
     }
   }, [map, isMapLoaded, visibleOnMap, sourceId, geojson]); // eslint-disable-line
+
+  // change cursor to pointer on feature hover
+  useEffect(() => {
+    if (!map) return () => {};
+    function onMouseOver() {
+      if (!map || !hasInteractions.current) return;
+      map.getCanvas().style.cursor = 'pointer';
+    }
+    function onMouseLeave() {
+      if (!map || !hasInteractions.current) return;
+      map.getCanvas().style.cursor = '';
+    }
+    map.on('mouseover', sourceId, onMouseOver);
+    map.on('mouseleave', sourceId, onMouseLeave);
+    // remove event handlers on unmount
+    return () => {
+      map.off('mouseover', onMouseOver);
+      map.off('mouseleave', onMouseLeave);
+    };
+  }, [map, sourceId]);
+
+  // add select interaction & return properties on feature select
+  useEffect(() => {
+    if (!map || !interactions.includes('feature')) return () => {};
+    function handleSelectInteraction(event: MapMouseEvent) {
+      if (!map) return;
+      map.getCanvas().style.cursor = 'pointer';
+      // @ts-ignore
+      const { features } = event;
+      if (!features?.length) return;
+      const { properties, layer } = features[0];
+      onFeatureSelect?.({ ...properties, layer: layer?.id });
+    }
+    map.on('click', sourceId, handleSelectInteraction);
+    return () => map.off('click', sourceId, handleSelectInteraction);
+  }, [map, interactions, sourceId, onFeatureSelect]);
 
   useEffect(
     () => () => {

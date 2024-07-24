@@ -47,7 +47,12 @@ export default function App() {
   };
 
   // add routes where you dont want navigation bar
-  const routesWithoutNavbar = ['/', '/login', '/forgot-password'];
+  const routesWithoutNavbar = [
+    '/',
+    '/login',
+    '/forgot-password',
+    '/user-profile',
+  ];
 
   return (
     <>

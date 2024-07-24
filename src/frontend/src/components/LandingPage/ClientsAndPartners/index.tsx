@@ -2,6 +2,8 @@ import Image from '@Components/RadixComponents/Image';
 import { motion } from 'framer-motion';
 import worldBankLogo from '@Assets/images/LandingPage/WorldbankLogo.png';
 import { fadeUpVariant } from '@Constants/animations';
+import gfdrrLogo from '@Assets/images/GFDRR-logo.png';
+import { FlexRow } from '@Components/common/Layouts';
 
 export default function ClientAndPartners() {
   return (
@@ -25,7 +27,10 @@ export default function ClientAndPartners() {
             transition={{ duration: 0.7 }}
             viewport={{ once: true }}
           >
-            <Image src={worldBankLogo} alt="world bank logo" />
+            <FlexRow gap={10}>
+              <Image src={worldBankLogo} alt="world bank logo" />
+              <Image src={gfdrrLogo} alt="gfdrrLogo" width={260} />
+            </FlexRow>
           </motion.div>
         </div>
       </div>

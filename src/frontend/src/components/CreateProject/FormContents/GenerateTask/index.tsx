@@ -15,12 +15,12 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
   const { register, watch } = formProps;
   const dimension = watch('dimension');
 
-  const uploadedProjectArea = useTypedSelector(
-    state => state.createproject.uploadedProjectArea,
+  const projectArea = useTypedSelector(
+    state => state.createproject.projectArea,
   );
 
   const geojsonFile =
-    !!uploadedProjectArea && convertGeojsonToFile(uploadedProjectArea);
+    !!projectArea && convertGeojsonToFile(projectArea as Record<string, any>);
 
   const payload = prepareFormData({ project_geojson: geojsonFile, dimension });
 
@@ -40,7 +40,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
       <div className="naxatw-grid naxatw-grid-cols-3 naxatw-bg-white">
         <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
           <FormControl>
-            <Label>Dimension of Square (meter)</Label>
+            <Label required>Dimension of Square (m)</Label>
             <Input
               placeholder="Enter Distance (in m)"
               type="number"
@@ -59,7 +59,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
             disabled={!dimension}
             className="naxatw-mt-4 naxatw-bg-red"
             onClick={() => {
-              if (!uploadedProjectArea) return;
+              if (!projectArea) return;
               mutate(payload);
             }}
           >
