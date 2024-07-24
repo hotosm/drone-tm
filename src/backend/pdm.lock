@@ -710,7 +710,7 @@ summary = "A small Python utility to set file creation time on Windows"
 lock_version = "4.2"
 cross_platform = true
 groups = ["default"]
-content_hash = "sha256:c7e802ea79b2274ec6c9b4b9b5652b197f1772d403228be4f26d4e42fd2d822a"
+content_hash = "sha256:672cd59c581dcb59ebdea5c95d36a97f60a6c386568354b12c7521143ae0860c"
 
 [metadata.files]
 "aiosmtplib 3.0.1" = [

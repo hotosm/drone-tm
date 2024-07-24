@@ -1,11 +1,8 @@
-version: "3"
-
 services:
   backend:
     build:
       context: .
       dockerfile: src/backend/Dockerfile
-    restart: always
     depends_on:
       - db
       - minio
@@ -16,6 +13,7 @@ services:
     env_file: .env
     networks:
       - dtm-network
+    restart: unless-stopped
 
   frontend:
     build:
@@ -33,14 +31,15 @@ services:
       - ${PROJECT_DIR:-.}/src/frontend:/app
       - /var/run/docker.sock:/var/run/docker.sock
 
+  # If error, please upgrade the db `bash contrib/pg-upgrade/upgrade-db.sh`
   db:
-    image: postgis/postgis:14-3.4-alpine
-    restart: always
+    image: postgis/postgis:16-3.4-alpine
     volumes:
-      - ${PROJECT_DIR:-.}/DockerData/dtm_db_data:/var/lib/postgresql/data/
+      - pg-16-data:/var/lib/postgresql/data
     env_file: .env
     networks:
       - dtm-network
+    restart: unless-stopped
     healthcheck:
       test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
       start_period: 5s
@@ -50,7 +49,6 @@ services:
 
   minio:
     image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
-    restart: always
     command: server /export --console-address 0.0.0.0:9090 --address 0.0.0.0:9000
     volumes:
       - ${PROJECT_DIR:-.}/DockerData/minio_data:/export
@@ -63,6 +61,7 @@ services:
       - 9090:9090
     networks:
       - dtm-network
+    restart: unless-stopped
 
   createbuckets:
     image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
@@ -74,6 +73,7 @@ services:
       - minio
     networks:
       - dtm-network
+    restart: "no"
 
   migrations:
     build:
@@ -94,3 +94,7 @@ services:
 networks:
   dtm-network:
     name: dtm-network
+
+volumes:
+  pg-16-data:
+    name: drone-tm-pg-16-data

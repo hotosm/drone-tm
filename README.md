@@ -39,8 +39,8 @@ To get started with Drone TM:
 
 Drone TM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
 
-- **Fork the Repository**: https://github.com/hotosm/Drone-TM
-- **Report Issues**: https://github.com/hotosm/Drone-TM/issues
+- **Fork the Repository**: https://github.com/hotosm/drone-tm
+- **Report Issues**: https://github.com/hotosm/drone-tm/issues
 - **Contribute Code**: Submit pull requests for new features or bug fixes.
 
 Join us in transforming aerial mapping through community-powered drones and create a resilient future for all.

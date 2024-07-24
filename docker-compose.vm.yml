@@ -22,13 +22,13 @@ services:
       - dtm-network
 
   db:
-    image: postgis/postgis:14-3.4-alpine
-    restart: always
+    image: postgis/postgis:16-3.4-alpine
     volumes:
-      - ${PROJECT_DIR:-.}/DockerData/dtm_db_data:/var/lib/postgresql/data/
+      - pg-16-data:/var/lib/postgresql/data
     env_file: .env
     networks:
       - dtm-network
+    restart: unless-stopped
     healthcheck:
       test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
       start_period: 5s
@@ -80,3 +80,7 @@ services:
 networks:
   dtm-network:
     name: dtm-network
+
+volumes:
+  pg-16-data:
+    name: drone-tm-pg-16-data
