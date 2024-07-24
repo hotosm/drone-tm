@@ -1,5 +1,14 @@
+networks:
+  dtm-network:
+    name: dtm-network
+
+volumes:
+  db-data:
+    name: drone-tm-db-data
+
 services:
   backend:
+    image: ghcr.io/hotosm/drone-tm/backend:ci
     build:
       context: .
       dockerfile: src/backend/Dockerfile
@@ -31,12 +40,15 @@ services:
       - ${PROJECT_DIR:-.}/src/frontend:/app
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # If error, please upgrade the db `bash contrib/pg-upgrade/upgrade-db.sh`
+  # If error, please upgrade the db with `contrib/pg-upgrade/docker-compose.yml`
   db:
     image: postgis/postgis:16-3.4-alpine
     volumes:
-      - pg-16-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
     env_file: .env
+    environment:
+      LANG: en-GB.utf8
+      # POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-GB"
     networks:
       - dtm-network
     restart: unless-stopped
@@ -90,11 +102,3 @@ services:
       - dtm-network
     entrypoint: ["pdm", "run", "alembic", "upgrade", "head"]
     restart: "no"
-
-networks:
-  dtm-network:
-    name: dtm-network
-
-volumes:
-  pg-16-data:
-    name: drone-tm-pg-16-data

@@ -92,8 +92,16 @@ jobs:
 
       - name: Deploy to VM
         run: |
-          bash contrib/pg-upgrade/upgrade-db.sh
+          # Create db data volume if not exists
+          docker volume create drone-tm-db-data || true
 
+          # Run db upgrade if necessary
+          docker compose --file contrib/pg-upgrade/docker-compose.yml \
+            --env-file .env up --abort-on-container-failure
+
+          # Cleanup db upgrade containers
+          docker compose --file contrib/pg-upgrade/docker-compose.yml down
+ 
           docker compose --file docker-compose.vm.yml --env-file .env up \
             --detach --remove-orphans --force-recreate --pull=always
         env:

@@ -1,19 +1,20 @@
 # The services run in sequential order, via depends_on
 
 volumes:
-  pg-14-data:
-    name: drone-tm-pg-14-data
-  pg-16-data:
+  db-data:
     external: true
-    name: drone-tm-pg-16-data
+    name: drone-tm-db-data
+
+networks:
+  pg-upgrade:
 
 services:
   # Check if the upgrade has already be complete --> v16
   db-check-upgrade:
     image: postgis/postgis:16-3.4-alpine
     volumes:
-      - pg-16-data:/var/lib/postgresql/data
-    restart: "no"
+      - db-data:/var/lib/postgresql/data
+    restart: no
     entrypoint: /bin/sh -c
     command:
       - |
@@ -36,87 +37,59 @@ services:
   # Only required as we are migrating from filesystem to volume
   db-to-volume:
     image: postgis/postgis:16-3.4-alpine
+    depends_on:
+      db-check-upgrade:
+        condition: service_completed_successfully
     volumes:
-      - ${PROJECT_DIR:-.}/DockerData/dtm_db_data:/var/lib/postgresql/old/data
-      - pg-14-data:/var/lib/postgresql/new/data
-    restart: "no"
+      - ${PROJECT_DIR:-../..}/DockerData/dtm_db_data:/db-data-old
+      - db-data:/db-data-new
+    restart: no
     entrypoint: /bin/sh -c
     command:
       - |
-        rm -rf /var/lib/postgresql/new/data
-        cp -r /var/lib/postgresql/old/data/* /var/lib/postgresql/new/data/
+        rm -rf /db-data-new/*
+        cp -r /db-data-old/* /db-data-new/
         echo 'Copied postgres data to docker volume'
 
-  # Do the actual db upgrade
-  db-upgrade-version:
-    image: ghcr.io/hotosm/drone-tm/pg-upgrade:14-to-16
-    build: contrib/pg-upgrade
+  # Do the db upgrade
+  db-upgrade:
+    image: ghcr.io/hotosm/drone-tm/pg-upgrade:16-3.4-alpine
+    build: .
     depends_on:
       db-to-volume:
         condition: service_completed_successfully
     volumes:
-      - pg-14-data:/var/lib/postgresql/14/data
-      # Volume defined in main docker-compose.yml
-      - pg-16-data:/var/lib/postgresql/16/data
-    env_file: .env
+      - db-data:/var/lib/postgresql/data
+    env_file: ../../.env
     environment:
-      PGUSER: ${POSTGRES_USER}
-      POSTGRES_INITDB_ARGS: -U ${POSTGRES_USER}
-    restart: "no"
+      PGAUTO_ONESHOT: yes
+    restart: no
 
-  # Replace the generated pg_hba.conf access file with the original
-  db-config-hba:
+  # Run maintenance tasks
+  db-maintenance:
     image: postgis/postgis:16-3.4-alpine
     depends_on:
-      db-upgrade-version:
+      db-upgrade:
         condition: service_completed_successfully
     volumes:
-      - pg-14-data:/var/lib/postgresql/14/data
-      - pg-16-data:/var/lib/postgresql/16/data
-    restart: "no"
+      - db-data:/var/lib/postgresql/data
+    env_file: ../../.env
+    restart: no
     entrypoint: /bin/sh -c
     command:
       - |
-        cp -f \
-          /var/lib/postgresql/14/data/pg_hba.conf \
-          /var/lib/postgresql/16/data/
-        echo 'Copied pg_hba.conf to new postgres dir'
+        gosu postgres pg_ctl start -D /var/lib/postgresql/data
 
-  # Start the db so we can run maintenance tasks
-  db-startup:
-    image: postgis/postgis:16-3.4-alpine
-    depends_on:
-      db-config-hba:
-        condition: service_completed_successfully
-    volumes:
-      - pg-16-data:/var/lib/postgresql/data
-    env_file: .env
-    networks:
-      - dtm-network
-    restart: unless-stopped
-    healthcheck:
-      test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
-      start_period: 5s
-      interval: 10s
-      timeout: 5s
-      retries: 3
+        # Upgrade PostGIS extension
+        PGPASSWORD=dtm \
+        psql --host=localhost --username=dtm dtm_db -c '
+          ALTER EXTENSION "postgis" UPDATE;
+        '
 
-  # Run maintenance, db vacuum
-  db-upgrade:
-    image: postgis/postgis:16-3.4-alpine
-    depends_on:
-      db-startup:
-        condition: service_healthy
-    env_file: .env
-    networks:
-      - dtm-network
-    restart: "no"
-    entrypoint: /bin/sh -c
-    command:
-      - |
+        # Rebuild statistics use vacuum
         PGPASSWORD=${POSTGRES_PASSWORD} \
         vacuumdb \
-        --host=db-startup \
+        --host=localhost \
         --username=${POSTGRES_USER} \
         --all \
         --analyze-in-stages
