@@ -12,7 +12,10 @@ import {
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
-import { setCreateProjectState } from '@Store/actions/createproject';
+import {
+  resetUploadedAndDrawnAreas,
+  setCreateProjectState,
+} from '@Store/actions/createproject';
 import { postCreateProject, postTaskBoundary } from '@Services/createproject';
 import { toast } from 'react-toastify';
 import {
@@ -104,7 +107,7 @@ export default function CreateprojectLayout() {
   >({
     mutationFn: postTaskBoundary,
     onSuccess: () => {
-      toast.success('Project Boundary Uploaded');
+      toast.success('Project Created Successfully');
       reset();
       dispatch(
         setCreateProjectState({
@@ -124,12 +127,13 @@ export default function CreateprojectLayout() {
   const { mutate: createProject } = useMutation<any, any, any, unknown>({
     mutationFn: postCreateProject,
     onSuccess: (res: any) => {
-      toast.success('Project Created Successfully');
       dispatch(setCreateProjectState({ projectId: res.data.project_id }));
       if (!splitGeojson) return;
       const geojson = convertGeojsonToFile(splitGeojson);
       const formData = prepareFormData({ task_geojson: geojson });
       uploadTaskBoundary({ id: res.data.project_id, data: formData });
+      reset();
+      dispatch(resetUploadedAndDrawnAreas());
     },
     onError: err => {
       toast.error(err.message);
@@ -158,9 +162,6 @@ export default function CreateprojectLayout() {
     }
     const payload = {
       ...data,
-      ...(data.outline_no_fly_zones === null && {
-        outline_no_fly_zones: undefined,
-      }),
       is_terrain_follow: isTerrainFollow === 'hilly',
     };
     createProject(payload);
