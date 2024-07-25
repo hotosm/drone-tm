@@ -140,6 +140,13 @@ async def new_event(
                 },
             )
 
+            background_tasks.add_task(
+                send_notification_email,
+                drone_operator.email_address,
+                "Task is Rejected",
+                html_content,
+            )
+
             return await task_crud.update_task_state(
                 db,
                 project_id,
