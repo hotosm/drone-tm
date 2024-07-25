@@ -158,6 +158,9 @@ export default function CreateprojectLayout() {
     }
     const payload = {
       ...data,
+      ...(data.outline_no_fly_zones === null && {
+        outline_no_fly_zones: undefined,
+      }),
       is_terrain_follow: isTerrainFollow === 'hilly',
     };
     createProject(payload);
