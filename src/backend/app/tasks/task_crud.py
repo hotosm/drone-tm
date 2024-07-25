@@ -163,3 +163,18 @@ async def get_requested_user_id(
     if result is None:
         raise ValueError("No user requested for mapping")
     return result["user_id"]
+
+
+    
+async def get_project_task_by_id(db: Database, project_id: uuid.UUID):
+    """Get all tasks associated with a specific project by project_id."""
+    raw_sql = """
+        SELECT t.id AS task_id, te.event_id, te.user_id, te.comment, te.state, te.created_at
+        FROM tasks t
+        LEFT JOIN task_events te ON t.id = te.task_id
+        WHERE t.project_id = :project_id
+        ORDER BY t.project_task_index;
+    """
+    db_tasks = await db.fetch_all(raw_sql, {"project_id": project_id})
+
+    return db_tasks

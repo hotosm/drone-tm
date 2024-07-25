@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
 from app.models.enums import EventType, State
 from app.tasks import task_schemas, task_crud
@@ -140,3 +140,19 @@ async def new_event(
             )
 
     return True
+
+
+
+@router.get("/requested_tasks/{project_id}/pending")
+async def get_pending_tasks(
+    project_id: uuid.UUID,
+    user_data: AuthUser = Depends(login_required),
+    db: Database = Depends(database.encode_db),
+):
+    """Get a list of pending tasks for a specific project and user."""
+    # Ensure that the user is authorized to view tasks for the project
+    pending_tasks = await task_crud.get_project_task_by_id(db, project_id)
+    if pending_tasks is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    # Fetch the pending tasks for the project
+    return pending_tasks
