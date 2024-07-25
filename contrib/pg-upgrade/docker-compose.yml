@@ -5,20 +5,18 @@ volumes:
     external: true
     name: drone-tm-db-data
 
-networks:
-  pg-upgrade:
-
 services:
-  # Check if the upgrade has already be complete --> v16
+  # Check if the upgrade has already complete --> v16
   db-check-upgrade:
     image: postgis/postgis:16-3.4-alpine
     volumes:
       - db-data:/var/lib/postgresql/data
+    network_mode: none
     restart: no
     entrypoint: /bin/sh -c
     command:
       - |
-        # The new database directory is empty, so continue upgrade
+        # The new database directory is empty, so continue to init
         if [ ! -f "/var/lib/postgresql/data/PG_VERSION" ]; then
           echo "Database is empty"
           exit 0
@@ -43,6 +41,7 @@ services:
     volumes:
       - ${PROJECT_DIR:-../..}/DockerData/dtm_db_data:/db-data-old
       - db-data:/db-data-new
+    network_mode: none
     restart: no
     entrypoint: /bin/sh -c
     command:
@@ -63,6 +62,7 @@ services:
     env_file: ../../.env
     environment:
       PGAUTO_ONESHOT: yes
+    network_mode: none
     restart: no
 
   # Run maintenance tasks
@@ -74,6 +74,7 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     env_file: ../../.env
+    network_mode: none
     restart: no
     entrypoint: /bin/sh -c
     command:
