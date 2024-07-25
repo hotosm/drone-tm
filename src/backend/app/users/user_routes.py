@@ -36,7 +36,12 @@ async def login_access_token(
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
-    user_info = {"id": user.id, "email": user.email_address}
+    user_info = {
+        "id": user.id,
+        "email": user.email_address,
+        "name": user.name,
+        "img_url": user.profile_img,
+    }
 
     access_token, refresh_token = await user_crud.create_access_token(user_info)
 
