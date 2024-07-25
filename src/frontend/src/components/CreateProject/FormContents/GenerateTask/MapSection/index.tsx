@@ -41,12 +41,29 @@ export default function MapSection() {
         height: '448px',
       }}
     >
+      {!splitGeojson && (
+        <VectorLayer
+          map={map as Map}
+          isMapLoaded={isMapLoaded}
+          id="uploaded-project-area"
+          geojson={projectArea}
+          visibleOnMap={!!projectArea}
+          layerOptions={{
+            type: 'fill',
+            paint: {
+              'fill-color': '#328ffd',
+              'fill-outline-color': '#D33A38',
+              'fill-opacity': 0.2,
+            },
+          }}
+        />
+      )}
       <VectorLayer
         map={map as Map}
         isMapLoaded={isMapLoaded}
-        id="uploaded-project-area"
-        geojson={projectArea}
-        visibleOnMap={!!projectArea}
+        id="split-area"
+        geojson={splitGeojson as GeojsonType}
+        visibleOnMap={!!splitGeojson}
         layerOptions={{
           type: 'fill',
           paint: {
@@ -55,13 +72,6 @@ export default function MapSection() {
             'fill-opacity': 0.2,
           },
         }}
-      />
-      <VectorLayer
-        map={map as Map}
-        isMapLoaded={isMapLoaded}
-        id="split-area"
-        geojson={splitGeojson as GeojsonType}
-        visibleOnMap={!!splitGeojson}
       />
       <BaseLayerSwitcher />
     </MapContainer>

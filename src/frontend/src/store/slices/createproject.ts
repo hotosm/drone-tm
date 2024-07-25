@@ -54,6 +54,7 @@ const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = state => ({
   drawNoFlyZoneEnable: initialState.drawNoFlyZoneEnable,
   drawnProjectArea: initialState.drawnProjectArea,
   drawnNoFlyZone: initialState.drawnNoFlyZone,
+  splitGeojson: initialState.splitGeojson,
 });
 
 const createProjectSlice = createSlice({

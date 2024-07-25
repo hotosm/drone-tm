@@ -94,7 +94,7 @@ export default function DefineAOI({
     }
     const drawnNoFlyZoneArea =
       drawnProjectArea && area(drawnNoFlyZone as FeatureCollection);
-    if (drawnNoFlyZoneArea && drawnNoFlyZoneArea > 1000000) {
+    if (drawnNoFlyZoneArea && drawnNoFlyZoneArea > 100000000) {
       toast.error('Drawn Area should not exceed 100km²');
       dispatch(
         setCreateProjectState({
