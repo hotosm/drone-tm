@@ -1,4 +1,4 @@
-name: Build and Deploy Drone Tasking Manager
+name: Build and Deploy
 
 on:
   push:
