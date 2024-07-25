@@ -24,7 +24,7 @@ dependencies = [
     "requests>=2.32.3",
     "loguru>=0.7.2",
     "python-multipart>=0.0.9",
-    "fmtm-splitter>=1.2.1",
+    "fmtm-splitter==1.2.2",
     "minio>=7.2.7",
     "pyjwt>=2.8.0",
     "passlib[bcrypt]==1.7.4",
