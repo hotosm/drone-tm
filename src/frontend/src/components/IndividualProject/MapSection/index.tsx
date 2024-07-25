@@ -91,16 +91,7 @@ export default function MapSection() {
   };
 
   const getPopupUI = useCallback((properties: Record<string, any>) => {
-    return (
-      <PopupUI
-        data={{
-          GSD: 3,
-          altitude: 100,
-          gimble_angle: -90,
-          TASK_STATUS: properties?.state,
-        }}
-      />
-    );
+    return <h6>This task is available for mapping</h6>;
   }, []);
 
   return (
@@ -136,7 +127,7 @@ export default function MapSection() {
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
         }}
-        buttonText="Lock For Mapping"
+        buttonText="Lock Task"
       />
       <BaseLayerSwitcher />
     </MapContainer>
