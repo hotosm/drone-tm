@@ -81,15 +81,16 @@ services:
         gosu postgres pg_ctl start -D /var/lib/postgresql/data
 
         # Upgrade PostGIS extension
-        PGPASSWORD=dtm \
-        psql --host=localhost --username=dtm dtm_db -c '
+        PGPASSWORD=${POSTGRES_PASSWORD:-dtm} \
+        psql --host=localhost --username=${POSTGRES_USER:-dtm} \
+        ${POSTGRES_DB:-dtm_db} -c '
           ALTER EXTENSION "postgis" UPDATE;
         '
 
         # Rebuild statistics use vacuum
-        PGPASSWORD=${POSTGRES_PASSWORD} \
+        PGPASSWORD=${POSTGRES_PASSWORD:-dtm} \
         vacuumdb \
         --host=localhost \
-        --username=${POSTGRES_USER} \
+        --username=${POSTGRES_USER:-dtm} \
         --all \
         --analyze-in-stages
