@@ -4,14 +4,25 @@ import {
   ProjectsHeader,
   ProjectsMapSection,
 } from '@Components/Projects';
-import { useGetProjectsListQuery } from '@Api/projects';
+import { useGetProjectsListQuery, useGetUserDetailsQuery } from '@Api/projects';
 import ProjectCardSkeleton from '@Components/Projects/ProjectCardSkeleton';
+import { useEffect } from 'react';
+import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 export default function Projects() {
   const showMap = useTypedSelector(state => state.common.showMap);
 
   // fetch api for projectsList
   const { data: projectsList, isLoading } = useGetProjectsListQuery();
+  const { data: userDetails } = useGetUserDetailsQuery();
+
+  const userDetailsx = getLocalStorageValue('userprofile');
+
+  useEffect(() => {
+    if (!userDetails || !userDetailsx) return;
+    const userDetailsString = JSON.stringify(userDetails);
+    localStorage.setItem('userprofile', userDetailsString as string);
+  }, [userDetails, userDetailsx]);
 
   return (
     <section className="naxatw-px-16 naxatw-pt-8">
