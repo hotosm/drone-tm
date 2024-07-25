@@ -64,6 +64,7 @@ export interface IAsyncPopup {
   handleBtnClick?: (properties: Record<string, any>) => void;
   isLoading?: boolean;
   onClose?: () => void;
+  buttonText?: string;
 }
 
 export type DrawModeTypes = DrawMode | null | undefined;

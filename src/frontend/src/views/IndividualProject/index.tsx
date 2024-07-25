@@ -46,7 +46,7 @@ export default function IndividualProject() {
       onSuccess: (res: any) =>
         dispatch(
           setProjectState({
-            tasksGeojson: res.tasks,
+            tasksData: res.tasks,
             projectArea: res.outline_geojson,
           }),
         ),
