@@ -6,22 +6,23 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '@Components/common/UserAvatar';
 import { toast } from 'react-toastify';
+import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
 
-  const userProfilex = localStorage.getItem('userprofile');
-  const userProfile = userProfilex && JSON.parse(userProfilex);
+  const userProfile = getLocalStorageValue('userprofile');
 
   const settingOptions = [
     {
       id: 1,
-      name: 'Account Settings',
-      icon: 'settings',
+      name: 'Edit Profile',
+      icon: 'person',
       onClick: () => {
         setToggle(false);
       },
+      isRed: false,
     },
     {
       id: 2,
@@ -32,6 +33,7 @@ export default function UserProfile() {
         navigate('/');
         toast.success('Logged Out Successfully');
       },
+      isRed: true,
     },
   ];
 
@@ -53,7 +55,9 @@ export default function UserProfile() {
             {settingOptions.map(item => (
               <li
                 key={item.id}
-                className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-x-2 naxatw-p-2 naxatw-text-body-md hover:naxatw-bg-[#F5F5F5]"
+                className={`${
+                  item.isRed && 'naxatw-text-red'
+                } naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-x-2 naxatw-p-2 naxatw-text-body-md hover:naxatw-bg-[#F5F5F5]`}
                 onClick={item.onClick}
               >
                 <span className="material-icons">{item.icon}</span> {item.name}

@@ -2,6 +2,7 @@
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { getProjectsList, getProjectDetail } from '@Services/createproject';
 import { getTaskStates } from '@Services/project';
+import { getUserProfileInfo } from '@Services/common';
 
 export const useGetProjectsListQuery = (
   queryOptions?: Partial<UseQueryOptions>,
@@ -36,6 +37,17 @@ export const useGetTaskStatesQuery = (
     queryFn: () => getTaskStates(projectId),
     select: (res: any) => res.data,
     enabled: !!projectId,
+    ...queryOptions,
+  });
+};
+
+export const useGetUserDetailsQuery = (
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['user=profile'],
+    queryFn: getUserProfileInfo,
+    select: (res: any) => res.data,
     ...queryOptions,
   });
 };
