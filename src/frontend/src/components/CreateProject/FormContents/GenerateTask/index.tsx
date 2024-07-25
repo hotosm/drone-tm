@@ -18,11 +18,18 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
   const projectArea = useTypedSelector(
     state => state.createproject.projectArea,
   );
+  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
 
-  const geojsonFile =
+  const projectGeojsonFile =
     !!projectArea && convertGeojsonToFile(projectArea as Record<string, any>);
+  const noFlyZoneGeojsonFile =
+    !!noFlyZone && convertGeojsonToFile(noFlyZone as Record<string, any>);
 
-  const payload = prepareFormData({ project_geojson: geojsonFile, dimension });
+  const payload = prepareFormData({
+    project_geojson: projectGeojsonFile,
+    dimension,
+    ...(noFlyZone ? { no_fly_zones: noFlyZoneGeojsonFile } : {}), // add no fly zones it there are any
+  });
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: postPreviewSplitBySquare,
@@ -42,7 +49,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
           <FormControl>
             <Label required>Dimension of Square (m)</Label>
             <Input
-              placeholder="Enter Distance (in m)"
+              placeholder="Enter Dimension (in m)"
               type="number"
               className="naxatw-mt-1"
               value={dimension}
