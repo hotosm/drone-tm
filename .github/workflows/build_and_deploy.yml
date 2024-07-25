@@ -95,7 +95,7 @@ jobs:
 
           # Run db upgrade if necessary
           docker compose --file contrib/pg-upgrade/docker-compose.yml \
-            --env-file .env up --abort-on-container-failure
+            --env-file .env up || true
 
           # Cleanup db upgrade containers
           docker compose --file contrib/pg-upgrade/docker-compose.yml down
