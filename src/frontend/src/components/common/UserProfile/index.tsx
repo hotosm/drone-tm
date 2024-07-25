@@ -6,13 +6,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '@Components/common/UserAvatar';
 import { toast } from 'react-toastify';
+import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
 
-  const userProfilex = localStorage.getItem('userprofile');
-  const userProfile = userProfilex && JSON.parse(userProfilex);
+  const userProfile = getLocalStorageValue('userprofile');
 
   const settingOptions = [
     {
