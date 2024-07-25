@@ -52,7 +52,9 @@ async def create_project_with_project_info(
                 "status": ProjectStatus.DRAFT.name,
                 "visibility": project_metadata.visibility.name,
                 "outline": str(project_metadata.outline),
-                "no_fly_zones": str(project_metadata.no_fly_zones) if project_metadata.no_fly_zones is not None else None,
+                "no_fly_zones": str(project_metadata.no_fly_zones)
+                if project_metadata.no_fly_zones is not None
+                else None,
                 "dem_url": project_metadata.dem_url,
                 "output_orthophoto_url": project_metadata.output_orthophoto_url,
                 "output_pointcloud_url": project_metadata.output_pointcloud_url,
