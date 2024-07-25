@@ -42,7 +42,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
           <FormControl>
             <Label required>Dimension of Square (m)</Label>
             <Input
-              placeholder="Enter Distance (in m)"
+              placeholder="Enter Dimension (in m)"
               type="number"
               className="naxatw-mt-1"
               value={dimension}
