@@ -66,3 +66,10 @@ plugins:
 nav:
   - Home: index.md
   # - API Docs: https://hotosm.github.io/swagger/?url=https://hotosm.github.io/drone-tm/openapi.json
+  - Get Started:
+      - About: about/about.md
+      - Installation: INSTALL.md
+      - Contribution Guidelines: CONTRIBUTING.md
+      - Code of Conduct: https://docs.hotosm.org/code-of-conduct
+      - FAQ: about/faq.md
+      - The Team: about/team.md

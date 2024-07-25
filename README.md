@@ -34,7 +34,12 @@
 <!-- prettier-ignore-end -->
 
 
-**Drone TM** is an integrated digital public good solution designed to harness the power of the crowd to generate high-resolution aerial maps of any location. This innovative platform provides drone pilots, particularly in developing countries, with job opportunities while contributing to the creation of high-resolution datasets crucial for disaster response and community resilience.
+**Drone TM** is an integrated digital public good solution designed to harness
+the power of the crowd to generate high-resolution aerial maps of any location.
+
+This innovative platform provides drone pilots, particularly in developing 
+countries, with job opportunities while contributing to the creation of 
+high-resolution datasets crucial for disaster response and community resilience.
 
 ## Problem Statement
 
