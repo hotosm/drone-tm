@@ -19,18 +19,18 @@ export default function MapSection() {
     disableRotation: true,
   });
 
-  const uploadedProjectArea = useTypedSelector(
-    state => state.createproject.uploadedProjectArea,
+  const projectArea = useTypedSelector(
+    state => state.createproject.projectArea,
   );
   const splitGeojson = useTypedSelector(
     state => state.createproject.splitGeojson,
   );
 
   useEffect(() => {
-    if (!uploadedProjectArea) return;
-    const bbox = getBbox(uploadedProjectArea as FeatureCollection);
+    if (!projectArea) return;
+    const bbox = getBbox(projectArea as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [map, uploadedProjectArea]);
+  }, [map, projectArea]);
 
   return (
     <MapContainer
@@ -41,12 +41,29 @@ export default function MapSection() {
         height: '448px',
       }}
     >
+      {!splitGeojson && (
+        <VectorLayer
+          map={map as Map}
+          isMapLoaded={isMapLoaded}
+          id="uploaded-project-area"
+          geojson={projectArea}
+          visibleOnMap={!!projectArea}
+          layerOptions={{
+            type: 'fill',
+            paint: {
+              'fill-color': '#328ffd',
+              'fill-outline-color': '#D33A38',
+              'fill-opacity': 0.2,
+            },
+          }}
+        />
+      )}
       <VectorLayer
         map={map as Map}
         isMapLoaded={isMapLoaded}
-        id="uploaded-project-area"
-        geojson={uploadedProjectArea as GeojsonType}
-        visibleOnMap={!!uploadedProjectArea}
+        id="split-area"
+        geojson={splitGeojson as GeojsonType}
+        visibleOnMap={!!splitGeojson}
         layerOptions={{
           type: 'fill',
           paint: {
@@ -55,13 +72,6 @@ export default function MapSection() {
             'fill-opacity': 0.2,
           },
         }}
-      />
-      <VectorLayer
-        map={map as Map}
-        isMapLoaded={isMapLoaded}
-        id="split-area"
-        geojson={splitGeojson as GeojsonType}
-        visibleOnMap={!!splitGeojson}
       />
       <BaseLayerSwitcher />
     </MapContainer>

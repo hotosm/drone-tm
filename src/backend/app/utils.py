@@ -3,15 +3,23 @@ import geojson
 import requests
 import shapely
 from datetime import datetime, timezone
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from geojson_pydantic import Feature, MultiPolygon, Polygon
 from geojson_pydantic import FeatureCollection as FeatCol
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape, to_shape
-from shapely.geometry import mapping, shape
+from shapely.geometry import mapping, shape, MultiPolygon as ShapelyMultiPolygon
 from shapely.ops import unary_union
 from fastapi import HTTPException
+from app.config import settings
 from shapely import wkb
+from jinja2 import Template
+from pathlib import Path
+from dataclasses import dataclass
+
+from email.mime.text import MIMEText
+from email.utils import formataddr
+from aiosmtplib import send as send_email
 
 
 log = logging.getLogger(__name__)
@@ -75,13 +83,15 @@ def geojson_to_geometry(
     features = parsed_geojson.get("features", [])
 
     if len(features) > 1:
-        # TODO code to merge all geoms into multipolygon
-        # TODO do not use convex hull
-        pass
+        geometries = [shape(feature.get("geometry")) for feature in features]
+        merged_geometry = unary_union(geometries)
+        if not isinstance(merged_geometry, ShapelyMultiPolygon):
+            merged_geometry = ShapelyMultiPolygon([merged_geometry])
+        shapely_geom = merged_geometry
+    else:
+        geometry = features[0].get("geometry")
 
-    geometry = features[0].get("geometry")
-
-    shapely_geom = shape(geometry)
+        shapely_geom = shape(geometry)
 
     return from_shape(shapely_geom)
 
@@ -287,3 +297,89 @@ def multipolygon_to_polygon(features: Union[Feature, FeatCol, MultiPolygon, Poly
             )
 
     return geojson.FeatureCollection(geojson_feature)
+
+
+@dataclass
+class EmailData:
+    html_content: str
+    subject: str
+
+
+def render_email_template(template_name: str, context: dict[str, Any]) -> str:
+    """
+    Render an email template with the given context.
+
+    Args:
+        template_name (str): The name of the template file to be rendered.
+        context (dict[str, Any]): A dictionary containing the context variables to be used in the template.
+
+    Returns:
+        str: The rendered HTML content of the email template.
+
+    Example:
+        html_content = render_email_template(
+            template_name="welcome_email.html",
+            context={"username": "John Doe", "welcome_message": "Welcome to our service!"}
+        )
+
+    This function reads the specified email template from the 'email-templates' directory,
+    then uses the `Template` class from the `jinja2` library to render the template with
+    the provided context variables.
+    """
+
+    template_str = (
+        Path(__file__).parent / "email_templates" / template_name
+    ).read_text()
+    html_content = Template(template_str).render(context)
+    return html_content
+
+
+async def send_notification_email(email_to, subject, html_content):
+    """
+    Send an email with the given subject and HTML content to the specified recipient.
+
+    Args:
+        email_to (str): The recipient's email address.
+        subject (str, optional): The subject of the email. Defaults to an empty string.
+        html_content (str, optional): The HTML content of the email. Defaults to an empty string.
+
+    Raises:
+        AssertionError: If email configuration is not provided or emails are disabled.
+
+    Example:
+        send_email(
+            email_to="recipient@example.com",
+            subject="Hello World",
+            html_content="<h1>Hello, this is a test email.</h1>"
+        )
+    """
+    assert settings.emails_enabled, "no provided configuration for email variables"
+
+    message = MIMEText(html_content, "html")
+    message["Subject"] = subject
+    message["From"] = formataddr(
+        (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL)
+    )
+    message["To"] = email_to
+    try:
+        log.debug("Sending email message")
+        await send_email(
+            message,
+            hostname=settings.SMTP_HOST,
+            port=settings.SMTP_PORT,
+            username=settings.SMTP_USER,
+            password=settings.SMTP_PASSWORD,
+        )
+    except Exception as e:
+        log.error(f"Error sending email: {e}")
+
+
+def test_email(email_to: str, subject: str = "Test email") -> None:
+    html_content = render_email_template(
+        template_name="email_template.html",
+        context={"project_name": settings.APP_NAME, "email": email_to},
+    )
+
+    send_notification_email(
+        email_to=email_to, subject=subject, html_content=html_content
+    )

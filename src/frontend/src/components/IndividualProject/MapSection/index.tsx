@@ -43,6 +43,7 @@ export default function MapSection() {
           id={singleTask.id}
           visibleOnMap={!!singleTask?.outline_geojson}
           geojson={singleTask?.outline_geojson}
+          interactions={['feature']}
           layerOptions={{
             type: 'fill',
             paint: {

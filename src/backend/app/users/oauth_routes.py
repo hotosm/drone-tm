@@ -39,7 +39,9 @@ async def login_url(google_auth=Depends(init_google_auth)):
 async def callback(request: Request, google_auth=Depends(init_google_auth)):
     """Performs token exchange between Google and DTM API"""
 
-    callback_url = str(request.url)
+    # Enforce https callback url
+    callback_url = str(request.url).replace("http://", "https://")
+
     access_token = google_auth.callback(callback_url).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)
@@ -49,10 +51,12 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
 
 
 @router.get("/refresh-token", response_model=Token)
-def update_token(user_data: AuthUser = Depends(login_required)):
+async def update_token(user_data: AuthUser = Depends(login_required)):
     """Refresh access token"""
 
-    access_token, refresh_token = user_crud.create_access_token(user_data.model_dump())
+    access_token, refresh_token = await user_crud.create_access_token(
+        user_data.model_dump()
+    )
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 

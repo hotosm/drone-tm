@@ -1,6 +1,5 @@
 import json
 import uuid
-from typing import Optional
 from app.projects import project_schemas
 from loguru import logger as log
 import shapely.wkb as wkblib
@@ -53,7 +52,9 @@ async def create_project_with_project_info(
                 "status": ProjectStatus.DRAFT.name,
                 "visibility": project_metadata.visibility.name,
                 "outline": str(project_metadata.outline),
-                "no_fly_zones": str(project_metadata.no_fly_zones),
+                "no_fly_zones": str(project_metadata.no_fly_zones)
+                if project_metadata.no_fly_zones is not None
+                else None,
                 "dem_url": project_metadata.dem_url,
                 "output_orthophoto_url": project_metadata.output_orthophoto_url,
                 "output_pointcloud_url": project_metadata.output_pointcloud_url,
@@ -69,11 +70,17 @@ async def create_project_with_project_info(
         raise HTTPException(e) from e
 
 
-async def get_project_by_id(
-    db: Database, author_id: uuid.UUID, project_id: Optional[int] = None
-):
+async def get_project_by_id(db: Database, project_id: uuid.UUID):
+    "Get a single database project object by project_id"
+
+    query = """ select * from projects where id=:project_id"""
+    result = await db.fetch_one(query, {"project_id": project_id})
+    return result
+
+
+async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
     """Get a single project &  all associated tasks by ID."""
-    raw_sql = """
+    query = """
     SELECT
         projects.id,
         projects.name,
@@ -81,27 +88,16 @@ async def get_project_by_id(
         projects.per_task_instructions,
         projects.outline
     FROM projects
-    WHERE projects.author_id = :author_id
+    WHERE projects.id = :project_id
     LIMIT 1;
     """
 
-    project_record = await db.fetch_one(raw_sql, {"author_id": author_id})
-    query = """
-    SELECT
-        tasks.id As id,
-        tasks.project_task_index AS project_task_index,
-        tasks.outline AS outline,
-        task_events.state AS state,
-        users.name AS contributor
-
-    FROM tasks
-    LEFT JOIN task_events ON tasks.id = task_events.task_id
-    LEFT JOIN users ON task_events.user_id = users.id
-    WHERE tasks.project_id = :project_id;
-    """
-
+    project_record = await db.fetch_one(query, {"project_id": project_id})
+    if not project_record:
+        return None
+    query = """ SELECT id, project_task_index, outline FROM tasks WHERE project_id = :project_id;"""
     task_records = await db.fetch_all(query, {"project_id": project_id})
-    project_record.tasks = task_records
+    project_record.tasks = task_records if task_records is not None else []
     project_record.task_count = len(task_records)
     return project_record
 

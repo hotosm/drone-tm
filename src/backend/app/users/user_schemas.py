@@ -86,7 +86,7 @@ class ProfileUpdate(BaseModel):
     drone_you_own: Optional[str] = None
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
-    role: Optional[UserRole] = UserRole.DRONE_PILOT
+    role: Optional[UserRole] = None
     password: Optional[str] = None
 
     @field_validator("role", mode="after")

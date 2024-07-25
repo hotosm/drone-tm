@@ -1,6 +1,6 @@
 import uuid
 from pydantic import BaseModel, computed_field, Field, validator
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
 from geojson_pydantic import Feature, FeatureCollection, Polygon
 from app.models.enums import ProjectVisibility, State
 from shapely import wkb
@@ -35,7 +35,7 @@ class ProjectIn(BaseModel):
     dem_url: Optional[str] = None
     gsd_cm_px: float = None
     is_terrain_follow: bool = False
-    outline_no_fly_zones: Union[FeatureCollection, Feature, Polygon]
+    outline_no_fly_zones: Optional[Union[FeatureCollection, Feature, Polygon]] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
     output_orthophoto_url: Optional[str] = None
     output_pointcloud_url: Optional[str] = None
@@ -126,5 +126,7 @@ class ProjectOut(BaseModel):
 
 
 class PresignedUrlRequest(BaseModel):
-    image_name: str
-    expiry: int  # Expiry time in seconds
+    project_id: uuid.UUID
+    task_id: uuid.UUID
+    image_name: List[str]
+    expiry: int  # Expiry time in hours

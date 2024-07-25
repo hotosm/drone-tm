@@ -15,14 +15,21 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
   const { register, watch } = formProps;
   const dimension = watch('dimension');
 
-  const uploadedProjectArea = useTypedSelector(
-    state => state.createproject.uploadedProjectArea,
+  const projectArea = useTypedSelector(
+    state => state.createproject.projectArea,
   );
+  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
 
-  const geojsonFile =
-    !!uploadedProjectArea && convertGeojsonToFile(uploadedProjectArea);
+  const projectGeojsonFile =
+    !!projectArea && convertGeojsonToFile(projectArea as Record<string, any>);
+  const noFlyZoneGeojsonFile =
+    !!noFlyZone && convertGeojsonToFile(noFlyZone as Record<string, any>);
 
-  const payload = prepareFormData({ project_geojson: geojsonFile, dimension });
+  const payload = prepareFormData({
+    project_geojson: projectGeojsonFile,
+    dimension,
+    ...(noFlyZone ? { no_fly_zones: noFlyZoneGeojsonFile } : {}), // add no fly zones it there are any
+  });
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: postPreviewSplitBySquare,
@@ -40,9 +47,9 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
       <div className="naxatw-grid naxatw-grid-cols-3 naxatw-bg-white">
         <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
           <FormControl>
-            <Label>Dimension of Square (km)</Label>
+            <Label required>Dimension of Square (m)</Label>
             <Input
-              placeholder="Enter Distance (in m)"
+              placeholder="Enter Dimension (in m)"
               type="number"
               className="naxatw-mt-1"
               value={dimension}
@@ -59,7 +66,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
             disabled={!dimension}
             className="naxatw-mt-4 naxatw-bg-red"
             onClick={() => {
-              if (!uploadedProjectArea) return;
+              if (!projectArea) return;
               mutate(payload);
             }}
           >

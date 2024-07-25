@@ -1,5 +1,6 @@
+/* eslint-disable no-unused-vars */
 import { useEffect } from 'react';
-import { useTypedSelector } from '@Store/hooks';
+import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
@@ -8,8 +9,17 @@ import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
 import getBbox from '@turf/bbox';
+import useDrawTool from '@Components/common/MapLibreComponents/useDrawTool';
+import { drawStyles } from '@Constants/map';
+import { setCreateProjectState } from '@Store/actions/createproject';
 
-export default function MapSection() {
+export default function MapSection({
+  onResetButtonClick,
+}: {
+  onResetButtonClick: (reset: any) => void;
+}) {
+  const dispatch = useTypedDispatch();
+
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
       zoom: 5,
@@ -19,18 +29,42 @@ export default function MapSection() {
     disableRotation: true,
   });
 
-  const uploadedProjectArea = useTypedSelector(
-    state => state.createproject.uploadedProjectArea,
+  const drawProjectAreaEnable = useTypedSelector(
+    state => state.createproject.drawProjectAreaEnable,
   );
-  const uploadedNoFlyZone = useTypedSelector(
-    state => state.createproject.uploadedNoFlyZone,
+  const drawNoFlyZoneEnable = useTypedSelector(
+    state => state.createproject.drawNoFlyZoneEnable,
   );
 
+  const handleDrawEnd = (geojson: GeojsonType | null) => {
+    if (drawProjectAreaEnable) {
+      dispatch(setCreateProjectState({ drawnProjectArea: geojson }));
+    }
+    dispatch(setCreateProjectState({ drawnNoFlyZone: geojson }));
+  };
+
+  const { resetDraw } = useDrawTool({
+    map,
+    enable: drawProjectAreaEnable || drawNoFlyZoneEnable,
+    drawMode: 'draw_polygon',
+    styles: drawStyles,
+    onDrawEnd: handleDrawEnd,
+  });
+
   useEffect(() => {
-    if (!uploadedProjectArea) return;
-    const bbox = getBbox(uploadedProjectArea as FeatureCollection);
+    onResetButtonClick(resetDraw);
+  }, [onResetButtonClick, resetDraw]);
+
+  const projectArea = useTypedSelector(
+    state => state.createproject.projectArea,
+  );
+  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
+
+  useEffect(() => {
+    if (!projectArea) return;
+    const bbox = getBbox(projectArea as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [map, uploadedProjectArea]);
+  }, [map, projectArea]);
 
   return (
     <MapContainer
@@ -45,8 +79,8 @@ export default function MapSection() {
         map={map as Map}
         isMapLoaded={isMapLoaded}
         id="uploaded-project-area"
-        geojson={uploadedProjectArea as GeojsonType}
-        visibleOnMap={!!uploadedProjectArea}
+        geojson={projectArea as GeojsonType}
+        visibleOnMap={!!projectArea}
         layerOptions={{
           type: 'fill',
           paint: {
@@ -60,8 +94,8 @@ export default function MapSection() {
         map={map as Map}
         isMapLoaded={isMapLoaded}
         id="uploaded-no-fly-zone"
-        geojson={uploadedNoFlyZone as GeojsonType}
-        visibleOnMap={!!uploadedNoFlyZone}
+        geojson={noFlyZone as GeojsonType}
+        visibleOnMap={!!noFlyZone}
         layerOptions={{
           type: 'fill',
           paint: {

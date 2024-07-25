@@ -106,9 +106,11 @@ repos:
           [
             --ignore-unknown,
             --no-error-on-unmatched-pattern,
+            "!src/frontend/**",
             "!chart/**",
             "!CHANGELOG.md",
             "!CONTRIBUTING.md",
             "!src/frontend/pnpm-lock.yaml",
             "!src/backend/tests/test_data/**",
+            "!src/frontend/**",
           ]

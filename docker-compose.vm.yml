@@ -1,0 +1,86 @@
+version: "3"
+
+services:
+  backend:
+    image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
+    restart: always
+    depends_on:
+      - db
+      - minio
+    ports:
+      - ${BACKEND_WEB_APP_PORT:-8000}:8000
+    env_file: .env
+    networks:
+      - dtm-network
+
+  frontend:
+    image: naxa/dronetm:${FRONTEND_TARGET_OVERRIDE:-frontend}
+    depends_on:
+      - minio
+    env_file: .env
+    networks:
+      - dtm-network
+
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    volumes:
+      - pg-16-data:/var/lib/postgresql/data
+    env_file: .env
+    networks:
+      - dtm-network
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
+      start_period: 5s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  minio:
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
+    restart: always
+    command: server /export --console-address 0.0.0.0:9090 --address 0.0.0.0:9000
+    volumes:
+      - ${PROJECT_DIR:-.}/DockerData/minio_data:/export
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dtm_user}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-somelongpassword}
+      MINIO_CONSOLE_ADDRESS: ":9090"
+    ports:
+      - 9000:9000
+      - 9090:9090
+    networks:
+      - dtm-network
+
+  createbuckets:
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
+    entrypoint: >
+      /bin/sh -c " mc config host add minio http://minio:9000 \$S3_ACCESS_KEY \$S3_SECRET_KEY; mc mb minio/\$S3_BUCKET_NAME; mc anonymous set download minio/\$S3_BUCKET_NAME/publicuploads/; exit 0; "
+    env_file:
+      - .env
+    depends_on:
+      - minio
+    networks:
+      - dtm-network
+
+  migrations:
+    image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
+    volumes:
+      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+    depends_on:
+      - backend
+      - db
+    env_file:
+      - .env
+    networks:
+      - dtm-network
+    entrypoint: ["pdm", "run", "alembic", "upgrade", "head"]
+    restart: "no"
+
+networks:
+  dtm-network:
+    name: dtm-network
+
+volumes:
+  pg-16-data:
+    name: drone-tm-pg-16-data

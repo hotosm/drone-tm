@@ -29,6 +29,7 @@ function GoogleAuth() {
           const response = await fetch(callbackUrl, { credentials: 'include' });
           const token = await response.json();
           localStorage.setItem('token', token.access_token);
+          localStorage.setItem('refresh', token.refresh_token);
 
           // fetch user details
           const response2 = await fetch(userDetailsUrl, {
