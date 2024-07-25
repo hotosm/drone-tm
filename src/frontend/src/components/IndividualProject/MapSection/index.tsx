@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+import { useParams } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
@@ -12,8 +13,10 @@ import { FeatureCollection } from 'geojson';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import PopupUI from '@Components/common/MapLibreComponents/PopupUI';
 import { setProjectState } from '@Store/actions/project';
+import { useGetTaskStatesQuery } from '@Api/projects';
 
 export default function MapSection() {
+  const { id } = useParams();
   const dispatch = useTypedDispatch();
 
   const [tasksBoundaryLayer, setTasksBoundaryLayer] = useState<Record<
@@ -35,15 +38,28 @@ export default function MapSection() {
   );
   const tasksData = useTypedSelector(state => state.project.tasksData);
 
+  const { data: taskStates } = useGetTaskStatesQuery(id as string, {
+    enabled: !!tasksData,
+  });
+
   // create combined geojson from individual tasks from the API
   useEffect(() => {
     if (!map || !tasksData) return;
+
+    const taskStatus: Record<string, any> = taskStates?.reduce(
+      (acc: Record<string, any>, task: Record<string, any>) => {
+        acc[task.task_id] = task.state;
+        return acc;
+      },
+      {},
+    );
     const features = tasksData?.map(taskObj => {
       return {
         type: 'Feature',
         geometry: { ...taskObj.outline_geojson.geometry },
         properties: {
           ...taskObj.outline_geojson.properties,
+          state: taskStatus?.[`${taskObj.id}`] || null,
         },
       };
     });
@@ -58,7 +74,7 @@ export default function MapSection() {
       features,
     };
     setTasksBoundaryLayer(taskBoundariesFeatcol);
-  }, [map, tasksData]);
+  }, [map, taskStates, tasksData]);
 
   // zoom to layer in the project area
   useEffect(() => {

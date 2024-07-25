@@ -2,7 +2,7 @@
 import { authenticated, api } from '.';
 
 export const getTaskStates = (projectId: string) =>
-  api.get(`/tasks/stated/${projectId}`);
+  api.get(`/tasks/states/${projectId}`);
 
 export const postTaskStatus = (
   projectId: string,
