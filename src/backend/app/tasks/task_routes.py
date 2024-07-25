@@ -84,7 +84,7 @@ async def new_event(
             )
             drone_operator = await get_user_by_id(db, requested_user_id)
             html_content = render_email_template(
-                template_name="mapping_approved.html",
+                template_name="mapping_approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Approved",
                     "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
@@ -127,7 +127,7 @@ async def new_event(
             )
             drone_operator = await get_user_by_id(db, requested_user_id)
             html_content = render_email_template(
-                template_name="mapping_approved.html",
+                template_name="mapping_approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Rejected",
                     "email_body": "We are sorry to inform you that your mapping request has been rejected.",
