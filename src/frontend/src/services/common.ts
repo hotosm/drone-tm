@@ -19,3 +19,6 @@ export const postUserProfile = ({
   authenticated(api).post(`/users/${userId}/profile`, data, {
     headers: { 'Content-Type': 'application/json' },
   });
+
+export const getUserProfileInfo = () =>
+  authenticated(api).get('/users/my-info/');

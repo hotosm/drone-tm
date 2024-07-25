@@ -58,7 +58,7 @@ export default function UserProfile() {
   const userProfile = getLocalStorageValue('userprofile');
 
   const initialState = {
-    name: '',
+    name: userProfile?.name,
     country: '',
     city: null,
     password: null,
