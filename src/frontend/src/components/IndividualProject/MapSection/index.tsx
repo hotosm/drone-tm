@@ -46,6 +46,7 @@ export default function MapSection() {
   useEffect(() => {
     if (!map || !tasksData) return;
 
+    // @ts-ignore
     const taskStatus: Record<string, any> = taskStates?.reduce(
       (acc: Record<string, any>, task: Record<string, any>) => {
         acc[task.task_id] = task.state;
@@ -83,8 +84,23 @@ export default function MapSection() {
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
   }, [map, tasksBoundaryLayer]);
 
+  const getPopUpButtonText = (taskState: string) => {
+    if (taskState === 'UNLOCKED_FOR_MAP') return 'Request for Mapping';
+    if (taskState === '') return '';
+    return 'nothing';
+  };
+
   const getPopupUI = useCallback((properties: Record<string, any>) => {
-    return <PopupUI data={{ GSD: 3, altitude: 100, gimble_angle: -90 }} />;
+    return (
+      <PopupUI
+        data={{
+          GSD: 3,
+          altitude: 100,
+          gimble_angle: -90,
+          TASK_STATUS: properties?.state,
+        }}
+      />
+    );
   }, []);
 
   return (
