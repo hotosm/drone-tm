@@ -35,7 +35,7 @@ export default function PopupUI({ data = {} }: IPopupUIProps) {
   );
 
   return (
-    <ul className="scrollbar naxatw-flex naxatw-h-[5rem] naxatw-flex-col naxatw-overflow-y-auto naxatw-border-y-[1px] naxatw-border-y-grey-500 naxatw-text-grey-800">
+    <ul className="scrollbar naxatw-flex naxatw-h-[7rem] naxatw-flex-col naxatw-overflow-y-auto naxatw-border-y-[1px] naxatw-border-y-grey-500 naxatw-text-grey-800">
       {popupData &&
         Object.keys(popupData).map(key => (
           <li

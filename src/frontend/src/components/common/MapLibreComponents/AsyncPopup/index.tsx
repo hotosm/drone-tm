@@ -87,9 +87,9 @@ export default function AsyncPopup({
       </div>
       <div dangerouslySetInnerHTML={{ __html: popupHTML }} />
       {!isLoading && (
-        <div className="naxatw-p-3">
+        <div className="naxatw-flex naxatw-items-center naxatw-p-3">
           <Button
-            className="naxatw-bg-red naxatw-font-primary naxatw-text-white"
+            className="naxatw-mx-auto naxatw-bg-red naxatw-font-primary naxatw-text-white"
             size="sm"
             onClick={() => handleBtnClick?.(properties)}
           >
