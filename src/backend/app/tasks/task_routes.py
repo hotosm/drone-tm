@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
 from app.models.enums import EventType, State
 from app.tasks import task_schemas, task_crud
@@ -60,6 +60,7 @@ async def new_event(
                     "drone_operator_name": user_data.name,
                     "task_id": task_id,
                     "project_name": project.name,
+                    "description": project.description,
                 },
             )
             background_tasks.add_task(
@@ -69,11 +70,40 @@ async def new_event(
                 html_content,
             )
             return data
+
         case EventType.MAP:
-            # TODO: send notification here after this function
+            project = await get_project_by_id(db, project_id)
+            if user_id != project.author_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project creator can approve the mapping.",
+                )
+
             requested_user_id = await task_crud.get_requested_user_id(
                 db, project_id, task_id
             )
+            drone_operator = await get_user_by_id(db, requested_user_id)
+            html_content = render_email_template(
+                template_name="mapping_approved_or_rejected.html",
+                context={
+                    "email_subject": "Mapping Request Approved",
+                    "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
+                    "task_status": "approved",
+                    "name": user_data.name,
+                    "drone_operator_name": drone_operator.name,
+                    "task_id": task_id,
+                    "project_name": project.name,
+                    "description": project.description,
+                },
+            )
+
+            background_tasks.add_task(
+                send_notification_email,
+                drone_operator.email_address,
+                "Task is approved",
+                html_content,
+            )
+
             return await task_crud.update_task_state(
                 db,
                 project_id,
@@ -83,11 +113,40 @@ async def new_event(
                 State.REQUEST_FOR_MAPPING,
                 State.LOCKED_FOR_MAPPING,
             )
+
         case EventType.REJECTED:
-            # TODO: send notification here after this function
+            project = await get_project_by_id(db, project_id)
+            if user_id != project.author_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project creator can approve the mapping.",
+                )
+
             requested_user_id = await task_crud.get_requested_user_id(
                 db, project_id, task_id
             )
+            drone_operator = await get_user_by_id(db, requested_user_id)
+            html_content = render_email_template(
+                template_name="mapping_approved_or_rejected.html",
+                context={
+                    "email_subject": "Mapping Request Rejected",
+                    "email_body": "We are sorry to inform you that your mapping request has been rejected.",
+                    "task_status": "rejected",
+                    "name": user_data.name,
+                    "drone_operator_name": drone_operator.name,
+                    "task_id": task_id,
+                    "project_name": project.name,
+                    "description": project.description,
+                },
+            )
+
+            background_tasks.add_task(
+                send_notification_email,
+                drone_operator.email_address,
+                "Task is Rejected",
+                html_content,
+            )
+
             return await task_crud.update_task_state(
                 db,
                 project_id,
@@ -140,3 +199,18 @@ async def new_event(
             )
 
     return True
+
+
+@router.get("/requested_tasks/{project_id}/pending")
+async def get_pending_tasks(
+    project_id: uuid.UUID,
+    user_data: AuthUser = Depends(login_required),
+    db: Database = Depends(database.encode_db),
+):
+    """Get a list of pending tasks for a specific project and user."""
+    user_id = user_data.id
+
+    pending_tasks = await task_crud.get_project_task_by_id(db, project_id, user_id)
+    if pending_tasks is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return pending_tasks
