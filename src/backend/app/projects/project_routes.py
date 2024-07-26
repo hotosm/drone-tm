@@ -6,7 +6,6 @@ from app.users.user_schemas import AuthUser
 import geojson
 from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
-from sqlalchemy.orm import Session
 from loguru import logger as log
 from app.projects import project_schemas, project_crud
 from app.db import database
@@ -26,9 +25,9 @@ router = APIRouter(
 
 
 @router.delete("/{project_id}", tags=["Projects"])
-def delete_project_by_id(
+async def delete_project_by_id(
     project_id: uuid.UUID,
-    db: Session = Depends(database.get_db),
+    db: Database = Depends(database.get_db),
     user: AuthUser = Depends(login_required),
 ):
     """
@@ -36,7 +35,7 @@ def delete_project_by_id(
 
     Args:
         project_id (int): The ID of the project to delete.
-        db (Session): The database session dependency.
+        db (Database): The database session dependency.
 
     Returns:
         dict: A confirmation message.
@@ -44,34 +43,34 @@ def delete_project_by_id(
     Raises:
         HTTPException: If the project is not found.
     """
-    # Query for the project
-    project = (
-        db.query(db_models.DbProject)
-        .filter(db_models.DbProject.id == project_id)
-        .first()
+    delete_query = """
+        WITH deleted_project AS (
+            DELETE FROM projects
+            WHERE id = :project_id
+            RETURNING id
+        ), deleted_tasks AS (
+            DELETE FROM tasks
+            WHERE project_id = :project_id
+            RETURNING project_id
+        )
+        SELECT id FROM deleted_project
+    """
+    
+    result = await db.fetch_one(
+        query=delete_query,
+        values={"project_id": project_id}
     )
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
-
-    # Query and delete associated tasks
-    tasks = (
-        db.query(db_models.DbTask)
-        .filter(db_models.DbTask.project_id == project_id)
-        .all()
-    )
-    for task in tasks:
-        db.delete(task)
-
-    # Delete the project
-    db.delete(project)
-    db.commit()
+    
+    if not result:
+        raise HTTPException(status_code=404)
+    
     return {"message": f"Project ID: {project_id} is deleted successfully."}
 
 
 @router.post("/create_project", tags=["Projects"])
 async def create_project(
     project_info: project_schemas.ProjectIn,
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
     """Create a project in  database."""
@@ -90,7 +89,7 @@ async def create_project(
 async def upload_project_task_boundaries(
     project_id: uuid.UUID,
     task_geojson: UploadFile = File(...),
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
     user: AuthUser = Depends(login_required),
 ):
     """Set project task boundaries using split GeoJSON from frontend.
@@ -209,7 +208,7 @@ async def generate_presigned_url(
 async def read_projects(
     skip: int = 0,
     limit: int = 100,
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
     "Return all projects"
@@ -222,7 +221,7 @@ async def read_projects(
 )
 async def read_project(
     project_id: uuid.UUID,
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
     """Get a specific project and all associated tasks by ID."""
