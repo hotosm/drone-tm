@@ -33,7 +33,6 @@
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
 
-
 **Drone TM** is an integrated digital public good solution designed to harness
 the power of the crowd to generate high-resolution aerial maps of any location.
 

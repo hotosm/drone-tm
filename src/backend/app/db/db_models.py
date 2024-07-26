@@ -14,8 +14,8 @@ from sqlalchemy import (
     ARRAY,
     LargeBinary,
 )
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.dialects.postgresql import UUID
-from app.db.database import Base
 from geoalchemy2 import Geometry, WKBElement
 from app.models.enums import (
     TaskStatus,
@@ -30,6 +30,9 @@ from sqlalchemy.orm import (
     relationship,
 )
 from app.utils import timestamp
+
+
+Base = declarative_base()
 
 
 class DbUser(Base):
