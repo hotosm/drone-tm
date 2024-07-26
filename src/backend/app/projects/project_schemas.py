@@ -5,7 +5,6 @@ from geojson_pydantic import Feature, FeatureCollection, Polygon
 from app.models.enums import ProjectVisibility, State
 from shapely import wkb
 from datetime import date
-
 from app.utils import (
     geojson_to_geometry,
     multipolygon_to_polygon,
@@ -106,6 +105,7 @@ class ProjectOut(BaseModel):
     """Base project model."""
 
     id: uuid.UUID
+    slug: Optional[str] = None
     name: str
     description: str
     per_task_instructions: Optional[str] = None
