@@ -99,7 +99,7 @@ jobs:
 
           # Cleanup db upgrade containers
           docker compose --file contrib/pg-upgrade/docker-compose.yml down
- 
+
           docker compose --file docker-compose.vm.yml --env-file .env up \
             --detach --remove-orphans --force-recreate --pull=always
         env:
