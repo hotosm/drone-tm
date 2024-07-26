@@ -1,14 +1,6 @@
-import jwt
-from typing import Annotated
-from fastapi import Depends, HTTPException, Request, status, Header
-from fastapi.security import OAuth2PasswordBearer
-from jwt.exceptions import InvalidTokenError
-from pydantic import ValidationError
-from sqlalchemy.orm import Session
+from fastapi import HTTPException, Request, Header
 from app.config import settings
-from app.db import database
-from app.users import user_crud, user_schemas
-from app.db.db_models import DbUser
+from app.users import user_crud
 from app.users.auth import Auth
 from app.users.user_schemas import AuthUser
 from loguru import logger as log

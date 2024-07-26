@@ -20,9 +20,7 @@ router = APIRouter(
 
 
 @router.get("/states/{project_id}")
-async def task_states(
-    project_id: uuid.UUID, db: Database = Depends(database.get_db)
-):
+async def task_states(project_id: uuid.UUID, db: Database = Depends(database.get_db)):
     """Get all tasks states for a project."""
 
     return await task_crud.all_tasks_states(db, project_id)

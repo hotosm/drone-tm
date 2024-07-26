@@ -14,7 +14,6 @@ from app.utils import multipolygon_to_polygon
 from app.s3 import s3_client
 from app.config import settings
 from databases import Database
-from app.db import db_models
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 
@@ -55,15 +54,12 @@ async def delete_project_by_id(
         )
         SELECT id FROM deleted_project
     """
-    
-    result = await db.fetch_one(
-        query=delete_query,
-        values={"project_id": project_id}
-    )
-    
+
+    result = await db.fetch_one(query=delete_query, values={"project_id": project_id})
+
     if not result:
         raise HTTPException(status_code=404)
-    
+
     return {"message": f"Project ID: {project_id} is deleted successfully."}
 
 

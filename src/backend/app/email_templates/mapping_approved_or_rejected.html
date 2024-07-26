@@ -115,9 +115,7 @@
       </div>
       <div class="content">
         <p>Dear {{ drone_operator_name }},</p>
-        <p>
-          {{ email_body }}
-        </p>
+        <p>{{ email_body }}</p>
         <p>Please find below the details of the {{ task_status }} task:</p>
         <div class="task">
           <h2>{{ task_status|capitalize }} Task Details</h2>
@@ -127,7 +125,9 @@
             <p><strong>Description:</strong> {{ description }}</p>
           </div>
           {% if task_status == 'approved' %}
-            <a href="https://dronetm-dev.naxa.com.np" class="task-button">Start Mapping</a>
+          <a href="https://dronetm-dev.naxa.com.np" class="task-button"
+            >Start Mapping</a
+          >
           {% endif %}
         </div>
       </div>
