@@ -21,7 +21,7 @@ router = APIRouter(
 
 @router.get("/states/{project_id}")
 async def task_states(
-    project_id: uuid.UUID, db: Database = Depends(database.encode_db)
+    project_id: uuid.UUID, db: Database = Depends(database.get_db)
 ):
     """Get all tasks states for a project."""
 
@@ -35,7 +35,7 @@ async def new_event(
     task_id: uuid.UUID,
     detail: task_schemas.NewEvent,
     user_data: AuthUser = Depends(login_required),
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
 ):
     user_id = user_data.id
 
@@ -205,7 +205,7 @@ async def new_event(
 async def get_pending_tasks(
     project_id: uuid.UUID,
     user_data: AuthUser = Depends(login_required),
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
 ):
     """Get a list of pending tasks for a specific project and user."""
     user_id = user_data.id
