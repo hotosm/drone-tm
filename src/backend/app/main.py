@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.config import settings
 from app.projects import project_routes
+from app.drones import drone_routes
 from app.waypoints import waypoint_routes
 from app.users import oauth_routes
 from app.users import user_routes
@@ -94,7 +95,7 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["Content-Disposition"],
     )
-
+    _app.include_router(drone_routes.router)
     _app.include_router(project_routes.router)
     _app.include_router(waypoint_routes.router)
     _app.include_router(user_routes.router)
