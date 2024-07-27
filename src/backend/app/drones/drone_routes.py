@@ -7,11 +7,31 @@ from app.config import settings
 from app.drones import drone_schemas
 from databases import Database
 from app.drones import drone_crud
+from typing import List
+
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/drones",
     responses={404: {"description": "Not found"}},
 )
+
+@router.get("/", tags=["Drones"], response_model=List[drone_schemas.DroneOut])
+async def read_drones(
+    db: Database = Depends(get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    """
+    Retrieves all drone records from the database.
+
+    Args:
+        db (Database, optional): The database session object.
+        user_data (AuthUser, optional): The authenticated user data.
+
+    Returns:
+        List[drone_schemas.DroneOut]: A list of all drone records.
+    """
+    drones = await drone_crud.read_all_drones(db)
+    return drones
 
 
 @router.delete("/{drone_id}", tags=["Drones"])
@@ -40,7 +60,7 @@ async def delete_drone(
 
 
 @router.post("/create_drone", tags=["Drones"])
-async def drone_create(
+async def create_drone(
     drone_info: drone_schemas.DroneIn,
     db: Database = Depends(get_db),
     user_data: AuthUser = Depends(login_required),
@@ -65,7 +85,7 @@ async def drone_create(
 
 
 @router.get("/{drone_id}", tags=["Drones"], response_model=drone_schemas.DroneOut)
-async def get_drone(
+async def read_drone(
     drone_id: int,
     db: Database = Depends(get_db),
     user_data: AuthUser = Depends(login_required),

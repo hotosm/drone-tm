@@ -4,6 +4,31 @@ from databases import Database
 from loguru import logger as log
 from fastapi import HTTPException
 
+from typing import List
+from app.drones.drone_schemas import DroneOut
+
+async def read_all_drones(db: Database) -> List[DroneOut]:
+    """
+    Retrieves all drone records from the database.
+
+    Args:
+        db (Database): The database connection object.
+
+    Returns:
+        List[DroneOut]: A list of all drone records.
+    """
+    try:
+        select_query = """
+            SELECT * FROM drones
+        """
+        results = await db.fetch_all(select_query)
+        return [dict(result) for result in results]  # Convert each Record to dict
+    
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Retrieval failed") from e
+
+
 async def delete_drone(db: Database, drone_id: int) -> bool:
     """
     Deletes a drone record from the database.
@@ -20,12 +45,14 @@ async def delete_drone(db: Database, drone_id: int) -> bool:
             DELETE FROM drones
             WHERE id = :id
         """
-        result = await db.execute(delete_query, {'id': drone_id})
+        result = await db.execute(delete_query, {"id": drone_id})
         return result > 0
-    
+
     except Exception as e:
         log.exception(e)
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Deletion failed") from e
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Deletion failed"
+        ) from e
 
 
 async def get_drone(db: Database, drone_id: int):
@@ -44,12 +71,14 @@ async def get_drone(db: Database, drone_id: int):
             SELECT * FROM drones
             WHERE id = :id
         """
-        result = await db.fetch_one(select_query, {'id': drone_id})
+        result = await db.fetch_one(select_query, {"id": drone_id})
         return result
-    
+
     except Exception as e:
         log.exception(e)
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Retrieval failed") from e
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Retrieval failed"
+        ) from e
 
 
 async def create_drone(db: Database, drone_info: drone_schemas.DroneIn):
@@ -78,10 +107,7 @@ async def create_drone(db: Database, drone_info: drone_schemas.DroneIn):
         """
         result = await db.execute(insert_query, drone_info.__dict__)
         return result
-    
+
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
-
-
-

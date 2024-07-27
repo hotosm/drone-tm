@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class DroneBase(BaseModel):
     model: str
     manufacturer: str
@@ -14,8 +15,10 @@ class DroneBase(BaseModel):
     max_speed: float
     weight: float
 
+
 class DroneIn(DroneBase):
     pass
+
 
 class DroneOut(DroneBase):
     id: int
