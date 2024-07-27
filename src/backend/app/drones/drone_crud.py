@@ -31,7 +31,7 @@ async def read_all_drones(db: Database) -> List[DroneOut]:
 
 async def delete_drone(db: Database, drone_id: int) -> bool:
     """
-    Deletes a drone record from the database.
+    Deletes a drone record from the database, along with associated drone flights.
 
     Args:
         db (Database): The database connection object.
@@ -42,12 +42,17 @@ async def delete_drone(db: Database, drone_id: int) -> bool:
     """
     try:
         delete_query = """
+            WITH deleted_flights AS (
+                DELETE FROM drone_flights
+                WHERE drone_id = :drone_id
+                RETURNING drone_id
+            )
             DELETE FROM drones
-            WHERE id = :id
+            WHERE id = :drone_id
         """
-        result = await db.execute(delete_query, {"id": drone_id})
+        result = await db.execute(delete_query, {"drone_id": drone_id})
         return result > 0
-
+    
     except Exception as e:
         log.exception(e)
         raise HTTPException(
