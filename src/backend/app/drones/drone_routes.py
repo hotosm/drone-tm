@@ -15,6 +15,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
 @router.get("/", tags=["Drones"], response_model=List[drone_schemas.DroneOut])
 async def read_drones(
     db: Database = Depends(get_db),
@@ -53,9 +54,7 @@ async def delete_drone(
     """
     success = await drone_crud.delete_drone(db, drone_id)
     if not success:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail="Drone not found"
-        )
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Drone not found")
     return {"message": "Drone deleted successfully"}
 
 
@@ -103,7 +102,5 @@ async def read_drone(
     """
     drone = await drone_crud.get_drone(db, drone_id)
     if not drone:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail="Drone not found"
-        )
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Drone not found")
     return drone

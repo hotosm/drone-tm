@@ -3,9 +3,10 @@ from app.models.enums import HTTPStatus
 from databases import Database
 from loguru import logger as log
 from fastapi import HTTPException
-
+from asyncpg import UniqueViolationError
 from typing import List
 from app.drones.drone_schemas import DroneOut
+
 
 async def read_all_drones(db: Database) -> List[DroneOut]:
     """
@@ -22,11 +23,13 @@ async def read_all_drones(db: Database) -> List[DroneOut]:
             SELECT * FROM drones
         """
         results = await db.fetch_all(select_query)
-        return [dict(result) for result in results]  # Convert each Record to dict
-    
+        return results
+
     except Exception as e:
         log.exception(e)
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Retrieval failed") from e
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Retrieval failed"
+        ) from e
 
 
 async def delete_drone(db: Database, drone_id: int) -> bool:
@@ -50,9 +53,9 @@ async def delete_drone(db: Database, drone_id: int) -> bool:
             DELETE FROM drones
             WHERE id = :drone_id
         """
-        result = await db.execute(delete_query, {"drone_id": drone_id})
-        return result > 0
-    
+        await db.execute(delete_query, {"drone_id": drone_id})
+        return True
+
     except Exception as e:
         log.exception(e)
         raise HTTPException(
@@ -112,6 +115,13 @@ async def create_drone(db: Database, drone_info: drone_schemas.DroneIn):
         """
         result = await db.execute(insert_query, drone_info.__dict__)
         return result
+
+    except UniqueViolationError as e:
+        log.exception("Unique constraint violation: %s", e)
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="A drone with this model already exists",
+        )
 
     except Exception as e:
         log.exception(e)
