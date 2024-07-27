@@ -4,6 +4,30 @@ from databases import Database
 from loguru import logger as log
 from fastapi import HTTPException
 
+async def delete_drone(db: Database, drone_id: int) -> bool:
+    """
+    Deletes a drone record from the database.
+
+    Args:
+        db (Database): The database connection object.
+        drone_id (int): The ID of the drone to be deleted.
+
+    Returns:
+        bool: True if the drone was successfully deleted, False otherwise.
+    """
+    try:
+        delete_query = """
+            DELETE FROM drones
+            WHERE id = :id
+        """
+        result = await db.execute(delete_query, {'id': drone_id})
+        return result > 0
+    
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Deletion failed") from e
+
+
 async def get_drone(db: Database, drone_id: int):
     """
     Retrieves a drone record from the database.

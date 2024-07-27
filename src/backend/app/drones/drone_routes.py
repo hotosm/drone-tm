@@ -14,6 +14,31 @@ router = APIRouter(
 )
 
 
+@router.delete("/{drone_id}", tags=["Drones"])
+async def delete_drone(
+    drone_id: int,
+    db: Database = Depends(get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    """
+    Deletes a drone record from the database.
+
+    Args:
+        drone_id (int): The ID of the drone to be deleted.
+        db (Database, optional): The database session object.
+        user_data (AuthUser, optional): The authenticated user data.
+
+    Returns:
+        dict: A success message if the drone was deleted.
+    """
+    success = await drone_crud.delete_drone(db, drone_id)
+    if not success:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Drone not found"
+        )
+    return {"message": "Drone deleted successfully"}
+
+
 @router.post("/create_drone", tags=["Drones"])
 async def drone_create(
     drone_info: drone_schemas.DroneIn,
