@@ -50,7 +50,11 @@ async def delete_project_by_id(
         ), deleted_tasks AS (
             DELETE FROM tasks
             WHERE project_id = :project_id
-            RETURNING project_id
+            RETURNING id
+        ), deleted_task_events AS (
+            DELETE FROM task_events
+            WHERE project_id = :project_id
+            RETURNING id
         )
         SELECT id FROM deleted_project
     """
