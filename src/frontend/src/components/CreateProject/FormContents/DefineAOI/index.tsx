@@ -1,3 +1,4 @@
+/* eslint-disable consistent-return */
 import { useCallback, useState } from 'react';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { Controller } from 'react-hook-form';
