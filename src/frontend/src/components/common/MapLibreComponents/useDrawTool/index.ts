@@ -212,8 +212,8 @@ export default function useDrawTool({
     const handleMouseMove = (e: any) => {
       // map.getCanvas().style.cursor = 'crosshair';
       map.getCanvas().style.cursor = '';
-      const description = 'Click to start drawing shape';
-      popup.setLngLat(e.lngLat).setHTML(description).addTo(map);
+      // const description = 'Click to start drawing shape';
+      // popup.setLngLat(e.lngLat).setHTML(description).addTo(map);
     };
     map.on('mousemove', handleMouseMove);
     return () => {
