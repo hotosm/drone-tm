@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, State, UserRole
+from app.models.enums import EventType, State
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -27,16 +27,6 @@ async def list_tasks(
     """Get all tasks for a drone user."""
 
     user_id = user_data.id
-    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
-    record = await db.fetch_one(query, {"user_id": user_id})
-    if not record:
-        raise HTTPException(status_code=404, detail="User profile not found")
-
-    if record.role != UserRole.DRONE_PILOT.name:
-        raise HTTPException(
-            status_code=403, detail="Access forbidden for non-DRONE_PILOT users"
-        )
-
     return await task_crud.get_tasks_by_user(user_id, db)
 
 
