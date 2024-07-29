@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class DroneBase(BaseModel):
+class DroneIn(BaseModel):
     model: str
     manufacturer: str
     camera_model: str
@@ -16,9 +16,6 @@ class DroneBase(BaseModel):
     weight: float
 
 
-class DroneIn(DroneBase):
-    pass
-
-
-class DroneOut(DroneBase):
+class DroneOut(BaseModel):
     id: int
+    model: str

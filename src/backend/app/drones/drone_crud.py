@@ -125,4 +125,6 @@ async def create_drone(db: Database, drone_info: drone_schemas.DroneIn):
 
     except Exception as e:
         log.exception(e)
-        raise HTTPException(e) from e
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Drone creation failed"
+        ) from e
