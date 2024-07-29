@@ -19,6 +19,17 @@ router = APIRouter(
 )
 
 
+@router.get("/", response_model=list[task_schemas.UserTasksStatsOut])
+async def list_tasks(
+    db: Database = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    """Get all tasks for a drone user."""
+
+    user_id = user_data.id
+    return await task_crud.get_tasks_by_user(user_id, db)
+
+
 @router.get("/states/{project_id}")
 async def task_states(project_id: uuid.UUID, db: Database = Depends(database.get_db)):
     """Get all tasks states for a project."""
