@@ -16,7 +16,7 @@ from shapely import wkb
 from jinja2 import Template
 from pathlib import Path
 from dataclasses import dataclass
-
+from slugify import slugify
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from aiosmtplib import send as send_email
@@ -383,3 +383,32 @@ def test_email(email_to: str, subject: str = "Test email") -> None:
     send_notification_email(
         email_to=email_to, subject=subject, html_content=html_content
     )
+
+
+def generate_slug(name: str) -> str:
+    """
+    Generate a unique slug based on the provided name.
+
+    The slug is created by converting the given name into a URL-friendly format and appending
+    the current date and time to ensure uniqueness. The date and time are formatted as
+    "ddmmyyyyHHMM" to create a timestamp.
+
+    Args:
+        name (str): The name from which the slug will be generated.
+
+    Returns:
+        str: The generated slug, which includes the URL-friendly version of the name and
+              a timestamp. If an error occurs during the generation, an empty string is returned.
+
+    Raises:
+        Exception: If an error occurs during the slug generation process.
+    """
+    try:
+        slug = slugify(name)
+        now = datetime.now()
+        date_time_str = now.strftime("%d%m%Y%H%M")
+        slug_with_date = f"{slug}-{date_time_str}"
+        return slug_with_date
+    except Exception as e:
+        print(f"An error occurred while generating the slug: {e}")
+        return ""

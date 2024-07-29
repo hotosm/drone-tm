@@ -14,9 +14,8 @@ from sqlalchemy import (
     ARRAY,
     LargeBinary,
 )
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.dialects.postgresql import UUID
-
-from app.db.database import Base
 from geoalchemy2 import Geometry, WKBElement
 from app.models.enums import (
     TaskStatus,
@@ -31,6 +30,9 @@ from sqlalchemy.orm import (
     relationship,
 )
 from app.utils import timestamp
+
+
+Base = declarative_base()
 
 
 class DbUser(Base):
@@ -80,6 +82,7 @@ class DbProject(Base):
 
     id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
     name = cast(str, Column(String))
+    slug = cast(str, Column(String, unique=True, index=True, nullable=False))
     short_description = cast(str, Column(String))
     description = cast(str, Column(String))
     per_task_instructions = cast(str, Column(String))

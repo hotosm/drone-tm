@@ -1,14 +1,29 @@
-import { useEffect } from 'react';
-import { useTypedSelector } from '@Store/hooks';
+/* eslint-disable no-unused-vars */
+import { useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import PopupUI from '@Components/common/MapLibreComponents/PopupUI';
+import { setProjectState } from '@Store/actions/project';
+import { useGetTaskStatesQuery } from '@Api/projects';
 
 export default function MapSection() {
+  const { id } = useParams();
+  const dispatch = useTypedDispatch();
+
+  const [tasksBoundaryLayer, setTasksBoundaryLayer] = useState<Record<
+    string,
+    any
+  > | null>(null);
+
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
       zoom: 5,
@@ -18,14 +33,66 @@ export default function MapSection() {
     disableRotation: true,
   });
 
-  const tasksGeojson = useTypedSelector(state => state.project.tasksGeojson);
-  const projectArea = useTypedSelector(state => state.project.projectArea);
+  const selectedTaskId = useTypedSelector(
+    state => state.project.selectedTaskId,
+  );
+  const tasksData = useTypedSelector(state => state.project.tasksData);
 
+  const { data: taskStates } = useGetTaskStatesQuery(id as string, {
+    enabled: !!tasksData,
+  });
+
+  // create combined geojson from individual tasks from the API
   useEffect(() => {
-    if (!projectArea) return;
-    const bbox = getBbox(projectArea as FeatureCollection);
+    if (!map || !tasksData) return;
+
+    // @ts-ignore
+    const taskStatus: Record<string, any> = taskStates?.reduce(
+      (acc: Record<string, any>, task: Record<string, any>) => {
+        acc[task.task_id] = task.state;
+        return acc;
+      },
+      {},
+    );
+    const features = tasksData?.map(taskObj => {
+      return {
+        type: 'Feature',
+        geometry: { ...taskObj.outline_geojson.geometry },
+        properties: {
+          ...taskObj.outline_geojson.properties,
+          state: taskStatus?.[`${taskObj.id}`] || null,
+        },
+      };
+    });
+    const taskBoundariesFeatcol = {
+      type: 'FeatureCollection',
+      SRID: {
+        type: 'name',
+        properties: {
+          name: 'EPSG:3857',
+        },
+      },
+      features,
+    };
+    setTasksBoundaryLayer(taskBoundariesFeatcol);
+  }, [map, taskStates, tasksData]);
+
+  // zoom to layer in the project area
+  useEffect(() => {
+    if (!tasksBoundaryLayer) return;
+    const bbox = getBbox(tasksBoundaryLayer as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [map, projectArea]);
+  }, [map, tasksBoundaryLayer]);
+
+  const getPopUpButtonText = (taskState: string) => {
+    if (taskState === 'UNLOCKED_FOR_MAP') return 'Request for Mapping';
+    if (taskState === '') return '';
+    return 'nothing';
+  };
+
+  const getPopupUI = useCallback((properties: Record<string, any>) => {
+    return <h6>This task is available for mapping</h6>;
+  }, []);
 
   return (
     <MapContainer
@@ -33,16 +100,15 @@ export default function MapSection() {
       isMapLoaded={isMapLoaded}
       style={{
         width: '100%',
-        height: '582px',
+        height: '100%',
       }}
     >
-      {tasksGeojson?.map(singleTask => (
+      {tasksBoundaryLayer && (
         <VectorLayer
           map={map as Map}
-          key={singleTask.id}
-          id={singleTask.id}
-          visibleOnMap={!!singleTask?.outline_geojson}
-          geojson={singleTask?.outline_geojson}
+          id="tasks-layer"
+          visibleOnMap={!!tasksBoundaryLayer}
+          geojson={tasksBoundaryLayer as GeojsonType}
           interactions={['feature']}
           layerOptions={{
             type: 'fill',
@@ -53,7 +119,16 @@ export default function MapSection() {
             },
           }}
         />
-      ))}
+      )}
+      <AsyncPopup
+        map={map as Map}
+        popupUI={getPopupUI}
+        title={`Task #${selectedTaskId}`}
+        fetchPopupData={(properties: Record<string, any>) => {
+          dispatch(setProjectState({ selectedTaskId: properties.id }));
+        }}
+        buttonText="Lock Task"
+      />
       <BaseLayerSwitcher />
     </MapContainer>
   );

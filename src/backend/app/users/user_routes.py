@@ -24,7 +24,7 @@ router = APIRouter(
 @router.post("/login/")
 async def login_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
@@ -36,7 +36,12 @@ async def login_access_token(
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
-    user_info = {"id": user.id, "email": user.email_address}
+    user_info = {
+        "id": user.id,
+        "email": user.email_address,
+        "name": user.name,
+        "img_url": user.profile_img,
+    }
 
     access_token, refresh_token = await user_crud.create_access_token(user_info)
 
@@ -48,7 +53,7 @@ async def login_access_token(
 async def update_user_profile(
     user_id: str,
     profile_update: ProfileUpdate,
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
     """

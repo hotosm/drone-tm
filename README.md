@@ -1,6 +1,44 @@
-# Drone Tasking Manager - Together, We Map - Open.Accurate.Accessible
+<!-- markdownlint-disable -->
+<p align="center">
+    <!-- github-banner-start -->
+    <img src="https://raw.githubusercontent.com/hotosm/drone-tm/main/docs/images/hot_logo.png" alt="HOTOSM Logo" width="25%" height="auto" />
+    <!-- github-banner-end -->
+</p>
 
-**Drone TM** is an integrated digital public good solution designed to harness the power of the crowd to generate high-resolution aerial maps of any location. This innovative platform provides drone pilots, particularly in developing countries, with job opportunities while contributing to the creation of high-resolution datasets crucial for disaster response and community resilience.
+<div align="center">
+    <h1>Drone Tasking Manager</h1>
+    <p>Community-driven drone imagery generation.</p>
+    <p>Together, We Map.</p>
+    <a href="https://github.com/hotosm/drone-tm/releases">
+        <img src="https://img.shields.io/github/v/release/hotosm/drone-tm?logo=github" alt="Release Version" />
+    </a>
+</div>
+
+</br>
+
+<!-- prettier-ignore-start -->
+<div align="center">
+
+| **CI/CD** | | [![Build and Deploy](https://github.com/hotosm/drone-tm/actions/workflows/build_and_deploy.yml/badge.svg?branch=main)](https://github.com/hotosm/drone-tm/actions/workflows/build_and_deploy.yml?query=branch%3Amain) [![Publish Docs](https://github.com/hotosm/drone-tm/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/hotosm/drone-tm/actions/workflows/docs.yml) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/hotosm/drone-tm/main.svg)](https://results.pre-commit.ci/latest/github/hotosm/drone-tm/main) |
+| :--- | :--- | :--- |
+| **Tech Stack** | | ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi) ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB) ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white) |
+| **Code Style** | | [![Backend Style](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json&labelColor=202235)](https://github.com/astral-sh/ruff) [![Frontend Style](https://img.shields.io/badge/code%20style-prettier-F7B93E?logo=Prettier)](https://github.com/prettier/prettier) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com) |
+| **Community** | | [![Slack](https://img.shields.io/badge/Slack-Join%20the%20community!-d63f3f?style=for-the-badge&logo=slack&logoColor=d63f3f)](https://slack.hotosm.org) |
+| **Other Info** | | [![docs](https://github.com/hotosm/fmtm/blob/development/docs/images/docs_badge.svg?raw=true)](https://hotosm.github.io/drone-tm/) [![license](https://img.shields.io/github/license/hotosm/drone-tm.svg)](https://github.com/hotosm/drone-tm/blob/main/LICENSE.md) |
+
+</div>
+
+---
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+**Drone TM** is an integrated digital public good solution designed to harness
+the power of the crowd to generate high-resolution aerial maps of any location.
+
+This innovative platform provides drone pilots, particularly in developing
+countries, with job opportunities while contributing to the creation of
+high-resolution datasets crucial for disaster response and community resilience.
 
 ## Problem Statement
 

@@ -62,7 +62,7 @@ async def update_token(user_data: AuthUser = Depends(login_required)):
 
 @router.get("/my-info/")
 async def my_data(
-    db: Database = Depends(database.encode_db),
+    db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
     """Read access token and get user details from Google"""

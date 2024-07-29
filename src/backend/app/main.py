@@ -1,17 +1,21 @@
 import os
 import logging
 import sys
+from contextlib import asynccontextmanager
+from loguru import logger as log
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse, JSONResponse
+
 from app.config import settings
 from app.projects import project_routes
+from app.drones import drone_routes
 from app.waypoints import waypoint_routes
-from fastapi.responses import RedirectResponse, JSONResponse
 from app.users import oauth_routes
 from app.users import user_routes
 from app.tasks import task_routes
-from loguru import logger as log
-from fastapi.templating import Jinja2Templates
+from app.db.database import db_connection
 
 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -91,7 +95,7 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["Content-Disposition"],
     )
-
+    _app.include_router(drone_routes.router)
     _app.include_router(project_routes.router)
     _app.include_router(waypoint_routes.router)
     _app.include_router(user_routes.router)
@@ -99,6 +103,21 @@ def get_application() -> FastAPI:
     _app.include_router(task_routes.router)
 
     return _app
+
+
+@asynccontextmanager
+async def lifespan(
+    app: FastAPI,
+):
+    """FastAPI startup/shutdown event."""
+    log.debug("Starting up FastAPI server.")
+    await db_connection.connect()
+
+    yield
+
+    # Shutdown events
+    log.debug("Shutting down FastAPI server.")
+    await db_connection.disconnect()
 
 
 api = get_application()

@@ -10,6 +10,7 @@ from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from databases import Database
 from app.models.enums import ProjectStatus
+from app.utils import generate_slug
 
 
 async def create_project_with_project_info(
@@ -19,9 +20,10 @@ async def create_project_with_project_info(
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, created_at)
+            id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, created_at)
         VALUES (
             :id,
+            :slug,
             :author_id,
             :name,
             :description,
@@ -45,6 +47,7 @@ async def create_project_with_project_info(
             query,
             values={
                 "id": _id,
+                "slug": generate_slug(project_metadata.name),
                 "author_id": author_id,
                 "name": project_metadata.name,
                 "description": project_metadata.description,
@@ -83,6 +86,7 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
     query = """
     SELECT
         projects.id,
+        projects.slug,
         projects.name,
         projects.description,
         projects.per_task_instructions,
@@ -109,7 +113,7 @@ async def get_projects(
 ):
     """Get all projects."""
     raw_sql = """
-        SELECT id, name, description, per_task_instructions, outline
+        SELECT id, slug, name, description, per_task_instructions, outline
         FROM projects
         ORDER BY created_at DESC
         OFFSET :skip

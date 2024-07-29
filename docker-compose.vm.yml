@@ -1,4 +1,10 @@
-version: "3"
+networks:
+  dtm-network:
+    name: dtm-network
+
+volumes:
+  db-data:
+    name: drone-tm-db-data
 
 services:
   backend:
@@ -24,7 +30,7 @@ services:
   db:
     image: postgis/postgis:16-3.4-alpine
     volumes:
-      - pg-16-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
     env_file: .env
     networks:
       - dtm-network
@@ -76,11 +82,3 @@ services:
       - dtm-network
     entrypoint: ["pdm", "run", "alembic", "upgrade", "head"]
     restart: "no"
-
-networks:
-  dtm-network:
-    name: dtm-network
-
-volumes:
-  pg-16-data:
-    name: drone-tm-pg-16-data

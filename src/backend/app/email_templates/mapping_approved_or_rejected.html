@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Drone Tasking Manager Invite</title>
+    <title>{{ email_subject }}</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -111,28 +111,24 @@
   <body>
     <div class="email-container">
       <div class="header">
-        <h1>Drone Tasking Manager Invite</h1>
+        <h1>{{ email_subject }}</h1>
       </div>
       <div class="content">
-        <p>Hello {{name}}</p>
-        <p>
-          Thank you for participating in our mapping project. Your contribution
-          is invaluable to our efforts in improving humanitarian responses
-          worldwide.
-        </p>
-        <p>Please find below the details of your mapping task:</p>
-        <p>{{drone_operator_name}} has requested this task for mapping.</p>
+        <p>Dear {{ drone_operator_name }},</p>
+        <p>{{ email_body }}</p>
+        <p>Please find below the details of the {{ task_status }} task:</p>
         <div class="task">
-          <h2>Mapping Task Details</h2>
+          <h2>{{ task_status|capitalize }} Task Details</h2>
           <div class="task-details">
-            <p><strong>Drone Operator:</strong> {{drone_operator_name}}</p>
-            <p><strong>Task ID:</strong> {{task_id}}</p>
-            <p><strong>Project:</strong>{{project_name}}</p>
-            <p><strong>Description:</strong> {{description}}</p>
+            <p><strong>Project:</strong> {{ project_name }}</p>
+            <p><strong>Task ID:</strong> {{ task_id }}</p>
+            <p><strong>Description:</strong> {{ description }}</p>
           </div>
+          {% if task_status == 'approved' %}
           <a href="https://dronetm-dev.naxa.com.np" class="task-button"
             >Start Mapping</a
           >
+          {% endif %}
         </div>
       </div>
       <div class="footer">
