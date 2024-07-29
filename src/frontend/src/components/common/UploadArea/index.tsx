@@ -29,6 +29,9 @@ interface IFileUploadProps extends UseFormPropsType {
   data?: [];
   placeholder?: string;
   onChange?: any;
+  isValid?:
+    | ((value: any) => boolean | undefined)
+    | ((value: any) => Promise<boolean | undefined>);
 }
 
 export default function FileUpload({
@@ -40,6 +43,7 @@ export default function FileUpload({
   data,
   placeholder,
   onChange,
+  isValid = () => true,
 }: IFileUploadProps) {
   const [inputRef, onFileUpload] = useCustomUpload();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFilesType>([]);
@@ -66,7 +70,7 @@ export default function FileUpload({
     setValue(name, []);
   }, [register, name, setValue]);
 
-  const handleFileUpload = (event: FileEvent) => {
+  const handleFileUpload = async (event: FileEvent) => {
     const { files } = event.target;
     const uploaded = Array.from(files).map(file => ({
       id: uuidv4(),
@@ -76,6 +80,9 @@ export default function FileUpload({
     const uploadedFilesState = multiple
       ? [...uploadedFiles, ...uploaded]
       : uploaded;
+
+    const valid = await isValid?.(uploadedFilesState);
+    if (!valid) return;
     //   @ts-ignore
     setUploadedFiles(uploadedFilesState);
     setValue(name, uploadedFilesState, { shouldDirty: true });
