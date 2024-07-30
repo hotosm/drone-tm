@@ -159,6 +159,7 @@ export default function DefineAOI({
           toast.error('Drawn Area should not exceed 100km²');
           return false;
         }
+        return true;
       }
       return false;
     } catch (err: any) {
