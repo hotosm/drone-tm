@@ -1,3 +1,4 @@
+/* eslint-disable consistent-return */
 import { useCallback, useState } from 'react';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { Controller } from 'react-hook-form';
@@ -63,7 +64,7 @@ export default function DefineAOI({
     }
     const drawnArea =
       drawnProjectArea && area(drawnProjectArea as FeatureCollection);
-    if (drawnArea && drawnArea > 1000000) {
+    if (drawnArea && drawnArea > 100000000) {
       toast.error('Drawn Area should not exceed 100km²');
       dispatch(
         setCreateProjectState({
@@ -92,6 +93,7 @@ export default function DefineAOI({
       dispatch(setCreateProjectState({ drawNoFlyZoneEnable: true }));
       return;
     }
+    if (!drawnNoFlyZone) return;
     const drawnNoFlyZoneArea =
       drawnProjectArea && area(drawnNoFlyZone as FeatureCollection);
     if (drawnNoFlyZoneArea && drawnNoFlyZoneArea > 100000000) {
@@ -124,9 +126,10 @@ export default function DefineAOI({
 
   const handleProjectAreaFileChange = (file: Record<string, any>[]) => {
     if (!file) return;
-    const geojson = validateGeoJSON(file[0]?.file);
+    const geojson: any = validateGeoJSON(file[0]?.file);
+
     try {
-      geojson.then(z => {
+      geojson.then((z: any) => {
         if (typeof z === 'object' && !Array.isArray(z) && z !== null) {
           const convertedGeojson = flatten(z);
           dispatch(setCreateProjectState({ projectArea: convertedGeojson }));
@@ -136,6 +139,33 @@ export default function DefineAOI({
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.log(err);
+    }
+  };
+
+  // @ts-ignore
+  const validateAreaOfFileUpload = async (file: any) => {
+    try {
+      if (!file) return;
+      const geojson: any = await validateGeoJSON(file[0]?.file);
+      if (
+        typeof geojson === 'object' &&
+        !Array.isArray(geojson) &&
+        geojson !== null
+      ) {
+        const convertedGeojson = flatten(geojson);
+        const uploadedArea: any =
+          convertedGeojson && area(convertedGeojson as FeatureCollection);
+        if (uploadedArea && uploadedArea > 100000000) {
+          toast.error('Drawn Area should not exceed 100km²');
+          return false;
+        }
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.log(err);
+      return false;
     }
   };
 
@@ -206,16 +236,20 @@ export default function DefineAOI({
                         rules={{
                           required: 'Project Area is Required',
                         }}
-                        render={({ field: { value } }) => (
-                          <FileUpload
-                            name="outline_geojson"
-                            data={value}
-                            onChange={handleProjectAreaFileChange}
-                            fileAccept=".geojson, .kml"
-                            placeholder="Upload project area (zipped shapefile, geojson or kml files)"
-                            {...formProps}
-                          />
-                        )}
+                        render={({ field: { value } }) => {
+                          // console.log(value, 'value12');
+                          return (
+                            <FileUpload
+                              name="outline_geojson"
+                              data={value}
+                              onChange={handleProjectAreaFileChange}
+                              fileAccept=".geojson, .kml"
+                              placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                              isValid={validateAreaOfFileUpload}
+                              {...formProps}
+                            />
+                          );
+                        }}
                       />
                       <ErrorMessage
                         message={errors?.outline_geojson?.message as string}
@@ -264,6 +298,8 @@ export default function DefineAOI({
                             dispatch(
                               setCreateProjectState({
                                 noFlyZone: null,
+                                drawnNoFlyZone: null,
+                                drawNoFlyZoneEnable: false,
                               }),
                             )
                           }
@@ -322,6 +358,7 @@ export default function DefineAOI({
                                     name="outline_no_fly_zones"
                                     data={value}
                                     onChange={handleNoFlyZoneFileChange}
+                                    isValid={validateAreaOfFileUpload}
                                     fileAccept=".geojson, .kml"
                                     placeholder="Upload project area (zipped shapefile, geojson or kml files)"
                                     {...formProps}
@@ -339,7 +376,10 @@ export default function DefineAOI({
             )}
           </div>
           <div className="naxatw-col-span-2 naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6]">
-            <MapSection onResetButtonClick={handleResetButtonClick} />
+            <MapSection
+              onResetButtonClick={handleResetButtonClick}
+              handleDrawProjectAreaClick={handleDrawProjectAreaClick}
+            />
           </div>
         </div>
       </div>

@@ -84,7 +84,7 @@ function Button({
   return (
     <ButtonContent
       {...rest}
-      className={`naxatw-flex naxatw-items-center naxatw-gap-1 ${className}`}
+      className={`naxatw-group naxatw-flex naxatw-items-center naxatw-gap-1 ${className}`}
     >
       {leftIcon && (
         <Icon
@@ -92,7 +92,7 @@ function Button({
           name={leftIcon}
         />
       )}
-      {children}
+      <div className="group-hover:naxatw-underline">{children}</div>
       {rightIcon && (
         <Icon
           className={`${iconClassname} !naxatw-text-icon-sm`}

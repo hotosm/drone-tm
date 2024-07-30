@@ -210,14 +210,16 @@ export default function useDrawTool({
     if (!map || !drawMode?.includes('draw') || isDrawLayerAdded)
       return () => {};
     const handleMouseMove = (e: any) => {
-      map.getCanvas().style.cursor = 'crosshair';
-      const description = 'Click to start drawing shape';
-      popup.setLngLat(e.lngLat).setHTML(description).addTo(map);
+      // map.getCanvas().style.cursor = 'crosshair';
+      map.getCanvas().style.cursor = '';
+      // const description = 'Click to start drawing shape';
+      // popup.setLngLat(e.lngLat).setHTML(description).addTo(map);
     };
     map.on('mousemove', handleMouseMove);
     return () => {
       map.off('mousemove', handleMouseMove);
-      map.getCanvas().style.cursor = '';
+      // map.getCanvas().style.cursor = '';
+      map.getCanvas().style.cursor = 'crosshair';
       popup.remove();
     };
   }, [map, drawMode, isDrawLayerAdded]);
