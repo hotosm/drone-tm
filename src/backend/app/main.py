@@ -12,7 +12,6 @@ from app.config import settings
 from app.projects import project_routes
 from app.drones import drone_routes
 from app.waypoints import waypoint_routes
-from app.users import oauth_routes
 from app.users import user_routes
 from app.tasks import task_routes
 from app.db.database import db_connection
@@ -99,7 +98,6 @@ def get_application() -> FastAPI:
     _app.include_router(project_routes.router)
     _app.include_router(waypoint_routes.router)
     _app.include_router(user_routes.router)
-    _app.include_router(oauth_routes.router)
     _app.include_router(task_routes.router)
 
     return _app
