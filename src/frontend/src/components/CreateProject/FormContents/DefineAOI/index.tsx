@@ -93,6 +93,7 @@ export default function DefineAOI({
       dispatch(setCreateProjectState({ drawNoFlyZoneEnable: true }));
       return;
     }
+    if (!drawnNoFlyZone) return;
     const drawnNoFlyZoneArea =
       drawnProjectArea && area(drawnNoFlyZone as FeatureCollection);
     if (drawnNoFlyZoneArea && drawnNoFlyZoneArea > 100000000) {
@@ -158,7 +159,6 @@ export default function DefineAOI({
           toast.error('Drawn Area should not exceed 100km²');
           return false;
         }
-        return true;
       }
       return false;
     } catch (err: any) {
@@ -297,6 +297,8 @@ export default function DefineAOI({
                             dispatch(
                               setCreateProjectState({
                                 noFlyZone: null,
+                                drawnNoFlyZone: null,
+                                drawNoFlyZoneEnable: false,
                               }),
                             )
                           }
@@ -373,7 +375,10 @@ export default function DefineAOI({
             )}
           </div>
           <div className="naxatw-col-span-2 naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6]">
-            <MapSection onResetButtonClick={handleResetButtonClick} />
+            <MapSection
+              onResetButtonClick={handleResetButtonClick}
+              handleDrawProjectAreaClick={handleDrawProjectAreaClick}
+            />
           </div>
         </div>
       </div>

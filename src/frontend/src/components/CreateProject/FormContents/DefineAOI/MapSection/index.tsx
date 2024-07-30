@@ -15,8 +15,10 @@ import { setCreateProjectState } from '@Store/actions/createproject';
 
 export default function MapSection({
   onResetButtonClick,
+  handleDrawProjectAreaClick,
 }: {
   onResetButtonClick: (reset: any) => void;
+  handleDrawProjectAreaClick: any;
 }) {
   const dispatch = useTypedDispatch();
 
@@ -35,12 +37,30 @@ export default function MapSection({
   const drawNoFlyZoneEnable = useTypedSelector(
     state => state.createproject.drawNoFlyZoneEnable,
   );
+  const drawnNoFlyZone = useTypedSelector(
+    state => state.createproject.drawnNoFlyZone,
+  );
+  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
 
   const handleDrawEnd = (geojson: GeojsonType | null) => {
+    if (!geojson) return;
     if (drawProjectAreaEnable) {
       dispatch(setCreateProjectState({ drawnProjectArea: geojson }));
+    } else {
+      const collectiveGeojson: any = drawnNoFlyZone
+        ? {
+            // @ts-ignore
+            ...drawnNoFlyZone,
+            features: [
+              // @ts-ignore
+              ...(drawnNoFlyZone?.features || []),
+              // @ts-ignore
+              ...(geojson?.features || []),
+            ],
+          }
+        : geojson;
+      dispatch(setCreateProjectState({ drawnNoFlyZone: collectiveGeojson }));
     }
-    dispatch(setCreateProjectState({ drawnNoFlyZone: geojson }));
   };
 
   const { resetDraw } = useDrawTool({
@@ -58,13 +78,20 @@ export default function MapSection({
   const projectArea = useTypedSelector(
     state => state.createproject.projectArea,
   );
-  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
 
   useEffect(() => {
     if (!projectArea) return;
     const bbox = getBbox(projectArea as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
   }, [map, projectArea]);
+
+  const drawSaveFromMap = () => {
+    if (drawProjectAreaEnable) {
+      handleDrawProjectAreaClick();
+    } else {
+      resetDraw();
+    }
+  };
 
   return (
     <MapContainer
@@ -73,8 +100,32 @@ export default function MapSection({
       style={{
         width: '100%',
         height: '448px',
+        position: 'relative',
       }}
     >
+      {(drawNoFlyZoneEnable || drawProjectAreaEnable) && (
+        <div className="naxatw-absolute naxatw-right-[calc(50%_-_75px)] naxatw-top-2 naxatw-z-50 naxatw-flex naxatw-h-9 naxatw-w-[150px] naxatw-rounded-lg naxatw-bg-white">
+          <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-evenly">
+            <i
+              className="material-icons-outlined naxatw-w-full naxatw-cursor-pointer naxatw-rounded-l-md naxatw-border-r naxatw-text-center hover:naxatw-bg-gray-100"
+              role="presentation"
+              onClick={() => drawSaveFromMap()}
+            >
+              save
+            </i>
+            <i
+              className="material-icons-outlined naxatw-w-full naxatw-cursor-pointer naxatw-text-center hover:naxatw-bg-gray-100"
+              role="presentation"
+              onClick={() => {
+                dispatch(setCreateProjectState({ drawnNoFlyZone: noFlyZone }));
+                resetDraw();
+              }}
+            >
+              restart_alt
+            </i>
+          </div>
+        </div>
+      )}
       <VectorLayer
         map={map as Map}
         isMapLoaded={isMapLoaded}
@@ -105,6 +156,23 @@ export default function MapSection({
           },
         }}
       />
+
+      <VectorLayer
+        map={map as Map}
+        isMapLoaded={isMapLoaded}
+        id="uploaded-no-fly-zone-ongoing"
+        geojson={drawnNoFlyZone as GeojsonType}
+        visibleOnMap={!!drawnNoFlyZone}
+        layerOptions={{
+          type: 'fill',
+          paint: {
+            'fill-color': '#404040',
+            'fill-outline-color': '#D33A38',
+            'fill-opacity': 0.3,
+          },
+        }}
+      />
+
       <BaseLayerSwitcher />
     </MapContainer>
   );
