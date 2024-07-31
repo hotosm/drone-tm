@@ -22,6 +22,10 @@ export default function useMapLibreGLMap({
       ...mapOptions,
     });
     setMap(mapInstance);
+
+    mapInstance.on('load', () => {
+      setIsMapLoaded(true);
+    });
     // return () => mapInstance.setTarget(undefined);
   }, []); // eslint-disable-line
 
