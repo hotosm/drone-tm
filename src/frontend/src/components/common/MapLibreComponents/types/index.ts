@@ -45,6 +45,8 @@ export interface IVectorLayer extends ILayer {
   geojson: GeojsonType | null;
   interactions?: string[];
   onFeatureSelect?: (properties: Record<string, any>) => void;
+  hasImage?: boolean;
+  image: any;
 }
 
 type InteractionsType = 'hover' | 'select';
