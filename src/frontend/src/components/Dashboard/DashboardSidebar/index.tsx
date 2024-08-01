@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Flex, FlexColumn } from '@Components/common/Layouts';
+import { Flex, FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
@@ -7,7 +7,6 @@ export default function DashboardSidebar() {
   const navigate = useNavigate();
 
   const userDetails = getLocalStorageValue('userprofile');
-
   return (
     <FlexColumn className="naxatw-col-span-1 naxatw-items-center naxatw-rounded-lg naxatw-border naxatw-border-grey-400 naxatw-bg-white naxatw-p-2.5">
       <Flex className="naxatw-h-20 naxatw-w-20 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
@@ -22,6 +21,16 @@ export default function DashboardSidebar() {
       >
         Edit Profile
       </Button>
+      <FlexColumn className="naxatw-my-5 naxatw-w-full naxatw-gap-2">
+        <FlexRow className="naxatw-gap-1">
+          <div className="naxatw-w-[120px]">Name</div>:
+          <div>{userDetails?.name}</div>
+        </FlexRow>
+        <FlexRow className="naxatw-gap-1">
+          <div className="naxatw-w-[120px]">Email</div>:
+          <div className="naxatw-break-words">{userDetails?.email}</div>
+        </FlexRow>
+      </FlexColumn>
     </FlexColumn>
   );
 }
