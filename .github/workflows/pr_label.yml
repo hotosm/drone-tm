@@ -1,0 +1,14 @@
+name: 🏷️ PR Label
+
+on:
+  pull_request_target:
+
+jobs:
+  pr-label:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/labeler@v5
+        # Uses .github/labeler.yml definitions
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}

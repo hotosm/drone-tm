@@ -1,0 +1,16 @@
+"frontend":
+  - "src/frontend/**/*"
+"backend":
+  - "src/backend/**/*"
+"devops":
+  - ".github/**/*"
+  - "docker-*.yml"
+  - "**/Dockerfile"
+  - "**/*.dockerfile"
+  - "**/*entrypoint.sh"
+"migration":
+  - "src/backend/app/migrations/**/*"
+"docs":
+  - "docs/**/*"
+  - "mkdocs.yml"
+  - "README.md"
