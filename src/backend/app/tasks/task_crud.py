@@ -205,7 +205,7 @@ async def get_requested_user_id(
 
 
 async def get_project_task_by_id(db: Database, user_id: str):
-    """Get a list of pending tasks for a specific project and user."""
+    """Get a list of pending tasks for a specific user(project creator)."""
     raw_sql = """
         SELECT t.id AS task_id, te.event_id, te.user_id, te.project_id, te.comment, te.state, te.created_at
         FROM tasks t

@@ -215,7 +215,7 @@ async def get_pending_tasks(
     user_data: AuthUser = Depends(login_required),
     db: Database = Depends(database.get_db),
 ):
-    """Get a list of pending tasks for a specific project and user."""
+    """Get a list of pending tasks for a project creator."""
     user_id = user_data.id
     query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
     record = await db.fetch_one(query, {"user_id": user_id})
