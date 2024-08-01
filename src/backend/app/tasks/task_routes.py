@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, State
+from app.models.enums import EventType, State, UserRole
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -210,16 +210,25 @@ async def new_event(
     return True
 
 
-@router.get("/requested_tasks/{project_id}/pending")
+@router.get("/requested_tasks/pending")
 async def get_pending_tasks(
-    project_id: uuid.UUID,
     user_data: AuthUser = Depends(login_required),
     db: Database = Depends(database.get_db),
 ):
-    """Get a list of pending tasks for a specific project and user."""
+    """Get a list of pending tasks for a project creator."""
     user_id = user_data.id
+    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
+    record = await db.fetch_one(query, {"user_id": user_id})
 
-    pending_tasks = await task_crud.get_project_task_by_id(db, project_id, user_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="User profile not found")
+
+    if record.role != UserRole.PROJECT_CREATOR.name:
+        raise HTTPException(
+            status_code=403, detail="Access forbidden for non-Project Creator users"
+        )
+
+    pending_tasks = await task_crud.get_project_task_by_id(db, user_id)
     if pending_tasks is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return pending_tasks
