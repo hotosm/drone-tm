@@ -119,6 +119,8 @@ services:
 
   odm-api:
     image: docker.io/opendronemap/nodeodm:3.5.3
+    # This is hardcoded by default
+    hostname: webodm-node-odm-1
     container_name: odm-api
     networks:
       - dtm-network
@@ -136,8 +138,6 @@ services:
     depends_on:
       odm-worker:
         condition: service_started
-      odm-set-password:
-        condition: service_completed_successfully
     env_file:
       - .env
     networks:
