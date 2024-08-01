@@ -5,6 +5,7 @@ Revises:
 Create Date: 2024-07-02 08:49:59.721468
 
 """
+
 from typing import Sequence, Union
 import geoalchemy2
 from alembic import op
