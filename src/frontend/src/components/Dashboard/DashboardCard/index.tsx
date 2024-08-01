@@ -5,11 +5,18 @@ import graphImage from '@Assets/images/graph.svg';
 interface IDashboardCardProps {
   title: string;
   value: number;
+  active: boolean;
 }
 
-export default function DashboardCard({ title, value }: IDashboardCardProps) {
+export default function DashboardCard({
+  title,
+  value,
+  active,
+}: IDashboardCardProps) {
   return (
-    <FlexRow className="naxatw-items-center naxatw-gap-7 naxatw-p-5 naxatw-shadow-lg">
+    <FlexRow
+      className={`naxatw-items-center naxatw-gap-7 naxatw-rounded-lg naxatw-border naxatw-p-5 naxatw-shadow-lg ${active ? 'naxatw-border-[#D73F3F]' : ''}`}
+    >
       <Image src={graphImage} />
       <FlexColumn>
         <h2>{value}</h2>

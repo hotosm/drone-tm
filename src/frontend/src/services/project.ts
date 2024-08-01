@@ -10,3 +10,5 @@ export const postTaskStatus = (payload: Record<string, any>) => {
     headers: { 'Content-Type': 'application/json' },
   });
 };
+export const getRequestedTasks = () =>
+  authenticated(api).get('/tasks/requested_tasks/pending');
