@@ -154,10 +154,10 @@ export default function MapSection() {
                         paint: {
                           'fill-color': '#F3C5C5',
                           'fill-outline-color': '#484848',
-                          'fill-opacity': 0.9,
+                          'fill-opacity': 0.7,
                         },
                       }
-                    : taskStatusObj?.[`${task?.id}`] === 'TASK_COMPLETED'
+                    : taskStatusObj?.[`${task?.id}`] === 'UNLOCKED_TO_VALIDATE'
                       ? {
                           type: 'fill',
                           paint: {
