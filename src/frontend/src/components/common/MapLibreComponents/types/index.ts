@@ -46,7 +46,7 @@ export interface IVectorLayer extends ILayer {
   interactions?: string[];
   onFeatureSelect?: (properties: Record<string, any>) => void;
   hasImage?: boolean;
-  image: any;
+  image?: any;
 }
 
 type InteractionsType = 'hover' | 'select';
