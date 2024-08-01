@@ -204,19 +204,15 @@ async def get_requested_user_id(
     return result["user_id"]
 
 
-async def get_project_task_by_id(db: Database, project_id: uuid.UUID, user_id):
-    """Get all tasks associated with a specific project by project_id."""
+async def get_project_task_by_id(db: Database, user_id: str):
+    """Get a list of pending tasks for a specific user(project creator)."""
     raw_sql = """
-        SELECT t.id AS task_id, te.event_id, te.user_id, te.comment, te.state, te.created_at
+        SELECT t.id AS task_id, te.event_id, te.user_id, te.project_id, te.comment, te.state, te.created_at
         FROM tasks t
         LEFT JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id = :project_id
-        AND te.user_id = :user_id
-
+        WHERE te.user_id = :user_id
+        AND te.state = 'REQUEST_FOR_MAPPING'
         ORDER BY t.project_task_index;
     """
-    db_tasks = await db.fetch_all(
-        raw_sql, {"project_id": project_id, "user_id": user_id}
-    )
-
+    db_tasks = await db.fetch_all(raw_sql, {"user_id": user_id})
     return db_tasks
