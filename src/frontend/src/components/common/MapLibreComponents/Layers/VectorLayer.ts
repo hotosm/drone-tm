@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
 import { useEffect, useMemo, useRef } from 'react';
 import { MapMouseEvent } from 'maplibre-gl';
+import { v4 as uuidv4 } from 'uuid';
 import { IVectorLayer } from '../types';
 
 export default function VectorLayer({
@@ -12,6 +13,8 @@ export default function VectorLayer({
   layerOptions,
   onFeatureSelect,
   visibleOnMap = true,
+  hasImage = false,
+  image,
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
@@ -42,6 +45,25 @@ export default function VectorLayer({
         layout: {},
         ...layerOptions,
       });
+
+      if (hasImage) {
+        const imageId = uuidv4();
+        map.loadImage(image, (error, img: any) => {
+          if (error) throw error;
+          // Add the loaded image to the style's sprite with the ID 'kitten'.
+          map.addImage(imageId, img);
+        });
+        map.addLayer({
+          id: imageId,
+          type: 'symbol',
+          source: sourceId,
+          layout: {
+            'icon-image': imageId,
+            'icon-size': 1,
+            'icon-overlap': 'always',
+          },
+        });
+      }
     } else if (map.getLayer(sourceId)) {
       map.removeLayer(sourceId);
     }

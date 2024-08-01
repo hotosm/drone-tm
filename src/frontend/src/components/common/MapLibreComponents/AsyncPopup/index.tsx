@@ -24,6 +24,7 @@ export default function AsyncPopup({
   isLoading = false,
   onClose,
   buttonText = 'View More',
+  hideButton = false,
 }: IAsyncPopup) {
   const [properties, setProperties] = useState<Record<string, any> | null>(
     null,
@@ -68,7 +69,10 @@ export default function AsyncPopup({
   if (!properties) return <div />;
 
   return (
-    <div ref={popupRef} className="naxatw-w-[17.5rem] naxatw-px-3">
+    <div
+      ref={popupRef}
+      className={`naxatw-w-[17.5rem] naxatw-px-3 ${hideButton ? 'naxatw-pb-3' : ''}`}
+    >
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-2">
         {isLoading ? (
           <Skeleton className="naxatw-my-3 naxatw-h-4 naxatw-w-1/2 naxatw-rounded-md naxatw-bg-grey-100 naxatw-shadow-sm" />
@@ -86,7 +90,7 @@ export default function AsyncPopup({
         </span>
       </div>
       <div dangerouslySetInnerHTML={{ __html: popupHTML }} />
-      {!isLoading && (
+      {!isLoading && !hideButton && (
         <div className="naxatw-flex naxatw-items-center naxatw-p-3">
           <Button
             className="naxatw-mx-auto naxatw-bg-red naxatw-font-primary naxatw-text-white"

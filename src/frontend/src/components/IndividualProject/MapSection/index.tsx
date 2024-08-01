@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 /* eslint-disable no-unused-vars */
 import { useParams } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
@@ -11,15 +12,17 @@ import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
-import PopupUI from '@Components/common/MapLibreComponents/PopupUI';
 import { setProjectState } from '@Store/actions/project';
 import { useGetTaskStatesQuery } from '@Api/projects';
+import DTMLogo from '@Assets/images/lock.png';
+import { postTaskStatus } from '@Services/project';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 
 export default function MapSection() {
   const { id } = useParams();
   const dispatch = useTypedDispatch();
-
-  const [tasksBoundaryLayer, setTasksBoundaryLayer] = useState<Record<
+  const [taskStatusObj, setTaskStatusObj] = useState<Record<
     string,
     any
   > | null>(null);
@@ -42,10 +45,22 @@ export default function MapSection() {
     enabled: !!tasksData,
   });
 
-  // create combined geojson from individual tasks from the API
-  useEffect(() => {
-    if (!map || !tasksData) return;
+  const { mutate: lockTask } = useMutation<any, any, any, unknown>({
+    mutationFn: postTaskStatus,
+    onSuccess: (res: any) => {
+      toast.success('Task Requested for Mapping');
+      setTaskStatusObj({
+        ...taskStatusObj,
+        [res.data.task_id]: 'REQUEST_FOR_MAPPING',
+      });
+    },
+    onError: (err: any) => {
+      toast.error(err.message);
+    },
+  });
 
+  useEffect(() => {
+    if (!map || !taskStates) return;
     // @ts-ignore
     const taskStatus: Record<string, any> = taskStates?.reduce(
       (acc: Record<string, any>, task: Record<string, any>) => {
@@ -54,45 +69,55 @@ export default function MapSection() {
       },
       {},
     );
-    const features = tasksData?.map(taskObj => {
-      return {
-        type: 'Feature',
-        geometry: { ...taskObj.outline_geojson.geometry },
-        properties: {
-          ...taskObj.outline_geojson.properties,
-          state: taskStatus?.[`${taskObj.id}`] || null,
-        },
-      };
-    });
-    const taskBoundariesFeatcol = {
-      type: 'FeatureCollection',
-      SRID: {
-        type: 'name',
-        properties: {
-          name: 'EPSG:3857',
-        },
-      },
-      features,
-    };
-    setTasksBoundaryLayer(taskBoundariesFeatcol);
-  }, [map, taskStates, tasksData]);
+    setTaskStatusObj(taskStatus);
+  }, [map, taskStates]);
 
   // zoom to layer in the project area
   useEffect(() => {
-    if (!tasksBoundaryLayer) return;
-    const bbox = getBbox(tasksBoundaryLayer as FeatureCollection);
+    if (!tasksData) return;
+    const tasksCollectiveGeojson = tasksData?.reduce(
+      (acc, curr) => {
+        return {
+          ...acc,
+          features: [...acc.features, curr.outline_geojson],
+        };
+      },
+      {
+        type: 'FeatureCollection',
+        features: [],
+      },
+    );
+    const bbox = getBbox(tasksCollectiveGeojson as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
-  }, [map, tasksBoundaryLayer]);
+  }, [map, tasksData]);
 
-  const getPopUpButtonText = (taskState: string) => {
-    if (taskState === 'UNLOCKED_FOR_MAP') return 'Request for Mapping';
-    if (taskState === '') return '';
-    return 'nothing';
+  const getPopupUI = useCallback(
+    (properties: Record<string, any>) => {
+      const status = taskStatusObj?.[properties?.id];
+      const popupText = (taskStatus: string) => {
+        switch (taskStatus) {
+          case 'UNLOCKED_TO_MAP':
+            return 'This task is available for mapping';
+          case 'REQUEST_FOR_MAPPING':
+            return 'This task is Requested for mapping';
+          case 'LOCKED_FOR_MAPPING':
+            return 'This task is locked for mapping';
+          default:
+            return 'This Task is completed';
+        }
+      };
+      return <h6>{popupText(status)}</h6>;
+    },
+    [taskStatusObj],
+  );
+
+  const handleTaskLockClick = () => {
+    lockTask({
+      projectId: id,
+      taskId: selectedTaskId,
+      data: { event: 'request' },
+    });
   };
-
-  const getPopupUI = useCallback((properties: Record<string, any>) => {
-    return <h6>This task is available for mapping</h6>;
-  }, []);
 
   return (
     <MapContainer
@@ -103,23 +128,61 @@ export default function MapSection() {
         height: '100%',
       }}
     >
-      {tasksBoundaryLayer && (
-        <VectorLayer
-          map={map as Map}
-          id="tasks-layer"
-          visibleOnMap={!!tasksBoundaryLayer}
-          geojson={tasksBoundaryLayer as GeojsonType}
-          interactions={['feature']}
-          layerOptions={{
-            type: 'fill',
-            paint: {
-              'fill-color': '#328ffd',
-              'fill-outline-color': '#484848',
-              'fill-opacity': 0.5,
-            },
-          }}
-        />
-      )}
+      {tasksData &&
+        tasksData?.map((task: Record<string, any>) => {
+          return (
+            <VectorLayer
+              key={task?.id}
+              map={map as Map}
+              id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
+              visibleOnMap={task?.id && taskStatusObj}
+              geojson={task.outline_geojson as GeojsonType}
+              interactions={['feature']}
+              layerOptions={
+                taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING'
+                  ? {
+                      type: 'fill',
+                      paint: {
+                        'fill-color': '#98BBC8',
+                        'fill-outline-color': '#484848',
+                        'fill-opacity': 0.6,
+                      },
+                    }
+                  : taskStatusObj?.[`${task?.id}`] === 'REQUEST_FOR_MAPPING'
+                    ? {
+                        type: 'fill',
+                        paint: {
+                          'fill-color': '#F3C5C5',
+                          'fill-outline-color': '#484848',
+                          'fill-opacity': 0.7,
+                        },
+                      }
+                    : taskStatusObj?.[`${task?.id}`] === 'UNLOCKED_TO_VALIDATE'
+                      ? {
+                          type: 'fill',
+                          paint: {
+                            'fill-color': '#176149',
+                            'fill-outline-color': '#484848',
+                            'fill-opacity': 0.5,
+                          },
+                        }
+                      : {
+                          type: 'fill',
+                          paint: {
+                            'fill-color': '#ffffff',
+                            'fill-outline-color': '#484848',
+                            'fill-opacity': 0.4,
+                          },
+                        }
+              }
+              hasImage={
+                taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
+              }
+              image={DTMLogo}
+            />
+          );
+        })}
+
       <AsyncPopup
         map={map as Map}
         popupUI={getPopupUI}
@@ -127,7 +190,9 @@ export default function MapSection() {
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
         }}
+        hideButton={taskStatusObj?.[selectedTaskId] !== 'UNLOCKED_TO_MAP'}
         buttonText="Lock Task"
+        handleBtnClick={() => handleTaskLockClick()}
       />
       <BaseLayerSwitcher />
     </MapContainer>

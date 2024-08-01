@@ -45,6 +45,8 @@ export interface IVectorLayer extends ILayer {
   geojson: GeojsonType | null;
   interactions?: string[];
   onFeatureSelect?: (properties: Record<string, any>) => void;
+  hasImage?: boolean;
+  image: any;
 }
 
 type InteractionsType = 'hover' | 'select';
@@ -65,6 +67,7 @@ export interface IAsyncPopup {
   isLoading?: boolean;
   onClose?: () => void;
   buttonText?: string;
+  hideButton?: boolean;
 }
 
 export type DrawModeTypes = DrawMode | null | undefined;
