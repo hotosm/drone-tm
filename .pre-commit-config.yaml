@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
         name: trim trailing whitespace
@@ -79,7 +79,7 @@ repos:
 
   # Versioning: Commit messages & changelog
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.13.0
+    rev: v3.28.0
     hooks:
       - id: commitizen
         stages: [commit-msg]
@@ -87,7 +87,7 @@ repos:
   # Lint / autoformat: Python code
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.1.13"
+    rev: "v0.5.5"
     hooks:
       # Run the linter
       - id: ruff
@@ -98,8 +98,8 @@ repos:
         files: ^src/backend/(?:.*/)*.*$
 
   # Autoformat: YAML, JSON, Markdown, etc.
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.1.0
+  - repo: https://github.com/pycontribs/mirrors-prettier
+    rev: v3.3.3
     hooks:
       - id: prettier
         args:
