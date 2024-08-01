@@ -12,10 +12,12 @@ import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
-// import PopupUI from '@Components/common/MapLibreComponents/PopupUI';
 import { setProjectState } from '@Store/actions/project';
 import { useGetTaskStatesQuery } from '@Api/projects';
 import DTMLogo from '@Assets/images/lock.png';
+import { postTaskStatus } from '@Services/project';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 
 export default function MapSection() {
   const { id } = useParams();
@@ -41,6 +43,20 @@ export default function MapSection() {
 
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
+  });
+
+  const { mutate: lockTask } = useMutation<any, any, any, unknown>({
+    mutationFn: postTaskStatus,
+    onSuccess: (res: any) => {
+      toast.success('Task Requested for Mapping');
+      setTaskStatusObj({
+        ...taskStatusObj,
+        [res.data.task_id]: 'REQUEST_FOR_MAPPING',
+      });
+    },
+    onError: (err: any) => {
+      toast.error(err.message);
+    },
   });
 
   useEffect(() => {
@@ -95,6 +111,14 @@ export default function MapSection() {
     [taskStatusObj],
   );
 
+  const handleTaskLockClick = () => {
+    lockTask({
+      projectId: id,
+      taskId: selectedTaskId,
+      data: { event: 'request' },
+    });
+  };
+
   return (
     <MapContainer
       map={map}
@@ -110,7 +134,7 @@ export default function MapSection() {
             <VectorLayer
               key={task?.id}
               map={map as Map}
-              id={`tasks-layer-${task?.id}`}
+              id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
               visibleOnMap={task?.id && taskStatusObj}
               geojson={task.outline_geojson as GeojsonType}
               interactions={['feature']}
@@ -124,23 +148,32 @@ export default function MapSection() {
                         'fill-opacity': 0.6,
                       },
                     }
-                  : taskStatusObj?.[`${task?.id}`] === 'TASK_COMPLETED'
+                  : taskStatusObj?.[`${task?.id}`] === 'REQUEST_FOR_MAPPING'
                     ? {
                         type: 'fill',
                         paint: {
-                          'fill-color': '#176149',
+                          'fill-color': '#F3C5C5',
                           'fill-outline-color': '#484848',
-                          'fill-opacity': 0.5,
+                          'fill-opacity': 0.9,
                         },
                       }
-                    : {
-                        type: 'fill',
-                        paint: {
-                          'fill-color': '#ffffff',
-                          'fill-outline-color': '#484848',
-                          'fill-opacity': 0.4,
-                        },
-                      }
+                    : taskStatusObj?.[`${task?.id}`] === 'TASK_COMPLETED'
+                      ? {
+                          type: 'fill',
+                          paint: {
+                            'fill-color': '#176149',
+                            'fill-outline-color': '#484848',
+                            'fill-opacity': 0.5,
+                          },
+                        }
+                      : {
+                          type: 'fill',
+                          paint: {
+                            'fill-color': '#ffffff',
+                            'fill-outline-color': '#484848',
+                            'fill-opacity': 0.4,
+                          },
+                        }
               }
               hasImage={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
@@ -159,6 +192,7 @@ export default function MapSection() {
         }}
         hideButton={taskStatusObj?.[selectedTaskId] !== 'UNLOCKED_TO_MAP'}
         buttonText="Lock Task"
+        handleBtnClick={() => handleTaskLockClick()}
       />
       <BaseLayerSwitcher />
     </MapContainer>
