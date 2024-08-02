@@ -39,6 +39,7 @@ wait_for_minio() {
 get_frontend_index_html() {
     echo "Downloading index.html from object storage.."
     curl --fail --create-dirs ${S3_ENDPOINT}/${FRONTEND_BUCKET_NAME}/index.html --output /project/src/backend/templates/index.html || echo "Failed to download index.html... Please retry manually for now...."
+    chmod -R 777 /project/src/backend/templates
 }
 
 # Start wait in background with tmp log files

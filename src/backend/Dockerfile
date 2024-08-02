@@ -1,5 +1,5 @@
 # ARG for the base image
-ARG PYTHON_BASE=3.10-slim-bookworm
+ARG PYTHON_BASE=3.11-slim-bookworm
 
 # Base build stage with dependencies required to build Python wheels
 FROM python:$PYTHON_BASE AS build
