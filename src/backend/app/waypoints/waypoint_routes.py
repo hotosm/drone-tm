@@ -3,7 +3,7 @@ import geojson
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from app.config import settings
-from app.drone_flightplan import flightplan, waypoints
+from drone_flightplan import flightplan, waypoints
 
 
 router = APIRouter(
