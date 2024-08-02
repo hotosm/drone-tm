@@ -218,16 +218,15 @@ async def get_pending_tasks(
     """Get a list of pending tasks for a project creator."""
     user_id = user_data.id
     query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
-    record = await db.fetch_one(query, {"user_id": user_id})
-
-    if not record:
+    records = await db.fetch_all(query, {"user_id": user_id})
+    if not records:
         raise HTTPException(status_code=404, detail="User profile not found")
 
-    if record.role != UserRole.PROJECT_CREATOR.name:
+    roles = [record["role"] for record in records]
+    if UserRole.PROJECT_CREATOR.name not in roles:
         raise HTTPException(
             status_code=403, detail="Access forbidden for non-Project Creator users"
         )
-
     pending_tasks = await task_crud.get_project_task_by_id(db, user_id)
     if pending_tasks is None:
         raise HTTPException(status_code=404, detail="Project not found")
