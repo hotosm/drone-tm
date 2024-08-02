@@ -15,7 +15,7 @@ jobs:
   #   uses: hotosm/gh-workflows/.github/workflows/openapi_build.yml@1.6.0
   #   with:
   #     image: ghcr.io/${{ github.repository }}/backend:ci-${{ github.ref_name }}
-  #     example_env_file_path: ".env.sample"
+  #     example_env_file_path: ".env.example"
   #     output_path: docs/openapi.json
 
   publish_docs:
