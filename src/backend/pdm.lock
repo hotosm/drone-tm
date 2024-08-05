@@ -151,7 +151,7 @@ summary = "DNS toolkit"
 
 [[package]]
 name = "drone-flightplan"
-version = "0.2.0"
+version = "0.2.1"
 requires_python = ">=3.10"
 summary = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping"
 dependencies = [
@@ -683,7 +683,7 @@ summary = "A small Python utility to set file creation time on Windows"
 lock_version = "4.2"
 cross_platform = true
 groups = ["default"]
-content_hash = "sha256:349a27c6c58e87dfaa0f64824d81933d501fe1a570e66cd1d9d80261aee22fa2"
+content_hash = "sha256:96e44ede40b8b6d3ce3559102c612d8b178d8099bf119a0484663968fee74a46"
 
 [metadata.files]
 "aiosmtplib 3.0.2" = [
@@ -981,9 +981,9 @@ content_hash = "sha256:349a27c6c58e87dfaa0f64824d81933d501fe1a570e66cd1d9d80261a
     {url = "https://files.pythonhosted.org/packages/37/7d/c871f55054e403fdfd6b8f65fd6d1c4e147ed100d3e9f9ba1fe695403939/dnspython-2.6.1.tar.gz", hash = "sha256:e8f0f9c23a7b7cb99ded64e6c3a6f3e701d78f50c55e002b839dea7225cff7cc"},
     {url = "https://files.pythonhosted.org/packages/87/a1/8c5287991ddb8d3e4662f71356d9656d91ab3a36618c3dd11b280df0d255/dnspython-2.6.1-py3-none-any.whl", hash = "sha256:5ef3b9680161f6fa89daf8ad451b5f1a33b18ae8a1c6778cdf4b43f08c0a6e50"},
 ]
-"drone-flightplan 0.2.0" = [
-    {url = "https://files.pythonhosted.org/packages/08/32/02aa37bef9573b63f4594218f8efa44ca081ce0e6dbe4b47aed484a1db60/drone_flightplan-0.2.0-py3-none-any.whl", hash = "sha256:b086e782941ee734a5ed1675bb219c3e866bc23ec66bcd8b90c3ab705257dfad"},
-    {url = "https://files.pythonhosted.org/packages/f2/47/544883b2240e150dfb43d1b13c671958cac12c5e77f41f00f7112794fcf0/drone_flightplan-0.2.0.tar.gz", hash = "sha256:36e8b2efc451080e6b7f5b94113eee39d4d8702295f76a4d7523776193d1a807"},
+"drone-flightplan 0.2.1" = [
+    {url = "https://files.pythonhosted.org/packages/31/ae/75dd31b060ae999737c982fb0f2928e3fc08b2d1e71be57f1124c7d9214b/drone_flightplan-0.2.1-py3-none-any.whl", hash = "sha256:e5257eb43d706fe1d44a08a75476ed511d1bd5f5bc27d4c5129158f45d504a4d"},
+    {url = "https://files.pythonhosted.org/packages/43/b2/7d5ef0e3b9744d545ef940e8db63ae7654dd4d2e88c6daef38cf75b79f50/drone_flightplan-0.2.1.tar.gz", hash = "sha256:e937961a5ac226603d374fe7b651cc7ebcb931dc35530ea8180b73fc77ac4a14"},
 ]
 "email-validator 2.2.0" = [
     {url = "https://files.pythonhosted.org/packages/48/ce/13508a1ec3f8bb981ae4ca79ea40384becc868bfae97fd1c942bb3a001b1/email_validator-2.2.0.tar.gz", hash = "sha256:cb690f344c617a714f22e66ae771445a1ceb46821152df8e165c5f9a364582b7"},
