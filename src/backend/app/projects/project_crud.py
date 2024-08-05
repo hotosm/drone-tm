@@ -17,7 +17,6 @@ async def create_project_with_project_info(
     db: Database, author_id: uuid.UUID, project_metadata: project_schemas.ProjectIn
 ):
     """Create a project in database."""
-    print(project_metadata.final_output)
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (

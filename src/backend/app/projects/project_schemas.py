@@ -13,7 +13,7 @@ from app.utils import (
     str_to_geojson,
     write_wkb,
 )
-from pydantic.functional_validators import field_validator
+
 
 class ProjectInfo(BaseModel):
     """Basic project info."""
