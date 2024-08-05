@@ -50,34 +50,46 @@ async def new_event(
 
     match detail.event:
         case EventType.REQUESTS:
-            data = await task_crud.request_mapping(
+            project = await get_project_by_id(db, project_id)
+            if project['auto_lock_tasks'] == 'true':
+                print("auto lock")
+                data =  await task_crud.update_or_create_task_state(
                 db,
                 project_id,
                 task_id,
                 user_id,
-                "Request for mapping",
+                "Request accepted by auto",
+                State.REQUEST_FOR_MAPPING,
+                State.LOCKED_FOR_MAPPING,
             )
+            else:
+                print("manul lock..")
+                data = await task_crud.request_mapping(
+                    db,
+                    project_id,
+                    task_id,
+                    user_id,
+                    "Request for mapping",
+                )
+                # email notification
+                author = await get_user_by_id(db, project.author_id)
 
-            # email notification
-            project = await get_project_by_id(db, project_id)
-            author = await get_user_by_id(db, project.author_id)
-
-            html_content = render_email_template(
-                template_name="mapping_requests.html",
-                context={
-                    "name": author.name,
-                    "drone_operator_name": user_data.name,
-                    "task_id": task_id,
-                    "project_name": project.name,
-                    "description": project.description,
-                },
-            )
-            background_tasks.add_task(
-                send_notification_email,
-                user_data.email,
-                "Request for mapping",
-                html_content,
-            )
+                html_content = render_email_template(
+                    template_name="mapping_requests.html",
+                    context={
+                        "name": author.name,
+                        "drone_operator_name": user_data.name,
+                        "task_id": task_id,
+                        "project_name": project.name,
+                        "description": project.description,
+                    },
+                )
+                background_tasks.add_task(
+                    send_notification_email,
+                    user_data.email,
+                    "Request for mapping",
+                    html_content,
+                )
             return data
 
         case EventType.MAP:

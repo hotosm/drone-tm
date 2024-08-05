@@ -17,10 +17,11 @@ async def create_project_with_project_info(
     db: Database, author_id: uuid.UUID, project_metadata: project_schemas.ProjectIn
 ):
     """Create a project in database."""
+    print(project_metadata.final_output)
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, created_at)
+            id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, final_output, auto_lock_tasks, created_at)
         VALUES (
             :id,
             :slug,
@@ -38,6 +39,8 @@ async def create_project_with_project_info(
             :output_raw_url,
             :task_split_dimension,
             :deadline_at,
+            :final_output,
+            :auto_lock_tasks,
             CURRENT_TIMESTAMP
         )
         RETURNING id
@@ -64,6 +67,8 @@ async def create_project_with_project_info(
                 "output_raw_url": project_metadata.output_raw_url,
                 "task_split_dimension": project_metadata.task_split_dimension,
                 "deadline_at": project_metadata.deadline_at,
+                "final_output": project_metadata.final_output.name,
+                "auto_lock_tasks":project_metadata.auto_lock_tasks,
             },
         )
         return project_id
@@ -71,7 +76,7 @@ async def create_project_with_project_info(
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
-
+    
 
 async def get_project_by_id(db: Database, project_id: uuid.UUID):
     "Get a single database project object by project_id"

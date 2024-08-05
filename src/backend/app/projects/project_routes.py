@@ -33,7 +33,7 @@ async def delete_project_by_id(
     Delete a project by its ID, along with all associated tasks.
 
     Args:
-        project_id (int): The ID of the project to delete.
+        project_id (uuid.UUID): The ID of the project to delete.
         db (Database): The database session dependency.
 
     Returns:
@@ -54,7 +54,7 @@ async def delete_project_by_id(
         ), deleted_task_events AS (
             DELETE FROM task_events
             WHERE project_id = :project_id
-            RETURNING id
+            RETURNING event_id
         )
         SELECT id FROM deleted_project
     """
@@ -65,7 +65,6 @@ async def delete_project_by_id(
         raise HTTPException(status_code=404)
 
     return {"message": f"Project ID: {project_id} is deleted successfully."}
-
 
 @router.post("/create_project", tags=["Projects"])
 async def create_project(

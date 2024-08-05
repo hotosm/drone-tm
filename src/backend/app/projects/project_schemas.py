@@ -2,7 +2,7 @@ import uuid
 from pydantic import BaseModel, computed_field, Field, validator
 from typing import Any, Optional, Union, List
 from geojson_pydantic import Feature, FeatureCollection, Polygon
-from app.models.enums import ProjectVisibility, State
+from app.models.enums import FinalOutput, ProjectVisibility, State
 from shapely import wkb
 from datetime import date
 from app.utils import (
@@ -13,7 +13,7 @@ from app.utils import (
     str_to_geojson,
     write_wkb,
 )
-
+from pydantic.functional_validators import field_validator
 
 class ProjectInfo(BaseModel):
     """Basic project info."""
@@ -41,7 +41,10 @@ class ProjectIn(BaseModel):
     output_raw_url: Optional[str] = None
     deadline_at: Optional[date] = None
     visibility: Optional[ProjectVisibility] = ProjectVisibility.PUBLIC
+    final_output: Optional[FinalOutput] = FinalOutput.ORTHOPHOTO_2D
+    auto_lock_tasks: Optional[bool] = False
 
+    
     @computed_field
     @property
     def no_fly_zones(self) -> Optional[Any]:
