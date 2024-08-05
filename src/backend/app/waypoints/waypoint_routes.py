@@ -1,10 +1,14 @@
 import uuid
 import geojson
+import shutil
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from app.config import settings
 from drone_flightplan import flightplan, waypoints
+from app.models.enums import HTTPStatus
 
+# Constant to convert gsd to Altitude above ground level
+GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/waypoint",
@@ -20,8 +24,12 @@ async def generate_kmz(
         description="The GeoJSON file representing the project area. This file will be used to define the boundaries and paths for the flight plan.",
     ),
     altitude: float = Form(
-        80,
+        None,
         description="The altitude at which the drone should fly during the mission, in meters.",
+    ),
+    gsd: float = Form(
+        None,
+        description="Excepted gsd value",
     ),
     download: bool = Form(
         True,
@@ -43,35 +51,67 @@ async def generate_kmz(
         False,
         description="A flag indicating weather you want to generate 3D imageries or not (To generate 3D imagery, we need to click images at 3 different angles -90, -45 and lateral 45 degree angle)",
     ),
+    terrain_follow: bool = Form(
+        False,
+        description="A flag indicating weather you want to generate flight plan with terrain follow.",
+    ),
+    dem: UploadFile = File(
+        None,
+        description="The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format",
+    ),
 ):
-    try:
-        boundary = geojson.loads(await project_geojson.read())
+    if not (altitude or gsd):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Either altitude or gsd is required",
+        )
 
-        features = boundary["features"][0]
-
-        if not download:
-            return waypoints.create_waypoint(
-                features,
-                altitude,
-                forward_overlap,
-                side_overlap,
-                generate_each_points,
-                generate_3d,
+    if terrain_follow:
+        if not dem:
+            raise HTTPException(
+                status_code=400,
+                detail="DEM file is required for terrain follow",
             )
-        else:
-            output_file = flightplan.generate_flightplan(
-                features,
-                altitude,
-                forward_overlap,
-                side_overlap,
-                generate_each_points,
-                generate_3d,
-                f"/tmp/{uuid.uuid4()}",
+        if dem.content_type != "image/tiff":
+            raise HTTPException(
+                status_code=400,
+                detail="DEM file should be in GeoTIFF format",
             )
 
-            return FileResponse(
-                output_file, media_type="application/zip", filename="output.kmz"
-            )
+        dem_path = f"/tmp/{dem.filename}"
+        with open(dem_path, "wb") as buffer:
+            shutil.copyfileobj(dem.file, buffer)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    boundary = geojson.loads(await project_geojson.read())
+    features = boundary["features"][0]
+
+    if not download:
+        # TODO This should be fixed within the drone_flightplan
+        if gsd:
+            altitude = gsd * GSD_to_AGL_CONST
+
+        return waypoints.create_waypoint(
+            features,
+            altitude,
+            forward_overlap,
+            side_overlap,
+            generate_each_points,
+            generate_3d,
+        )
+    else:
+        output_file = flightplan.generate_flightplan(
+            features,
+            altitude,
+            gsd,
+            forward_overlap,
+            side_overlap,
+            generate_each_points,
+            generate_3d,
+            terrain_follow,
+            dem_path if dem else None,
+            f"/tmp/{uuid.uuid4()}",
+        )
+
+        return FileResponse(
+            output_file, media_type="application/zip", filename="output.kmz"
+        )

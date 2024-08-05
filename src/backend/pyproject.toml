@@ -40,7 +40,7 @@ dependencies = [
     "GDAL==3.6.2",
     "aiosmtplib>=3.0.1",
     "python-slugify>=8.0.4",
-    "drone-flightplan>=0.1.2",
+    "drone-flightplan>=0.2.1",
 ]
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-only"}
