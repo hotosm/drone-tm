@@ -1,16 +1,30 @@
-"frontend":
-  - "src/frontend/**/*"
-"backend":
-  - "src/backend/**/*"
-"devops":
-  - ".github/**/*"
-  - "docker-*.yml"
-  - "**/Dockerfile"
-  - "**/*.dockerfile"
-  - "**/*entrypoint.sh"
-"migration":
-  - "src/backend/app/migrations/**/*"
-"docs":
-  - "docs/**/*"
-  - "mkdocs.yml"
-  - "README.md"
+bug:
+  # Branch starts with `fix` or has a `fix` in the name
+  - head-branch: ["^fix", "fix"]
+enhancement:
+  - head-branch:
+      ["^feature", "feature", "^feat", "feat", "^refactor", "refactor"]
+frontend:
+  - changed-files:
+      - any-glob-to-any-file: src/frontend/**
+backend:
+  - changed-files:
+      - any-glob-to-any-file: src/backend/**
+devops:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - docker-*.yml
+          - ./**/Dockerfile
+          - ./**/.dockerfile
+          - ./**/*entrypoint.sh
+          - ./**/Justfile
+migration":
+  - changed-files:
+      - any-glob-to-any-file: src/backend/app/migrations/**
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+          - mkdocs.yml
+          - README.md
