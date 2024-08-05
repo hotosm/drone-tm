@@ -28,6 +28,7 @@ theme:
 
 extra_css:
   - css/extra.css
+  - css/timeline.css
 
 markdown_extensions:
   - tables
@@ -73,3 +74,4 @@ nav:
       - Code of Conduct: https://docs.hotosm.org/code-of-conduct
       - FAQ: about/faq.md
       - The Team: about/team.md
+  - Timeline: timeline.md
