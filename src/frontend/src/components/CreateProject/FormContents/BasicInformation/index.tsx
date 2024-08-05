@@ -17,6 +17,7 @@ export default function BasicInformation({
           placeholder="Enter Name of the Project"
           {...register('name', {
             required: 'Name of the project is required',
+            setValueAs: (value: string) => value.trim(),
           })}
         />
         <ErrorMessage message={errors?.name?.message as string} />
@@ -28,6 +29,7 @@ export default function BasicInformation({
           placeholder="Description of the Project"
           {...register('description', {
             required: 'Description is Required',
+            setValueAs: (value: string) => value.trim(),
           })}
         />
         <ErrorMessage message={errors?.description?.message as string} />

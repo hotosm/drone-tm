@@ -28,6 +28,7 @@ export default function Conditions({
           placeholder="Enter Instructions for Drone Operators"
           {...register('per_task_instructions', {
             required: 'Instructions are required',
+            setValueAs: (value: string) => value.trim(),
           })}
         />
         <ErrorMessage
