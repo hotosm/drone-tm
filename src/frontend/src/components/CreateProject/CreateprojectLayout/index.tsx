@@ -70,6 +70,9 @@ export default function CreateprojectLayout() {
   const isTerrainFollow = useTypedSelector(
     state => state.createproject.isTerrainFollow,
   );
+  const isNoflyzonePresent = useTypedSelector(
+    state => state.createproject.isNoflyzonePresent,
+  );
 
   const initialState: FieldValues = {
     name: '',
@@ -155,6 +158,25 @@ export default function CreateprojectLayout() {
   };
 
   const onSubmit = (data: any) => {
+    if (activeStep === 2) {
+      if (
+        !data?.outline_geojson ||
+        (Array.isArray(data?.outline_geojson) &&
+          data?.outline_geojson?.length === 0)
+      ) {
+        toast.error('Please upload or draw and save project area');
+        return;
+      }
+      if (
+        isNoflyzonePresent === 'yes' &&
+        (!data?.outline_no_fly_zones ||
+          data?.outline_no_fly_zones?.length === 0)
+      ) {
+        toast.error('Please upload or draw and save No Fly zone area');
+        return;
+      }
+    }
+
     if (activeStep === 4 && !splitGeojson) return;
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
@@ -164,6 +186,9 @@ export default function CreateprojectLayout() {
       ...data,
       is_terrain_follow: isTerrainFollow === 'hilly',
     };
+    // remove key
+    if (isNoflyzonePresent === 'no') delete payload?.outline_no_fly_zones;
+
     createProject(payload);
   };
 
