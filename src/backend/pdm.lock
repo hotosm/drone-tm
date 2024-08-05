@@ -151,7 +151,7 @@ summary = "DNS toolkit"
 
 [[package]]
 name = "drone-flightplan"
-version = "0.1.2"
+version = "0.2.0"
 requires_python = ">=3.10"
 summary = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping"
 dependencies = [
@@ -169,12 +169,6 @@ dependencies = [
     "dnspython>=2.0.0",
     "idna>=2.0.0",
 ]
-
-[[package]]
-name = "exceptiongroup"
-version = "1.2.2"
-requires_python = ">=3.7"
-summary = "Backport of PEP 654 (exception groups)"
 
 [[package]]
 name = "executing"
@@ -267,7 +261,9 @@ version = "8.14.0"
 requires_python = ">=3.9"
 summary = "IPython: Productive Interactive Computing"
 dependencies = [
+    "appnope; sys_platform == \"darwin\"",
     "backcall",
+    "colorama; sys_platform == \"win32\"",
     "decorator",
     "jedi>=0.16",
     "matplotlib-inline",
@@ -363,7 +359,7 @@ summary = "A generic, spec-compliant, thorough implementation of the OAuth reque
 
 [[package]]
 name = "osm-rawdata"
-version = "0.3.0"
+version = "0.3.1"
 requires_python = ">=3.10"
 summary = "Make data extracts from OSM data."
 dependencies = [
@@ -687,7 +683,7 @@ summary = "A small Python utility to set file creation time on Windows"
 lock_version = "4.2"
 cross_platform = true
 groups = ["default"]
-content_hash = "sha256:60f25b3665070f83375848f64c8bfbe615df923a308fb0c00903db7508fcca17"
+content_hash = "sha256:349a27c6c58e87dfaa0f64824d81933d501fe1a570e66cd1d9d80261aee22fa2"
 
 [metadata.files]
 "aiosmtplib 3.0.2" = [
@@ -985,17 +981,13 @@ content_hash = "sha256:60f25b3665070f83375848f64c8bfbe615df923a308fb0c00903db750
     {url = "https://files.pythonhosted.org/packages/37/7d/c871f55054e403fdfd6b8f65fd6d1c4e147ed100d3e9f9ba1fe695403939/dnspython-2.6.1.tar.gz", hash = "sha256:e8f0f9c23a7b7cb99ded64e6c3a6f3e701d78f50c55e002b839dea7225cff7cc"},
     {url = "https://files.pythonhosted.org/packages/87/a1/8c5287991ddb8d3e4662f71356d9656d91ab3a36618c3dd11b280df0d255/dnspython-2.6.1-py3-none-any.whl", hash = "sha256:5ef3b9680161f6fa89daf8ad451b5f1a33b18ae8a1c6778cdf4b43f08c0a6e50"},
 ]
-"drone-flightplan 0.1.2" = [
-    {url = "https://files.pythonhosted.org/packages/22/ef/050af622b77845f0a741e1406e7b9daa22bf82468e57c266e56fdd2b5919/drone_flightplan-0.1.2-py3-none-any.whl", hash = "sha256:c3b7a7c0709a523e3ad4285f34e2dfb0e888d498dbf3ac3a2303cae9520f9727"},
-    {url = "https://files.pythonhosted.org/packages/d3/3d/4801315a6ba14f049ec870bbdae3f97c97b77eb618957e962e311216f47c/drone_flightplan-0.1.2.tar.gz", hash = "sha256:8aa7419afe0022254afb97a82ca618bcdd38e4ea18b050d631434dd3b8bf356b"},
+"drone-flightplan 0.2.0" = [
+    {url = "https://files.pythonhosted.org/packages/08/32/02aa37bef9573b63f4594218f8efa44ca081ce0e6dbe4b47aed484a1db60/drone_flightplan-0.2.0-py3-none-any.whl", hash = "sha256:b086e782941ee734a5ed1675bb219c3e866bc23ec66bcd8b90c3ab705257dfad"},
+    {url = "https://files.pythonhosted.org/packages/f2/47/544883b2240e150dfb43d1b13c671958cac12c5e77f41f00f7112794fcf0/drone_flightplan-0.2.0.tar.gz", hash = "sha256:36e8b2efc451080e6b7f5b94113eee39d4d8702295f76a4d7523776193d1a807"},
 ]
 "email-validator 2.2.0" = [
     {url = "https://files.pythonhosted.org/packages/48/ce/13508a1ec3f8bb981ae4ca79ea40384becc868bfae97fd1c942bb3a001b1/email_validator-2.2.0.tar.gz", hash = "sha256:cb690f344c617a714f22e66ae771445a1ceb46821152df8e165c5f9a364582b7"},
     {url = "https://files.pythonhosted.org/packages/d7/ee/bf0adb559ad3c786f12bcbc9296b3f5675f529199bef03e2df281fa1fadb/email_validator-2.2.0-py3-none-any.whl", hash = "sha256:561977c2d73ce3611850a06fa56b414621e0c8faa9d66f2611407d87465da631"},
-]
-"exceptiongroup 1.2.2" = [
-    {url = "https://files.pythonhosted.org/packages/02/cc/b7e31358aac6ed1ef2bb790a9746ac2c69bcb3c8588b41616914eb106eaf/exceptiongroup-1.2.2-py3-none-any.whl", hash = "sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b"},
-    {url = "https://files.pythonhosted.org/packages/09/35/2495c4ac46b980e4ca1f6ad6db102322ef3ad2410b79fdde159a4b0f3b92/exceptiongroup-1.2.2.tar.gz", hash = "sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc"},
 ]
 "executing 2.0.1" = [
     {url = "https://files.pythonhosted.org/packages/08/41/85d2d28466fca93737592b7f3cc456d1cfd6bcd401beceeba17e8e792b50/executing-2.0.1.tar.gz", hash = "sha256:35afe2ce3affba8ee97f2d69927fa823b08b472b7b994e36a52a964b93d16147"},
@@ -1231,9 +1223,9 @@ content_hash = "sha256:60f25b3665070f83375848f64c8bfbe615df923a308fb0c00903db750
     {url = "https://files.pythonhosted.org/packages/6d/fa/fbf4001037904031639e6bfbfc02badfc7e12f137a8afa254df6c4c8a670/oauthlib-3.2.2.tar.gz", hash = "sha256:9859c40929662bec5d64f34d01c99e093149682a3f38915dc0655d5a633dd918"},
     {url = "https://files.pythonhosted.org/packages/7e/80/cab10959dc1faead58dc8384a781dfbf93cb4d33d50988f7a69f1b7c9bbe/oauthlib-3.2.2-py3-none-any.whl", hash = "sha256:8139f29aac13e25d502680e9e19963e83f16838d48a0d71c287fe40e7067fbca"},
 ]
-"osm-rawdata 0.3.0" = [
-    {url = "https://files.pythonhosted.org/packages/71/7c/62dec6aada73cf12f939edff1b5a3c540531b3cf1aa52ab0d1c1e3e772b1/osm-rawdata-0.3.0.tar.gz", hash = "sha256:62778c571a1a7d52a91357733deff5bc79466f0c5df5c809d77af7a3259ff7ed"},
-    {url = "https://files.pythonhosted.org/packages/af/ac/7332d5eb43ac03a6572c04ff0b363a82f75916772579e1ed782927a3f315/osm_rawdata-0.3.0-py3-none-any.whl", hash = "sha256:e803e69ad2980502ebf13586302f51829fa2b1276079bdc3f924f187565076b9"},
+"osm-rawdata 0.3.1" = [
+    {url = "https://files.pythonhosted.org/packages/d7/99/b0bf848a85e4dbc97efd8e2bb7a863c3332f598f3c4fa8ff0523d462445c/osm_rawdata-0.3.1-py3-none-any.whl", hash = "sha256:21ef255381610c05ff6628a2d30bd2e84c4538c7d7a7355530f706b2dbeeab9c"},
+    {url = "https://files.pythonhosted.org/packages/ea/6f/ab20af2aa087969d404814da23027d67a9c0704ab90f1bbea6ba42fe6976/osm-rawdata-0.3.1.tar.gz", hash = "sha256:8714eebc2a774b8ab366caecfce608f30a18a11d3601db19a5d3c10dddcd4514"},
 ]
 "packaging 24.1" = [
     {url = "https://files.pythonhosted.org/packages/08/aa/cc0199a5f0ad350994d660967a8efb233fe0416e4639146c089643407ce6/packaging-24.1-py3-none-any.whl", hash = "sha256:5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124"},
