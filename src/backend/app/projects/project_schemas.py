@@ -53,8 +53,6 @@ class ProjectIn(BaseModel):
     dem_url: Optional[str] = None
     gsd_cm_px: float = None
     is_terrain_follow: bool = False
-    # TODO change all references outline_geojson --> outline
-    # TODO also no_fly_zones
     outline: Annotated[
         FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)
     ]
