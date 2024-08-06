@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from loguru import logger as log
 
 
-async def get_task_geojson(task_id: uuid.UUID, db: Database):
+async def get_task_geojson(db: Database, task_id: uuid.UUID):
     query = """
     SELECT jsonb_build_object(
         'type', 'FeatureCollection',
