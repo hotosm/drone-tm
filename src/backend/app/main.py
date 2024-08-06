@@ -81,6 +81,7 @@ def get_application() -> FastAPI:
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
         redoc_url="/api/redoc",
+        lifespan=lifespan,
     )
 
     # Set custom logger
