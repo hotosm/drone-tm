@@ -41,7 +41,15 @@ class ProjectIn(BaseModel):
     output_raw_url: Optional[str] = None
     deadline_at: Optional[date] = None
     visibility: Optional[ProjectVisibility] = ProjectVisibility.PUBLIC
-    final_output: Optional[FinalOutput] = FinalOutput.ORTHOPHOTO_2D
+    final_output: List[FinalOutput] = Field(
+        ...,
+        example=[
+            "ORTHOPHOTO_2D",
+            "ORTHOPHOTO_3D",
+            "DIGITAL_TERRAIN_MODEL",
+            "DIGITAL_SURFACE_MODEL",
+        ],
+    )
     auto_lock_tasks: Optional[bool] = False
 
     @computed_field

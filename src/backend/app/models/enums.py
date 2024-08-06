@@ -15,11 +15,11 @@ class IntEnum(int, Enum):
     pass
 
 
-class FinalOutput(IntEnum, Enum):
-    ORTHOPHOTO_2D = 0
-    ORTHOPHOTO_3D = 1
-    DIGITAL_TERRAIN_MODEL = 2
-    DIGITAL_SURFACE_MODEL = 3
+class FinalOutput(str, Enum):
+    ORTHOPHOTO_2D = "ORTHOPHOTO_2D"
+    ORTHOPHOTO_3D = "ORTHOPHOTO_3D"
+    DIGITAL_TERRAIN_MODEL = "DIGITAL_TERRAIN_MODEL"
+    DIGITAL_SURFACE_MODEL = "DIGITAL_SURFACE_MODEL"
 
 
 class TaskStatus(IntEnum, Enum):

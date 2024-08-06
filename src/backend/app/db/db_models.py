@@ -130,9 +130,7 @@ class DbProject(Base):
         ),
     )
     author = relationship(DbUser, uselist=False, backref="user")
-    final_output = cast(
-        FinalOutput, Column(Enum(FinalOutput), default=FinalOutput.ORTHOPHOTO_2D)
-    )
+    final_output = cast(FinalOutput, Column(ARRAY(String)))
     auto_lock_tasks = cast(bool, Column(Boolean, default=False))
     # PROJECT STATUS
     status = cast(

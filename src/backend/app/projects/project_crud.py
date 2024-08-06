@@ -66,7 +66,7 @@ async def create_project_with_project_info(
                 "output_raw_url": project_metadata.output_raw_url,
                 "task_split_dimension": project_metadata.task_split_dimension,
                 "deadline_at": project_metadata.deadline_at,
-                "final_output": project_metadata.final_output.name,
+                "final_output": project_metadata.final_output,
                 "auto_lock_tasks": project_metadata.auto_lock_tasks,
             },
         )
