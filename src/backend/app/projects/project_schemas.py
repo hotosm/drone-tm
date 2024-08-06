@@ -1,5 +1,6 @@
 import uuid
-from pydantic import BaseModel, computed_field, Field, validator
+import json
+from pydantic import BaseModel, computed_field, Field, validator, model_validator
 from typing import Any, Optional, Union, List
 from geojson_pydantic import Feature, FeatureCollection, Polygon
 from app.models.enums import ProjectVisibility, State
@@ -31,11 +32,10 @@ class ProjectIn(BaseModel):
     description: str
     per_task_instructions: Optional[str] = None
     task_split_dimension: Optional[int] = None
-    dem_url: Optional[str] = None
-    gsd_cm_px: float = None
-    altitude_from_ground: float = None
-    forward_overlap_percent: float = None
-    side_overlap_percent: float = None
+    gsd_cm_px: Optional[float] = None
+    altitude_from_ground: Optional[float] = None
+    forward_overlap_percent: Optional[float] = None
+    side_overlap_percent: Optional[float] = None
     is_terrain_follow: bool = False
     outline_no_fly_zones: Optional[Union[FeatureCollection, Feature, Polygon]] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
@@ -72,6 +72,13 @@ class ProjectIn(BaseModel):
         if not self.outline:
             return None
         return write_wkb(read_wkb(self.outline).centroid)
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_to_json(cls, value):
+        if isinstance(value, str):
+            return cls(**json.loads(value))
+        return value
 
 
 class TaskOut(BaseModel):
