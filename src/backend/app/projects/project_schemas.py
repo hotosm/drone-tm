@@ -44,7 +44,6 @@ class ProjectIn(BaseModel):
     final_output: Optional[FinalOutput] = FinalOutput.ORTHOPHOTO_2D
     auto_lock_tasks: Optional[bool] = False
 
-    
     @computed_field
     @property
     def no_fly_zones(self) -> Optional[Any]:

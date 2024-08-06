@@ -67,7 +67,7 @@ async def create_project_with_project_info(
                 "task_split_dimension": project_metadata.task_split_dimension,
                 "deadline_at": project_metadata.deadline_at,
                 "final_output": project_metadata.final_output.name,
-                "auto_lock_tasks":project_metadata.auto_lock_tasks,
+                "auto_lock_tasks": project_metadata.auto_lock_tasks,
             },
         )
         return project_id
@@ -75,7 +75,7 @@ async def create_project_with_project_info(
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
-    
+
 
 async def get_project_by_id(db: Database, project_id: uuid.UUID):
     "Get a single database project object by project_id"

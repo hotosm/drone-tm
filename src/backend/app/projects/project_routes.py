@@ -66,6 +66,7 @@ async def delete_project_by_id(
 
     return {"message": f"Project ID: {project_id} is deleted successfully."}
 
+
 @router.post("/create_project", tags=["Projects"])
 async def create_project(
     project_info: project_schemas.ProjectIn,
