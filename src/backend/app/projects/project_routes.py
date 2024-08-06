@@ -17,6 +17,7 @@ from databases import Database
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 
+
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
     responses={404: {"description": "Not found"}},
@@ -70,6 +71,7 @@ async def delete_project_by_id(
 @router.post("/create_project", tags=["Projects"])
 async def create_project(
     project_info: project_schemas.ProjectIn,
+    dem: UploadFile = File(None),
     db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
@@ -78,6 +80,13 @@ async def create_project(
     project_id = await project_crud.create_project_with_project_info(
         db, author_id, project_info
     )
+
+    # Upload DEM to S3
+    dem_url = await project_crud.upload_dem_to_s3(project_id, dem) if dem else None
+
+    # Update dem url to database
+    await project_crud.update_project_dem_url(db, project_id, dem_url)
+
     if not project_id:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
