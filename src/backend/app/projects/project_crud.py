@@ -16,6 +16,17 @@ from app.s3 import add_obj_to_bucket
 from app.config import settings
 
 
+async def update_project_dem_url(db: Database, project_id: uuid.UUID, dem_url: str):
+    """Update the DEM URL for a project."""
+    query = """
+        UPDATE projects
+        SET dem_url = :dem_url
+        WHERE id = :project_id
+    """
+    await db.execute(query, {"dem_url": dem_url, "project_id": project_id})
+    return True
+
+
 async def upload_dem_to_s3(project_id: uuid.UUID, dem_file: UploadFile) -> str:
     """Upload dem into S3.
 
@@ -26,7 +37,7 @@ async def upload_dem_to_s3(project_id: uuid.UUID, dem_file: UploadFile) -> str:
     Returns:
         dem_url(str): The S3 URL for the dem file.
     """
-    dem_path = f"/{project_id}/dem/dem.tif"
+    dem_path = f"/dem/{project_id}/dem.tif"
 
     file_bytes = await dem_file.read()
     file_obj = BytesIO(file_bytes)
