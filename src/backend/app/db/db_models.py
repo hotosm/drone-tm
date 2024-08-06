@@ -105,12 +105,12 @@ class DbProject(Base):
     organisation = relationship(DbOrganisation, backref="projects")
 
     # flight params
-    overlap_percent = cast(float, Column(Float, nullable=True))
-    gsd_cm_px = cast(float, Column(Float, nullable=True))  # in cm_px
+    forward_overlap_percent = cast(float, Column(Float, nullable=True))
+    side_overlap_percent = cast(float, Column(Float, nullable=True))
+    altitude_from_ground = cast(float, Column(Float, nullable=True))
+    gsd_cm_px = cast(float, Column(Float, nullable=True))
     camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
-    gimble_angles_degrees = cast(
-        list, Column(ARRAY(SmallInteger), nullable=True)
-    )  # degrees
+    gimble_angles_degrees = cast(list, Column(ARRAY(SmallInteger), nullable=True))
     is_terrain_follow = cast(bool, Column(Boolean, default=False))
     dem_url = cast(str, Column(String, nullable=True))
     hashtags = cast(list, Column(ARRAY(String)))  # Project hashtag
