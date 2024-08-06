@@ -5,6 +5,7 @@ networks:
 volumes:
   db-data:
     name: drone-tm-db-data
+    external: true
 
 services:
   backend:
