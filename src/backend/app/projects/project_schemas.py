@@ -33,6 +33,9 @@ class ProjectIn(BaseModel):
     task_split_dimension: Optional[int] = None
     dem_url: Optional[str] = None
     gsd_cm_px: float = None
+    altitude_from_ground: float = None
+    forward_overlap_percent: float = None
+    side_overlap_percent: float = None
     is_terrain_follow: bool = False
     outline_no_fly_zones: Optional[Union[FeatureCollection, Feature, Polygon]] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]

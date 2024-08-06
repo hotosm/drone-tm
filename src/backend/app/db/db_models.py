@@ -107,7 +107,7 @@ class DbProject(Base):
     # flight params
     forward_overlap_percent = cast(float, Column(Float, nullable=True))
     side_overlap_percent = cast(float, Column(Float, nullable=True))
-    altitude_from_ground = cast(float, Column(Float, nullable=True))
+    altitude_from_ground = cast(float, Column(Float, nullable=True))  # In Meter
     gsd_cm_px = cast(float, Column(Float, nullable=True))
     camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
     gimble_angles_degrees = cast(list, Column(ARRAY(SmallInteger), nullable=True))
