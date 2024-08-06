@@ -30,7 +30,7 @@ class InterceptHandler(logging.Handler):
         This happens to be in the 6th frame upward.
         """
         logger_opt = log.opt(depth=6, exception=record.exc_info)
-        logger_opt.log(record.levelno, record.getMessage())
+        logger_opt.log(logging.getLevelName(record.levelno), record.getMessage())
 
 
 def get_logger():
