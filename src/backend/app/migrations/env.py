@@ -5,7 +5,6 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from app.db.db_models import Base
-from geoalchemy2 import alembic_helpers
 from alembic import context
 from app.config import settings
 
@@ -38,14 +37,24 @@ log = getLogger(__name__)
 # ... etc.
 
 
-def include_object(object, name, type_, reflected, compare_to):
-    """Ignore our excluded tables in the autogen sweep."""
-    if type_ == "table" and name in exclude_tables:
-        return False
+# def include_object(object, name, type_, reflected, compare_to):
+#     """Ignore our excluded tables in the autogen sweep."""
+#     if type_ == "table" and name in exclude_tables:
+#         return False
+#     else:
+#         return alembic_helpers.include_object(
+#             object, name, type_, reflected, compare_to
+#         )
+
+
+def include_name(name, type_, parent_names):
+    if type_ == "schema":
+        return name in [None, "public"]
+    elif type_ == "table":
+        # use schema_qualified_table_name directly
+        return parent_names["schema_qualified_table_name"] in target_metadata.tables
     else:
-        return alembic_helpers.include_object(
-            object, name, type_, reflected, compare_to
-        )
+        return True
 
 
 def run_migrations_offline() -> None:
@@ -65,7 +74,8 @@ def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
-        include_object=include_object,
+        # include_object=include_object,
+        include_name=include_name,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -95,7 +105,8 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
-            include_object=include_object,
+            # include_object=include_object,
+            include_name=include_name,
             target_metadata=target_metadata,
         )
 
