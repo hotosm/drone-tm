@@ -51,17 +51,17 @@ async def new_event(
     match detail.event:
         case EventType.REQUESTS:
             project = await get_project_by_id(db, project_id)
-            if project['auto_lock_tasks'] == 'true':
+            if project["auto_lock_tasks"] == "true":
                 print("auto lock")
-                data =  await task_crud.update_or_create_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                "Request accepted by auto",
-                State.REQUEST_FOR_MAPPING,
-                State.LOCKED_FOR_MAPPING,
-            )
+                data = await task_crud.update_or_create_task_state(
+                    db,
+                    project_id,
+                    task_id,
+                    user_id,
+                    "Request accepted by auto",
+                    State.REQUEST_FOR_MAPPING,
+                    State.LOCKED_FOR_MAPPING,
+                )
             else:
                 print("manul lock..")
                 data = await task_crud.request_mapping(

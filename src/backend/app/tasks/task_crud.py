@@ -187,7 +187,11 @@ async def update_or_create_task_state(
 
     result = await db.fetch_one(query, values)
 
-    return {"project_id": result["project_id"], "task_id": result["task_id"], "comment": comment}
+    return {
+        "project_id": result["project_id"],
+        "task_id": result["task_id"],
+        "comment": comment,
+    }
 
 
 async def get_requested_user_id(
@@ -218,7 +222,7 @@ async def get_project_task_by_id(db: Database, user_id: str):
         SELECT id FROM projects WHERE author_id = :user_id
     """
     project_ids_result = await db.fetch_all(query=_sql, values={"user_id": user_id})
-    project_ids = [row['id'] for row in project_ids_result]
+    project_ids = [row["id"] for row in project_ids_result]
     raw_sql = """
         SELECT t.id AS task_id, te.event_id, te.user_id, te.project_id, te.comment, te.state, te.created_at
         FROM tasks t

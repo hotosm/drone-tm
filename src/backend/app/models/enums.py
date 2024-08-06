@@ -14,12 +14,13 @@ class IntEnum(int, Enum):
 
     pass
 
+
 class FinalOutput(IntEnum, Enum):
     ORTHOPHOTO_2D = 0
     ORTHOPHOTO_3D = 1
     DIGITAL_TERRAIN_MODEL = 2
     DIGITAL_SURFACE_MODEL = 3
-    
+
 
 class TaskStatus(IntEnum, Enum):
     """Enum describing available Task Statuses."""
