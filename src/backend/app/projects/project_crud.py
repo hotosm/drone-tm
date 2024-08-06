@@ -21,7 +21,7 @@ async def create_project_with_project_info(
     query = """
         INSERT INTO projects (
             id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones,
-            gsd_cm_px, forward_overlap_percent,side_overlap_percent,altitude_from_ground, dem_url, output_orthophoto_url, output_pointcloud_url,
+            gsd_cm_px, forward_overlap_percent,side_overlap_percent,altitude_from_ground, output_orthophoto_url, output_pointcloud_url,
             output_raw_url, task_split_dimension, deadline_at, created_at)
         VALUES (
             :id,
@@ -38,7 +38,6 @@ async def create_project_with_project_info(
             :forward_overlap_percent,
             :side_overlap_percent,
             :altitude_from_ground,
-            :dem_url,
             :output_orthophoto_url,
             :output_pointcloud_url,
             :output_raw_url,
@@ -68,7 +67,6 @@ async def create_project_with_project_info(
                 "no_fly_zones": str(project_metadata.no_fly_zones)
                 if project_metadata.no_fly_zones is not None
                 else None,
-                "dem_url": project_metadata.dem_url,
                 "output_orthophoto_url": project_metadata.output_orthophoto_url,
                 "output_pointcloud_url": project_metadata.output_pointcloud_url,
                 "output_raw_url": project_metadata.output_raw_url,
