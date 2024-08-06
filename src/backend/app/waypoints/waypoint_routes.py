@@ -9,6 +9,7 @@ from app.models.enums import HTTPStatus
 from app.tasks.task_crud import get_task_geojson
 from app.projects.project_crud import get_project_by_id
 from app.db import database
+from app.utils import merge_multipolygon
 from databases import Database
 
 
@@ -143,7 +144,7 @@ async def generate_kmz(
         with open(dem_path, "wb") as buffer:
             shutil.copyfileobj(dem.file, buffer)
 
-    boundary = geojson.loads(await project_geojson.read())
+    boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
     features = boundary["features"][0]
 
     if not download:
