@@ -15,7 +15,7 @@ class IntEnum(int, Enum):
     pass
 
 
-class FinalOutput(str, Enum):
+class FinalOutput(Enum):
     ORTHOPHOTO_2D = "ORTHOPHOTO_2D"
     ORTHOPHOTO_3D = "ORTHOPHOTO_3D"
     DIGITAL_TERRAIN_MODEL = "DIGITAL_TERRAIN_MODEL"

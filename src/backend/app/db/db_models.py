@@ -130,7 +130,7 @@ class DbProject(Base):
         ),
     )
     author = relationship(DbUser, uselist=False, backref="user")
-    final_output = cast(FinalOutput, Column(ARRAY(String)))
+    final_output = cast(list, Column(ARRAY(Enum(FinalOutput))))
     auto_lock_tasks = cast(bool, Column(Boolean, default=False))
     # PROJECT STATUS
     status = cast(
