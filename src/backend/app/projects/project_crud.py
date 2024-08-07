@@ -62,8 +62,8 @@ async def create_project_with_project_info(
     query = """
         INSERT INTO projects (
             id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones,
-            gsd_cm_px, front_overlap,side_overlap,altitude_from_ground,is_terrain_follow dem_url, output_orthophoto_url, output_pointcloud_url,
-            output_raw_url, task_split_dimension, deadline_at, created_at)
+            gsd_cm_px, front_overlap, side_overlap, final_output ,altitude_from_ground,is_terrain_follow, task_split_dimension, deadline_at,
+            requires_approval_from_manager_for_locking, created_at)
         VALUES (
             :id,
             :slug,
@@ -76,19 +76,14 @@ async def create_project_with_project_info(
             :outline,
             :no_fly_zones,
             :gsd_cm_px,
-            :forward_overlap_percent,
-            :side_overlap_percent,
-            :altitude_from_ground,
-            :is_terrain_follow,
-            :output_orthophoto_url,
-            :output_pointcloud_url,
-            :output_raw_url,
-            :task_split_dimension,
-            :deadline_at,
-            :final_output,
-            :requires_approval_from_manager_for_locking,
             :front_overlap,
             :side_overlap,
+            :final_output,
+            :altitude_from_ground,
+            :is_terrain_follow,
+            :task_split_dimension,
+            :deadline_at,
+            :requires_approval_from_manager_for_locking,
             CURRENT_TIMESTAMP
         )
         RETURNING id
@@ -107,16 +102,11 @@ async def create_project_with_project_info(
                 "visibility": project_metadata.visibility.name,
                 "outline": str(project_metadata.outline),
                 "gsd_cm_px": project_metadata.gsd_cm_px,
-                "forward_overlap_percent": project_metadata.forward_overlap_percent,
-                "side_overlap_percent": project_metadata.side_overlap_percent,
                 "altitude_from_ground": project_metadata.altitude_from_ground,
                 "is_terrain_follow": project_metadata.is_terrain_follow,
                 "no_fly_zones": str(project_metadata.no_fly_zones)
                 if project_metadata.no_fly_zones is not None
                 else None,
-                "output_orthophoto_url": project_metadata.output_orthophoto_url,
-                "output_pointcloud_url": project_metadata.output_pointcloud_url,
-                "output_raw_url": project_metadata.output_raw_url,
                 "task_split_dimension": project_metadata.task_split_dimension,
                 "deadline_at": project_metadata.deadline_at,
                 "final_output": [item.value for item in project_metadata.final_output],

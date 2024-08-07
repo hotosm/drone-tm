@@ -34,14 +34,11 @@ class ProjectIn(BaseModel):
     task_split_dimension: Optional[int] = None
     gsd_cm_px: Optional[float] = None
     altitude_from_ground: Optional[float] = None
-    forward_overlap_percent: Optional[float] = None
-    side_overlap_percent: Optional[float] = None
+    front_overlap: Optional[float] = None
+    side_overlap: Optional[float] = None
     is_terrain_follow: bool = False
     outline_no_fly_zones: Optional[Union[FeatureCollection, Feature, Polygon]] = None
     outline_geojson: Union[FeatureCollection, Feature, Polygon]
-    output_orthophoto_url: Optional[str] = None
-    output_pointcloud_url: Optional[str] = None
-    output_raw_url: Optional[str] = None
     deadline_at: Optional[date] = None
     visibility: Optional[ProjectVisibility] = ProjectVisibility.PUBLIC
     final_output: List[FinalOutput] = Field(
