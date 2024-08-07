@@ -6,6 +6,18 @@ import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { setCreateProjectState } from '@Store/actions/createproject';
 import { KeyParametersOptions, terrainOptions } from '@Constants/createProject';
+import orthoPhotoIcon from '@Assets/images/ortho-photo-icon.svg';
+import _3DModal from '@Assets/images/3d-model-icon.svg';
+import DTMIcon from '@Assets/images/DTM-Icon.svg';
+import DSMIcon from '@Assets/images/DSM-icon.svg';
+import OutputOptions from './OutputOptions';
+
+const FinalOutputOptions = [
+  { label: '2D Orthophoto', icon: orthoPhotoIcon },
+  { label: '3D Model', icon: _3DModal },
+  { label: 'Digital Terrain Model (DTM)', icon: DTMIcon },
+  { label: 'Digital Surface Model (DSM)', icon: DSMIcon },
+];
 
 export default function KeyParameters({
   formProps,
@@ -14,7 +26,8 @@ export default function KeyParameters({
 }) {
   const dispatch = useTypedDispatch();
 
-  const { register, errors } = formProps;
+  const { register, errors, watch } = formProps;
+  const final_output = watch('final_output');
 
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
@@ -36,7 +49,7 @@ export default function KeyParameters({
       {keyParamOption === 'basic' ? (
         <>
           <FormControl className="naxatw-mt-4 naxatw-gap-1">
-            <Label>Ground Sampling Distance (meter)</Label>
+            <Label required>Ground Sampling Distance (meter)</Label>
             <Input
               placeholder="Enter GSD in meter"
               type="number"
@@ -47,19 +60,42 @@ export default function KeyParameters({
             />
             <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
           </FormControl>
-          <RadioButton
-            options={terrainOptions}
-            topic="Choose terrain"
-            direction="column"
-            onChangeData={val => {
-              dispatch(
-                setCreateProjectState({
-                  isTerrainFollow: val,
-                }),
-              );
-            }}
-            value={isTerrainFollow}
-          />
+          <FormControl className="naxatw-mt-4 naxatw-gap-1">
+            <Label>Image Overlap</Label>
+            <Input placeholder="Enter Image Overlap" />
+          </FormControl>
+
+          <FormControl className="naxatw-mt-4 naxatw-gap-1">
+            <Label>Final Output</Label>
+            <div className="naxatw-my-4 naxatw-grid naxatw-grid-cols-4 naxatw-gap-3">
+              {FinalOutputOptions?.map((option, index) => (
+                <OutputOptions
+                  key={option.label}
+                  icon={option.icon}
+                  name={`final_output.${index}`}
+                  checked={final_output?.[index]}
+                  label={option.label}
+                  register={register}
+                />
+              ))}
+            </div>
+          </FormControl>
+
+          <FormControl className="naxatw-mt-4 naxatw-gap-1">
+            <RadioButton
+              options={terrainOptions}
+              topic="Choose terrain"
+              direction="column"
+              onChangeData={val => {
+                dispatch(
+                  setCreateProjectState({
+                    isTerrainFollow: val,
+                  }),
+                );
+              }}
+              value={isTerrainFollow}
+            />
+          </FormControl>
         </>
       ) : (
         <>
