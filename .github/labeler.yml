@@ -19,7 +19,7 @@ devops:
           - ./**/.dockerfile
           - ./**/*entrypoint.sh
           - ./**/Justfile
-migration":
+migration:
   - changed-files:
       - any-glob-to-any-file: src/backend/app/migrations/**
 docs:
