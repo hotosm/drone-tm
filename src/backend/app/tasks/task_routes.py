@@ -52,7 +52,7 @@ async def new_event(
         case EventType.REQUESTS:
             # TODO: Combine the logic of `update_or_create_task_state` and `request_mapping` functions into a single function if possible. Will do later.
             project = await get_project_by_id(db, project_id)
-            if project["auto_lock_tasks"] == "true":
+            if project["requires_approval_from_manager_for_locking"] == "true":
                 data = await task_crud.update_or_create_task_state(
                     db,
                     project_id,

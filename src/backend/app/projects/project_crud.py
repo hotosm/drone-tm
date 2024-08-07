@@ -20,7 +20,7 @@ async def create_project_with_project_info(
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, final_output, auto_lock_tasks, created_at)
+            id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, final_output, requires_approval_from_manager_for_locking, front_overlap, side_overlap, created_at)
         VALUES (
             :id,
             :slug,
@@ -39,7 +39,9 @@ async def create_project_with_project_info(
             :task_split_dimension,
             :deadline_at,
             :final_output,
-            :auto_lock_tasks,
+            :requires_approval_from_manager_for_locking,
+            :front_overlap,
+            :side_overlap,
             CURRENT_TIMESTAMP
         )
         RETURNING id
@@ -67,7 +69,9 @@ async def create_project_with_project_info(
                 "task_split_dimension": project_metadata.task_split_dimension,
                 "deadline_at": project_metadata.deadline_at,
                 "final_output": [item.value for item in project_metadata.final_output],
-                "auto_lock_tasks": project_metadata.auto_lock_tasks,
+                "requires_approval_from_manager_for_locking": project_metadata.requires_approval_from_manager_for_locking,
+                "front_overlap": project_metadata.front_overlap,
+                "side_overlap": project_metadata.side_overlap,
             },
         )
         return project_id

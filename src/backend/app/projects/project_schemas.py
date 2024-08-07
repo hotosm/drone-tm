@@ -50,7 +50,9 @@ class ProjectIn(BaseModel):
             "DIGITAL_SURFACE_MODEL",
         ],
     )
-    auto_lock_tasks: Optional[bool] = False
+    requires_approval_from_manager_for_locking: Optional[bool] = False
+    front_overlap: Optional[float] = None
+    side_overlap: Optional[float] = None
 
     @computed_field
     @property

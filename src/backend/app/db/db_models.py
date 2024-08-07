@@ -106,7 +106,9 @@ class DbProject(Base):
     organisation = relationship(DbOrganisation, backref="projects")
 
     # flight params
-    overlap_percent = cast(float, Column(Float, nullable=True))
+    # overlap_percent = cast(float, Column(Float, nullable=True))
+    front_overlap = cast(float, Column(Float, nullable=True))
+    side_overlap = cast(float, Column(Float, nullable=True))
     gsd_cm_px = cast(float, Column(Float, nullable=True))  # in cm_px
     camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
     gimble_angles_degrees = cast(
@@ -131,7 +133,9 @@ class DbProject(Base):
     )
     author = relationship(DbUser, uselist=False, backref="user")
     final_output = cast(list, Column(ARRAY(Enum(FinalOutput))))
-    auto_lock_tasks = cast(bool, Column(Boolean, default=False))
+    requires_approval_from_manager_for_locking = cast(
+        bool, Column(Boolean, default=False)
+    )
     # PROJECT STATUS
     status = cast(
         ProjectStatus,
