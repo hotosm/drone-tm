@@ -17,7 +17,7 @@ export interface CreateProjectState {
   drawnProjectArea: GeojsonType | null;
   drawnNoFlyZone: GeojsonType | null;
   splitGeojson: Record<string, any> | null;
-  isTerrainFollow: string;
+  isTerrainFollow: boolean;
 }
 
 const initialState: CreateProjectState = {
@@ -34,7 +34,7 @@ const initialState: CreateProjectState = {
   drawnProjectArea: null,
   drawnNoFlyZone: null,
   splitGeojson: null,
-  isTerrainFollow: 'flat',
+  isTerrainFollow: false,
 };
 
 const setCreateProjectState: CaseReducer<

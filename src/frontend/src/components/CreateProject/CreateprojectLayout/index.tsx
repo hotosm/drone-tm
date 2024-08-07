@@ -87,6 +87,7 @@ export default function CreateprojectLayout() {
     per_task_instructions: '',
     deadline_at: '',
     visibility: 0,
+    dem: null,
   };
 
   const {
@@ -182,12 +183,18 @@ export default function CreateprojectLayout() {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
       return;
     }
-    const payload = {
-      ...data,
-      is_terrain_follow: isTerrainFollow === 'hilly',
-    };
+
+    const payload = isTerrainFollow
+      ? {
+          project_info: { ...data, is_terrain_follow: isTerrainFollow },
+          dem: data?.dem?.[0],
+        }
+      : { project_info: { ...data, is_terrain_follow: isTerrainFollow } };
+
     // remove key
-    if (isNoflyzonePresent === 'no') delete payload?.outline_no_fly_zones;
+    if (isNoflyzonePresent === 'no')
+      delete payload?.project_info?.outline_no_fly_zones;
+    delete payload?.project_info?.dem;
 
     createProject(payload);
   };
