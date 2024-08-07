@@ -29,8 +29,9 @@ interface IFileUploadProps extends UseFormPropsType {
   data?: [];
   placeholder?: string;
   onChange?: any;
-  isValid?:
-    | ((value: any) => boolean | undefined)
+  isValid?: // eslint-disable-next-line no-unused-vars
+  | ((value: any) => boolean | undefined)
+    // eslint-disable-next-line no-unused-vars
     | ((value: any) => Promise<boolean | undefined>);
 }
 
@@ -67,8 +68,12 @@ export default function FileUpload({
   // register form element to useForm
   useEffect(() => {
     register(name);
-    setValue(name, []);
-  }, [register, name, setValue]);
+    if (!data) {
+      setValue(name, []);
+    } else {
+      setUploadedFiles(data);
+    }
+  }, [register, name, setValue, data]);
 
   const handleFileUpload = async (event: FileEvent) => {
     const { files } = event.target;
