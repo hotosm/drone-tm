@@ -23,11 +23,11 @@ export default function Conditions({
   return (
     <FlexColumn gap={5} className="naxatw-px-10 naxatw-py-5">
       <FormControl>
-        <Label required>Instructions for Drone Operators</Label>
+        <Label>Instructions for Drone Operators</Label>
         <Input
           placeholder="Enter Instructions for Drone Operators"
           {...register('per_task_instructions', {
-            required: 'Instructions are required',
+            // required: 'Instructions are required',
             setValueAs: (value: string) => value.trim(),
           })}
         />
@@ -47,13 +47,13 @@ export default function Conditions({
       /> */}
       <FormControl className="naxatw-gap-1">
         <div className="naxatw-w-full">
-          <Label required>Deadline for Submission</Label>
+          <Label>Deadline for Submission</Label>
           <Input
             placeholder="Deadline for Submission"
             type="date"
             className="naxatw-mt-1"
             {...register('deadline_at', {
-              required: 'Deadline forRequired',
+              // required: 'Deadline forRequired',
             })}
           />
         </div>
