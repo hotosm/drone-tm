@@ -1,29 +1,23 @@
-import uuid
-from pydantic import BaseModel, computed_field, Field, validator
-from typing import Any, Optional, Union, List
-from geojson_pydantic import Feature, FeatureCollection, Polygon
-from app.models.enums import FinalOutput, ProjectVisibility, State
-from shapely import wkb
-from datetime import date
 import json
-import geojson
-from typing import Optional, List, Annotated
+import uuid
+from typing import Annotated, Optional, List
 from datetime import datetime, date
+
+import geojson
 from loguru import logger as log
-from fastapi import HTTPException
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, computed_field, Field
 from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
+from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
+from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row
-from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
 from slugify import slugify
 
+from app.models.enums import FinalOutput, ProjectVisibility, State
 from app.models.enums import (
     IntEnum,
-    ProjectVisibility,
     ProjectStatus,
-    State,
     HTTPStatus,
 )
 from app.utils import (
