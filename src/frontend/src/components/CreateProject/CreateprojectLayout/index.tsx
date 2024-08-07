@@ -193,16 +193,18 @@ export default function CreateprojectLayout() {
   };
 
   return (
-    <section className="project-form-layout naxatw-bg-[#FAFAFA]">
-      <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
+    <section className="project-form-layout naxatw-h-full naxatw-bg-[#FAFAFA]">
+      <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-4 naxatw-gap-5">
         {/* description */}
-        <div className="description naxatw-col-span-1 naxatw-h-[32.625rem] naxatw-animate-fade-up naxatw-bg-white">
+        <div className="description naxatw-col-span-1 naxatw-animate-fade-up naxatw-bg-white">
           {getActiveStepDescription(stepDescriptionComponents, activeStep)}
         </div>
 
         {/* form section */}
-        <div className="form naxatw-relative naxatw-col-span-3 naxatw-bg-white">
-          {getActiveStepForm(activeStep, formProps)}
+        <div className="form naxatw-relative naxatw-col-span-3 naxatw-h-full naxatw-bg-white naxatw-pb-[60px]">
+          <div className="naxatw-h-[calc(100vh_-_19rem)] naxatw-w-full naxatw-overflow-y-auto">
+            {getActiveStepForm(activeStep, formProps)}
+          </div>
           <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-w-full naxatw-justify-between naxatw-px-10">
             {activeStep !== 1 ? (
               <Button
