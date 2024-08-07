@@ -10,6 +10,7 @@ from app.tasks.task_crud import get_task_geojson
 from app.projects.project_crud import get_project_by_id
 from app.db import database
 from app.utils import merge_multipolygon
+from app.s3 import get_file_from_bucket
 from databases import Database
 
 
@@ -57,10 +58,11 @@ async def get_task_waypoint(
             generate_3d,
         )
     else:
-        # dem_path = f"/tmp/{dem.filename}"
-        # with open(dem_path, "wb") as buffer:
-        #     shutil.copyfileobj(dem.file, buffer)
-
+        if project.is_terrain_follow:
+            dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+            get_file_from_bucket(
+                settings.S3_BUCKET_NAME, f"dem/{project_id}/dem.tif", dem_path
+            )
         output_file = flightplan.generate_flightplan(
             features,
             altitude,
@@ -70,7 +72,7 @@ async def get_task_waypoint(
             generate_each_points,
             generate_3d,
             project.is_terrain_follow,
-            # dem_path if dem else None,
+            dem_path if project.is_terrain_follow else None,
             f"/tmp/{uuid.uuid4()}",
         )
 
