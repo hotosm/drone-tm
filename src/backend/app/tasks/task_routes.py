@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, State, UserRole
+from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -18,7 +18,53 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+@router.get("/task/stats")
+async def get_task_stats(
+    db: Database = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    user_id = user_data.id
+    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
+    records = await db.fetch_all(query, {"user_id": user_id})
+    if not records:
+        raise HTTPException(status_code=404, detail="User profile not found")
 
+    roles = [record["role"] for record in records]
+    
+    if UserRole.PROJECT_CREATOR.name in roles:
+        raw_sql = """
+            SELECT
+                (SELECT COUNT(*) 
+                FROM tasks t
+                LEFT JOIN task_events te ON t.id = te.task_id
+                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+                AND te.state = 'LOCKED_FOR_MAPPING') AS ongoing_tasks,
+                (SELECT COUNT(*)
+                FROM tasks t
+                LEFT JOIN task_events te ON t.id = te.task_id
+                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+                AND te.state = 'REQUEST_FOR_MAPPING') AS request_logs,
+                (SELECT COUNT(*)
+                FROM tasks t
+                LEFT JOIN task_events te ON t.id = te.task_id
+                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+                AND te.state = 'UNLOCKED_DONE') AS completed_tasks
+        """
+        values = {"user_id": user_id}
+        try:
+            db_counts = await db.fetch_one(query=raw_sql, values=values)
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Failed to fetch task counts. {e}",
+            )
+
+        return db_counts
+
+    # if UserRole.DRONE_PILOT.name in roles:
+    #     pass
+    
+   
 @router.get("/", response_model=list[task_schemas.UserTasksStatsOut])
 async def list_tasks(
     db: Database = Depends(database.get_db),
