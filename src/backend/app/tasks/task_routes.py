@@ -20,14 +20,14 @@ router = APIRouter(
 
 
 @router.post("/{task_id}")
-async def create_task_comment(
+async def update_task_event(
     input: task_schemas.TaskComment,
     task_id: uuid.UUID,
     db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
     """
-    Create or update a comment for a specific task.
+    update a specific task event.
 
     Args:
         comment (task_schemas.TaskComment): The comment data.
@@ -51,7 +51,7 @@ async def create_task_comment(
             raw_sql,
             {"task_id": task_id, "state": "UNFLYABLE_TASK", "comment": input.comment},
         )
-        return {"detail": "Successfully created the task comment."}
+        return {"detail": "Successfully updated the task event."}
 
     except Exception as e:
         raise HTTPException(
