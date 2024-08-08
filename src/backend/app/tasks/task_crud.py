@@ -1,8 +1,37 @@
 import uuid
+import json
 from databases import Database
 from app.models.enums import HTTPStatus, State
 from fastapi import HTTPException
 from loguru import logger as log
+
+
+async def get_task_geojson(db: Database, task_id: uuid.UUID):
+    query = """
+    SELECT jsonb_build_object(
+        'type', 'FeatureCollection',
+        'features', jsonb_agg(
+            jsonb_build_object(
+                'type', 'Feature',
+                'geometry', ST_AsGeoJSON(outline)::jsonb,
+                'properties', jsonb_build_object(
+                    'id', id
+                )
+            )
+        )
+    ) as geom
+    FROM tasks
+    WHERE id = :task_id;
+    """
+
+    values = {"task_id": str(task_id)}
+
+    data = await db.fetch_one(query, values)
+
+    if data is None:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
+
+    return json.loads(data["geom"])
 
 
 async def get_tasks_by_user(user_id: str, db: Database):

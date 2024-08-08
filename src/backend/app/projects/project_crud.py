@@ -4,13 +4,54 @@ from app.projects import project_schemas
 from loguru import logger as log
 import shapely.wkb as wkblib
 from shapely.geometry import shape
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from app.utils import merge_multipolygon
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from databases import Database
 from app.models.enums import ProjectStatus
 from app.utils import generate_slug
+from io import BytesIO
+from app.s3 import add_obj_to_bucket
+from app.config import settings
+
+
+async def update_project_dem_url(db: Database, project_id: uuid.UUID, dem_url: str):
+    """Update the DEM URL for a project."""
+    query = """
+        UPDATE projects
+        SET dem_url = :dem_url
+        WHERE id = :project_id
+    """
+    await db.execute(query, {"dem_url": dem_url, "project_id": project_id})
+    return True
+
+
+async def upload_dem_to_s3(project_id: uuid.UUID, dem_file: UploadFile) -> str:
+    """Upload dem into S3.
+
+    Args:
+        project_id (int): The organisation id in the database.
+        dem_file (UploadFile): The logo image uploaded to FastAPI.
+
+    Returns:
+        dem_url(str): The S3 URL for the dem file.
+    """
+    dem_path = f"/dem/{project_id}/dem.tif"
+
+    file_bytes = await dem_file.read()
+    file_obj = BytesIO(file_bytes)
+
+    add_obj_to_bucket(
+        settings.S3_BUCKET_NAME,
+        file_obj,
+        dem_path,
+        content_type=dem_file.content_type,
+    )
+
+    dem_url = f"{settings.S3_DOWNLOAD_ROOT}/{settings.S3_BUCKET_NAME}{dem_path}"
+
+    return dem_url
 
 
 async def create_project_with_project_info(
@@ -20,7 +61,9 @@ async def create_project_with_project_info(
     _id = uuid.uuid4()
     query = """
         INSERT INTO projects (
-            id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones, dem_url, output_orthophoto_url, output_pointcloud_url, output_raw_url, task_split_dimension, deadline_at, final_output, requires_approval_from_manager_for_locking, front_overlap, side_overlap, created_at)
+            id, slug, author_id, name, description, per_task_instructions, status, visibility, outline, no_fly_zones,
+            gsd_cm_px, front_overlap, side_overlap, final_output ,altitude_from_ground,is_terrain_follow, task_split_dimension, deadline_at,
+            requires_approval_from_manager_for_locking, created_at)
         VALUES (
             :id,
             :slug,
@@ -32,16 +75,15 @@ async def create_project_with_project_info(
             :visibility,
             :outline,
             :no_fly_zones,
-            :dem_url,
-            :output_orthophoto_url,
-            :output_pointcloud_url,
-            :output_raw_url,
-            :task_split_dimension,
-            :deadline_at,
-            :final_output,
-            :requires_approval_from_manager_for_locking,
+            :gsd_cm_px,
             :front_overlap,
             :side_overlap,
+            :final_output,
+            :altitude_from_ground,
+            :is_terrain_follow,
+            :task_split_dimension,
+            :deadline_at,
+            :requires_approval_from_manager_for_locking,
             CURRENT_TIMESTAMP
         )
         RETURNING id
@@ -59,13 +101,12 @@ async def create_project_with_project_info(
                 "status": ProjectStatus.DRAFT.name,
                 "visibility": project_metadata.visibility.name,
                 "outline": str(project_metadata.outline),
+                "gsd_cm_px": project_metadata.gsd_cm_px,
+                "altitude_from_ground": project_metadata.altitude_from_ground,
+                "is_terrain_follow": project_metadata.is_terrain_follow,
                 "no_fly_zones": str(project_metadata.no_fly_zones)
                 if project_metadata.no_fly_zones is not None
                 else None,
-                "dem_url": project_metadata.dem_url,
-                "output_orthophoto_url": project_metadata.output_orthophoto_url,
-                "output_pointcloud_url": project_metadata.output_pointcloud_url,
-                "output_raw_url": project_metadata.output_raw_url,
                 "task_split_dimension": project_metadata.task_split_dimension,
                 "deadline_at": project_metadata.deadline_at,
                 "final_output": [item.value for item in project_metadata.final_output],

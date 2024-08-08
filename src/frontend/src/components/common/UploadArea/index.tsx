@@ -29,8 +29,9 @@ interface IFileUploadProps extends UseFormPropsType {
   data?: [];
   placeholder?: string;
   onChange?: any;
-  isValid?:
-    | ((value: any) => boolean | undefined)
+  isValid?: // eslint-disable-next-line no-unused-vars
+  | ((value: any) => boolean | undefined)
+    // eslint-disable-next-line no-unused-vars
     | ((value: any) => Promise<boolean | undefined>);
 }
 
@@ -67,8 +68,12 @@ export default function FileUpload({
   // register form element to useForm
   useEffect(() => {
     register(name);
-    setValue(name, []);
-  }, [register, name, setValue]);
+    if (!data) {
+      setValue(name, []);
+    } else {
+      setUploadedFiles(data);
+    }
+  }, [register, name, setValue, data]);
 
   const handleFileUpload = async (event: FileEvent) => {
     const { files } = event.target;
@@ -128,38 +133,40 @@ export default function FileUpload({
         gap={2}
         className="scrollbar naxatw-max-h-52 naxatw-overflow-auto"
       >
-        {/* @ts-ignore */}
-        {uploadedFiles.map(({ file, id, previewURL }) => (
-          <FlexRow
-            key={id}
-            className="naxatw-items-center naxatw-justify-between naxatw-rounded-lg naxatw-border naxatw-px-4 naxatw-py-2"
-          >
-            <FlexRow gap={4} className="naxatw-items-center">
-              <Image src={previewURL} width={40} alt="" />
-              <FlexColumn>
-                <h5 className="naxatw-text-sm">{file?.name}</h5>
-                {file && file?.lastModified && (
-                  <p className="naxatw-text-xs naxatw-text-grey-600">
-                    Uploaded on
-                    {format(new Date(file.lastModifiedDate), 'MMM dd yyyy')}
-                  </p>
-                )}
-              </FlexColumn>
+        {uploadedFiles &&
+          Array.isArray(uploadedFiles) &&
+          // @ts-ignore
+          uploadedFiles?.map(({ file, id, previewURL }) => (
+            <FlexRow
+              key={id}
+              className="naxatw-items-center naxatw-justify-between naxatw-rounded-lg naxatw-border naxatw-px-4 naxatw-py-2"
+            >
+              <FlexRow gap={4} className="naxatw-items-center">
+                <Image src={previewURL} width={40} alt="" />
+                <FlexColumn>
+                  <h5 className="naxatw-text-sm">{file?.name}</h5>
+                  {file && file?.lastModified && (
+                    <p className="naxatw-text-xs naxatw-text-grey-600">
+                      Uploaded on
+                      {format(new Date(file.lastModifiedDate), 'MMM dd yyyy')}
+                    </p>
+                  )}
+                </FlexColumn>
+              </FlexRow>
+              <FlexRow gap={2}>
+                <Icon
+                  name="download"
+                  className="naxatw-text-grey-400"
+                  onClick={() => downloadBlob(previewURL, file?.name)}
+                />
+                <Icon
+                  name="delete"
+                  className="naxatw-text-red-500"
+                  onClick={() => handleDeleteFile(id)}
+                />
+              </FlexRow>
             </FlexRow>
-            <FlexRow gap={2}>
-              <Icon
-                name="download"
-                className="naxatw-text-grey-400"
-                onClick={() => downloadBlob(previewURL, file?.name)}
-              />
-              <Icon
-                name="delete"
-                className="naxatw-text-red-500"
-                onClick={() => handleDeleteFile(id)}
-              />
-            </FlexRow>
-          </FlexRow>
-        ))}
+          ))}
       </FlexColumn>
     </FlexColumn>
   );
