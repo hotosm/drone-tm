@@ -15,7 +15,7 @@ export default function DashboardCard({
 }: IDashboardCardProps) {
   return (
     <FlexRow
-      className={`naxatw-items-center naxatw-gap-7 naxatw-rounded-lg naxatw-border naxatw-p-5 naxatw-shadow-lg ${active ? 'naxatw-border-[#D73F3F]' : ''}`}
+      className={`naxatw-items-center naxatw-gap-7 naxatw-rounded-lg naxatw-border naxatw-p-5 naxatw-shadow-lg hover:naxatw-border-[#D73F3F] ${active ? 'naxatw-border-[#D73F3F]' : ''}`}
     >
       <Image src={graphImage} />
       <FlexColumn>

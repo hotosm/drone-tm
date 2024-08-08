@@ -172,8 +172,8 @@ export default function KeyParameters({
                     <FileUpload
                       name="dem"
                       data={value}
-                      fileAccept=".geojson, .kml"
-                      placeholder="Upload dem data (zipped shapefile, geojson or kml files)"
+                      fileAccept=".tif, .tiff"
+                      placeholder="Upload dem data (tif/tiff files)"
                       {...formProps}
                     />
                   );
