@@ -1,61 +1,35 @@
-import { useGetRequestedTasksListQuery } from '@Api/dashboard';
-import { FlexColumn, FlexRow } from '@Components/common/Layouts';
+import { FlexRow } from '@Components/common/Layouts';
 import { DashboardSidebar, DashboardCard } from '@Components/Dashboard';
-import { Button } from '@Components/RadixComponents/Button';
+import RequestLogs from '@Components/Dashboard/RequestLogs';
+import TaskLogs from '@Components/Dashboard/TaskLogs';
 import {
   dashboardCardsForDroneOperator,
   dashboardCardsForProjectCreator,
 } from '@Constants/dashboard';
-import { postTaskStatus } from '@Services/project';
-import { useMutation } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { toast } from 'react-toastify';
+import { useState } from 'react';
+
+const getContent = (activeTab: string, title: string) => {
+  if (activeTab === 'request_logs') return <RequestLogs />;
+  return <TaskLogs title={title} />;
+};
 
 export default function Dashboard() {
   const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
+  const [activeTab, setActiveTab] = useState(
+    signedInAs === 'Project Creator'
+      ? {
+          value: 'request_logs',
+          title: 'Request Logs',
+        }
+      : {
+          value: 'ongoing_tasks',
+          title: 'Ongoing Tasks',
+        },
+  );
   const dashboardCards =
     signedInAs === 'Project Creator'
       ? dashboardCardsForProjectCreator
       : dashboardCardsForDroneOperator;
-
-  const { data: requestedTasks } = useGetRequestedTasksListQuery();
-
-  const { mutate: respondToRequest } = useMutation<any, any, any, unknown>({
-    mutationFn: postTaskStatus,
-    onSuccess: () => {
-      toast.success('Responded to the request');
-    },
-    onError: (err: any) => {
-      toast.error(err.message);
-    },
-  });
-
-  const requestedForMappingTasks: any[] =
-    useMemo(
-      () =>
-        // @ts-ignore
-        requestedTasks?.reduce((acc: any[], curr: Record<string, any>) => {
-          if (curr?.state === 'REQUEST_FOR_MAPPING') return [...acc, curr];
-          return acc;
-        }, []),
-      [requestedTasks],
-    ) || [];
-
-  const handleReject = (taskId: string, projectId: string) => {
-    respondToRequest({
-      projectId,
-      taskId,
-      data: { event: 'bad' },
-    });
-  };
-
-  const handleApprove = (taskId: string, projectId: string) => {
-    respondToRequest({
-      projectId,
-      taskId,
-      data: { event: 'map' },
-    });
-  };
 
   return (
     <section className="naxatw-h-screen-nav naxatw-bg-grey-50 naxatw-px-16 naxatw-pt-8">
@@ -67,53 +41,27 @@ export default function Dashboard() {
         <div className="naxatw-col-span-4">
           <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
             {dashboardCards.map(card => (
-              <DashboardCard
+              <div
                 key={card.id}
-                title={card.title}
-                value={card.value}
-                active={card.title === 'Request Logs'}
-              />
+                tabIndex={0}
+                role="button"
+                onKeyUp={() =>
+                  setActiveTab({ value: card.value, title: card.title })
+                }
+                onClick={() =>
+                  setActiveTab({ value: card.value, title: card.title })
+                }
+                className="naxatw-cursor-pointer"
+              >
+                <DashboardCard
+                  title={card.title}
+                  value={0}
+                  active={card.value === activeTab.value}
+                />
+              </div>
             ))}
           </div>
-          <div className="naxatw-mt-8 naxatw-flex-col">
-            <h4 className="naxatw-py-2 naxatw-text-base naxatw-font-bold naxatw-text-gray-800">
-              Request Logs
-            </h4>
-            <FlexColumn className="naxatw-max-h-[24.4rem] naxatw-gap-2 naxatw-overflow-y-auto">
-              {requestedForMappingTasks?.map((task: Record<string, any>) => (
-                <div
-                  key={task.task_id}
-                  className="naxatw-flex naxatw-h-fit naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-rounded-xl naxatw-border naxatw-border-gray-300 naxatw-p-3"
-                >
-                  <div>
-                    The Task <strong>#{task.task_id}</strong> is requested for
-                    Mapping
-                  </div>
-                  <div className="naxatw-flex naxatw-w-[172px] naxatw-gap-3">
-                    <Button
-                      variant="outline"
-                      className="naxatw-text-red"
-                      onClick={() =>
-                        handleReject(task.task_id, task.project_id)
-                      }
-                      leftIcon="close"
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      className="!naxatw-bg-red naxatw-text-white"
-                      onClick={() =>
-                        handleApprove(task.task_id, task.project_id)
-                      }
-                      leftIcon="check"
-                    >
-                      Approve
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </FlexColumn>
-          </div>
+          {getContent(activeTab.value, activeTab.title)}
         </div>
       </div>
     </section>
