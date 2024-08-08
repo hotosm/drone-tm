@@ -1,3 +1,4 @@
+import { useGetRequestedTasksListQuery } from '@Api/dashboard';
 import { FlexRow } from '@Components/common/Layouts';
 import { DashboardSidebar, DashboardCard } from '@Components/Dashboard';
 import RequestLogs from '@Components/Dashboard/RequestLogs';
@@ -31,6 +32,10 @@ export default function Dashboard() {
       ? dashboardCardsForProjectCreator
       : dashboardCardsForDroneOperator;
 
+  const { data: requestedTasks } = useGetRequestedTasksListQuery({
+    select: (data: any) => data.data,
+  });
+
   return (
     <section className="naxatw-h-screen-nav naxatw-bg-grey-50 naxatw-px-16 naxatw-pt-8">
       <FlexRow className="naxatw-mb-4 naxatw-py-3">
@@ -55,7 +60,10 @@ export default function Dashboard() {
               >
                 <DashboardCard
                   title={card.title}
-                  value={0}
+                  value={
+                    // @ts-ignore
+                    card?.value === 'request_logs' ? requestedTasks?.length : 0
+                  }
                   active={card.value === activeTab.value}
                 />
               </div>
