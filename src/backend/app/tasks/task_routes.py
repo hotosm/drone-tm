@@ -19,51 +19,128 @@ router = APIRouter(
 )
 
 
-@router.get("/stats")
+@router.post("/{task_id}")
+async def create_task_comment(
+    input: task_schemas.TaskComment,
+    task_id: uuid.UUID,
+    db: Database = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    """
+    Create or update a comment for a specific task.
+
+    Args:
+        comment (task_schemas.TaskComment): The comment data.
+        task_id (uuid.UUID): The unique identifier of the task.
+        db (Database): The database session dependency.
+        user_data (AuthUser): The authenticated user data.
+
+    Returns:
+        dict: A message indicating the success of the operation.
+
+    Raises:
+        HTTPException: If updating the task comment fails.
+    """
+    try:
+        raw_sql = """
+            UPDATE task_events
+            SET state = :state, comment = :comment
+            WHERE task_id = :task_id
+            """
+        await db.execute(
+            raw_sql,
+            {"task_id": task_id, "state": "UNFLYABLE_TASK", "comment": input.comment},
+        )
+        return {"detail": "Successfully created the task comment."}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update task comment. {e}",
+        )
+
+
+@router.get("/{task_id}")
+async def read_task(
+    task_id: uuid.UUID,
+    db: Database = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    "Retrieve details of a specific task by its ID."
+    try:
+        query = """
+            SELECT
+                ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+                task_events.created_at,
+                projects.name AS project_name,
+                project_task_index,
+                projects.front_overlap AS front_overlap,
+                projects.side_overlap AS side_overlap,
+                projects.gsd_cm_px AS gsd_cm_px,
+                projects.gimble_angles_degrees AS gimble_angles_degrees
+            FROM
+                task_events
+            JOIN
+                tasks ON task_events.task_id = tasks.id
+            JOIN
+                projects ON task_events.project_id = projects.id
+            WHERE
+                task_events.task_id = :task_id
+        """
+        records = await db.fetch_one(query, values={"task_id": task_id})
+        return records
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch tasks. {e}",
+        )
+
+
+@router.get("/statistics/")
 async def get_task_stats(
     db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
+    "Retrieve statistics related to tasks for the authenticated user."
     user_id = user_data.id
     query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
     records = await db.fetch_all(query, {"user_id": user_id})
+
     if not records:
         raise HTTPException(status_code=404, detail="User profile not found")
 
-    roles = [record["role"] for record in records]
+    raw_sql = """
+        SELECT
+            (SELECT COUNT(*)
+            FROM tasks t
+            LEFT JOIN task_events te ON t.id = te.task_id
+            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+            AND te.state = 'LOCKED_FOR_MAPPING') AS ongoing_tasks,
+            (SELECT COUNT(*)
+            FROM tasks t
+            LEFT JOIN task_events te ON t.id = te.task_id
+            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+            AND te.state = 'REQUEST_FOR_MAPPING') AS request_logs,
+            (SELECT COUNT(*)
+            FROM tasks t
+            LEFT JOIN task_events te ON t.id = te.task_id
+            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+            AND te.state = 'UNLOCKED_DONE') AS completed_tasks,
+            (SELECT COUNT(*)
+            FROM tasks t
+            LEFT JOIN task_events te ON t.id = te.task_id
+            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+            AND te.state = 'UNFLYABLE_TASK') AS unflyable_tasks
+    """
 
-    if UserRole.PROJECT_CREATOR.name in roles:
-        raw_sql = """
-            SELECT
-                (SELECT COUNT(*)
-                FROM tasks t
-                LEFT JOIN task_events te ON t.id = te.task_id
-                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-                AND te.state = 'LOCKED_FOR_MAPPING') AS ongoing_tasks,
-                (SELECT COUNT(*)
-                FROM tasks t
-                LEFT JOIN task_events te ON t.id = te.task_id
-                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-                AND te.state = 'REQUEST_FOR_MAPPING') AS request_logs,
-                (SELECT COUNT(*)
-                FROM tasks t
-                LEFT JOIN task_events te ON t.id = te.task_id
-                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-                AND te.state = 'UNLOCKED_DONE') AS completed_tasks
-        """
-        values = {"user_id": user_id}
-        try:
-            db_counts = await db.fetch_one(query=raw_sql, values=values)
-        except Exception as e:
-            raise HTTPException(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=f"Failed to fetch task counts. {e}",
-            )
-
-        return db_counts
-
-    # if UserRole.DRONE_PILOT.name in roles:
-    #     pass
+    try:
+        db_counts = await db.fetch_one(query=raw_sql, values={"user_id": user_id})
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch task counts. {e}",
+        )
+    return db_counts
 
 
 @router.get("/", response_model=list[task_schemas.UserTasksStatsOut])
@@ -99,7 +176,7 @@ async def new_event(
         case EventType.REQUESTS:
             # TODO: Combine the logic of `update_or_create_task_state` and `request_mapping` functions into a single function if possible. Will do later.
             project = await get_project_by_id(db, project_id)
-            if project["requires_approval_from_manager_for_locking"] == "true":
+            if project["requires_approval_from_manager_for_locking"] is False:
                 data = await task_crud.update_or_create_task_state(
                     db,
                     project_id,
@@ -214,7 +291,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update_task_state(
+            return await task_crud.update_or_create_task_state(
                 db,
                 project_id,
                 task_id,
@@ -224,7 +301,7 @@ async def new_event(
                 State.UNLOCKED_TO_MAP,
             )
         case EventType.FINISH:
-            return await task_crud.update_task_state(
+            return await task_crud.update_or_create_task_state(
                 db,
                 project_id,
                 task_id,
@@ -234,7 +311,7 @@ async def new_event(
                 State.UNLOCKED_TO_VALIDATE,
             )
         case EventType.VALIDATE:
-            return await task_crud.update_task_state(
+            return await task_crud.update_or_create_task_state(
                 db,
                 project_id,
                 task_id,
@@ -244,7 +321,7 @@ async def new_event(
                 State.LOCKED_FOR_VALIDATION,
             )
         case EventType.GOOD:
-            return await task_crud.update_task_state(
+            return await task_crud.update_or_create_task_state(
                 db,
                 project_id,
                 task_id,
@@ -255,7 +332,7 @@ async def new_event(
             )
 
         case EventType.BAD:
-            return await task_crud.update_task_state(
+            return await task_crud.update_or_create_task_state(
                 db,
                 project_id,
                 task_id,

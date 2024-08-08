@@ -13,3 +13,7 @@ class UserTasksStatsOut(BaseModel):
     task_area: float
     created_at: datetime
     state: str
+
+
+class TaskComment(BaseModel):
+    comment: str
