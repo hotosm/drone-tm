@@ -18,6 +18,7 @@ export interface CreateProjectState {
   drawnNoFlyZone: GeojsonType | null;
   splitGeojson: Record<string, any> | null;
   isTerrainFollow: boolean;
+  requireApprovalFromManagerForLocking: string;
 }
 
 const initialState: CreateProjectState = {
@@ -35,6 +36,7 @@ const initialState: CreateProjectState = {
   drawnNoFlyZone: null,
   splitGeojson: null,
   isTerrainFollow: false,
+  requireApprovalFromManagerForLocking: 'not_required',
 };
 
 const setCreateProjectState: CaseReducer<

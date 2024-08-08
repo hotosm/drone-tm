@@ -1,10 +1,11 @@
-// import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FlexColumn } from '@Components/common/Layouts';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
-// import RadioButton from '@Components/common/RadioButton';
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
-// import { setCreateProjectState } from '@Store/actions/createproject';
+import RadioButton from '@Components/common/RadioButton';
+import { lockApprovalOptions } from '@Constants/createProject';
+import { setCreateProjectState } from '@Store/actions/createproject';
 // import { contributionsOptions } from '@Constants/createProject';
 
 export default function Conditions({
@@ -12,13 +13,11 @@ export default function Conditions({
 }: {
   formProps: UseFormPropsType;
 }) {
-  // const dispatch = useTypedDispatch();
-
+  const dispatch = useTypedDispatch();
   const { register, errors } = formProps;
-
-  // const contributionsOption = useTypedSelector(
-  //   state => state.createproject.contributionsOption,
-  // );
+  const requireApprovalFromManagerForLocking = useTypedSelector(
+    state => state.createproject.requireApprovalFromManagerForLocking,
+  );
 
   return (
     <FlexColumn gap={5} className="naxatw-px-10 naxatw-py-5">
@@ -58,6 +57,22 @@ export default function Conditions({
           />
         </div>
         <ErrorMessage message={errors?.deadline_at?.message as string} />
+      </FormControl>
+      <FormControl>
+        <RadioButton
+          required
+          topic="Approval for task lock"
+          options={lockApprovalOptions}
+          direction="column"
+          onChangeData={value => {
+            dispatch(
+              setCreateProjectState({
+                requireApprovalFromManagerForLocking: value,
+              }),
+            );
+          }}
+          value={requireApprovalFromManagerForLocking}
+        />
       </FormControl>
     </FlexColumn>
   );
