@@ -6,6 +6,7 @@ interface IOutputOptionsProps {
   checked: boolean;
   label: string;
   register: any;
+  value: string;
 }
 
 const OutputOptions = ({
@@ -14,6 +15,7 @@ const OutputOptions = ({
   checked,
   label,
   register,
+  value,
 }: IOutputOptionsProps) => {
   return (
     <label
@@ -34,7 +36,7 @@ const OutputOptions = ({
         type="checkbox"
         checked={checked}
         className="naxatw-absolute naxatw-opacity-0"
-        value={label}
+        value={value}
         {...register(name)}
       />
       {checked && (

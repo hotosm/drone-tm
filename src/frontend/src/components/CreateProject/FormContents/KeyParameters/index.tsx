@@ -17,10 +17,18 @@ import { Controller } from 'react-hook-form';
 import OutputOptions from './OutputOptions';
 
 const FinalOutputOptions = [
-  { label: '2D Orthophoto', icon: orthoPhotoIcon },
-  { label: '3D Model', icon: _3DModal },
-  { label: 'Digital Terrain Model (DTM)', icon: DTMIcon },
-  { label: 'Digital Surface Model (DSM)', icon: DSMIcon },
+  { label: '2D Orthophoto', value: 'ORTHOPHOTO_2D', icon: orthoPhotoIcon },
+  { label: '3D Model', value: 'ORTHOPHOTO_3D', icon: _3DModal },
+  {
+    label: 'Digital Terrain Model (DTM)',
+    value: 'DIGITAL_TERRAIN_MODEL',
+    icon: DTMIcon,
+  },
+  {
+    label: 'Digital Surface Model (DSM)',
+    value: 'DIGITAL_SURFACE_MODEL',
+    icon: DSMIcon,
+  },
 ];
 
 export default function KeyParameters({
@@ -73,9 +81,11 @@ export default function KeyParameters({
               <Input
                 placeholder="Image Overlap"
                 type="number"
-                {...register('forward_overlap_percent', {
+                max={100}
+                {...register('front_overlap', {
                   required: 'Front Overlap is required',
                   valueAsNumber: true,
+                  max: 100,
                 })}
               />
               <ErrorMessage
@@ -88,9 +98,11 @@ export default function KeyParameters({
               <Input
                 placeholder="Image Overlap"
                 type="number"
-                {...register('side_overlap_percent', {
+                max={100}
+                {...register('side_overlap', {
                   required: 'Side Overlap is required',
                   valueAsNumber: true,
+                  max: 100,
                 })}
               />
               <ErrorMessage
@@ -109,6 +121,7 @@ export default function KeyParameters({
                   name={`final_output.${index}`}
                   checked={final_output?.[index]}
                   label={option.label}
+                  value={option.value}
                   register={register}
                 />
               ))}
