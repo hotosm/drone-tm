@@ -5,6 +5,7 @@ Revises: d862bfa31c36
 Create Date: 2024-08-08 08:10:11.056119
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -33,8 +34,8 @@ old_state_enum = sa.Enum(
 )
 
 # revision identifiers, used by Alembic.
-revision: str = '2b92f8a9bbec'
-down_revision: Union[str, None] = 'd862bfa31c36'
+revision: str = "2b92f8a9bbec"
+down_revision: Union[str, None] = "d862bfa31c36"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -53,4 +54,3 @@ def downgrade() -> None:
         )
     )
     op.execute("DROP TYPE state_old")
-
