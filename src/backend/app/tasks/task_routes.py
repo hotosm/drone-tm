@@ -19,47 +19,6 @@ router = APIRouter(
 )
 
 
-@router.post("/{task_id}")
-async def update_task_event(
-    input: task_schemas.TaskComment,
-    task_id: uuid.UUID,
-    db: Database = Depends(database.get_db),
-    user_data: AuthUser = Depends(login_required),
-):
-    """
-    update a specific task event.
-
-    Args:
-        comment (task_schemas.TaskComment): The comment data.
-        task_id (uuid.UUID): The unique identifier of the task.
-        db (Database): The database session dependency.
-        user_data (AuthUser): The authenticated user data.
-
-    Returns:
-        dict: A message indicating the success of the operation.
-
-    Raises:
-        HTTPException: If updating the task comment fails.
-    """
-    try:
-        raw_sql = """
-            UPDATE task_events
-            SET state = :state, comment = :comment
-            WHERE task_id = :task_id
-            """
-        await db.execute(
-            raw_sql,
-            {"task_id": task_id, "state": "UNFLYABLE_TASK", "comment": input.comment},
-        )
-        return {"detail": "Successfully updated the task event."}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update task comment. {e}",
-        )
-
-
 @router.get("/{task_id}")
 async def read_task(
     task_id: uuid.UUID,
@@ -326,6 +285,16 @@ async def new_event(
                 "Done: needs to redo",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_TO_MAP,
+            )
+        case EventType.COMMENT:
+            return await task_crud.update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                detail.comment,
+                State.LOCKED_FOR_MAPPING,
+                State.UNFLYABLE_TASK,
             )
 
     return True
