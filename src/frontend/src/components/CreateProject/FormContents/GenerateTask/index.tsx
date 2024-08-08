@@ -13,7 +13,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
 
   const { register, watch } = formProps;
-  const dimension = watch('dimension');
+  const dimension = watch('task_split_dimension');
 
   const projectArea = useTypedSelector(
     state => state.createproject.projectArea,
@@ -53,7 +53,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
               type="number"
               className="naxatw-mt-1"
               value={dimension}
-              {...register('dimension', {
+              {...register('task_split_dimension', {
                 required: 'Required',
                 valueAsNumber: true,
               })}
