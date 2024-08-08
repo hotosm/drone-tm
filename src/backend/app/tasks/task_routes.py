@@ -18,7 +18,8 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-@router.get("/task/stats")
+
+@router.get("/stats")
 async def get_task_stats(
     db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
@@ -30,11 +31,11 @@ async def get_task_stats(
         raise HTTPException(status_code=404, detail="User profile not found")
 
     roles = [record["role"] for record in records]
-    
+
     if UserRole.PROJECT_CREATOR.name in roles:
         raw_sql = """
             SELECT
-                (SELECT COUNT(*) 
+                (SELECT COUNT(*)
                 FROM tasks t
                 LEFT JOIN task_events te ON t.id = te.task_id
                 WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
@@ -63,8 +64,8 @@ async def get_task_stats(
 
     # if UserRole.DRONE_PILOT.name in roles:
     #     pass
-    
-   
+
+
 @router.get("/", response_model=list[task_schemas.UserTasksStatsOut])
 async def list_tasks(
     db: Database = Depends(database.get_db),
