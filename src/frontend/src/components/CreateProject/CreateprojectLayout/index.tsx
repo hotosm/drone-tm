@@ -73,21 +73,26 @@ export default function CreateprojectLayout() {
   const isNoflyzonePresent = useTypedSelector(
     state => state.createproject.isNoflyzonePresent,
   );
+  const requireApprovalFromManagerForLocking = useTypedSelector(
+    state => state.createproject.requireApprovalFromManagerForLocking,
+  );
 
   const initialState: FieldValues = {
     name: '',
-    short_description: '',
+    // short_description: '',
     description: '',
     outline_geojson: null,
     outline_no_fly_zones: null,
     gsd_cm_px: null,
-    dimension: null,
+    task_split_dimension: null,
     is_terrain_follow: null,
-    task_split_type: 1,
+    // task_split_type: 1,
     per_task_instructions: '',
     deadline_at: '',
     visibility: 0,
     dem: null,
+    require_approval_from_manager_for_locking: false,
+    altitude_from_ground: 0,
   };
 
   const {
@@ -178,25 +183,42 @@ export default function CreateprojectLayout() {
       }
     }
 
+    if (activeStep === 3) {
+      const finalOutput = data?.final_output?.filter(
+        (output: string | boolean) => output,
+      );
+      if (!finalOutput?.length) {
+        toast.error('Please select the final output');
+        return;
+      }
+      setValue('final_output', finalOutput);
+    }
+
     if (activeStep === 4 && !splitGeojson) return;
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
       return;
     }
 
-    const payload = isTerrainFollow
-      ? {
-          project_info: { ...data, is_terrain_follow: isTerrainFollow },
-          dem: data?.dem?.[0],
-        }
-      : { project_info: { ...data, is_terrain_follow: isTerrainFollow } };
+    const refactoredData = {
+      ...data,
+      is_terrain_follow: isTerrainFollow,
+      require_approval_from_manager_for_locking:
+        requireApprovalFromManagerForLocking === 'required',
+    };
 
     // remove key
     if (isNoflyzonePresent === 'no')
-      delete payload?.project_info?.outline_no_fly_zones;
-    delete payload?.project_info?.dem;
+      delete refactoredData?.project_info?.outline_no_fly_zones;
+    delete refactoredData?.project_info?.dem;
 
-    createProject(payload);
+    // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
+    const formData = new FormData();
+    formData.append('project_info', JSON.stringify({ ...refactoredData }));
+    if (isTerrainFollow) {
+      formData.append('dem', data?.dem?.[0]?.file);
+    }
+    createProject(formData);
   };
 
   return (
