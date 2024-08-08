@@ -108,30 +108,16 @@ async def get_task_stats(
 
     if not records:
         raise HTTPException(status_code=404, detail="User profile not found")
-
     raw_sql = """
         SELECT
-            (SELECT COUNT(*)
-            FROM tasks t
-            LEFT JOIN task_events te ON t.id = te.task_id
-            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-            AND te.state = 'LOCKED_FOR_MAPPING') AS ongoing_tasks,
-            (SELECT COUNT(*)
-            FROM tasks t
-            LEFT JOIN task_events te ON t.id = te.task_id
-            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-            AND te.state = 'REQUEST_FOR_MAPPING') AS request_logs,
-            (SELECT COUNT(*)
-            FROM tasks t
-            LEFT JOIN task_events te ON t.id = te.task_id
-            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-            AND te.state = 'UNLOCKED_DONE') AS completed_tasks,
-            (SELECT COUNT(*)
-            FROM tasks t
-            LEFT JOIN task_events te ON t.id = te.task_id
-            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-            AND te.state = 'UNFLYABLE_TASK') AS unflyable_tasks
-    """
+        COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
+        COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+        COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+        COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+        FROM tasks t
+        LEFT JOIN task_events te ON t.id = te.task_id
+        WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id);
+        """
 
     try:
         db_counts = await db.fetch_one(query=raw_sql, values={"user_id": user_id})
@@ -291,7 +277,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update_or_create_task_state(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -301,7 +287,7 @@ async def new_event(
                 State.UNLOCKED_TO_MAP,
             )
         case EventType.FINISH:
-            return await task_crud.update_or_create_task_state(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -311,7 +297,7 @@ async def new_event(
                 State.UNLOCKED_TO_VALIDATE,
             )
         case EventType.VALIDATE:
-            return await task_crud.update_or_create_task_state(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -321,7 +307,7 @@ async def new_event(
                 State.LOCKED_FOR_VALIDATION,
             )
         case EventType.GOOD:
-            return await task_crud.update_or_create_task_state(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -332,7 +318,7 @@ async def new_event(
             )
 
         case EventType.BAD:
-            return await task_crud.update_or_create_task_state(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,

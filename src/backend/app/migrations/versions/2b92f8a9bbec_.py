@@ -35,7 +35,7 @@ old_state_enum = sa.Enum(
 
 # revision identifiers, used by Alembic.
 revision: str = "2b92f8a9bbec"
-down_revision: Union[str, None] = "d862bfa31c36"
+down_revision: Union[str, None] = "5d38e368b3d2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -46,11 +46,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("ALTER TYPE state RENAME TO state_old")
+
     old_state_enum.create(op.get_bind(), checkfirst=False)
-    op.execute(
-        (
-            "ALTER TABLE task_events "
-            "ALTER COLUMN state TYPE state USING state::text::state"
-        )
-    )
+    op.execute("ALTER TABLE task_events ALTER COLUMN state TYPE text USING state::text")
+    # op.execute(
+    #     "ALTER TABLE task_events ALTER COLUMN state TYPE state USING state::text::state"
+    # )
     op.execute("DROP TYPE state_old")
