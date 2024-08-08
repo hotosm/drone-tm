@@ -36,31 +36,35 @@ async def get_task_geojson(db: Database, task_id: uuid.UUID):
 
 async def get_tasks_by_user(user_id: str, db: Database):
     try:
-        query = """WITH task_details AS (
-        SELECT
-            tasks.id AS task_id,
-            ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
-            task_events.created_at,
-            task_events.state
-        FROM
-            task_events
-        JOIN
-            tasks ON task_events.task_id = tasks.id
-        WHERE
-            task_events.user_id = :user_id
-        )
-        SELECT
-            task_details.task_id,
-            task_details.task_area,
-            task_details.created_at,
-            CASE
-                WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'ongoing'
-                WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
-                WHEN task_details.state IN ('UNLOCKED_TO_VALIDATE', 'LOCKED_FOR_VALIDATION') THEN 'mapped'
-                ELSE 'unknown'
-            END AS state
-        FROM task_details
-        """
+        query = """
+            WITH task_details AS (
+                SELECT
+                    tasks.id AS task_id,
+                    task_events.project_id AS project_id,
+                    ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+                    task_events.created_at,
+                    task_events.state
+                FROM
+                    task_events
+                JOIN
+                    tasks ON task_events.task_id = tasks.id
+                WHERE
+                    task_events.user_id = :user_id
+            )
+            SELECT
+                task_details.task_id,
+                task_details.project_id,
+                task_details.task_area,
+                task_details.created_at,
+                CASE
+                    WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'ongoing'
+                    WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
+                    WHEN task_details.state IN ('UNLOCKED_TO_VALIDATE', 'LOCKED_FOR_VALIDATION') THEN 'mapped'
+                    ELSE 'unknown'
+                END AS state
+            FROM task_details
+            """
+
         records = await db.fetch_all(query, values={"user_id": user_id})
         return records
 
@@ -161,6 +165,49 @@ async def request_mapping(
         "comment": comment,
         "unlocked_to_map_state": State.UNLOCKED_TO_MAP.name,
         "request_for_map_state": State.REQUEST_FOR_MAPPING.name,
+    }
+
+    await db.fetch_one(query, values)
+
+    return {"project_id": project_id, "task_id": task_id, "comment": comment}
+
+
+async def update_task_state(
+    db: Database,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    user_id: str,
+    comment: str,
+    initial_state: State,
+    final_state: State,
+):
+    query = """
+                WITH last AS (
+                    SELECT *
+                    FROM task_events
+                    WHERE project_id = :project_id AND task_id = :task_id
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ),
+                locked AS (
+                    SELECT *
+                    FROM last
+                    WHERE user_id = :user_id AND state = :initial_state
+                )
+                INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
+                SELECT gen_random_uuid(), project_id, task_id, user_id, :final_state, :comment, now()
+                FROM last
+                WHERE user_id = :user_id
+                RETURNING project_id, task_id, user_id, state;
+        """
+
+    values = {
+        "project_id": str(project_id),
+        "task_id": str(task_id),
+        "user_id": str(user_id),
+        "comment": comment,
+        "initial_state": initial_state.name,
+        "final_state": final_state.name,
     }
 
     await db.fetch_one(query, values)

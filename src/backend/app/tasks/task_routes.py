@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, State, UserRole
+from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -17,6 +17,75 @@ router = APIRouter(
     tags=["tasks"],
     responses={404: {"description": "Not found"}},
 )
+
+
+@router.get("/{task_id}")
+async def read_task(
+    task_id: uuid.UUID,
+    db: Database = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    "Retrieve details of a specific task by its ID."
+    try:
+        query = """
+            SELECT
+                ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+                task_events.created_at,
+                projects.name AS project_name,
+                project_task_index,
+                projects.front_overlap AS front_overlap,
+                projects.side_overlap AS side_overlap,
+                projects.gsd_cm_px AS gsd_cm_px,
+                projects.gimble_angles_degrees AS gimble_angles_degrees
+            FROM
+                task_events
+            JOIN
+                tasks ON task_events.task_id = tasks.id
+            JOIN
+                projects ON task_events.project_id = projects.id
+            WHERE
+                task_events.task_id = :task_id
+        """
+        records = await db.fetch_one(query, values={"task_id": task_id})
+        return records
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch tasks. {e}",
+        )
+
+
+@router.get("/statistics/")
+async def get_task_stats(
+    db: Database = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    "Retrieve statistics related to tasks for the authenticated user."
+    user_id = user_data.id
+    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
+    records = await db.fetch_all(query, {"user_id": user_id})
+
+    if not records:
+        raise HTTPException(status_code=404, detail="User profile not found")
+    raw_sql = """
+        SELECT
+        COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
+        COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+        COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+        COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+        FROM tasks t
+        LEFT JOIN task_events te ON t.id = te.task_id
+        WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id);
+        """
+
+    try:
+        db_counts = await db.fetch_one(query=raw_sql, values={"user_id": user_id})
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch task counts. {e}",
+        )
+    return db_counts
 
 
 @router.get("/", response_model=list[task_schemas.UserTasksStatsOut])
@@ -52,7 +121,7 @@ async def new_event(
         case EventType.REQUESTS:
             # TODO: Combine the logic of `update_or_create_task_state` and `request_mapping` functions into a single function if possible. Will do later.
             project = await get_project_by_id(db, project_id)
-            if project["requires_approval_from_manager_for_locking"] == "true":
+            if project["requires_approval_from_manager_for_locking"] is False:
                 data = await task_crud.update_or_create_task_state(
                     db,
                     project_id,
@@ -216,6 +285,16 @@ async def new_event(
                 "Done: needs to redo",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_TO_MAP,
+            )
+        case EventType.COMMENT:
+            return await task_crud.update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                detail.comment,
+                State.LOCKED_FOR_MAPPING,
+                State.UNFLYABLE_TASK,
             )
 
     return True
