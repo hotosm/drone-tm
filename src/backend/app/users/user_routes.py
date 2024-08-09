@@ -11,7 +11,6 @@ from app.users.user_schemas import (
 )
 from app.users.user_deps import login_required, init_google_auth
 from app.config import settings
-from app.users import user_crud
 from app.db import database
 from app.models.enums import HTTPStatus
 from psycopg import Connection
@@ -38,7 +37,7 @@ async def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    user = await user_crud.authenticate(db, form_data.username, form_data.password)
+    user = await user_deps.authenticate(db, form_data.username, form_data.password)
 
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
@@ -52,7 +51,7 @@ async def login_access_token(
         "img_url": user.profile_img,
     }
 
-    access_token, refresh_token = await user_crud.create_access_token(user_info)
+    access_token, refresh_token = await user_deps.create_access_token(user_info)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -76,7 +75,6 @@ async def update_user_profile(
         HTTPException: If user with given user_id is not found in the database.
     """
 
-    # user = await user_crud.get_user_by_id(db, user_id)
     user = await user_deps.get_user_by_id(db, user_id)
 
     if user_data.id != user_id:
@@ -88,8 +86,6 @@ async def update_user_profile(
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
     user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
-
-    # user = await user_crud.update_user_profile(db, user_id, profile_update)
     return Response(status_code=HTTPStatus.OK)
 
 
@@ -123,7 +119,7 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
     access_token = google_auth.callback(callback_url).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)
-    access_token, refresh_token = await user_crud.create_access_token(user_data)
+    access_token, refresh_token = await user_deps.create_access_token(user_data)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -132,7 +128,7 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
 async def update_token(user_data: Annotated[AuthUser, Depends(login_required)]):
     """Refresh access token"""
 
-    access_token, refresh_token = await user_crud.create_access_token(
+    access_token, refresh_token = await user_deps.create_access_token(
         user_data.model_dump()
     )
     return Token(access_token=access_token, refresh_token=refresh_token)

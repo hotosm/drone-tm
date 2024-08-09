@@ -1,8 +1,7 @@
 from fastapi import HTTPException, Request, Header
 from app.config import settings
-from app.users import user_crud
 from app.users.auth import Auth
-from app.users.user_schemas import AuthUser, UserProfileIn
+from app.users.user_schemas import AuthUser
 from loguru import logger as log
 import time
 import jwt
@@ -51,7 +50,7 @@ async def login_required(
         raise HTTPException(status_code=401, detail="No access token provided")
 
     try:
-        user = user_crud.verify_token(access_token)
+        user = verify_token(access_token)
     except HTTPException as e:
         log.error(e)
         log.error("Failed to verify access token")
@@ -178,77 +177,3 @@ async def get_or_create_user(db: Connection, user_data: AuthUser) -> AuthUser:
             ) from e
         else:
             raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-async def update_user_profile(
-    db: Connection, user_id: int, profile_update: UserProfileIn
-) -> bool:
-    """
-    Update user profile in the database.
-    Args:
-        db (Connection): Database connection object.
-        user_id (int): ID of the user whose profile is being updated.
-        profile_update (ProfileUpdate): Instance of ProfileUpdate containing fields to update.
-    Returns:
-        bool: True if update operation succeeds.
-    Raises:
-        HTTPException: If the update operation fails.
-    """
-    try:
-        profile_query = """
-            INSERT INTO user_profile (
-                user_id, role, phone_number, country, city, organization_name,
-                organization_address, job_title, notify_for_projects_within_km,
-                experience_years, drone_you_own, certified_drone_operator
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (user_id)
-            DO UPDATE SET
-                role = EXCLUDED.role,
-                phone_number = EXCLUDED.phone_number,
-                country = EXCLUDED.country,
-                city = EXCLUDED.city,
-                organization_name = EXCLUDED.organization_name,
-                organization_address = EXCLUDED.organization_address,
-                job_title = EXCLUDED.job_title,
-                notify_for_projects_within_km = EXCLUDED.notify_for_projects_within_km,
-                experience_years = EXCLUDED.experience_years,
-                drone_you_own = EXCLUDED.drone_you_own,
-                certified_drone_operator = EXCLUDED.certified_drone_operator;
-        """
-
-        async with db.cursor() as cur:
-            await cur.execute(
-                profile_query,
-                (
-                    user_id,
-                    profile_update.role,
-                    profile_update.phone_number,
-                    profile_update.country,
-                    profile_update.city,
-                    profile_update.organization_name,
-                    profile_update.organization_address,
-                    profile_update.job_title,
-                    profile_update.notify_for_projects_within_km,
-                    profile_update.experience_years,
-                    profile_update.drone_you_own,
-                    profile_update.certified_drone_operator,
-                ),
-            )
-
-        # If password is provided, update the users table
-        if profile_update.password:
-            password_update_query = """
-                UPDATE users
-                SET password = %s
-                WHERE id = %s;
-            """
-            async with db.cursor() as cur:
-                await cur.execute(
-                    password_update_query,
-                    (get_password_hash(profile_update.password), user_id),
-                )
-
-        return True
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e

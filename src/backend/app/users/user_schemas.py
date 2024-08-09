@@ -118,7 +118,6 @@ class DbUserProfile(BaseModel):
     certified_drone_operator: Optional[bool] = None
     role: Optional[UserRole] = None
     password: Optional[str] = None
-    # TODO add all remaining user profile fields and validators
 
     @field_validator("role", mode="after")
     @classmethod
@@ -187,17 +186,20 @@ class DbUserProfile(BaseModel):
                 )
 
             # Check if the profile was updated successfully
-            await cur.execute("SELECT 1")
-            result = await cur.fetchone()
+            fetch_sql = """
+                SELECT * FROM user_profile WHERE user_id = %(user_id)s;
+            """
+            await cur.execute(fetch_sql, {"user_id": user_id})
+            updated_profile = await cur.fetchone()
 
-            if not result:
-                msg = f"Unknown SQL error for data: {model_dump}"
-                log.warning(f"User ({user_id}) failed profile update: {msg}")
+            if not updated_profile:
+                msg = f"Failed to fetch updated profile for user ID: {user_id}"
+                log.warning(f"User ({user_id}) failed profile fetch: {msg}")
                 raise HTTPException(
                     status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=msg
                 )
 
-        return True
+            return True
 
 
 class DbUser(BaseModel):
