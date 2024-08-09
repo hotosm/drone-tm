@@ -5,7 +5,7 @@ from psycopg import Connection
 from psycopg.rows import class_row
 
 
-class DroneIn(BaseModel):
+class BaseDrone(BaseModel):
     model: str
     manufacturer: str
     camera_model: str
@@ -20,25 +20,17 @@ class DroneIn(BaseModel):
     weight: float
 
 
+class DroneIn(BaseDrone):
+    """Model for drone creation"""
+
+
 class DroneOut(BaseModel):
     id: int
     model: str
 
 
-class DbDrone(BaseModel):
+class DbDrone(BaseDrone):
     id: int
-    model: str
-    manufacturer: str
-    camera_model: str
-    sensor_width: float
-    sensor_height: float
-    max_battery_health: int
-    focal_length: float
-    image_width: int
-    image_height: int
-    max_altitude: int
-    max_speed: float
-    weight: int
 
     @staticmethod
     async def one(db: Connection, drone_id: int):
