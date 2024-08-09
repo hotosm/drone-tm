@@ -6,18 +6,18 @@ export const dashboardCardsForProjectCreator = [
   },
   {
     id: 2,
-    title: 'Un-flyable Tasks',
-    value: 'un-flyable_tasks',
+    title: 'Unflyable Tasks',
+    value: 'unflyable_tasks',
   },
   {
     id: 3,
     title: 'Ongoing Tasks',
-    value: 'ongoing_task',
+    value: 'ongoing_tasks',
   },
   {
     id: 4,
     title: 'Completed Tasks',
-    value: 'complete_tasks',
+    value: 'completed_tasks',
   },
 ];
 
@@ -29,8 +29,8 @@ export const dashboardCardsForDroneOperator = [
   },
   {
     id: 2,
-    title: 'Tasks Mapped',
-    value: 'tasks_mapped',
+    title: 'Unflyable Tasks',
+    value: 'unflyable_tasks',
   },
   {
     id: 3,

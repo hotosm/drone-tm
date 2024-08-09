@@ -4,13 +4,13 @@ import graphImage from '@Assets/images/graph.svg';
 
 interface IDashboardCardProps {
   title: string;
-  value: number;
+  count: number;
   active: boolean;
 }
 
 export default function DashboardCard({
   title,
-  value,
+  count,
   active,
 }: IDashboardCardProps) {
   return (
@@ -19,7 +19,7 @@ export default function DashboardCard({
     >
       <Image src={graphImage} />
       <FlexColumn>
-        <h2>{value}</h2>
+        <h2>{count}</h2>
         <p>{title}</p>
       </FlexColumn>
     </FlexRow>
