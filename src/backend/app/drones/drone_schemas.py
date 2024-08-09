@@ -42,15 +42,13 @@ class DbDrone(BaseModel):
 
     @staticmethod
     async def one(db: Connection, drone_id: int):
-        """Get a single project by it's ID, including tasks and task count."""
+        """Get a single drone by it's ID"""
+        print("drone_id = ", drone_id)
         async with db.cursor(row_factory=class_row(DbDrone)) as cur:
             await cur.execute(
                 """
-                SELECT * FROM drones d
-                WHERE
-                    d.id = %(drone_id)s
-                GROUP BY
-                    p.id;
+                SELECT * FROM drones
+                WHERE id = %(drone_id)s;
                 """,
                 {"drone_id": drone_id},
             )
@@ -63,7 +61,7 @@ class DbDrone(BaseModel):
 
     @staticmethod
     async def all(db: Connection):
-        """Get all projects, including tasks and task count."""
+        """Get all drones"""
         async with db.cursor(row_factory=class_row(DbDrone)) as cur:
             await cur.execute(
                 """
@@ -76,6 +74,25 @@ class DbDrone(BaseModel):
             if not drones:
                 raise KeyError("No drones found")
             return drones
+
+    @staticmethod
+    async def delete(db: Connection, drone_id: int):
+        """Delete a single drone by its ID."""
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                DELETE FROM drones
+                WHERE id = %(drone_id)s
+                RETURNING id;
+                """,
+                {"drone_id": drone_id},
+            )
+            deleted_drone_id = await cur.fetchone()
+
+            if not deleted_drone_id:
+                raise KeyError(f"Drone {drone_id} not found or could not be deleted")
+
+            return deleted_drone_id[0]
 
     @staticmethod
     async def create(db: Connection, drone: DroneIn):
