@@ -1,4 +1,4 @@
-import { useGetRequestedTasksListQuery } from '@Api/dashboard';
+import { useGetDashboardTaskStaticsQuery } from '@Api/dashboard';
 import { FlexRow } from '@Components/common/Layouts';
 import { DashboardSidebar, DashboardCard } from '@Components/Dashboard';
 import RequestLogs from '@Components/Dashboard/RequestLogs';
@@ -32,9 +32,16 @@ export default function Dashboard() {
       ? dashboardCardsForProjectCreator
       : dashboardCardsForDroneOperator;
 
-  const { data: requestedTasks } = useGetRequestedTasksListQuery({
-    select: (data: any) => data.data,
-  });
+  const { data: taskStatistics }: Record<string, any> =
+    useGetDashboardTaskStaticsQuery({
+      select: (data: any) => {
+        const taskCounts: Record<string, any> = data?.data;
+        return dashboardCards?.map(card => ({
+          ...card,
+          count: taskCounts?.[`${card?.value}`],
+        }));
+      },
+    });
 
   return (
     <section className="naxatw-h-screen-nav naxatw-bg-grey-50 naxatw-px-16 naxatw-pt-8">
@@ -45,26 +52,23 @@ export default function Dashboard() {
         <DashboardSidebar />
         <div className="naxatw-col-span-4">
           <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
-            {dashboardCards.map(card => (
+            {taskStatistics?.map((task: any) => (
               <div
-                key={card.id}
+                key={task.id}
                 tabIndex={0}
                 role="button"
                 onKeyUp={() =>
-                  setActiveTab({ value: card.value, title: card.title })
+                  setActiveTab({ value: task.value, title: task.title })
                 }
                 onClick={() =>
-                  setActiveTab({ value: card.value, title: card.title })
+                  setActiveTab({ value: task.value, title: task.title })
                 }
                 className="naxatw-cursor-pointer"
               >
                 <DashboardCard
-                  title={card.title}
-                  value={
-                    // @ts-ignore
-                    card?.value === 'request_logs' ? requestedTasks?.length : 0
-                  }
-                  active={card.value === activeTab.value}
+                  title={task.title}
+                  count={task?.count}
+                  active={task.value === activeTab.value}
                 />
               </div>
             ))}
