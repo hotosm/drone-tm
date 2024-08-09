@@ -7,14 +7,14 @@ from app.models.enums import HTTPStatus
 
 
 async def get_drone_by_id(
-    project_id: Annotated[
-        id,
+    drone_id: Annotated[
+        int,
         Path(description="Drone ID."),
     ],
     db: Annotated[Connection, Depends(database.get_db)],
 ) -> DbDrone:
     """Get a single project by id."""
     try:
-        return await DbDrone.one(db, project_id)
+        return await DbDrone.one(db, drone_id)
     except KeyError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
