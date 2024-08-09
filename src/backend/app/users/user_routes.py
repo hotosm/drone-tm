@@ -1,4 +1,6 @@
 import os
+from app.users import user_schemas
+from app.users import user_deps
 from fastapi import APIRouter, Response, HTTPException, Depends, Request
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
@@ -139,10 +141,12 @@ async def my_data(
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Read access token and get user details from Google"""
-
-    user_info = await user_crud.get_or_create_user(db, user_data)
-    has_user_profile = await user_crud.get_userprofile_by_userid(db, user_info.id)
-
+    print("*"*100, user_data)
+    
+    user_info = await user_schemas.DbUser.get_or_create_user(db, user_data)
+    # user_info = await user_crud.get_or_create_user(db, user_data)
+    # has_user_profile = await user_crud.get_userprofile_by_userid(db, user_info.id)
+    has_user_profile  = await user_deps.get_userprofile_by_userid(db, user_info.id)
     user_info_dict = user_info.model_dump()
     user_info_dict["has_user_profile"] = bool(has_user_profile)
     return user_info_dict

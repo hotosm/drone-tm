@@ -67,11 +67,6 @@ async def get_user_by_id(db: Connection, id: str):
     return result
 
 
-async def get_userprofile_by_userid(db: Connection, user_id: str):
-    query = "SELECT * FROM user_profile WHERE user_id = :user_id LIMIT 1;"
-    result = await db.fetch_one(query, {"user_id": user_id})
-    return result
-
 
 async def get_user_by_email(db: Connection, email: str):
     query = "SELECT * FROM users WHERE email_address = :email LIMIT 1;"

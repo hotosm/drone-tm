@@ -2,7 +2,11 @@ from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
 from typing import Optional
 from app.models.enums import UserRole
-
+from psycopg import Connection
+import uuid
+from psycopg.rows import class_row
+import psycopg
+from fastapi import HTTPException
 
 class AuthUser(BaseModel):
     """The user model returned from Google OAuth2."""
@@ -93,3 +97,51 @@ class ProfileUpdate(BaseModel):
     @classmethod
     def integer_role_to_string(cls, value: UserRole) -> str:
         return str(value.name)
+
+
+class DbUser(BaseModel):
+    id: str
+    email_address: EmailStr
+    is_active: bool
+    is_superuser: bool
+    name: str
+    profile_img: Optional[str] = None
+
+    @staticmethod
+    async def get_or_create_user(db: Connection, user_data: AuthUser):
+        """Get user from User table if exists, else create."""
+        async with db.cursor(row_factory=class_row(DbUser)) as cur:
+            try:
+                await cur.execute(
+                    """
+                    INSERT INTO users (
+                        id, name, email_address, profile_img, is_active, is_superuser, date_registered
+                    )
+                    VALUES (
+                        %(user_id)s, %(name)s, %(email_address)s, %(profile_img)s, True, False, now()
+                    )
+                    ON CONFLICT (id)
+                    DO UPDATE SET profile_img = EXCLUDED.profile_img
+                    RETURNING *;
+                    """,
+                    {
+                        "user_id": str(user_data.id),
+                        "name": user_data.name,
+                        "email_address": user_data.email,
+                        "profile_img": user_data.img_url,
+                    },
+                )
+                user = await cur.fetchone()
+                return user
+
+            except psycopg.IntegrityError as e:
+                if (
+                    'duplicate key value violates unique constraint "users_email_address_key"'
+                    in str(e)
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"User with this email {user_data.email} already exists.",
+                    ) from e
+                else:
+                    raise HTTPException(status_code=400, detail=str(e)) from e
