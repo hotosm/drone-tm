@@ -2,17 +2,16 @@ from fastapi import HTTPException, Request, Header
 from app.config import settings
 from app.users import user_crud
 from app.users.auth import Auth
-from app.users.user_schemas import AuthUser, ProfileUpdate
+from app.users.user_schemas import AuthUser, UserProfileIn
 from loguru import logger as log
 import time
 import jwt
-from typing import Any, Union
+from typing import Any
 from passlib.context import CryptContext
 from app.db import db_models
 from pydantic import EmailStr
 import psycopg
 from psycopg import Connection
-
 
 
 async def init_google_auth():
@@ -75,8 +74,8 @@ async def get_userprofile_by_userid(db: Connection, user_id: str):
         return result
 
 
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 async def create_access_token(subject: dict[str, Any]) -> tuple[str, str]:
     expire = int(time.time()) + settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -84,13 +83,18 @@ async def create_access_token(subject: dict[str, Any]) -> tuple[str, str]:
 
     # Access token
     subject["exp"] = expire
-    access_token = jwt.encode(subject, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    access_token = jwt.encode(
+        subject, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
     # Refresh token
     subject["exp"] = refresh_expire
-    refresh_token = jwt.encode(subject, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    refresh_token = jwt.encode(
+        subject, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
     return access_token, refresh_token
+
 
 def verify_token(token: str) -> dict[str, Any]:
     """Verifies the access token and returns the payload if valid.
@@ -111,18 +115,22 @@ def verify_token(token: str) -> dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=401, detail="Could not validate token") from e
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
 
 async def get_user_by_id(db: Connection, id: str) -> dict[str, Any] | None:
     query = "SELECT * FROM users WHERE id = %s LIMIT 1;"
     async with db.cursor() as cur:
         await cur.execute(query, (id,))
         result = await cur.fetchone()
-        return dict(result) if result else None
+        return result if result else None
+
 
 async def get_user_by_email(db: Connection, email: str) -> dict[str, Any] | None:
     query = "SELECT * FROM users WHERE email_address = %s LIMIT 1;"
@@ -131,13 +139,17 @@ async def get_user_by_email(db: Connection, email: str) -> dict[str, Any] | None
         result = await cur.fetchone()
         return dict(result) if result else None
 
-async def authenticate(db: Connection, email: EmailStr, password: str) -> db_models.DbUser | None:
+
+async def authenticate(
+    db: Connection, email: EmailStr, password: str
+) -> db_models.DbUser | None:
     db_user = await get_user_by_email(db, email)
     if not db_user:
         return None
     if not verify_password(password, db_user["password"]):
         return None
     return db_user
+
 
 async def get_or_create_user(db: Connection, user_data: AuthUser) -> AuthUser:
     """Get user from User table if exists, else create."""
@@ -154,17 +166,12 @@ async def get_or_create_user(db: Connection, user_data: AuthUser) -> AuthUser:
         async with db.cursor() as cur:
             await cur.execute(
                 update_sql,
-                (
-                    str(user_data.id),
-                    user_data.name,
-                    user_data.email,
-                    user_data.img_url
-                ),
+                (str(user_data.id), user_data.name, user_data.email, user_data.img_url),
             )
         return user_data
 
     except psycopg.errors.UniqueViolation as e:
-        if 'users_email_address_key' in str(e):
+        if "users_email_address_key" in str(e):
             raise HTTPException(
                 status_code=400,
                 detail=f"User with this email {user_data.email} already exists.",
@@ -172,7 +179,10 @@ async def get_or_create_user(db: Connection, user_data: AuthUser) -> AuthUser:
         else:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
-async def update_user_profile(db: Connection, user_id: int, profile_update: ProfileUpdate) -> bool:
+
+async def update_user_profile(
+    db: Connection, user_id: int, profile_update: UserProfileIn
+) -> bool:
     """
     Update user profile in the database.
     Args:
@@ -222,7 +232,7 @@ async def update_user_profile(db: Connection, user_id: int, profile_update: Prof
                     profile_update.notify_for_projects_within_km,
                     profile_update.experience_years,
                     profile_update.drone_you_own,
-                    profile_update.certified_drone_operator
+                    profile_update.certified_drone_operator,
                 ),
             )
 
@@ -236,10 +246,7 @@ async def update_user_profile(db: Connection, user_id: int, profile_update: Prof
             async with db.cursor() as cur:
                 await cur.execute(
                     password_update_query,
-                    (
-                        get_password_hash(profile_update.password),
-                        user_id
-                    ),
+                    (get_password_hash(profile_update.password), user_id),
                 )
 
         return True

@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     Token,
-    ProfileUpdate,
+    UserProfileIn,
     AuthUser,
 )
 from app.users.user_deps import login_required, init_google_auth
@@ -61,7 +61,7 @@ async def login_access_token(
 @router.post("/{user_id}/profile")
 async def update_user_profile(
     user_id: str,
-    profile_update: ProfileUpdate,
+    profile_update: UserProfileIn,
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
@@ -69,14 +69,16 @@ async def update_user_profile(
     Update user profile based on provided user_id and profile_update data.
     Args:
         user_id (int): The ID of the user whose profile is being updated.
-        profile_update (UserProfileUpdate): Updated profile data to apply.
+        profile_update (UserUserProfileIn): Updated profile data to apply.
     Returns:
         dict: Updated user profile information.
     Raises:
         HTTPException: If user with given user_id is not found in the database.
     """
 
-    user = await user_crud.get_user_by_id(db, user_id)
+    # user = await user_crud.get_user_by_id(db, user_id)
+    user = await user_deps.get_user_by_id(db, user_id)
+
     if user_data.id != user_id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
@@ -85,8 +87,9 @@ async def update_user_profile(
 
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+    user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
 
-    user = await user_crud.update_user_profile(db, user_id, profile_update)
+    # user = await user_crud.update_user_profile(db, user_id, profile_update)
     return Response(status_code=HTTPStatus.OK)
 
 
@@ -141,12 +144,9 @@ async def my_data(
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Read access token and get user details from Google"""
-    print("*"*100, user_data)
-    
+
     user_info = await user_schemas.DbUser.get_or_create_user(db, user_data)
-    # user_info = await user_crud.get_or_create_user(db, user_data)
-    # has_user_profile = await user_crud.get_userprofile_by_userid(db, user_info.id)
-    has_user_profile  = await user_deps.get_userprofile_by_userid(db, user_info.id)
+    has_user_profile = await user_deps.get_userprofile_by_userid(db, user_info.id)
     user_info_dict = user_info.model_dump()
     user_info_dict["has_user_profile"] = bool(has_user_profile)
     return user_info_dict

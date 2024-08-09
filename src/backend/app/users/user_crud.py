@@ -4,7 +4,7 @@ from app.config import settings
 from typing import Any
 from passlib.context import CryptContext
 from app.db import db_models
-from app.users.user_schemas import AuthUser, ProfileUpdate
+from app.users.user_schemas import AuthUser, UserProfileIn
 from fastapi import HTTPException
 from pydantic import EmailStr
 from psycopg import Connection
@@ -67,7 +67,6 @@ async def get_user_by_id(db: Connection, id: str):
     return result
 
 
-
 async def get_user_by_email(db: Connection, email: str):
     query = "SELECT * FROM users WHERE email_address = :email LIMIT 1;"
     result = await db.fetch_one(query, {"email": email})
@@ -127,14 +126,14 @@ async def get_or_create_user(
 
 
 async def update_user_profile(
-    db: Connection, user_id: int, profile_update: ProfileUpdate
+    db: Connection, user_id: int, profile_update: UserProfileIn
 ):
     """
     Update user profile in the database.
     Args:
         db (Database): Database connection object.
         user_id (int): ID of the user whose profile is being updated.
-        profile_update (ProfileUpdate): Instance of ProfileUpdate containing fields to update.
+        profile_update (UserProfileIn): Instance of UserProfileIn containing fields to update.
     Returns:
         bool: True if update operation succeeds.
     Raises:
