@@ -55,14 +55,19 @@ async def get_tasks_by_user(user_id: str, db: Database):
                 task_details.task_id,
                 task_details.project_id,
                 task_details.task_area,
-                task_details.created_at,
+                task_details.created_at, 
                 CASE
-                    WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'ongoing'
+                    WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'ongoing' 
+                    WHEN task_details.state = 'UNLOCKED_TO_MAP' THEN 'ready to map'
+                    WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'locked for mapping'
+                    WHEN task_details.state = 'UNLOCKED_TO_VALIDATE' THEN 'mapped'
+                    WHEN task_details.state = 'LOCKED_FOR_VALIDATION' THEN 'mapped'
                     WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
-                    WHEN task_details.state IN ('UNLOCKED_TO_VALIDATE', 'LOCKED_FOR_VALIDATION') THEN 'mapped'
-                    ELSE 'unknown'
+                    WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                    ELSE 'unknown' -- Default case if the state does not match any expected values
                 END AS state
-            FROM task_details
+            FROM task_details;
+
             """
 
         records = await db.fetch_all(query, values={"user_id": user_id})
