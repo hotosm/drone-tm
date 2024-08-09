@@ -7,7 +7,6 @@ from app.db import database
 from app.config import settings
 from app.drones import drone_schemas, drone_deps
 from psycopg import Connection
-from app.drones import drone_crud
 
 
 router = APIRouter(
@@ -63,9 +62,9 @@ async def delete_drone(
     return {"message": f"Drone successfully deleted {drone_id}"}
 
 
-@router.get("/{drone_id}", tags=["Drones"], response_model=drone_schemas.DroneOut)
+@router.get("/{drone_id}", response_model=drone_schemas.DroneOut)
 async def read_drone(
-    drone_id: int,
+    drone: Annotated[drone_schemas.DbDrone, Depends(drone_deps.get_drone_by_id)],
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
@@ -80,7 +79,4 @@ async def read_drone(
     Returns:
         dict: The drone record if found.
     """
-    drone = await drone_crud.get_drone(db, drone_id)
-    if not drone:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Drone not found")
     return drone
