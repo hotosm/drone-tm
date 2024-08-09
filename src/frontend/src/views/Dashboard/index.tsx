@@ -1,6 +1,7 @@
 import { useGetDashboardTaskStaticsQuery } from '@Api/dashboard';
 import { FlexRow } from '@Components/common/Layouts';
 import { DashboardSidebar, DashboardCard } from '@Components/Dashboard';
+import { DashboardCardSkeleton } from '@Components/Dashboard/DashboardCard';
 import RequestLogs from '@Components/Dashboard/RequestLogs';
 import TaskLogs from '@Components/Dashboard/TaskLogs';
 import {
@@ -32,7 +33,7 @@ export default function Dashboard() {
       ? dashboardCardsForProjectCreator
       : dashboardCardsForDroneOperator;
 
-  const { data: taskStatistics }: Record<string, any> =
+  const { data: taskStatistics, isLoading }: Record<string, any> =
     useGetDashboardTaskStaticsQuery({
       select: (data: any) => {
         const taskCounts: Record<string, any> = data?.data;
@@ -52,26 +53,34 @@ export default function Dashboard() {
         <DashboardSidebar />
         <div className="naxatw-col-span-4">
           <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
-            {taskStatistics?.map((task: any) => (
-              <div
-                key={task.id}
-                tabIndex={0}
-                role="button"
-                onKeyUp={() =>
-                  setActiveTab({ value: task.value, title: task.title })
-                }
-                onClick={() =>
-                  setActiveTab({ value: task.value, title: task.title })
-                }
-                className="naxatw-cursor-pointer"
-              >
-                <DashboardCard
-                  title={task.title}
-                  count={task?.count}
-                  active={task.value === activeTab.value}
-                />
-              </div>
-            ))}
+            {isLoading ? (
+              <>
+                {Array.from({ length: 4 }, (_, index) => (
+                  <DashboardCardSkeleton key={index} />
+                ))}
+              </>
+            ) : (
+              taskStatistics?.map((task: any) => (
+                <div
+                  key={task.id}
+                  tabIndex={0}
+                  role="button"
+                  onKeyUp={() =>
+                    setActiveTab({ value: task.value, title: task.title })
+                  }
+                  onClick={() =>
+                    setActiveTab({ value: task.value, title: task.title })
+                  }
+                  className="naxatw-cursor-pointer"
+                >
+                  <DashboardCard
+                    title={task.title}
+                    count={task?.count}
+                    active={task.value === activeTab.value}
+                  />
+                </div>
+              ))
+            )}
           </div>
           {getContent(activeTab.value, activeTab.title)}
         </div>
