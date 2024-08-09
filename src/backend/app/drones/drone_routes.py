@@ -5,7 +5,7 @@ from app.models.enums import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException
 from app.db import database
 from app.config import settings
-from app.drones import drone_schemas
+from app.drones import drone_schemas, drone_deps
 from psycopg import Connection
 from app.drones import drone_crud
 
@@ -41,7 +41,7 @@ async def create_drone(
 
 @router.delete("/{drone_id}")
 async def delete_drone(
-    drone_id: int,
+    drone: Annotated[drone_schemas.DbDrone, Depends(drone_deps.get_drone_by_id)],
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
@@ -57,12 +57,10 @@ async def delete_drone(
         dict: A success message if the drone was deleted.
     """
 
-    # TODO: Check user role, Admin can only do this
-
-    success = await drone_crud.delete_drone(db, drone_id)
-    if not success:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Drone not found")
-    return {"message": "Drone deleted successfully"}
+    # TODO: Check user role, Admin can only do this.
+    # After user roles introduction
+    drone_id = await drone_schemas.DbDrone.delete(db, drone.id)
+    return {"message": f"Drone successfully deleted {drone_id}"}
 
 
 @router.get("/{drone_id}", tags=["Drones"], response_model=drone_schemas.DroneOut)
