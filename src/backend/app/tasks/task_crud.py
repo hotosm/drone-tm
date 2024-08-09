@@ -57,11 +57,8 @@ async def get_tasks_by_user(user_id: str, db: Database):
                 task_details.task_area,
                 task_details.created_at,
                 CASE
-                    WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'ongoing'
-                    WHEN task_details.state = 'UNLOCKED_TO_MAP' THEN 'ready to map'
-                    WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'locked for mapping'
-                    WHEN task_details.state = 'UNLOCKED_TO_VALIDATE' THEN 'mapped'
-                    WHEN task_details.state = 'LOCKED_FOR_VALIDATION' THEN 'mapped'
+                    WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                    WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
                     WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
                     WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
                     ELSE 'unknown' -- Default case if the state does not match any expected values
