@@ -62,7 +62,7 @@ async def delete_drone(
     return {"message": f"Drone successfully deleted {drone_id}"}
 
 
-@router.get("/{drone_id}", response_model=drone_schemas.DroneOut)
+@router.get("/{drone_id}", response_model=drone_schemas.DbDrone)
 async def read_drone(
     drone: Annotated[drone_schemas.DbDrone, Depends(drone_deps.get_drone_by_id)],
     db: Annotated[Connection, Depends(database.get_db)],
