@@ -100,11 +100,11 @@ class BaseUserProfile(BaseModel):
         return str(value.name)
 
 
-class UserProfileIn(BaseModel):
+class UserProfileIn(BaseUserProfile):
     password: Optional[str] = None
 
 
-class DbUserProfile(BaseModel):
+class DbUserProfile(BaseUserProfile):
     """UserProfile model for interacting with the user_profile table."""
 
     user_id: int
