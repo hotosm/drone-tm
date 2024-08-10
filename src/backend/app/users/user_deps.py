@@ -136,7 +136,7 @@ async def get_user_by_email(db: Connection, email: str) -> dict[str, Any] | None
     async with db.cursor() as cur:
         await cur.execute(query, (email,))
         result = await cur.fetchone()
-        return dict(result) if result else None
+        return result if result else None
 
 
 async def authenticate(

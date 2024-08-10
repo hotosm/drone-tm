@@ -81,7 +81,7 @@ class UserCreate(UserBase):
     password: str
 
 
-class UserProfileIn(BaseModel):
+class BaseUserProfile(BaseModel):
     phone_number: Optional[str] = None
     country: Optional[str] = None
     city: Optional[str] = None
@@ -93,36 +93,21 @@ class UserProfileIn(BaseModel):
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
     role: Optional[UserRole] = None
-    password: Optional[str] = None
 
     @field_validator("role", mode="after")
     @classmethod
     def integer_role_to_string(cls, value: UserRole) -> str:
         return str(value.name)
+
+
+class UserProfileIn(BaseModel):
+    password: Optional[str] = None
 
 
 class DbUserProfile(BaseModel):
     """UserProfile model for interacting with the user_profile table."""
 
     user_id: int
-    role: Optional[str] = None
-    phone_number: Optional[str] = None
-    country: Optional[str] = None
-    city: Optional[str] = None
-    organization_name: Optional[str] = None
-    organization_address: Optional[str] = None
-    job_title: Optional[str] = None
-    notify_for_projects_within_km: Optional[int] = None
-    experience_years: Optional[int] = None
-    drone_you_own: Optional[str] = None
-    certified_drone_operator: Optional[bool] = None
-    role: Optional[UserRole] = None
-    password: Optional[str] = None
-
-    @field_validator("role", mode="after")
-    @classmethod
-    def integer_role_to_string(cls, value: UserRole) -> str:
-        return str(value.name)
 
     @staticmethod
     async def update(db: Connection, user_id: int, profile_update: UserProfileIn):
@@ -147,7 +132,6 @@ class DbUserProfile(BaseModel):
         # Prepare data for insert or update
         model_dump = profile_update.model_dump(exclude_none=True, exclude=["password"])
         columns = ", ".join(model_dump.keys())
-        print(columns)
         value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
         sql = f"""
             INSERT INTO user_profile (
