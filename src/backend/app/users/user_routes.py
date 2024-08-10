@@ -140,7 +140,6 @@ async def my_data(
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Read access token and get user details from Google"""
-
     user_info = await user_schemas.DbUser.get_or_create_user(db, user_data)
     has_user_profile = await user_deps.get_userprofile_by_userid(db, user_info.id)
     user_info_dict = user_info.model_dump()

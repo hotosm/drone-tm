@@ -1,5 +1,5 @@
 from app.users import user_deps
-from app.models.enums import HTTPStatus, UserRole
+from app.models.enums import UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
 from typing import Optional
@@ -7,7 +7,6 @@ from psycopg import Connection
 from psycopg.rows import class_row
 import psycopg
 from fastapi import HTTPException
-from loguru import logger as log
 
 
 class AuthUser(BaseModel):
@@ -112,22 +111,21 @@ class DbUserProfile(BaseUserProfile):
     @staticmethod
     async def update(db: Connection, user_id: int, profile_update: UserProfileIn):
         """Update or insert a user profile."""
-
         # Check if the user profile exists
-        async with db.cursor() as cur:
-            sql = """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM user_profile
-                    WHERE user_id = %(user_id)s
-                )
-            """
-            await cur.execute(sql, {"user_id": user_id})
-            profile_exists = await cur.fetchone()
-            if not profile_exists[0]:
-                msg = f"User profile with ID ({user_id}) does not exist!"
-                log.warning(f"User ({user_id}) failed profile update: {msg}")
-                raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=msg)
+        # FIXME: Is it necessary to check the profile here? We are making a PUT or PATCH request to update it.
+        # async with db.cursor() as cur:
+        #     sql = """
+        #         SELECT EXISTS (
+        #             SELECT user_id
+        #             FROM user_profile
+        #             WHERE user_id = %(user_id)s
+        #         )
+        #     """
+        #     await cur.execute(sql, {"user_id": user_id})
+        #     profile_exists = await cur.fetchone()
+        #     if profile_exists[0] is True:
+        #         log.warning(f"User ({user_id}) already profile exit")
+        #         return True
 
         # Prepare data for insert or update
         model_dump = profile_update.model_dump(exclude_none=True, exclude=["password"])
@@ -170,18 +168,19 @@ class DbUserProfile(BaseUserProfile):
                 )
 
             # Check if the profile was updated successfully
-            fetch_sql = """
-                SELECT * FROM user_profile WHERE user_id = %(user_id)s;
-            """
-            await cur.execute(fetch_sql, {"user_id": user_id})
-            updated_profile = await cur.fetchone()
-
-            if not updated_profile:
-                msg = f"Failed to fetch updated profile for user ID: {user_id}"
-                log.warning(f"User ({user_id}) failed profile fetch: {msg}")
-                raise HTTPException(
-                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=msg
-                )
+            # FIXME: We do not need to check.
+            # fetch_sql = """
+            #     SELECT * FROM user_profile WHERE user_id = %(user_id)s;
+            # """
+            # await cur.execute(fetch_sql, {"user_id": user_id})
+            # updated_profile = await cur.fetchone()
+            # print("*"*100, updated_profile)
+            # if not updated_profile:
+            #     msg = f"Failed to fetch updated profile for user ID: {user_id}"
+            #     log.warning(f"User ({user_id}) failed profile fetch: {msg}")
+            #     raise HTTPException(
+            #         status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=msg
+            #     )
 
             return True
 
@@ -195,8 +194,20 @@ class DbUser(BaseModel):
     profile_img: Optional[str] = None
 
     @staticmethod
-    async def get_or_create_user(db: Connection, user_data: AuthUser):
-        """Get user from User table if exists, else create."""
+    async def one(db: Connection, user_id: str):
+        """Fetch user from the database by user_id."""
+        async with db.cursor(row_factory=class_row(DbUser)) as cur:
+            await cur.execute(
+                """
+                SELECT * FROM users WHERE id = %(user_id)s;
+                """,
+                {"user_id": user_id},
+            )
+            return await cur.fetchone()
+
+    @staticmethod
+    async def create(db: Connection, user_data: AuthUser):
+        """Create a new user in the database."""
         async with db.cursor(row_factory=class_row(DbUser)) as cur:
             try:
                 await cur.execute(
@@ -207,8 +218,6 @@ class DbUser(BaseModel):
                     VALUES (
                         %(user_id)s, %(name)s, %(email_address)s, %(profile_img)s, True, False, now()
                     )
-                    ON CONFLICT (id)
-                    DO UPDATE SET profile_img = EXCLUDED.profile_img
                     RETURNING *;
                     """,
                     {
@@ -218,8 +227,7 @@ class DbUser(BaseModel):
                         "profile_img": user_data.img_url,
                     },
                 )
-                user = await cur.fetchone()
-                return user
+                return await cur.fetchone()
 
             except psycopg.IntegrityError as e:
                 if (
@@ -232,3 +240,11 @@ class DbUser(BaseModel):
                     ) from e
                 else:
                     raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @staticmethod
+    async def get_or_create_user(db: Connection, user_data: AuthUser):
+        """Get user from User table if exists, else create."""
+        user = await DbUser.one(db, str(user_data.id))
+        if user:
+            return user
+        return await DbUser.create(db, user_data)
