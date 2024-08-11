@@ -1,3 +1,4 @@
+from app.users.user_crud import get_user_by_email
 from fastapi import HTTPException, Request, Header
 from app.config import settings
 from app.users.auth import Auth
@@ -7,6 +8,10 @@ import jwt
 from typing import Any
 from passlib.context import CryptContext
 from psycopg import Connection
+from app.db import db_models
+from pydantic import EmailStr
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 async def init_google_auth():
@@ -55,23 +60,6 @@ async def login_required(
     return AuthUser(**user)
 
 
-async def get_userprofile_by_userid(db: Connection, user_id: str):
-    """Fetch the user profile by user ID."""
-    query = """
-        SELECT * FROM user_profile
-        WHERE user_id = %(user_id)s
-        LIMIT 1;
-    """
-    async with db.cursor() as cur:
-        await cur.execute(query, {"user_id": user_id})
-        result = await cur.fetchone()
-        log.info(f"Fetched user profile data: {result}")
-        return result
-
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
 def verify_token(token: str) -> dict[str, Any]:
     """Verifies the access token and returns the payload if valid.
 
@@ -98,3 +86,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
+
+async def authenticate(
+    db: Connection, email: EmailStr, password: str
+) -> db_models.DbUser | None:
+    db_user = await get_user_by_email(db, email)
+    if not db_user:
+        return None
+    if not verify_password(password, db_user["password"]):
+        return None
+    return db_user
