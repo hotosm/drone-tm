@@ -9,7 +9,7 @@ interface TaskLogsProps {
 const getStatusByTitle = (title: string): string => {
   if (title === 'Ongoing Tasks') return 'ongoing';
   if (title === 'Request Logs') return 'request logs';
-  if (title === 'Unflyable Tasks') return 'Unflyable';
+  if (title === 'Unflyable Tasks') return 'unflyable task';
   if (title === 'Completed Tasks') return 'completed';
 
   return '';
