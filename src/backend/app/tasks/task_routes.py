@@ -6,7 +6,7 @@ from app.models.enums import EventType, State, UserRole
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
-from app.users.user_crud import get_user_by_id
+from app.users import user_schemas
 from psycopg import Connection
 from app.db import database
 from app.utils import send_notification_email, render_email_template
@@ -74,7 +74,7 @@ async def new_event(
                     "Request for mapping",
                 )
                 # email notification
-                author = await get_user_by_id(db, project.author_id)
+                author = await user_schemas.DbUser.get_user_by_id(db, project.author_id)
 
                 html_content = render_email_template(
                     template_name="mapping_requests.html",
@@ -105,7 +105,9 @@ async def new_event(
             requested_user_id = await task_crud.get_requested_user_id(
                 db, project_id, task_id
             )
-            drone_operator = await get_user_by_id(db, requested_user_id)
+            drone_operator = await user_schemas.DbUser.get_user_by_id(
+                db, requested_user_id
+            )
             html_content = render_email_template(
                 template_name="mapping_approved_or_rejected.html",
                 context={
@@ -148,7 +150,9 @@ async def new_event(
             requested_user_id = await task_crud.get_requested_user_id(
                 db, project_id, task_id
             )
-            drone_operator = await get_user_by_id(db, requested_user_id)
+            drone_operator = await user_schemas.DbUser.get_user_by_id(
+                db, requested_user_id
+            )
             html_content = render_email_template(
                 template_name="mapping_approved_or_rejected.html",
                 context={
