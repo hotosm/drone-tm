@@ -36,9 +36,7 @@ async def task_states(
     db: Annotated[Connection, Depends(database.get_db)], project_id: uuid.UUID
 ):
     """Get all tasks states for a project."""
-    return await task_schemas.UserTasksStatsOut.get_all_tasks_with_states(
-        db, project_id
-    )
+    return await task_crud.get_all_tasks_with_states(db, project_id)
 
 
 @router.post("/event/{project_id}/{task_id}")
@@ -66,7 +64,7 @@ async def new_event(
                     State.LOCKED_FOR_MAPPING,
                 )
             else:
-                data = await task_schemas.Task.request_mapping(
+                data = await task_crud.request_mapping(
                     db,
                     project_id,
                     task_id,
@@ -129,7 +127,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_schemas.Task.update(
+            return await task_crud.update(
                 db,
                 project_id,
                 task_id,
@@ -174,7 +172,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_schemas.Task.update(
+            return await task_crud.update(
                 db,
                 project_id,
                 task_id,
@@ -184,7 +182,7 @@ async def new_event(
                 State.UNLOCKED_TO_MAP,
             )
         case EventType.FINISH:
-            return await task_schemas.Task.update(
+            return await task_crud.update(
                 db,
                 project_id,
                 task_id,
@@ -194,7 +192,7 @@ async def new_event(
                 State.UNLOCKED_TO_VALIDATE,
             )
         case EventType.VALIDATE:
-            return task_schemas.Task.update(
+            return task_crud.update(
                 db,
                 project_id,
                 task_id,
@@ -204,7 +202,7 @@ async def new_event(
                 State.LOCKED_FOR_VALIDATION,
             )
         case EventType.GOOD:
-            return await task_schemas.Task.update(
+            return await task_crud.update(
                 db,
                 project_id,
                 task_id,
@@ -215,7 +213,7 @@ async def new_event(
             )
 
         case EventType.BAD:
-            return await task_schemas.Task.update(
+            return await task_crud.update(
                 db,
                 project_id,
                 task_id,
@@ -251,7 +249,7 @@ async def get_pending_tasks(
             raise HTTPException(
                 status_code=403, detail="Access forbidden for non-Project Creator users"
             )
-        pending_tasks = await task_schemas.Task.get_project_task_by_id(db, user_id)
+        pending_tasks = await task_crud.get_project_task_by_id(db, user_id)
         if pending_tasks is None:
             raise HTTPException(status_code=404, detail="Project not found")
         return pending_tasks
