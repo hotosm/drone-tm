@@ -4,13 +4,25 @@ import graphImage from '@Assets/images/graph.svg';
 
 interface IDashboardCardProps {
   title: string;
-  value: number;
+  count: number;
   active: boolean;
 }
 
+export const DashboardCardSkeleton = () => {
+  return (
+    <div className="naxatw-flex naxatw-h-[130px] naxatw-w-full naxatw-animate-pulse naxatw-items-center naxatw-gap-3 naxatw-rounded-xl naxatw-bg-gray-200 naxatw-px-2">
+      <div className="naxatw-h-10 naxatw-w-10 naxatw-rounded-full naxatw-bg-gray-300" />
+      <div className="naxatw-flex naxatw-w-[140px] naxatw-flex-col naxatw-gap-2">
+        <div className="naxatw-h-9 naxatw-w-[50px] naxatw-bg-gray-300" />
+        <div className="naxatw-h-5 naxatw-w-full naxatw-bg-gray-300" />
+      </div>
+    </div>
+  );
+};
+
 export default function DashboardCard({
   title,
-  value,
+  count,
   active,
 }: IDashboardCardProps) {
   return (
@@ -19,7 +31,7 @@ export default function DashboardCard({
     >
       <Image src={graphImage} />
       <FlexColumn>
-        <h2>{value}</h2>
+        <h2>{count}</h2>
         <p>{title}</p>
       </FlexColumn>
     </FlexRow>
