@@ -6,13 +6,13 @@ export const dashboardCardsForProjectCreator = [
   },
   {
     id: 2,
-    title: 'Unflyable Tasks',
-    value: 'unflyable_tasks',
+    title: 'Ongoing Tasks',
+    value: 'ongoing_tasks',
   },
   {
     id: 3,
-    title: 'Ongoing Tasks',
-    value: 'ongoing_tasks',
+    title: 'Unflyable Tasks',
+    value: 'unflyable_tasks',
   },
   {
     id: 4,
