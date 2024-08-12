@@ -1,4 +1,3 @@
-from app.users import user_deps
 from app.models.enums import UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
@@ -10,6 +9,7 @@ from fastapi import HTTPException
 from typing import Any
 from loguru import logger as log
 from app.users import user_crud
+
 
 class AuthUser(BaseModel):
     """The user model returned from Google OAuth2."""
