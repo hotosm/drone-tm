@@ -35,8 +35,6 @@ async def get_task_waypoint(
     features = task_geojson["features"][0]
     project = await get_project_by_id(db, project_id)
 
-    print("Project = ", project)
-
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
     generate_each_points = False
