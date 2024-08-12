@@ -1,5 +1,5 @@
 import DroneOperatorTaskHeader from './Header';
-import DroneOperatorDescriptionBox from './DescriptionBox';
+import DroneOperatorDescriptionBox from './DescriptionSection';
 import DroneOperatorMapBox from './MapSection';
 
 const DroneOperatorTaskComponent = () => {
