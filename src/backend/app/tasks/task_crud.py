@@ -5,7 +5,7 @@ import uuid
 from app.models.enums import HTTPStatus, State
 
 
-async def update(
+async def update_task_state(
     db: Connection,
     project_id: uuid.UUID,
     task_id: uuid.UUID,

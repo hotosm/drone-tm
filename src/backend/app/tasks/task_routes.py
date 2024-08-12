@@ -127,7 +127,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -172,7 +172,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -182,7 +182,7 @@ async def new_event(
                 State.UNLOCKED_TO_MAP,
             )
         case EventType.FINISH:
-            return await task_crud.update(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -192,7 +192,7 @@ async def new_event(
                 State.UNLOCKED_TO_VALIDATE,
             )
         case EventType.VALIDATE:
-            return task_crud.update(
+            return task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -202,7 +202,7 @@ async def new_event(
                 State.LOCKED_FOR_VALIDATION,
             )
         case EventType.GOOD:
-            return await task_crud.update(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -213,7 +213,7 @@ async def new_event(
             )
 
         case EventType.BAD:
-            return await task_crud.update(
+            return await task_crud.update_task_state(
                 db,
                 project_id,
                 task_id,
