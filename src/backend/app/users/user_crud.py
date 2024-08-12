@@ -3,7 +3,14 @@ import jwt
 from app.config import settings
 from typing import Any
 from psycopg import Connection
-from loguru import logger as log
+from app.db import db_models
+from pydantic import EmailStr
+from fastapi import HTTPException
+from passlib.context import CryptContext
+from app.users import user_schemas
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 async def create_access_token(subject: str | Any):
@@ -25,31 +32,40 @@ async def create_access_token(subject: str | Any):
     return access_token, refresh_token
 
 
-async def get_user_by_id(db: Connection, id: str) -> dict[str, Any] | None:
-    query = "SELECT * FROM users WHERE id = %s LIMIT 1;"
-    async with db.cursor() as cur:
-        await cur.execute(query, (id,))
-        result = await cur.fetchone()
-        return result if result else None
+def verify_token(token: str) -> dict[str, Any]:
+    """Verifies the access token and returns the payload if valid.
 
+    Args:
+        token (str): The access token to be verified.
 
-async def get_user_by_email(db: Connection, email: str) -> dict[str, Any] | None:
-    query = "SELECT * FROM users WHERE email_address = %s LIMIT 1;"
-    async with db.cursor() as cur:
-        await cur.execute(query, (email,))
-        result = await cur.fetchone()
-        return result if result else None
+    Returns:
+        dict: The payload of the access token if verification is successful.
 
-
-async def get_userprofile_by_userid(db: Connection, user_id: str):
-    """Fetch the user profile by user ID."""
-    query = """
-        SELECT * FROM user_profile
-        WHERE user_id = %(user_id)s
-        LIMIT 1;
+    Raises:
+        HTTPException: If the token has expired or credentials could not be validated.
     """
-    async with db.cursor() as cur:
-        await cur.execute(query, {"user_id": user_id})
-        result = await cur.fetchone()
-        log.info(f"Fetched user profile data: {result}")
-        return result
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.ExpiredSignatureError as e:
+        raise HTTPException(status_code=401, detail="Token has expired") from e
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Could not validate token") from e
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+async def authenticate(
+    db: Connection, email: EmailStr, password: str
+) -> db_models.DbUser | None:
+    db_user = await user_schemas.DbUser.get_user_by_email(db, email)
+    if not db_user:
+        return None
+    if not verify_password(password, db_user["password"]):
+        return None
+    return db_user

@@ -7,6 +7,8 @@ from psycopg import Connection
 from psycopg.rows import class_row
 import psycopg
 from fastapi import HTTPException
+from typing import Any
+from loguru import logger as log
 
 
 class AuthUser(BaseModel):
@@ -111,21 +113,6 @@ class DbUserProfile(BaseUserProfile):
     @staticmethod
     async def update(db: Connection, user_id: int, profile_update: UserProfileIn):
         """Update or insert a user profile."""
-        # Check if the user profile exists
-        # FIXME: Is it necessary to check the profile here? We are making a PUT or PATCH request to update it.
-        # async with db.cursor() as cur:
-        #     sql = """
-        #         SELECT EXISTS (
-        #             SELECT user_id
-        #             FROM user_profile
-        #             WHERE user_id = %(user_id)s
-        #         )
-        #     """
-        #     await cur.execute(sql, {"user_id": user_id})
-        #     profile_exists = await cur.fetchone()
-        #     if profile_exists[0] is True:
-        #         log.warning(f"User ({user_id}) already profile exit")
-        #         return True
 
         # Prepare data for insert or update
         model_dump = profile_update.model_dump(exclude_none=True, exclude=["password"])
@@ -166,23 +153,20 @@ class DbUserProfile(BaseUserProfile):
                         "user_id": user_id,
                     },
                 )
-
-            # Check if the profile was updated successfully
-            # FIXME: We do not need to check.
-            # fetch_sql = """
-            #     SELECT * FROM user_profile WHERE user_id = %(user_id)s;
-            # """
-            # await cur.execute(fetch_sql, {"user_id": user_id})
-            # updated_profile = await cur.fetchone()
-            # print("*"*100, updated_profile)
-            # if not updated_profile:
-            #     msg = f"Failed to fetch updated profile for user ID: {user_id}"
-            #     log.warning(f"User ({user_id}) failed profile fetch: {msg}")
-            #     raise HTTPException(
-            #         status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=msg
-            #     )
-
             return True
+
+    async def get_userprofile_by_userid(db: Connection, user_id: str):
+        """Fetch the user profile by user ID."""
+        query = """
+            SELECT * FROM user_profile
+            WHERE user_id = %(user_id)s
+            LIMIT 1;
+        """
+        async with db.cursor() as cur:
+            await cur.execute(query, {"user_id": user_id})
+            result = await cur.fetchone()
+            log.info(f"Fetched user profile data: {result}")
+            return result
 
 
 class DbUser(BaseModel):
@@ -248,3 +232,19 @@ class DbUser(BaseModel):
         if user:
             return user
         return await DbUser.create(db, user_data)
+
+    @staticmethod
+    async def get_user_by_id(db: Connection, id: str) -> dict[str, Any] | None:
+        query = "SELECT * FROM users WHERE id = %s LIMIT 1;"
+        async with db.cursor() as cur:
+            await cur.execute(query, (id,))
+            result = await cur.fetchone()
+            return result if result else None
+
+    @staticmethod
+    async def get_user_by_email(db: Connection, email: str) -> dict[str, Any] | None:
+        query = "SELECT * FROM users WHERE email_address = %s LIMIT 1;"
+        async with db.cursor() as cur:
+            await cur.execute(query, (email,))
+            result = await cur.fetchone()
+            return result if result else None
