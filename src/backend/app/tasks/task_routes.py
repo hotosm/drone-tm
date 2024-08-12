@@ -11,7 +11,7 @@ from psycopg import Connection
 from app.db import database
 from app.utils import send_notification_email, render_email_template
 from app.projects.project_crud import get_project_by_id
-
+from psycopg.rows import dict_row
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",
@@ -28,7 +28,7 @@ async def list_tasks(
     """Get all tasks for a drone user."""
 
     user_id = user_data.id
-    return await task_crud.get_tasks_by_user(user_id, db)
+    return await task_schemas.UserTasksStatsOut.get_tasks_by_user(db, user_id)
 
 
 @router.get("/states/{project_id}")
@@ -36,8 +36,9 @@ async def task_states(
     db: Annotated[Connection, Depends(database.get_db)], project_id: uuid.UUID
 ):
     """Get all tasks states for a project."""
-
-    return await task_crud.all_tasks_states(db, project_id)
+    return await task_schemas.UserTasksStatsOut.get_all_tasks_with_states(
+        db, project_id
+    )
 
 
 @router.post("/event/{project_id}/{task_id}")
@@ -53,9 +54,8 @@ async def new_event(
 
     match detail.event:
         case EventType.REQUESTS:
-            # TODO: Combine the logic of `update_or_create_task_state` and `request_mapping` functions into a single function if possible. Will do later.
             project = await get_project_by_id(db, project_id)
-            if project["requires_approval_from_manager_for_locking"] == "true":
+            if project["requires_approval_from_manager_for_locking"] is False:
                 data = await task_crud.update_or_create_task_state(
                     db,
                     project_id,
@@ -66,7 +66,7 @@ async def new_event(
                     State.LOCKED_FOR_MAPPING,
                 )
             else:
-                data = await task_crud.request_mapping(
+                data = await task_schemas.Task.request_mapping(
                     db,
                     project_id,
                     task_id,
@@ -102,7 +102,7 @@ async def new_event(
                     detail="Only the project creator can approve the mapping.",
                 )
 
-            requested_user_id = await task_crud.get_requested_user_id(
+            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
                 db, project_id, task_id
             )
             drone_operator = await user_schemas.DbUser.get_user_by_id(
@@ -129,7 +129,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update_task_state(
+            return await task_schemas.Task.update(
                 db,
                 project_id,
                 task_id,
@@ -147,7 +147,7 @@ async def new_event(
                     detail="Only the project creator can approve the mapping.",
                 )
 
-            requested_user_id = await task_crud.get_requested_user_id(
+            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
                 db, project_id, task_id
             )
             drone_operator = await user_schemas.DbUser.get_user_by_id(
@@ -174,7 +174,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update_task_state(
+            return await task_schemas.Task.update(
                 db,
                 project_id,
                 task_id,
@@ -184,7 +184,7 @@ async def new_event(
                 State.UNLOCKED_TO_MAP,
             )
         case EventType.FINISH:
-            return await task_crud.update_task_state(
+            return await task_schemas.Task.update(
                 db,
                 project_id,
                 task_id,
@@ -194,7 +194,7 @@ async def new_event(
                 State.UNLOCKED_TO_VALIDATE,
             )
         case EventType.VALIDATE:
-            return await task_crud.update_task_state(
+            return task_schemas.Task.update(
                 db,
                 project_id,
                 task_id,
@@ -204,7 +204,7 @@ async def new_event(
                 State.LOCKED_FOR_VALIDATION,
             )
         case EventType.GOOD:
-            return await task_crud.update_task_state(
+            return await task_schemas.Task.update(
                 db,
                 project_id,
                 task_id,
@@ -215,7 +215,7 @@ async def new_event(
             )
 
         case EventType.BAD:
-            return await task_crud.update_task_state(
+            return await task_schemas.Task.update(
                 db,
                 project_id,
                 task_id,
@@ -235,17 +235,23 @@ async def get_pending_tasks(
 ):
     """Get a list of pending tasks for a project creator."""
     user_id = user_data.id
-    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
-    records = await db.fetch_all(query, {"user_id": user_id})
-    if not records:
-        raise HTTPException(status_code=404, detail="User profile not found")
 
-    roles = [record["role"] for record in records]
-    if UserRole.PROJECT_CREATOR.name not in roles:
-        raise HTTPException(
-            status_code=403, detail="Access forbidden for non-Project Creator users"
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
+            {"user_id": user_id},
         )
-    pending_tasks = await task_crud.get_project_task_by_id(db, user_id)
-    if pending_tasks is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return pending_tasks
+        records = await cur.fetchall()
+        print("*" * 100, records)
+        if not records:
+            raise HTTPException(status_code=404, detail="User profile not found")
+
+        roles = [record["role"] for record in records]
+        if UserRole.PROJECT_CREATOR.name not in roles:
+            raise HTTPException(
+                status_code=403, detail="Access forbidden for non-Project Creator users"
+            )
+        pending_tasks = await task_schemas.Task.get_project_task_by_id(db, user_id)
+        if pending_tasks is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return pending_tasks
