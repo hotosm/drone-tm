@@ -9,7 +9,7 @@ import psycopg
 from fastapi import HTTPException
 from typing import Any
 from loguru import logger as log
-
+from app.users import user_crud
 
 class AuthUser(BaseModel):
     """The user model returned from Google OAuth2."""
@@ -147,7 +147,7 @@ class DbUserProfile(BaseUserProfile):
                 await cur.execute(
                     password_update_query,
                     {
-                        "password": user_deps.get_password_hash(
+                        "password": user_crud.get_password_hash(
                             profile_update.password
                         ),
                         "user_id": user_id,

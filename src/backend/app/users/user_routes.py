@@ -76,7 +76,7 @@ async def update_user_profile(
         HTTPException: If user with given user_id is not found in the database.
     """
 
-    user = await user_crud.get_user_by_id(db, user_id)
+    user = await user_schemas.DbUser.get_user_by_id(db, user_id)
 
     if user_data.id != user_id:
         raise HTTPException(
