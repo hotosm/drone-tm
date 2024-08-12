@@ -91,7 +91,7 @@ export default function CreateprojectLayout() {
     deadline_at: '',
     visibility: 0,
     dem: null,
-    require_approval_from_manager_for_locking: false,
+    requires_approval_from_manager_for_locking: false,
     altitude_from_ground: 0,
   };
 
@@ -203,8 +203,9 @@ export default function CreateprojectLayout() {
     const refactoredData = {
       ...data,
       is_terrain_follow: isTerrainFollow,
-      require_approval_from_manager_for_locking:
+      requires_approval_from_manager_for_locking:
         requireApprovalFromManagerForLocking === 'required',
+      deadline_at: data?.deadline_at ? data?.deadline_at : null,
     };
 
     // remove key
@@ -231,7 +232,7 @@ export default function CreateprojectLayout() {
 
         {/* form section */}
         <div className="form naxatw-relative naxatw-col-span-3 naxatw-h-full naxatw-bg-white naxatw-pb-[60px]">
-          <div className="naxatw-h-[calc(100vh_-_19rem)] naxatw-w-full naxatw-overflow-y-auto">
+          <div className="naxatw-h-full naxatw-w-full naxatw-overflow-y-auto lg:naxatw-h-[calc(100vh_-_21.7rem)] xl:naxatw-h-[calc(100vh_-_19rem)]">
             {getActiveStepForm(activeStep, formProps)}
           </div>
           <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-w-full naxatw-justify-between naxatw-px-10">

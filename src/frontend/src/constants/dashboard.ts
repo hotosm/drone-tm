@@ -1,41 +1,40 @@
-/* eslint-disable import/prefer-default-export */
 export const dashboardCardsForProjectCreator = [
   {
     id: 1,
     title: 'Request Logs',
-    value: 12,
+    value: 'request_logs',
   },
   {
     id: 2,
-    title: 'Ongoing Task',
-    value: 7,
+    title: 'Ongoing Tasks',
+    value: 'ongoing_tasks',
   },
   {
     id: 3,
-    title: 'Completed Task',
-    value: 5,
+    title: 'Unflyable Tasks',
+    value: 'unflyable_tasks',
   },
   {
     id: 4,
-    title: 'Completed Task',
-    value: 7,
+    title: 'Completed Tasks',
+    value: 'completed_tasks',
   },
 ];
 
 export const dashboardCardsForDroneOperator = [
   {
+    id: 1,
+    title: 'Ongoing Tasks',
+    value: 'ongoing_tasks',
+  },
+  {
     id: 2,
-    title: 'Ongoing Task',
-    value: 7,
+    title: 'Unflyable Tasks',
+    value: 'unflyable_tasks',
   },
   {
     id: 3,
-    title: 'Completed Task',
-    value: 5,
-  },
-  {
-    id: 4,
-    title: 'Completed Task',
-    value: 7,
+    title: 'Completed Tasks',
+    value: 'completed_tasks',
   },
 ];
