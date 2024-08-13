@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
-
 interface IDescriptionBoxComponentProps {
   title: string;
   data: {
@@ -21,7 +19,7 @@ const DescriptionBoxComponent = ({
           {data?.map(item => (
             <div
               className="naxatw-flex naxatw-w-full naxatw-gap-2"
-              key={uuidv4()}
+              key={item.name}
             >
               <p className="naxatw-w-[6.875rem] naxatw-text-[0.75rem] naxatw-text-[#484848]">
                 {item.name}
