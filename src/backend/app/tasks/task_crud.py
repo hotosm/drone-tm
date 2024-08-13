@@ -61,7 +61,7 @@ async def update_task_state(
     }
 
 
-async def get_project_task_by_id(db: Connection, user_id: str):
+async def get_pending_tasks_for_user(db: Connection, user_id: str):
     """Get a list of pending tasks created by a specific user (project creator)."""
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -136,9 +136,10 @@ async def request_mapping(
                 "task_id": str(task_id),
                 "user_id": str(user_id),
                 "comment": comment,
-                "unlocked_to_map_state": initial_state.name, #State.UNLOCKED_TO_MAP.name,
-                "request_for_map_state": final_state.name #State.REQUEST_FOR_MAPPING.name,
-            },)
+                "unlocked_to_map_state": initial_state.name,  # State.UNLOCKED_TO_MAP.name,
+                "request_for_map_state": final_state.name,  # State.REQUEST_FOR_MAPPING.name,
+            },
+        )
         # result = await cur.fetchone()
         # return result
 

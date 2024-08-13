@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic import BaseModel, validator
 from app.models.enums import EventType, HTTPStatus, State
 import uuid

@@ -52,8 +52,7 @@ async def new_event(
     ],
 ):
     user_id = user_data.id
-    project =  project.model_dump()
-    # print(project)
+    project = project.model_dump()
     match detail.event:
         case EventType.REQUESTS:
             if project["requires_approval_from_manager_for_locking"] is False:
@@ -77,15 +76,17 @@ async def new_event(
                     State.REQUEST_FOR_MAPPING,
                 )
                 # email notification
-                author = await user_schemas.DbUser.get_user_by_id(db, project['author_id'])
+                author = await user_schemas.DbUser.get_user_by_id(
+                    db, project["author_id"]
+                )
                 html_content = render_email_template(
                     template_name="mapping_requests.html",
                     context={
-                        "name": author['name'],
+                        "name": author["name"],
                         "drone_operator_name": user_data.name,
                         "task_id": task_id,
-                        "project_name": project['name'],
-                        "description": project['description'],
+                        "project_name": project["name"],
+                        "description": project["description"],
                     },
                 )
                 background_tasks.add_task(
@@ -98,7 +99,7 @@ async def new_event(
 
         case EventType.MAP:
             # project = await get_project_by_id(db, project_id)
-            if user_id != project['author_id']:
+            if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
                     detail="Only the project creator can approve the mapping.",
@@ -143,7 +144,7 @@ async def new_event(
 
         case EventType.REJECTED:
             # project = await get_project_by_id(db, project_id)
-            if user_id != project['author_id']:
+            if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
                     detail="Only the project creator can approve the mapping.",
@@ -252,7 +253,7 @@ async def get_pending_tasks(
             raise HTTPException(
                 status_code=403, detail="Access forbidden for non-Project Creator users"
             )
-        pending_tasks = await task_crud.get_project_task_by_id(db, user_id)
+        pending_tasks = await task_crud.get_pending_tasks_for_user(db, user_id)
         if pending_tasks is None:
             raise HTTPException(status_code=404, detail="Project not found")
         return pending_tasks
