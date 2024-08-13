@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Annotated, Optional, List
+from typing import Annotated, Optional, List, Union
 from datetime import datetime, date
 
 import geojson
@@ -30,7 +30,8 @@ def validate_geojson(
     value: FeatureCollection | Feature | Polygon,
 ) -> geojson.FeatureCollection:
     """Convert the upload GeoJSON to standardised FeatureCollection."""
-    return merge_multipolygon(value.model_dump())
+    if  value:
+        return merge_multipolygon(value.model_dump())
 
 
 def enum_to_str(value: IntEnum) -> str:
@@ -140,11 +141,11 @@ class DbProject(BaseModel):
     organisation_id: Optional[int]
     outline: Polygon
     centroid: Optional[Point]
-    no_fly_zones: Optional[MultiPolygon]
+    no_fly_zones: Optional[MultiPolygon] = None
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     requires_approval_from_manager_for_locking: Optional[bool]
-    author_id: Optional[str]
+    author_id: Optional[str] = None
     # TODO add all remaining project fields and validators
 
     @staticmethod
@@ -235,7 +236,6 @@ class DbProject(BaseModel):
                 msg = f"Project name ({project.name}) already exists!"
                 log.warning(f"User ({user_id}) failed project creation: {msg}")
                 raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=msg)
-
         # NOTE exclude_none is used over exclude_unset, or default value are not included
         model_dump = project.model_dump(
             exclude_none=True, exclude=["outline", "centroid"]

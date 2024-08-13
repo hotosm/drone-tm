@@ -10,7 +10,7 @@ from app.tasks.task_crud import get_task_geojson
 from app.db import database
 from app.utils import merge_multipolygon
 from app.s3 import get_file_from_bucket
-from typing import Annotated 
+from typing import Annotated
 from psycopg import Connection
 from app.projects import project_deps
 

@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated 
+from typing import Annotated
 from app.projects import project_deps, project_schemas
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
