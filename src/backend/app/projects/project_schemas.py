@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Annotated, Optional, List, Union
+from typing import Annotated, Optional, List
 from datetime import datetime, date
 
 import geojson
@@ -30,7 +30,7 @@ def validate_geojson(
     value: FeatureCollection | Feature | Polygon,
 ) -> geojson.FeatureCollection:
     """Convert the upload GeoJSON to standardised FeatureCollection."""
-    if  value:
+    if value:
         return merge_multipolygon(value.model_dump())
 
 

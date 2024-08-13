@@ -9,16 +9,21 @@ from geojson_pydantic import FeatureCollection
 from app.models.enums import HTTPStatus
 from app.utils import merge_multipolygon
 
+
 async def update_project_dem_url(db: Connection, project_id: uuid.UUID, dem_url: str):
     """Update the DEM URL for a project."""
-   
+
     async with db.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(
+            """
             UPDATE projects
             SET dem_url = %(dem_url)s
-            WHERE id = %(project_id)s""", {"dem_url": dem_url, "project_id": project_id})
-    
+            WHERE id = %(project_id)s""",
+            {"dem_url": dem_url, "project_id": project_id},
+        )
+
     return True
+
 
 async def create_tasks_from_geojson(
     db: Connection,

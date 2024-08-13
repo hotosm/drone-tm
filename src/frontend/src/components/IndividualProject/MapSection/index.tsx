@@ -90,7 +90,7 @@ export default function MapSection() {
     // const bbox = getBbox(tasksCollectiveGeojson as FeatureCollection);
     // map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
   }, [map, tasksData]);
-  
+
   const getPopupUI = useCallback(
     (properties: Record<string, any>) => {
       const status = taskStatusObj?.[properties?.id];
