@@ -14,6 +14,7 @@ from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
 
+from pydantic import model_validator
 from app.models.enums import FinalOutput, ProjectVisibility, State
 from app.models.enums import (
     IntEnum,
@@ -44,8 +45,10 @@ class ProjectIn(BaseModel):
     description: str
     per_task_instructions: Optional[str] = None
     task_split_dimension: Optional[int] = None
-    dem_url: Optional[str] = None
-    gsd_cm_px: float = None
+    gsd_cm_px: Optional[float] = None
+    altitude_from_ground: Optional[float] = None
+    front_overlap: Optional[float] = None
+    side_overlap: Optional[float] = None
     is_terrain_follow: bool = False
     outline: Annotated[
         FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)
@@ -106,6 +109,13 @@ class ProjectIn(BaseModel):
         except Exception as e:
             log.error(f"An error occurred while generating the slug: {e}")
             return ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_to_json(cls, value):
+        if isinstance(value, str):
+            return cls(**json.loads(value))
+        return value
 
 
 class TaskOut(BaseModel):

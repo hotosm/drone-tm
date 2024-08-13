@@ -53,10 +53,22 @@ async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
+    dem: UploadFile = File(None),
 ):
-    """Create a project in database."""
+    """Create a project in  database."""
     project_id = await project_schemas.DbProject.create(db, project_info, user_data.id)
-    return {"message": f"Project successfully created ({project_id})"}
+
+    # Upload DEM to S3
+    dem_url = await project_crud.upload_dem_to_s3(project_id, dem) if dem else None
+
+    # Update dem url to database
+    await project_crud.update_project_dem_url(db, project_id, dem_url)
+
+    if not project_id:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
+        )
+    return {"message": "Project successfully created", "project_id": project_id}
 
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])

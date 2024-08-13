@@ -171,7 +171,7 @@ export default function MapSection() {
                           paint: {
                             'fill-color': '#ffffff',
                             'fill-outline-color': '#484848',
-                            'fill-opacity': 0.4,
+                            'fill-opacity': 0.8,
                           },
                         }
               }

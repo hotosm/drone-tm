@@ -6,6 +6,7 @@ import GoogleAuth from '@Components/GoogleAuth';
 import userRoutes from '@UserModule/routes';
 import LandingPage from '@Views/LandingPage';
 import IndividualProject from '@Views/IndividualProject';
+import DroneOperatorTaskPage from '@Views/DroneOperatorTask';
 import { IRoute } from './types';
 
 const appRoutes: IRoute[] = [
@@ -50,6 +51,12 @@ const appRoutes: IRoute[] = [
     path: '/user-profile',
     name: 'User Profile',
     component: UserProfile,
+    authenticated: true,
+  },
+  {
+    path: 'dashboard/drone-operator-task',
+    name: 'Drone Operator Task',
+    component: DroneOperatorTaskPage,
     authenticated: true,
   },
 ];

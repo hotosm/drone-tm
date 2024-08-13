@@ -6,10 +6,12 @@ from psycopg import Connection
 from loguru import logger as log
 from fastapi import HTTPException
 from psycopg.rows import class_row
+from typing import Optional
 
 
 class NewEvent(BaseModel):
     event: EventType
+    comment: Optional[str] = None
 
 
 class Task(BaseModel):

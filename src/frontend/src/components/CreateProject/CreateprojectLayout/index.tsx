@@ -73,20 +73,26 @@ export default function CreateprojectLayout() {
   const isNoflyzonePresent = useTypedSelector(
     state => state.createproject.isNoflyzonePresent,
   );
+  const requireApprovalFromManagerForLocking = useTypedSelector(
+    state => state.createproject.requireApprovalFromManagerForLocking,
+  );
 
   const initialState: FieldValues = {
     name: '',
-    short_description: '',
+    // short_description: '',
     description: '',
     outline: null,
     no_fly_zones: null,
     gsd_cm_px: null,
-    dimension: null,
+    task_split_dimension: null,
     is_terrain_follow: null,
-    task_split_type: 1,
+    // task_split_type: 1,
     per_task_instructions: '',
     deadline_at: '',
     visibility: 0,
+    dem: null,
+    requires_approval_from_manager_for_locking: false,
+    altitude_from_ground: 0,
   };
 
   const {
@@ -177,32 +183,58 @@ export default function CreateprojectLayout() {
       }
     }
 
+    if (activeStep === 3) {
+      const finalOutput = data?.final_output?.filter(
+        (output: string | boolean) => output,
+      );
+      if (!finalOutput?.length) {
+        toast.error('Please select the final output');
+        return;
+      }
+      setValue('final_output', finalOutput);
+    }
+
     if (activeStep === 4 && !splitGeojson) return;
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
       return;
     }
-    const payload = {
-      ...data,
-      is_terrain_follow: isTerrainFollow === 'hilly',
-    };
-    // remove key
-    if (isNoflyzonePresent === 'no') delete payload?.no_fly_zones;
 
-    createProject(payload);
+    const refactoredData = {
+      ...data,
+      is_terrain_follow: isTerrainFollow,
+      requires_approval_from_manager_for_locking:
+        requireApprovalFromManagerForLocking === 'required',
+      deadline_at: data?.deadline_at ? data?.deadline_at : null,
+    };
+
+    // remove key
+    if (isNoflyzonePresent === 'no')
+      delete refactoredData?.project_info?.outline_no_fly_zones;
+    delete refactoredData?.project_info?.dem;
+
+    // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
+    const formData = new FormData();
+    formData.append('project_info', JSON.stringify({ ...refactoredData }));
+    if (isTerrainFollow) {
+      formData.append('dem', data?.dem?.[0]?.file);
+    }
+    createProject(formData);
   };
 
   return (
-    <section className="project-form-layout naxatw-bg-[#FAFAFA]">
-      <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
+    <section className="project-form-layout naxatw-h-full naxatw-bg-[#FAFAFA]">
+      <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-4 naxatw-gap-5">
         {/* description */}
-        <div className="description naxatw-col-span-1 naxatw-h-[32.625rem] naxatw-animate-fade-up naxatw-bg-white">
+        <div className="description naxatw-col-span-1 naxatw-animate-fade-up naxatw-bg-white">
           {getActiveStepDescription(stepDescriptionComponents, activeStep)}
         </div>
 
         {/* form section */}
-        <div className="form naxatw-relative naxatw-col-span-3 naxatw-bg-white">
-          {getActiveStepForm(activeStep, formProps)}
+        <div className="form naxatw-relative naxatw-col-span-3 naxatw-h-full naxatw-bg-white naxatw-pb-[60px]">
+          <div className="naxatw-h-full naxatw-w-full naxatw-overflow-y-auto lg:naxatw-h-[calc(100vh_-_21.7rem)] xl:naxatw-h-[calc(100vh_-_19rem)]">
+            {getActiveStepForm(activeStep, formProps)}
+          </div>
           <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-w-full naxatw-justify-between naxatw-px-10">
             {activeStep !== 1 ? (
               <Button

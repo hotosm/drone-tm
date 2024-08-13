@@ -150,3 +150,8 @@ export const keyParamsDescriptions = [
     icon: imageOverlap,
   },
 ];
+
+export const lockApprovalOptions = [
+  { name: 'Required', label: 'Required', value: 'required' },
+  { name: 'Not Required', label: 'Not Required', value: 'not_required' },
+];

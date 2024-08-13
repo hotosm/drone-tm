@@ -1,8 +1,8 @@
 from psycopg import Connection
-from fastapi import HTTPException
-from psycopg.rows import dict_row
 import uuid
 from app.models.enums import HTTPStatus, State
+from fastapi import HTTPException
+from psycopg.rows import dict_row
 
 
 async def update_task_state(
