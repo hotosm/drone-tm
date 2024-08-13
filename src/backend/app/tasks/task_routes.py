@@ -118,16 +118,16 @@ async def new_event(
                     "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
                     "task_status": "approved",
                     "name": user_data.name,
-                    "drone_operator_name": drone_operator.name,
+                    "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
-                    "project_name": project.name,
-                    "description": project.description,
+                    "project_name": project["name"],
+                    "description": project["description"],
                 },
             )
 
             background_tasks.add_task(
                 send_notification_email,
-                drone_operator.email_address,
+                drone_operator["email_address"],
                 "Task is approved",
                 html_content,
             )
@@ -163,16 +163,16 @@ async def new_event(
                     "email_body": "We are sorry to inform you that your mapping request has been rejected.",
                     "task_status": "rejected",
                     "name": user_data.name,
-                    "drone_operator_name": drone_operator.name,
+                    "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
-                    "project_name": project.name,
-                    "description": project.description,
+                    "project_name": project["name"],
+                    "description": project["description"],
                 },
             )
 
             background_tasks.add_task(
                 send_notification_email,
-                drone_operator.email_address,
+                drone_operator["email_address"],
                 "Task is Rejected",
                 html_content,
             )
