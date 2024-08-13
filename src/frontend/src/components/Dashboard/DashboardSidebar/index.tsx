@@ -8,7 +8,7 @@ export default function DashboardSidebar() {
 
   const userDetails = getLocalStorageValue('userprofile');
   return (
-    <FlexColumn className="naxatw-col-span-1 naxatw-items-center naxatw-rounded-lg naxatw-border naxatw-border-grey-400 naxatw-bg-white naxatw-p-2.5">
+    <FlexColumn className="w-naxatw-w-full naxatw-items-center naxatw-rounded-lg naxatw-border naxatw-border-grey-400 naxatw-bg-white naxatw-p-2.5 md:naxatw-min-h-[37.188rem]">
       <Flex className="naxatw-h-20 naxatw-w-20 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
         <img src={userDetails?.img_url} alt="profile" />
       </Flex>
@@ -22,13 +22,17 @@ export default function DashboardSidebar() {
         Edit Profile
       </Button>
       <FlexColumn className="naxatw-my-5 naxatw-w-full naxatw-gap-2">
-        <FlexRow className="naxatw-gap-1">
-          <div className="naxatw-w-[120px]">Name</div>:
-          <div>{userDetails?.name}</div>
+        <FlexRow className="naxatw-justify-center naxatw-gap-1 md:naxatw-justify-normal">
+          <p className="md:naxatw-min-w-[30%]">Name</p>:
+          <p className="naxatw-break-words md:naxatw-min-w-[65%]">
+            {userDetails?.name}
+          </p>
         </FlexRow>
-        <FlexRow className="naxatw-gap-1">
-          <div className="naxatw-w-[120px]">Email</div>:
-          <div className="naxatw-break-words">{userDetails?.email}</div>
+        <FlexRow className="naxatw-justify-center naxatw-gap-1 md:naxatw-justify-normal">
+          <p className="md:naxatw-min-w-[30%]">Email</p>:
+          <p className="naxatw-break-words md:naxatw-min-w-[65%]">
+            {userDetails?.email}
+          </p>
         </FlexRow>
       </FlexColumn>
     </FlexColumn>
