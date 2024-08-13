@@ -8,7 +8,7 @@ export const getProjectDetail = (id: string) =>
 
 export const postCreateProject = (data: any) =>
   authenticated(api).post('/projects', data, {
-    headers: { 'Content-Type': 'application/json' },
+    // headers: { 'Content-Type': 'application/json' },
   });
 
 export const postPreviewSplitBySquare = (data: any) =>

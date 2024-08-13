@@ -139,7 +139,7 @@ export default function CreateprojectLayout() {
       dispatch(setCreateProjectState({ projectId: res.data.project_id }));
       if (!splitGeojson) return;
       const geojson = convertGeojsonToFile(splitGeojson);
-      const formData = prepareFormData({ task_geojson: geojson });
+      const formData = prepareFormData({ geojson: geojson });
       uploadTaskBoundary({ id: res.data.project_id, data: formData });
       reset();
       dispatch(resetUploadedAndDrawnAreas());
