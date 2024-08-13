@@ -101,7 +101,6 @@ async def get_pending_tasks_for_user(db: Connection, user_id: str):
         )
 
         project_ids_result = await cur.fetchall()
-
         project_ids = [row["id"] for row in project_ids_result]
         await cur.execute(
             """

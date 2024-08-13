@@ -7,6 +7,7 @@ from loguru import logger as log
 from fastapi import HTTPException
 from psycopg.rows import class_row
 from typing import Optional
+from psycopg.rows import dict_row
 
 
 class NewEvent(BaseModel):
@@ -20,48 +21,62 @@ class Task(BaseModel):
     created_at: datetime = None
     state: State = None
     project_id: uuid.UUID
-    # final_state: Optional[State] = None
-    # initial_state: Optional[State] = None
 
-    @validator("state", pre=True, always=True)
-    def validate_state(cls, v):
-        if isinstance(v, str):
-            # Attempt to match the string to an enum value
-            try:
-                return State[v]
-            except KeyError:
-                raise ValueError(f"Unknown state label: {v}")
-        return v
+    # @validator("state", pre=True, always=True)
+    # def validate_state(cls, v):
+    #     if isinstance(v, str):
+    #         # Attempt to match the string to an enum value
+    #         try:
+    #             return State[v]
+    #         except KeyError:
+    #             raise ValueError(f"Unknown state label: {v}")
+    #     return v
+    
+    @staticmethod
+    async def get_all_tasks(db: Connection, project_id: uuid.UUID):
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute("""SELECT id FROM tasks WHERE project_id = %(project_id)s""",{"project_id": str(project_id)} )
 
-    async def all(db: Connection, project_id: uuid.UUID):
-        async with db.cursor(row_factory=class_row(Task)) as cur:
-            await cur.execute(
-                """
-                WITH all_tasks AS (
-                    SELECT id AS task_id
-                    FROM tasks
-                    WHERE project_id = %(project_id)s
-                ),
-                latest_task_events AS (
-                    SELECT DISTINCT ON (task_id) task_id, state
-                    FROM task_events
-                    WHERE project_id = %(project_id)s
-                    ORDER BY task_id, created_at DESC
-                )
-                SELECT
-                    %(project_id)s AS project_id,
-                    all_tasks.task_id,
-                    COALESCE(latest_task_events.state, %(default_state)s) AS state
-                FROM all_tasks
-                LEFT JOIN latest_task_events
-                ON all_tasks.task_id = latest_task_events.task_id
-                """,
-                {"project_id": project_id, "default_state": State.UNLOCKED_TO_MAP.name},
-            )
+            data = await cur.fetchall()
 
-            tasks_with_states = await cur.fetchall()
-            return tasks_with_states
+            # Extracting the list of IDs from the data
+            task_ids = [task["id"] for task in data]
 
+            return task_ids
+    
+    @staticmethod
+    async def all_tasks_states(db: Connection, project_id: uuid.UUID):
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute("""SELECT DISTINCT ON (task_id) project_id, task_id, state
+                FROM task_events
+                WHERE project_id = %(project_id)s
+                ORDER BY task_id, created_at DESC
+            """, {"project_id": project_id})
+            
+            existing_tasks  = await cur.fetchall()
+
+            # Get all task_ids from the tasks table
+            task_ids = await Task.get_all_tasks(db, project_id)
+            # Create a set of existing task_ids for quick lookup
+            existing_task_ids = {task["task_id"] for task in existing_tasks}
+
+            # task ids that are not in task_events table
+            remaining_task_ids = [x for x in task_ids if x not in existing_task_ids]
+
+            # Add missing tasks with state as "UNLOCKED_FOR_MAPPING"
+            remaining_tasks = [
+                {
+                    "project_id": str(project_id),
+                    "task_id": task_id,
+                    "state": State.UNLOCKED_TO_MAP.name,
+                }
+                for task_id in remaining_task_ids
+            ]
+
+            # Combine both existing tasks and remaining tasks
+            combined_tasks = existing_tasks + remaining_tasks
+            return combined_tasks
 
 class UserTasksStatsOut(BaseModel):
     task_id: uuid.UUID

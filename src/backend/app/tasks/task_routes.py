@@ -28,7 +28,7 @@ async def read_task(
 ):
     "Retrieve details of a specific task by its ID."
     try:
-        async with db.cursor() as cur:
+        async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
                 SELECT
@@ -124,7 +124,7 @@ async def task_states(
     db: Annotated[Connection, Depends(database.get_db)], project_id: uuid.UUID
 ):
     """Get all tasks states for a project."""
-    return await task_schemas.Task.all(db, project_id)
+    return await task_schemas.Task.all_tasks_states(db, project_id)
 
 
 @router.post("/event/{project_id}/{task_id}")
@@ -186,7 +186,6 @@ async def new_event(
             return data
 
         case EventType.MAP:
-            # project = await get_project_by_id(db, project_id)
             if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
@@ -231,7 +230,6 @@ async def new_event(
             )
 
         case EventType.REJECTED:
-            # project = await get_project_by_id(db, project_id)
             if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
