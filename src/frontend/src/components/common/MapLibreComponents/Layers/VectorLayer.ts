@@ -15,6 +15,7 @@ export default function VectorLayer({
   visibleOnMap = true,
   hasImage = false,
   image,
+  symbolPlacement = 'point',
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
@@ -58,6 +59,7 @@ export default function VectorLayer({
           type: 'symbol',
           source: sourceId,
           layout: {
+            'symbol-placement': symbolPlacement,
             'icon-image': imageId,
             'icon-size': 1,
             'icon-overlap': 'always',

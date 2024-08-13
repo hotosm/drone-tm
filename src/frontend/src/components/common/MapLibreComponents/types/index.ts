@@ -47,6 +47,7 @@ export interface IVectorLayer extends ILayer {
   onFeatureSelect?: (properties: Record<string, any>) => void;
   hasImage?: boolean;
   image?: any;
+  symbolPlacement?: 'point' | 'line' | 'line-center';
 }
 
 type InteractionsType = 'hover' | 'select';
