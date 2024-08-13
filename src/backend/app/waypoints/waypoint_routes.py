@@ -7,12 +7,12 @@ from app.config import settings
 from drone_flightplan import flightplan, waypoints
 from app.models.enums import HTTPStatus
 from app.tasks.task_crud import get_task_geojson
-from app.projects.project_crud import get_project_by_id
 from app.db import database
 from app.utils import merge_multipolygon
 from app.s3 import get_file_from_bucket
-from databases import Database
-
+from typing import Annotated 
+from psycopg import Connection
+from app.projects import project_deps
 
 # Constant to convert gsd to Altitude above ground level
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
@@ -26,14 +26,14 @@ router = APIRouter(
 
 @router.get("/task/{task_id}/")
 async def get_task_waypoint(
+    db: Annotated[Connection, Depends(database.get_db)],
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
-    db: Database = Depends(database.get_db),
 ):
     task_geojson = await get_task_geojson(db, task_id)
     features = task_geojson["features"][0]
-    project = await get_project_by_id(db, project_id)
+    project = await project_deps.get_project_by_id(db, project_id)
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
