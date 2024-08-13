@@ -133,6 +133,8 @@ class DbProject(BaseModel):
     no_fly_zones: Optional[MultiPolygon]
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
+    requires_approval_from_manager_for_locking: Optional[bool]
+    author_id: Optional[str]
     # TODO add all remaining project fields and validators
 
     @staticmethod

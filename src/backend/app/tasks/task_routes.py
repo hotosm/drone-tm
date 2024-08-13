@@ -1,5 +1,6 @@
 import uuid
 from typing import Annotated
+from app.projects import project_deps, project_schemas
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
 from app.models.enums import EventType, State, UserRole
@@ -10,7 +11,6 @@ from app.users import user_schemas
 from psycopg import Connection
 from app.db import database
 from app.utils import send_notification_email, render_email_template
-from app.projects.project_crud import get_project_by_id
 from psycopg.rows import dict_row
 
 router = APIRouter(
@@ -36,7 +36,7 @@ async def task_states(
     db: Annotated[Connection, Depends(database.get_db)], project_id: uuid.UUID
 ):
     """Get all tasks states for a project."""
-    return await task_crud.get_all_tasks_with_states(db, project_id)
+    return await task_schemas.Task.all(db, project_id)
 
 
 @router.post("/event/{project_id}/{task_id}")
@@ -47,20 +47,23 @@ async def new_event(
     task_id: uuid.UUID,
     detail: task_schemas.NewEvent,
     user_data: Annotated[AuthUser, Depends(login_required)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
 ):
     user_id = user_data.id
-
+    project =  project.model_dump()
+    # print(project)
     match detail.event:
         case EventType.REQUESTS:
-            project = await get_project_by_id(db, project_id)
             if project["requires_approval_from_manager_for_locking"] is False:
-                data = await task_crud.update_or_create_task_state(
+                data = await task_crud.request_mapping(
                     db,
                     project_id,
                     task_id,
                     user_id,
                     "Request accepted automatically",
-                    State.REQUEST_FOR_MAPPING,
+                    State.UNLOCKED_TO_MAP,
                     State.LOCKED_FOR_MAPPING,
                 )
             else:
@@ -70,18 +73,19 @@ async def new_event(
                     task_id,
                     user_id,
                     "Request for mapping",
+                    State.UNLOCKED_TO_MAP,
+                    State.REQUEST_FOR_MAPPING,
                 )
                 # email notification
-                author = await user_schemas.DbUser.get_user_by_id(db, project.author_id)
-
+                author = await user_schemas.DbUser.get_user_by_id(db, project['author_id'])
                 html_content = render_email_template(
                     template_name="mapping_requests.html",
                     context={
-                        "name": author.name,
+                        "name": author['name'],
                         "drone_operator_name": user_data.name,
                         "task_id": task_id,
-                        "project_name": project.name,
-                        "description": project.description,
+                        "project_name": project['name'],
+                        "description": project['description'],
                     },
                 )
                 background_tasks.add_task(
@@ -93,8 +97,8 @@ async def new_event(
             return data
 
         case EventType.MAP:
-            project = await get_project_by_id(db, project_id)
-            if user_id != project.author_id:
+            # project = await get_project_by_id(db, project_id)
+            if user_id != project['author_id']:
                 raise HTTPException(
                     status_code=403,
                     detail="Only the project creator can approve the mapping.",
@@ -138,8 +142,8 @@ async def new_event(
             )
 
         case EventType.REJECTED:
-            project = await get_project_by_id(db, project_id)
-            if user_id != project.author_id:
+            # project = await get_project_by_id(db, project_id)
+            if user_id != project['author_id']:
                 raise HTTPException(
                     status_code=403,
                     detail="Only the project creator can approve the mapping.",
@@ -240,7 +244,6 @@ async def get_pending_tasks(
             {"user_id": user_id},
         )
         records = await cur.fetchall()
-        print("*" * 100, records)
         if not records:
             raise HTTPException(status_code=404, detail="User profile not found")
 

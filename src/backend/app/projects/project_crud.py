@@ -6,21 +6,8 @@ from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
 from geojson_pydantic import FeatureCollection
-from psycopg.rows import dict_row
-
 from app.models.enums import HTTPStatus
 from app.utils import merge_multipolygon
-
-
-async def get_project_by_id(db: Connection, project_id: uuid.UUID):
-    "Get a single database project object by project_id"
-    async with db.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            """ select * from projects where id=%(project_id)s""",
-            {"project_id": project_id},
-        )
-        result = await cur.fetchone()
-        return result
 
 
 async def create_tasks_from_geojson(

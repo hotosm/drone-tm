@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from typing import Any
 from loguru import logger as log
 from app.users import user_crud
+from psycopg.rows import dict_row
 
 
 class AuthUser(BaseModel):
@@ -237,7 +238,7 @@ class DbUser(BaseModel):
     @staticmethod
     async def get_user_by_id(db: Connection, id: str) -> dict[str, Any] | None:
         query = "SELECT * FROM users WHERE id = %s LIMIT 1;"
-        async with db.cursor() as cur:
+        async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(query, (id,))
             result = await cur.fetchone()
             return result if result else None
