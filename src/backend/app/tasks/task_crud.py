@@ -5,9 +5,11 @@ from fastapi import HTTPException
 from psycopg.rows import dict_row
 import json
 
+
 async def get_task_geojson(db: Connection, task_id: uuid.UUID):
     async with db.cursor(row_factory=dict_row) as cur:
-        await cur.execute("""
+        await cur.execute(
+            """
             SELECT jsonb_build_object(
                 'type', 'FeatureCollection',
                 'features', jsonb_agg(
@@ -22,7 +24,9 @@ async def get_task_geojson(db: Connection, task_id: uuid.UUID):
             ) as geom
             FROM tasks
             WHERE id = :task_id;
-            """, {"task_id": str(task_id)})
+            """,
+            {"task_id": str(task_id)},
+        )
 
     data = await db.fetchone()
 
@@ -30,6 +34,7 @@ async def get_task_geojson(db: Connection, task_id: uuid.UUID):
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
 
     return json.loads(data["geom"])
+
 
 async def update_task_state(
     db: Connection,
