@@ -6,7 +6,7 @@ import GoogleAuth from '@Components/GoogleAuth';
 import userRoutes from '@UserModule/routes';
 import LandingPage from '@Views/LandingPage';
 import IndividualProject from '@Views/IndividualProject';
-import DroneOperatorTaskPage from '@Views/DroneOperatorTask';
+import TaskDescription from '@Views/TaskDescription';
 import { IRoute } from './types';
 
 const appRoutes: IRoute[] = [
@@ -54,9 +54,9 @@ const appRoutes: IRoute[] = [
     authenticated: true,
   },
   {
-    path: 'dashboard/drone-operator-task',
-    name: 'Drone Operator Task',
-    component: DroneOperatorTaskPage,
+    path: 'projects/:projectId/tasks/:taskId',
+    name: 'Task description',
+    component: TaskDescription,
     authenticated: true,
   },
 ];
