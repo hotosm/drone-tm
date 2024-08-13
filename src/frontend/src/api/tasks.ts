@@ -8,7 +8,7 @@ export const useGetTaskWaypointQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['task-description'],
+    queryKey: ['task-waypoints'],
     enabled: !!(projectId && taskId),
     queryFn: () => getTaskWaypoint(projectId, taskId),
     select: (res: any) => res.data,
