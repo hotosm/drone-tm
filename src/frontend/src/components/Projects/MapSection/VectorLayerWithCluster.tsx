@@ -1,3 +1,6 @@
+/* eslint-disable no-param-reassign */
+/* eslint-disable consistent-return */
+/* eslint-disable no-unused-expressions */
 import { useEffect } from 'react';
 
 export default function VectorLayerWithCluster({

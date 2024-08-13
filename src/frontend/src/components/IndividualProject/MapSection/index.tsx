@@ -14,7 +14,7 @@ import { FeatureCollection } from 'geojson';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { setProjectState } from '@Store/actions/project';
 import { useGetTaskStatesQuery } from '@Api/projects';
-import DTMLogo from '@Assets/images/lock.png';
+import lock from '@Assets/images/lock.png';
 import { postTaskStatus } from '@Services/project';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -178,7 +178,7 @@ export default function MapSection() {
               hasImage={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
               }
-              image={DTMLogo}
+              image={lock}
             />
           );
         })}
