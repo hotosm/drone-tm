@@ -1,4 +1,5 @@
-from app.models.enums import UserRole
+import uuid
+from app.models.enums import State, UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
 from typing import Optional
@@ -9,6 +10,7 @@ from fastapi import HTTPException
 from typing import Any
 from loguru import logger as log
 from app.users import user_crud
+from psycopg.rows import dict_row
 
 
 class AuthUser(BaseModel):
@@ -236,7 +238,7 @@ class DbUser(BaseModel):
     @staticmethod
     async def get_user_by_id(db: Connection, id: str) -> dict[str, Any] | None:
         query = "SELECT * FROM users WHERE id = %s LIMIT 1;"
-        async with db.cursor() as cur:
+        async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(query, (id,))
             result = await cur.fetchone()
             return result if result else None
@@ -248,3 +250,28 @@ class DbUser(BaseModel):
             await cur.execute(query, (email,))
             result = await cur.fetchone()
             return result if result else None
+
+    @staticmethod
+    async def get_requested_user_id(
+        db: Connection, project_id: uuid.UUID, task_id: uuid.UUID
+    ):
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT user_id
+                FROM task_events
+                WHERE project_id = %(project_id)s AND task_id = %(task_id)s and state = %(request_for_map_state)s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                {
+                    "project_id": str(project_id),
+                    "task_id": str(task_id),
+                    "request_for_map_state": State.REQUEST_FOR_MAPPING.name,
+                },
+            )
+
+            result = await cur.fetchone()
+            if result is None:
+                raise ValueError("No user requested for mapping")
+            return result["user_id"]
