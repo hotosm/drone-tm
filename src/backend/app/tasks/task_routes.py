@@ -28,31 +28,40 @@ async def read_task(
 ):
     "Retrieve details of a specific task by its ID."
     try:
-        query = """
-            SELECT
-                ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
-                task_events.created_at,
-                projects.name AS project_name,
-                project_task_index,
-                projects.front_overlap AS front_overlap,
-                projects.side_overlap AS side_overlap,
-                projects.gsd_cm_px AS gsd_cm_px,
-                projects.gimble_angles_degrees AS gimble_angles_degrees
-            FROM
-                task_events
-            JOIN
-                tasks ON task_events.task_id = tasks.id
-            JOIN
-                projects ON task_events.project_id = projects.id
-            WHERE
-                task_events.task_id = :task_id
-        """
-        records = await db.fetch_one(query, values={"task_id": task_id})
-        return records
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT
+                    ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+                    task_events.created_at,
+                    projects.name AS project_name,
+                    project_task_index,
+                    projects.front_overlap AS front_overlap,
+                    projects.side_overlap AS side_overlap,
+                    projects.gsd_cm_px AS gsd_cm_px,
+                    projects.gimble_angles_degrees AS gimble_angles_degrees
+                FROM
+                    task_events
+                JOIN
+                    tasks ON task_events.task_id = tasks.id
+                JOIN
+                    projects ON task_events.project_id = projects.id
+                WHERE
+                    task_events.task_id = %(task_id)s
+            """,
+                {"task_id": task_id},
+            )
+            task = await cur.fetchone()
+            if task is None:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail=f"Task with ID {task_id} not found.",
+                )
+            return task
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch tasks. {e}",
+            detail=f"Failed to fetch task. {e}",
         )
 
 
@@ -63,30 +72,40 @@ async def get_task_stats(
 ):
     "Retrieve statistics related to tasks for the authenticated user."
     user_id = user_data.id
-    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
-    records = await db.fetch_all(query, {"user_id": user_id})
-
-    if not records:
-        raise HTTPException(status_code=404, detail="User profile not found")
-    raw_sql = """
-        SELECT
-        COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-        COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
-        COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
-        COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
-        FROM tasks t
-        LEFT JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id);
-        """
 
     try:
-        db_counts = await db.fetch_one(query=raw_sql, values={"user_id": user_id})
+        async with db.cursor() as cur:
+            # Check if the user profile exists
+            await cur.execute(
+                """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
+                {"user_id": user_id},
+            )
+            records = await cur.fetchone()
+
+            if not records:
+                raise HTTPException(status_code=404, detail="User profile not found")
+
+            # Query for task statistics
+            raw_sql = """
+                SELECT
+                    COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+                FROM tasks t
+                LEFT JOIN task_events te ON t.id = te.task_id
+                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s);
+            """
+            await cur.execute(raw_sql, {"user_id": user_id})
+            db_counts = await cur.fetchone()
+
+        return db_counts
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch task counts. {e}",
+            detail=f"Failed to fetch task statistics. {e}",
         )
-    return db_counts
 
 
 @router.get("/", response_model=list[task_schemas.UserTasksStatsOut])
