@@ -5,7 +5,7 @@ import MapSection from '@Components/DroneOperatorTask/MapSection';
 const TaskDescription = () => {
   return (
     <>
-      <div className="naxatw-min-h-[calc(100vh-99px)]">
+      <div className="naxatw-min-h-[calc(100vh-60px)]">
         <div className="naxatw-mx-auto naxatw-w-11/12 naxatw-max-w-[90rem] naxatw-px-8 naxatw-pb-[2.9375rem] naxatw-pt-3">
           <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
             <DroneOperatorTaskHeader />
