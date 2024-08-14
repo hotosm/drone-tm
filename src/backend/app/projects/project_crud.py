@@ -163,7 +163,7 @@ async def get_projects(
 ):
     """Get all projects."""
     raw_sql = """
-        SELECT id, slug, name, description, per_task_instructions, outline
+        SELECT id, slug, name, description, per_task_instructions, outline, requires_approval_from_manager_for_locking
         FROM projects
         ORDER BY created_at DESC
         OFFSET :skip
