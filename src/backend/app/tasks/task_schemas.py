@@ -5,9 +5,8 @@ from datetime import datetime
 from psycopg import Connection
 from loguru import logger as log
 from fastapi import HTTPException
-from psycopg.rows import class_row
+from psycopg.rows import class_row, dict_row
 from typing import Optional
-from psycopg.rows import dict_row
 
 
 class NewEvent(BaseModel):

@@ -7,7 +7,7 @@ import json
 
 
 async def get_task_geojson(db: Connection, task_id: uuid.UUID):
-    async with db.cursor(row_factory=dict_row) as cur:
+    async with db.cursor() as cur:
         await cur.execute(
             """
             SELECT jsonb_build_object(
@@ -23,17 +23,16 @@ async def get_task_geojson(db: Connection, task_id: uuid.UUID):
                 )
             ) as geom
             FROM tasks
-            WHERE id = :task_id;
+            WHERE id = %(task_id)s;
             """,
             {"task_id": str(task_id)},
         )
 
-    data = await db.fetchone()
-
-    if data is None:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
-
-    return json.loads(data["geom"])
+        data = await cur.fetchone()
+        if data is None:
+            raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
+        return data[0]
+        # return json.loads(data[0]["geom"])
 
 
 async def update_task_state(

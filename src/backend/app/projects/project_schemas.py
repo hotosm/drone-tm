@@ -146,7 +146,13 @@ class DbProject(BaseModel):
     tasks: Optional[list[TaskOut]] = []
     requires_approval_from_manager_for_locking: Optional[bool]
     author_id: Optional[str] = None
-    # TODO add all remaining project fields and validators
+    front_overlap: Optional[float] = None
+    side_overlap: Optional[float] = None
+    gsd_cm_px: Optional[float] = None
+    altitude_from_ground: Optional[float] = None
+    is_terrain_follow: bool = False
+    
+    
 
     @staticmethod
     async def one(db: Connection, project_id: uuid.UUID):
