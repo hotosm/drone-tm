@@ -73,6 +73,19 @@ To get started with Drone TM:
 2. **Create Projects**: Sign up as a project creator to define Area for mapping.
 3. **Start Mapping**: Sign up as a drone pilots to use your drone to capture imagery and contribute to our global repository.
 
+## Roadmap
+
+<!-- prettier-ignore-start -->
+| Status | Feature |
+|:--:| :-- |
+|✅| simple UI with user sign up and login |
+|✅| flight plan generation for DJI .wmpl |
+|⚙️| terrain following for flight plans using DEM |
+|⚙️| |
+| | flight plan generation for another drone manufacturers |
+| | HOT community mapping drone |
+<!-- prettier-ignore-end -->
+
 ## Contribution
 
 Drone TM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
