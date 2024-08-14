@@ -139,7 +139,8 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
         projects.name,
         projects.description,
         projects.per_task_instructions,
-        projects.outline
+        projects.outline,
+        projects.requires_approval_from_manager_for_locking
     FROM projects
     WHERE projects.id = :project_id
     LIMIT 1;
