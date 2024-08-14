@@ -60,7 +60,7 @@ body {
 
 .scrollbar-images-grid::-webkit-scrollbar-thumb {
   background: transparent;
-} 
+}
 @keyframes pulse-animation {
   0% {
     box-shadow: 0 0 0 0 rgba(0, 70, 119, 0.5);
