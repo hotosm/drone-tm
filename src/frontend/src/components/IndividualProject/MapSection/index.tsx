@@ -18,8 +18,9 @@ import lock from '@Assets/images/lock.png';
 import { postTaskStatus } from '@Services/project';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
-export default function MapSection() {
+const MapSection = () => {
   const { id } = useParams();
   const dispatch = useTypedDispatch();
   const [taskStatusObj, setTaskStatusObj] = useState<Record<
@@ -197,4 +198,6 @@ export default function MapSection() {
       <BaseLayerSwitcher />
     </MapContainer>
   );
-}
+};
+
+export default hasErrorBoundary(MapSection);

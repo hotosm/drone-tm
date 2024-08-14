@@ -2,10 +2,11 @@ import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import { useGetProjectsListQuery } from '@Api/projects';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import centroid from '@turf/centroid';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
-export default function ProjectsMapSection() {
+const ProjectsMapSection = () => {
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -77,4 +78,6 @@ export default function ProjectsMapSection() {
       <BaseLayerSwitcher />
     </MapContainer>
   );
-}
+};
+
+export default hasErrorBoundary(ProjectsMapSection);

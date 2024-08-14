@@ -21,6 +21,7 @@ import { toast } from 'react-toastify';
 import { removeKeysFromObject } from '@Utils/index';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import Tab from '@Components/common/Tabs';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 const getActiveFormContent = (
   activeTab: number,
@@ -43,7 +44,7 @@ const getActiveFormContent = (
   }
 };
 
-export default function UserProfile() {
+const UserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
 
@@ -162,4 +163,6 @@ export default function UserProfile() {
       </section>
     </section>
   );
-}
+};
+
+export default hasErrorBoundary(UserProfile);

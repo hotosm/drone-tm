@@ -1,9 +1,10 @@
 import { stepSwticherData } from '@Constants/createProject';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import CreateprojectLayout from './CreateprojectLayout';
 import StepSwitcher from './StepSwitcher';
 import CreateProjectHeader from './CreateProjectHeader';
 
-export default function CreateProject() {
+const CreateProject = () => {
   return (
     <section className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-bg-grey-50 naxatw-px-32 naxatw-pt-5 xl:naxatw-px-48">
       <CreateProjectHeader />
@@ -11,4 +12,6 @@ export default function CreateProject() {
       <CreateprojectLayout />
     </section>
   );
-}
+};
+
+export default hasErrorBoundary(CreateProject);
