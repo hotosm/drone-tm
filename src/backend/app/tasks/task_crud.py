@@ -3,7 +3,6 @@ import uuid
 from app.models.enums import HTTPStatus, State
 from fastapi import HTTPException
 from psycopg.rows import dict_row
-import json
 
 
 async def get_task_geojson(db: Connection, task_id: uuid.UUID):
@@ -30,7 +29,9 @@ async def get_task_geojson(db: Connection, task_id: uuid.UUID):
 
         data = await cur.fetchone()
         if data is None:
-            raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="Task not found"
+            )
         return data[0]
         # return json.loads(data[0]["geom"])
 

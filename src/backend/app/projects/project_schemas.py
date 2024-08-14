@@ -151,8 +151,6 @@ class DbProject(BaseModel):
     gsd_cm_px: Optional[float] = None
     altitude_from_ground: Optional[float] = None
     is_terrain_follow: bool = False
-    
-    
 
     @staticmethod
     async def one(db: Connection, project_id: uuid.UUID):
