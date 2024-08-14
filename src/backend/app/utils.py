@@ -312,36 +312,35 @@ def get_address_from_lat_lon(latitude, longitude):
     return address_str
 
 
-def multipolygon_to_polygon(
-    featcol: geojson.FeatureCollection,
-) -> geojson.FeatureCollection:
+def multipolygon_to_polygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon]):
     """Converts a GeoJSON FeatureCollection of MultiPolygons to Polygons.
 
     Args:
-        featcol : A GeoJSON FeatureCollection containing MultiPolygons/Polygons.
+        features : A GeoJSON FeatureCollection containing MultiPolygons/Polygons.
 
     Returns:
         geojson.FeatureCollection: A GeoJSON FeatureCollection containing Polygons.
     """
-    final_features = []
+    geojson_feature = []
+    features = parse_featcol(features)
 
-    for feature in featcol.get("features", []):
+    # handles both collection or single feature
+    features = features.get("features", [features])
+
+    for feature in features:
         properties = feature["properties"]
-        try:
-            geom = shape(feature["geometry"])
-        except ValueError:
-            log.warning(f"Geometry is not valid, so was skipped: {feature['geometry']}")
-            continue
-
+        geom = shape(feature["geometry"])
         if geom.geom_type == "Polygon":
-            final_features.append(geojson.Feature(geometry=geom, properties=properties))
+            geojson_feature.append(
+                geojson.Feature(geometry=geom, properties=properties)
+            )
         elif geom.geom_type == "MultiPolygon":
-            final_features.extend(
+            geojson_feature.extend(
                 geojson.Feature(geometry=polygon_coords, properties=properties)
                 for polygon_coords in geom.geoms
             )
 
-    return geojson.FeatureCollection(final_features)
+    return geojson.FeatureCollection(geojson_feature)
 
 
 def normalise_featcol(featcol: geojson.FeatureCollection) -> geojson.FeatureCollection:
