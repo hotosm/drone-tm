@@ -1,19 +1,17 @@
 import json
 import uuid
-from typing import Annotated, Optional, List
+from typing import Annotated, Optional, List, Any
 from datetime import datetime, date
-
 import geojson
 from loguru import logger as log
 from pydantic import BaseModel, computed_field, Field
 from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
-from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
+from geojson_pydantic import Feature, FeatureCollection, Polygon, Point
 from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
-
 from pydantic import model_validator
 from app.models.enums import FinalOutput, ProjectVisibility, State
 from app.models.enums import (
@@ -24,6 +22,7 @@ from app.models.enums import (
 from app.utils import (
     merge_multipolygon,
 )
+from psycopg.rows import dict_row
 
 
 def validate_geojson(
@@ -32,6 +31,8 @@ def validate_geojson(
     """Convert the upload GeoJSON to standardised FeatureCollection."""
     if value:
         return merge_multipolygon(value.model_dump())
+    else:
+        return None
 
 
 def enum_to_str(value: IntEnum) -> str:
@@ -141,7 +142,7 @@ class DbProject(BaseModel):
     organisation_id: Optional[int]
     outline: Polygon
     centroid: Optional[Point]
-    no_fly_zones: Optional[MultiPolygon] = None
+    no_fly_zones: Any = Field(exclude=True)
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     requires_approval_from_manager_for_locking: Optional[bool]
@@ -183,43 +184,62 @@ class DbProject(BaseModel):
                 {"project_id": project_id},
             )
             project = await cur.fetchone()
-
             if not project:
                 raise KeyError(f"Project {project_id} not found")
 
             return project
 
-    @staticmethod
-    async def all(db: Connection, skip: int = 0, limit: int = 100):
-        """Get all projects, including tasks and task count."""
-        async with db.cursor(row_factory=class_row(DbProject)) as cur:
+    async def all(
+        db: Connection,
+        skip: int = 0,
+        limit: int = 100,
+    ):
+        """Get all projects."""
+        async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
-                SELECT
-                    p.*,
-                    ST_AsGeoJSON(p.outline)::jsonb AS outline,
-                    ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
-                    COALESCE(JSON_AGG(t.*) FILTER (WHERE t.id IS NOT NULL), '[]'::json) AS tasks,
-                    COUNT(t.id) AS task_count
-                FROM
-                    projects p
-                LEFT JOIN
-                    tasks t ON p.id = t.project_id
-                GROUP BY
-                    p.id
-                ORDER BY
-                    created_at DESC
-                OFFSET %(skip)s
-                LIMIT %(limit)s;
-                """,
+            SELECT id, slug, name, description, per_task_instructions, outline, requires_approval_from_manager_for_locking
+            FROM projects
+            ORDER BY created_at DESC
+            OFFSET %(skip)s
+            LIMIT %(limit)s
+            """,
                 {"skip": skip, "limit": limit},
             )
-            projects = await cur.fetchall()
+            db_projects = await cur.fetchall()
+            return db_projects
 
-            if not projects:
-                raise KeyError("No projects found")
+    # @staticmethod
+    # async def all(db: Connection, skip: int = 0, limit: int = 100):
+    #     """Get all projects, including tasks and task count."""
+    #     async with db.cursor(row_factory=class_row(DbProject)) as cur:
+    #         await cur.execute(
+    #             """
+    #             SELECT
+    #                 p.*,
+    #                 ST_AsGeoJSON(p.outline)::jsonb AS outline,
+    #                 ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
+    #                 COALESCE(JSON_AGG(t.*) FILTER (WHERE t.id IS NOT NULL), '[]'::json) AS tasks,
+    #                 COUNT(t.id) AS task_count
+    #             FROM
+    #                 projects p
+    #             LEFT JOIN
+    #                 tasks t ON p.id = t.project_id
+    #             GROUP BY
+    #                 p.id
+    #             ORDER BY
+    #                 created_at DESC
+    #             OFFSET %(skip)s
+    #             LIMIT %(limit)s;
+    #             """,
+    #             {"skip": skip, "limit": limit},
+    #         )
+    #         projects = await cur.fetchall()
 
-            return projects
+    #         if not projects:
+    #             raise KeyError("No projects found")
+
+    #         return projects
 
     @staticmethod
     async def create(db: Connection, project: ProjectIn, user_id: str) -> uuid.UUID:
@@ -331,7 +351,8 @@ class ProjectOut(BaseModel):
     name: str
     description: str
     per_task_instructions: Optional[str] = None
-    outline: Polygon
+    outline: Any = Field(exclude=True)
+    requires_approval_from_manager_for_locking: bool
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
 

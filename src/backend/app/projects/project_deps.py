@@ -11,7 +11,7 @@ from geojson import FeatureCollection
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.projects.project_schemas import DbProject
-from app.utils import geojson_to_featcol
+from app.utils import multipolygon_to_polygon
 
 
 async def get_project_by_id(
@@ -47,7 +47,9 @@ async def geojson_upload(
     bytes_data = await geojson.read()
 
     try:
-        geojson_data = json.loads(bytes_data)  #
+        task_boundaries = json.loads(bytes_data)
+        geojson_data = multipolygon_to_polygon(task_boundaries)
+
     except json.decoder.JSONDecodeError as e:
         msg = "Failed to read uploaded GeoJSON file. Is it valid?"
         log.warning(msg)
@@ -55,10 +57,4 @@ async def geojson_upload(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=msg
         ) from e
 
-    featcol = geojson_to_featcol(geojson_data)
-    if not isinstance(featcol, FeatureCollection):
-        msg = "Uploaded GeoJSON could not be parsed to FeatureCollection"
-        log.warning(msg)
-        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=msg)
-
-    return featcol
+    return geojson_data

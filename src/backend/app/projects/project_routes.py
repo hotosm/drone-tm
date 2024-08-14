@@ -1,5 +1,6 @@
 import os
 from typing import Annotated
+import uuid
 import geojson
 from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
@@ -16,6 +17,7 @@ from app.s3 import s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
+from psycopg.rows import dict_row
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -73,9 +75,10 @@ async def create_project(
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])
 async def upload_project_task_boundaries(
-    project: Annotated[
-        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
-    ],
+    # project: Annotated[
+    #     project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    # ],
+    project_id: uuid.UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
     task_featcol: Annotated[FeatureCollection, Depends(project_deps.geojson_upload)],
@@ -88,8 +91,19 @@ async def upload_project_task_boundaries(
         dict: JSON containing success message, project ID, and number of tasks.
     """
     log.debug("Creating tasks for each polygon in project")
-    await project_logic.create_tasks_from_geojson(db, project.id, task_featcol)
-    return {"message": "Project Boundary Uploaded", "project_id": f"{project.id}"}
+
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """SELECT * FROM projects WHERE id = %(project_id)s LIMIT 1;""",
+            {"project_id": project_id},
+        )
+        project = await cur.fetchone()
+        if not project:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST, detail="Project not found."
+            )
+    await project_logic.create_tasks_from_geojson(db, project["id"], task_featcol)
+    return {"message": "Project Boundary Uploaded", "project_id": f"{project['id']}"}
 
 
 @router.post("/preview-split-by-square/", tags=["Projects"])
@@ -126,6 +140,7 @@ async def preview_split_by_square(
         new_outline = project_shape.difference(no_fly_union)
     else:
         new_outline = project_shape
+
     result_geojson = geojson.Feature(geometry=mapping(new_outline))
 
     result = await project_logic.preview_split_by_square(result_geojson, dimension)

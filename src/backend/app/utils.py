@@ -179,7 +179,7 @@ def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon])
             """Remove z dimension from geojson."""
             return coord.pop() if len(coord) == 3 else None
 
-        features = geojson_to_featcol(features)
+        features = parse_featcol(features)
 
         multi_polygons = []
         # handles both collection or single feature
@@ -206,6 +206,71 @@ def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon])
             status_code=400,
             detail=f"Couldn't merge the multipolygon to polygon: {str(e)}",
         ) from e
+
+
+def parse_featcol(features: Union[Feature, FeatCol, MultiPolygon, Polygon]):
+    """Parse a feature collection or feature into a GeoJSON FeatureCollection.
+
+    Args:
+        features: Feature, FeatCol, MultiPolygon, Polygon or dict.
+
+    Returns:
+        dict: Parsed GeoJSON FeatureCollection.
+    """
+    if isinstance(features, dict):
+        return features
+
+    feat_col = features.model_dump_json()
+    feat_col = geojson.loads(feat_col)
+    if isinstance(features, (Polygon, MultiPolygon)):
+        feat_col = geojson.FeatureCollection([geojson.Feature(geometry=feat_col)])
+    elif isinstance(features, Feature):
+        feat_col = geojson.FeatureCollection([feat_col])
+    return feat_col
+
+
+# def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon]):
+#     """Merge multiple Polygons or MultiPolygons into a single Polygon.
+
+#     Args:
+#         features: geojson features to merge.
+
+#     Returns:
+#         A GeoJSON FeatureCollection containing the merged Polygon.
+#     """
+#     try:
+
+#         def remove_z_dimension(coord):
+#             """Remove z dimension from geojson."""
+#             return coord.pop() if len(coord) == 3 else None
+
+#         features = geojson_to_featcol(features)
+
+#         multi_polygons = []
+#         # handles both collection or single feature
+#         features = features.get("features", [features])
+
+#         for feature in features:
+#             list(map(remove_z_dimension, feature["geometry"]["coordinates"][0]))
+#             polygon = shapely.geometry.shape(feature["geometry"])
+#             multi_polygons.append(polygon)
+
+#         merged_polygon = unary_union(multi_polygons)
+#         if isinstance(merged_polygon, MultiPolygon):
+#             merged_polygon = merged_polygon.convex_hull
+
+#         merged_geojson = mapping(merged_polygon)
+#         if merged_geojson["type"] == "MultiPolygon":
+#             log.error(
+#                 "Resulted GeoJSON contains disjoint Polygons. "
+#                 "Adjacent polygons are preferred."
+#             )
+#         return geojson.FeatureCollection([geojson.Feature(geometry=merged_geojson)])
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=400,
+#             detail=f"Couldn't merge the multipolygon to polygon: {str(e)}",
+#         ) from e
 
 
 def get_address_from_lat_lon(latitude, longitude):
