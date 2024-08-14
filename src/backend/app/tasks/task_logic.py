@@ -92,37 +92,6 @@ async def update_task_state(
     }
 
 
-async def get_pending_tasks_for_user(db: Connection, user_id: str):
-    """Get a list of pending tasks created by a specific user (project creator)."""
-    async with db.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            """SELECT id FROM projects WHERE author_id = %(user_id)s""",
-            {"user_id": user_id},
-        )
-
-        project_ids_result = await cur.fetchall()
-        project_ids = [row["id"] for row in project_ids_result]
-        await cur.execute(
-            """
-            SELECT t.id AS task_id, te.event_id, te.user_id, te.project_id, te.comment, te.state, te.created_at
-            FROM tasks t
-            LEFT JOIN task_events te ON t.id = te.task_id
-            WHERE t.project_id = ANY(%(project_ids)s)
-            AND te.state = %(state)s
-            ORDER BY t.project_task_index;""",
-            {"project_ids": project_ids, "state": "REQUEST_FOR_MAPPING"},
-        )
-
-        try:
-            db_tasks = await cur.fetchall()
-        except Exception as e:
-            raise HTTPException(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=f"Failed to fetch project tasks. {e}",
-            )
-        return db_tasks
-
-
 async def request_mapping(
     db: Connection,
     project_id: uuid.UUID,
