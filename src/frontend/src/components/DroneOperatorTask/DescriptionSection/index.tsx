@@ -6,6 +6,7 @@ import { Button } from '@Components/RadixComponents/Button';
 import Tab from '@Components/common/Tabs';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { setSecondPageState } from '@Store/actions/droneOperatorTask';
+import { useParams } from 'react-router-dom';
 
 import UploadsBox from './UploadsBox';
 import DescriptionBox from './DescriptionBox';
@@ -73,12 +74,13 @@ const DroneOperatorDescriptionBox = () => {
     },
   ];
 
+  const { taskId } = useParams();
   return (
     <>
       <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-3 lg:naxatw-gap-5">
         <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-self-stretch">
           <p className="naxatw-text-[0.875rem] naxatw-font-normal naxatw-leading-normal naxatw-text-[#484848]">
-            Task #74936
+            Task #{taskId}
           </p>
           <Button
             variant="ghost"
