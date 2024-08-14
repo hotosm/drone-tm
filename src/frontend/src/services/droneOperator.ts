@@ -6,8 +6,8 @@ export const postUnflyableComment = ({
   taskId,
   data,
 }: {
-  projectId: string;
-  taskId: string;
+  projectId?: string;
+  taskId?: string;
   data: any;
 }) =>
   authenticated(api).post(`/tasks/event/${projectId}/${taskId}`, data, {
