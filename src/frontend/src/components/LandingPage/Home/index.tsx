@@ -7,9 +7,13 @@ import droneTaskingManagerLogo from '@Assets/images/DTM-logo-white.svg';
 import droneBackgroundImage from '@Assets/images/LandingPage/DroneTM-bg.png';
 import arrowSouth from '@Assets/images/LandingPage/arrow_south.svg';
 import { setCommonState } from '@Store/actions/common';
+import useAuth from '@Hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
   const dispatch = useTypedDispatch();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const bounceTransition: {
     y: {
@@ -48,12 +52,21 @@ export default function Home() {
       <div className="naxatw-container naxatw-h-full !naxatw-max-w-full naxatw-py-12">
         <div className="naxatw-flex naxatw-animate-fade-up naxatw-flex-row naxatw-justify-between">
           <Image src={droneTaskingManagerLogo} />
-          <Button
-            onClick={() => dispatch(setCommonState({ openSignInMenu: true }))}
-            className="naxatw-cursor-pointer !naxatw-rounded-[3.125rem] !naxatw-bg-landing-red naxatw-px-5 naxatw-py-3 naxatw-text-body-md naxatw-font-normal naxatw-text-landing-white"
-          >
-            Sign In
-          </Button>
+          {isAuthenticated() ? (
+            <Button
+              onClick={() => navigate('/projects')}
+              className="naxatw-cursor-pointer !naxatw-rounded-[3.125rem] naxatw-border naxatw-px-5 naxatw-py-3 naxatw-text-body-md naxatw-font-normal naxatw-text-landing-white"
+            >
+              Dashboard
+            </Button>
+          ) : (
+            <Button
+              onClick={() => dispatch(setCommonState({ openSignInMenu: true }))}
+              className="naxatw-cursor-pointer !naxatw-rounded-[3.125rem] !naxatw-bg-landing-red naxatw-px-5 naxatw-py-3 naxatw-text-body-md naxatw-font-normal naxatw-text-landing-white"
+            >
+              Sign In
+            </Button>
+          )}
         </div>
         <FlexColumn className="naxatw-relative naxatw-h-full naxatw-items-center naxatw-justify-center naxatw-pb-20 naxatw-text-center md:naxatw-items-start lg:naxatw-text-end">
           <motion.div
