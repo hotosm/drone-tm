@@ -6,16 +6,19 @@ export const postUnflyableComment = ({
   taskId,
   data,
 }: {
-  projectId: string;
-  taskId: string;
+  projectId?: string;
+  taskId?: string;
   data: any;
 }) =>
-  authenticated(api).post(
-    `http://localhost:8000/api/tasks/event/${projectId}/${taskId}`,
-    data,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  authenticated(api).post(`/tasks/event/${projectId}/${taskId}`, data, {
+    headers: {
+      'Content-Type': 'application/json',
     },
-  );
+  });
+
+export const getImageUploadLink = (data: any) =>
+  authenticated(api).post(`/projects/generate-presigned-url/`, data, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });

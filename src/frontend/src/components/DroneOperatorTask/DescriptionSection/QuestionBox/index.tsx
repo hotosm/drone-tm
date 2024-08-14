@@ -6,8 +6,11 @@ import { setSecondPage } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch } from '@Store/hooks';
 import { postUnflyableComment } from '@Services/droneOperator';
 import { useMutation } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 
 const QuestionBox = () => {
+  const { projectId, taskId } = useParams();
+
   const dispatch = useTypedDispatch();
   const [flyable, setFlyable] = useState('yes');
   const [comment, setComment] = useState('');
@@ -19,8 +22,6 @@ const QuestionBox = () => {
     setFlyable(e.target.value);
   }
 
-  const projectId = '9deb9a04-374a-40ab-ae81-3d44812b27ec';
-  const taskId = 'f2c7fde5-33d3-4a84-aa34-413a62409df2';
   const mutation = useMutation(
     (data: any) => postUnflyableComment({ projectId, taskId, data }),
     {

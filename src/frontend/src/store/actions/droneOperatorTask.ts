@@ -1,4 +1,12 @@
 import { droneOperatorTaskSlice } from '@Store/slices/droneOperartorTask';
 
-export const { setSecondPage, setSecondPageState } =
-  droneOperatorTaskSlice.actions;
+export const {
+  setSecondPage,
+  setSecondPageState,
+  setSelectedImage,
+  setCheckedImages,
+  unCheckImages,
+  showPopover,
+  unCheckAllImages,
+  checkAllImages,
+} = droneOperatorTaskSlice.actions;

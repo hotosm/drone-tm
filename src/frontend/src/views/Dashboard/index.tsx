@@ -49,10 +49,12 @@ export default function Dashboard() {
       <FlexRow className="naxatw-mb-4 naxatw-py-3">
         <h5 className="naxatw-font-bold">Profile</h5>
       </FlexRow>
-      <div className="naxatw-grid naxatw-h-[595px] naxatw-grid-cols-5 naxatw-gap-5">
-        <DashboardSidebar />
-        <div className="naxatw-col-span-4">
-          <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-5">
+      <div className="naxatw-grid naxatw-grid-cols-1 naxatw-gap-5 md:naxatw-grid-cols-10">
+        <div className="naxatw-w-full md:naxatw-col-span-3">
+          <DashboardSidebar />
+        </div>
+        <div className="naxatw-w-full md:naxatw-col-span-7">
+          <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-5">
             {isLoading ? (
               <>
                 {Array.from({ length: 4 }, (_, index) => (
@@ -71,7 +73,7 @@ export default function Dashboard() {
                   onClick={() =>
                     setActiveTab({ value: task.value, title: task.title })
                   }
-                  className="naxatw-cursor-pointer"
+                  className="naxatw-w-full naxatw-cursor-pointer md:naxatw-w-auto"
                 >
                   <DashboardCard
                     title={task.title}
