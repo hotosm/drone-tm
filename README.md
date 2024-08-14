@@ -81,7 +81,8 @@ To get started with Drone TM:
 |✅| simple UI with user sign up and login |
 |✅| flight plan generation for DJI .wmpl |
 |⚙️| terrain following for flight plans using DEM |
-|⚙️| |
+|⚙️| drone imagery upload and processing |
+| | user access management |
 | | flight plan generation for another drone manufacturers |
 | | HOT community mapping drone |
 <!-- prettier-ignore-end -->
