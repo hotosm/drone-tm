@@ -16,6 +16,7 @@ export default function VectorLayer({
   hasImage = false,
   image,
   symbolPlacement = 'point',
+  iconAnchor = 'center',
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
@@ -61,8 +62,9 @@ export default function VectorLayer({
           layout: {
             'symbol-placement': symbolPlacement,
             'icon-image': imageId,
-            'icon-size': 1,
+            'icon-size': 0.8,
             'icon-overlap': 'always',
+            'icon-anchor': iconAnchor,
           },
         });
       }

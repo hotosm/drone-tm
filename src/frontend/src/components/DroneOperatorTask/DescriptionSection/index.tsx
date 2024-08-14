@@ -1,20 +1,26 @@
 /* eslint-disable no-nested-ternary */
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-
 import { Button } from '@Components/RadixComponents/Button';
 import Tab from '@Components/common/Tabs';
+import { useGetIndividualTaskQuery } from '@Api/tasks';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { setSecondPageState } from '@Store/actions/droneOperatorTask';
-import { useParams } from 'react-router-dom';
-
 import UploadsBox from './UploadsBox';
 import DescriptionBox from './DescriptionBox';
 
+const { BASE_URL } = process.env;
+
 const DroneOperatorDescriptionBox = () => {
+  const { taskId, projectId } = useParams();
   const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
   const { secondPageState, secondPage } = secondPageStates;
   const [animated, setAnimated] = useState(false);
+
+  const { data: taskDescription }: Record<string, any> =
+    useGetIndividualTaskQuery(taskId as string);
+
   useEffect(() => {
     setAnimated(true);
     setTimeout(() => {
@@ -25,6 +31,7 @@ const DroneOperatorDescriptionBox = () => {
     open: { opacity: 1, y: 0 },
     closed: { opacity: 0, y: '50%' },
   };
+
   const renderComponent = (role: string) => {
     switch (role) {
       case 'description':
@@ -74,19 +81,28 @@ const DroneOperatorDescriptionBox = () => {
     },
   ];
 
-  const { taskId } = useParams();
+  const handleDownloadFlightPlan = () => {
+    const link = document.createElement('a');
+    link.setAttribute('download', '');
+    link.href = `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <>
       <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-3 lg:naxatw-gap-5">
         <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-self-stretch">
           <p className="naxatw-text-[0.875rem] naxatw-font-normal naxatw-leading-normal naxatw-text-[#484848]">
-            Task #{taskId}
+            Task #{taskDescription?.project_task_index}
           </p>
           <Button
             variant="ghost"
             className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
             leftIcon="download"
             iconClassname="naxatw-text-[1.125rem]"
+            onClick={() => handleDownloadFlightPlan()}
           >
             Download Flight Plan
           </Button>

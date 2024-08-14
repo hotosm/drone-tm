@@ -48,6 +48,16 @@ export interface IVectorLayer extends ILayer {
   hasImage?: boolean;
   image?: any;
   symbolPlacement?: 'point' | 'line' | 'line-center';
+  iconAnchor?:
+    | 'center'
+    | 'left'
+    | 'right'
+    | 'top'
+    | 'bottom'
+    | 'top-left'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-right';
 }
 
 type InteractionsType = 'hover' | 'select';
