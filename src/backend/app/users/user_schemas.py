@@ -9,7 +9,7 @@ import psycopg
 from fastapi import HTTPException
 from typing import Any
 from loguru import logger as log
-from app.users import user_crud
+from app.users import user_logic
 from psycopg.rows import dict_row
 
 
@@ -149,7 +149,7 @@ class DbUserProfile(BaseUserProfile):
                 await cur.execute(
                     password_update_query,
                     {
-                        "password": user_crud.get_password_hash(
+                        "password": user_logic.get_password_hash(
                             profile_update.password
                         ),
                         "user_id": user_id,

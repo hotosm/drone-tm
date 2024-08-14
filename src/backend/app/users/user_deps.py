@@ -1,4 +1,4 @@
-from app.users.user_crud import verify_token
+from app.users.user_logic import verify_token
 from fastapi import HTTPException, Request, Header
 from app.config import settings
 from app.users.auth import Auth

@@ -9,7 +9,7 @@ from psycopg import Connection
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 
-from app.projects import project_schemas, project_crud, project_deps
+from app.projects import project_schemas, project_deps, project_logic
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.s3 import s3_client
@@ -59,10 +59,10 @@ async def create_project(
     project_id = await project_schemas.DbProject.create(db, project_info, user_data.id)
 
     # Upload DEM to S3
-    dem_url = await project_crud.upload_dem_to_s3(project_id, dem) if dem else None
+    dem_url = await project_logic.upload_dem_to_s3(project_id, dem) if dem else None
 
     # Update dem url to database
-    await project_crud.update_project_dem_url(db, project_id, dem_url)
+    await project_logic.update_project_dem_url(db, project_id, dem_url)
 
     if not project_id:
         raise HTTPException(
@@ -88,7 +88,7 @@ async def upload_project_task_boundaries(
         dict: JSON containing success message, project ID, and number of tasks.
     """
     log.debug("Creating tasks for each polygon in project")
-    await project_crud.create_tasks_from_geojson(db, project.id, task_featcol)
+    await project_logic.create_tasks_from_geojson(db, project.id, task_featcol)
     return {"message": "Project Boundary Uploaded", "project_id": f"{project.id}"}
 
 
@@ -128,7 +128,7 @@ async def preview_split_by_square(
         new_outline = project_shape
     result_geojson = geojson.Feature(geometry=mapping(new_outline))
 
-    result = await project_crud.preview_split_by_square(result_geojson, dimension)
+    result = await project_logic.preview_split_by_square(result_geojson, dimension)
 
     return result
 

@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from app.config import settings
 from drone_flightplan import flightplan, waypoints
 from app.models.enums import HTTPStatus
-from app.tasks.task_crud import get_task_geojson
+from app.tasks.task_logic import get_task_geojson
 from app.db import database
 from app.utils import merge_multipolygon
 from app.s3 import get_file_from_bucket

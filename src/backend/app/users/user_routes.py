@@ -1,7 +1,7 @@
 import os
 from app.users import user_schemas
 from app.users import user_deps
-from app.users import user_crud
+from app.users import user_logic
 from fastapi import APIRouter, Response, HTTPException, Depends, Request
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
@@ -52,7 +52,7 @@ async def login_access_token(
         "img_url": user.profile_img,
     }
 
-    access_token, refresh_token = await user_crud.create_access_token(user_info)
+    access_token, refresh_token = await user_logic.create_access_token(user_info)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -120,7 +120,7 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
     access_token = google_auth.callback(callback_url).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)
-    access_token, refresh_token = await user_crud.create_access_token(user_data)
+    access_token, refresh_token = await user_logic.create_access_token(user_data)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -129,7 +129,7 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
 async def update_token(user_data: Annotated[AuthUser, Depends(login_required)]):
     """Refresh access token"""
 
-    access_token, refresh_token = await user_crud.create_access_token(
+    access_token, refresh_token = await user_logic.create_access_token(
         user_data.model_dump()
     )
     return Token(access_token=access_token, refresh_token=refresh_token)

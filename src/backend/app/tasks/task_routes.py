@@ -4,7 +4,7 @@ from app.projects import project_deps, project_schemas
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State, UserRole
-from app.tasks import task_schemas, task_crud
+from app.tasks import task_schemas, task_logic
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.users import user_schemas
@@ -144,7 +144,7 @@ async def new_event(
     match detail.event:
         case EventType.REQUESTS:
             if project["requires_approval_from_manager_for_locking"] is False:
-                data = await task_crud.request_mapping(
+                data = await task_logic.request_mapping(
                     db,
                     project_id,
                     task_id,
@@ -154,7 +154,7 @@ async def new_event(
                     State.LOCKED_FOR_MAPPING,
                 )
             else:
-                data = await task_crud.request_mapping(
+                data = await task_logic.request_mapping(
                     db,
                     project_id,
                     task_id,
@@ -219,7 +219,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update_task_state(
+            return await task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -263,7 +263,7 @@ async def new_event(
                 html_content,
             )
 
-            return await task_crud.update_task_state(
+            return await task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -273,7 +273,7 @@ async def new_event(
                 State.UNLOCKED_TO_MAP,
             )
         case EventType.FINISH:
-            return await task_crud.update_task_state(
+            return await task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -283,7 +283,7 @@ async def new_event(
                 State.UNLOCKED_TO_VALIDATE,
             )
         case EventType.VALIDATE:
-            return task_crud.update_task_state(
+            return task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -293,7 +293,7 @@ async def new_event(
                 State.LOCKED_FOR_VALIDATION,
             )
         case EventType.GOOD:
-            return await task_crud.update_task_state(
+            return await task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -304,7 +304,7 @@ async def new_event(
             )
 
         case EventType.BAD:
-            return await task_crud.update_task_state(
+            return await task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -314,7 +314,7 @@ async def new_event(
                 State.UNLOCKED_TO_MAP,
             )
         case EventType.COMMENT:
-            return await task_crud.update_task_state(
+            return await task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
@@ -349,7 +349,7 @@ async def get_pending_tasks(
             raise HTTPException(
                 status_code=403, detail="Access forbidden for non-Project Creator users"
             )
-        pending_tasks = await task_crud.get_pending_tasks_for_user(db, user_id)
+        pending_tasks = await task_logic.get_pending_tasks_for_user(db, user_id)
         if pending_tasks is None:
             raise HTTPException(status_code=404, detail="Project not found")
         return pending_tasks
