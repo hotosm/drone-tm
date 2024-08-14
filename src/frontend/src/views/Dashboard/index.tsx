@@ -73,7 +73,7 @@ export default function Dashboard() {
                   onClick={() =>
                     setActiveTab({ value: task.value, title: task.title })
                   }
-                  className="naxatw-cursor-pointer"
+                  className="naxatw-w-full naxatw-cursor-pointer md:naxatw-w-auto"
                 >
                   <DashboardCard
                     title={task.title}
