@@ -143,9 +143,6 @@ class State(int, Enum):
     UNLOCKED_DONE = 4
     UNFLYABLE_TASK = 5
 
-    def __str__(self):
-        return self.name
-
 
 class EventType(str, Enum):
     """Events that can be used via the API to update a state
