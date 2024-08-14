@@ -139,7 +139,8 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
         projects.name,
         projects.description,
         projects.per_task_instructions,
-        projects.outline
+        projects.outline,
+        projects.requires_approval_from_manager_for_locking
     FROM projects
     WHERE projects.id = :project_id
     LIMIT 1;
@@ -162,7 +163,7 @@ async def get_projects(
 ):
     """Get all projects."""
     raw_sql = """
-        SELECT id, slug, name, description, per_task_instructions, outline
+        SELECT id, slug, name, description, per_task_instructions, outline, requires_approval_from_manager_for_locking
         FROM projects
         ORDER BY created_at DESC
         OFFSET :skip
