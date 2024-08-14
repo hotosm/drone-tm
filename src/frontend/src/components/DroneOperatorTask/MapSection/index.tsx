@@ -11,6 +11,7 @@ import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLaye
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import right from '@Assets/images/rightArrow.png';
+import marker from '@Assets/images/marker.png';
 
 const MapSection = () => {
   const { projectId, taskId } = useParams();
@@ -95,7 +96,7 @@ const MapSection = () => {
 
   return (
     <>
-      <div className="naxatw-h-[70vh] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200">
+      <div className="naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200">
         <MapContainer
           map={map}
           isMapLoaded={isMapLoaded}
@@ -124,9 +125,13 @@ const MapSection = () => {
                 hasImage
                 image={right}
                 symbolPlacement="line"
+                iconAnchor="center"
               />
               {taskWayPoints?.geojsonListOfPoint?.map(
                 (point: any, index: number) => {
+                  const lastPoint =
+                    Number(taskWayPoints?.geojsonListOfPoint?.length) - 1;
+
                   return (
                     <VectorLayer
                       key={`waypoint-points-vtLayer-${index}`}
@@ -138,11 +143,18 @@ const MapSection = () => {
                       layerOptions={{
                         type: 'circle',
                         paint: {
-                          'circle-color': index === 0 ? 'red' : '#176149',
-                          'circle-opacity': 0.8,
-                          'circle-radius': index === 0 ? 9 : 6,
+                          'circle-color': '#176149',
+                          'circle-stroke-width': 2,
+                          'circle-stroke-color': 'red',
+                          'circle-stroke-opacity':
+                            index === 0 || index === lastPoint ? 0 : 1,
+                          'circle-opacity':
+                            index === 0 || index === lastPoint ? 0 : 1,
                         },
                       }}
+                      hasImage={index === 0}
+                      image={marker}
+                      iconAnchor="bottom"
                     />
                   );
                 },
