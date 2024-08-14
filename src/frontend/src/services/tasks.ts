@@ -6,4 +6,4 @@ export const getTaskWaypoint = (projectId: string, taskId: string) =>
   );
 
 export const getIndividualTask = (taskId: string) =>
-  authenticated(api).get(`/tasks/${taskId}/`);
+  authenticated(api).get(`/tasks/${taskId}`);
