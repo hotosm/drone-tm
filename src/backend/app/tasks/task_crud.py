@@ -130,7 +130,13 @@ async def all_tasks_states(db: Database, project_id: uuid.UUID):
 
 
 async def request_mapping(
-    db: Database, project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, comment: str
+    db: Database,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    user_id: str,
+    comment: str,
+    initial_state: State,
+    final_state: State,
 ):
     query = """
             WITH last AS (
@@ -165,8 +171,8 @@ async def request_mapping(
         "task_id": str(task_id),
         "user_id": str(user_id),
         "comment": comment,
-        "unlocked_to_map_state": State.UNLOCKED_TO_MAP.name,
-        "request_for_map_state": State.REQUEST_FOR_MAPPING.name,
+        "unlocked_to_map_state": initial_state.name,  # State.UNLOCKED_TO_MAP.name,
+        "request_for_map_state": final_state.name,  # State.REQUEST_FOR_MAPPING.name,
     }
 
     await db.fetch_one(query, values)
@@ -184,25 +190,25 @@ async def update_task_state(
     final_state: State,
 ):
     query = """
-                WITH last AS (
-                    SELECT *
-                    FROM task_events
-                    WHERE project_id = :project_id AND task_id = :task_id
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                ),
-                locked AS (
-                    SELECT *
-                    FROM last
-                    WHERE user_id = :user_id AND state = :initial_state
-                )
-                INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
-                SELECT gen_random_uuid(), project_id, task_id, user_id, :final_state, :comment, now()
+            WITH last AS (
+                SELECT *
+                FROM task_events
+                WHERE project_id = :project_id AND task_id = :task_id
+                ORDER BY created_at DESC
+                LIMIT 1
+            ),
+            locked AS (
+                SELECT *
                 FROM last
-                WHERE user_id = :user_id
-                RETURNING project_id, task_id, user_id, state;
+                WHERE user_id = :user_id AND state = :initial_state
+            )
+            UPDATE task_events
+            SET state = :final_state,
+                comment = :comment,
+                created_at = now()
+            FROM locked
+            WHERE task_events.event_id = locked.event_id
         """
-
     values = {
         "project_id": str(project_id),
         "task_id": str(task_id),
@@ -213,63 +219,7 @@ async def update_task_state(
     }
 
     await db.fetch_one(query, values)
-
     return {"project_id": project_id, "task_id": task_id, "comment": comment}
-
-
-async def update_or_create_task_state(
-    db: Database,
-    project_id: uuid.UUID,
-    task_id: uuid.UUID,
-    user_id: str,
-    comment: str,
-    initial_state: State,
-    final_state: State,
-):
-    # Update or insert task event
-    query = """
-        WITH last AS (
-            SELECT *
-            FROM task_events
-            WHERE project_id = :project_id AND task_id = :task_id
-            ORDER BY created_at DESC
-            LIMIT 1
-        ),
-        updated AS (
-            UPDATE task_events
-            SET state = :final_state, comment = :comment, created_at = now()
-            WHERE EXISTS (
-                SELECT 1
-                FROM last
-                WHERE user_id = :user_id AND state = :initial_state
-            )
-            RETURNING project_id, task_id, user_id, state
-        )
-        INSERT INTO task_events (event_id, project_id, task_id, user_id, state, comment, created_at)
-        SELECT gen_random_uuid(), :project_id, :task_id, :user_id, :final_state, :comment, now()
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM updated
-        )
-        RETURNING project_id, task_id, user_id, state;
-    """
-
-    values = {
-        "project_id": str(project_id),
-        "task_id": str(task_id),
-        "user_id": str(user_id),
-        "comment": comment,
-        "initial_state": initial_state.name,
-        "final_state": final_state.name,
-    }
-
-    result = await db.fetch_one(query, values)
-
-    return {
-        "project_id": result["project_id"],
-        "task_id": result["task_id"],
-        "comment": comment,
-    }
 
 
 async def get_requested_user_id(
@@ -292,30 +242,3 @@ async def get_requested_user_id(
     if result is None:
         raise ValueError("No user requested for mapping")
     return result["user_id"]
-
-
-async def get_project_task_by_id(db: Database, user_id: str):
-    """Get a list of pending tasks created by a specific user (project creator)."""
-    _sql = """
-        SELECT id FROM projects WHERE author_id = :user_id
-    """
-    project_ids_result = await db.fetch_all(query=_sql, values={"user_id": user_id})
-    project_ids = [row["id"] for row in project_ids_result]
-    raw_sql = """
-        SELECT t.id AS task_id, te.event_id, te.user_id, te.project_id, te.comment, te.state, te.created_at
-        FROM tasks t
-        LEFT JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id = ANY(:project_ids)
-        AND te.state = :state
-        ORDER BY t.project_task_index;
-    """
-    values = {"project_ids": project_ids, "state": "REQUEST_FOR_MAPPING"}
-    try:
-        db_tasks = await db.fetch_all(query=raw_sql, values=values)
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch project tasks. {e}",
-        )
-
-    return db_tasks
