@@ -149,7 +149,6 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
     project_record = await db.fetch_one(query, {"project_id": project_id})
     if not project_record:
         return None
-    # query = """ SELECT id, project_task_index, outline FROM tasks WHERE project_id = :project_id;"""
     query = """
         SELECT
             t.id,
