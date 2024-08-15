@@ -1,6 +1,7 @@
 import DroneOperatorDescriptionBox from '@Components/DroneOperatorTask/DescriptionSection';
 import DroneOperatorTaskHeader from '@Components/DroneOperatorTask/Header';
 import MapSection from '@Components/DroneOperatorTask/MapSection';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 const TaskDescription = () => {
   return (
@@ -20,4 +21,4 @@ const TaskDescription = () => {
   );
 };
 
-export default TaskDescription;
+export default hasErrorBoundary(TaskDescription);

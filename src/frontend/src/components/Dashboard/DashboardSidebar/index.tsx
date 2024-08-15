@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { Flex, FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
-export default function DashboardSidebar() {
+const DashboardSidebar = () => {
   const navigate = useNavigate();
 
   const userDetails = getLocalStorageValue('userprofile');
@@ -37,4 +38,6 @@ export default function DashboardSidebar() {
       </FlexColumn>
     </FlexColumn>
   );
-}
+};
+
+export default hasErrorBoundary(DashboardSidebar);

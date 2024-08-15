@@ -9,6 +9,7 @@ import { Button } from '@Components/RadixComponents/Button';
 import RadioButton from '@Components/common/RadioButton';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import FileUpload from '@Components/common/UploadArea';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import {
   setCreateProjectState,
   resetUploadedAndDrawnAreas,
@@ -22,11 +23,7 @@ import Icon from '@Components/common/Icon';
 import { toast } from 'react-toastify';
 import MapSection from './MapSection';
 
-export default function DefineAOI({
-  formProps,
-}: {
-  formProps: UseFormPropsType;
-}) {
+const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
 
   const { setValue, control, errors } = formProps;
@@ -385,4 +382,6 @@ export default function DefineAOI({
       </div>
     </FlexColumn>
   );
-}
+};
+
+export default hasErrorBoundary(DefineAOI);

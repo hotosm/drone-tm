@@ -48,6 +48,7 @@ export default function MapTools() {
     >
       {mapTools.map(tool => (
         <Icon
+          key={tool.iconName}
           name={tool.iconName}
           className="hover:naxatw-text-red"
           onClick={tool.onClick}

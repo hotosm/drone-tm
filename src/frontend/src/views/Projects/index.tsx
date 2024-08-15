@@ -8,8 +8,9 @@ import { useGetProjectsListQuery, useGetUserDetailsQuery } from '@Api/projects';
 import ProjectCardSkeleton from '@Components/Projects/ProjectCardSkeleton';
 import { useEffect } from 'react';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
-export default function Projects() {
+const Projects = () => {
   const showMap = useTypedSelector(state => state.common.showMap);
 
   // fetch api for projectsList
@@ -62,4 +63,6 @@ export default function Projects() {
       </div>
     </section>
   );
-}
+};
+
+export default hasErrorBoundary(Projects);

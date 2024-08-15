@@ -16,20 +16,25 @@ const DescriptionBoxComponent = ({
           {title}
         </p>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
-          {data?.map(item => (
-            <div
-              className="naxatw-flex naxatw-w-full naxatw-gap-2"
-              key={item.name}
-            >
-              <p className="naxatw-w-[6.875rem] naxatw-text-[0.75rem] naxatw-text-[#484848]">
-                {item.name}
-              </p>
-              <p className="naxatw-text-[0.75rem] naxatw-text-[#484848]">:</p>
-              <p className="naxatw-text-[0.75rem] naxatw-text-[#484848]">
-                {item.value}
-              </p>
-            </div>
-          ))}
+          {data?.map(
+            item =>
+              item.value && (
+                <div
+                  className="naxatw-flex naxatw-w-full naxatw-gap-2"
+                  key={item.name}
+                >
+                  <p className="naxatw-w-[6.875rem] naxatw-text-[0.75rem] naxatw-text-[#484848]">
+                    {item.name}
+                  </p>
+                  <p className="naxatw-text-[0.75rem] naxatw-text-[#484848]">
+                    :
+                  </p>
+                  <p className="naxatw-text-[0.75rem] naxatw-text-[#484848]">
+                    {item.value}
+                  </p>
+                </div>
+              ),
+          )}
         </div>
       </div>
     </>

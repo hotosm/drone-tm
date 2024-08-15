@@ -12,6 +12,7 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import right from '@Assets/images/rightArrow.png';
 import marker from '@Assets/images/marker.png';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 const MapSection = () => {
   const { projectId, taskId } = useParams();
@@ -168,4 +169,4 @@ const MapSection = () => {
   );
 };
 
-export default MapSection;
+export default hasErrorBoundary(MapSection);
