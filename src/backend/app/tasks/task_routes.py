@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State, UserRole
+from app.models.enums import EventType, HTTPStatus, State
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -119,10 +119,9 @@ async def new_event(
 
     match detail.event:
         case EventType.REQUESTS:
-            # TODO: Combine the logic of `update_or_create_task_state` and `request_mapping` functions into a single function if possible. Will do later.
             project = await get_project_by_id(db, project_id)
             if project["requires_approval_from_manager_for_locking"] is False:
-                data = await task_crud.update_or_create_task_state(
+                data = await task_crud.request_mapping(
                     db,
                     project_id,
                     task_id,
@@ -138,6 +137,8 @@ async def new_event(
                     task_id,
                     user_id,
                     "Request for mapping",
+                    State.UNLOCKED_TO_MAP,
+                    State.REQUEST_FOR_MAPPING,
                 )
                 # email notification
                 author = await get_user_by_id(db, project.author_id)
@@ -298,26 +299,3 @@ async def new_event(
             )
 
     return True
-
-
-@router.get("/requested_tasks/pending")
-async def get_pending_tasks(
-    user_data: AuthUser = Depends(login_required),
-    db: Database = Depends(database.get_db),
-):
-    """Get a list of pending tasks for a project creator."""
-    user_id = user_data.id
-    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
-    records = await db.fetch_all(query, {"user_id": user_id})
-    if not records:
-        raise HTTPException(status_code=404, detail="User profile not found")
-
-    roles = [record["role"] for record in records]
-    if UserRole.PROJECT_CREATOR.name not in roles:
-        raise HTTPException(
-            status_code=403, detail="Access forbidden for non-Project Creator users"
-        )
-    pending_tasks = await task_crud.get_project_task_by_id(db, user_id)
-    if pending_tasks is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return pending_tasks
