@@ -184,25 +184,25 @@ async def update_task_state(
     final_state: State,
 ):
     query = """
-                WITH last AS (
-                    SELECT *
-                    FROM task_events
-                    WHERE project_id = :project_id AND task_id = :task_id
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                ),
-                locked AS (
-                    SELECT *
-                    FROM last
-                    WHERE user_id = :user_id AND state = :initial_state
-                )
-                INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
-                SELECT gen_random_uuid(), project_id, task_id, user_id, :final_state, :comment, now()
+            WITH last AS (
+                SELECT *
+                FROM task_events
+                WHERE project_id = :project_id AND task_id = :task_id
+                ORDER BY created_at DESC
+                LIMIT 1
+            ),
+            locked AS (
+                SELECT *
                 FROM last
-                WHERE user_id = :user_id
-                RETURNING project_id, task_id, user_id, state;
+                WHERE user_id = :user_id AND state = :initial_state
+            )
+            UPDATE task_events
+            SET state = :final_state,
+                comment = :comment,
+                created_at = now()
+            FROM locked
+            WHERE task_events.event_id = locked.event_id
         """
-
     values = {
         "project_id": str(project_id),
         "task_id": str(task_id),
@@ -213,7 +213,6 @@ async def update_task_state(
     }
 
     await db.fetch_one(query, values)
-
     return {"project_id": project_id, "task_id": task_id, "comment": comment}
 
 
