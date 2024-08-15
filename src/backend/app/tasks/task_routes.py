@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State
+from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks import task_schemas, task_crud
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -67,6 +67,13 @@ async def get_task_stats(
 
     if not records:
         raise HTTPException(status_code=404, detail="User profile not found")
+
+    roles = [record["role"] for record in records]
+    if UserRole.PROJECT_CREATOR.name in roles:
+        role = "PROJECT_CREATOR"
+    else:
+        role = "DRONE_PILOT"
+
     raw_sql = """
         SELECT
         COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
@@ -75,11 +82,20 @@ async def get_task_stats(
         COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
         FROM tasks t
         LEFT JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id);
+        WHERE
+        (
+            :role = 'DRONE_PILOT' AND te.user_id = :user_id
+        )
+        OR
+        (
+            :role != 'DRONE_PILOT' AND t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+        )
         """
 
     try:
-        db_counts = await db.fetch_one(query=raw_sql, values={"user_id": user_id})
+        db_counts = await db.fetch_one(
+            query=raw_sql, values={"user_id": user_id, "role": role}
+        )
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -93,10 +109,22 @@ async def list_tasks(
     db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
 ):
-    """Get all tasks for a drone user."""
+    """Get all tasks for a all user."""
 
     user_id = user_data.id
-    return await task_crud.get_tasks_by_user(user_id, db)
+    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
+    records = await db.fetch_all(query, {"user_id": user_id})
+
+    roles = [record["role"] for record in records]
+    if UserRole.PROJECT_CREATOR.name in roles:
+        role = UserRole.PROJECT_CREATOR.name
+    else:
+        role = "DRONE_PILOT"
+
+    if not records:
+        raise HTTPException(status_code=404, detail="User profile not found")
+
+    return await task_crud.get_tasks_by_user(user_id, db, role)
 
 
 @router.get("/states/{project_id}")

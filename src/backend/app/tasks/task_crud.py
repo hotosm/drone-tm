@@ -34,40 +34,43 @@ async def get_task_geojson(db: Database, task_id: uuid.UUID):
     return json.loads(data["geom"])
 
 
-async def get_tasks_by_user(user_id: str, db: Database):
+async def get_tasks_by_user(user_id: str, db: Database, role: str):
     try:
-        query = """
-            WITH task_details AS (
-                SELECT
-                    tasks.id AS task_id,
-                    task_events.project_id AS project_id,
-                    ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
-                    task_events.created_at,
-                    task_events.state
-                FROM
-                    task_events
-                JOIN
-                    tasks ON task_events.task_id = tasks.id
-                WHERE
-                    task_events.user_id = :user_id
-            )
+        query = """WITH task_details AS (
             SELECT
-                task_details.task_id,
-                task_details.project_id,
-                task_details.task_area,
-                task_details.created_at,
-                CASE
-                    WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                    WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                    WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
-                    WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                    ELSE 'unknown' -- Default case if the state does not match any expected values
-                END AS state
-            FROM task_details;
-
-            """
-
-        records = await db.fetch_all(query, values={"user_id": user_id})
+                tasks.id AS task_id,
+                task_events.project_id AS project_id,
+                ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+                task_events.created_at,
+                task_events.state
+            FROM
+                task_events
+            LEFT JOIN
+                tasks ON task_events.task_id = tasks.id
+            WHERE
+                (
+                    :role = 'DRONE_PILOT' AND task_events.user_id = :user_id
+                )
+                OR
+                (
+                    :role != 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+                )
+        )
+        SELECT
+            task_details.task_id,
+            task_details.project_id,
+            task_details.task_area,
+            task_details.created_at,
+            CASE
+                WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+                WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
+                WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                ELSE ''
+            END AS state
+        FROM task_details;
+        """
+        records = await db.fetch_all(query, values={"user_id": user_id, "role": role})
         return records
 
     except Exception as e:
