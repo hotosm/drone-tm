@@ -48,31 +48,25 @@ async def update_task_state(
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """
-        WITH last AS (
-            SELECT *
-            FROM task_events
-            WHERE project_id = :%(project_id)s AND task_id = :%(task_id)s
-            ORDER BY created_at DESC
-            LIMIT 1
-        ),
-        updated AS (
-            UPDATE task_events
-            SET state = :%(final_state)s, comment = :%(comment)s, created_at = now()
-            WHERE EXISTS (
-                SELECT 1
-                FROM last
-                WHERE user_id = :%(user_id)s AND state = :%(initial_state)s
-            )
-            RETURNING project_id, task_id, user_id, state
-        )
-        INSERT INTO task_events (event_id, project_id, task_id, user_id, state, comment, created_at)
-        SELECT gen_random_uuid(), :%(project_id)s, :%(task_id)s, :%(user_id)s, :%(final_state)s, :%(comment)s, now()
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM updated
-        )
-        RETURNING project_id, task_id, user_id, state;
-    """,
+                WITH last AS (
+                        SELECT *
+                        FROM task_events
+                        WHERE project_id = %(project_id)s AND task_id = %(task_id)s
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    ),
+                    locked AS (
+                        SELECT *
+                        FROM last
+                        WHERE user_id = %(user_id)s AND state = %(initial_state)s
+                    )
+                    UPDATE task_events
+                    SET state = %(final_state)s,
+                        comment = %(comment)s,
+                        created_at = now()
+                    FROM locked
+                    WHERE task_events.event_id = locked.event_id
+            """,
             {
                 "project_id": str(project_id),
                 "task_id": str(task_id),

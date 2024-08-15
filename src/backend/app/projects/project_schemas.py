@@ -351,6 +351,7 @@ class ProjectOut(BaseModel):
     name: str
     description: str
     per_task_instructions: Optional[str] = None
+    requires_approval_from_manager_for_locking: Optional[bool] = None
     outline: Any = Field(exclude=True)
     requires_approval_from_manager_for_locking: bool
     task_count: int = 0

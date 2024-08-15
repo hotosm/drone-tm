@@ -13,19 +13,27 @@ import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { setProjectState } from '@Store/actions/project';
-import { useGetTaskStatesQuery } from '@Api/projects';
-import DTMLogo from '@Assets/images/lock.png';
+import {
+  useGetProjectsDetailQuery,
+  useGetTaskStatesQuery,
+} from '@Api/projects';
+import lock from '@Assets/images/lock.png';
 import { postTaskStatus } from '@Services/project';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
-export default function MapSection() {
+const MapSection = () => {
   const { id } = useParams();
   const dispatch = useTypedDispatch();
   const [taskStatusObj, setTaskStatusObj] = useState<Record<
     string,
     any
   > | null>(null);
+
+  const { data: projectData }: Record<string, any> = useGetProjectsDetailQuery(
+    id as string,
+  );
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
@@ -48,11 +56,18 @@ export default function MapSection() {
   const { mutate: lockTask } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: (res: any) => {
-      toast.success('Task Requested for Mapping');
       setTaskStatusObj({
         ...taskStatusObj,
-        [res.data.task_id]: 'REQUEST_FOR_MAPPING',
+        [res.data.task_id]:
+          projectData?.requires_approval_from_manager_for_locking
+            ? 'REQUEST_FOR_MAPPING'
+            : 'LOCKED_FOR_MAPPING',
       });
+      if (projectData?.requires_approval_from_manager_for_locking) {
+        toast.success('Task Requested for Mapping');
+      } else {
+        toast.success('Task Locked for Mapping');
+      }
     },
     onError: (err: any) => {
       toast.error(err.message);
@@ -128,13 +143,14 @@ export default function MapSection() {
         height: '100%',
       }}
     >
-      {tasksData &&
-        tasksData?.map((task: Record<string, any>) => {
+      {taskStatusObj &&
+        tasksData &&
+        tasksData?.map((task: Record<string, any>, index: number) => {
           return (
             <VectorLayer
               key={task?.id}
               map={map as Map}
-              id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
+              id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}-${index}`}
               visibleOnMap={task?.id && taskStatusObj}
               geojson={task.outline as GeojsonType}
               interactions={['feature']}
@@ -178,7 +194,7 @@ export default function MapSection() {
               hasImage={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
               }
-              image={DTMLogo}
+              image={lock}
             />
           );
         })}
@@ -197,4 +213,6 @@ export default function MapSection() {
       <BaseLayerSwitcher />
     </MapContainer>
   );
-}
+};
+
+export default hasErrorBoundary(MapSection);

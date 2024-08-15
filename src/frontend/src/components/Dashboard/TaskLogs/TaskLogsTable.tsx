@@ -44,7 +44,11 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
                 <div
                   className="naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg hover:naxatw-bg-gray-200"
                   role="presentation"
-                  onClick={() => navigate(`/tasks/${task.task_id}`)}
+                  onClick={() =>
+                    navigate(
+                      `/projects/${task.project_id}/tasks/${task.task_id}`,
+                    )
+                  }
                 >
                   <i className="material-icons-outlined">zoom_in</i>
                 </div>

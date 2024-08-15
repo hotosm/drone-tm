@@ -10,6 +10,7 @@
 html,
 body {
   font-family: 'Barlow Condensed', sans-serif;
+  box-sizing: border-box;
 }
 
 .landing-page p {
@@ -38,6 +39,27 @@ body {
   animation: pulse-animation 1.6s infinite;
   transition: all 1s ease-in-out;
   border-radius: 500px;
+}
+.scrollbar-images-grid::-webkit-scrollbar {
+  /* height: 7px; */
+  width: 6px;
+}
+.scrollbar-images-grid:hover::-webkit-scrollbar-track {
+  background: #d73f3f40;
+  border-radius: 10px;
+  /* display: block; */
+}
+.scrollbar-images-grid:hover::-webkit-scrollbar-thumb {
+  background: #d73f3fd3;
+  border-radius: 10px;
+}
+.scrollbar-images-grid::-webkit-scrollbar-track {
+  background: transparent;
+  display: none;
+}
+
+.scrollbar-images-grid::-webkit-scrollbar-thumb {
+  background: transparent;
 }
 @keyframes pulse-animation {
   0% {

@@ -12,14 +12,15 @@ import getBbox from '@turf/bbox';
 import useDrawTool from '@Components/common/MapLibreComponents/useDrawTool';
 import { drawStyles } from '@Constants/map';
 import { setCreateProjectState } from '@Store/actions/createproject';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
-export default function MapSection({
+const MapSection = ({
   onResetButtonClick,
   handleDrawProjectAreaClick,
 }: {
   onResetButtonClick: (reset: any) => void;
   handleDrawProjectAreaClick: any;
-}) {
+}) => {
   const dispatch = useTypedDispatch();
 
   const { map, isMapLoaded } = useMapLibreGLMap({
@@ -176,4 +177,6 @@ export default function MapSection({
       <BaseLayerSwitcher />
     </MapContainer>
   );
-}
+};
+
+export default hasErrorBoundary(MapSection);

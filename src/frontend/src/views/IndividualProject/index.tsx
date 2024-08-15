@@ -13,6 +13,7 @@ import {
 import { useGetProjectsDetailQuery } from '@Api/projects';
 import { setProjectState } from '@Store/actions/project';
 import { projectOptions } from '@Constants/index';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 // function to render the content based on active tab
 const getActiveTabContent = (
@@ -32,7 +33,7 @@ const getActiveTabContent = (
   return <></>;
 };
 
-export default function IndividualProject() {
+const IndividualProject = () => {
   const { id } = useParams();
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
@@ -100,4 +101,6 @@ export default function IndividualProject() {
       </Flex>
     </section>
   );
-}
+};
+
+export default hasErrorBoundary(IndividualProject);
