@@ -5,6 +5,7 @@ import { FormControl, Label, Input } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { setCreateProjectState } from '@Store/actions/createproject';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 // import { terrainOptions } from '@Constants/createProject';
 import orthoPhotoIcon from '@Assets/images/ortho-photo-icon.svg';
 import _3DModal from '@Assets/images/3d-model-icon.svg';
@@ -31,11 +32,7 @@ const FinalOutputOptions = [
   },
 ];
 
-export default function KeyParameters({
-  formProps,
-}: {
-  formProps: UseFormPropsType;
-}) {
+const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
 
   const { register, errors, watch, control } = formProps;
@@ -209,4 +206,6 @@ export default function KeyParameters({
       )}
     </div>
   );
-}
+};
+
+export default hasErrorBoundary(KeyParameters);

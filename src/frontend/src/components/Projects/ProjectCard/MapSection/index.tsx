@@ -7,14 +7,15 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
-export default function MapSection({
+const MapSection = ({
   containerId,
   geojson,
 }: {
   containerId: string;
   geojson: GeojsonType;
-}) {
+}) => {
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId,
     mapOptions: {
@@ -53,4 +54,6 @@ export default function MapSection({
       <BaseLayerSwitcher />
     </MapContainer>
   );
-}
+};
+
+export default hasErrorBoundary(MapSection);

@@ -1,13 +1,17 @@
-import { useGetRequestedTasksListQuery } from '@Api/dashboard';
+import { useGetTaskListQuery } from '@Api/dashboard';
 import { FlexColumn } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { postTaskStatus } from '@Services/project';
 import { useMutation } from '@tanstack/react-query';
-import { useMemo } from 'react';
 import { toast } from 'react-toastify';
 
 const RequestLogs = () => {
-  const { data: requestedTasks } = useGetRequestedTasksListQuery();
+  const { data: requestedTasks }: any = useGetTaskListQuery({
+    select: (data: any) =>
+      data?.data?.filter(
+        (task: Record<string, any>) => task?.state === 'request logs',
+      ),
+  });
 
   const { mutate: respondToRequest } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
@@ -18,17 +22,6 @@ const RequestLogs = () => {
       toast.error(err.message);
     },
   });
-
-  const requestedForMappingTasks: any[] =
-    useMemo(
-      () =>
-        // @ts-ignore
-        requestedTasks?.reduce((acc: any[], curr: Record<string, any>) => {
-          if (curr?.state === 'REQUEST_FOR_MAPPING') return [...acc, curr];
-          return acc;
-        }, []),
-      [requestedTasks],
-    ) || [];
 
   const handleReject = (taskId: string, projectId: string) => {
     respondToRequest({
@@ -52,7 +45,7 @@ const RequestLogs = () => {
         Request Logs
       </h4>
       <FlexColumn className="naxatw-max-h-[24.4rem] naxatw-gap-2 naxatw-overflow-y-auto">
-        {requestedForMappingTasks?.map((task: Record<string, any>) => (
+        {requestedTasks?.map((task: Record<string, any>) => (
           <div
             key={task.task_id}
             className="naxatw-flex naxatw-h-fit naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-rounded-xl naxatw-border naxatw-border-gray-300 naxatw-p-3"
@@ -83,5 +76,4 @@ const RequestLogs = () => {
     </div>
   );
 };
-
 export default RequestLogs;

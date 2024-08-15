@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useGetTaskListQuery } from '@Api/dashboard';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import TaskLogsTable from './TaskLogsTable';
 
 interface TaskLogsProps {
@@ -36,4 +37,4 @@ const TaskLogs = ({ title }: TaskLogsProps) => {
   );
 };
 
-export default TaskLogs;
+export default hasErrorBoundary(TaskLogs);

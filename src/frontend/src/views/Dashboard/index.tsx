@@ -8,6 +8,7 @@ import {
   dashboardCardsForDroneOperator,
   dashboardCardsForProjectCreator,
 } from '@Constants/dashboard';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { useState } from 'react';
 
 const getContent = (activeTab: string, title: string) => {
@@ -15,7 +16,7 @@ const getContent = (activeTab: string, title: string) => {
   return <TaskLogs title={title} />;
 };
 
-export default function Dashboard() {
+const Dashboard = () => {
   const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
   const [activeTab, setActiveTab] = useState(
     signedInAs === 'Project Creator'
@@ -89,4 +90,6 @@ export default function Dashboard() {
       </div>
     </section>
   );
-}
+};
+
+export default hasErrorBoundary(Dashboard);

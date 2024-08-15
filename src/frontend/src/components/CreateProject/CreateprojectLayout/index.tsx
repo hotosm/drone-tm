@@ -24,6 +24,7 @@ import {
 } from '@Constants/createProject';
 import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
 import prepareFormData from '@Utils/prepareFormData';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 /**
  * This function looks up the provided map of components to find and return
@@ -59,7 +60,7 @@ const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
   }
 };
 
-export default function CreateprojectLayout() {
+const CreateprojectLayout = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
 
@@ -265,4 +266,6 @@ export default function CreateprojectLayout() {
       </div>
     </section>
   );
-}
+};
+
+export default hasErrorBoundary(CreateprojectLayout);

@@ -8,8 +8,9 @@ import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLaye
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
-export default function MapSection() {
+const MapSection = () => {
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
       zoom: 5,
@@ -76,4 +77,6 @@ export default function MapSection() {
       <BaseLayerSwitcher />
     </MapContainer>
   );
-}
+};
+
+export default hasErrorBoundary(MapSection);

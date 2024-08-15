@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 import Icon from '@Components/common/Icon';
 import { useTypedSelector } from '@Store/hooks';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 interface IIndividualStep {
   url: string;
@@ -15,10 +16,7 @@ interface IStepSwitcherProps {
   switchSteps?: any;
 }
 
-export default function StepSwitcher({
-  data,
-  switchSteps,
-}: IStepSwitcherProps) {
+const StepSwitcher = ({ data, switchSteps }: IStepSwitcherProps) => {
   const activeStep = useTypedSelector(state => state.createproject.activeStep);
   const toggleStep = () => {};
   return (
@@ -86,4 +84,6 @@ export default function StepSwitcher({
       })}
     </div>
   );
-}
+};
+
+export default hasErrorBoundary(StepSwitcher);

@@ -7,6 +7,7 @@ import Tab from '@Components/common/Tabs';
 import { useGetIndividualTaskQuery } from '@Api/tasks';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { setSecondPageState } from '@Store/actions/droneOperatorTask';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import UploadsBox from './UploadsBox';
 import DescriptionBox from './DescriptionBox';
 
@@ -124,4 +125,4 @@ const DroneOperatorDescriptionBox = () => {
   );
 };
 
-export default DroneOperatorDescriptionBox;
+export default hasErrorBoundary(DroneOperatorDescriptionBox);
