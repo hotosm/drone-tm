@@ -46,10 +46,9 @@ async def get_tasks_by_user(user_id: str, db: Database):
                     task_events.state
                 FROM
                     task_events
-                JOIN
+                LEFT JOIN
                     tasks ON task_events.task_id = tasks.id
-                WHERE
-                    task_events.user_id = :user_id
+                WHERE task_events.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
             )
             SELECT
                 task_details.task_id,
@@ -61,7 +60,7 @@ async def get_tasks_by_user(user_id: str, db: Database):
                     WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
                     WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
                     WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                    ELSE 'unknown' -- Default case if the state does not match any expected values
+                    ELSE ''
                 END AS state
             FROM task_details;
 
