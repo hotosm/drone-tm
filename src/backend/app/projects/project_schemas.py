@@ -1,9 +1,9 @@
 import uuid
 import json
-from pydantic import BaseModel, computed_field, Field, validator, model_validator
+from pydantic import BaseModel, computed_field, Field, model_validator
 from typing import Any, Optional, Union, List
 from geojson_pydantic import Feature, FeatureCollection, Polygon
-from app.models.enums import FinalOutput, ProjectVisibility, State
+from app.models.enums import FinalOutput, ProjectVisibility
 from shapely import wkb
 from datetime import date
 from app.utils import (
@@ -96,17 +96,10 @@ class TaskOut(BaseModel):
     id: uuid.UUID
     project_task_index: int
     outline: Any = Field(exclude=True)
-    state: Optional[State] = None
-    contributor: Optional[str] = None
-
-    @validator("state", pre=True, always=True)
-    def validate_state(cls, v):
-        if isinstance(v, str):
-            try:
-                v = State[v]
-            except KeyError:
-                raise ValueError(f"Invalid state: {v}")
-        return v
+    state: Optional[str] = None
+    user_id: Optional[str] = None
+    task_area: Optional[float] = None
+    name: Optional[str] = None
 
     @computed_field
     @property
