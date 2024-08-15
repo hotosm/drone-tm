@@ -74,7 +74,7 @@ async def get_task_stats(
     user_id = user_data.id
 
     try:
-        async with db.cursor() as cur:
+        async with db.cursor(row_factory=dict_row) as cur:
             # Check if the user profile exists
             await cur.execute(
                 """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
