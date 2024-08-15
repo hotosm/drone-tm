@@ -5,13 +5,16 @@ networks:
 volumes:
   db-data:
     name: drone-tm-db-data
+    external: true
+  frontend-html:
+    name: drone-tm-frontend-html
 
 services:
   backend:
     image: ghcr.io/hotosm/drone-tm/backend:ci
     build:
-      context: .
-      dockerfile: src/backend/Dockerfile
+      context: src/backend
+      dockerfile: Dockerfile
     depends_on:
       - db
       - minio
@@ -19,6 +22,7 @@ services:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - frontend-html:/project/src/backend/frontend_html
     env_file: .env
     networks:
       - dtm-network
@@ -26,8 +30,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: src/frontend/Dockerfile
+      context: src/frontend
+      dockerfile: Dockerfile
       target: ${FRONTEND_TARGET_OVERRIDE:-development}
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
@@ -38,7 +42,7 @@ services:
       - dtm-network
     volumes:
       - ${PROJECT_DIR:-.}/src/frontend:/app
-      - /var/run/docker.sock:/var/run/docker.sock
+      - frontend-html:/tmp/frontend_html
 
   # If error, please upgrade the db with `contrib/pg-upgrade/docker-compose.yml`
   db:
@@ -90,8 +94,8 @@ services:
 
   migrations:
     build:
-      context: .
-      dockerfile: src/backend/Dockerfile
+      context: src/backend
+      dockerfile: Dockerfile
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:

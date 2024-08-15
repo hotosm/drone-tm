@@ -18,7 +18,7 @@ from app.db.database import db_connection
 
 
 root = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory="templates")
+frontend_html = Jinja2Templates(directory="frontend_html")
 
 
 class InterceptHandler(logging.Handler):
@@ -125,7 +125,7 @@ api = get_application()
 async def home(request: Request):
     try:
         """Return Frontend HTML"""
-        return templates.TemplateResponse(
+        return frontend_html.TemplateResponse(
             name="index.html", context={"request": request}
         )
     except Exception:
@@ -146,7 +146,7 @@ async def custom_404_handler(request: Request, _):
         is_browser = any(browser in user_agent for browser in known_browsers)
         if format == "json" or not is_browser:
             return JSONResponse(status_code=404, content={"detail": "Not found"})
-        return templates.TemplateResponse(
+        return frontend_html.TemplateResponse(
             name="index.html", context={"request": request}
         )
 

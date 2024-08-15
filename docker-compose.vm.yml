@@ -6,6 +6,8 @@ volumes:
   db-data:
     name: drone-tm-db-data
     external: true
+  frontend-html:
+    name: drone-tm-frontend-html
 
 services:
   backend:
@@ -14,9 +16,12 @@ services:
     depends_on:
       - db
       - minio
+    volumes:
+      - frontend-html:/project/src/backend/frontend_html
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
     env_file: .env
+    command: ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", "--workers", "${UVICORN_WORKERS:-4}", "--log-level", "${UVICORN_LOG_LEVEL:-info}"]
     networks:
       - dtm-network
 
@@ -24,6 +29,8 @@ services:
     image: naxa/dronetm:${FRONTEND_TARGET_OVERRIDE:-frontend}
     depends_on:
       - minio
+    volumes:
+      - frontend-html:/tmp/frontend_html
     env_file: .env
     networks:
       - dtm-network
