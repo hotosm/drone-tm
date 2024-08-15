@@ -117,6 +117,8 @@ const MapSection = () => {
             return 'This task is Requested for mapping';
           case 'LOCKED_FOR_MAPPING':
             return 'This task is locked for mapping';
+          case 'UNFLYABLE_TASK':
+            return 'This task is not flyable';
           default:
             return 'This Task is completed';
         }
@@ -205,6 +207,7 @@ const MapSection = () => {
         title={`Task #${selectedTaskId}`}
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
+          // console.log(properties, 'properties');
         }}
         hideButton={taskStatusObj?.[selectedTaskId] !== 'UNLOCKED_TO_MAP'}
         buttonText="Lock Task"
