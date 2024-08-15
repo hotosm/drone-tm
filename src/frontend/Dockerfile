@@ -1,27 +1,29 @@
 # ARG for the base image
 ARG NODE_BASE=18.16.0-bullseye-slim
+ARG MINIO_TAG=RELEASE.2023-10-25T06-33-25Z
 
 # Base image with frontend code
 FROM node:${NODE_BASE} AS base
 
 RUN mkdir -p /app
 WORKDIR /app
-COPY ./src/frontend /app
+COPY ./package.json .
+COPY ./yarn.lock .
+RUN ["/bin/sh", "-c", "env | tee .env"]
+RUN yarn
 
 # Run development environment
 FROM base AS development
-ENTRYPOINT ["/bin/sh", "-c", "env | tee .env ; yarn; yarn start --host 0.0.0.0;"]
+COPY . /app
+ENTRYPOINT ["/bin/sh", "-c", "yarn start --host 0.0.0.0;"]
 
 # Generate frontend build files
 FROM base AS build
-COPY ../.env .env
-RUN yarn
+COPY . /app
 RUN yarn build
 
-# Copy static files to minio and generated index.html to backend services
-FROM docker:27.0-dind-rootless AS live
-USER 0
-RUN apk update && apk add minio-client envsubst
+# Copy static files to minio and generated index.html to volume
+FROM docker.io/minio/minio:${MINIO_TAG} as live
 COPY --from=build /app/dist /tmp/dist
-COPY ./src/frontend/docker-entrypoint.sh /docker-entrypoint.sh
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
+VOLUME /tmp/frontend_html
+ENTRYPOINT [ "/app/docker-entrypoint.sh" ]
