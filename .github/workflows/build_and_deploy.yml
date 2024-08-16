@@ -1,17 +1,17 @@
 name: Build and Deploy
 
 on:
+  # Push includes PR merge
   push:
-    branches: [main]
+    branches:
+      - main
+      - staging
+      - develop
     paths:
       # Workflow is triggered only if src changes
       - src/**
   # Allow manual trigger
   workflow_dispatch:
-
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
   build:
@@ -20,43 +20,21 @@ jobs:
     environment:
       name: ${{ github.ref_name }}
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v3
+      - name: backend-build
+        uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
         with:
-          ref: ${{ github.ref }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+          context: ./src/backend
+          build_target: service
+          image_name: ghcr.io/${{ github.repository }}/backend
+          file: Dockerfile
+          
+      - name: frontend-build
+        uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
         with:
-          username: naxa
-          password: ${{ secrets.DOCKERHUB_PAT }}
-
-      - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: naxa/dronetm:backend
-          file: ./src/backend/Dockerfile
-
-      - name: Write Environment Variables for Frontend
-        run: |
-          echo ${{ vars.FRONTEND_ENV_VARS }} > .env
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          target: live
-          tags: naxa/dronetm:frontend
-          file: ./src/frontend/Dockerfile
+          context: ./src/frontend
+          build_target: live
+          image_name: ghcr.io/${{ github.repository }}/frontend
+          file: Dockerfile
 
   deploy_to_vm:
     name: Deploy to VM
@@ -66,41 +44,8 @@ jobs:
     environment:
       name: ${{ github.ref_name }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: naxa
-          password: ${{ secrets.DOCKERHUB_PAT }}
-
-      - name: Setup SSH Key
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: "${{ secrets.SSH_PRIVATE_KEY }}"
-
-      - name: Add host keys to known_hosts
-        run: |
-          ssh-keyscan "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: create env file
-        run: |
-          echo '${{ secrets.BACKEND_ENV_VARS }}' > .env
-
       - name: Deploy to VM
-        run: |
-          # Create db data volume if not exists
-          docker volume create drone-tm-db-data || true
-
-          # Run db upgrade if necessary
-          docker compose --file contrib/pg-upgrade/docker-compose.yml \
-            --env-file .env up || true
-
-          # Cleanup db upgrade containers
-          docker compose --file contrib/pg-upgrade/docker-compose.yml down
-
-          docker compose --file docker-compose.vm.yml --env-file .env up \
-            --detach --remove-orphans --force-recreate --pull=always
-        env:
-          DOCKER_HOST: "ssh://${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
+        uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@main
+        with:
+          environment: ${{ github.ref_name }}
+          docker_compose_file: "docker-compose.vm.yml"

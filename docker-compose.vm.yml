@@ -11,7 +11,7 @@ volumes:
 
 services:
   backend:
-    image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
+    image: ghcr.io/drone-tm/backend:${GIT_BRANCH:-main}
     restart: always
     depends_on:
       - db
@@ -26,7 +26,7 @@ services:
       - dtm-network
 
   frontend:
-    image: naxa/dronetm:${FRONTEND_TARGET_OVERRIDE:-frontend}
+    image: ghcr.io/drone-tm/frontend:${GIT_BRANCH:-main}
     depends_on:
       - minio
     volumes:
@@ -79,7 +79,7 @@ services:
       - dtm-network
 
   migrations:
-    image: naxa/dronetm:${BACKEND_TARGET_OVERRIDE:-backend}
+    image: ghcr.io/drone-tm/backend:${GIT_BRANCH:-main}
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:

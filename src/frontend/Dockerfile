@@ -23,7 +23,7 @@ COPY . /app
 RUN yarn build
 
 # Copy static files to minio and generated index.html to volume
-FROM docker.io/minio/minio:${MINIO_TAG} as live
+FROM docker.io/minio/minio:${MINIO_TAG} AS live
 COPY --from=build /app/dist /tmp/dist
 VOLUME /tmp/frontend_html
 ENTRYPOINT [ "/app/docker-entrypoint.sh" ]
