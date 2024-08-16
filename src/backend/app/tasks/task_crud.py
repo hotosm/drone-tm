@@ -42,7 +42,8 @@ async def get_tasks_by_user(user_id: str, db: Database, role: str):
                 task_events.project_id AS project_id,
                 ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
                 task_events.created_at,
-                task_events.state
+                task_events.state,
+                ROW_NUMBER() OVER (PARTITION BY task_events.task_id ORDER BY task_events.created_at DESC) AS rn
             FROM
                 task_events
             LEFT JOIN
@@ -68,8 +69,10 @@ async def get_tasks_by_user(user_id: str, db: Database, role: str):
                 WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
                 ELSE ''
             END AS state
-        FROM task_details;
+        FROM task_details
+        WHERE rn = 1;  -- This ensures only the latest task_event per task_id is selected
         """
+
         records = await db.fetch_all(query, values={"user_id": user_id, "role": role})
         return records
 
@@ -193,24 +196,23 @@ async def update_task_state(
     final_state: State,
 ):
     query = """
-            WITH last AS (
-                SELECT *
-                FROM task_events
-                WHERE project_id = :project_id AND task_id = :task_id
-                ORDER BY created_at DESC
-                LIMIT 1
-            ),
-            locked AS (
-                SELECT *
-                FROM last
-                WHERE user_id = :user_id AND state = :initial_state
-            )
-            UPDATE task_events
-            SET state = :final_state,
-                comment = :comment,
-                created_at = now()
-            FROM locked
-            WHERE task_events.event_id = locked.event_id
+        WITH last AS (
+            SELECT *
+            FROM task_events
+            WHERE project_id = :project_id AND task_id = :task_id
+            ORDER BY created_at DESC
+            LIMIT 1
+        ),
+        locked AS (
+            SELECT *
+            FROM last
+            WHERE user_id = :user_id AND state = :initial_state
+        )
+        INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
+        SELECT gen_random_uuid(), project_id, task_id, user_id, :final_state, :comment, now()
+        FROM last
+        WHERE user_id = :user_id
+        RETURNING project_id, task_id, user_id, state;
         """
     values = {
         "project_id": str(project_id),

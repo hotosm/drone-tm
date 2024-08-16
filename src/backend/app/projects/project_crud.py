@@ -149,36 +149,69 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
     project_record = await db.fetch_one(query, {"project_id": project_id})
     if not project_record:
         return None
-    query = """
+
+    query = """WITH TaskStateCalculation AS (
         SELECT
-            t.id,
-            t.project_task_index,
-            t.outline,
-            ST_Area(ST_Transform(t.outline, 4326)) / 1000000 AS task_area,
+            te.task_id,
             te.user_id,
-            te.state,
-            u.name,
             CASE
                 WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
                 WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
                 WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
                 WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                ELSE '' -- Default case if the state does not match any expected values
-            END AS state
-
+                ELSE 'UNLOCKED_TO_MAP'
+            END AS calculated_state,
+            ROW_NUMBER() OVER (PARTITION BY te.task_id ORDER BY te.created_at DESC) AS rn
         FROM
-            tasks t
-        LEFT JOIN
             task_events te
-        ON
-            t.id = te.task_id
-        LEFT JOIN
-            users u
-        ON
-            te.user_id = u.id
+    )
+    SELECT
+        t.id,
+        t.project_task_index,
+        t.outline,
+        tsc.user_id,
+        u.name,
+        ST_Area(ST_Transform(t.outline, 4326)) / 1000000 AS task_area,
+        COALESCE(tsc.calculated_state, 'UNLOCKED_TO_MAP') AS state
+    FROM
+        tasks t
+    LEFT JOIN
+        TaskStateCalculation tsc ON t.id = tsc.task_id AND tsc.rn = 1
+    LEFT JOIN
+        users u ON tsc.user_id = u.id
+    WHERE
+        t.project_id = :project_id;
+    """
+    # query = """
+    #     SELECT
+    #         t.id,
+    #         t.project_task_index,
+    #         t.outline,
+    #         ST_Area(ST_Transform(t.outline, 4326)) / 1000000 AS task_area,
+    #         te.user_id,
+    #         te.state,
+    #         u.name,
+    #         CASE
+    #             WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+    #             WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+    #             WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
+    #             WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+    #             ELSE 'UNLOCKED_TO_MAP'
+    #         END AS state
 
-        WHERE
-            t.project_id = :project_id;"""
+    #     FROM
+    #         tasks t
+    #     LEFT JOIN
+    #         task_events te
+    #     ON
+    #         t.id = te.task_id
+    #     LEFT JOIN
+    #         users u
+    #     ON
+    #         te.user_id = u.id
+
+    #     WHERE
+    #         t.project_id = :project_id;"""
 
     task_records = await db.fetch_all(query, {"project_id": project_id})
     project_record.tasks = task_records if task_records is not None else []

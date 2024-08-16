@@ -231,7 +231,7 @@ async def read_projects(
 async def read_project(
     project_id: uuid.UUID,
     db: Database = Depends(database.get_db),
-    user_data: AuthUser = Depends(login_required),
+    # user_data: AuthUser = Depends(login_required),
 ):
     """Get a specific project and all associated tasks by ID."""
     project = await project_crud.get_project_info_by_id(db, project_id)

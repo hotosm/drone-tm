@@ -74,23 +74,30 @@ async def get_task_stats(
     else:
         role = "DRONE_PILOT"
 
-    raw_sql = """
+    raw_sql = """WITH latest_task_events AS (
         SELECT
-        COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-        COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
-        COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
-        COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
-        FROM tasks t
-        LEFT JOIN task_events te ON t.id = te.task_id
+            te.task_id,
+            te.state,
+            te.user_id,
+            ROW_NUMBER() OVER (PARTITION BY te.task_id ORDER BY te.created_at DESC) AS rn
+        FROM task_events te
         WHERE
-        (
-            :role = 'DRONE_PILOT' AND te.user_id = :user_id
-        )
-        OR
-        (
-            :role != 'DRONE_PILOT' AND t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-        )
-        """
+            (:role = 'DRONE_PILOT' AND te.user_id = :user_id)
+            OR
+            (:role != 'DRONE_PILOT' AND te.task_id IN (
+                SELECT t.id
+                FROM tasks t
+                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+            ))
+    )
+    SELECT
+        COUNT(CASE WHEN lte.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+        COUNT(CASE WHEN lte.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
+        COUNT(CASE WHEN lte.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+        COUNT(CASE WHEN lte.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+    FROM latest_task_events lte
+    WHERE lte.rn = 1;
+    """
 
     try:
         db_counts = await db.fetch_one(
@@ -117,7 +124,7 @@ async def list_tasks(
 
     roles = [record["role"] for record in records]
     if UserRole.PROJECT_CREATOR.name in roles:
-        role = UserRole.PROJECT_CREATOR.name
+        role = "PROJECT_CREATOR"
     else:
         role = "DRONE_PILOT"
 
