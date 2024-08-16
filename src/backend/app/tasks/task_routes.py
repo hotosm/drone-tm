@@ -124,7 +124,7 @@ async def list_tasks(
 
     roles = [record["role"] for record in records]
     if UserRole.PROJECT_CREATOR.name in roles:
-        role = "PROJECT_CREATOR"
+        role = 'PROJECT_CREATOR'
     else:
         role = "DRONE_PILOT"
 
