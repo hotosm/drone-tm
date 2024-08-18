@@ -74,29 +74,28 @@ async def get_task_stats(
     else:
         role = "DRONE_PILOT"
 
-    raw_sql = """WITH latest_task_events AS (
+    raw_sql = """
         SELECT
-            te.task_id,
-            te.state,
-            te.user_id,
-            ROW_NUMBER() OVER (PARTITION BY te.task_id ORDER BY te.created_at DESC) AS rn
-        FROM task_events te
-        WHERE
-            (:role = 'DRONE_PILOT' AND te.user_id = :user_id)
-            OR
-            (:role != 'DRONE_PILOT' AND te.task_id IN (
-                SELECT t.id
-                FROM tasks t
-                WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-            ))
-    )
-    SELECT
-        COUNT(CASE WHEN lte.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-        COUNT(CASE WHEN lte.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
-        COUNT(CASE WHEN lte.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
-        COUNT(CASE WHEN lte.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
-    FROM latest_task_events lte
-    WHERE lte.rn = 1;
+            COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+            COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
+            COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+            COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+        FROM (
+            SELECT DISTINCT ON (te.task_id)
+                te.task_id,
+                te.state,
+                te.created_at
+            FROM task_events te
+            WHERE
+                (:role = 'DRONE_PILOT' AND te.user_id = :user_id)
+                OR
+                (:role != 'DRONE_PILOT' AND te.task_id IN (
+                    SELECT t.id
+                    FROM tasks t
+                    WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+                ))
+            ORDER BY te.task_id, te.created_at DESC
+        ) AS te;
     """
 
     try:
