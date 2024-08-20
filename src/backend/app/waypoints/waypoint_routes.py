@@ -145,21 +145,18 @@ async def generate_kmz(
             shutil.copyfileobj(dem.file, buffer)
 
     boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
-    features = boundary["features"][0]
 
     if not download:
-        # TODO This should be fixed within the drone_flightplan
-        if gsd:
-            altitude = gsd * GSD_to_AGL_CONST
-
-        return waypoints.create_waypoint(
-            features,
+        points = waypoints.create_waypoint(
+            boundary,
             altitude,
+            gsd,
             forward_overlap,
             side_overlap,
             generate_each_points,
             generate_3d,
         )
+        return geojson.loads(points)
     else:
         output_file = create_flightplan.create_flightplan(
             aoi=boundary,
