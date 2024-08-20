@@ -133,7 +133,7 @@ async def request_mapping(
                 "request_for_map_state": final_state.name,  # State.REQUEST_FOR_MAPPING.name,
             },
         )
-        # result = await cur.fetchone()
-        # return result
+        result = await cur.fetchone()
+        return result
 
-        return {"project_id": project_id, "task_id": task_id, "comment": comment}
+        # return {"project_id": project_id, "task_id": task_id, "comment": comment}
