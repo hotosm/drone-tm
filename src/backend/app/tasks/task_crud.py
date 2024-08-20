@@ -39,7 +39,7 @@ async def get_tasks_by_user(user_id: str, db: Database, role: str):
         query = """SELECT DISTINCT ON (tasks.id)
             tasks.id AS task_id,
             task_events.project_id AS project_id,
-            ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+            ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
             task_events.created_at,
             CASE
                 WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'

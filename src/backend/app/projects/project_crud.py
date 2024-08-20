@@ -172,7 +172,7 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
             t.outline,
             tsc.user_id,
             u.name,
-            ST_Area(ST_Transform(t.outline, 4326)) / 1000000 AS task_area,
+            ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area,
             COALESCE(tsc.calculated_state, 'UNLOCKED_TO_MAP') AS state
         FROM
             tasks t

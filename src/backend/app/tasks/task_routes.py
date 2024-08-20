@@ -29,7 +29,7 @@ async def read_task(
     try:
         query = """
             SELECT
-                ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+                ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                 task_events.created_at,
                 projects.name AS project_name,
                 project_task_index,
