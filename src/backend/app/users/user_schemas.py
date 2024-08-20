@@ -255,7 +255,7 @@ class DbUser(BaseModel):
     async def get_requested_user_id(
         db: Connection, project_id: uuid.UUID, task_id: uuid.UUID
     ):
-        async with db.cursor() as cur:
+        async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
                 SELECT user_id

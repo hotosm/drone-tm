@@ -48,24 +48,23 @@ async def update_task_state(
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """
-                WITH last AS (
-                        SELECT *
-                        FROM task_events
-                        WHERE project_id = %(project_id)s AND task_id = %(task_id)s
-                        ORDER BY created_at DESC
-                        LIMIT 1
-                    ),
-                    locked AS (
-                        SELECT *
-                        FROM last
-                        WHERE user_id = %(user_id)s AND state = %(initial_state)s
-                    )
-                    UPDATE task_events
-                    SET state = %(final_state)s,
-                        comment = %(comment)s,
-                        created_at = now()
-                    FROM locked
-                    WHERE task_events.event_id = locked.event_id
+            WITH last AS (
+                SELECT *
+                FROM task_events
+                WHERE project_id = %(project_id)s AND task_id = %(task_id)s
+                ORDER BY created_at DESC
+                LIMIT 1
+            ),
+            locked AS (
+                SELECT *
+                FROM last
+                WHERE user_id = %(user_id)s AND state = %(initial_state)s
+            )
+            INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
+            SELECT gen_random_uuid(), project_id, task_id, user_id, %(final_state)s, %(comment)s, now()
+            FROM last
+            WHERE user_id = %(user_id)s
+            RETURNING project_id, task_id, comment;
             """,
             {
                 "project_id": str(project_id),
@@ -76,14 +75,8 @@ async def update_task_state(
                 "final_state": final_state.name,
             },
         )
-
-    result = await cur.fetchone()
-
-    return {
-        "project_id": result["project_id"],
-        "task_id": result["task_id"],
-        "comment": comment,
-    }
+        result = await cur.fetchone()
+        return result
 
 
 async def request_mapping(
@@ -122,7 +115,8 @@ async def request_mapping(
                 now()
             FROM last
             RIGHT JOIN released ON true
-            WHERE (last.state = %(unlocked_to_map_state)s OR released.no_record = true);
+            WHERE (last.state = %(unlocked_to_map_state)s OR released.no_record = true)
+            RETURNING project_id, task_id, comment;
             """,
             {
                 "project_id": str(project_id),
@@ -135,5 +129,3 @@ async def request_mapping(
         )
         result = await cur.fetchone()
         return result
-
-        # return {"project_id": project_id, "task_id": task_id, "comment": comment}
