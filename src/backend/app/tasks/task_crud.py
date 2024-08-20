@@ -34,7 +34,9 @@ async def get_task_geojson(db: Database, task_id: uuid.UUID):
     return json.loads(data["geom"])
 
 
-async def get_tasks_by_user(user_id: str, db: Database, role: str):
+async def get_tasks_by_user(
+    user_id: str, db: Database, role: str, skip: int = 0, limit: int = 50
+):
     try:
         query = """SELECT DISTINCT ON (tasks.id)
             tasks.id AS task_id,
@@ -61,9 +63,14 @@ async def get_tasks_by_user(user_id: str, db: Database, role: str):
                 :role != 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
             )
         ORDER BY
-            tasks.id, task_events.created_at DESC;
+            tasks.id, task_events.created_at DESC
+        OFFSET :skip
+        LIMIT :limit;
         """
-        records = await db.fetch_all(query, values={"user_id": user_id, "role": role})
+        records = await db.fetch_all(
+            query,
+            values={"user_id": user_id, "role": role, "skip": skip, "limit": limit},
+        )
         return records
 
     except Exception as e:

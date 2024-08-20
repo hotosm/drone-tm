@@ -114,6 +114,8 @@ async def get_task_stats(
 async def list_tasks(
     db: Database = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
+    skip: int = 0,
+    limit: int = 50,
 ):
     """Get all tasks for a all user."""
 
@@ -130,7 +132,7 @@ async def list_tasks(
     if not records:
         raise HTTPException(status_code=404, detail="User profile not found")
 
-    return await task_crud.get_tasks_by_user(user_id, db, role)
+    return await task_crud.get_tasks_by_user(user_id, db, role, skip, limit)
 
 
 @router.get("/states/{project_id}")
