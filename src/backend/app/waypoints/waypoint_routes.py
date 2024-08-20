@@ -49,8 +49,10 @@ async def get_task_waypoint(
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
-    generate_each_points = False
-    generate_3d = False
+    generate_each_points = True if project.is_terrain_follow else False
+    generate_3d = (
+        False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
+    )
 
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
