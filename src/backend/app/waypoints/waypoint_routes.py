@@ -32,7 +32,6 @@ async def get_task_waypoint(
     db: Database = Depends(database.get_db),
 ):
     task_geojson = await get_task_geojson(db, task_id)
-    features = task_geojson["features"][0]
     project = await get_project_by_id(db, project_id)
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
@@ -42,19 +41,19 @@ async def get_task_waypoint(
 
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
-    # TODO This should be fixed within the drone_flightplan (115 m altitude is static for now)
-    if not altitude:
-        altitude = gsd * GSD_to_AGL_CONST if gsd else 115
 
     if not download:
-        return waypoints.create_waypoint(
-            features,
+        points = waypoints.create_waypoint(
+            task_geojson,
             altitude,
+            gsd,
             forward_overlap,
             side_overlap,
             generate_each_points,
             generate_3d,
         )
+        return geojson.loads(points)
+
     else:
         if project.is_terrain_follow:
             dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
@@ -62,16 +61,14 @@ async def get_task_waypoint(
                 settings.S3_BUCKET_NAME, f"dem/{project_id}/dem.tif", dem_path
             )
         output_file = create_flightplan.create_flightplan(
-            features,
-            altitude,
-            gsd,
-            forward_overlap,
-            side_overlap,
-            generate_each_points,
-            generate_3d,
-            project.is_terrain_follow,
-            dem_path if project.is_terrain_follow else None,
-            f"/tmp/{uuid.uuid4()}",
+            aoi=task_geojson,
+            forward_overlap=forward_overlap,
+            side_overlap=side_overlap,
+            agl=altitude,
+            gsd=gsd,
+            generate_each_points=generate_each_points,
+            dem=dem_path if project.is_terrain_follow else None,
+            outfile=f"/tmp/{uuid.uuid4()}",
         )
 
         return FileResponse(
