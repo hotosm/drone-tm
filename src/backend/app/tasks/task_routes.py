@@ -28,27 +28,29 @@ async def read_task(
 ):
     "Retrieve details of a specific task by its ID."
     try:
-        query = """
-            SELECT
-                ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
-                task_events.created_at,
-                projects.name AS project_name,
-                project_task_index,
-                projects.front_overlap AS front_overlap,
-                projects.side_overlap AS side_overlap,
-                projects.gsd_cm_px AS gsd_cm_px,
-                projects.gimble_angles_degrees AS gimble_angles_degrees
-            FROM
-                task_events
-            JOIN
-                tasks ON task_events.task_id = tasks.id
-            JOIN
-                projects ON task_events.project_id = projects.id
-            WHERE
-                task_events.task_id = %(task_id)s
-        """
-        records = await db.fetch_one(query, values={"task_id": task_id})
-        return records
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT
+                    ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
+                    task_events.created_at,
+                    projects.name AS project_name,
+                    project_task_index,
+                    projects.front_overlap AS front_overlap,
+                    projects.side_overlap AS side_overlap,
+                    projects.gsd_cm_px AS gsd_cm_px,
+                    projects.gimble_angles_degrees AS gimble_angles_degrees
+                FROM
+                    task_events
+                JOIN
+                    tasks ON task_events.task_id = tasks.id
+                JOIN
+                    projects ON task_events.project_id = projects.id
+                WHERE task_events.task_id = %(task_id)s""",
+                {"task_id": task_id},
+            )
+            records = await cur.fetchone()
+            return records
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
