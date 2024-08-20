@@ -50,16 +50,16 @@ const IndividualProject = () => {
             // modify each task geojson and set locked user id and name to properties and save to redux state called taskData
             tasksData: res.tasks?.map((task: Record<string, any>) => ({
               ...task,
-              outline_geojson: {
-                ...task.outline_geojson,
+              outline: {
+                ...task.outline,
                 properties: {
-                  ...task.outline_geojson.properties,
+                  ...task.outline.properties,
                   locked_user_id: task?.user_id,
                   locked_user_name: task?.name,
                 },
               },
             })),
-            projectArea: res.outline_geojson,
+            projectArea: res.outline,
           }),
         );
       },
