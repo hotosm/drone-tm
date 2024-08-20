@@ -150,35 +150,39 @@ async def get_project_info_by_id(db: Database, project_id: uuid.UUID):
     if not project_record:
         return None
     query = """
+        WITH TaskStateCalculation AS (
+            SELECT DISTINCT ON (te.task_id)
+                te.task_id,
+                te.user_id,
+                CASE
+                    WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                    WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+                    WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
+                    WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                    ELSE 'UNLOCKED_TO_MAP'
+                END AS calculated_state
+            FROM
+                task_events te
+            ORDER BY
+                te.task_id, te.created_at DESC
+        )
         SELECT
             t.id,
             t.project_task_index,
             t.outline,
-            ST_Area(ST_Transform(t.outline, 4326)) / 1000000 AS task_area,
-            te.user_id,
-            te.state,
+            tsc.user_id,
             u.name,
-            CASE
-                WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
-                WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                ELSE '' -- Default case if the state does not match any expected values
-            END AS state
-
+            ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area,
+            COALESCE(tsc.calculated_state, 'UNLOCKED_TO_MAP') AS state
         FROM
             tasks t
         LEFT JOIN
-            task_events te
-        ON
-            t.id = te.task_id
+            TaskStateCalculation tsc ON t.id = tsc.task_id
         LEFT JOIN
-            users u
-        ON
-            te.user_id = u.id
-
+            users u ON tsc.user_id = u.id
         WHERE
-            t.project_id = :project_id;"""
+            t.project_id = :project_id;
+    """
 
     task_records = await db.fetch_all(query, {"project_id": project_id})
     project_record.tasks = task_records if task_records is not None else []
