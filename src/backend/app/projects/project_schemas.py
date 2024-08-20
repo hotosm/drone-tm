@@ -237,38 +237,6 @@ class DbProject(BaseModel):
             db_projects = await cur.fetchall()
             return db_projects
 
-    # @staticmethod
-    # async def all(db: Connection, skip: int = 0, limit: int = 100):
-    #     """Get all projects, including tasks and task count."""
-    #     async with db.cursor(row_factory=class_row(DbProject)) as cur:
-    #         await cur.execute(
-    #             """
-    #             SELECT
-    #                 p.*,
-    #                 ST_AsGeoJSON(p.outline)::jsonb AS outline,
-    #                 ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
-    #                 COALESCE(JSON_AGG(t.*) FILTER (WHERE t.id IS NOT NULL), '[]'::json) AS tasks,
-    #                 COUNT(t.id) AS task_count
-    #             FROM
-    #                 projects p
-    #             LEFT JOIN
-    #                 tasks t ON p.id = t.project_id
-    #             GROUP BY
-    #                 p.id
-    #             ORDER BY
-    #                 created_at DESC
-    #             OFFSET %(skip)s
-    #             LIMIT %(limit)s;
-    #             """,
-    #             {"skip": skip, "limit": limit},
-    #         )
-    #         projects = await cur.fetchall()
-
-    #         if not projects:
-    #             raise KeyError("No projects found")
-
-    #         return projects
-
     @staticmethod
     async def create(db: Connection, project: ProjectIn, user_id: str) -> uuid.UUID:
         """Create a single project."""
