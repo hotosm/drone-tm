@@ -125,7 +125,7 @@ class TaskOut(BaseModel):
 
     id: uuid.UUID
     project_task_index: int
-    outline: Any = Field(exclude=True)
+    outline: Polygon
     state: Optional[str] = None
     user_id: Optional[str] = None
     task_area: Optional[float] = None
@@ -138,16 +138,16 @@ class DbProject(BaseModel):
     id: uuid.UUID
     name: str
     slug: Optional[str] = None
-    short_description: Optional[str]
-    description: str
+    short_description: Optional[str] = None
+    description: str = None
     per_task_instructions: Optional[str] = None
-    organisation_id: Optional[int]
+    organisation_id: Optional[int] = None
     outline: Polygon
     centroid: Optional[Point]
     no_fly_zones: Any = Field(exclude=True)
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
-    requires_approval_from_manager_for_locking: Optional[bool]
+    requires_approval_from_manager_for_locking: Optional[bool] = None
     author_id: Optional[str] = None
     front_overlap: Optional[float] = None
     side_overlap: Optional[float] = None
@@ -155,41 +155,67 @@ class DbProject(BaseModel):
     altitude_from_ground: Optional[float] = None
     is_terrain_follow: bool = False
 
-    @staticmethod
     async def one(db: Connection, project_id: uuid.UUID):
-        """Get a single project by it's ID, including tasks and task count."""
+        """Get a single project &  all associated tasks by ID."""
         async with db.cursor(row_factory=class_row(DbProject)) as cur:
-            # NOTE to wrap Polygon geometry in Feature
-            # jsonb_build_object(
-            #     'type', 'Feature',
-            #     'geometry', ST_AsGeoJSON(p.outline)::jsonb,
-            #     'id', p.id::varchar,
-            #     'properties', jsonb_build_object()
-            # ) AS outline,
             await cur.execute(
                 """
                 SELECT
-                    p.*,
-                    ST_AsGeoJSON(p.outline)::jsonb AS outline,
-                    ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
-                    COALESCE(JSON_AGG(t.*) FILTER (WHERE t.id IS NOT NULL), '[]'::json) AS tasks,
-                    COUNT(t.id) AS task_count
-                FROM
-                    projects p
-                LEFT JOIN
-                    tasks t ON p.id = t.project_id
-                WHERE
-                    p.id = %(project_id)s
-                GROUP BY
-                    p.id;
+                    projects.*,
+                    ST_AsGeoJSON(projects.outline)::jsonb AS outline,
+                    ST_AsGeoJSON(projects.centroid)::jsonb AS centroid
+
+                FROM projects
+                WHERE projects.id = %(project_id)s
+                LIMIT 1;
                 """,
                 {"project_id": project_id},
             )
-            project = await cur.fetchone()
-            if not project:
-                raise KeyError(f"Project {project_id} not found")
 
-            return project
+            project_record = await cur.fetchone()
+            if not project_record:
+                return None
+
+        async with db.cursor(row_factory=class_row(TaskOut)) as cur:
+            await cur.execute(
+                """WITH TaskStateCalculation AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id,
+                    te.user_id,
+                    CASE
+                        WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                        WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+                        WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
+                        WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                        ELSE 'UNLOCKED_TO_MAP'
+                    END AS calculated_state
+                FROM
+                    task_events te
+                ORDER BY
+                    te.task_id, te.created_at DESC
+            )
+            SELECT
+                t.id,
+                t.project_task_index,
+                ST_AsGeoJSON(t.outline)::jsonb AS outline,
+                tsc.user_id,
+                u.name,
+                ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area,
+                COALESCE(tsc.calculated_state, 'UNLOCKED_TO_MAP') AS state
+            FROM
+                tasks t
+            LEFT JOIN
+                TaskStateCalculation tsc ON t.id = tsc.task_id
+            LEFT JOIN
+                users u ON tsc.user_id = u.id
+            WHERE
+                t.project_id = %(project_id)s;""",
+                {"project_id": project_id},
+            )
+            task_records = await cur.fetchall()
+            project_record.tasks = task_records if task_records is not None else []
+            project_record.task_count = len(task_records)
+            return project_record
 
     async def all(
         db: Connection,
