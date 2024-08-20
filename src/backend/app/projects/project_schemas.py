@@ -13,7 +13,7 @@ from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
 from pydantic import model_validator
-from app.models.enums import FinalOutput, ProjectVisibility, State
+from app.models.enums import FinalOutput, ProjectVisibility
 from app.models.enums import (
     IntEnum,
     ProjectStatus,
@@ -130,6 +130,7 @@ class TaskOut(BaseModel):
     user_id: Optional[str] = None
     task_area: Optional[float] = None
     name: Optional[str] = None
+
 
 class DbProject(BaseModel):
     """Project model for extracting from database."""

@@ -78,37 +78,40 @@ class UserTasksStatsOut(BaseModel):
     project_id: uuid.UUID
 
     @staticmethod
-    async def get_tasks_by_user(db: Connection, user_id: str):
+    async def get_tasks_by_user(
+        db: Connection, user_id: str, role: str, skip: int = 0, limit: int = 50
+    ):
         async with db.cursor(row_factory=class_row(UserTasksStatsOut)) as cur:
             await cur.execute(
-                """WITH task_details AS (
-                SELECT
+                """SELECT DISTINCT ON (tasks.id)
                     tasks.id AS task_id,
                     task_events.project_id AS project_id,
-                    ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
+                    ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
-                    task_events.state
+                    CASE
+                        WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                        WHEN task_events.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+                        WHEN task_events.state = 'UNLOCKED_DONE' THEN 'completed'
+                        WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                        ELSE 'UNLOCKED_TO_MAP'
+                    END AS state
                 FROM
                     task_events
-                JOIN
+                LEFT JOIN
                     tasks ON task_events.task_id = tasks.id
                 WHERE
-                    task_events.user_id = %(user_id)s
-            )
-            SELECT
-                task_details.task_id,
-                task_details.project_id,
-                task_details.task_area,
-                task_details.created_at,
-                CASE
-                    WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                    WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                    WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
-                    WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                    ELSE 'UNLOCKED_TO_MAP' -- Default case if the state does not match any expected values
-                END AS state
-            FROM task_details;""",
-                {"user_id": user_id},
+                    (
+                        %(role)s = 'DRONE_PILOT' AND task_events.user_id = %(user_id)s
+                    )
+                    OR
+                    (
+                        %(role)s!= 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                    )
+                ORDER BY
+                    tasks.id, task_events.created_at DESC
+                OFFSET %(skip)s
+                LIMIT %(limit)s;""",
+                {"user_id": user_id, "role": role, "skip": skip, "limit": limit},
             )
             try:
                 return await cur.fetchall()

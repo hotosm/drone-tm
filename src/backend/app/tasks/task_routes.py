@@ -63,46 +63,54 @@ async def get_task_stats(
 ):
     "Retrieve statistics related to tasks for the authenticated user."
     user_id = user_data.id
-    query = """SELECT role FROM user_profile WHERE user_id = :user_id"""
-    records = await db.fetch_all(query, {"user_id": user_id})
-
-    if not records:
-        raise HTTPException(status_code=404, detail="User profile not found")
-
-    roles = [record["role"] for record in records]
-    if UserRole.PROJECT_CREATOR.name in roles:
-        role = "PROJECT_CREATOR"
-    else:
-        role = "DRONE_PILOT"
-
-    raw_sql = """
-        SELECT
-            COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-            COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
-            COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
-            COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
-        FROM (
-            SELECT DISTINCT ON (te.task_id)
-                te.task_id,
-                te.state,
-                te.created_at
-            FROM task_events te
-            WHERE
-                (%(role)s = 'DRONE_PILOT' AND te.user_id = %(user_id)s)
-                OR
-                (%(role)s != 'DRONE_PILOT' AND te.task_id IN (
-                    SELECT t.id
-                    FROM tasks t
-                    WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
-                ))
-            ORDER BY te.task_id, te.created_at DESC
-        ) AS te;
-    """
 
     try:
-        db_counts = await db.fetch_one(
-            query=raw_sql, values={"user_id": user_id, "role": role}
-        )
+        async with db.cursor(row_factory=dict_row) as cur:
+            # Check if the user profile exists
+            await cur.execute(
+                """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
+                {"user_id": user_id},
+            )
+            records = await cur.fetchall()
+
+            if not records:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            roles = [record["role"] for record in records]
+
+            if UserRole.PROJECT_CREATOR.name in roles:
+                role = "PROJECT_CREATOR"
+            else:
+                role = "DRONE_PILOT"
+
+            # Query for task statistics
+            raw_sql = """
+                SELECT
+                    COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+                FROM (
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.state,
+                        te.created_at
+                    FROM task_events te
+                    WHERE
+                        (%(role)s = 'DRONE_PILOT' AND te.user_id = %(user_id)s)
+                        OR
+                        (%(role)s != 'DRONE_PILOT' AND te.task_id IN (
+                            SELECT t.id
+                            FROM tasks t
+                            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                        ))
+                    ORDER BY te.task_id, te.created_at DESC
+                ) AS te;
+            """
+            await cur.execute(raw_sql, {"user_id": user_id, "role": role})
+            db_counts = await cur.fetchone()
+
+        return db_counts
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -118,21 +126,29 @@ async def list_tasks(
     limit: int = 50,
 ):
     """Get all tasks for a all user."""
-
     user_id = user_data.id
-    query = """SELECT role FROM user_profile WHERE user_id = %(user_id)s"""
-    records = await db.fetch_all(query, {"user_id": user_id})
 
-    roles = [record["role"] for record in records]
-    if UserRole.PROJECT_CREATOR.name in roles:
-        role = "PROJECT_CREATOR"
-    else:
-        role = "DRONE_PILOT"
+    async with db.cursor(row_factory=dict_row) as cur:
+        # Check if the user profile exists
+        await cur.execute(
+            """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
+            {"user_id": user_id},
+        )
+        records = await cur.fetchall()
 
-    if not records:
-        raise HTTPException(status_code=404, detail="User profile not found")
+        if not records:
+            raise HTTPException(status_code=404, detail="User profile not found")
 
-    return await task_schemas.UserTasksStatsOut.get_tasks_by_user(user_id, db, role, skip, limit)
+        roles = [record["role"] for record in records]
+
+        if UserRole.PROJECT_CREATOR.name in roles:
+            role = "PROJECT_CREATOR"
+        else:
+            role = "DRONE_PILOT"
+
+    return await task_schemas.UserTasksStatsOut.get_tasks_by_user(
+        db, user_id, role, skip, limit
+    )
 
 
 @router.get("/states/{project_id}")
