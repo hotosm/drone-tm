@@ -31,6 +31,19 @@ async def get_task_waypoint(
     download: bool = True,
     db: Database = Depends(database.get_db),
 ):
+    """
+    Retrieve task waypoints and download a flight plan.
+
+    Args:
+        project_id (uuid.UUID): The UUID of the project.
+        task_id (uuid.UUID): The UUID of the task.
+        download (bool): Flag to determine if the output should be downloaded or returned as GeoJSON. Defaults to True.
+
+    Returns:
+        geojson or FileResponse: If `download` is False, returns waypoints as a GeoJSON object.
+                                If `download` is True, returns a KMZ file as a download response.
+    """
+
     task_geojson = await get_task_geojson(db, task_id)
     project = await get_project_by_id(db, project_id)
 
