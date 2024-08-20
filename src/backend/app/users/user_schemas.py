@@ -210,7 +210,7 @@ class DbUser(BaseModel):
                         "user_id": str(user_data.id),
                         "name": user_data.name,
                         "email_address": user_data.email,
-                        "profile_img": user_data.img_url,
+                        "profile_img": user_data.profile_img,
                     },
                 )
                 return await cur.fetchone()
