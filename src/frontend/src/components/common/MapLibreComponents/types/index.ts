@@ -58,6 +58,7 @@ export interface IVectorLayer extends ILayer {
     | 'top-right'
     | 'bottom-left'
     | 'bottom-right';
+  imageLayerOptions?: Object;
 }
 
 type InteractionsType = 'hover' | 'select';
