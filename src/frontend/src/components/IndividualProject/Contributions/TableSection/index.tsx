@@ -23,7 +23,7 @@ export default function TableSection() {
   const taskDataForTable = useMemo(() => {
     if (!tasksData) return [];
     return tasksData?.reduce((acc: any, curr: any) => {
-      if (!curr?.state || curr?.state === '') return acc;
+      if (!curr?.state || curr?.state === 'UNLOCKED_TO_MAP') return acc;
       return [
         ...acc,
         {
