@@ -17,6 +17,8 @@ import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
 import { toast } from 'react-toastify';
 
+const { BASE_URL } = process.env;
+
 const initialState = {
   username: '',
   password: '',
@@ -37,11 +39,19 @@ export default function Login() {
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: signInUser,
-    onSuccess: (res: any) => {
+    onSuccess: async (res: any) => {
       dispatch(setUserState({ user: res.data }));
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('refresh', res.data.refresh_token);
       toast.success('Logged In Successfully');
+      const userDetailsUrl = `${BASE_URL}/users/my-info/`;
+      const response2 = await fetch(userDetailsUrl, {
+        credentials: 'include',
+        headers: { 'access-token': res.data.access_token },
+      });
+      const userDetails = await response2.json();
+      const userDetailsString = JSON.stringify(userDetails);
+      localStorage.setItem('userprofile', userDetailsString);
       navigate('/projects');
     },
     onError: err => {

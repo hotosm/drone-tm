@@ -2,7 +2,7 @@ import { useGetTaskListQuery } from '@Api/dashboard';
 import { FlexColumn } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { postTaskStatus } from '@Services/project';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 
 const RequestLogs = () => {
@@ -12,11 +12,14 @@ const RequestLogs = () => {
         (task: Record<string, any>) => task?.state === 'request logs',
       ),
   });
+  const queryClient = useQueryClient();
 
   const { mutate: respondToRequest } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: () => {
       toast.success('Responded to the request');
+      queryClient.invalidateQueries({ queryKey: ['task-list'] });
+      queryClient.invalidateQueries({ queryKey: ['task-statistics'] });
     },
     onError: (err: any) => {
       toast.error(err.message);
@@ -27,7 +30,7 @@ const RequestLogs = () => {
     respondToRequest({
       projectId,
       taskId,
-      data: { event: 'bad' },
+      data: { event: 'reject' },
     });
   };
 

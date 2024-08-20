@@ -1,6 +1,6 @@
 /* eslint-disable no-nested-ternary */
 /* eslint-disable no-unused-vars */
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
@@ -16,6 +16,7 @@ import { setProjectState } from '@Store/actions/project';
 import {
   useGetProjectsDetailQuery,
   useGetTaskStatesQuery,
+  useGetUserDetailsQuery,
 } from '@Api/projects';
 import lock from '@Assets/images/lock.png';
 import { postTaskStatus } from '@Services/project';
@@ -25,11 +26,16 @@ import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 const MapSection = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const dispatch = useTypedDispatch();
   const [taskStatusObj, setTaskStatusObj] = useState<Record<
     string,
     any
   > | null>(null);
+  const [lockedUser, setLockedUser] = useState<Record<string, any> | null>(
+    null,
+  );
+  const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
   const { data: projectData }: Record<string, any> = useGetProjectsDetailQuery(
     id as string,
@@ -67,6 +73,7 @@ const MapSection = () => {
         toast.success('Task Requested for Mapping');
       } else {
         toast.success('Task Locked for Mapping');
+        setLockedUser({ name: userDetails?.name, id: userDetails?.id });
       }
     },
     onError: (err: any) => {
@@ -114,16 +121,18 @@ const MapSection = () => {
           case 'UNLOCKED_TO_MAP':
             return 'This task is available for mapping';
           case 'REQUEST_FOR_MAPPING':
-            return 'This task is Requested for mapping';
+            return `This task is Requested for mapping ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'LOCKED_FOR_MAPPING':
-            return 'This task is locked for mapping';
+            return `This task is locked for mapping ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+          case 'UNFLYABLE_TASK':
+            return 'This task is not flyable';
           default:
             return 'This Task is completed';
         }
       };
       return <h6>{popupText(status)}</h6>;
     },
-    [taskStatusObj],
+    [taskStatusObj, userDetails],
   );
 
   const handleTaskLockClick = () => {
@@ -205,10 +214,28 @@ const MapSection = () => {
         title={`Task #${selectedTaskId}`}
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
+          setLockedUser({
+            id: properties?.locked_user_id || '',
+            name: properties?.locked_user_name || '',
+          });
         }}
-        hideButton={taskStatusObj?.[selectedTaskId] !== 'UNLOCKED_TO_MAP'}
-        buttonText="Lock Task"
-        handleBtnClick={() => handleTaskLockClick()}
+        hideButton={
+          !(
+            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
+            (taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
+              lockedUser?.id === userDetails?.id)
+          )
+        }
+        buttonText={
+          taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP'
+            ? 'Lock Task'
+            : 'Go To Task'
+        }
+        handleBtnClick={() =>
+          taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP'
+            ? handleTaskLockClick()
+            : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
+        }
       />
       <BaseLayerSwitcher />
     </MapContainer>

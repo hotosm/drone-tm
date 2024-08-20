@@ -125,10 +125,11 @@ class TaskOut(BaseModel):
 
     id: uuid.UUID
     project_task_index: int
-    outline: Polygon
-    state: Optional[State] = None
-    contributor: Optional[str] = None
-
+    outline: Any = Field(exclude=True)
+    state: Optional[str] = None
+    user_id: Optional[str] = None
+    task_area: Optional[float] = None
+    name: Optional[str] = None
 
 class DbProject(BaseModel):
     """Project model for extracting from database."""
