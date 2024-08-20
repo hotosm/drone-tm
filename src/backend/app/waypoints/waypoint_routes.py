@@ -4,7 +4,7 @@ import shutil
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import FileResponse
 from app.config import settings
-from drone_flightplan import flightplan, waypoints
+from drone_flightplan import create_flightplan, waypoints
 from app.models.enums import HTTPStatus
 from app.tasks.task_crud import get_task_geojson
 from app.projects.project_crud import get_project_by_id
@@ -61,7 +61,7 @@ async def get_task_waypoint(
             get_file_from_bucket(
                 settings.S3_BUCKET_NAME, f"dem/{project_id}/dem.tif", dem_path
             )
-        output_file = flightplan.generate_flightplan(
+        output_file = create_flightplan.create_flightplan(
             features,
             altitude,
             gsd,
@@ -161,17 +161,15 @@ async def generate_kmz(
             generate_3d,
         )
     else:
-        output_file = flightplan.generate_flightplan(
-            features,
-            altitude,
-            gsd,
-            forward_overlap,
-            side_overlap,
-            generate_each_points,
-            generate_3d,
-            terrain_follow,
-            dem_path if dem else None,
-            f"/tmp/{uuid.uuid4()}",
+        output_file = create_flightplan.create_flightplan(
+            aoi=boundary,
+            forward_overlap=forward_overlap,
+            side_overlap=side_overlap,
+            agl=altitude,
+            gsd=gsd,
+            generate_each_points=generate_each_points,
+            dem=dem_path if dem else None,
+            outfile=f"/tmp/{uuid.uuid4()}",
         )
 
         return FileResponse(
