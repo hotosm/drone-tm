@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
-// import RadioButton from '@Components/common/RadioButton';
+import RadioButton from '@Components/common/RadioButton';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { setCreateProjectState } from '@Store/actions/createproject';
@@ -32,14 +32,30 @@ const FinalOutputOptions = [
   },
 ];
 
+const measurementTypeOptions = [
+  {
+    name: 'GSD',
+    value: 'gsd',
+    label: 'GSD',
+  },
+  {
+    name: 'Altitude',
+    value: 'altitude',
+    label: 'Altitude',
+  },
+];
+
 const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
 
-  const { register, errors, watch, control } = formProps;
+  const { register, errors, watch, control, setValue } = formProps;
   const final_output = watch('final_output');
 
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
+  );
+  const measurementType = useTypedSelector(
+    state => state.createproject.measurementType,
   );
   const isTerrainFollow = useTypedSelector(
     state => state.createproject.isTerrainFollow,
@@ -60,18 +76,49 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
       /> */}
       {keyParamOption === 'basic' ? (
         <>
-          <FormControl className="naxatw-mt-4 naxatw-gap-1">
-            <Label required>Ground Sampling Distance (meter)</Label>
-            <Input
-              placeholder="Enter GSD in meter"
-              type="number"
-              {...register('gsd_cm_px', {
-                required: 'GSD is required',
-                valueAsNumber: true,
-              })}
+          <FormControl>
+            <Label>Measurement Type</Label>
+            <RadioButton
+              options={measurementTypeOptions}
+              direction="row"
+              onChangeData={val => {
+                dispatch(setCreateProjectState({ measurementType: val }));
+                setValue('gsd_cm_px', '');
+                setValue('altitude_from_ground', '');
+              }}
+              value={measurementType}
             />
-            <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
           </FormControl>
+
+          {measurementType === 'gsd' ? (
+            <FormControl className="naxatw-mt-4 naxatw-gap-1">
+              <Label required>Ground Sampling Distance (meter)</Label>
+              <Input
+                placeholder="Enter GSD in meter"
+                type="number"
+                {...register('gsd_cm_px', {
+                  required: 'GSD is required',
+                  valueAsNumber: true,
+                })}
+              />
+              <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
+            </FormControl>
+          ) : (
+            <FormControl className="naxatw-mt-4 naxatw-gap-1">
+              <Label required>Altitude From Ground (meter)</Label>
+              <Input
+                placeholder="Enter Altitude From Ground in meter"
+                type="number"
+                {...register('altitude_from_ground', {
+                  required: 'Altitude From Round is Required',
+                  valueAsNumber: true,
+                })}
+              />
+              <ErrorMessage
+                message={errors?.altitude_from_ground?.message as string}
+              />
+            </FormControl>
+          )}
           <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
             <FormControl className="naxatw-mt-4 naxatw-gap-1">
               <Label required>Front Overlap in (%)</Label>

@@ -77,6 +77,9 @@ const CreateprojectLayout = () => {
   const requireApprovalFromManagerForLocking = useTypedSelector(
     state => state.createproject.requireApprovalFromManagerForLocking,
   );
+  const measurementType = useTypedSelector(
+    state => state.createproject.measurementType,
+  );
 
   const initialState: FieldValues = {
     name: '',
@@ -213,6 +216,8 @@ const CreateprojectLayout = () => {
     if (isNoflyzonePresent === 'no')
       delete refactoredData?.outline_no_fly_zones;
     delete refactoredData?.dem;
+    if (measurementType === 'gsd') delete refactoredData?.altitude_from_ground;
+    else delete refactoredData?.gsd_cm_px;
 
     // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
     const formData = new FormData();
