@@ -10,6 +10,10 @@ import {
   Contributions,
   GenerateTask,
 } from '@Components/CreateProject/DescriptionContents';
+import orthoPhotoIcon from '@Assets/images/ortho-photo-icon.svg';
+import _3DModal from '@Assets/images/3d-model-icon.svg';
+import DTMIcon from '@Assets/images/DTM-Icon.svg';
+import DSMIcon from '@Assets/images/DSM-icon.svg';
 
 export type StepComponentMap = {
   [key: number]: React.FC;
@@ -154,4 +158,32 @@ export const keyParamsDescriptions = [
 export const lockApprovalOptions = [
   { name: 'Required', label: 'Required', value: 'required' },
   { name: 'Not Required', label: 'Not Required', value: 'not_required' },
+];
+
+export const FinalOutputOptions = [
+  { label: '2D Orthophoto', value: 'ORTHOPHOTO_2D', icon: orthoPhotoIcon },
+  { label: '3D Model', value: 'ORTHOPHOTO_3D', icon: _3DModal },
+  {
+    label: 'Digital Terrain Model (DTM)',
+    value: 'DIGITAL_TERRAIN_MODEL',
+    icon: DTMIcon,
+  },
+  {
+    label: 'Digital Surface Model (DSM)',
+    value: 'DIGITAL_SURFACE_MODEL',
+    icon: DSMIcon,
+  },
+];
+
+export const measurementTypeOptions = [
+  {
+    name: 'GSD',
+    value: 'gsd',
+    label: 'GSD',
+  },
+  {
+    name: 'Altitude',
+    value: 'altitude',
+    label: 'Altitude',
+  },
 ];
