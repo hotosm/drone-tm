@@ -4,7 +4,7 @@ import shutil
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import FileResponse
 from app.config import settings
-from drone_flightplan import flightplan, waypoints
+from drone_flightplan import create_flightplan, waypoints
 from app.models.enums import HTTPStatus
 from app.tasks.task_logic import get_task_geojson
 from app.db import database
@@ -31,46 +31,61 @@ async def get_task_waypoint(
     task_id: uuid.UUID,
     download: bool = True,
 ):
+    """
+    Retrieve task waypoints and download a flight plan.
+
+    Args:
+        project_id (uuid.UUID): The UUID of the project.
+        task_id (uuid.UUID): The UUID of the task.
+        download (bool): Flag to determine if the output should be downloaded or returned as GeoJSON. Defaults to True.
+
+    Returns:
+        geojson or FileResponse: If `download` is False, returns waypoints as a GeoJSON object.
+                                If `download` is True, returns a KMZ file as a download response.
+    """
+
     task_geojson = await get_task_geojson(db, task_id)
     features = task_geojson["features"][0]
     project = await project_deps.get_project_by_id(project_id, db)
+    # project = await get_project_by_id(db, project_id)
+
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
-    generate_each_points = False
-    generate_3d = False
+    generate_each_points = True if project.is_terrain_follow else False
+    generate_3d = (
+        False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
+    )
 
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
-    # TODO This should be fixed within the drone_flightplan (115 m altitude is static for now)
-    if not altitude:
-        altitude = gsd * GSD_to_AGL_CONST if gsd else 115
 
     if not download:
-        return waypoints.create_waypoint(
-            features,
-            altitude,
-            forward_overlap,
-            side_overlap,
-            generate_each_points,
-            generate_3d,
-        )
-    else:
-        if project.is_terrain_follow:
-            dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
-            get_file_from_bucket(
-                settings.S3_BUCKET_NAME, f"dem/{project_id}/dem.tif", dem_path
-            )
-        output_file = flightplan.generate_flightplan(
-            features,
+        points = waypoints.create_waypoint(
+            task_geojson,
             altitude,
             gsd,
             forward_overlap,
             side_overlap,
             generate_each_points,
             generate_3d,
-            project.is_terrain_follow,
-            dem_path if project.is_terrain_follow else None,
-            f"/tmp/{uuid.uuid4()}",
+        )
+        return geojson.loads(points)
+
+    else:
+        if project.is_terrain_follow:
+            dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+            get_file_from_bucket(
+                settings.S3_BUCKET_NAME, f"dem/{project_id}/dem.tif", dem_path
+            )
+        output_file = create_flightplan.create_flightplan(
+            aoi=task_geojson,
+            forward_overlap=forward_overlap,
+            side_overlap=side_overlap,
+            agl=altitude,
+            gsd=gsd,
+            generate_each_points=generate_each_points,
+            dem=dem_path if project.is_terrain_follow else None,
+            outfile=f"/tmp/{uuid.uuid4()}",
         )
 
         return FileResponse(
@@ -144,33 +159,28 @@ async def generate_kmz(
             shutil.copyfileobj(dem.file, buffer)
 
     boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
-    features = boundary["features"][0]
 
     if not download:
-        # TODO This should be fixed within the drone_flightplan
-        if gsd:
-            altitude = gsd * GSD_to_AGL_CONST
-
-        return waypoints.create_waypoint(
-            features,
-            altitude,
-            forward_overlap,
-            side_overlap,
-            generate_each_points,
-            generate_3d,
-        )
-    else:
-        output_file = flightplan.generate_flightplan(
-            features,
+        points = waypoints.create_waypoint(
+            boundary,
             altitude,
             gsd,
             forward_overlap,
             side_overlap,
             generate_each_points,
             generate_3d,
-            terrain_follow,
-            dem_path if dem else None,
-            f"/tmp/{uuid.uuid4()}",
+        )
+        return geojson.loads(points)
+    else:
+        output_file = create_flightplan.create_flightplan(
+            aoi=boundary,
+            forward_overlap=forward_overlap,
+            side_overlap=side_overlap,
+            agl=altitude,
+            gsd=gsd,
+            generate_each_points=generate_each_points,
+            dem=dem_path if dem else None,
+            outfile=f"/tmp/{uuid.uuid4()}",
         )
 
         return FileResponse(

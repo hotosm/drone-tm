@@ -107,7 +107,7 @@ const IndividualProject = () => {
             )}
           </div>
         </div>
-        <div className="naxatw-h-[36.375rem] naxatw-w-[62.5%] naxatw-overflow-hidden naxatw-rounded-md">
+        <div className="!naxatw-max-h-[calc(100vh-17.375rem)] naxatw-w-[62.5%] naxatw-overflow-hidden naxatw-rounded-md">
           <MapSection />
         </div>
       </Flex>
