@@ -6,6 +6,7 @@ from geojson_pydantic import Feature, FeatureCollection, Polygon
 from app.models.enums import FinalOutput, ProjectVisibility
 from shapely import wkb
 from datetime import date
+from shapely.geometry import mapping
 from app.utils import (
     geojson_to_geometry,
     multipolygon_to_polygon,
@@ -123,8 +124,28 @@ class ProjectOut(BaseModel):
     per_task_instructions: Optional[str] = None
     requires_approval_from_manager_for_locking: Optional[bool] = None
     outline: Any = Field(exclude=True)
+    no_fly_zones: Optional[Any] = Field(default=None, exclude=True)
     task_count: int = None
     tasks: list[TaskOut] = []
+
+    @computed_field
+    @property
+    def no_fly_zones_geojson(self) -> Optional[Feature]:
+        """Compute the geojson outline from WKBElement no_fly_zones."""
+        if not self.no_fly_zones:
+            return None
+        try:
+            geom = wkb.loads(self.no_fly_zones, hex=True)
+            bbox = geom.bounds  # Calculate bounding box
+            geojson = mapping(geom)
+            return Feature(
+                type="Feature",
+                geometry=geojson,
+                properties={"id": str(self.id), "bbox": bbox},
+            )
+        except Exception as e:
+            print(f"Error processing no_fly_zones: {e}")
+            return None
 
     @computed_field
     @property
