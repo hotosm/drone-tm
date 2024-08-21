@@ -28,7 +28,7 @@ export default function TableSection() {
         ...acc,
         {
           user: curr?.name || '-',
-          task_mapped: curr?.id,
+          task_mapped: `Task# ${curr?.project_task_index}`,
           task_state: curr?.state,
         },
       ];

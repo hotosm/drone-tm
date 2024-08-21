@@ -29,7 +29,7 @@ const DescriptionBox = () => {
               {
                 name: 'Total task area',
                 value: taskData?.task_area
-                  ? `${taskData?.task_area} km²`
+                  ? `${Number(taskData?.task_area)?.toFixed(3)} km²`
                   : null,
               },
               {
