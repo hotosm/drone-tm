@@ -1,5 +1,5 @@
 import Image from '@Components/RadixComponents/Image';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import dtmLogo from '@Assets/images/DTM-logo-black.svg';
 import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
@@ -7,15 +7,22 @@ import Icon from '../Icon';
 
 export default function Navbar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
 
   return (
     <nav className="naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
       <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-px-16">
-        <Image
-          src={dtmLogo}
-          alt="DTM-logo"
-          className="naxatw-h-8 naxatw-w-40"
-        />
+        <div
+          className="naxatw-cursor-pointer"
+          role="presentation"
+          onClick={() => navigate('/dashboard')}
+        >
+          <Image
+            src={dtmLogo}
+            alt="DTM-logo"
+            className="naxatw-h-8 naxatw-w-40"
+          />
+        </div>
         <FlexRow className="naxatw-gap-4">
           <NavLink
             to="/projects"

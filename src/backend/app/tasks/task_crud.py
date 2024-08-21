@@ -34,43 +34,43 @@ async def get_task_geojson(db: Database, task_id: uuid.UUID):
     return json.loads(data["geom"])
 
 
-async def get_tasks_by_user(user_id: str, db: Database, role: str):
+async def get_tasks_by_user(
+    user_id: str, db: Database, role: str, skip: int = 0, limit: int = 50
+):
     try:
-        query = """WITH task_details AS (
-            SELECT
-                tasks.id AS task_id,
-                task_events.project_id AS project_id,
-                ST_Area(ST_Transform(tasks.outline, 4326)) / 1000000 AS task_area,
-                task_events.created_at,
-                task_events.state
-            FROM
-                task_events
-            LEFT JOIN
-                tasks ON task_events.task_id = tasks.id
-            WHERE
-                (
-                    :role = 'DRONE_PILOT' AND task_events.user_id = :user_id
-                )
-                OR
-                (
-                    :role != 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
-                )
-        )
-        SELECT
-            task_details.task_id,
-            task_details.project_id,
-            task_details.task_area,
-            task_details.created_at,
+        query = """SELECT DISTINCT ON (tasks.id)
+            tasks.id AS task_id,
+            task_events.project_id AS project_id,
+            ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
+            task_events.created_at,
             CASE
-                WHEN task_details.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                WHEN task_details.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                WHEN task_details.state = 'UNLOCKED_DONE' THEN 'completed'
-                WHEN task_details.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                ELSE ''
+                WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                WHEN task_events.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+                WHEN task_events.state = 'UNLOCKED_DONE' THEN 'completed'
+                WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                ELSE 'UNLOCKED_TO_MAP'
             END AS state
-        FROM task_details;
+        FROM
+            task_events
+        LEFT JOIN
+            tasks ON task_events.task_id = tasks.id
+        WHERE
+            (
+                :role = 'DRONE_PILOT' AND task_events.user_id = :user_id
+            )
+            OR
+            (
+                :role != 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = :user_id)
+            )
+        ORDER BY
+            tasks.id, task_events.created_at DESC
+        OFFSET :skip
+        LIMIT :limit;
         """
-        records = await db.fetch_all(query, values={"user_id": user_id, "role": role})
+        records = await db.fetch_all(
+            query,
+            values={"user_id": user_id, "role": role, "skip": skip, "limit": limit},
+        )
         return records
 
     except Exception as e:
@@ -193,24 +193,23 @@ async def update_task_state(
     final_state: State,
 ):
     query = """
-            WITH last AS (
-                SELECT *
-                FROM task_events
-                WHERE project_id = :project_id AND task_id = :task_id
-                ORDER BY created_at DESC
-                LIMIT 1
-            ),
-            locked AS (
-                SELECT *
-                FROM last
-                WHERE user_id = :user_id AND state = :initial_state
-            )
-            UPDATE task_events
-            SET state = :final_state,
-                comment = :comment,
-                created_at = now()
-            FROM locked
-            WHERE task_events.event_id = locked.event_id
+        WITH last AS (
+            SELECT *
+            FROM task_events
+            WHERE project_id = :project_id AND task_id = :task_id
+            ORDER BY created_at DESC
+            LIMIT 1
+        ),
+        locked AS (
+            SELECT *
+            FROM last
+            WHERE user_id = :user_id AND state = :initial_state
+        )
+        INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
+        SELECT gen_random_uuid(), project_id, task_id, user_id, :final_state, :comment, now()
+        FROM last
+        WHERE user_id = :user_id
+        RETURNING project_id, task_id, user_id, state;
         """
     values = {
         "project_id": str(project_id),

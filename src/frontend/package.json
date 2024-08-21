@@ -15,6 +15,7 @@
     "@turf/area": "^7.0.0",
     "@turf/bbox": "^7.0.0",
     "@turf/centroid": "^7.0.0",
+    "@turf/meta": "^7.0.0",
     "@turf/flatten": "^7.0.0",
     "@turf/length": "^7.0.0",
     "autoprefixer": "^10.4.14",
