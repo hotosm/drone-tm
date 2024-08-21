@@ -1,7 +1,7 @@
 /* eslint-disable no-param-reassign */
 import { useEffect, useMemo, useRef } from 'react';
 import { MapMouseEvent } from 'maplibre-gl';
-import { v4 as uuidv4 } from 'uuid';
+// import { v4 as uuidv4 } from 'uuid';
 import { IVectorLayer } from '../types';
 
 export default function VectorLayer({
@@ -21,6 +21,7 @@ export default function VectorLayer({
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
+  const imageId = `${sourceId}-image/logo`;
 
   useEffect(() => {
     hasInteractions.current = !!interactions.length;
@@ -28,21 +29,26 @@ export default function VectorLayer({
 
   useEffect(() => {
     if (!map || !isMapLoaded || !geojson) return;
-    if (map.getSource(sourceId)) {
-      map?.removeLayer(sourceId);
+
+    if (map?.getSource(sourceId)) {
+      if (map?.getLayer(sourceId)) map?.removeLayer(sourceId);
+      if (map?.getLayer(imageId)) map?.removeLayer(imageId);
+      if (map?.getLayer(`${sourceId}-layer`))
+        map?.removeLayer(`${sourceId}-layer`);
       map?.removeSource(sourceId);
     }
+
     map.addSource(sourceId, {
       type: 'geojson',
       data: geojson,
     });
-  }, [sourceId, isMapLoaded, map, geojson]);
+  }, [sourceId, isMapLoaded, map, geojson, imageId]);
 
   useEffect(() => {
     if (!map || !isMapLoaded) return;
     if (visibleOnMap) {
       map.addLayer({
-        id: sourceId,
+        id: `${sourceId}-layer`,
         type: 'line',
         source: sourceId,
         layout: {},
@@ -50,7 +56,6 @@ export default function VectorLayer({
       });
 
       if (hasImage) {
-        const imageId = uuidv4();
         map.loadImage(image, (error, img: any) => {
           if (error) throw error;
           // Add the loaded image to the style's sprite with the ID 'kitten'.
@@ -114,11 +119,14 @@ export default function VectorLayer({
   useEffect(
     () => () => {
       if (map?.getSource(sourceId)) {
-        map?.removeLayer(sourceId);
+        if (map?.getLayer(sourceId)) map?.removeLayer(sourceId);
+        if (map?.getLayer(imageId)) map?.removeLayer(imageId);
+        if (map?.getLayer(`${sourceId}-layer`))
+          map?.removeLayer(`${sourceId}-layer`);
         map?.removeSource(sourceId);
       }
     },
-    [map, sourceId],
+    [map, sourceId, imageId],
   );
 
   return null;

@@ -49,10 +49,10 @@ const Projects = () => {
                   <ProjectCard
                     key={singleproject.id}
                     id={singleproject.id}
-                    containerId={`map-libre-map-${singleproject.id}`}
+                    // containerId={`map-libre-map-${singleproject.id}`}
                     title={singleproject.name}
                     description={singleproject.description}
-                    geojson={singleproject.outline_geojson}
+                    // geojson={singleproject.outline_geojson}
                   />
                 ),
               )

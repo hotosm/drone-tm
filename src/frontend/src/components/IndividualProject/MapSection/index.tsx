@@ -154,12 +154,12 @@ const MapSection = () => {
     >
       {taskStatusObj &&
         tasksData &&
-        tasksData?.map((task: Record<string, any>, index: number) => {
+        tasksData?.map((task: Record<string, any>) => {
           return (
             <VectorLayer
               key={task?.id}
               map={map as Map}
-              id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}-${index}`}
+              id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
               visibleOnMap={task?.id && taskStatusObj}
               geojson={task.outline_geojson as GeojsonType}
               interactions={['feature']}
