@@ -1,13 +1,13 @@
 import json
 import uuid
-from typing import Annotated, Optional, List, Any
+from typing import Annotated, Optional, List
 from datetime import datetime, date
 import geojson
 from loguru import logger as log
 from pydantic import BaseModel, computed_field, Field
 from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
-from geojson_pydantic import Feature, FeatureCollection, Polygon, Point
+from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
 from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row
@@ -144,7 +144,7 @@ class DbProject(BaseModel):
     organisation_id: Optional[int] = None
     outline: Optional[Polygon | Feature | FeatureCollection]
     centroid: Optional[Point | Feature | Polygon] = None
-    no_fly_zones: Any = Field(exclude=True)
+    no_fly_zones: Optional[MultiPolygon | Polygon | Feature] = None
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     requires_approval_from_manager_for_locking: Optional[bool] = None
@@ -164,10 +164,7 @@ class DbProject(BaseModel):
                     projects.*,
                     jsonb_build_object(
                         'type', 'Feature',
-                        'geometry', jsonb_build_object(
-                            'type', 'Polygon',
-                            'coordinates', (ST_AsGeoJSON(projects.outline)::jsonb -> 'coordinates')::jsonb
-                        ),
+                        'geometry', ST_AsGeoJSON(projects.outline)::jsonb,
                         'properties', jsonb_build_object(
                             'id', projects.id,
                             'bbox', jsonb_build_array(
@@ -179,6 +176,20 @@ class DbProject(BaseModel):
                         ),
                         'id', projects.id
                     ) AS outline,
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'geometry', ST_AsGeoJSON(projects.outline)::jsonb,
+                        'properties', jsonb_build_object(
+                            'id', projects.id,
+                            'bbox', jsonb_build_array(
+                                ST_XMin(ST_Envelope(projects.no_fly_zones)),
+                                ST_YMin(ST_Envelope(projects.no_fly_zones)),
+                                ST_XMax(ST_Envelope(projects.no_fly_zones)),
+                                ST_YMax(ST_Envelope(projects.no_fly_zones))
+                            )
+                        ),
+                        'id', projects.id
+                    ) AS no_fly_zones,
                     ST_AsGeoJSON(projects.centroid)::jsonb AS centroid
 
                 FROM
@@ -395,6 +406,7 @@ class ProjectOut(BaseModel):
     per_task_instructions: Optional[str] = None
     requires_approval_from_manager_for_locking: Optional[bool] = None
     outline: Optional[Polygon | Feature | FeatureCollection]
+    no_fly_zones: Optional[Polygon | Feature | FeatureCollection | MultiPolygon] = None
     requires_approval_from_manager_for_locking: bool
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
