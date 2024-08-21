@@ -54,6 +54,7 @@ const MapSection = () => {
     state => state.project.selectedTaskId,
   );
   const tasksData = useTypedSelector(state => state.project.tasksData);
+  const projectArea = useTypedSelector(state => state.project.projectArea);
 
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
@@ -152,6 +153,27 @@ const MapSection = () => {
         height: '100%',
       }}
     >
+      {projectArea && (
+        <VectorLayer
+          map={map as Map}
+          id="project-area"
+          visibleOnMap
+          geojson={
+            {
+              type: 'FeatureCollection',
+              features: [projectArea],
+            } as GeojsonType
+          }
+          layerOptions={{
+            type: 'line',
+            paint: {
+              'line-color': '#D73F3F',
+              'line-width': 1,
+            },
+          }}
+        />
+      )}
+
       {taskStatusObj &&
         tasksData &&
         tasksData?.map((task: Record<string, any>) => {
