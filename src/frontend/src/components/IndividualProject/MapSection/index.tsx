@@ -169,7 +169,7 @@ const MapSection = () => {
             type: 'line',
             paint: {
               'line-color': '#D73F3F',
-              'line-width': 1,
+              'line-width': 2,
             },
           }}
         />
@@ -193,7 +193,7 @@ const MapSection = () => {
                       paint: {
                         'fill-color': '#98BBC8',
                         'fill-outline-color': '#484848',
-                        'fill-opacity': 0.6,
+                        'fill-opacity': 0.8,
                       },
                     }
                   : taskStatusObj?.[`${task?.id}`] === 'REQUEST_FOR_MAPPING'
