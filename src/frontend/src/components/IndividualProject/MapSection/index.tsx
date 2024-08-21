@@ -23,6 +23,7 @@ import { postTaskStatus } from '@Services/project';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import Legend from './Legend';
 
 const MapSection = () => {
   const { id } = useParams();
@@ -259,6 +260,7 @@ const MapSection = () => {
             : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
         }
       />
+      <Legend />
       <BaseLayerSwitcher />
     </MapContainer>
   );
