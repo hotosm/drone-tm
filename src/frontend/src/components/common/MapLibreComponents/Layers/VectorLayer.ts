@@ -17,6 +17,7 @@ export default function VectorLayer({
   image,
   symbolPlacement = 'point',
   iconAnchor = 'center',
+  imageLayerOptions,
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
@@ -66,6 +67,7 @@ export default function VectorLayer({
             'icon-overlap': 'always',
             'icon-anchor': iconAnchor,
           },
+          ...imageLayerOptions,
         });
       }
     } else if (map.getLayer(sourceId)) {

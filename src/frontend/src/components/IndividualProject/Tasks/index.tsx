@@ -1,12 +1,12 @@
-import SearchInput from '@Components/common/FormUI/SearchInput';
-import { Select } from '@Components/common/FormUI';
-import { FlexRow } from '@Components/common/Layouts';
+// import SearchInput from '@Components/common/FormUI/SearchInput';
+// import { Select } from '@Components/common/FormUI';
+// import { FlexRow } from '@Components/common/Layouts';
 import TableSection from './TableSection';
 
 export default function Tasks() {
   return (
     <section className="naxatw-py-5">
-      <FlexRow className="naxatw-w-full naxatw-justify-between">
+      {/* <FlexRow className="naxatw-w-full naxatw-justify-between">
         <div className="naxatw-w-1/2">
           <SearchInput
             className="naxatw-rounded-md !naxatw-border naxatw-border-grey-200"
@@ -22,7 +22,7 @@ export default function Tasks() {
             className="naxatw-border-grey-200"
           />
         </div>
-      </FlexRow>
+      </FlexRow> */}
       <div className="naxatw-mt-2">
         <TableSection />
       </div>

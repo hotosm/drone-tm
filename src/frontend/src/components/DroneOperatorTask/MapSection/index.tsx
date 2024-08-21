@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom';
 import { FeatureCollection } from 'geojson';
 import { useGetTaskWaypointQuery } from '@Api/tasks';
 import getBbox from '@turf/bbox';
+import { coordAll } from '@turf/meta';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
@@ -31,44 +32,8 @@ const MapSection = () => {
     taskId as string,
     {
       select: (data: any) => {
-        // refine data and return geojson points and single line string
-        const refinedData = data?.data?.reduce(
-          (acc: any, curr: any) => {
-            return {
-              ...acc,
-              geojsonListOfPoint: [
-                ...acc.geojsonListOfPoint,
-                {
-                  type: 'FeatureCollection',
-                  features: [
-                    {
-                      type: 'Feature',
-                      properties: {
-                        angle: curr?.angle,
-                        gimbal_angle: curr.gimbal_angle,
-                      },
-                      geometry: {
-                        type: 'Point',
-                        coordinates: curr?.coordinates,
-                      },
-                    },
-                  ],
-                },
-              ],
-              combinedCoordinates: [
-                ...acc.combinedCoordinates,
-                curr?.coordinates,
-              ],
-            };
-          },
-          {
-            combinedCoordinates: [],
-            geojsonListOfPoint: [],
-          },
-        );
-        const { geojsonListOfPoint, combinedCoordinates } = refinedData;
         return {
-          geojsonListOfPoint,
+          geojsonListOfPoint: data.data,
           geojsonAsLineString: {
             type: 'FeatureCollection',
             features: [
@@ -77,7 +42,8 @@ const MapSection = () => {
                 properties: {},
                 geometry: {
                   type: 'LineString',
-                  coordinates: combinedCoordinates,
+                  // get all coordinates
+                  coordinates: coordAll(data.data),
                 },
               },
             ],
@@ -109,6 +75,7 @@ const MapSection = () => {
         >
           {taskWayPoints && (
             <>
+              {/* render line */}
               <VectorLayer
                 map={map as Map}
                 isMapLoaded={isMapLoaded}
@@ -128,38 +95,50 @@ const MapSection = () => {
                 symbolPlacement="line"
                 iconAnchor="center"
               />
-              {taskWayPoints?.geojsonListOfPoint?.map(
-                (point: any, index: number) => {
-                  const lastPoint =
-                    Number(taskWayPoints?.geojsonListOfPoint?.length) - 1;
-
-                  return (
-                    <VectorLayer
-                      key={`waypoint-points-vtLayer-${index}`}
-                      map={map as Map}
-                      isMapLoaded={isMapLoaded}
-                      id={`waypoint-directions-${index}`}
-                      geojson={point as GeojsonType}
-                      visibleOnMap={!!taskWayPoints}
-                      layerOptions={{
-                        type: 'circle',
-                        paint: {
-                          'circle-color': '#176149',
-                          'circle-stroke-width': 2,
-                          'circle-stroke-color': 'red',
-                          'circle-stroke-opacity':
-                            index === 0 || index === lastPoint ? 0 : 1,
-                          'circle-opacity':
-                            index === 0 || index === lastPoint ? 0 : 1,
-                        },
-                      }}
-                      hasImage={index === 0}
-                      image={marker}
-                      iconAnchor="bottom"
-                    />
-                  );
-                },
-              )}
+              {/* render points */}
+              <VectorLayer
+                map={map as Map}
+                isMapLoaded={isMapLoaded}
+                id="waypoint-points"
+                geojson={taskWayPoints?.geojsonListOfPoint as GeojsonType}
+                visibleOnMap={!!taskWayPoints}
+                layerOptions={{
+                  type: 'circle',
+                  paint: {
+                    'circle-color': '#176149',
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': 'red',
+                    'circle-stroke-opacity': 1,
+                    'circle-opacity': [
+                      'match',
+                      ['get', 'index'],
+                      0,
+                      0,
+                      Number(
+                        // eslint-disable-next-line no-unsafe-optional-chaining
+                        taskWayPoints?.geojsonListOfPoint?.features?.length - 1,
+                      ),
+                      0,
+                      1,
+                    ],
+                  },
+                }}
+              />
+              {/* render image and only if index is 0 */}
+              <VectorLayer
+                map={map as Map}
+                isMapLoaded={isMapLoaded}
+                id="waypoint-points-image"
+                geojson={taskWayPoints?.geojsonListOfPoint as GeojsonType}
+                visibleOnMap={!!taskWayPoints}
+                layerOptions={{}}
+                hasImage
+                image={marker}
+                iconAnchor="bottom"
+                imageLayerOptions={{
+                  filter: ['==', 'index', 0],
+                }}
+              />
             </>
           )}
           <BaseLayerSwitcher />
