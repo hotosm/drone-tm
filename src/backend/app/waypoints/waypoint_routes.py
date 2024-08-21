@@ -45,7 +45,7 @@ async def get_task_waypoint(
     """
 
     task_geojson = await get_task_geojson(db, task_id)
-    features = task_geojson["features"][0]
+    # features = task_geojson["features"][0]
     project = await project_deps.get_project_by_id(project_id, db)
     # project = await get_project_by_id(db, project_id)
 
