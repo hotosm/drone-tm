@@ -175,6 +175,28 @@ const MapSection = () => {
         />
       )}
 
+      {projectData?.no_fly_zones_geojson && (
+        <VectorLayer
+          map={map as Map}
+          id="no-fly-zone-area"
+          visibleOnMap
+          geojson={
+            {
+              type: 'FeatureCollection',
+              features: [projectData?.no_fly_zones_geojson],
+            } as GeojsonType
+          }
+          layerOptions={{
+            type: 'fill',
+            paint: {
+              'fill-color': '#9EA5AD',
+              'fill-outline-color': '#484848',
+              'fill-opacity': 0.8,
+            },
+          }}
+        />
+      )}
+
       {taskStatusObj &&
         tasksData &&
         tasksData?.map((task: Record<string, any>) => {

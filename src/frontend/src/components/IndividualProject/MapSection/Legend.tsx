@@ -43,7 +43,7 @@ const Legend = () => {
             <div className="naxatw-text-sm">Project Area</div>
           </div>
           <div className="naxatw-flex naxatw-gap-2">
-            <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#68707F]" />
+            <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#68707F] naxatw-opacity-60" />
             <div className="naxatw-text-sm">Unflyable Areas</div>
           </div>
         </div>
