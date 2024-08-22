@@ -107,7 +107,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <ErrorMessage
                 message={errors?.forward_overlap_percent?.message as string}
               />
-              <p className="naxatw-text-[#68707F]">Recommended - 75%</p>
+              <p className="naxatw-text-[#68707F]">Recommended : 75%</p>
             </FormControl>
             <FormControl className="naxatw-mt-4 naxatw-gap-1">
               <Label required>Side Overlap in (%)</Label>
@@ -124,7 +124,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <ErrorMessage
                 message={errors?.side_overlap_percent?.message as string}
               />
-              <p className="naxatw-text-[#68707F]">Recommended - 60%</p>
+              <p className="naxatw-text-[#68707F]">Recommended : 60%</p>
             </FormControl>
           </FlexRow>
           <FormControl className="naxatw-mt-4 naxatw-gap-1">
