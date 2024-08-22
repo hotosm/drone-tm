@@ -146,5 +146,5 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
         list: A list of objects in the bucket with the specified prefix.
     """
     client = s3_client()
-    objects = client.list_objects(bucket_name, prefix)
+    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
     return objects
