@@ -9,7 +9,7 @@ volumes:
   frontend-html:
     name: drone-tm-frontend-html-${GIT_BRANCH}
   minio-data:
-    name: drone-tm-db-data-${GIT_BRANCH}
+    name: drone-tm-minio-data-${GIT_BRANCH}
 
 services:
   backend:
