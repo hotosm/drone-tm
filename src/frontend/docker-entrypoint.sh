@@ -10,7 +10,7 @@ if [[ -z "${S3_SECRET_KEY}" ]]; then
   echo "Missing environment variable S3_SECRET_KEY"
   exit 0
 fi
-``
+
 MINIO_HOST_URL=${MINIO_HOST_URL:-http://localhost:9000}
 FRONTEND_BUCKET_NAME=${FRONTEND_BUCKET_NAME:-frontendstatic}
 
