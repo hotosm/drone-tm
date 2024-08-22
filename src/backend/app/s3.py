@@ -133,3 +133,18 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
         if response:
             response.close()
             response.release_conn()
+
+
+def list_objects_from_bucket(bucket_name: str, prefix: str):
+    """List all objects in a bucket with a specified prefix.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        prefix (str): The prefix to filter objects by.
+
+    Returns:
+        list: A list of objects in the bucket with the specified prefix.
+    """
+    client = s3_client()
+    objects = client.list_objects(bucket_name, prefix)
+    return objects
