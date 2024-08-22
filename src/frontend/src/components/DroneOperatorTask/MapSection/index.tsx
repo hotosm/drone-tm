@@ -73,10 +73,15 @@ const MapSection = () => {
           </p>
         </center>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
-          <p className="naxatw-text-base">angle: {popupData?.angle} degree</p>
+          <p className="naxatw-text-base">Angle: {popupData?.angle} degree</p>
           <p className="naxatw-text-base">
-            gimble angle: {popupData?.gimbal_angle} degree
+            Gimble angle: {popupData?.gimbal_angle} degree
           </p>
+          {popupData?.altitude && (
+            <p className="naxatw-text-base">
+              Altitude: {popupData?.altitude} meter
+            </p>
+          )}
         </div>
       </div>
     );
