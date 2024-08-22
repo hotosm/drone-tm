@@ -37,10 +37,10 @@ COPY ./pdm.lock /project/
 RUN pdm install --check --prod --no-editable
 
 # Run stage (final stage)
-FROM python:$PYTHON_BASE as service
+FROM python:$PYTHON_BASE AS service
 
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONDONTWRITEBYTECODES 1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODES=1
 
 RUN set -ex \
 && apt-get update \

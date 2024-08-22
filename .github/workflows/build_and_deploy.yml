@@ -14,38 +14,83 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Docker image
+  backend-build:
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
+    with:
+      context: ./src/backend
+      build_target: service
+      image_name: ghcr.io/${{ github.repository }}/backend
+      dockerfile: Dockerfile
+    secrets: inherit
+
+  encode-envs:
     runs-on: ubuntu-latest
-    environment:
+    environment: 
+      name: ${{ github.ref_name }}
+    outputs:
+      ENCODED_ENV: ${{ steps.vars_and_secrets_to_b64.outputs.ENCODED_ENV }}
+    steps:
+      - name: Vars to Env File
+        env:
+          VARS_CONTEXT: ${{ toJson(vars) }}
+        run: |
+          # Parse JSON with multiline strings
+          to_envs() { jq -r "to_entries[] | \"\(.key)=\(.value)\""; }
+
+          # Create .env file from VARS_CONTEXT
+          if [ "${VARS_CONTEXT}" != "null" ]; then
+            echo "${VARS_CONTEXT}" | to_envs > .env
+          fi
+
+      - name: Vars and Secrets to base64 encoded
+        id: vars_and_secrets_to_b64
+        run: |
+          ENCODED_ENV=$(cat .env | base64 -w0 | tr -d '\n' | tr -d '[:space:]' | xargs )
+          echo "ENCODED_ENV=${ENCODED_ENV}" >> "$GITHUB_OUTPUT"
+
+  frontend-build:
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
+    needs: 
+      - encode-envs
+    with:
+      context: ./src/frontend
+      build_target: live
+      image_name: ghcr.io/${{ github.repository }}/frontend
+      dockerfile: Dockerfile
+      extra_build_args: BASE64_ARGS_TO_ENV=${{ needs.encode-envs.outputs.ENCODED_ENV }}
+    secrets: inherit
+
+  postgres-vol-creation:
+    runs-on: ubuntu-latest
+    name: Create database volume
+    needs: 
+      - backend-build
+    environment: 
       name: ${{ github.ref_name }}
     steps:
-      - name: backend-build
-        uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
+      - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.8.0
         with:
-          context: ./src/backend
-          build_target: service
-          image_name: ghcr.io/${{ github.repository }}/backend
-          file: Dockerfile
-          
-      - name: frontend-build
-        uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
-        with:
-          context: ./src/frontend
-          build_target: live
-          image_name: ghcr.io/${{ github.repository }}/frontend
-          file: Dockerfile
+          ssh-private-key: "${{ secrets.SSH_PRIVATE_KEY }}"
+
+      - name: Add host keys to known_hosts
+        run: |
+          ssh-keyscan "${{ vars.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to VM
+        run: |
+          # Create db data volume if not exists
+          docker volume create drone-tm-db-data-${{ github.ref_name }} || true
+        env:
+          DOCKER_HOST: "ssh://${{ vars.SSH_USER }}@${{ vars.SSH_HOST }}"
 
   deploy_to_vm:
     name: Deploy to VM
     needs:
-      - build
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.ref_name }}
-    steps:
-      - name: Deploy to VM
-        uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@main
-        with:
-          environment: ${{ github.ref_name }}
-          docker_compose_file: "docker-compose.vm.yml"
+      - postgres-vol-creation
+      - frontend-build
+    uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@2.0.5
+    with:
+      docker_compose_file: docker-compose.vm.yml
+      environment: ${{ github.ref_name }}
+    secrets: inherit
