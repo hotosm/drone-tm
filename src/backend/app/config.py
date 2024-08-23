@@ -104,6 +104,8 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: Optional[EmailStr] = None
     EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
 
+    NODE_ODM_INTERNAL_DOCKER_URL: Optional[str] = "http://odm-api:3000"
+
     @computed_field
     @property
     def emails_enabled(self) -> bool:
