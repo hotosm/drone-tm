@@ -50,12 +50,16 @@ class TaskProcessor:
         url = f"{self.base_url}/task/{self.task_uuid}/info"
         while True:
             response = requests.get(url, params={"token": self.token})
-            response.raise_for_status()
-            task_info = response.json()
-            log.info(f"Task progress: {task_info['progress']}%")
-            if task_info["progress"] == 100:
-                log.info("Task processing complete.")
-                break
+            if response.status_code == 200:
+                task_info = response.json()
+                log.info(f"Task progress: {task_info['progress']}%")
+                if task_info["progress"] == 100:
+                    print("Task processing complete.")
+                    break
+            else:
+                log.info(
+                    f"Unexpected response status: {response.status_code}. Retrying in 5 seconds..."
+                )
             time.sleep(5)  # Poll every 5 seconds
 
     def download_assets(self):
