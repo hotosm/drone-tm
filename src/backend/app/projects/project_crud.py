@@ -1,5 +1,6 @@
 import json
 import uuid
+import os
 from app.projects import project_schemas
 from loguru import logger as log
 import shapely.wkb as wkblib
@@ -11,9 +12,12 @@ from fastapi.concurrency import run_in_threadpool
 from databases import Database
 from app.models.enums import ProjectStatus
 from app.utils import generate_slug
+from app.projects.image_processing import TaskProcessor
 from io import BytesIO
 from app.s3 import add_obj_to_bucket
 from app.config import settings
+from app.s3 import list_objects_from_bucket, get_file_from_bucket
+from concurrent.futures import ThreadPoolExecutor
 
 
 async def update_project_dem_url(db: Database, project_id: uuid.UUID, dem_url: str):
@@ -282,3 +286,42 @@ async def preview_split_by_square(boundary: str, meters: int):
             meters=meters,
         )
     )
+
+
+def process_imagery_in_nodeodm(images_folder: str, project_name: str):
+    token = ""
+    task_name = project_name
+    images_dir = images_folder
+    node_odm_docker_url = settings.NODE_ODM_INTERNAL_DOCKER_URL
+    task_processor = TaskProcessor(token, task_name, images_dir, node_odm_docker_url)
+    task_processor.process()
+
+
+def download_object(bucket_name: str, obj, images_folder: str):
+    if obj.object_name.endswith((".jpg", ".jpeg", ".JPG", ".png", ".PNG")):
+        log.info(f"Downloading image from s3 {obj.object_name}")
+        local_path = f"{images_folder}/{os.path.basename(obj.object_name)}"
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        get_file_from_bucket(bucket_name, obj.object_name, local_path)
+
+
+def process_images_concurrently(project_id: uuid.UUID, task_id: uuid.UUID):
+    objects = list_objects_from_bucket(
+        settings.S3_BUCKET_NAME, f"publicuploads/{project_id}"
+    )
+
+    # Construct the images folder path
+    images_folder = (
+        f"/tmp/{project_id}/{task_id}"  # NOTE: local path is set to /tmp/ folder.
+    )
+    project_name = "Testing Project"  # FIXME: Use real Project name here
+
+    # Process images concurrently
+    with ThreadPoolExecutor() as executor:
+        executor.map(
+            lambda obj: download_object(settings.S3_BUCKET_NAME, obj, images_folder),
+            objects,
+        )
+
+    # Call process_imagery_in_nodeodm after images are downloaded
+    process_imagery_in_nodeodm(images_folder, project_name)

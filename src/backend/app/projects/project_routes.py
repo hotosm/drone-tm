@@ -5,7 +5,15 @@ from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 import geojson
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Depends,
+    UploadFile,
+    File,
+    Form,
+    BackgroundTasks,
+)
 from loguru import logger as log
 from app.projects import project_schemas, project_crud
 from app.db import database
@@ -16,6 +24,7 @@ from app.config import settings
 from databases import Database
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
+from fastapi.responses import JSONResponse
 
 
 router = APIRouter(
@@ -238,3 +247,17 @@ async def read_project(
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+@router.get("/process-imagery/{project_id}", tags=["Image Processing"])
+async def process_imagery(
+    project_id: uuid.UUID, task_id: uuid.UUID, background_tasks: BackgroundTasks
+):
+    """Process Drone Imageries for a Project"""
+    background_tasks.add_task(
+        project_crud.process_images_concurrently, project_id, task_id
+    )
+
+    return JSONResponse(
+        content={"message": "Processing started", "project_id": str(project_id)}
+    )
