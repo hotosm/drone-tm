@@ -1,13 +1,23 @@
 import os
-from typing import Annotated
 import geojson
+import uuid
+from typing import Annotated
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from geojson_pydantic import FeatureCollection
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Depends,
+    UploadFile,
+    File,
+    Form,
+    BackgroundTasks,
+)
 from loguru import logger as log
 from psycopg import Connection
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
+from fastapi.responses import JSONResponse
 
 from app.projects import project_schemas, project_deps, project_logic
 from app.db import database
@@ -202,3 +212,17 @@ async def read_project(
 ):
     """Get a specific project and all associated tasks by ID."""
     return project
+
+
+@router.get("/process-imagery/{project_id}", tags=["Image Processing"])
+async def process_imagery(
+    project_id: uuid.UUID, task_id: uuid.UUID, background_tasks: BackgroundTasks
+):
+    """Process Drone Imageries for a Project"""
+    background_tasks.add_task(
+        project_crud.process_images_concurrently, project_id, task_id
+    )
+
+    return JSONResponse(
+        content={"message": "Processing started", "project_id": str(project_id)}
+    )
