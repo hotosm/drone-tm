@@ -53,6 +53,7 @@ const Projects = () => {
                     title={singleproject.name}
                     description={singleproject.description}
                     // geojson={singleproject.outline_geojson}
+                    slug={singleproject?.slug}
                   />
                 ),
               )
