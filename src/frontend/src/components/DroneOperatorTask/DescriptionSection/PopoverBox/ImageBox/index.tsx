@@ -22,17 +22,16 @@ import delay from '@Utils/createDelay';
 import chunkArray from '@Utils/createChunksOfArray';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
 import widthCalulator from '@Utils/percentageCalculator';
-
 import ImageCard from './ImageCard';
 import FilesUploadingPopOver from '../LoadingBox';
 import PreviewImage from './PreviewImage';
 
-interface IImageBoxPopOverProps {
-  show: boolean;
-  imageFiles: any[];
-}
+// interface IImageBoxPopOverProps {
+//   show: boolean;
+//   imageFiles: any[];
+// }
 
-const ImageBoxPopOver = ({ show, imageFiles }: IImageBoxPopOverProps) => {
+const ImageBoxPopOver = () => {
   const dispatch = useTypedDispatch();
   const { projectId, taskId } = useParams();
 
@@ -42,9 +41,12 @@ const ImageBoxPopOver = ({ show, imageFiles }: IImageBoxPopOverProps) => {
   const [imagesNames, setImagesNames] = useState<string[]>([]);
   const [loadingWidth, setLoadingWidth] = useState(0);
   const [files, setFiles] = useState<any[]>([]);
-
-  const { clickedImage, checkedImages } = useTypedSelector(
-    state => state.droneOperatorTask,
+  const imageFiles = useTypedSelector(state => state.droneOperatorTask.files);
+  const clickedImage = useTypedSelector(
+    state => state.droneOperatorTask.clickedImage,
+  );
+  const checkedImages = useTypedSelector(
+    state => state.droneOperatorTask.checkedImages,
   );
 
   // function that gets the signed urls for the images and again puts them in chunks of 4
@@ -140,99 +142,74 @@ const ImageBoxPopOver = ({ show, imageFiles }: IImageBoxPopOverProps) => {
   };
   return (
     <>
+      {/* ------------------ image section ----------------- */}
       <div
-        className={`naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-z-[1000] naxatw-flex naxatw-h-screen naxatw-w-full naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] naxatw-bg-[#00000036] naxatw-backdrop-blur-sm ${show ? 'naxatw-block' : 'naxatw-hidden'} naxatw-flex naxatw-items-center naxatw-justify-center`}
+        className={`naxatw-grid naxatw-gap-4 ${clickedImage ? 'naxatw-grid-cols-[70%_auto]' : 'naxatw-grid-cols-1'}`}
       >
         <div
-          className={`naxatw-flex naxatw-w-[80%] naxatw-flex-col naxatw-gap-6 naxatw-rounded-xl naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-p-6 naxatw-shadow-sm ${progressBar ? 'naxatw-hidden' : 'naxatw-block'} naxatw-overflow-x-hidden`}
+          className={`scrollbar-images-grid naxatw-grid naxatw-h-[28rem] naxatw-gap-4 naxatw-overflow-y-auto ${clickedImage ? 'naxatw-grid-cols-5' : 'naxatw-grid-cols-6'}`}
         >
-          {/* ------------------ header section ----------------- */}
-          <div className="naxatw-flex naxatw-justify-between">
-            <div className="naxatw-flex naxatw-flex-col">
-              <p className="naxatw-text-[1.0625rem] naxatw-font-bold naxatw-leading-normal naxatw-text-black">
-                Upload Raw Image
-              </p>
-              <p className="naxatw-text-[0.875rem] naxatw-leading-normal naxatw-text-[#7A7676]">
-                Please uncheck the image that doesn&apos;t need to be uploaded
-              </p>
-            </div>
-            <Icon
-              name="close"
-              onClick={() => dispatch(showPopover())}
-              className="naxatw-cursor-pointer naxatw-text-[1.5rem] naxatw-text-[#555555]"
+          {imageObject?.map((image, index) => (
+            <ImageCard
+              image={image}
+              key={image}
+              imageName={imageFiles[index].name}
+              checked={checkedImages[index]}
+              deselectImages={index}
             />
-          </div>
+          ))}
+        </div>
 
-          {/* ------------------ image section ----------------- */}
+        {/* ----------------- preview Image --------------------- */}
+        <motion.div
+          animate={clickedImage ? 'visible' : 'hidden'}
+          className="naxatw-w-full"
+          variants={variants}
+        >
+          <PreviewImage />
+        </motion.div>
+      </div>
+
+      {/* ------------------ buttons section ----------------- */}
+      <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between">
+        <div className="naxatw-flex naxatw-gap-6">
           <div
-            className={`naxatw-grid naxatw-gap-4 ${clickedImage ? 'naxatw-grid-cols-[70%_auto]' : 'naxatw-grid-cols-1'}`}
+            role="button"
+            className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-gap-2 naxatw-overflow-hidden"
+            onClick={handleSelectAllImages}
           >
-            <div
-              className={`scrollbar-images-grid naxatw-grid naxatw-h-[28rem] naxatw-gap-4 naxatw-overflow-y-auto ${clickedImage ? 'naxatw-grid-cols-5' : 'naxatw-grid-cols-6'}`}
-            >
-              {imageObject?.map((image, index) => (
-                <ImageCard
-                  image={image}
-                  key={image}
-                  imageName={imageFiles[index].name}
-                  checked={checkedImages[index]}
-                  deselectImages={index}
-                />
-              ))}
-            </div>
-
-            {/* ----------------- preview Image --------------------- */}
-            <motion.div
-              animate={clickedImage ? 'visible' : 'hidden'}
-              className="naxatw-w-full"
-              variants={variants}
-            >
-              <PreviewImage />
-            </motion.div>
+            <input
+              type="checkbox"
+              checked={Object.values(checkedImages).every(Boolean)}
+            />
+            <p className="naxatw-text-nowrap naxatw-text-[0.875rem] naxatw-leading-normal naxatw-text-black">
+              Select All
+            </p>
           </div>
-
-          {/* ------------------ buttons section ----------------- */}
-          <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between">
-            <div className="naxatw-flex naxatw-gap-6">
-              <div
-                role="button"
-                className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-gap-2 naxatw-overflow-hidden"
-                onClick={handleSelectAllImages}
-              >
-                <input
-                  type="checkbox"
-                  checked={Object.values(checkedImages).every(Boolean)}
-                />
-                <p className="naxatw-text-nowrap naxatw-text-[0.875rem] naxatw-leading-normal naxatw-text-black">
-                  Select All
-                </p>
-              </div>
-              <div
-                role="button"
-                className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-gap-2"
-                onClick={handleDeselectAllImages}
-              >
-                <input
-                  type="checkbox"
-                  checked={Object.values(checkedImages).every(
-                    value => value === false,
-                  )}
-                />
-                <p className="naxatw-text-nowrap naxatw-text-[0.875rem] naxatw-leading-normal naxatw-text-black">
-                  Deselect All
-                </p>
-              </div>
-            </div>
-            <div className="naxatw-w-fit">
-              <Button
-                variant="ghost"
-                className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
-                onClick={() => handleSubmit()}
-              >
-                Upload Selected
-              </Button>
-            </div>
+          <div
+            role="button"
+            className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-gap-2"
+            onClick={handleDeselectAllImages}
+          >
+            <input
+              type="checkbox"
+              checked={Object.values(checkedImages).every(
+                value => value === false,
+              )}
+            />
+            <p className="naxatw-text-nowrap naxatw-text-[0.875rem] naxatw-leading-normal naxatw-text-black">
+              Deselect All
+            </p>
           </div>
+        </div>
+        <div className="naxatw-w-fit">
+          <Button
+            variant="ghost"
+            className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
+            onClick={() => handleSubmit()}
+          >
+            Upload Selected
+          </Button>
         </div>
       </div>
       {/* ---------- loading popover-------------- */}
