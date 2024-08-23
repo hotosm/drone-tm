@@ -1,7 +1,9 @@
 import { useTypedSelector } from '@Store/hooks';
 
 const PreviewImage = () => {
-  const { clickedImage } = useTypedSelector(state => state.droneOperatorTask);
+  const clickedImage = useTypedSelector(
+    state => state.droneOperatorTask.clickedImage,
+  );
   return (
     <img
       src={clickedImage}
