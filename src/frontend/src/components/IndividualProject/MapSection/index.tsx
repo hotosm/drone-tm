@@ -128,8 +128,10 @@ const MapSection = () => {
             return `This task is locked for mapping ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'UNFLYABLE_TASK':
             return 'This task is not flyable';
-          default:
+          case 'COMPLETED':
             return 'This Task is completed';
+          default:
+            return '';
         }
       };
       return <h6>{popupText(status)}</h6>;
@@ -256,7 +258,11 @@ const MapSection = () => {
       <AsyncPopup
         map={map as Map}
         popupUI={getPopupUI}
-        title={`Task #${selectedTaskId}`}
+        title={
+          taskStatusObj?.[selectedTaskId]
+            ? `Task #${selectedTaskId}`
+            : 'No Fly zone'
+        }
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
           setLockedUser({
