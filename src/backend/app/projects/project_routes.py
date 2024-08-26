@@ -1,11 +1,9 @@
 import os
-import json
 import uuid
 import requests
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 import geojson
-import uuid
 from typing import Annotated
 from datetime import timedelta
 from geojson_pydantic import FeatureCollection
@@ -29,8 +27,6 @@ from app.db import database
 from app.models.enums import HTTPStatus
 from app.s3 import s3_client
 from app.config import settings
-from app.users.user_deps import login_required
-from app.users.user_schemas import AuthUser
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
