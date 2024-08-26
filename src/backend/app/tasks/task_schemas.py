@@ -76,6 +76,7 @@ class UserTasksStatsOut(BaseModel):
     created_at: datetime
     state: str
     project_id: uuid.UUID
+    project_task_index: int
 
     @staticmethod
     async def get_tasks_by_user(
@@ -85,6 +86,7 @@ class UserTasksStatsOut(BaseModel):
             await cur.execute(
                 """SELECT DISTINCT ON (tasks.id)
                     tasks.id AS task_id,
+                    tasks.project_task_index AS project_task_index,
                     task_events.project_id AS project_id,
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
