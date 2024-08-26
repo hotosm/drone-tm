@@ -235,7 +235,7 @@ async def process_imagery(
         content={
             "message": "Processing started",
             "project_id": str(project_id),
-            "odm_task_id": odm_task_id,
+            "odm_task_id": str(odm_task_id),
         }
     )
 

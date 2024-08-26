@@ -24,7 +24,7 @@ class TaskProcessor:
 
         headers = {}
         if self.task_uuid:
-            headers["set-uuid"] = self.task_uuid
+            headers["set-uuid"] = str(self.task_uuid)
 
         response = requests.post(
             url, headers=headers, params={"token": self.token}, json=payload
@@ -67,7 +67,7 @@ class TaskProcessor:
                     ):  # Node ODM Status Code for failed task
                         self.status = "Failed"
                         log.error(
-                            f"Task Failed : {task_info["status"]["errorMessage"]}"
+                            f"Task Failed : {task_info['status']['errorMessage']}"
                         )
                     elif (
                         str(task_info["status"]["code"]) == "40"
