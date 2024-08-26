@@ -7,12 +7,17 @@ import { useTypedDispatch } from '@Store/hooks';
 import { postUnflyableComment } from '@Services/droneOperator';
 import { useMutation } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+import UploadsBox from '../UploadsBox';
 
-const QuestionBox = () => {
+interface IQuestionBoxProps {
+  flyable: string;
+  setFlyable: React.Dispatch<React.SetStateAction<any>>;
+}
+
+const QuestionBox = ({ flyable, setFlyable }: IQuestionBoxProps) => {
   const { projectId, taskId } = useParams();
 
   const dispatch = useTypedDispatch();
-  const [flyable, setFlyable] = useState('yes');
   const [comment, setComment] = useState('');
   const variants = {
     open: { opacity: 1, y: 0 },
@@ -101,17 +106,20 @@ const QuestionBox = () => {
             value={comment}
             onChange={e => setComment(e.target.value)}
           />
+
+          <div className="naxatw-my-4 naxatw-flex naxatw-w-full naxatw-justify-center">
+            <Button
+              variant="ghost"
+              className="naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
+              onClick={() => handleSubmit()}
+              disabled={flyable === 'no' && comment.length < 6}
+              isLoading={mutation.isLoading}
+            >
+              Save
+            </Button>
+          </div>
         </motion.div>
-        <Button
-          variant="ghost"
-          rightIcon={flyable === 'yes' ? 'chevron_right' : ''}
-          className="naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
-          onClick={() => handleSubmit()}
-          disabled={flyable === 'no' && comment.length < 6}
-          isLoading={mutation.isLoading}
-        >
-          {flyable === 'no' ? 'Save' : 'Proceed'}
-        </Button>
+        {flyable === 'yes' && <UploadsBox />}
       </div>
     </>
   );

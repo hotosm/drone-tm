@@ -1,45 +1,33 @@
 /* eslint-disable camelcase */
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
-// import RadioButton from '@Components/common/RadioButton';
+import RadioButton from '@Components/common/RadioButton';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { setCreateProjectState } from '@Store/actions/createproject';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 // import { terrainOptions } from '@Constants/createProject';
-import orthoPhotoIcon from '@Assets/images/ortho-photo-icon.svg';
-import _3DModal from '@Assets/images/3d-model-icon.svg';
-import DTMIcon from '@Assets/images/DTM-Icon.svg';
-import DSMIcon from '@Assets/images/DSM-icon.svg';
 import { FlexRow } from '@Components/common/Layouts';
 import Switch from '@Components/RadixComponents/Switch';
 import FileUpload from '@Components/common/UploadArea';
+import {
+  FinalOutputOptions,
+  measurementTypeOptions,
+} from '@Constants/createProject';
 import { Controller } from 'react-hook-form';
 import OutputOptions from './OutputOptions';
-
-const FinalOutputOptions = [
-  { label: '2D Orthophoto', value: 'ORTHOPHOTO_2D', icon: orthoPhotoIcon },
-  { label: '3D Model', value: 'ORTHOPHOTO_3D', icon: _3DModal },
-  {
-    label: 'Digital Terrain Model (DTM)',
-    value: 'DIGITAL_TERRAIN_MODEL',
-    icon: DTMIcon,
-  },
-  {
-    label: 'Digital Surface Model (DSM)',
-    value: 'DIGITAL_SURFACE_MODEL',
-    icon: DSMIcon,
-  },
-];
 
 const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
 
-  const { register, errors, watch, control } = formProps;
+  const { register, errors, watch, control, setValue } = formProps;
   const final_output = watch('final_output');
 
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
+  );
+  const measurementType = useTypedSelector(
+    state => state.createproject.measurementType,
   );
   const isTerrainFollow = useTypedSelector(
     state => state.createproject.isTerrainFollow,
@@ -60,18 +48,49 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
       /> */}
       {keyParamOption === 'basic' ? (
         <>
-          <FormControl className="naxatw-mt-4 naxatw-gap-1">
-            <Label required>Ground Sampling Distance (meter)</Label>
-            <Input
-              placeholder="Enter GSD in meter"
-              type="number"
-              {...register('gsd_cm_px', {
-                required: 'GSD is required',
-                valueAsNumber: true,
-              })}
+          <FormControl>
+            <Label>Measurement Type</Label>
+            <RadioButton
+              options={measurementTypeOptions}
+              direction="row"
+              onChangeData={val => {
+                dispatch(setCreateProjectState({ measurementType: val }));
+                setValue('gsd_cm_px', '');
+                setValue('altitude_from_ground', '');
+              }}
+              value={measurementType}
             />
-            <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
           </FormControl>
+
+          {measurementType === 'gsd' ? (
+            <FormControl className="naxatw-mt-4 naxatw-gap-1">
+              <Label required>Ground Sampling Distance (meter)</Label>
+              <Input
+                placeholder="Enter GSD in meter"
+                type="number"
+                {...register('gsd_cm_px', {
+                  required: 'GSD is required',
+                  valueAsNumber: true,
+                })}
+              />
+              <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
+            </FormControl>
+          ) : (
+            <FormControl className="naxatw-mt-4 naxatw-gap-1">
+              <Label required>Altitude From Ground (meter)</Label>
+              <Input
+                placeholder="Enter Altitude From Ground in meter"
+                type="number"
+                {...register('altitude_from_ground', {
+                  required: 'Altitude From Round is Required',
+                  valueAsNumber: true,
+                })}
+              />
+              <ErrorMessage
+                message={errors?.altitude_from_ground?.message as string}
+              />
+            </FormControl>
+          )}
           <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
             <FormControl className="naxatw-mt-4 naxatw-gap-1">
               <Label required>Front Overlap in (%)</Label>
@@ -88,7 +107,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <ErrorMessage
                 message={errors?.forward_overlap_percent?.message as string}
               />
-              <p className="naxatw-text-[#68707F]">Recommended - 75%</p>
+              <p className="naxatw-text-[#68707F]">Recommended : 75%</p>
             </FormControl>
             <FormControl className="naxatw-mt-4 naxatw-gap-1">
               <Label required>Side Overlap in (%)</Label>
@@ -105,7 +124,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <ErrorMessage
                 message={errors?.side_overlap_percent?.message as string}
               />
-              <p className="naxatw-text-[#68707F]">Recommended - 60%</p>
+              <p className="naxatw-text-[#68707F]">Recommended : 60%</p>
             </FormControl>
           </FlexRow>
           <FormControl className="naxatw-mt-4 naxatw-gap-1">

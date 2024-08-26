@@ -12,7 +12,7 @@ export default function Instructions({
       {isProjectDataLoading ? (
         <Skeleton className="naxatw-h-full naxatw-w-full" />
       ) : (
-        <p className="naxatw-animate-fade-up naxatw-text-body-sm">
+        <p className="naxatw-animate-fade-up naxatw-text-body-md">
           {projectData?.per_task_instructions}
         </p>
       )}

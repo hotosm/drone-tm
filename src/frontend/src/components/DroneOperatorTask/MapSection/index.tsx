@@ -1,5 +1,5 @@
 /* eslint-disable react/no-array-index-key */
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { useParams } from 'react-router-dom';
 import { FeatureCollection } from 'geojson';
@@ -14,9 +14,11 @@ import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import right from '@Assets/images/rightArrow.png';
 import marker from '@Assets/images/marker.png';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 
 const MapSection = () => {
   const { projectId, taskId } = useParams();
+  const [popupData, setPopupData] = useState<Record<string, any>>({});
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -61,6 +63,30 @@ const MapSection = () => {
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
   }, [map, taskWayPoints]);
 
+  const getPopupUI = useCallback(() => {
+    return (
+      <div>
+        <center>
+          <h3>{popupData?.index}</h3>
+          <p>
+            {popupData?.coordinates?.lat},&nbsp;{popupData?.coordinates?.lng}{' '}
+          </p>
+        </center>
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
+          <p className="naxatw-text-base">Angle: {popupData?.angle} degree</p>
+          <p className="naxatw-text-base">
+            Gimble angle: {popupData?.gimbal_angle} degree
+          </p>
+          {popupData?.altitude && (
+            <p className="naxatw-text-base">
+              Altitude: {popupData?.altitude} meter
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }, [popupData]);
+
   return (
     <>
       <div className="naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200">
@@ -102,6 +128,7 @@ const MapSection = () => {
                 id="waypoint-points"
                 geojson={taskWayPoints?.geojsonListOfPoint as GeojsonType}
                 visibleOnMap={!!taskWayPoints}
+                interactions={['feature']}
                 layerOptions={{
                   type: 'circle',
                   paint: {
@@ -141,6 +168,17 @@ const MapSection = () => {
               />
             </>
           )}
+
+          <AsyncPopup
+            map={map as Map}
+            popupUI={getPopupUI}
+            fetchPopupData={(properties: Record<string, any>) => {
+              setPopupData(properties);
+            }}
+            hideButton
+            getCoordOnProperties
+          />
+
           <BaseLayerSwitcher />
         </MapContainer>
       </div>

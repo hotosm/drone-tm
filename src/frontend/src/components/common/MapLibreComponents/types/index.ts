@@ -80,6 +80,7 @@ export interface IAsyncPopup {
   onClose?: () => void;
   buttonText?: string;
   hideButton?: boolean;
+  getCoordOnProperties?: boolean;
 }
 
 export type DrawModeTypes = DrawMode | null | undefined;

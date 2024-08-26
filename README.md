@@ -78,14 +78,23 @@ To get started with Drone TM:
 <!-- prettier-ignore-start -->
 | Status | Feature |
 |:--:| :-- |
-|✅| simple UI with user sign up and login |
-|✅| flight plan generation for DJI .wmpl |
-|⚙️| terrain following for flight plans using DEM |
-|⚙️| drone imagery upload and processing |
-| | user access management |
-| | flight plan generation for another drone manufacturers |
-| | HOT community mapping drone |
+|✅| 🖥️ simple UI with user sign up and login |
+|✅| 🖥️ project area subdivision into smaller task areas for operators |
+|✅| 📱 flight plan generation in task areas for DJI drones |
+|⚙️| 📱 follow terrain during flight plan generation in hilly/mountainous regions |
+|⚙️| 📱 allow adjustments to the flight plan orientation based on field conditions |
+|⚙️| 🖥️ drone imagery upload merging into a final combined image for the project |
+| | 🖥️ user access management for each part of the UI |
+| | 📱 & 🖥️ real-time updates for drone flight progress |
+| | 📱 flight plan generation for other drone manufacturers |
+| | 🖥️ better usage of 3D model data collected by drones |
+| | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally |
 <!-- prettier-ignore-end -->
+
+> [!Note]
+> 📱 for mobile / operators
+>
+> 🖥️ for desktop / managers / validators
 
 ## Contribution
 

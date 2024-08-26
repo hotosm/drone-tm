@@ -7,6 +7,7 @@ export interface IDroneOperatorTaskState {
   clickedImage: string;
   checkedImages: Record<number, boolean>;
   popOver: boolean;
+  files: any[];
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -15,6 +16,7 @@ const initialState: IDroneOperatorTaskState = {
   clickedImage: '',
   checkedImages: {},
   popOver: false,
+  files: [],
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -49,6 +51,9 @@ export const droneOperatorTaskSlice = createSlice({
       Object.keys(state.checkedImages).forEach((key: any) => {
         state.checkedImages[key] = true;
       });
+    },
+    setFiles: (state, action) => {
+      state.files = action.payload;
     },
   },
 });

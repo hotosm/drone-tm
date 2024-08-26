@@ -3,6 +3,7 @@ import { FlexColumn } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { postTaskStatus } from '@Services/project';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { toast } from 'react-toastify';
 
 const RequestLogs = () => {
@@ -79,4 +80,4 @@ const RequestLogs = () => {
     </div>
   );
 };
-export default RequestLogs;
+export default hasErrorBoundary(RequestLogs);

@@ -7,6 +7,7 @@ export interface CreateProjectState {
   projectId: number | null;
   activeStep: number;
   keyParamOption: 'basic' | 'advanced';
+  measurementType: 'gsd' | 'altitude';
   contributionsOption: 'public' | 'invite_with_email';
   generateTaskOption: 'divide_hexagon' | 'divide_rectangle';
   isNoflyzonePresent: 'yes' | 'no';
@@ -25,6 +26,7 @@ const initialState: CreateProjectState = {
   projectId: null,
   activeStep: 1,
   keyParamOption: 'basic',
+  measurementType: 'gsd',
   contributionsOption: 'public',
   generateTaskOption: 'divide_rectangle',
   isNoflyzonePresent: 'no',

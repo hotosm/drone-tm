@@ -12,7 +12,7 @@ const tasksDataColumns = [
     accessorKey: 'flight_time',
   },
   {
-    header: 'Task Area',
+    header: 'Task Area in km²',
     accessorKey: 'task_area',
   },
   // {
@@ -32,9 +32,9 @@ export default function TableSection() {
       return [
         ...acc,
         {
-          id: curr?.id,
+          id: `Task# ${curr?.project_task_index}`,
           flight_time: curr?.flight_time || '-',
-          task_area: curr?.task_area,
+          task_area: Number(curr?.task_area)?.toFixed(3),
           // status: curr?.state,
         },
       ];

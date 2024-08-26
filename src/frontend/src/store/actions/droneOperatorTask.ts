@@ -9,4 +9,5 @@ export const {
   showPopover,
   unCheckAllImages,
   checkAllImages,
+  setFiles,
 } = droneOperatorTaskSlice.actions;

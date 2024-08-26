@@ -1,30 +1,20 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-console */
 /* eslint-disable no-unused-vars */
-import { useState } from 'react';
-
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import {
-  setSelectedImage,
-  showPopover,
-} from '@Store/actions/droneOperatorTask';
 import { Button } from '@Components/RadixComponents/Button';
-
-import ImageBoxPopOver from '../PopoverBox/ImageBox';
+import { toggleModal } from '@Store/actions/common';
+import { setFiles, showPopover } from '@Store/actions/droneOperatorTask';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 
 const UploadsBox = () => {
   const dispatch = useTypedDispatch();
-  const { popOver } = useTypedSelector(state => state.droneOperatorTask);
-
-  const [files, setFiles] = useState<any[]>([]);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-
+  const files = useTypedSelector(state => state.droneOperatorTask.files);
   const handleFileChange = (event: any) => {
     const selectedFiles = event.target.files;
     if (!selectedFiles) return;
     const selectedFilesArray = Array.from(selectedFiles);
-    setFiles(selectedFilesArray);
-    dispatch(showPopover());
+    dispatch(setFiles(selectedFilesArray));
+    dispatch(toggleModal('raw-image-preview'));
   };
 
   return (
@@ -47,13 +37,12 @@ const UploadsBox = () => {
           <Button
             variant="ghost"
             className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
-            onClick={() => dispatch(showPopover())}
+            onClick={() => dispatch(toggleModal('raw-image-preview'))}
           >
             Upload
           </Button>
         )}
       </div>
-      <ImageBoxPopOver show={popOver} imageFiles={files} />
     </>
   );
 };
