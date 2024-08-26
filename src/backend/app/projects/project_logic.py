@@ -1,13 +1,43 @@
 import json
 import uuid
 from loguru import logger as log
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from fmtm_splitter.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
 from app.utils import merge_multipolygon
 import shapely.wkb as wkblib
 from shapely.geometry import shape
+from io import BytesIO
+from app.s3 import add_obj_to_bucket
+from app.config import settings
+
+
+async def upload_dem_to_s3(project_id: uuid.UUID, dem_file: UploadFile) -> str:
+    """Upload dem into S3.
+
+    Args:
+        project_id (int): The organisation id in the database.
+        dem_file (UploadFile): The logo image uploaded to FastAPI.
+
+    Returns:
+        dem_url(str): The S3 URL for the dem file.
+    """
+    dem_path = f"/dem/{project_id}/dem.tif"
+
+    file_bytes = await dem_file.read()
+    file_obj = BytesIO(file_bytes)
+
+    add_obj_to_bucket(
+        settings.S3_BUCKET_NAME,
+        file_obj,
+        dem_path,
+        content_type=dem_file.content_type,
+    )
+
+    dem_url = f"{settings.S3_DOWNLOAD_ROOT}/{settings.S3_BUCKET_NAME}{dem_path}"
+
+    return dem_url
 
 
 async def update_project_dem_url(db: Connection, project_id: uuid.UUID, dem_url: str):
@@ -78,10 +108,12 @@ async def create_tasks_from_geojson(
                         log.debug(
                             "COMPLETE: creating project boundary, based on task boundaries"
                         )
-                        return True
             except Exception as e:
                 log.exception(e)
                 raise HTTPException(e) from e
+
+        return True
+
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
