@@ -1,13 +1,15 @@
 import { useParams } from 'react-router-dom';
 import { useGetIndividualTaskQuery } from '@Api/tasks';
-import { useTypedSelector } from '@Store/hooks';
+import { useState } from 'react';
+// import { useTypedSelector } from '@Store/hooks';
 import { format } from 'date-fns';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 
 const DescriptionBox = () => {
-  const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
-  const { secondPage } = secondPageStates;
+  // const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
+  const [flyable, setFlyable] = useState('yes');
+  // const { secondPage } = secondPageStates;
   const { taskId } = useParams();
 
   const { data: taskDescription }: Record<string, any> =
@@ -29,7 +31,7 @@ const DescriptionBox = () => {
               {
                 name: 'Total task area',
                 value: taskData?.task_area
-                  ? `${taskData?.task_area} km²`
+                  ? `${Number(taskData?.task_area)?.toFixed(3)} km²`
                   : null,
               },
               {
@@ -88,7 +90,8 @@ const DescriptionBox = () => {
           />
         ))}
       </div>
-      {!secondPage && <QuestionBox />}
+      {/* {!secondPage && <QuestionBox />} */}
+      <QuestionBox setFlyable={setFlyable} flyable={flyable} />
     </>
   );
 };

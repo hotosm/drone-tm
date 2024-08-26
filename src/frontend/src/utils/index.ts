@@ -27,3 +27,9 @@ export function removeKeysFromObject(
     Object.entries(obj).filter(([key]) => !keysToRemove.includes(key)),
   );
 }
+
+export const m2ToKm2 = (m2: number) => {
+  if (!m2) return 0;
+  if (m2 >= 1000 * 1000) return `${m2 / (1000 * 1000)} km²`;
+  return `${m2} m²`;
+};

@@ -55,7 +55,7 @@ const Dashboard = () => {
           <DashboardSidebar />
         </div>
         <div className="naxatw-w-full md:naxatw-col-span-7">
-          <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-5">
+          <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-5 md:naxatw-grid-cols-4">
             {isLoading ? (
               <>
                 {Array.from({ length: 4 }, (_, index) => (

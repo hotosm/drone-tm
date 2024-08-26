@@ -10,6 +10,7 @@ import RadioButton from '@Components/common/RadioButton';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import FileUpload from '@Components/common/UploadArea';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { m2ToKm2 } from '@Utils/index';
 import {
   setCreateProjectState,
   resetUploadedAndDrawnAreas,
@@ -268,7 +269,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                   Reset Project Area
                 </Button>
                 <p className="naxatw-mt-2 naxatw-text-body-md">
-                  Total Area: {Math.trunc(totalProjectArea as number)} m²
+                  Total Area: {m2ToKm2(Math.trunc(totalProjectArea as number))}
                 </p>
                 <div className="naxatw-mt-2">
                   <RadioButton
@@ -304,7 +305,8 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                           Reset No Fly Zone
                         </Button>
                         <p className="naxatw-mt-2 naxatw-text-body-md">
-                          Total Area: {Math.trunc(noFlyZoneArea as number)} m2
+                          Total Area:{' '}
+                          {m2ToKm2(Math.trunc(noFlyZoneArea as number))}
                         </p>
                       </>
                     ) : (

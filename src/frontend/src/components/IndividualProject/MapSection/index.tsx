@@ -23,6 +23,7 @@ import { postTaskStatus } from '@Services/project';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import Legend from './Legend';
 
 const MapSection = () => {
   const { id } = useParams();
@@ -54,6 +55,7 @@ const MapSection = () => {
     state => state.project.selectedTaskId,
   );
   const tasksData = useTypedSelector(state => state.project.tasksData);
+  const projectArea = useTypedSelector(state => state.project.projectArea);
 
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
@@ -126,8 +128,10 @@ const MapSection = () => {
             return `This task is locked for mapping ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'UNFLYABLE_TASK':
             return 'This task is not flyable';
-          default:
+          case 'COMPLETED':
             return 'This Task is completed';
+          default:
+            return '';
         }
       };
       return <h6>{popupText(status)}</h6>;
@@ -152,6 +156,49 @@ const MapSection = () => {
         height: '100%',
       }}
     >
+      {projectArea && (
+        <VectorLayer
+          map={map as Map}
+          id="project-area"
+          visibleOnMap
+          geojson={
+            {
+              type: 'FeatureCollection',
+              features: [projectArea],
+            } as GeojsonType
+          }
+          layerOptions={{
+            type: 'line',
+            paint: {
+              'line-color': '#D73F3F',
+              'line-width': 2,
+            },
+          }}
+        />
+      )}
+
+      {projectData?.no_fly_zones_geojson && (
+        <VectorLayer
+          map={map as Map}
+          id="no-fly-zone-area"
+          visibleOnMap
+          geojson={
+            {
+              type: 'FeatureCollection',
+              features: [projectData?.no_fly_zones_geojson],
+            } as GeojsonType
+          }
+          layerOptions={{
+            type: 'fill',
+            paint: {
+              'fill-color': '#9EA5AD',
+              'fill-outline-color': '#484848',
+              'fill-opacity': 0.8,
+            },
+          }}
+        />
+      )}
+
       {taskStatusObj &&
         tasksData &&
         tasksData?.map((task: Record<string, any>) => {
@@ -170,7 +217,7 @@ const MapSection = () => {
                       paint: {
                         'fill-color': '#98BBC8',
                         'fill-outline-color': '#484848',
-                        'fill-opacity': 0.6,
+                        'fill-opacity': 0.8,
                       },
                     }
                   : taskStatusObj?.[`${task?.id}`] === 'REQUEST_FOR_MAPPING'
@@ -211,7 +258,11 @@ const MapSection = () => {
       <AsyncPopup
         map={map as Map}
         popupUI={getPopupUI}
-        title={`Task #${selectedTaskId}`}
+        title={
+          taskStatusObj?.[selectedTaskId]
+            ? `Task #${selectedTaskId}`
+            : 'No Fly zone'
+        }
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
           setLockedUser({
@@ -237,6 +288,7 @@ const MapSection = () => {
             : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
         }
       />
+      <Legend />
       <BaseLayerSwitcher />
     </MapContainer>
   );
