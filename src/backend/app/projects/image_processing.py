@@ -5,12 +5,12 @@ from loguru import logger as log
 
 
 class TaskProcessor:
-    def __init__(self, token, task_name, images_dir, base_url):
+    def __init__(self, token, task_name, images_dir, base_url, task_id=None):
         self.base_url = base_url
         self.token = token
         self.task_name = task_name
         self.images_dir = images_dir
-        self.task_uuid = None
+        self.task_uuid = task_id
 
     def init_task(self):
         url = f"{self.base_url}/task/new/init"
@@ -20,7 +20,14 @@ class TaskProcessor:
             "skipPostProcessing": True,
             "options": [],
         }
-        response = requests.post(url, params={"token": self.token}, json=payload)
+
+        headers = {}
+        if self.task_uuid:
+            headers["set-uuid"] = self.task_uuid
+
+        response = requests.post(
+            url, headers=headers, params={"token": self.token}, json=payload
+        )
         response.raise_for_status()
         self.task_uuid = response.json()["uuid"]
         log.info(f"Task initialized with UUID: {self.task_uuid}")
@@ -77,3 +84,14 @@ class TaskProcessor:
         self.commit_task()
         self.track_progress()
         self.download_assets()
+
+
+# Example usage
+# import uuid
+# token = ""
+# task_name = "Your Task Name"
+# images_dir = "/home/niraj/Images.zip"
+# base_url="http://localhost:3001"
+# task_id = uuid.uuid4()
+# task_processor = TaskProcessor(token, task_name, images_dir, base_url, task_id)
+# task_processor.process()
