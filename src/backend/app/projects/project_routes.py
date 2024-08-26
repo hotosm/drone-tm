@@ -88,7 +88,6 @@ async def upload_project_task_boundaries(
         dict: JSON containing success message, project ID, and number of tasks.
     """
     log.debug("Creating tasks for each polygon in project")
-
     await project_logic.create_tasks_from_geojson(db, project.id, task_featcol)
     return {"message": "Project Boundary Uploaded", "project_id": f"{project.id}"}
 

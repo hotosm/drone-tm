@@ -108,10 +108,12 @@ async def create_tasks_from_geojson(
                         log.debug(
                             "COMPLETE: creating project boundary, based on task boundaries"
                         )
-                        return True
             except Exception as e:
                 log.exception(e)
                 raise HTTPException(e) from e
+
+        return True
+
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
