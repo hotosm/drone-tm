@@ -275,6 +275,6 @@ async def process_imagery(
 async def get_task_status(task_id: uuid.UUID):
     """Get the task status from NODE ODM"""
 
-    url = f"{settings.NODE_ODM_INTERNAL_DOCKER_URL}/task/{task_id}/info"
+    url = f"{settings.NODE_ODM_URL}/task/{task_id}/info"
     response = requests.get(url)
     return response.json()

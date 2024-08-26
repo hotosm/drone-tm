@@ -294,7 +294,7 @@ def process_imagery_in_nodeodm(
     token = ""
     task_name = project_name
     images_dir = images_folder
-    node_odm_docker_url = settings.NODE_ODM_INTERNAL_DOCKER_URL
+    node_odm_docker_url = settings.NODE_ODM_URL
     task_processor = TaskProcessor(
         token, task_name, images_dir, node_odm_docker_url, odm_task_id
     )
