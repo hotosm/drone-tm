@@ -1,4 +1,9 @@
 import os
+import json
+import uuid
+import requests
+from app.users.user_deps import login_required
+from app.users.user_schemas import AuthUser
 import geojson
 import uuid
 from typing import Annotated
@@ -220,9 +225,18 @@ async def process_imagery(
 ):
     """Process Drone Imageries for a Project"""
     background_tasks.add_task(
-        project_crud.process_images_concurrently, project_id, task_id
+        project_logic.process_images_concurrently, project_id, task_id
     )
 
     return JSONResponse(
         content={"message": "Processing started", "project_id": str(project_id)}
     )
+
+
+@router.get("/status/{task_id}/", tags=["Image Processing"])
+async def get_task_status(task_id: uuid.UUID):
+    """Get the task status from NODE ODM"""
+
+    url = f"{settings.NODE_ODM_INTERNAL_DOCKER_URL}/task/{task_id}/info"
+    response = requests.get(url)
+    return response.json()
