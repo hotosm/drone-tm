@@ -64,9 +64,9 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
 
           {measurementType === 'gsd' ? (
             <FormControl className="naxatw-mt-4 naxatw-gap-1">
-              <Label required>Ground Sampling Distance (meter)</Label>
+              <Label required>Ground Sampling Distance (cm/pixel)</Label>
               <Input
-                placeholder="Enter GSD in meter"
+                placeholder="Enter GSD in cm/pixel"
                 type="number"
                 {...register('gsd_cm_px', {
                   required: 'GSD is required',
