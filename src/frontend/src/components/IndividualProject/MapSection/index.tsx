@@ -258,10 +258,9 @@ const MapSection = () => {
       <AsyncPopup
         map={map as Map}
         popupUI={getPopupUI}
-        title={
-          taskStatusObj?.[selectedTaskId]
-            ? `Task #${selectedTaskId}`
-            : 'No Fly zone'
+        title={`Task #${selectedTaskId}`}
+        showPopup={(feature: Record<string, any>) =>
+          feature?.source?.includes('tasks-layer')
         }
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
