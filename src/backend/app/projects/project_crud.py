@@ -288,12 +288,16 @@ async def preview_split_by_square(boundary: str, meters: int):
     )
 
 
-def process_imagery_in_nodeodm(images_folder: str, project_name: str):
+def process_imagery_in_nodeodm(
+    images_folder: str, project_name: str, odm_task_id: uuid.UUID
+):
     token = ""
     task_name = project_name
     images_dir = images_folder
     node_odm_docker_url = settings.NODE_ODM_INTERNAL_DOCKER_URL
-    task_processor = TaskProcessor(token, task_name, images_dir, node_odm_docker_url)
+    task_processor = TaskProcessor(
+        token, task_name, images_dir, node_odm_docker_url, odm_task_id
+    )
     task_processor.process()
 
 
@@ -305,7 +309,9 @@ def download_object(bucket_name: str, obj, images_folder: str):
         get_file_from_bucket(bucket_name, obj.object_name, local_path)
 
 
-def process_images_concurrently(project_id: uuid.UUID, task_id: uuid.UUID):
+def process_images_concurrently(
+    project_id: uuid.UUID, task_id: uuid.UUID, odm_task_id: uuid.UUID
+):
     objects = list_objects_from_bucket(
         settings.S3_BUCKET_NAME, f"publicuploads/{project_id}"
     )
@@ -324,4 +330,4 @@ def process_images_concurrently(project_id: uuid.UUID, task_id: uuid.UUID):
         )
 
     # Call process_imagery_in_nodeodm after images are downloaded
-    process_imagery_in_nodeodm(images_folder, project_name)
+    process_imagery_in_nodeodm(images_folder, project_name, odm_task_id)

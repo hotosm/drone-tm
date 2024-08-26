@@ -255,12 +255,19 @@ async def process_imagery(
     project_id: uuid.UUID, task_id: uuid.UUID, background_tasks: BackgroundTasks
 ):
     """Process Drone Imageries for a Project"""
+
+    odm_task_id = uuid.uuid4()
+
     background_tasks.add_task(
-        project_crud.process_images_concurrently, project_id, task_id
+        project_crud.process_images_concurrently, project_id, task_id, odm_task_id
     )
 
     return JSONResponse(
-        content={"message": "Processing started", "project_id": str(project_id)}
+        content={
+            "message": "Processing started",
+            "project_id": str(project_id),
+            "odm_task_id": odm_task_id,
+        }
     )
 
 
