@@ -46,7 +46,7 @@ export default function UserProfile() {
       <div onClick={() => setToggle(!toggle)}>
         <UserAvatar
           className="naxatw-cursor-pointer naxatw-overflow-hidden"
-          imageSource={userProfile?.img_url}
+          imageSource={userProfile?.profile_img}
         />
       </div>
       {toggle && (

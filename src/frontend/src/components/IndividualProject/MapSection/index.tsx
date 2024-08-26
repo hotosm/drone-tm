@@ -103,7 +103,7 @@ const MapSection = () => {
       (acc, curr) => {
         return {
           ...acc,
-          features: [...acc.features, curr.outline_geojson],
+          features: [...acc.features, curr.outline],
         };
       },
       {
@@ -111,8 +111,8 @@ const MapSection = () => {
         features: [],
       },
     );
-    const bbox = getBbox(tasksCollectiveGeojson as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
+    // const bbox = getBbox(tasksCollectiveGeojson as FeatureCollection);
+    // map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
   }, [map, tasksData]);
 
   const getPopupUI = useCallback(
@@ -208,7 +208,7 @@ const MapSection = () => {
               map={map as Map}
               id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
               visibleOnMap={task?.id && taskStatusObj}
-              geojson={task.outline_geojson as GeojsonType}
+              geojson={task.outline as GeojsonType}
               interactions={['feature']}
               layerOptions={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING'

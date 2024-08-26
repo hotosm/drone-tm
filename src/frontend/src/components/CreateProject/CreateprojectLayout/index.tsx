@@ -85,8 +85,8 @@ const CreateprojectLayout = () => {
     name: '',
     // short_description: '',
     description: '',
-    outline_geojson: null,
-    outline_no_fly_zones: null,
+    outline: null,
+    no_fly_zones: null,
     gsd_cm_px: null,
     task_split_dimension: null,
     is_terrain_follow: null,
@@ -143,7 +143,7 @@ const CreateprojectLayout = () => {
       dispatch(setCreateProjectState({ projectId: res.data.project_id }));
       if (!splitGeojson) return;
       const geojson = convertGeojsonToFile(splitGeojson);
-      const formData = prepareFormData({ task_geojson: geojson });
+      const formData = prepareFormData({ geojson: geojson });
       uploadTaskBoundary({ id: res.data.project_id, data: formData });
       reset();
       dispatch(resetUploadedAndDrawnAreas());
@@ -170,17 +170,17 @@ const CreateprojectLayout = () => {
   const onSubmit = (data: any) => {
     if (activeStep === 2) {
       if (
-        !data?.outline_geojson ||
-        (Array.isArray(data?.outline_geojson) &&
-          data?.outline_geojson?.length === 0)
+        !data?.outline ||
+        (Array.isArray(data?.outline) &&
+          data?.outline?.length === 0)
       ) {
         toast.error('Please upload or draw and save project area');
         return;
       }
       if (
         isNoflyzonePresent === 'yes' &&
-        (!data?.outline_no_fly_zones ||
-          data?.outline_no_fly_zones?.length === 0)
+        (!data?.no_fly_zones ||
+          data?.no_fly_zones?.length === 0)
       ) {
         toast.error('Please upload or draw and save No Fly zone area');
         return;
