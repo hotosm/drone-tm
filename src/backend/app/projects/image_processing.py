@@ -11,6 +11,7 @@ class TaskProcessor:
         self.task_name = task_name
         self.images_dir = images_dir
         self.task_uuid = task_id
+        self.status = None
 
     def init_task(self):
         url = f"{self.base_url}/task/new/init"
@@ -59,10 +60,24 @@ class TaskProcessor:
             response = requests.get(url, params={"token": self.token})
             if response.status_code == 200:
                 task_info = response.json()
-                log.info(f"Task progress: {task_info['progress']}%")
                 if task_info["progress"] == 100:
-                    print("Task processing complete.")
+                    # Check task status
+                    if (
+                        str(task_info["status"]["code"]) == "30"
+                    ):  # Node ODM Status Code for failed task
+                        self.status = "Failed"
+                        log.error(
+                            f"Task Failed : {task_info["status"]["errorMessage"]}"
+                        )
+                    elif (
+                        str(task_info["status"]["code"]) == "40"
+                    ):  # Node ODM Status Code for successful task
+                        self.status = "Completed"
+                        log.info("Task processing complete.")
                     break
+                else:
+                    log.info(f"Task progress: {task_info['progress']}%")
+                    self.status = "In Process"
             else:
                 log.info(
                     f"Unexpected response status: {response.status_code}. Retrying in 5 seconds..."
