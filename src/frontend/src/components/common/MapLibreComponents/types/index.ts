@@ -81,6 +81,7 @@ export interface IAsyncPopup {
   buttonText?: string;
   hideButton?: boolean;
   getCoordOnProperties?: boolean;
+  showPopup?: (clickedFeature: Record<string, any>) => Boolean;
 }
 
 export type DrawModeTypes = DrawMode | null | undefined;

@@ -171,6 +171,10 @@ const MapSection = () => {
 
           <AsyncPopup
             map={map as Map}
+            showPopup={(feature: Record<string, any>) =>
+              feature?.source === 'waypoint-points' ||
+              feature?.source === 'waypoint-points-image'
+            }
             popupUI={getPopupUI}
             fetchPopupData={(properties: Record<string, any>) => {
               setPopupData(properties);
