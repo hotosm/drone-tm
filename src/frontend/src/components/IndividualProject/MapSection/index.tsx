@@ -103,7 +103,7 @@ const MapSection = () => {
       (acc, curr) => {
         return {
           ...acc,
-          features: [...acc.features, curr.outline_geojson],
+          features: [...acc.features, curr.outline],
         };
       },
       {
@@ -208,7 +208,7 @@ const MapSection = () => {
               map={map as Map}
               id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
               visibleOnMap={task?.id && taskStatusObj}
-              geojson={task.outline_geojson as GeojsonType}
+              geojson={task.outline as GeojsonType}
               interactions={['feature']}
               layerOptions={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING'
@@ -258,10 +258,9 @@ const MapSection = () => {
       <AsyncPopup
         map={map as Map}
         popupUI={getPopupUI}
-        title={
-          taskStatusObj?.[selectedTaskId]
-            ? `Task #${selectedTaskId}`
-            : 'No Fly zone'
+        title={`Task #${selectedTaskId}`}
+        showPopup={(feature: Record<string, any>) =>
+          feature?.source?.includes('tasks-layer')
         }
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));

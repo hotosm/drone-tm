@@ -23,7 +23,7 @@ const ProjectsMapSection = () => {
         (acc: Record<string, any>, current: Record<string, any>) => {
           return {
             ...acc,
-            features: [...acc.features, centroid(current.outline_geojson)],
+            features: [...acc.features, centroid(current.outline)],
           };
         },
         {

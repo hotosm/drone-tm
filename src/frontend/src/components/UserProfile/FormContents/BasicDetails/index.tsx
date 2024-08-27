@@ -17,7 +17,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
       </Flex>
       <FlexColumn gap={5} className="naxatw-mt-5">
         <Flex className="naxatw-h-14 naxatw-w-14 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
-          <img src={userProfile.img_url} alt="profilepic" />
+          <img src={userProfile.profile_img} alt="profilepic" />
         </Flex>
         <FormControl>
           <Label required>Name</Label>

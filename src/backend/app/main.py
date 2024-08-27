@@ -14,11 +14,11 @@ from app.drones import drone_routes
 from app.waypoints import waypoint_routes
 from app.users import user_routes
 from app.tasks import task_routes
-from app.db.database import db_connection
+from app.db.database import get_db_connection_pool
 
 
 root = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory="templates")
+frontend_html = Jinja2Templates(directory="frontend_html")
 
 
 class InterceptHandler(logging.Handler):
@@ -30,7 +30,7 @@ class InterceptHandler(logging.Handler):
         This happens to be in the 6th frame upward.
         """
         logger_opt = log.opt(depth=6, exception=record.exc_info)
-        logger_opt.log(record.levelno, record.getMessage())
+        logger_opt.log(logging.getLevelName(record.levelno), record.getMessage())
 
 
 def get_logger():
@@ -81,6 +81,7 @@ def get_application() -> FastAPI:
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
         redoc_url="/api/redoc",
+        lifespan=lifespan,
     )
 
     # Set custom logger
@@ -109,13 +110,18 @@ async def lifespan(
 ):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
-    await db_connection.connect()
+
+    db_pool = await get_db_connection_pool()
+    await db_pool.open()
+    # Create a pooled db connection and make available in app state
+    # NOTE we can access 'request.app.state.db_pool' in endpoints
+    app.state.db_pool = db_pool
 
     yield
 
     # Shutdown events
     log.debug("Shutting down FastAPI server.")
-    await db_connection.disconnect()
+    await app.state.db_pool.close()
 
 
 api = get_application()
@@ -125,7 +131,7 @@ api = get_application()
 async def home(request: Request):
     try:
         """Return Frontend HTML"""
-        return templates.TemplateResponse(
+        return frontend_html.TemplateResponse(
             name="index.html", context={"request": request}
         )
     except Exception:
@@ -146,7 +152,7 @@ async def custom_404_handler(request: Request, _):
         is_browser = any(browser in user_agent for browser in known_browsers)
         if format == "json" or not is_browser:
             return JSONResponse(status_code=404, content={"detail": "Not found"})
-        return templates.TemplateResponse(
+        return frontend_html.TemplateResponse(
             name="index.html", context={"request": request}
         )
 

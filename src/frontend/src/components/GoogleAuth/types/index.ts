@@ -1,7 +1,7 @@
 export interface UserProfileDetailsType {
   id: string;
-  email: string;
-  img_url: string;
+  email_address: string;
+  profile_img: string;
   has_user_profile: boolean;
 }
 

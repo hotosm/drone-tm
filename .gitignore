@@ -43,7 +43,6 @@ db.sqlite3
 
 # ignore python environments
 venv
-fmtm-env
 
 # project related
 temp_webmaps/local_only
@@ -82,6 +81,7 @@ DockerData/
 
 #Backend Template
 src/backend/templates/*
+src/backend/frontend_html
 
 # precommit
 .ruff_cache/
