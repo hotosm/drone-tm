@@ -8,7 +8,7 @@ import {
   Features,
   UserAndRoles,
   MajorImpacts,
-  CaseStudies,
+  // CaseStudies,
   ClientAndPartners,
   Footer,
   SignInOverlay,
@@ -28,7 +28,7 @@ export default function LandingPage() {
       <Features />
       <UserAndRoles />
       <MajorImpacts />
-      <CaseStudies />
+      {/* <CaseStudies /> */}
       <ClientAndPartners />
       <Footer />
     </main>
