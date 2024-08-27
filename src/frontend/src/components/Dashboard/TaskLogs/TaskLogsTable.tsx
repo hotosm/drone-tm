@@ -18,9 +18,9 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
             <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Total task area
             </td>
-            <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+            {/* <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Est.flight time
-            </td>
+            </td> */}
             <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Created Date
             </td>
@@ -35,7 +35,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
             <tr key={task.task_id}>
               <td className="naxatw-px-2 naxatw-py-1">{task.task_id}</td>
               <td className="naxatw-px-2 naxatw-py-1">{task.task_area}</td>
-              <td className="naxatw-px-2 naxatw-py-1">-</td>
+              {/* <td className="naxatw-px-2 naxatw-py-1">-</td> */}
               <td className="naxatw-px-2 naxatw-py-1">
                 {format(new Date(task.created_at), 'yyyy-MM-dd')}
               </td>
