@@ -54,20 +54,34 @@ async def create_project(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
     dem: UploadFile = File(None),
+    image: UploadFile = File(None),
 ):
-    """Create a project in  database."""
+    """Create a project in the database."""
     project_id = await project_schemas.DbProject.create(db, project_info, user_data.id)
 
-    # Upload DEM to S3
-    dem_url = await project_logic.upload_dem_to_s3(project_id, dem) if dem else None
+    # Upload DEM and Image to S3
+    dem_url = (
+        await project_logic.upload_file_to_s3(project_id, dem, "dem", "tif")
+        if dem
+        else None
+    )
+    image_url = (
+        await project_logic.upload_file_to_s3(
+            project_id, image, "images", image.filename.split(".")[-1]
+        )
+        if image
+        else None
+    )
 
-    # Update dem url to database
-    await project_logic.update_project_dem_url(db, project_id, dem_url)
+    # Update DEM and Image URLs in the database
+    await project_logic.update_url(db, project_id, dem_url, "dem_url")
+    await project_logic.update_url(db, project_id, image_url, "image_url")
 
     if not project_id:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
         )
+
     return {"message": "Project successfully created", "project_id": project_id}
 
 
