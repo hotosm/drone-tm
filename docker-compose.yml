@@ -5,7 +5,6 @@ networks:
 volumes:
   db-data:
     name: drone-tm-db-data
-    external: true
   frontend-html:
     name: drone-tm-frontend-html
 

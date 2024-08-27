@@ -60,35 +60,11 @@ jobs:
       extra_build_args: BASE64_ARGS_TO_ENV=${{ needs.encode-envs.outputs.ENCODED_ENV }}
     secrets: inherit
 
-  postgres-vol-creation:
-    runs-on: ubuntu-latest
-    name: Create database volume
-    needs:
-      - backend-build
-    environment:
-      name: ${{ github.ref_name }}
-    steps:
-      - name: Setup SSH Key
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: "${{ secrets.SSH_PRIVATE_KEY }}"
-
-      - name: Add host keys to known_hosts
-        run: |
-          ssh-keyscan "${{ vars.SSH_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Deploy to VM
-        run: |
-          # Create db data volume if not exists
-          docker volume create drone-tm-db-data-${{ github.ref_name }} || true
-        env:
-          DOCKER_HOST: "ssh://${{ vars.SSH_USER }}@${{ vars.SSH_HOST }}"
-
   deploy_to_vm:
     name: Deploy to VM
     needs:
-      - postgres-vol-creation
       - frontend-build
+      - backend-build
     uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@2.0.5
     with:
       docker_compose_file: docker-compose.vm.yml
