@@ -116,7 +116,6 @@ class DbProject(Base):
     is_terrain_follow = cast(bool, Column(Boolean, default=False))
     dem_url = cast(str, Column(String, nullable=True))
     hashtags = cast(list, Column(ARRAY(String)))  # Project hashtag
-    image_url = cast(str, Column(String, nullable=True))
     output_orthophoto_url = cast(str, Column(String, nullable=True))
     output_pointcloud_url = cast(str, Column(String, nullable=True))
     output_raw_url = cast(str, Column(String, nullable=True))

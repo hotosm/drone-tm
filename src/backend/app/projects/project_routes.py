@@ -65,17 +65,12 @@ async def create_project(
         if dem
         else None
     )
-    image_url = (
-        await project_logic.upload_file_to_s3(
-            project_id, image, "images", image.filename.split(".")[-1]
-        )
-        if image
-        else None
-    )
+    await project_logic.upload_file_to_s3(
+        project_id, image, "images", "png"
+    ) if image else None
 
     # Update DEM and Image URLs in the database
     await project_logic.update_url(db, project_id, dem_url, "dem_url")
-    await project_logic.update_url(db, project_id, image_url, "image_url")
 
     if not project_id:
         raise HTTPException(

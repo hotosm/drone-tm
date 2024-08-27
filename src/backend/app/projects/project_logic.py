@@ -23,13 +23,19 @@ async def upload_file_to_s3(
         project_id (uuid.UUID): The project ID in the database.
         file (UploadFile): The file to be uploaded.
         folder (str): The folder name in the S3 bucket.
-        file_extension (str): The file extension (e.g., 'jpg', 'tif').
+        file_extension (str): The file extension (e.g., 'png', 'tif').
 
     Returns:
         str: The S3 URL for the uploaded file.
     """
+    # If the folder is 'images', use 'screenshot.png' as the filename
+    if folder == "images":
+        file_name = "screenshot.png"
+    else:
+        file_name = f"dem.{file_extension}"
+
     # Define the S3 file path
-    file_path = f"/{folder}/{project_id}/file.{file_extension}"
+    file_path = f"/{folder}/{project_id}/{file_name}"
 
     # Read the file bytes
     file_bytes = await file.read()

@@ -4,7 +4,7 @@ from typing import Annotated, Optional, List
 from datetime import datetime, date
 import geojson
 from loguru import logger as log
-from pydantic import BaseModel, computed_field, Field
+from pydantic import BaseModel, computed_field, Field, model_validator
 from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
 from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
@@ -12,7 +12,6 @@ from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
-from pydantic import model_validator
 from app.models.enums import FinalOutput, ProjectVisibility
 from app.models.enums import (
     IntEnum,
@@ -23,6 +22,8 @@ from app.utils import (
     merge_multipolygon,
 )
 from psycopg.rows import dict_row
+from app.config import settings
+from app.s3 import get_image_dir_url
 
 
 def validate_geojson(
@@ -410,6 +411,16 @@ class ProjectOut(BaseModel):
     requires_approval_from_manager_for_locking: bool
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
+    image_url: Optional[str] = None
+
+    @model_validator(mode="before")
+    def set_image_url(cls, values):
+        """Set image_url before rendering the model."""
+        project_id = values.get("id")
+        if project_id and not values.get("image_url"):
+            image_dir = f"images/{project_id}/screenshot.png"
+            values["image_url"] = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
+        return values
 
 
 class PresignedUrlRequest(BaseModel):
