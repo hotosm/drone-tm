@@ -45,7 +45,6 @@ get_frontend_index_html() {
 # Start wait in background with tmp log files
 wait_for_db &
 wait_for_minio &
-get_frontend_index_html &
 wait
 
 exec "$@"

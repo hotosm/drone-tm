@@ -1,18 +1,20 @@
 import os
+from app.users import user_schemas
+from app.users import user_deps
+from app.users import user_logic
 from fastapi import APIRouter, Response, HTTPException, Depends, Request
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     Token,
-    ProfileUpdate,
+    UserProfileIn,
     AuthUser,
 )
 from app.users.user_deps import login_required, init_google_auth
 from app.config import settings
-from app.users import user_crud
 from app.db import database
 from app.models.enums import HTTPStatus
-from databases import Database
+from psycopg import Connection
 from fastapi.responses import JSONResponse
 from loguru import logger as log
 
@@ -31,12 +33,12 @@ router = APIRouter(
 @router.post("/login/")
 async def login_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Database = Depends(database.get_db),
+    db: Annotated[Connection, Depends(database.get_db)],
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    user = await user_crud.authenticate(db, form_data.username, form_data.password)
+    user = await user_deps.authenticate(db, form_data.username, form_data.password)
 
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
@@ -50,7 +52,7 @@ async def login_access_token(
         "img_url": user.profile_img,
     }
 
-    access_token, refresh_token = await user_crud.create_access_token(user_info)
+    access_token, refresh_token = await user_logic.create_access_token(user_info)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -59,22 +61,23 @@ async def login_access_token(
 @router.post("/{user_id}/profile")
 async def update_user_profile(
     user_id: str,
-    profile_update: ProfileUpdate,
-    db: Database = Depends(database.get_db),
-    user_data: AuthUser = Depends(login_required),
+    profile_update: UserProfileIn,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """
     Update user profile based on provided user_id and profile_update data.
     Args:
         user_id (int): The ID of the user whose profile is being updated.
-        profile_update (UserProfileUpdate): Updated profile data to apply.
+        profile_update (UserUserProfileIn): Updated profile data to apply.
     Returns:
         dict: Updated user profile information.
     Raises:
         HTTPException: If user with given user_id is not found in the database.
     """
 
-    user = await user_crud.get_user_by_id(db, user_id)
+    user = await user_schemas.DbUser.get_user_by_id(db, user_id)
+
     if user_data.id != user_id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
@@ -83,8 +86,7 @@ async def update_user_profile(
 
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
-
-    user = await user_crud.update_user_profile(db, user_id, profile_update)
+    user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
     return Response(status_code=HTTPStatus.OK)
 
 
@@ -118,16 +120,16 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
     access_token = google_auth.callback(callback_url).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)
-    access_token, refresh_token = await user_crud.create_access_token(user_data)
+    access_token, refresh_token = await user_logic.create_access_token(user_data)
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.get("/refresh-token", response_model=Token)
-async def update_token(user_data: AuthUser = Depends(login_required)):
+async def update_token(user_data: Annotated[AuthUser, Depends(login_required)]):
     """Refresh access token"""
 
-    access_token, refresh_token = await user_crud.create_access_token(
+    access_token, refresh_token = await user_logic.create_access_token(
         user_data.model_dump()
     )
     return Token(access_token=access_token, refresh_token=refresh_token)
@@ -135,14 +137,14 @@ async def update_token(user_data: AuthUser = Depends(login_required)):
 
 @router.get("/my-info/")
 async def my_data(
-    db: Database = Depends(database.get_db),
-    user_data: AuthUser = Depends(login_required),
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Read access token and get user details from Google"""
-
-    user_info = await user_crud.get_or_create_user(db, user_data)
-    has_user_profile = await user_crud.get_userprofile_by_userid(db, user_info.id)
-
+    user_info = await user_schemas.DbUser.get_or_create_user(db, user_data)
+    has_user_profile = await user_schemas.DbUserProfile.get_userprofile_by_userid(
+        db, user_info.id
+    )
     user_info_dict = user_info.model_dump()
     user_info_dict["has_user_profile"] = bool(has_user_profile)
     return user_info_dict

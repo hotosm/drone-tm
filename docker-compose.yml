@@ -5,13 +5,14 @@ networks:
 volumes:
   db-data:
     name: drone-tm-db-data
+  frontend-html:
+    name: drone-tm-frontend-html
 
 services:
   backend:
-    image: ghcr.io/hotosm/drone-tm/backend:ci
     build:
-      context: .
-      dockerfile: src/backend/Dockerfile
+      context: src/backend
+      dockerfile: Dockerfile
     depends_on:
       - db
       - minio
@@ -19,6 +20,7 @@ services:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - frontend-html:/project/src/backend/frontend_html
     env_file: .env
     networks:
       - dtm-network
@@ -26,9 +28,11 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: src/frontend/Dockerfile
+      context: src/frontend
+      dockerfile: Dockerfile
       target: ${FRONTEND_TARGET_OVERRIDE:-development}
+      args:
+        BASE64_ARGS_TO_ENV: <USE FOR LIVE. Base64 encoded env variables>
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:
@@ -38,7 +42,7 @@ services:
       - dtm-network
     volumes:
       - ${PROJECT_DIR:-.}/src/frontend:/app
-      - /var/run/docker.sock:/var/run/docker.sock
+      - frontend-html:/tmp/frontend_html
 
   # If error, please upgrade the db with `contrib/pg-upgrade/docker-compose.yml`
   db:
@@ -48,7 +52,9 @@ services:
     env_file: .env
     environment:
       LANG: en-GB.utf8
-      # POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-GB"
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-GB"
+    ports:
+      - "5467:5432"
     networks:
       - dtm-network
     restart: unless-stopped
@@ -60,7 +66,7 @@ services:
       retries: 3
 
   minio:
-    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
     command: server /export --console-address 0.0.0.0:9090 --address 0.0.0.0:9000
     volumes:
       - ${PROJECT_DIR:-.}/DockerData/minio_data:/export
@@ -77,7 +83,7 @@ services:
     restart: unless-stopped
 
   createbuckets:
-    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2023-10-25T06-33-25Z}"
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
     entrypoint: >
       /bin/sh -c " mc config host add minio http://minio:9000 \$S3_ACCESS_KEY \$S3_SECRET_KEY; mc mb minio/\$S3_BUCKET_NAME; mc anonymous set download minio/\$S3_BUCKET_NAME/publicuploads/; exit 0; "
     env_file:
@@ -90,8 +96,8 @@ services:
 
   migrations:
     build:
-      context: .
-      dockerfile: src/backend/Dockerfile
+      context: src/backend
+      dockerfile: Dockerfile
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:
@@ -101,5 +107,5 @@ services:
       - .env
     networks:
       - dtm-network
-    entrypoint: ["pdm", "run", "alembic", "upgrade", "head"]
+    entrypoint: ["alembic", "upgrade", "head"]
     restart: "no"

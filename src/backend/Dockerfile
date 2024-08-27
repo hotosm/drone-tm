@@ -27,19 +27,20 @@ RUN pip install -U pdm
 # Disable update check
 ENV PDM_CHECK_UPDATE=false
 
+WORKDIR /project
+
 # Copy files needed for building the project
-COPY ./src/backend/pyproject.toml ./src/backend/pdm.lock README.md /project/
-COPY src/backend /project/src
+COPY ./pyproject.toml /project/
+COPY ./pdm.lock /project/
 
 # Install dependencies and project into the local packages directory
-WORKDIR /project
 RUN pdm install --check --prod --no-editable
 
 # Run stage (final stage)
-FROM python:$PYTHON_BASE
+FROM python:$PYTHON_BASE AS service
 
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONDONTWRITEBYTECODES 1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODES=1
 
 RUN set -ex \
 && apt-get update \
@@ -64,7 +65,7 @@ RUN set -ex \
 COPY --from=build /project/.venv/ /project/.venv
 
 # Set working directory
-WORKDIR /project/src/backend/
+WORKDIR /project/src/backend
 
 # Set environment PATH
 ENV PATH="/project/.venv/bin:$PATH"
@@ -73,9 +74,12 @@ ENV PATH="/project/.venv/bin:$PATH"
 RUN pip install -U pdm
 
 # Copy the source files to the final image
-COPY src /project/src
+COPY . /project/src/backend
+
+VOLUME /project/src/backend/frontend_html
 
 # Set the entrypoint for the container
 ENTRYPOINT [ "/project/src/backend/docker-entrypoint.sh" ]
+
 CMD ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
-    "--workers", "4", "--log-level", "info", "--reload"]
+    "--log-level", "info", "--reload"]

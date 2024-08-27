@@ -1,29 +1,43 @@
-import uuid
 import json
-from pydantic import BaseModel, computed_field, Field, model_validator
-from typing import Any, Optional, Union, List
-from geojson_pydantic import Feature, FeatureCollection, Polygon
+import uuid
+from typing import Annotated, Optional, List
+from datetime import datetime, date
+import geojson
+from loguru import logger as log
+from pydantic import BaseModel, computed_field, Field
+from pydantic.functional_validators import AfterValidator
+from pydantic.functional_serializers import PlainSerializer
+from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
+from fastapi import HTTPException
+from psycopg import Connection
+from psycopg.rows import class_row
+from slugify import slugify
+from pydantic import model_validator
 from app.models.enums import FinalOutput, ProjectVisibility
-from shapely import wkb
-from datetime import date
-from shapely.geometry import mapping
-from app.utils import (
-    geojson_to_geometry,
-    multipolygon_to_polygon,
-    read_wkb,
-    merge_multipolygon,
-    str_to_geojson,
-    write_wkb,
+from app.models.enums import (
+    IntEnum,
+    ProjectStatus,
+    HTTPStatus,
 )
+from app.utils import (
+    merge_multipolygon,
+)
+from psycopg.rows import dict_row
 
 
-class ProjectInfo(BaseModel):
-    """Basic project info."""
+def validate_geojson(
+    value: FeatureCollection | Feature | Polygon,
+) -> geojson.FeatureCollection:
+    """Convert the upload GeoJSON to standardised FeatureCollection."""
+    if value:
+        return merge_multipolygon(value.model_dump())
+    else:
+        return None
 
-    id: int
-    name: str
-    description: str
-    per_task_instructions: Optional[str] = None
+
+def enum_to_str(value: IntEnum) -> str:
+    """Get the string value of the enum for db insert."""
+    return value.name
 
 
 class ProjectIn(BaseModel):
@@ -38,10 +52,23 @@ class ProjectIn(BaseModel):
     front_overlap: Optional[float] = None
     side_overlap: Optional[float] = None
     is_terrain_follow: bool = False
-    outline_no_fly_zones: Optional[Union[FeatureCollection, Feature, Polygon]] = None
-    outline_geojson: Union[FeatureCollection, Feature, Polygon]
+    outline: Annotated[
+        FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)
+    ]
+    no_fly_zones: Annotated[
+        Optional[FeatureCollection | Feature | Polygon],
+        AfterValidator(validate_geojson),
+    ] = None
+    output_orthophoto_url: Optional[str] = None
+    output_pointcloud_url: Optional[str] = None
+    output_raw_url: Optional[str] = None
     deadline_at: Optional[date] = None
-    visibility: Optional[ProjectVisibility] = ProjectVisibility.PUBLIC
+    visibility: Annotated[ProjectVisibility | str, PlainSerializer(enum_to_str)] = (
+        ProjectVisibility.PUBLIC
+    )
+    status: Annotated[ProjectStatus | str, PlainSerializer(enum_to_str)] = (
+        ProjectStatus.PUBLISHED
+    )
     final_output: List[FinalOutput] = Field(
         ...,
         example=[
@@ -57,31 +84,33 @@ class ProjectIn(BaseModel):
 
     @computed_field
     @property
-    def no_fly_zones(self) -> Optional[Any]:
-        """Compute WKBElement geom from geojson."""
-        if not self.outline_no_fly_zones:
-            return None
+    def slug(self) -> str:
+        """
+        Generate a unique slug based on the provided name.
 
-        outline = multipolygon_to_polygon(self.outline_no_fly_zones)
-        return geojson_to_geometry(outline)
+        The slug is created by converting the given name into a URL-friendly format and appending
+        the current date and time to ensure uniqueness. The date and time are formatted as
+        "ddmmyyyyHHMM" to create a timestamp.
 
-    @computed_field
-    @property
-    def outline(self) -> Optional[Any]:
-        """Compute WKBElement geom from geojson."""
-        if not self.outline_geojson:
-            return None
+        Args:
+            name (str): The name from which the slug will be generated.
 
-        outline = merge_multipolygon(self.outline_geojson)
-        return geojson_to_geometry(outline)
+        Returns:
+            str: The generated slug, which includes the URL-friendly version of the name and
+                a timestamp. If an error occurs during the generation, an empty string is returned.
 
-    @computed_field
-    @property
-    def centroid(self) -> Optional[Any]:
-        """Compute centroid for project outline."""
-        if not self.outline:
-            return None
-        return write_wkb(read_wkb(self.outline).centroid)
+        Raises:
+            Exception: If an error occurs during the slug generation process.
+        """
+        try:
+            slug = slugify(self.name)
+            now = datetime.now()
+            date_time_str = now.strftime("%d%m%Y%H%M")
+            slug_with_date = f"{slug}-{date_time_str}"
+            return slug_with_date
+        except Exception as e:
+            log.error(f"An error occurred while generating the slug: {e}")
+            return ""
 
     @model_validator(mode="before")
     @classmethod
@@ -96,22 +125,275 @@ class TaskOut(BaseModel):
 
     id: uuid.UUID
     project_task_index: int
-    outline: Any = Field(exclude=True)
+    outline: Optional[Polygon | Feature | FeatureCollection]
     state: Optional[str] = None
     user_id: Optional[str] = None
     task_area: Optional[float] = None
     name: Optional[str] = None
 
-    @computed_field
-    @property
-    def outline_geojson(self) -> Optional[Feature]:
-        """Compute the geojson outline from WKBElement outline."""
-        if not self.outline:
-            return None
-        wkb_data = bytes.fromhex(self.outline)
-        geom = wkb.loads(wkb_data)
-        bbox = geom.bounds  # Calculate bounding box
-        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, str(self.id))
+
+class DbProject(BaseModel):
+    """Project model for extracting from database."""
+
+    id: uuid.UUID
+    name: str
+    slug: Optional[str] = None
+    short_description: Optional[str] = None
+    description: str = None
+    per_task_instructions: Optional[str] = None
+    organisation_id: Optional[int] = None
+    outline: Optional[Polygon | Feature | FeatureCollection]
+    centroid: Optional[Point | Feature | Polygon] = None
+    no_fly_zones: Optional[MultiPolygon | Polygon | Feature] = None
+    task_count: int = 0
+    tasks: Optional[list[TaskOut]] = []
+    requires_approval_from_manager_for_locking: Optional[bool] = None
+    author_id: Optional[str] = None
+    front_overlap: Optional[float] = None
+    side_overlap: Optional[float] = None
+    gsd_cm_px: Optional[float] = None
+    altitude_from_ground: Optional[float] = None
+    is_terrain_follow: bool = False
+
+    async def one(db: Connection, project_id: uuid.UUID):
+        """Get a single project &  all associated tasks by ID."""
+        async with db.cursor(row_factory=class_row(DbProject)) as cur:
+            await cur.execute(
+                """
+                SELECT
+                    projects.*,
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'geometry', ST_AsGeoJSON(projects.outline)::jsonb,
+                        'properties', jsonb_build_object(
+                            'id', projects.id,
+                            'bbox', jsonb_build_array(
+                                ST_XMin(ST_Envelope(projects.outline)),
+                                ST_YMin(ST_Envelope(projects.outline)),
+                                ST_XMax(ST_Envelope(projects.outline)),
+                                ST_YMax(ST_Envelope(projects.outline))
+                            )
+                        ),
+                        'id', projects.id
+                    ) AS outline,
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'geometry', ST_AsGeoJSON(projects.outline)::jsonb,
+                        'properties', jsonb_build_object(
+                            'id', projects.id,
+                            'bbox', jsonb_build_array(
+                                ST_XMin(ST_Envelope(projects.no_fly_zones)),
+                                ST_YMin(ST_Envelope(projects.no_fly_zones)),
+                                ST_XMax(ST_Envelope(projects.no_fly_zones)),
+                                ST_YMax(ST_Envelope(projects.no_fly_zones))
+                            )
+                        ),
+                        'id', projects.id
+                    ) AS no_fly_zones,
+                    ST_AsGeoJSON(projects.centroid)::jsonb AS centroid
+
+                FROM
+                    projects
+                WHERE
+                    projects.id = %(project_id)s
+                LIMIT 1;
+            """,
+                {"project_id": project_id},
+            )
+            project_record = await cur.fetchone()
+
+        async with db.cursor(row_factory=class_row(TaskOut)) as cur:
+            await cur.execute(
+                """
+                WITH TaskStateCalculation AS (
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.user_id,
+                        CASE
+                            WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                            WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+                            WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
+                            WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                            ELSE 'UNLOCKED_TO_MAP'
+                        END AS calculated_state
+                    FROM
+                        task_events te
+                    ORDER BY
+                        te.task_id, te.created_at DESC
+                ),
+                TaskGeoJSON AS (
+                    SELECT
+                        t.id,
+                        t.project_task_index,
+                        ST_AsGeoJSON(t.outline)::jsonb -> 'coordinates' AS coordinates,
+                        ST_AsGeoJSON(t.outline)::jsonb -> 'type' AS type,
+                        ST_XMin(ST_Envelope(t.outline)) AS xmin,
+                        ST_YMin(ST_Envelope(t.outline)) AS ymin,
+                        ST_XMax(ST_Envelope(t.outline)) AS xmax,
+                        ST_YMax(ST_Envelope(t.outline)) AS ymax,
+                        COALESCE(tsc.calculated_state, 'UNLOCKED_TO_MAP') AS state,
+                        tsc.user_id,
+                        u.name,
+                        ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
+                    FROM
+                        tasks t
+                    LEFT JOIN
+                        TaskStateCalculation tsc ON t.id = tsc.task_id
+                    LEFT JOIN
+                        users u ON tsc.user_id = u.id
+                    WHERE
+                        t.project_id = %(project_id)s
+                )
+                SELECT
+                    id,
+                    project_task_index,
+                    state,
+                    user_id,
+                    name,
+                    task_area,
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'geometry', jsonb_build_object(
+                            'type', type,
+                            'coordinates', coordinates
+                        ),
+                        'properties', jsonb_build_object(
+                            'id', id,
+                            'bbox', jsonb_build_array(xmin, ymin, xmax, ymax)
+                        ),
+                        'id', id
+                    ) AS outline
+                FROM
+                    TaskGeoJSON;
+                """,
+                {"project_id": project_id},
+            )
+
+            task_records = await cur.fetchall()
+            project_record.tasks = task_records if task_records is not None else []
+            project_record.task_count = len(task_records)
+            return project_record
+
+    async def all(
+        db: Connection,
+        skip: int = 0,
+        limit: int = 100,
+    ):
+        """Get all projects."""
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+            SELECT id, slug, name, description, per_task_instructions, ST_AsGeoJSON(outline)::jsonb AS outline, requires_approval_from_manager_for_locking
+            FROM projects
+            ORDER BY created_at DESC
+            OFFSET %(skip)s
+            LIMIT %(limit)s
+            """,
+                {"skip": skip, "limit": limit},
+            )
+            db_projects = await cur.fetchall()
+            return db_projects
+
+    @staticmethod
+    async def create(db: Connection, project: ProjectIn, user_id: str) -> uuid.UUID:
+        """Create a single project."""
+        # NOTE we first check if a project with this name exists
+        # It is easier to do this than complex upsert logic
+        async with db.cursor() as cur:
+            sql = """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM projects
+                    WHERE LOWER(name) = %(name)s
+                )
+            """
+            await cur.execute(sql, {"name": project.name.lower()})
+            project_exists = await cur.fetchone()
+            if project_exists[0]:
+                msg = f"Project name ({project.name}) already exists!"
+                log.warning(f"User ({user_id}) failed project creation: {msg}")
+                raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=msg)
+        # NOTE exclude_none is used over exclude_unset, or default value are not included
+        model_dump = project.model_dump(
+            exclude_none=True, exclude=["outline", "centroid"]
+        )
+        columns = ", ".join(model_dump.keys())
+        value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
+        sql = f"""
+            INSERT INTO projects (
+                id, author_id, outline, centroid, created_at, {columns}
+            )
+            VALUES (
+                gen_random_uuid(),
+                %(author_id)s,
+                ST_GeomFromGeoJSON(%(outline)s),
+                ST_Centroid(ST_GeomFromGeoJSON(%(outline)s)),
+                NOW(),
+                {value_placeholders}
+            )
+            RETURNING id;
+        """
+        # We only want the first geometry (they should be merged previously)
+        outline_geometry = json.dumps(project.outline["features"][0]["geometry"])
+        # Add required author_id and outline as json
+        model_dump.update(
+            {
+                "author_id": user_id,
+                "outline": outline_geometry,
+            }
+        )
+        # Append no fly zones if they are present
+        # FIXME they are merged to a single geom!
+        if project.no_fly_zones:
+            no_fly_geoms = json.dumps(project.no_fly_zones["features"][0]["geometry"])
+            model_dump.update(
+                {
+                    "no_fly_zones": no_fly_geoms,
+                }
+            )
+
+        async with db.cursor() as cur:
+            await cur.execute(sql, model_dump)
+            new_project_id = await cur.fetchone()
+
+            if not new_project_id:
+                msg = f"Unknown SQL error for data: {model_dump}"
+                log.warning(f"User ({user_id}) failed project creation: {msg}")
+                raise HTTPException(
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=msg
+                )
+
+            return new_project_id[0]
+
+    @staticmethod
+    async def delete(db: Connection, project_id: uuid.UUID) -> uuid.UUID:
+        """Delete a single project."""
+        sql = """
+            WITH deleted_project AS (
+                DELETE FROM projects
+                WHERE id = %(project_id)s
+                RETURNING id
+            ), deleted_tasks AS (
+                DELETE FROM tasks
+                WHERE project_id = %(project_id)s
+                RETURNING project_id
+            ), deleted_task_events AS (
+                DELETE FROM task_events
+                WHERE project_id = %(project_id)s
+                RETURNING project_id
+            )
+            SELECT id FROM deleted_project
+        """
+
+        async with db.cursor() as cur:
+            await cur.execute(sql, {"project_id": project_id})
+            deleted_project_id = await cur.fetchone()
+
+            if not deleted_project_id:
+                log.warning(f"Failed to delete project ({project_id})")
+                raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+
+            return deleted_project_id[0]
 
 
 class ProjectOut(BaseModel):
@@ -123,40 +405,11 @@ class ProjectOut(BaseModel):
     description: str
     per_task_instructions: Optional[str] = None
     requires_approval_from_manager_for_locking: Optional[bool] = None
-    outline: Any = Field(exclude=True)
-    no_fly_zones: Optional[Any] = Field(default=None, exclude=True)
-    task_count: int = None
-    tasks: list[TaskOut] = []
-
-    @computed_field
-    @property
-    def no_fly_zones_geojson(self) -> Optional[Feature]:
-        """Compute the geojson outline from WKBElement no_fly_zones."""
-        if not self.no_fly_zones:
-            return None
-        try:
-            geom = wkb.loads(self.no_fly_zones, hex=True)
-            bbox = geom.bounds  # Calculate bounding box
-            geojson = mapping(geom)
-            return Feature(
-                type="Feature",
-                geometry=geojson,
-                properties={"id": str(self.id), "bbox": bbox},
-            )
-        except Exception as e:
-            print(f"Error processing no_fly_zones: {e}")
-            return None
-
-    @computed_field
-    @property
-    def outline_geojson(self) -> Optional[Feature]:
-        """Compute the geojson outline from WKBElement outline."""
-        if not self.outline:
-            return None
-        wkb_data = bytes.fromhex(self.outline)
-        geom = wkb.loads(wkb_data)
-        bbox = geom.bounds  # Calculate bounding box
-        return str_to_geojson(self.outline, {"id": self.id, "bbox": bbox}, str(self.id))
+    outline: Optional[Polygon | Feature | FeatureCollection]
+    no_fly_zones: Optional[Polygon | Feature | FeatureCollection | MultiPolygon] = None
+    requires_approval_from_manager_for_locking: bool
+    task_count: int = 0
+    tasks: Optional[list[TaskOut]] = []
 
 
 class PresignedUrlRequest(BaseModel):

@@ -26,6 +26,7 @@ export default function AsyncPopup({
   buttonText = 'View More',
   hideButton = false,
   getCoordOnProperties = false,
+  showPopup = (_clickedFeature: Record<string, any>) => true,
 }: IAsyncPopup) {
   const [properties, setProperties] = useState<Record<string, any> | null>(
     null,
@@ -39,6 +40,10 @@ export default function AsyncPopup({
       if (!map) return;
       const features = map.queryRenderedFeatures(e.point);
       const clickedFeature = features?.[0];
+
+      // in case of popup rendering conditionally
+      if (!showPopup(clickedFeature)) return;
+
       if (!clickedFeature) return;
       setProperties(
         getCoordOnProperties
@@ -56,7 +61,7 @@ export default function AsyncPopup({
       popup.setLngLat(e.lngLat);
     }
     map.on('click', displayPopup);
-  }, [map, getCoordOnProperties]);
+  }, [map, getCoordOnProperties, showPopup]);
 
   useEffect(() => {
     if (!map || !properties) return;
