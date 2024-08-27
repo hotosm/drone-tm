@@ -19,7 +19,7 @@ class AuthUser(BaseModel):
     id: str
     email: EmailStr
     name: str
-    img_url: Optional[str] = None
+    profile_img: Optional[str] = None
 
 
 class UserBase(BaseModel):

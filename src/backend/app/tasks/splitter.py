@@ -1,18 +1,19 @@
-
 """Class and helper methods for task splitting."""
+
 import json
 import logging
 from pathlib import Path
 from typing import Optional, Union
 import geojson
 import numpy as np
-from geojson import Feature, FeatureCollection, GeoJSON, MultiPolygon
-from shapely.geometry import  Polygon, shape
+from geojson import Feature, FeatureCollection, GeoJSON
+from shapely.geometry import Polygon, shape
 from shapely.geometry.geo import mapping
 from shapely.ops import unary_union
 
 # Instantiate logger
 log = logging.getLogger(__name__)
+
 
 class TaskSplitter(object):
     """A class to split polygons."""
@@ -117,7 +118,6 @@ class TaskSplitter(object):
 
         return shape(features[0].get("geometry"))
 
-
     def splitBySquare(self, meters: int) -> FeatureCollection:
         # Define bounds of the area of interest (AOI)
         xmin, ymin, xmax, ymax = self.aoi.bounds
@@ -137,7 +137,9 @@ class TaskSplitter(object):
         for x in cols[:-1]:
             for y in rows[:-1]:
                 # Create a square grid polygon
-                grid_polygon = Polygon([(x, y), (x + width, y), (x + width, y + length), (x, y + length)])
+                grid_polygon = Polygon(
+                    [(x, y), (x + width, y), (x + width, y + length), (x, y + length)]
+                )
                 # Clip the grid polygon to fit within the AOI
                 clipped_polygon = grid_polygon.intersection(self.aoi)
                 if not clipped_polygon.is_empty:
@@ -148,29 +150,35 @@ class TaskSplitter(object):
                 else:
                     polygons.append(clipped_polygon)
 
-        for small_polygon in small_polygons:            
-            adjacent_polygons = [large_polygon for large_polygon in polygons if small_polygon.touches(large_polygon)]
+        for small_polygon in small_polygons:
+            adjacent_polygons = [
+                large_polygon
+                for large_polygon in polygons
+                if small_polygon.touches(large_polygon)
+            ]
             if adjacent_polygons:
                 # Get the adjacent polygon with the minimum area
-                nearest_large_polygon = min(adjacent_polygons, key=lambda p: p.area)
-                
+                nearest_small_polygon = min(adjacent_polygons, key=lambda p: p.area)
+
                 # Merge the small polygon with the nearest large polygon
-                merged_polygon = unary_union([small_polygon, nearest_large_polygon])
-                
-                if merged_polygon.geom_type == 'MultiPolygon':
-                    #TODO we need merge Multipolygon into single polygon later....
+                merged_polygon = unary_union([small_polygon, nearest_small_polygon])
+
+                if merged_polygon.geom_type == "MultiPolygon":
+                    # TODO we need merge Multipolygon into single polygon later....
                     log.warning("Found MultiPolygon, converting to simple polygon...")
                     polygons.append(small_polygon)
                     # Option 1: Convert to convex hull (simple polygon)
                     # merged_polygon = merged_polygon.convex_hull
                 # Remove both the small polygon and the nearest large polygon
-                polygons.remove(nearest_large_polygon)
+                polygons.remove(nearest_small_polygon)
                 polygons.append(merged_polygon)
             else:
                 # If no adjacent polygon is found, add the small polygon as is
                 polygons.append(small_polygon)
-                
-        merged_geojson = FeatureCollection([Feature(geometry=mapping(p)) for p in polygons])
+
+        merged_geojson = FeatureCollection(
+            [Feature(geometry=mapping(p)) for p in polygons]
+        )
 
         # Store the result in the instance variable and return it
         self.split_features = merged_geojson
@@ -199,7 +207,7 @@ def split_by_square(
         err = "A valid data extract must be provided."
         log.error(err)
         raise ValueError(err)
-   
+
     splitter = TaskSplitter(aoi_featcol)
     split_features = splitter.splitBySquare(meters)
     if not split_features:
