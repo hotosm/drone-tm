@@ -2,7 +2,7 @@ import json
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
-from fmtm_splitter.splitter import split_by_square
+from app.tasks.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
 from app.utils import merge_multipolygon
@@ -73,10 +73,13 @@ async def create_tasks_from_geojson(
         log.debug(f"Processing {len(polygons)} task geometries")
         for index, polygon in enumerate(polygons):
             try:
+                if not polygon["geometry"]:
+                    continue
                 # If the polygon is a MultiPolygon, convert it to a Polygon
                 if polygon["geometry"]["type"] == "MultiPolygon":
                     log.debug("Converting MultiPolygon to Polygon")
                     polygon["geometry"]["type"] = "Polygon"
+
                     polygon["geometry"]["coordinates"] = polygon["geometry"][
                         "coordinates"
                     ][0]
@@ -133,3 +136,9 @@ async def preview_split_by_square(boundary: str, meters: int):
             meters=meters,
         )
     )
+    # return await run_in_threadpool(
+    #     lambda: split_by_square(
+    #         boundary,
+    #         meters=meters,
+    #     )
+    # )
