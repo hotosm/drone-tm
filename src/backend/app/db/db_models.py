@@ -289,3 +289,39 @@ class DbUserProfile(Base):
     drone_you_own = cast(str, Column(String, nullable=True))
     certified_drone_operator = cast(bool, Column(Boolean, default=False))
     certificate = cast(bytes, Column(LargeBinary, nullable=True))
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = cast(str, Column(String(100), ForeignKey("users.id"), nullable=False))
+    project_id = cast(
+        str, Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    )
+    task_id = cast(
+        str, Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
+    )
+    message = Column(String, nullable=False)
+    seen = Column(Boolean, default=False)
+    created_at = cast(datetime, Column(DateTime, default=timestamp))
+
+    # Relationships with backref and cascade
+    user = relationship(
+        DbUser,
+        uselist=False,
+        backref="notifications",
+        cascade="all, delete, delete-orphan",
+    )
+    project = relationship(
+        DbProject,
+        uselist=False,
+        backref="notifications",
+        cascade="all, delete, delete-orphan",
+    )
+    task = relationship(
+        DbTask,
+        uselist=False,
+        backref="notifications",
+        cascade="all, delete, delete-orphan",
+    )
