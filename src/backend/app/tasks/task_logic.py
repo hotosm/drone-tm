@@ -5,6 +5,29 @@ from fastapi import HTTPException
 from psycopg.rows import dict_row
 
 
+async def update_notification(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    user_id: uuid.UUID,
+    message: str,
+):
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO notifications (user_id, project_id, task_id, message, created_at)
+            VALUES (%(user_id)s, %(project_id)s, %(task_id)s, %(message)s, NOW())
+            """,
+            {
+                "user_id": str(user_id),
+                "project_id": project_id,
+                "task_id": task_id,
+                "message": message,
+            },
+        )
+        return True
+
+
 async def get_task_geojson(db: Connection, task_id: uuid.UUID):
     async with db.cursor() as cur:
         await cur.execute(

@@ -187,6 +187,11 @@ async def new_event(
                     State.UNLOCKED_TO_MAP,
                     State.LOCKED_FOR_MAPPING,
                 )
+                message = f"Task {task_id} has been requested by {user_data.name}"
+                await task_logic.update_notification(
+                    db, project_id, task_id, user_id, message
+                )
+
             else:
                 data = await task_logic.request_mapping(
                     db,
@@ -359,3 +364,9 @@ async def new_event(
             )
 
     return True
+
+
+@router.get("/notifications/", response_model=list[task_schemas.NotificationOut])
+def get_notifications(user_id: int, db: Connection = Depends(database.get_db)):
+    # notifications = db.query(Notification).filter(Notification.user_id == user_id).all()
+    return {"message": "this is notification..."}

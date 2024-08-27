@@ -124,3 +124,20 @@ class UserTasksStatsOut(BaseModel):
                     status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                     detail="Retrieval failed",
                 ) from e
+
+
+class NotificationOut(BaseModel):
+    id: int
+    user_id: uuid.UUID
+    project_id: uuid.UUID
+    task_id: uuid.UUID
+    message: str
+    seen: bool = False
+    created_at: datetime
+
+
+class NotificationIn(BaseModel):
+    user_id: uuid.UUID
+    project_id: uuid.UUID
+    task_id: uuid.UUID
+    message: str
