@@ -188,13 +188,13 @@ export const aboutData = [
 export const caseStudiesData = [
   {
     id: 1,
-    title: 'Piloting drone tasking manager in the carribean',
+    title: 'Piloting drone tasking manager in the caribbean',
     description:
       ' Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.',
   },
   {
     id: 2,
-    title: 'Piloting drone tasking manager in the carribean',
+    title: 'Piloting drone tasking manager in the caribbean',
     description:
       ' Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.',
   },
