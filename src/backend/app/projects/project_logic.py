@@ -136,9 +136,3 @@ async def preview_split_by_square(boundary: str, meters: int):
             meters=meters,
         )
     )
-    # return await run_in_threadpool(
-    #     lambda: split_by_square(
-    #         boundary,
-    #         meters=meters,
-    #     )
-    # )
