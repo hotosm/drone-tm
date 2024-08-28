@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import dtmLogo from '@Assets/images/DTM-logo-black.svg';
 import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
-import Icon from '../Icon';
+// import Icon from '../Icon';
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -15,7 +15,7 @@ export default function Navbar() {
         <div
           className="naxatw-cursor-pointer"
           role="presentation"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/')}
         >
           <Image
             src={dtmLogo}
@@ -50,7 +50,7 @@ export default function Navbar() {
           </NavLink>
         </FlexRow>
         <FlexRow className="naxatw-items-center" gap={2}>
-          <Icon name="notifications" />
+          {/* <Icon name="notifications" /> */}
           <UserProfile />
         </FlexRow>
       </FlexRow>

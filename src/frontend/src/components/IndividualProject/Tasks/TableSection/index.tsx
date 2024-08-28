@@ -7,10 +7,10 @@ const tasksDataColumns = [
     header: 'ID',
     accessorKey: 'id',
   },
-  {
-    header: 'Flight Time',
-    accessorKey: 'flight_time',
-  },
+  // {
+  //   header: 'Flight Time',
+  //   accessorKey: 'flight_time',
+  // },
   {
     header: 'Task Area in km²',
     accessorKey: 'task_area',

@@ -143,7 +143,7 @@ const CreateprojectLayout = () => {
       dispatch(setCreateProjectState({ projectId: res.data.project_id }));
       if (!splitGeojson) return;
       const geojson = convertGeojsonToFile(splitGeojson);
-      const formData = prepareFormData({ geojson: geojson });
+      const formData = prepareFormData({ geojson });
       uploadTaskBoundary({ id: res.data.project_id, data: formData });
       reset();
       dispatch(resetUploadedAndDrawnAreas());
@@ -171,16 +171,14 @@ const CreateprojectLayout = () => {
     if (activeStep === 2) {
       if (
         !data?.outline ||
-        (Array.isArray(data?.outline) &&
-          data?.outline?.length === 0)
+        (Array.isArray(data?.outline) && data?.outline?.length === 0)
       ) {
         toast.error('Please upload or draw and save project area');
         return;
       }
       if (
         isNoflyzonePresent === 'yes' &&
-        (!data?.no_fly_zones ||
-          data?.no_fly_zones?.length === 0)
+        (!data?.no_fly_zones || data?.no_fly_zones?.length === 0)
       ) {
         toast.error('Please upload or draw and save No Fly zone area');
         return;

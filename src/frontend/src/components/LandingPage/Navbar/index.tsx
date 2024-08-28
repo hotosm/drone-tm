@@ -13,7 +13,9 @@ export default function Navbar() {
         >
           <p className="naxatw-border-r naxatw-pr-3">About</p>
           <p className="naxatw-border-r naxatw-pr-3">FAQs</p>
-          <p className="naxatw-border-r naxatw-pr-3">Documentations</p>
+          <a href="https://hotosm.github.io/drone-tm/ ">
+            <p className="naxatw-border-r naxatw-pr-3">Documentations</p>
+          </a>
         </FlexRow>
       </FlexRow>
     </header>

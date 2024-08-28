@@ -7,28 +7,28 @@ export const accordionData = [
     id: 1,
     title: 'Enhanced Crisis Response',
     description:
-      'Significant savings in mapping and surveying costs for underprivileged areas.',
+      'The Drone Tasking Manager will enable faster, more precise deployment of drones during emergencies, improving resource allocation and decision-making in critical situations. This will lead to quicker and more effective crisis interventions.',
     isOpen: true,
   },
   {
     id: 2,
     title: 'Community Empowerment',
     description:
-      "Yes, you can try us for free for 30 days. If you want, we'll provide you with a free, personalized 30-minute onboarding call to get you up and running as soon as possible.",
+      'The Drone Tasking Manager will empower local communities by providing them with access to real-time aerial data and insights. This tool will enhance their ability to participate in decision-making processes, improve disaster preparedness, and support local initiatives with accurate, timely information.',
     isOpen: false,
   },
   {
     id: 3,
     title: 'Cost Reduction',
     description:
-      "Yes, you can try us for free for 30 days. If you want, we'll provide you with a free, personalized 30-minute onboarding call to get you up and running as soon as possible.",
+      'The Drone Tasking Manager will lower operational costs by optimizing drone tasking, reducing the need for manual interventions, and minimizing resource wastage. This efficiency will lead to significant savings in both time and money during operations.',
     isOpen: false,
   },
   {
     id: 4,
     title: 'Data Accessibility',
     description:
-      "Yes, you can try us for free for 30 days. If you want, we'll provide you with a free, personalized 30-minute onboarding call to get you up and running as soon as possible.",
+      'The Drone Tasking Manager will provide users with easy access to drone data, enabling better decision-making and more informed actions. This centralized data access will ensure that critical information is readily available to all stakeholders.',
     isOpen: false,
   },
 ];

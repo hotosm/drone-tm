@@ -12,12 +12,12 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
-          <Label required>Organization Name</Label>
+          <Label>Organization Name</Label>
           <Input
             placeholder="Enter Organization Name"
             className="naxatw-mt-1"
             {...register('organization_name', {
-              required: 'Organization name is Required',
+              // required: 'Organization name is Required',
             })}
           />
           <ErrorMessage
@@ -25,12 +25,12 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
           />
         </FormControl>
         <FormControl>
-          <Label required>Organization Address</Label>
+          <Label>Organization Address</Label>
           <Input
             placeholder="Enter Organization Address"
             className="naxatw-mt-1"
             {...register('organization_address', {
-              required: 'Organization Address is Required',
+              // required: 'Organization Address is Required',
             })}
           />
           <ErrorMessage
@@ -38,12 +38,12 @@ export default function OrganizationDetails({ formProps }: { formProps: any }) {
           />
         </FormControl>
         <FormControl>
-          <Label required>Job Title</Label>
+          <Label>Job Title</Label>
           <Input
             placeholder="Enter Job Title"
             className="naxatw-mt-1"
             {...register('job_title', {
-              required: 'Job Title is Required',
+              // required: 'Job Title is Required',
             })}
           />
           <ErrorMessage
