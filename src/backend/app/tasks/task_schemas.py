@@ -134,7 +134,7 @@ class Notification(BaseModel):
 
 class NotificationOut(BaseModel):
     # seen_count: Optional[int] = None
-    not_seen_count: Optional[int] = None
+    not_seen: Optional[int] = None
     notifications: Optional[list[Notification]] = []
 
 
@@ -175,7 +175,7 @@ class NotificationIn(BaseModel):
                 await cur.execute(
                     """
                     SELECT
-                        COUNT(*) FILTER (WHERE seen = FALSE) AS not_seen_count
+                        COUNT(*) FILTER (WHERE seen = FALSE) AS not_seen
                     FROM notifications
                     WHERE user_id = %(user_id)s
                     """,
