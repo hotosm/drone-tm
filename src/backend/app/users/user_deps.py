@@ -1,9 +1,32 @@
+from typing import Annotated
 from app.users.user_logic import verify_token
-from fastapi import HTTPException, Request, Header
+from fastapi import Depends, HTTPException, Request, Header
 from app.config import settings
 from app.users.auth import Auth
 from app.users.user_schemas import AuthUser
 from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import dict_row
+from app.models.enums import UserRole
+from app.db import database
+
+
+async def get_user_role(db: Connection, user_id: str) -> str:
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
+            {"user_id": user_id},
+        )
+        records = await cur.fetchall()
+
+        if not records:
+            raise HTTPException(status_code=404, detail="User profile not found")
+        roles = [record["role"] for record in records]
+
+        if UserRole.PROJECT_CREATOR.name in roles:
+            return "PROJECT_CREATOR"
+        else:
+            return "DRONE_PILOT"
 
 
 async def init_google_auth():
@@ -50,3 +73,10 @@ async def login_required(
         raise HTTPException(status_code=401, detail="Access token not valid") from e
 
     return AuthUser(**user)
+
+
+async def get_role_with_user_data(
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: AuthUser = Depends(login_required),
+) -> str:
+    return await get_user_role(db, user_data.id)

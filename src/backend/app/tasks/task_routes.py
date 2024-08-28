@@ -3,9 +3,9 @@ from typing import Annotated
 from app.projects import project_deps, project_schemas
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State, UserRole
+from app.models.enums import EventType, HTTPStatus, State
 from app.tasks import task_schemas, task_logic
-from app.users.user_deps import login_required
+from app.users.user_deps import get_role_with_user_data, login_required
 from app.users.user_schemas import AuthUser
 from app.users import user_schemas
 from psycopg import Connection
@@ -62,28 +62,13 @@ async def read_task(
 async def get_task_stats(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: AuthUser = Depends(login_required),
+    role: str = Depends(get_role_with_user_data),
 ):
     "Retrieve statistics related to tasks for the authenticated user."
     user_id = user_data.id
 
     try:
         async with db.cursor(row_factory=dict_row) as cur:
-            # Check if the user profile exists
-            await cur.execute(
-                """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
-                {"user_id": user_id},
-            )
-            records = await cur.fetchall()
-
-            if not records:
-                raise HTTPException(status_code=404, detail="User profile not found")
-            roles = [record["role"] for record in records]
-
-            if UserRole.PROJECT_CREATOR.name in roles:
-                role = "PROJECT_CREATOR"
-            else:
-                role = "DRONE_PILOT"
-
             # Query for task statistics
             raw_sql = """
                 SELECT
@@ -124,29 +109,12 @@ async def get_task_stats(
 async def list_tasks(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
+    role: str = Depends(get_role_with_user_data),
     skip: int = 0,
     limit: int = 50,
 ):
     """Get all tasks for a all user."""
     user_id = user_data.id
-
-    async with db.cursor(row_factory=dict_row) as cur:
-        # Check if the user profile exists
-        await cur.execute(
-            """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
-            {"user_id": user_id},
-        )
-        records = await cur.fetchall()
-
-        if not records:
-            raise HTTPException(status_code=404, detail="User profile not found")
-
-        roles = [record["role"] for record in records]
-
-        if UserRole.PROJECT_CREATOR.name in roles:
-            role = "PROJECT_CREATOR"
-        else:
-            role = "DRONE_PILOT"
 
     return await task_schemas.UserTasksStatsOut.get_tasks_by_user(
         db, user_id, role, skip, limit

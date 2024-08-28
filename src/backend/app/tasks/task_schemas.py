@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.models.enums import EventType, HTTPStatus, State
+from app.models.enums import EventType, HTTPStatus, State, UserRole
 import uuid
 from datetime import datetime
 from psycopg import Connection
@@ -133,7 +133,6 @@ class Notification(BaseModel):
 
 
 class NotificationOut(BaseModel):
-    # seen_count: Optional[int] = None
     not_seen: Optional[int] = None
     notifications: Optional[list[Notification]] = []
 
@@ -168,8 +167,32 @@ class NotificationIn(BaseModel):
             return True
 
     @staticmethod
+    async def get_role(db: Connection, user_id: str):
+        async with db.cursor(row_factory=dict_row) as cur:
+            # Check if the user profile exists
+            await cur.execute(
+                """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
+                {"user_id": user_id},
+            )
+            records = await cur.fetchall()
+
+            if not records:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            roles = [record["role"] for record in records]
+
+            if UserRole.PROJECT_CREATOR.name in roles:
+                role = "PROJECT_CREATOR"
+
+            else:
+                role = "DRONE_PILOT"
+            print("*", 100, "role of users", role)
+            return role
+
+    @staticmethod
     async def one(db: Connection, user_id: uuid.UUID):
         try:
+            # get role
+            role = await NotificationIn.get_role(db, user_id)
             # Fetch notification counts
             async with db.cursor(row_factory=class_row(NotificationOut)) as cur:
                 await cur.execute(
@@ -177,12 +200,14 @@ class NotificationIn(BaseModel):
                     SELECT
                         COUNT(*) FILTER (WHERE seen = FALSE) AS not_seen
                     FROM notifications
-                    WHERE user_id = %(user_id)s
+                    WHERE
+                        %(role)s!= 'DRONE_PILOT' AND project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
                     """,
-                    {"user_id": user_id},
+                    {"user_id": user_id, "role": role},
                 )
 
                 counts = await cur.fetchone()
+                print("*" * 100, counts)
 
             async with db.cursor(row_factory=class_row(Notification)) as cur:
                 # Fetch actual notifications
