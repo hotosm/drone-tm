@@ -126,17 +126,20 @@ class UserTasksStatsOut(BaseModel):
                 ) from e
 
 
-class NotificationOut(BaseModel):
+class Notification(BaseModel):
     id: int
-    user_id: str
-    project_id: uuid.UUID
-    task_id: uuid.UUID
+    seen: bool
     message: str
-    seen: bool = False
+
+
+class NotificationOut(BaseModel):
+    # seen_count: Optional[int] = None
+    not_seen_count: Optional[int] = None
+    notifications: Optional[list[Notification]] = []
 
 
 class NotificationIn(BaseModel):
-    user_id: uuid.UUID
+    user_id: str
     project_id: uuid.UUID
     task_id: uuid.UUID
     message: str
@@ -167,16 +170,38 @@ class NotificationIn(BaseModel):
     @staticmethod
     async def one(db: Connection, user_id: uuid.UUID):
         try:
-            async with db.cursor(row_factory=dict_row) as cur:
+            # Fetch notification counts
+            async with db.cursor(row_factory=class_row(NotificationOut)) as cur:
                 await cur.execute(
-                    """SELECT * FROM notifications
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE seen = FALSE) AS not_seen_count
+                    FROM notifications
                     WHERE user_id = %(user_id)s
-                    ORDER BY created_at DESC""",
-                    {"user_id": str(user_id)},
+                    """,
+                    {"user_id": user_id},
                 )
-                result = await cur.fetchall()
-                return result
+
+                counts = await cur.fetchone()
+
+            async with db.cursor(row_factory=class_row(Notification)) as cur:
+                # Fetch actual notifications
+                await cur.execute(
+                    """
+                    SELECT *
+                    FROM notifications
+                    WHERE user_id = %(user_id)s
+                    ORDER BY created_at DESC
+                    """,
+                    {"user_id": user_id},
+                )
+
+                notifications = await cur.fetchall()
+                counts.notifications = notifications
+                return counts
+
         except Exception as e:
+            log.exception(e)
             # Handle the exception and return an appropriate error message
             raise HTTPException(
                 status_code=500, detail="Failed to fetch notifications"

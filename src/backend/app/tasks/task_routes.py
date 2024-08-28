@@ -366,7 +366,7 @@ async def new_event(
     return True
 
 
-@router.get("/notifications/")  # response_model=list[task_schemas.NotificationOut]
+@router.get("/notifications/")
 async def get_notifications(
     db: Connection = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
