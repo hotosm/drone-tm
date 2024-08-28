@@ -155,6 +155,7 @@ class DbProject(BaseModel):
     gsd_cm_px: Optional[float] = None
     altitude_from_ground: Optional[float] = None
     is_terrain_follow: bool = False
+    image_url: Optional[str] = None
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""
@@ -413,13 +414,13 @@ class ProjectOut(BaseModel):
     tasks: Optional[list[TaskOut]] = []
     image_url: Optional[str] = None
 
-    @model_validator(mode="before")
+    @model_validator(mode="after")
     def set_image_url(cls, values):
         """Set image_url before rendering the model."""
-        project_id = values.get("id")
-        if project_id and not values.get("image_url"):
+        project_id = values.id
+        if project_id:
             image_dir = f"images/{project_id}/screenshot.png"
-            values["image_url"] = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
+            values.image_url = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
         return values
 
 
