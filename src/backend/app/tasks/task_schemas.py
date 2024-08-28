@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.models.enums import EventType, HTTPStatus, State, UserRole
+from app.models.enums import EventType, HTTPStatus, State
 import uuid
 from datetime import datetime
 from psycopg import Connection
@@ -167,32 +167,8 @@ class NotificationIn(BaseModel):
             return True
 
     @staticmethod
-    async def get_role(db: Connection, user_id: str):
-        async with db.cursor(row_factory=dict_row) as cur:
-            # Check if the user profile exists
-            await cur.execute(
-                """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
-                {"user_id": user_id},
-            )
-            records = await cur.fetchall()
-
-            if not records:
-                raise HTTPException(status_code=404, detail="User profile not found")
-            roles = [record["role"] for record in records]
-
-            if UserRole.PROJECT_CREATOR.name in roles:
-                role = "PROJECT_CREATOR"
-
-            else:
-                role = "DRONE_PILOT"
-            print("*", 100, "role of users", role)
-            return role
-
-    @staticmethod
-    async def one(db: Connection, user_id: uuid.UUID):
+    async def one(db: Connection, user_id: uuid.UUID, role: str):
         try:
-            # get role
-            role = await NotificationIn.get_role(db, user_id)
             # Fetch notification counts
             async with db.cursor(row_factory=class_row(NotificationOut)) as cur:
                 await cur.execute(
@@ -201,13 +177,17 @@ class NotificationIn(BaseModel):
                         COUNT(*) FILTER (WHERE seen = FALSE) AS not_seen
                     FROM notifications
                     WHERE
+                    (
+                        %(role)s = 'DRONE_PILOT' AND user_id = %(user_id)s
+                    )
+                    OR
+                    (
                         %(role)s!= 'DRONE_PILOT' AND project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
-                    """,
+                    )                    """,
                     {"user_id": user_id, "role": role},
                 )
 
                 counts = await cur.fetchone()
-                print("*" * 100, counts)
 
             async with db.cursor(row_factory=class_row(Notification)) as cur:
                 # Fetch actual notifications
@@ -231,3 +211,26 @@ class NotificationIn(BaseModel):
             raise HTTPException(
                 status_code=500, detail="Failed to fetch notifications"
             ) from e
+
+    @staticmethod
+    async def update(db: Connection, notification_ids):
+        async with db.cursor() as cur:
+            if not notification_ids:
+                raise HTTPException(
+                    status_code=400, detail="No notification_ids provided"
+                )
+            # Update the seen status to True for all provided notification_ids
+            await cur.execute(
+                """
+                UPDATE notifications
+                SET seen = True
+                WHERE id = ANY(%(notification_ids)s)
+            """,
+                {"notification_ids": notification_ids},
+            )
+
+        return {"detail": "Notifications marked as seen"}
+
+
+class NotificationIds(BaseModel):
+    notification_ids: list[int]

@@ -345,8 +345,21 @@ async def new_event(
 async def get_notifications(
     db: Connection = Depends(database.get_db),
     user_data: AuthUser = Depends(login_required),
+    role: str = Depends(get_role_with_user_data),
 ):
     """Get notifications for the user."""
-    user_id = user_data.id
-    notifications = await task_schemas.NotificationIn.one(db, user_id)
+    notifications = await task_schemas.NotificationIn.one(db, user_data.id, role)
     return notifications
+
+
+@router.post("/notifications/mark-seen/")
+async def mark_notification_as_seen(
+    notification_ids: task_schemas.NotificationIds,
+    db: Connection = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    """Mark a notification as seen based on task_id."""
+    print(notification_ids.notification_ids)
+    return await task_schemas.NotificationIn.update(
+        db, notification_ids.notification_ids
+    )
