@@ -20,13 +20,14 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
           <img src={userProfile.profile_img} alt="profilepic" />
         </Flex>
         <FormControl>
-          <Label required>Name</Label>
+          <Label>Name</Label>
           <Input
             placeholder="Enter Name"
             className="naxatw-mt-1"
             {...register('name', {
               required: 'Name is Required',
             })}
+            readOnly
           />
           <ErrorMessage message={formState.errors?.name?.message} />
         </FormControl>

@@ -68,9 +68,19 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <Input
                 placeholder="Enter GSD in cm/pixel"
                 type="number"
+                max={10}
+                min={0}
                 {...register('gsd_cm_px', {
                   required: 'GSD is required',
                   valueAsNumber: true,
+                  max: {
+                    value: 10,
+                    message: 'GSD must be 10 or less',
+                  },
+                  min: {
+                    value: 0,
+                    message: 'GSD cannot be negative',
+                  },
                 })}
               />
               <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
@@ -84,6 +94,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 {...register('altitude_from_ground', {
                   required: 'Altitude From Round is Required',
                   valueAsNumber: true,
+                  max: 10,
                 })}
               />
               <ErrorMessage
@@ -97,11 +108,13 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <Input
                 placeholder="Image Overlap"
                 type="number"
-                max={100}
+                // max={100}
+                min={0}
                 {...register('front_overlap', {
                   required: 'Front Overlap is required',
                   valueAsNumber: true,
-                  max: 100,
+                  // max: 100,
+                  min: 0,
                 })}
               />
               <ErrorMessage
@@ -114,11 +127,11 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <Input
                 placeholder="Image Overlap"
                 type="number"
-                max={100}
+                min={0}
                 {...register('side_overlap', {
                   required: 'Side Overlap is required',
                   valueAsNumber: true,
-                  max: 100,
+                  min: 0,
                 })}
               />
               <ErrorMessage

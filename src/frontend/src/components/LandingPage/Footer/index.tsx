@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { Flex, FlexRow } from '@Components/common/Layouts';
 import Icon from '@Components/common/Icon';
 import Image from '@Components/RadixComponents/Image';
@@ -11,7 +12,7 @@ export default function Footer() {
   return (
     <footer className="naxatw-h-fit naxatw-pb-6 naxatw-text-landing-white">
       <div className="!naxatw-max-w-full">
-        <div className="naxatw-bg-landing-red naxatw-px-5 naxatw-py-24 md:naxatw-px-9 lg:naxatw-px-32">
+        {/* <div className="naxatw-bg-landing-red naxatw-px-5 naxatw-py-24 md:naxatw-px-9 lg:naxatw-px-32">
           <motion.div
             variants={fadeUpVariant}
             initial="hidden"
@@ -35,7 +36,7 @@ export default function Footer() {
               <Icon name="east" />
             </Button>
           </Flex>
-        </div>
+        </div> */}
         <motion.div
           variants={fadeUpVariant}
           initial="hidden"

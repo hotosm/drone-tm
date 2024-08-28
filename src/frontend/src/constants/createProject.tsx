@@ -11,7 +11,7 @@ import {
   GenerateTask,
 } from '@Components/CreateProject/DescriptionContents';
 import orthoPhotoIcon from '@Assets/images/ortho-photo-icon.svg';
-import _3DModal from '@Assets/images/3d-model-icon.svg';
+// import _3DModal from '@Assets/images/3d-model-icon.svg';
 import DTMIcon from '@Assets/images/DTM-Icon.svg';
 import DSMIcon from '@Assets/images/DSM-icon.svg';
 
@@ -162,7 +162,7 @@ export const lockApprovalOptions = [
 
 export const FinalOutputOptions = [
   { label: '2D Orthophoto', value: 'ORTHOPHOTO_2D', icon: orthoPhotoIcon },
-  { label: '3D Model', value: 'ORTHOPHOTO_3D', icon: _3DModal },
+  // { label: '3D Model', value: 'ORTHOPHOTO_3D', icon: _3DModal },
   {
     label: 'Digital Terrain Model (DTM)',
     value: 'DIGITAL_TERRAIN_MODEL',
