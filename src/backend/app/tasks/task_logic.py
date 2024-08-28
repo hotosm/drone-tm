@@ -15,8 +15,8 @@ async def update_notification(
     async with db.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO notifications (user_id, project_id, task_id, message, created_at)
-            VALUES (%(user_id)s, %(project_id)s, %(task_id)s, %(message)s, NOW())
+            INSERT INTO notifications (user_id, project_id, task_id, message,seen, created_at)
+            VALUES (%(user_id)s, %(project_id)s, %(task_id)s, %(message)s,False, NOW())
             """,
             {
                 "user_id": str(user_id),

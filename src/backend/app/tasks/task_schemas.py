@@ -128,12 +128,11 @@ class UserTasksStatsOut(BaseModel):
 
 class NotificationOut(BaseModel):
     id: int
-    user_id: uuid.UUID
+    user_id: str
     project_id: uuid.UUID
     task_id: uuid.UUID
     message: str
     seen: bool = False
-    created_at: datetime
 
 
 class NotificationIn(BaseModel):

@@ -303,7 +303,7 @@ class Notification(Base):
         str, Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
     )
     message = Column(String, nullable=False)
-    seen = Column(Boolean, default=False)
+    seen = Column(Boolean, default=False, nullable=False)
     created_at = cast(datetime, Column(DateTime, default=timestamp))
 
     # Relationships with backref and cascade
