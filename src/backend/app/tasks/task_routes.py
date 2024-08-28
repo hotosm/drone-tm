@@ -359,7 +359,6 @@ async def mark_notification_as_seen(
     user_data: AuthUser = Depends(login_required),
 ):
     """Mark a notification as seen based on task_id."""
-    print(notification_ids.notification_ids)
     return await task_schemas.NotificationIn.update(
         db, notification_ids.notification_ids
     )
