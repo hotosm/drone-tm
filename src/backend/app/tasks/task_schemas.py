@@ -140,3 +140,44 @@ class NotificationIn(BaseModel):
     project_id: uuid.UUID
     task_id: uuid.UUID
     message: str
+
+    @staticmethod
+    async def create(
+        db: Connection,
+        project_id: uuid.UUID,
+        task_id: uuid.UUID,
+        user_id: uuid.UUID,
+        message: str,
+    ):
+        async with db.cursor(row_factory=class_row(NotificationIn)) as cur:
+            await cur.execute(
+                """
+                INSERT INTO notifications (user_id, project_id, task_id, message,seen, created_at)
+                VALUES (%(user_id)s, %(project_id)s, %(task_id)s, %(message)s,False, NOW())
+                """,
+                {
+                    "user_id": str(user_id),
+                    "project_id": project_id,
+                    "task_id": task_id,
+                    "message": message,
+                },
+            )
+            return True
+
+    @staticmethod
+    async def one(db: Connection, user_id: uuid.UUID):
+        try:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """SELECT * FROM notifications
+                    WHERE user_id = %(user_id)s
+                    ORDER BY created_at DESC""",
+                    {"user_id": str(user_id)},
+                )
+                result = await cur.fetchall()
+                return result
+        except Exception as e:
+            # Handle the exception and return an appropriate error message
+            raise HTTPException(
+                status_code=500, detail="Failed to fetch notifications"
+            ) from e

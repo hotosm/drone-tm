@@ -188,7 +188,7 @@ async def new_event(
                     State.LOCKED_FOR_MAPPING,
                 )
                 message = f"Task {task_id} has been requested by {user_data.name}"
-                await task_logic.update_notification(
+                await task_schemas.NotificationIn.create(
                     db, project_id, task_id, user_id, message
                 )
 
@@ -367,19 +367,11 @@ async def new_event(
 
 
 @router.get("/notifications/")  # response_model=list[task_schemas.NotificationOut]
-async def get_notifications(user_id: int, db: Connection = Depends(database.get_db)):
-    try:
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """SELECT * FROM notifications
-                   WHERE user_id = %(user_id)s
-                   ORDER BY created_at DESC""",
-                {"user_id": str(user_id)},
-            )
-            result = await cur.fetchall()
-            return result
-    except Exception as e:
-        # Handle the exception and return an appropriate error message
-        raise HTTPException(
-            status_code=500, detail="Failed to fetch notifications"
-        ) from e
+async def get_notifications(
+    db: Connection = Depends(database.get_db),
+    user_data: AuthUser = Depends(login_required),
+):
+    """Get notifications for the user."""
+    user_id = user_data.id
+    notifications = await task_schemas.NotificationIn.one(db, user_id)
+    return notifications
