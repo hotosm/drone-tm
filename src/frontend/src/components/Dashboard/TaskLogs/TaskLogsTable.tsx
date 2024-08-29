@@ -33,8 +33,12 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
         <tbody>
           {taskList?.map(task => (
             <tr key={task.task_id}>
-              <td className="naxatw-px-2 naxatw-py-1">{task.task_id}</td>
-              <td className="naxatw-px-2 naxatw-py-1">{task.task_area}</td>
+              <td className="naxatw-px-2 naxatw-py-1">
+                Task# {task?.project_task_index}
+              </td>
+              <td className="naxatw-px-2 naxatw-py-1">
+                {Number(task?.task_area)?.toFixed(3)}
+              </td>
               {/* <td className="naxatw-px-2 naxatw-py-1">-</td> */}
               <td className="naxatw-px-2 naxatw-py-1">
                 {format(new Date(task.created_at), 'yyyy-MM-dd')}
