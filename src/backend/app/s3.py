@@ -1,4 +1,3 @@
-import uuid
 from app.config import settings
 from loguru import logger as log
 from minio import Minio
@@ -136,7 +135,7 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
             response.release_conn()
 
 
-def get_image_dir_url(bucket_name: str, image_dir: str, project_id: uuid.UUID) -> str:
+def get_image_dir_url(bucket_name: str, image_dir: str):
     """Generate the full URL for the image directory in an S3 bucket.
 
     Args:

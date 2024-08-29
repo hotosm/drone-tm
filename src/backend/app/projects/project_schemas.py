@@ -420,9 +420,7 @@ class ProjectOut(BaseModel):
         project_id = values.id
         if project_id:
             image_dir = f"images/{project_id}/screenshot.png"
-            values.image_url = get_image_dir_url(
-                settings.S3_BUCKET_NAME, image_dir, project_id
-            )
+            values.image_url = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
         return values
 
 
