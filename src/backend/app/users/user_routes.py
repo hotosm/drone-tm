@@ -49,7 +49,7 @@ async def login_access_token(
         "id": user.id,
         "email": user.email_address,
         "name": user.name,
-        "img_url": user.profile_img,
+        "profile_img": user.profile_img,
     }
 
     access_token, refresh_token = await user_logic.create_access_token(user_info)

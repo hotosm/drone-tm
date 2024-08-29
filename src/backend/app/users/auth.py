@@ -87,7 +87,7 @@ class Auth:
             "id": data.get("id"),
             "email": data.get("email"),
             "name": data.get("name"),
-            "img_url": data.get("picture") if data.get("picture") else None,
+            "profile_img": data.get("picture") if data.get("picture") else None,
         }
         token = serializer.dumps(user_data)
         access_token = base64.b64encode(bytes(token, "utf-8")).decode("utf-8")
