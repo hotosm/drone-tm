@@ -32,7 +32,8 @@ export default function BasicInformation({
             <textarea
               className="naxatw-flex naxatw-h-[100px] naxatw-rounded-[4px] naxatw-border naxatw-border-[#555555] naxatw-bg-transparent naxatw-p-2 naxatw-text-body-md file:naxatw-font-medium hover:naxatw-border-red focus:naxatw-border-red focus:naxatw-bg-transparent focus:naxatw-outline-none disabled:naxatw-cursor-not-allowed"
               placeholder="Description of the Project"
-              ref={ref}
+              onChange={onChange}
+              value={value}
               {...others}
             />
           )}
