@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { useGetIndividualTaskQuery } from '@Api/tasks';
+import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
 import { useState } from 'react';
 // import { useTypedSelector } from '@Store/hooks';
 import { format } from 'date-fns';
@@ -10,10 +10,21 @@ const DescriptionBox = () => {
   // const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
   const [flyable, setFlyable] = useState('yes');
   // const { secondPage } = secondPageStates;
-  const { taskId } = useParams();
+  const { taskId, projectId } = useParams();
+
+  const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
+    projectId as string,
+    taskId as string,
+    {
+      select: (data: any) => {
+        return data.data.features;
+      },
+    },
+  );
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
+      enabled: !!taskWayPoints,
       select: (data: any) => {
         const { data: taskData } = data;
 
@@ -34,6 +45,7 @@ const DescriptionBox = () => {
                   ? `${Number(taskData?.task_area)?.toFixed(3)} km²`
                   : null,
               },
+              { name: 'Total points', value: taskWayPoints?.length },
               {
                 name: 'Est. flight time',
                 value: taskData?.flight_time || null,
