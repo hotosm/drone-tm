@@ -84,7 +84,8 @@ const DroneOperatorDescriptionBox = () => {
 
   const handleDownloadFlightPlan = () => {
     const link = document.createElement('a');
-    link.setAttribute('download', '');
+    // link.setAttribute('download', '');
+    link.download = 'flight_plan.kmz';
     link.href = `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`;
     document.body.appendChild(link);
     link.click();
