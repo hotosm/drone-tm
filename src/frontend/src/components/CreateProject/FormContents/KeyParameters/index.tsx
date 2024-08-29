@@ -94,7 +94,6 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 {...register('altitude_from_ground', {
                   required: 'Altitude From Round is Required',
                   valueAsNumber: true,
-                  max: 10,
                 })}
               />
               <ErrorMessage
@@ -108,12 +107,12 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <Input
                 placeholder="Image Overlap"
                 type="number"
-                // max={100}
+                max={100}
                 min={0}
                 {...register('front_overlap', {
                   required: 'Front Overlap is required',
                   valueAsNumber: true,
-                  // max: 100,
+                  max: 100,
                   min: 0,
                 })}
               />
@@ -127,11 +126,13 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <Input
                 placeholder="Image Overlap"
                 type="number"
+                max={100}
                 min={0}
                 {...register('side_overlap', {
                   required: 'Side Overlap is required',
                   valueAsNumber: true,
                   min: 0,
+                  max: 100,
                 })}
               />
               <ErrorMessage
