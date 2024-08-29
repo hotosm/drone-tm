@@ -137,7 +137,12 @@ const CreateprojectLayout = () => {
     },
   });
 
-  const { mutate: createProject } = useMutation<any, any, any, unknown>({
+  const { mutate: createProject, isLoading: isCreatingProject } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
     mutationFn: postCreateProject,
     onSuccess: (res: any) => {
       dispatch(setCreateProjectState({ projectId: res.data.project_id }));
@@ -260,7 +265,7 @@ const CreateprojectLayout = () => {
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
               withLoader
-              isLoading={isLoading}
+              isLoading={isLoading || isCreatingProject}
             >
               {activeStep === 5 ? 'Save' : 'Next'}
             </Button>
