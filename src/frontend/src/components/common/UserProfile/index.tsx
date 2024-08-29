@@ -20,6 +20,7 @@ export default function UserProfile() {
       name: 'Edit Profile',
       icon: 'person',
       onClick: () => {
+        navigate('/user-profile');
         setToggle(false);
       },
       isRed: false,

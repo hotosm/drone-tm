@@ -135,7 +135,7 @@ export default function DataTable({
   const pageCounts = (dataList?.count ?? 0) / pageSize;
 
   const table = useReactTable({
-    data: Array.isArray(dataList) ? dataList : dataList?.results ?? [],
+    data: Array.isArray(dataList) ? dataList : (dataList?.results ?? []),
     columns,
     pageCount: Number.isNaN(pageCounts) ? -1 : Number(Math.ceil(pageCounts)),
     getCoreRowModel: getCoreRowModel(),

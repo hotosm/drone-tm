@@ -133,3 +133,37 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
         if response:
             response.close()
             response.release_conn()
+
+
+def get_image_dir_url(bucket_name: str, image_dir: str):
+    """Generate the full URL for the image directory in an S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        image_dir (str): The directory path within the bucket where images are stored.
+
+    Returns:
+        str: The full URL to access the image directory.
+    """
+    minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
+
+    # Ensure image_dir starts with a forward slash
+    if not image_dir.startswith("/"):
+        image_dir = f"/{image_dir}"
+
+    # Construct the full URL
+    protocol = "https" if is_secure else "http"
+
+    url = f"{protocol}://{minio_url}/{bucket_name}{image_dir}"
+
+    minio_client = s3_client()
+    try:
+        # List objects with a prefix to check if the directory exists
+        objects = minio_client.list_objects(bucket_name, prefix=image_dir.lstrip("/"))
+        if any(objects):
+            return url
+        else:
+            return None
+
+    except Exception as e:
+        log.error(f"Error checking directory existence: {str(e)}")

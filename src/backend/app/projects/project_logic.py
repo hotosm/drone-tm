@@ -2,7 +2,7 @@ import json
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
-from fmtm_splitter.splitter import split_by_square
+from app.tasks.splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
 from app.utils import merge_multipolygon
@@ -13,43 +13,68 @@ from app.s3 import add_obj_to_bucket
 from app.config import settings
 
 
-async def upload_dem_to_s3(project_id: uuid.UUID, dem_file: UploadFile) -> str:
-    """Upload dem into S3.
+async def upload_file_to_s3(
+    project_id: uuid.UUID, file: UploadFile, folder: str, file_extension: str
+) -> str:
+    """
+    Upload a file (image or DEM) to S3.
 
     Args:
-        project_id (int): The organisation id in the database.
-        dem_file (UploadFile): The logo image uploaded to FastAPI.
+        project_id (uuid.UUID): The project ID in the database.
+        file (UploadFile): The file to be uploaded.
+        folder (str): The folder name in the S3 bucket.
+        file_extension (str): The file extension (e.g., 'png', 'tif').
 
     Returns:
-        dem_url(str): The S3 URL for the dem file.
+        str: The S3 URL for the uploaded file.
     """
-    dem_path = f"/dem/{project_id}/dem.tif"
+    # If the folder is 'images', use 'screenshot.png' as the filename
+    if folder == "images":
+        file_name = "screenshot.png"
+    else:
+        file_name = f"dem.{file_extension}"
 
-    file_bytes = await dem_file.read()
+    # Define the S3 file path
+    file_path = f"/{folder}/{project_id}/{file_name}"
+
+    # Read the file bytes
+    file_bytes = await file.read()
     file_obj = BytesIO(file_bytes)
 
+    # Upload the file to the S3 bucket
     add_obj_to_bucket(
         settings.S3_BUCKET_NAME,
         file_obj,
-        dem_path,
-        content_type=dem_file.content_type,
+        file_path,
+        file.content_type,
     )
 
-    dem_url = f"{settings.S3_DOWNLOAD_ROOT}/{settings.S3_BUCKET_NAME}{dem_path}"
+    # Construct the S3 URL for the file
+    file_url = f"{settings.S3_DOWNLOAD_ROOT}/{settings.S3_BUCKET_NAME}{file_path}"
 
-    return dem_url
+    return file_url
 
 
-async def update_project_dem_url(db: Connection, project_id: uuid.UUID, dem_url: str):
-    """Update the DEM URL for a project."""
+async def update_url(db: Connection, project_id: uuid.UUID, url: str, url_type: str):
+    """
+    Update the URL (DEM or image) for a project in the database.
 
+    Args:
+        db (Connection): The database connection.
+        project_id (uuid.UUID): The project ID in the database.
+        url (str): The URL to be updated.
+        url_type (str): The column name for the URL (e.g., 'dem_url', 'image_url').
+
+    Returns:
+        bool: True if the update was successful.
+    """
     async with db.cursor() as cur:
         await cur.execute(
-            """
+            f"""
             UPDATE projects
-            SET dem_url = %(dem_url)s
+            SET {url_type} = %(url)s
             WHERE id = %(project_id)s""",
-            {"dem_url": dem_url, "project_id": project_id},
+            {"url": url, "project_id": project_id},
         )
 
     return True
@@ -73,10 +98,13 @@ async def create_tasks_from_geojson(
         log.debug(f"Processing {len(polygons)} task geometries")
         for index, polygon in enumerate(polygons):
             try:
+                if not polygon["geometry"]:
+                    continue
                 # If the polygon is a MultiPolygon, convert it to a Polygon
                 if polygon["geometry"]["type"] == "MultiPolygon":
                     log.debug("Converting MultiPolygon to Polygon")
                     polygon["geometry"]["type"] = "Polygon"
+
                     polygon["geometry"]["coordinates"] = polygon["geometry"][
                         "coordinates"
                     ][0]
