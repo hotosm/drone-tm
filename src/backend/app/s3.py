@@ -1,3 +1,4 @@
+import uuid
 from app.config import settings
 from loguru import logger as log
 from minio import Minio
@@ -135,7 +136,7 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
             response.release_conn()
 
 
-def get_image_dir_url(bucket_name: str, image_dir: str) -> str:
+def get_image_dir_url(bucket_name: str, image_dir: str, project_id: uuid.UUID) -> str:
     """Generate the full URL for the image directory in an S3 bucket.
 
     Args:
@@ -153,7 +154,17 @@ def get_image_dir_url(bucket_name: str, image_dir: str) -> str:
 
     # Construct the full URL
     protocol = "https" if is_secure else "http"
+
     url = f"{protocol}://{minio_url}/{bucket_name}{image_dir}"
 
-    log.debug(f"Image directory URL: {url}")
-    return url
+    minio_client = s3_client()
+    try:
+        # List objects with a prefix to check if the directory exists
+        objects = minio_client.list_objects(bucket_name, prefix=image_dir.lstrip("/"))
+        if any(objects):
+            return url
+        else:
+            return None
+
+    except Exception as e:
+        log.error(f"Error checking directory existence: {str(e)}")
