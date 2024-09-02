@@ -158,7 +158,7 @@ async def task_states(
     db: Annotated[Connection, Depends(database.get_db)], project_id: uuid.UUID
 ):
     """Get all tasks states for a project."""
-    return await task_schemas.TaskState.all(db, project_id)
+    return await task_schemas.Task.all(db, project_id)
 
 
 @router.post("/event/{project_id}/{task_id}")

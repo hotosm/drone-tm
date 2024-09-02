@@ -60,7 +60,7 @@ async def download_task_boundaries(
     Returns:
         Response: The HTTP response object containing the downloaded file.
     """
-    out = await task_schemas.TaskState.get_task_geometry(db, project_id, task_id)
+    out = await task_schemas.Task.get_task_geometry(db, project_id, task_id)
 
     if out is None:
         return Response(
