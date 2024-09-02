@@ -35,8 +35,8 @@ router = APIRouter(
 )
 
 
-@router.get("/{project_id}/download_tasks", tags=["Projects"])
-async def download_task_boundaries(
+@router.get("/{project_id}/download-boundaries", tags=["Projects"])
+async def download_boundaries(
     project_id: Annotated[
         UUID,
         Path(
@@ -49,31 +49,142 @@ async def download_task_boundaries(
         default=None,
         description="The task ID in UUID format. If not provided, all tasks will be downloaded.",
     ),
+    split_area: bool = Query(
+        default=False,
+        description="Whether to split the area or not. Set to True to download task boundaries, otherwise AOI will be downloaded.",
+    ),
 ):
-    """Downloads the boundary of the tasks for a project as a GeoJSON file.
+    """Downloads the AOI or task boundaries for a project as a GeoJSON file.
 
     Args:
         project_id (UUID): The ID of the project in UUID format.
         db (Connection): The database connection, provided automatically.
         user_data (AuthUser): The authenticated user data, checks if the user has permission.
+        task_id (Optional[UUID]): The task ID in UUID format. If not provided and split_area is True, all tasks will be downloaded.
+        split_area (bool): Whether to split the area or not. Set to True to download task boundaries, otherwise AOI will be downloaded.
 
     Returns:
         Response: The HTTP response object containing the downloaded file.
     """
-    out = await task_schemas.Task.get_task_geometry(db, project_id, task_id)
-
-    if out is None:
-        return Response(
-            status_code=404, content={"message": "Task or project geometry not found."}
+    try:
+        out = await task_schemas.Task.get_task_geometry(
+            db, project_id, task_id, split_area
         )
 
-    filename = f"task_{task_id}.geojson" if task_id else "project_outline.geojson"
+        if out is None:
+            raise HTTPException(status_code=404, detail="Geometry not found.")
 
-    headers = {
-        "Content-Disposition": f"attachment; filename={filename}",
-        "Content-Type": "application/geo+json",
-    }
-    return Response(content=out, headers=headers)
+        filename = (
+            (f"task_{task_id}.geojson" if task_id else "project_outline.geojson")
+            if split_area
+            else "project_aoi.geojson"
+        )
+
+        headers = {
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Type": "application/geo+json",
+        }
+        return Response(content=out, headers=headers)
+
+    except HTTPException as e:
+        log.error(f"Error during boundaries download: {e.detail}")
+        raise e
+
+    except Exception as e:
+        log.error(f"Unexpected error during boundaries download: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error.")
+
+
+# @router.get("/{project_id}/download-aoi", tags=["Projects"])
+# async def download_project_aoi(
+#     project_id: Annotated[
+#         UUID,
+#         Path(
+#             description="The project ID in UUID format.",
+#         ),
+#     ],
+#     db: Annotated[Connection, Depends(database.get_db)],
+#     user_data: Annotated[AuthUser, Depends(login_required)],
+# ):
+#     """Downloads the Area of Interest (AOI) of a project as a GeoJSON file.
+
+#     Args:
+#         project_id (UUID): The ID of the project in UUID format.
+#         db (Connection): The database connection, provided automatically.
+#         user_data (AuthUser): The authenticated user data, checks if the user has permission.
+
+#     Returns:
+#         Response: The HTTP response object containing the downloaded AOI file.
+#     """
+#     try:
+#         # Assuming there is a function `get_project_aoi_geometry` to get the AOI geometry
+#         out = await task_schemas.Task.get_task_geometry(
+#             db, project_id, split_area=False
+#         )
+
+#         if out is None:
+#             raise HTTPException(
+#                 status_code=404, detail="Project AOI geometry not found."
+#             )
+
+#         filename = "project_aoi.geojson"
+
+#         headers = {
+#             "Content-Disposition": f"attachment; filename={filename}",
+#             "Content-Type": "application/geo+json",
+#         }
+#         return Response(content=out, headers=headers)
+
+#     except HTTPException as e:
+#         log.error(f"Error during AOI download: {e.detail}")
+#         raise e
+
+#     except Exception as e:
+#         log.error(f"Unexpected error during AOI download: {e}")
+#         raise HTTPException(status_code=500, detail="Internal server error.")
+
+
+# @router.get("/{project_id}/download-tasks", tags=["Projects"])
+# async def download_task_boundaries(
+#     project_id: Annotated[
+#         UUID,
+#         Path(
+#             description="The project ID in UUID format.",
+#         ),
+#     ],
+#     db: Annotated[Connection, Depends(database.get_db)],
+#     user_data: Annotated[AuthUser, Depends(login_required)],
+#     task_id: Optional[UUID] = Query(
+#         default=None,
+#         description="The task ID in UUID format. If not provided, all tasks will be downloaded.",
+#     ),
+# ):
+#     """Downloads the boundary of the tasks for a project as a GeoJSON file.
+
+#     Args:
+#         project_id (UUID): The ID of the project in UUID format.
+#         db (Connection): The database connection, provided automatically.
+#         user_data (AuthUser): The authenticated user data, checks if the user has permission.
+
+#     Returns:
+#         Response: The HTTP response object containing the downloaded file.
+#     """
+#     out = await task_schemas.Task.get_task_geometry(
+#         db, project_id, task_id, split_area=True
+#     )
+
+#     if out is None:
+#         raise HTTPException(
+#             status_code=404, detail="Task or project geometry not found."
+#         )
+
+#     filename = f"task_{task_id}.geojson" if task_id else "project_outline.geojson"
+
+#     headers = {
+#         "Content-Disposition": f"attachment; filename={filename}",
+#         "Content-Type": "application/geo+json",
+#     }
+#     return Response(content=out, headers=headers)
 
 
 @router.delete("/{project_id}", tags=["Projects"])

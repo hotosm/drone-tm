@@ -22,7 +22,10 @@ class Task(BaseModel):
 
     @staticmethod
     async def get_task_geometry(
-        db: Connection, project_id: uuid.UUID, task_id: Optional[uuid.UUID] = None
+        db: Connection,
+        project_id: uuid.UUID,
+        task_id: Optional[uuid.UUID] = None,
+        split_area: Optional[bool] = False,
     ) -> str:
         """Fetches the geometry of a single task or all tasks in a project.
 
@@ -51,14 +54,24 @@ class Task(BaseModel):
                     else:
                         raise HTTPException(status_code=404, detail="Task not found.")
                 else:
-                    await cur.execute(
-                        """
-                        SELECT ST_AsGeoJSON(outline) AS outline
-                        FROM tasks
-                        WHERE project_id = %(project_id)s
-                    """,
-                        {"project_id": project_id},
-                    )
+                    if split_area:
+                        await cur.execute(
+                            """
+                            SELECT ST_AsGeoJSON(outline) AS outline
+                            FROM tasks
+                            WHERE project_id = %(project_id)s
+                        """,
+                            {"project_id": project_id},
+                        )
+                    else:
+                        await cur.execute(
+                            """
+                            SELECT ST_AsGeoJSON(ST_Union(outline)) AS outline
+                            FROM tasks
+                            WHERE project_id = %(project_id)s
+                        """,
+                            {"project_id": project_id},
+                        )
 
                     # Fetch the result
                     rows = await cur.fetchall()
