@@ -36,15 +36,16 @@ class Task(BaseModel):
         """
         async with db.cursor(row_factory=class_row(Task)) as cur:
             if task_id:
-                row = await cur.execute(
+                await cur.execute(
                     """
-                    SELECT ST_AsGeoJSON(outline) AS geojson
+                    SELECT ST_AsGeoJSON(outline) AS outline
                     FROM tasks
                     WHERE project_id = %(project_id)s AND id = %(task_id)s
                 """,
                     {"project_id": project_id, "task_id": task_id},
                 )
-                return row["geojson"]
+                row = await cur.fetchone()
+                return row.outline
             else:
                 await cur.execute(
                     """
