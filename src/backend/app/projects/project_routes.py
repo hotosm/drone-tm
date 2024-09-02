@@ -1,8 +1,19 @@
 import os
-from typing import Annotated
+from typing import Annotated, Optional
+from uuid import UUID
 import geojson
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Depends,
+    Path,
+    Query,
+    UploadFile,
+    File,
+    Form,
+    Response,
+)
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
 from psycopg import Connection
@@ -16,11 +27,53 @@ from app.s3 import s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
+from app.tasks import task_schemas
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
     responses={404: {"description": "Not found"}},
 )
+
+
+@router.get("/{project_id}/download_tasks", tags=["Projects"])
+async def download_task_boundaries(
+    project_id: Annotated[
+        UUID,
+        Path(
+            description="The project ID in UUID format.",
+        ),
+    ],
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    task_id: Optional[UUID] = Query(
+        default=None,
+        description="The task ID in UUID format. If not provided, all tasks will be downloaded.",
+    ),
+):
+    """Downloads the boundary of the tasks for a project as a GeoJSON file.
+
+    Args:
+        project_id (UUID): The ID of the project in UUID format.
+        db (Connection): The database connection, provided automatically.
+        user_data (AuthUser): The authenticated user data, checks if the user has permission.
+
+    Returns:
+        Response: The HTTP response object containing the downloaded file.
+    """
+    out = await task_schemas.TaskState.get_task_geometry(db, project_id, task_id)
+
+    if out is None:
+        return Response(
+            status_code=404, content={"message": "Task or project geometry not found."}
+        )
+
+    filename = f"task_{task_id}.geojson" if task_id else "project_outline.geojson"
+
+    headers = {
+        "Content-Disposition": f"attachment; filename={filename}",
+        "Content-Type": "application/geo+json",
+    }
+    return Response(content=out, headers=headers)
 
 
 @router.delete("/{project_id}", tags=["Projects"])

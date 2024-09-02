@@ -20,6 +20,54 @@ class TaskState(BaseModel):
     project_id: uuid.UUID
 
     @staticmethod
+    async def get_task_geometry(
+        db: Connection, project_id: uuid.UUID, task_id: Optional[uuid.UUID] = None
+    ) -> str:
+        """Fetches the geometry of a single task or all tasks in a project.
+
+        Args:
+            db (Connection): The database connection.
+            project_id (UUID): The ID of the project.
+            task_id (UUID, optional): The ID of a specific task. Defaults to None.
+
+        Returns:
+            str: The GeoJSON representation of the task or project geometry.
+        """
+        async with db.cursor(row_factory=dict_row) as cur:
+            if task_id:
+                row = await cur.execute(
+                    """
+                    SELECT ST_AsGeoJSON(outline) AS geojson
+                    FROM tasks
+                    WHERE project_id = %(project_id)s AND id = %(task_id)s
+                """,
+                    {"project_id": project_id, "task_id": task_id},
+                )
+                return row["geojson"]
+            else:
+                await cur.execute(
+                    """
+                    SELECT ST_AsGeoJSON(outline) AS geojson
+                    FROM tasks
+                    WHERE project_id = %(project_id)s
+                """,
+                    {"project_id": project_id},
+                )
+
+                # Fetch the result
+                rows = await cur.fetchall()
+                if rows:
+                    ## Create a FeatureCollection with empty properties for each feature
+                    features = [
+                        f'{{"type": "Feature", "geometry": {row["geojson"]}, "properties": {{}}}}'
+                        for row in rows
+                    ]
+                    feature_collection = f'{{"type": "FeatureCollection", "features": [{",".join(features)}]}}'
+                    return feature_collection
+                else:
+                    return None
+
+    @staticmethod
     async def get_all_tasks(db: Connection, project_id: uuid.UUID):
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
