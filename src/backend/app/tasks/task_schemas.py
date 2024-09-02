@@ -34,40 +34,49 @@ class Task(BaseModel):
         Returns:
             str: The GeoJSON representation of the task or project geometry.
         """
-        async with db.cursor(row_factory=class_row(Task)) as cur:
-            if task_id:
-                await cur.execute(
-                    """
-                    SELECT ST_AsGeoJSON(outline) AS outline
-                    FROM tasks
-                    WHERE project_id = %(project_id)s AND id = %(task_id)s
-                """,
-                    {"project_id": project_id, "task_id": task_id},
-                )
-                row = await cur.fetchone()
-                return row.outline
-            else:
-                await cur.execute(
-                    """
-                    SELECT ST_AsGeoJSON(outline) AS outline
-                    FROM tasks
-                    WHERE project_id = %(project_id)s
-                """,
-                    {"project_id": project_id},
-                )
-
-                # Fetch the result
-                rows = await cur.fetchall()
-                if rows:
-                    ## Create a FeatureCollection with empty properties for each feature
-                    features = [
-                        f'{{"type": "Feature", "geometry": {row.outline}, "properties": {{}}}}'
-                        for row in rows
-                    ]
-                    feature_collection = f'{{"type": "FeatureCollection", "features": [{",".join(features)}]}}'
-                    return feature_collection
+        try:
+            async with db.cursor(row_factory=class_row(Task)) as cur:
+                if task_id:
+                    await cur.execute(
+                        """
+                        SELECT ST_AsGeoJSON(outline) AS outline
+                        FROM tasks
+                        WHERE project_id = %(project_id)s AND id = %(task_id)s
+                    """,
+                        {"project_id": project_id, "task_id": task_id},
+                    )
+                    row = await cur.fetchone()
+                    if row:
+                        return row.outline
+                    else:
+                        raise HTTPException(status_code=404, detail="Task not found.")
                 else:
-                    return None
+                    await cur.execute(
+                        """
+                        SELECT ST_AsGeoJSON(outline) AS outline
+                        FROM tasks
+                        WHERE project_id = %(project_id)s
+                    """,
+                        {"project_id": project_id},
+                    )
+
+                    # Fetch the result
+                    rows = await cur.fetchall()
+                    if rows:
+                        # Create a FeatureCollection with empty properties for each feature
+                        features = [
+                            f'{{"type": "Feature", "geometry": {row.outline}, "properties": {{}}}}'
+                            for row in rows
+                        ]
+                        feature_collection = f'{{"type": "FeatureCollection", "features": [{",".join(features)}]}}'
+                        return feature_collection
+                    else:
+                        raise HTTPException(
+                            status_code=404, detail="No tasks found for this project."
+                        )
+        except Exception as e:
+            log.error(f"Error fetching task geometry: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error.")
 
     @staticmethod
     async def get_all_tasks(db: Connection, project_id: uuid.UUID):
