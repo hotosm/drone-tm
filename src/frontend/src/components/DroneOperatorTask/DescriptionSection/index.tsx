@@ -8,6 +8,7 @@ import { useGetIndividualTaskQuery } from '@Api/tasks';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { setSecondPageState } from '@Store/actions/droneOperatorTask';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { toast } from 'react-toastify';
 import UploadsBox from './UploadsBox';
 import DescriptionBox from './DescriptionBox';
 
@@ -83,13 +84,30 @@ const DroneOperatorDescriptionBox = () => {
   ];
 
   const handleDownloadFlightPlan = () => {
-    const link = document.createElement('a');
-    // link.setAttribute('download', '');
-    link.download = 'flight_plan.kmz';
-    link.href = `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    fetch(
+      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`,
+    )
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Network response was ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        // link.setAttribute('download', '');
+        link.href = url;
+        link.download = 'flight_plan.kmz';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error =>
+        toast.error(`There wan an error while downloading file
+        ${error}`),
+      );
   };
 
   return (
