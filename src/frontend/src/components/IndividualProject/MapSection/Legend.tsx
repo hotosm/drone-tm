@@ -3,7 +3,7 @@ import lock from '@Assets/images/lock.png';
 import { useState } from 'react';
 
 const Legend = () => {
-  const [showLegendItems, setShowLegendItems] = useState<Boolean>(false);
+  const [showLegendItems, setShowLegendItems] = useState<Boolean>(true);
   return (
     <div className="naxatw-absolute naxatw-bottom-2 naxatw-left-3 naxatw-z-50 naxatw-w-40 naxatw-rounded-sm naxatw-bg-white naxatw-p-3">
       <div className="naxatw-flex naxatw-justify-between">
@@ -13,7 +13,7 @@ const Legend = () => {
           role="presentation"
           onClick={() => setShowLegendItems(!showLegendItems)}
         >
-          {showLegendItems ? 'expand_less' : 'expand_more'}
+          {showLegendItems ? 'expand_more' : 'expand_less'}
         </i>
       </div>
       {showLegendItems && (

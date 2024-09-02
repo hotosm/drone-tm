@@ -26,7 +26,7 @@ const MapSection = ({
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
       zoom: 5,
-      center: [21.4691, 78.6569],
+      center: [289.927139, 18.542117],
       maxZoom: 19,
     },
     disableRotation: true,
@@ -100,7 +100,7 @@ const MapSection = ({
       isMapLoaded={isMapLoaded}
       style={{
         width: '100%',
-        height: '375px',
+        height: '100%',
         position: 'relative',
       }}
     >

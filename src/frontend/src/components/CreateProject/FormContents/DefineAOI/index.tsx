@@ -374,7 +374,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
               </>
             )}
           </div>
-          <div className="naxatw-col-span-2 naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6]">
+          <div className="xl:[60vh] naxatw-col-span-2 naxatw-h-[375px] naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6] lg:naxatw-h-[50vh]">
             <MapSection
               onResetButtonClick={handleResetButtonClick}
               handleDrawProjectAreaClick={handleDrawProjectAreaClick}
