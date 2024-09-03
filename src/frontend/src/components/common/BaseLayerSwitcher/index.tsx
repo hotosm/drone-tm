@@ -7,11 +7,13 @@ import { MapInstanceType } from '../MapLibreComponents/types';
 interface IBaseLayerSwitcherUIProps {
   map?: MapInstanceType;
   baseLayerList?: object;
+  isMapLoaded: Boolean;
 }
 
 const BaseLayerSwitcherUI = ({
   map,
   baseLayerList = baseLayersData,
+  isMapLoaded,
 }: IBaseLayerSwitcherUIProps) => {
   const [selectedBaseLayer, setSelectedBaseLayer] = useState('osm');
   // eslint-disable-next-line no-unused-vars
@@ -61,6 +63,7 @@ const BaseLayerSwitcherUI = ({
         activeLayer={selectedBaseLayer}
         baseLayers={baseLayerList}
         map={map}
+        isMapLoaded={isMapLoaded}
       />
     </>
   );

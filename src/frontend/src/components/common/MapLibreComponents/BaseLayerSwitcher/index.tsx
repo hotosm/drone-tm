@@ -6,12 +6,13 @@ export default function BaseLayerSwitcher({
   map,
   baseLayers = baseLayersData,
   activeLayer = 'osm',
+  isMapLoaded,
 }: IBaseLayerSwitcher) {
   const previouslyActiveLayer = useRef(activeLayer);
 
   // add all base layers to map
   useEffect(() => {
-    if (!map) return;
+    if (!map || !isMapLoaded) return;
     Object.entries(baseLayers).forEach(([key, { layer, source }]) => {
       map.addSource(key, source);
       map.addLayer(layer);
@@ -19,16 +20,16 @@ export default function BaseLayerSwitcher({
     if (!map.getLayer(activeLayer)) return;
     map.setLayoutProperty(activeLayer, 'visibility', 'visible');
     previouslyActiveLayer.current = activeLayer;
-  }, [map, baseLayers]); // eslint-disable-line
+  }, [map, baseLayers, isMapLoaded]); // eslint-disable-line
 
   // change visibility layout property based on active layer
   useEffect(() => {
-    if (!map) return;
+    if (!map || !isMapLoaded) return;
     map.setLayoutProperty(previouslyActiveLayer.current, 'visibility', 'none');
     if (!map.getLayer(activeLayer)) return;
     map.setLayoutProperty(activeLayer, 'visibility', 'visible');
     previouslyActiveLayer.current = activeLayer;
-  }, [map, activeLayer]);
+  }, [map, activeLayer, isMapLoaded]);
 
   return null;
 }
