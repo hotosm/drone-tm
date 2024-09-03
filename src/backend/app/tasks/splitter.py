@@ -151,30 +151,39 @@ class TaskSplitter(object):
                     polygons.append(clipped_polygon)
 
         for small_polygon in small_polygons:
-            adjacent_polygons = [
-                large_polygon
-                for large_polygon in polygons
-                if small_polygon.touches(large_polygon)
-            ]
-            if adjacent_polygons:
-                # Get the adjacent polygon with the minimum area
-                nearest_small_polygon = min(adjacent_polygons, key=lambda p: p.area)
+            while True:
+                adjacent_polygons = [
+                    large_polygon
+                    for large_polygon in polygons
+                    if small_polygon.touches(large_polygon)
+                ]
+                if adjacent_polygons:
+                    # Get the adjacent polygon with the minimum area
+                    nearest_polygon = min(adjacent_polygons, key=lambda p: p.area)
 
-                # Merge the small polygon with the nearest large polygon
-                merged_polygon = unary_union([small_polygon, nearest_small_polygon])
+                    # Merge the small polygon with the nearest large polygon
+                    merged_polygon = unary_union([small_polygon, nearest_polygon])
 
-                if merged_polygon.geom_type == "MultiPolygon":
-                    # TODO we need merge Multipolygon into single polygon later....
-                    log.warning("Found MultiPolygon, converting to simple polygon...")
+                    if merged_polygon.geom_type == "MultiPolygon":
+                        # Handle MultiPolygon by adding the original small polygon back
+                        log.warning(
+                            "Found MultiPolygon, adding original small polygon..."
+                        )
+                        polygons.append(small_polygon)
+                        break
+
+                    # Remove both the small polygon and the nearest large polygon
+                    polygons.remove(nearest_polygon)
+                    small_polygon = merged_polygon
+
+                    # Check if the merged polygon is greater than the area threshold
+                    if small_polygon.area >= area_threshold:
+                        polygons.append(small_polygon)
+                        break
+                else:
+                    # If no adjacent polygon is found, add the small polygon as is
                     polygons.append(small_polygon)
-                    # Option 1: Convert to convex hull (simple polygon)
-                    # merged_polygon = merged_polygon.convex_hull
-                # Remove both the small polygon and the nearest large polygon
-                polygons.remove(nearest_small_polygon)
-                polygons.append(merged_polygon)
-            else:
-                # If no adjacent polygon is found, add the small polygon as is
-                polygons.append(small_polygon)
+                    break
 
         merged_geojson = FeatureCollection(
             [Feature(geometry=mapping(p)) for p in polygons]
