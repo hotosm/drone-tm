@@ -7,7 +7,7 @@ import { MapInstanceType } from '../MapLibreComponents/types';
 interface IBaseLayerSwitcherUIProps {
   map?: MapInstanceType;
   baseLayerList?: object;
-  isMapLoaded: Boolean;
+  isMapLoaded?: Boolean;
 }
 
 const BaseLayerSwitcherUI = ({
@@ -22,8 +22,7 @@ const BaseLayerSwitcherUI = ({
   return (
     <>
       <div
-        // ref={ref}
-        className="naxatw-absolute naxatw-left-2 naxatw-top-3 naxatw-z-50 naxatw-flex naxatw-h-[29px] naxatw-w-[29px] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-bg-white naxatw-py-1 hover:naxatw-bg-[#f5f5f5]"
+        className="naxatw-absolute naxatw-left-2 naxatw-top-3 naxatw-z-50 naxatw-flex naxatw-h-[29px] naxatw-w-[29px] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-border naxatw-bg-white naxatw-py-1 naxatw-shadow-xl hover:naxatw-bg-[#f5f5f5]"
         onClick={() => {
           handleToggle();
         }}
