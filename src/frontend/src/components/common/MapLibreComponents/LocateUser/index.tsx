@@ -18,6 +18,7 @@ const LocateUser = ({ map, isMapLoaded }: ILocateTheUserProps) => {
         },
         trackUserLocation: true,
       }),
+      'top-left',
     );
   }, [map, isMapLoaded]);
 

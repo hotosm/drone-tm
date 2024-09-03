@@ -24,6 +24,7 @@ import { toast } from 'react-toastify';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import baseLayersData from '@Components/common/MapLibreComponents/BaseLayerSwitcher/baseLayers';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
+import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import Legend from './Legend';
 
 const MapSection = () => {
@@ -158,6 +159,7 @@ const MapSection = () => {
       }}
     >
       <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
+      <LocateUser isMapLoaded={isMapLoaded} />
 
       {projectArea && (
         <VectorLayer
