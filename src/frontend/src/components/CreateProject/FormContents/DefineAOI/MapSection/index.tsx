@@ -104,6 +104,8 @@ const MapSection = ({
         position: 'relative',
       }}
     >
+      <BaseLayerSwitcher />
+
       {(drawNoFlyZoneEnable || drawProjectAreaEnable) && (
         <div className="naxatw-absolute naxatw-right-[calc(50%_-_75px)] naxatw-top-2 naxatw-z-50 naxatw-flex naxatw-h-9 naxatw-w-[150px] naxatw-rounded-lg naxatw-bg-white">
           <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-evenly">
@@ -173,8 +175,6 @@ const MapSection = ({
           },
         }}
       />
-
-      <BaseLayerSwitcher />
     </MapContainer>
   );
 };

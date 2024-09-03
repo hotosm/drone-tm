@@ -51,6 +51,8 @@ const ProjectsMapSection = () => {
         height: '36.375rem',
       }}
     >
+      <BaseLayerSwitcher />
+
       <VectorLayerWithCluster
         map={map}
         visibleOnMap={!isLoading}
@@ -74,8 +76,6 @@ const ProjectsMapSection = () => {
           },
         }}
       /> */}
-
-      <BaseLayerSwitcher />
     </MapContainer>
   );
 };

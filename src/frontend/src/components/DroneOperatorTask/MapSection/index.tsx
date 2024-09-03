@@ -99,6 +99,8 @@ const MapSection = () => {
             height: '100%',
           }}
         >
+          <BaseLayerSwitcher />
+
           {taskWayPoints && (
             <>
               {/* render line */}
@@ -182,8 +184,6 @@ const MapSection = () => {
             hideButton
             getCoordOnProperties
           />
-
-          <BaseLayerSwitcher />
         </MapContainer>
       </div>
     </>
