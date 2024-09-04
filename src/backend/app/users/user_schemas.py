@@ -127,7 +127,6 @@ class DbUserProfile(BaseUserProfile):
 
         # Prepare data for insert or update
         model_dump = profile_update.model_dump(exclude_none=True, exclude=["password"])
-        print(model_dump)
         columns = ", ".join(model_dump.keys())
         value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
         sql = f"""
