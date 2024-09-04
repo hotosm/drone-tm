@@ -45,7 +45,7 @@ async def get_task_waypoint(
     """
 
     task_geojson = await get_task_geojson(db, task_id)
-    
+
     project = await project_deps.get_project_by_id(project_id, db)
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
