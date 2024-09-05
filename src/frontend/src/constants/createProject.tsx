@@ -16,15 +16,15 @@ import DTMIcon from '@Assets/images/DTM-Icon.svg';
 import DSMIcon from '@Assets/images/DSM-icon.svg';
 
 export type StepComponentMap = {
-  [key: number]: React.FC;
+  [key: number]: any;
 };
 
 export const stepDescriptionComponents: StepComponentMap = {
   1: BasicInformation,
   2: DefineAOI,
   3: KeyParameters,
-  4: Contributions,
-  5: GenerateTask,
+  4: GenerateTask,
+  5: Contributions,
 };
 
 export const stepSwticherData = [
@@ -185,5 +185,72 @@ export const measurementTypeOptions = [
     name: 'Altitude',
     value: 'altitude',
     label: 'Altitude',
+  },
+];
+
+export const contributionsInfo = [
+  {
+    key: 'Instructions for Drone Operators',
+    description: 'Detailed instructions or parameters for the drone operation.',
+  },
+  {
+    key: 'Approval for task lock',
+    description:
+      'Approval required tasks should be approved from project creator to proceed the mapping.',
+  },
+];
+
+export const DefineAOIInfo = [
+  {
+    key: 'Project Area',
+    description: 'Boundary of a project',
+  },
+  {
+    key: 'No-fly-zone',
+    description: 'GEO zones that prohibit flight',
+  },
+];
+
+export const keyParametersInfo = [
+  {
+    key: 'Ground Sampling Distance (GSD)',
+    description:
+      'GSD in a digital photo of the ground from air is the distance between pixel centers measured on the ground.',
+  },
+  {
+    key: 'Altitude',
+    description:
+      'The altitude at which the drone should fly during the mission, in meters.',
+  },
+  {
+    key: 'Front Overlap',
+    description:
+      'The percentage of overlap between consecutive images taken in the forward direction.',
+  },
+
+  {
+    key: 'Side Overlap',
+    description:
+      'The percentage of overlap between images captured on adjacent flight lines',
+  },
+  {
+    key: '2D Orthophoto/Orthophotograph',
+    description:
+      '2D orthophoto is a geometrically corrected aerial image that can be used as a map with consistent scale and accurate measurements.',
+  },
+  {
+    key: 'Digital Terrain Model (DTM)',
+    description:
+      "DTM represents the bare earth surface, excluding objects and showing only the terrain's elevation",
+  },
+  {
+    key: 'A Digital Surface Model (DSM)',
+    description:
+      "DSM is a 3D representation of the Earth's surface including all features like buildings and vegetation",
+  },
+  {
+    key: 'DEM',
+    description:
+      'The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format',
   },
 ];

@@ -67,6 +67,12 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
             className="naxatw-mt-4 naxatw-bg-red"
             onClick={() => {
               if (!projectArea) return;
+              dispatch(
+                setCreateProjectState({
+                  splitGeojson: null,
+                  capturedProjectMap: false,
+                }),
+              );
               mutate(payload);
             }}
           >
