@@ -35,7 +35,6 @@ const ImageBoxPopOver = () => {
   const dispatch = useTypedDispatch();
 
   // const { taskId, projectId } = useParams();
-
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
   const taskId = pathname?.[4];
