@@ -7,7 +7,6 @@ import { useGetTaskWaypointQuery } from '@Api/tasks';
 import getBbox from '@turf/bbox';
 import { coordAll } from '@turf/meta';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
@@ -15,6 +14,8 @@ import right from '@Assets/images/rightArrow.png';
 import marker from '@Assets/images/marker.png';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
+import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
+import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 
 const MapSection = () => {
   const { projectId, taskId } = useParams();
@@ -99,7 +100,8 @@ const MapSection = () => {
             height: '100%',
           }}
         >
-          <BaseLayerSwitcher />
+          <BaseLayerSwitcherUI />
+          <LocateUser isMapLoaded={isMapLoaded} />
 
           {taskWayPoints && (
             <>
