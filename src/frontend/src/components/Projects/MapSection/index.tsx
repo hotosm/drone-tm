@@ -47,8 +47,8 @@ const ProjectsMapSection = () => {
       isMapLoaded={isMapLoaded}
       containerId="dashboard-map"
       style={{
-        width: '55%',
-        height: '36.375rem',
+        width: '100%',
+        height: '100%',
       }}
     >
       <BaseLayerSwitcher />
