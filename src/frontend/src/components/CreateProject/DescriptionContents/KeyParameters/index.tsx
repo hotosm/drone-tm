@@ -1,23 +1,26 @@
 import { useTypedSelector } from '@Store/hooks';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
-import { keyParamsDescriptions } from '@Constants/createProject';
+import {
+  keyParametersInfo,
+  keyParamsDescriptions,
+} from '@Constants/createProject';
 
 export default function KeyParameters() {
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
   );
+
   return (
-    <>
+    <div className="scrollbar naxatw-max-h-[65vh] naxatw-overflow-y-auto naxatw-px-2">
       {keyParamOption === 'basic' ? (
-        <div className="naxatw-animate-fade-up naxatw-p-5">
-          <p className="naxatw-text-body-btn">
-            Ground Sampling Distance (meter)
-          </p>
-          <p className="naxatw-mt-2 naxatw-text-body-md">
-            Fill in your project basic information such as name, description,
-            hashtag, etc.
-          </p>
-        </div>
+        keyParametersInfo?.map(info => (
+          <div className="naxatw-animate-fade-up naxatw-py-2" key={info.key}>
+            <p className="naxatw-text-body-btn">{info.key}</p>
+            <p className="naxatw-py-1 naxatw-text-body-md">
+              {info.description}
+            </p>
+          </div>
+        ))
       ) : (
         <FlexColumn gap={2} className="naxatw-animate-fade-up">
           {keyParamsDescriptions.map(desc => (
@@ -31,6 +34,6 @@ export default function KeyParameters() {
           ))}
         </FlexColumn>
       )}
-    </>
+    </div>
   );
 }

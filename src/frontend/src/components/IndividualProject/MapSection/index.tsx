@@ -6,12 +6,11 @@ import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import getBbox from '@turf/bbox';
 import { FeatureCollection } from 'geojson';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { GeolocateControl, LngLatBoundsLike, Map } from 'maplibre-gl';
 import { setProjectState } from '@Store/actions/project';
 import {
   useGetProjectsDetailQuery,
@@ -23,6 +22,9 @@ import { postTaskStatus } from '@Services/project';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import baseLayersData from '@Components/common/MapLibreComponents/BaseLayerSwitcher/baseLayers';
+import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
+import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import Legend from './Legend';
 
 const MapSection = () => {
@@ -156,6 +158,9 @@ const MapSection = () => {
         height: '100%',
       }}
     >
+      <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
+      <LocateUser isMapLoaded={isMapLoaded} />
+
       {projectArea && (
         <VectorLayer
           map={map as Map}
@@ -288,7 +293,6 @@ const MapSection = () => {
         }
       />
       <Legend />
-      <BaseLayerSwitcher />
     </MapContainer>
   );
 };

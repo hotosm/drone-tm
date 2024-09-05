@@ -80,6 +80,12 @@ const CreateprojectLayout = () => {
   const measurementType = useTypedSelector(
     state => state.createproject.measurementType,
   );
+  const projectImage = useTypedSelector(
+    state => state.createproject.projectMapImage,
+  );
+  const capturedProjectMap = useTypedSelector(
+    state => state.createproject.capturedProjectMap,
+  );
 
   const initialState: FieldValues = {
     name: '',
@@ -202,6 +208,7 @@ const CreateprojectLayout = () => {
     }
 
     if (activeStep === 4 && !splitGeojson) return;
+
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
       return;
@@ -225,6 +232,8 @@ const CreateprojectLayout = () => {
     // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
     const formData = new FormData();
     formData.append('project_info', JSON.stringify({ ...refactoredData }));
+    formData.append('image', projectImage.projectMapImage);
+
     if (isTerrainFollow) {
       formData.append('dem', data?.dem?.[0]?.file);
     }
@@ -265,7 +274,8 @@ const CreateprojectLayout = () => {
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
               withLoader
-              isLoading={isLoading || isCreatingProject}
+              isLoading={isLoading || isCreatingProject || !capturedProjectMap}
+              disabled={isLoading || isCreatingProject || !capturedProjectMap}
             >
               {activeStep === 5 ? 'Save' : 'Next'}
             </Button>

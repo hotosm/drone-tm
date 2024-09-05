@@ -28,6 +28,7 @@ export interface IBaseLayerSwitcher {
   map?: MapInstanceType;
   baseLayers?: object;
   activeLayer?: string;
+  isMapLoaded?: Boolean;
 }
 
 export interface ILayer {
