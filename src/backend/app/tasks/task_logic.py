@@ -33,7 +33,6 @@ async def get_task_geojson(db: Connection, task_id: uuid.UUID):
                 status_code=HTTPStatus.NOT_FOUND, detail="Task not found"
             )
         return data[0]
-        # return json.loads(data[0]["geom"])
 
 
 async def update_task_state(
@@ -123,8 +122,8 @@ async def request_mapping(
                 "task_id": str(task_id),
                 "user_id": str(user_id),
                 "comment": comment,
-                "unlocked_to_map_state": initial_state.name,  # State.UNLOCKED_TO_MAP.name,
-                "request_for_map_state": final_state.name,  # State.REQUEST_FOR_MAPPING.name,
+                "unlocked_to_map_state": initial_state.name,
+                "request_for_map_state": final_state.name,
             },
         )
         result = await cur.fetchone()
