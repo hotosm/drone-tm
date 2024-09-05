@@ -13,6 +13,8 @@ import useDrawTool from '@Components/common/MapLibreComponents/useDrawTool';
 import { drawStyles } from '@Constants/map';
 import { setCreateProjectState } from '@Store/actions/createproject';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
+import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 
 const MapSection = ({
   onResetButtonClick,
@@ -104,7 +106,8 @@ const MapSection = ({
         position: 'relative',
       }}
     >
-      <BaseLayerSwitcher />
+      <BaseLayerSwitcherUI />
+      <LocateUser isMapLoaded={isMapLoaded} />
 
       {(drawNoFlyZoneEnable || drawProjectAreaEnable) && (
         <div className="naxatw-absolute naxatw-right-[calc(50%_-_75px)] naxatw-top-2 naxatw-z-50 naxatw-flex naxatw-h-9 naxatw-w-[150px] naxatw-rounded-lg naxatw-bg-white">
