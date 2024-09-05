@@ -20,6 +20,8 @@ export interface CreateProjectState {
   splitGeojson: Record<string, any> | null;
   isTerrainFollow: boolean;
   requireApprovalFromManagerForLocking: string;
+  capturedProjectMap: boolean;
+  projectMapImage: any;
 }
 
 const initialState: CreateProjectState = {
@@ -39,6 +41,8 @@ const initialState: CreateProjectState = {
   splitGeojson: null,
   isTerrainFollow: false,
   requireApprovalFromManagerForLocking: 'not_required',
+  capturedProjectMap: true,
+  projectMapImage: null,
 };
 
 const setCreateProjectState: CaseReducer<
@@ -47,6 +51,14 @@ const setCreateProjectState: CaseReducer<
 > = (state, action) => ({
   ...state,
   ...action.payload,
+});
+
+const saveProjectImageFile: CaseReducer<
+  CreateProjectState,
+  PayloadAction<Record<string, any>>
+> = (state, action) => ({
+  ...state,
+  projectMapImage: action.payload,
 });
 
 const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = state => ({
@@ -66,6 +78,7 @@ const createProjectSlice = createSlice({
   initialState,
   reducers: {
     setCreateProjectState,
+    saveProjectImageFile,
     resetUploadedAndDrawnAreas,
   },
 });
