@@ -118,6 +118,20 @@ const MapSection = () => {
           },
         }}
       />
+      <VectorLayer
+        map={map as Map}
+        isMapLoaded={isMapLoaded}
+        id="split-area-outline"
+        geojson={splitGeojson as GeojsonType}
+        visibleOnMap={!!splitGeojson}
+        layerOptions={{
+          type: 'line',
+          paint: {
+            'line-color': '#D33A38',
+            'line-width': 1,
+          },
+        }}
+      />
     </MapContainer>
   );
 };
