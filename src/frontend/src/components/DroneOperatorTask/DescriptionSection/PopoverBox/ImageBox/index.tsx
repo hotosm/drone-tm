@@ -33,7 +33,12 @@ import PreviewImage from './PreviewImage';
 
 const ImageBoxPopOver = () => {
   const dispatch = useTypedDispatch();
-  const { projectId, taskId } = useParams();
+
+  // const { taskId, projectId } = useParams();
+
+  const pathname = window.location.pathname?.split('/');
+  const projectId = pathname?.[2];
+  const taskId = pathname?.[4];
 
   const uploadedFilesNumber = useRef(0);
   const [imageObject, setImageObject] = useState<any[]>([]);
