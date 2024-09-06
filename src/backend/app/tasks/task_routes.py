@@ -207,8 +207,10 @@ async def new_event(
                         "name": author["name"],
                         "drone_operator_name": user_data.name,
                         "task_id": task_id,
+                        "project_id": project_id,
                         "project_name": project["name"],
                         "description": project["description"],
+                        "SITE_URL": settings.SITE_URL,
                     },
                 )
                 background_tasks.add_task(
@@ -241,8 +243,10 @@ async def new_event(
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
+                    "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
+                    "SITE_URL": settings.SITE_URL,
                 },
             )
 
@@ -285,6 +289,7 @@ async def new_event(
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
+                    "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
                 },
