@@ -99,8 +99,17 @@ class BaseUserProfile(BaseModel):
 
     @field_validator("role", mode="after")
     @classmethod
-    def integer_role_to_string(cls, value: UserRole) -> str:
+    def integer_role_to_string(cls, value: UserRole):
+        if isinstance(value, int):
+            value = UserRole(value)
         return str(value.name)
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def srting_role_to_integer(cls, value: UserRole) -> str:
+        if isinstance(value, str):
+            value = UserRole[value].value
+        return value
 
 
 class UserProfileIn(BaseUserProfile):
@@ -164,7 +173,7 @@ class DbUserProfile(BaseUserProfile):
             WHERE user_id = %(user_id)s
             LIMIT 1;
         """
-        async with db.cursor() as cur:
+        async with db.cursor(row_factory=class_row(DbUserProfile)) as cur:
             await cur.execute(query, {"user_id": user_id})
             result = await cur.fetchone()
             log.info(f"Fetched user profile data: {result}")

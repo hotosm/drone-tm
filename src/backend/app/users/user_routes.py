@@ -2,7 +2,7 @@ import os
 from app.users import user_schemas
 from app.users import user_deps
 from app.users import user_logic
-from fastapi import APIRouter, Response, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
@@ -87,7 +87,10 @@ async def update_user_profile(
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
     user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
-    return Response(status_code=HTTPStatus.OK)
+    return JSONResponse(
+        status_code=HTTPStatus.OK,
+        content={"message": "User profile updated successfully"},
+    )
 
 
 @router.get("/google-login")
@@ -141,10 +144,19 @@ async def my_data(
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Read access token and get user details from Google"""
+    # Get or create user info
     user_info = await user_schemas.DbUser.get_or_create_user(db, user_data)
+    # Check if user profile exists
     has_user_profile = await user_schemas.DbUserProfile.get_userprofile_by_userid(
         db, user_info.id
     )
+
+    # Convert user info to dictionary and add profile existence flag
     user_info_dict = user_info.model_dump()
     user_info_dict["has_user_profile"] = bool(has_user_profile)
+
+    # Merge user profile if it exists
+    if has_user_profile:
+        user_info_dict.update(has_user_profile.model_dump())
+
     return user_info_dict

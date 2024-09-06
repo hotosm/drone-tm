@@ -206,13 +206,15 @@ async def new_event(
                     db, project["author_id"]
                 )
                 html_content = render_email_template(
-                    template_name="mapping_requests.html",
+                    template_name="requests.html",
                     context={
                         "name": author["name"],
                         "drone_operator_name": user_data.name,
                         "task_id": task_id,
+                        "project_id": project_id,
                         "project_name": project["name"],
                         "description": project["description"],
+                        "FRONTEND_URL": settings.FRONTEND_URL,
                     },
                 )
                 background_tasks.add_task(
@@ -238,7 +240,7 @@ async def new_event(
                 db, requested_user_id
             )
             html_content = render_email_template(
-                template_name="mapping_approved_or_rejected.html",
+                template_name="approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Approved",
                     "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
@@ -246,8 +248,10 @@ async def new_event(
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
+                    "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
+                    "FRONTEND_URL": settings.FRONTEND_URL,
                 },
             )
 
@@ -282,7 +286,7 @@ async def new_event(
                 db, requested_user_id
             )
             html_content = render_email_template(
-                template_name="mapping_approved_or_rejected.html",
+                template_name="approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Rejected",
                     "email_body": "We are sorry to inform you that your mapping request has been rejected.",
@@ -290,6 +294,7 @@ async def new_event(
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
+                    "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
                 },

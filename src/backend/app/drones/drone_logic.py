@@ -2,8 +2,6 @@ from app.models.enums import HTTPStatus
 from loguru import logger as log
 from fastapi import HTTPException
 from psycopg import Connection
-
-# from asyncpg import UniqueViolationError
 from typing import List
 from app.drones.drone_schemas import DroneOut
 

@@ -125,7 +125,9 @@
             <p><strong>Description:</strong> {{ description }}</p>
           </div>
           {% if task_status == 'approved' %}
-          <a href="https://dronetm-dev.naxa.com.np" class="task-button"
+          <a
+            href="{{FRONTEND_URL}}/projects/{{project_id}}/tasks/{{task_id}}"
+            class="task-button"
             >Start Mapping</a
           >
           {% endif %}
