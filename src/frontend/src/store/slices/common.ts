@@ -22,7 +22,7 @@ const initialState: CommonState = {
   modalContent: null,
   showPromptDialog: false,
   promptDialogContent: null,
-  showMap: false,
+  showMap: true,
   openSignInMenu: false,
   userProfileActiveTab: 1,
   isCertifiedDroneUser: 'no',
