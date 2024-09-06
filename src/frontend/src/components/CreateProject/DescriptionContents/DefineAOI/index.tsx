@@ -1,11 +1,10 @@
+import { DefineAOIInfo } from '@Constants/createProject';
+
 export default function DefineAOI() {
-  return (
-    <div className="naxatw-px-10 naxatw-py-5">
-      <p className="naxatw-text-body-btn">Define Area Of Interest (AOI)</p>
-      <p className="naxatw-mt-2 naxatw-text-body-md">
-        Fill in your project basic information such as name, description,
-        hashtag, etc.
-      </p>
+  return DefineAOIInfo?.map(info => (
+    <div className="naxatw-px-2 naxatw-py-2" key={info.key}>
+      <p className="naxatw-text-body-btn">{info.key}</p>
+      <p className="naxatw-py-1 naxatw-text-body-md">{info.description}</p>
     </div>
-  );
+  ));
 }
