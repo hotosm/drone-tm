@@ -14,7 +14,7 @@ from app.config import settings
 
 
 async def upload_file_to_s3(
-    project_id: uuid.UUID, file: UploadFile, folder: str, file_extension: str
+    project_id: uuid.UUID, file: UploadFile, file_name: str
 ) -> str:
     """
     Upload a file (image or DEM) to S3.
@@ -28,14 +28,8 @@ async def upload_file_to_s3(
     Returns:
         str: The S3 URL for the uploaded file.
     """
-    # If the folder is 'images', use 'screenshot.png' as the filename
-    if folder == "images":
-        file_name = "screenshot.png"
-    else:
-        file_name = f"dem.{file_extension}"
-
     # Define the S3 file path
-    file_path = f"/{folder}/{project_id}/{file_name}"
+    file_path = f"/projects/{project_id}/{file_name}"
 
     # Read the file bytes
     file_bytes = await file.read()
@@ -55,7 +49,7 @@ async def upload_file_to_s3(
     return file_url
 
 
-async def update_url(db: Connection, project_id: uuid.UUID, url: str, url_type: str):
+async def update_url(db: Connection, project_id: uuid.UUID, url: str):
     """
     Update the URL (DEM or image) for a project in the database.
 
@@ -70,9 +64,9 @@ async def update_url(db: Connection, project_id: uuid.UUID, url: str, url_type: 
     """
     async with db.cursor() as cur:
         await cur.execute(
-            f"""
+            """
             UPDATE projects
-            SET {url_type} = %(url)s
+            SET dem_url = %(url)s
             WHERE id = %(project_id)s""",
             {"url": url, "project_id": project_id},
         )
