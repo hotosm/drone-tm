@@ -4,14 +4,18 @@ import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSw
 import { useGetProjectsListQuery } from '@Api/projects';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import centroid from '@turf/centroid';
+import getBbox from '@turf/bbox';
+import { useEffect } from 'react';
+import { FeatureCollection } from 'geojson';
+import { LngLatBoundsLike } from 'maplibre-gl';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
 const ProjectsMapSection = () => {
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
-      zoom: 5,
-      center: [84.124, 28.3949],
+      zoom: 0,
+      center: [0, 0],
       maxZoom: 19,
     },
     disableRotation: true,
@@ -35,11 +39,11 @@ const ProjectsMapSection = () => {
     },
   });
 
-  // useEffect(() => {
-  //   if (!projectsList) return;
-  //   const bbox = getBbox(projectsList as FeatureCollection);
-  //   map?.fitBounds(bbox as LngLatBoundsLike, { padding: 30 });
-  // }, [projectsList, map]);
+  useEffect(() => {
+    if (!projectsList) return;
+    const bbox = getBbox(projectsList as FeatureCollection);
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100 });
+  }, [projectsList, map]);
 
   return (
     <MapContainer
@@ -60,22 +64,6 @@ const ProjectsMapSection = () => {
         sourceId="clustered-projects"
         geojson={projectsList}
       />
-
-      {/* <VectorLayer
-        map={map as Map}
-        isMapLoaded={isMapLoaded}
-        id="uploaded-project-area"
-        geojson={projectsList as GeojsonType}
-        visibleOnMap={true}
-        layerOptions={{
-          type: 'fill',
-          paint: {
-            'fill-color': '#328ffd',
-            'fill-outline-color': '#000000',
-            'fill-opacity': 0.8,
-          },
-        }}
-      /> */}
     </MapContainer>
   );
 };
