@@ -240,7 +240,7 @@ async def generate_presigned_url(
         client = s3_client()
         urls = []
         for image in data.image_name:
-            image_path = f"publicuploads/{data.project_id}/{data.task_id}/{image}"
+            image_path = f"projects/{data.project_id}/{data.task_id}/images/{image}"
 
             url = client.get_presigned_url(
                 "PUT",
