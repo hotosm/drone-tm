@@ -210,7 +210,7 @@ async def new_event(
                         "project_id": project_id,
                         "project_name": project["name"],
                         "description": project["description"],
-                        "SITE_URL": settings.SITE_URL,
+                        "FRONTEND_URL": settings.FRONTEND_URL,
                     },
                 )
                 background_tasks.add_task(
@@ -246,7 +246,7 @@ async def new_event(
                     "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
-                    "SITE_URL": settings.SITE_URL,
+                    "FRONTEND_URL": settings.FRONTEND_URL,
                 },
             )
 
