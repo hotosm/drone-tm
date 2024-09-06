@@ -14,10 +14,82 @@ class NewEvent(BaseModel):
     comment: Optional[str] = None
 
 
-class TaskState(BaseModel):
-    task_id: uuid.UUID
-    state: str
-    project_id: uuid.UUID
+class Task(BaseModel):
+    task_id: Optional[uuid.UUID] = None
+    state: Optional[str] = None
+    project_id: Optional[uuid.UUID] = None
+    outline: Optional[str] = None
+
+    @staticmethod
+    async def get_task_geometry(
+        db: Connection,
+        project_id: uuid.UUID,
+        task_id: Optional[uuid.UUID] = None,
+        split_area: Optional[bool] = False,
+    ) -> str:
+        """Fetches the geometry of a single task or all tasks in a project.
+
+        Args:
+            db (Connection): The database connection.
+            project_id (UUID): The ID of the project.
+            task_id (UUID, optional): The ID of a specific task. Defaults to None.
+
+        Returns:
+            str: The GeoJSON representation of the task or project geometry.
+        """
+        try:
+            async with db.cursor(row_factory=class_row(Task)) as cur:
+                if task_id:
+                    await cur.execute(
+                        """
+                        SELECT ST_AsGeoJSON(outline) AS outline
+                        FROM tasks
+                        WHERE project_id = %(project_id)s AND id = %(task_id)s
+                    """,
+                        {"project_id": project_id, "task_id": task_id},
+                    )
+                    row = await cur.fetchone()
+                    if row:
+                        return row.outline
+                    else:
+                        raise HTTPException(status_code=404, detail="Task not found.")
+                else:
+                    if split_area:
+                        await cur.execute(
+                            """
+                            SELECT ST_AsGeoJSON(outline) AS outline
+                            FROM tasks
+                            WHERE project_id = %(project_id)s
+                        """,
+                            {"project_id": project_id},
+                        )
+                    else:
+                        await cur.execute(
+                            """
+                            SELECT ST_AsGeoJSON(ST_Union(outline)) AS outline
+                            FROM tasks
+                            WHERE project_id = %(project_id)s
+                        """,
+                            {"project_id": project_id},
+                        )
+
+                    # Fetch the result
+                    rows = await cur.fetchall()
+                    if rows:
+                        # Create a FeatureCollection with empty properties for each feature
+                        features = [
+                            f'{{"type": "Feature", "geometry": {row.outline}, "properties": {{}}}}'
+                            for row in rows
+                        ]
+                        feature_collection = f'{{"type": "FeatureCollection", "features": [{",".join(features)}]}}'
+                        return feature_collection
+                    else:
+                        raise HTTPException(
+                            status_code=404, detail="No tasks found for this project."
+                        )
+        except Exception as e:
+            log.error(f"Error fetching task geometry: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error.")
 
     @staticmethod
     async def get_all_tasks(db: Connection, project_id: uuid.UUID):
@@ -36,7 +108,7 @@ class TaskState(BaseModel):
 
     @staticmethod
     async def all(db: Connection, project_id: uuid.UUID):
-        async with db.cursor(row_factory=class_row(TaskState)) as cur:
+        async with db.cursor(row_factory=class_row(Task)) as cur:
             await cur.execute(
                 """SELECT DISTINCT ON (task_id) project_id, task_id, state
                 FROM task_events
@@ -48,7 +120,7 @@ class TaskState(BaseModel):
 
             existing_tasks = await cur.fetchall()
             # Get all task_ids from the tasks table
-            task_ids = await TaskState.get_all_tasks(db, project_id)
+            task_ids = await Task.get_all_tasks(db, project_id)
             # Create a set of existing task_ids for quick lookup
             existing_task_ids = {task.task_id for task in existing_tasks}
 

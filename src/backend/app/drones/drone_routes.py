@@ -27,7 +27,7 @@ async def read_drones(
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
 
 
-@router.post("/create_drone")
+@router.post("/create-drone")
 async def create_drone(
     drone_info: drone_schemas.DroneIn,
     db: Annotated[Connection, Depends(database.get_db)],

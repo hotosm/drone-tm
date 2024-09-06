@@ -158,7 +158,7 @@ async def task_states(
     db: Annotated[Connection, Depends(database.get_db)], project_id: uuid.UUID
 ):
     """Get all tasks states for a project."""
-    return await task_schemas.TaskState.all(db, project_id)
+    return await task_schemas.Task.all(db, project_id)
 
 
 @router.post("/event/{project_id}/{task_id}")
@@ -177,38 +177,44 @@ async def new_event(
     project = project.model_dump()
     match detail.event:
         case EventType.REQUESTS:
-            if project["requires_approval_from_manager_for_locking"] is False:
-                data = await task_logic.request_mapping(
-                    db,
-                    project_id,
-                    task_id,
-                    user_id,
-                    "Request accepted automatically",
-                    State.UNLOCKED_TO_MAP,
-                    State.LOCKED_FOR_MAPPING,
+            # Determine the appropriate state and message
+            is_author = project["author_id"] == user_id
+            requires_approval = project["requires_approval_from_manager_for_locking"]
+
+            if is_author or not requires_approval:
+                state_after = State.LOCKED_FOR_MAPPING
+                message = "Request accepted automatically" + (
+                    " as the author" if is_author else ""
                 )
             else:
-                data = await task_logic.request_mapping(
-                    db,
-                    project_id,
-                    task_id,
-                    user_id,
-                    "Request for mapping",
-                    State.UNLOCKED_TO_MAP,
-                    State.REQUEST_FOR_MAPPING,
-                )
-                # email notification
+                state_after = State.REQUEST_FOR_MAPPING
+                message = "Request for mapping"
+
+            # Perform the mapping request
+            data = await task_logic.request_mapping(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                message,
+                State.UNLOCKED_TO_MAP,
+                state_after,
+            )
+            # Send email notification if approval is required
+            if state_after == State.REQUEST_FOR_MAPPING:
                 author = await user_schemas.DbUser.get_user_by_id(
                     db, project["author_id"]
                 )
                 html_content = render_email_template(
-                    template_name="mapping_requests.html",
+                    template_name="requests.html",
                     context={
                         "name": author["name"],
                         "drone_operator_name": user_data.name,
                         "task_id": task_id,
+                        "project_id": project_id,
                         "project_name": project["name"],
                         "description": project["description"],
+                        "FRONTEND_URL": settings.FRONTEND_URL,
                     },
                 )
                 background_tasks.add_task(
@@ -217,6 +223,7 @@ async def new_event(
                     "Request for mapping",
                     html_content,
                 )
+
             return data
 
         case EventType.MAP:
@@ -233,7 +240,7 @@ async def new_event(
                 db, requested_user_id
             )
             html_content = render_email_template(
-                template_name="mapping_approved_or_rejected.html",
+                template_name="approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Approved",
                     "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
@@ -241,8 +248,10 @@ async def new_event(
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
+                    "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
+                    "FRONTEND_URL": settings.FRONTEND_URL,
                 },
             )
 
@@ -277,7 +286,7 @@ async def new_event(
                 db, requested_user_id
             )
             html_content = render_email_template(
-                template_name="mapping_approved_or_rejected.html",
+                template_name="approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Rejected",
                     "email_body": "We are sorry to inform you that your mapping request has been rejected.",
@@ -285,6 +294,7 @@ async def new_event(
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
+                    "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
                 },
