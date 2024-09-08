@@ -67,7 +67,7 @@ export const projectCreatorKeys = [
   'organization_address',
   'job_title',
   'confirm_password',
-  'country_code',
+  // 'country_code',
 ];
 
 // keys only present in drone operator form
@@ -77,5 +77,5 @@ export const droneOperatorKeys = [
   'certified_drone_operator',
   'drone_you_own',
   'confirm_password',
-  'country_code',
+  // 'country_code',
 ];
