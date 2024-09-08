@@ -55,20 +55,20 @@ const UserProfile = () => {
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
-
   const userProfile = getLocalStorageValue('userprofile');
 
   const initialState = {
     name: userProfile?.name,
-    country: '',
-    city: null,
+    country: userProfile?.country || null,
+    city: userProfile?.city || null,
     password: null,
     confirm_password: null,
-    phone_number: null,
+    // country_code: userProfile?.country_code || null,
+    phone_number: userProfile?.phone_number || null,
     // for project creators
-    organization_name: null,
-    organization_address: null,
-    job_title: null,
+    organization_name: userProfile?.organization_name || null,
+    organization_address: userProfile?.organization_address || null,
+    job_title: userProfile?.job_title || null,
     // for drone operators
     notify_for_projects_within_km: null,
     experience_years: null,
@@ -92,6 +92,7 @@ const UserProfile = () => {
     mutationFn: payloadDataObject => postUserProfile(payloadDataObject),
     onSuccess: () => {
       toast.success('UserProfile Updated Successfully');
+      dispatch(setCommonState({ userProfileActiveTab: 1 }));
       navigate('/projects');
     },
     onError: err => {
@@ -107,6 +108,7 @@ const UserProfile = () => {
       );
       return;
     }
+
     const finalFormData = isDroneOperator
       ? removeKeysFromObject(formData, projectCreatorKeys)
       : removeKeysFromObject(formData, droneOperatorKeys);
