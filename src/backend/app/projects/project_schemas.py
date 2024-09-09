@@ -278,20 +278,27 @@ class DbProject(BaseModel):
 
     async def all(
         db: Connection,
+        user_id: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
     ):
-        """Get all projects."""
+        """
+        Get all projects. Optionally filter by the project creator (user).
+        """
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
-            SELECT id, slug, name, description, per_task_instructions, ST_AsGeoJSON(outline)::jsonb AS outline, requires_approval_from_manager_for_locking
-            FROM projects
-            ORDER BY created_at DESC
-            OFFSET %(skip)s
-            LIMIT %(limit)s
-            """,
-                {"skip": skip, "limit": limit},
+                SELECT
+                    id, slug, name, description, per_task_instructions,
+                    ST_AsGeoJSON(outline)::jsonb AS outline,
+                    requires_approval_from_manager_for_locking
+                FROM projects
+                WHERE (author_id = COALESCE(%(user_id)s, author_id))
+                ORDER BY created_at DESC
+                OFFSET %(skip)s
+                LIMIT %(limit)s
+                """,
+                {"skip": skip, "limit": limit, "user_id": user_id},
             )
             db_projects = await cur.fetchall()
             return db_projects

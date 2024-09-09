@@ -262,12 +262,25 @@ async def generate_presigned_url(
 async def read_projects(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
+    filter_by_owner: Optional[bool] = Query(
+        False, description="Filter projects by authenticated user (creator)"
+    ),
     skip: int = 0,
     limit: int = 100,
 ):
     "Get all projects with task count."
+
     try:
-        return await project_schemas.DbProject.all(db, skip, limit)
+        user_id = user_data.id if filter_by_owner else None
+        projects = await project_schemas.DbProject.all(
+            db, user_id=user_id, skip=skip, limit=limit
+        )
+        if not projects:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="No projects found."
+            )
+
+        return projects
     except KeyError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
 
