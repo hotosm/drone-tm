@@ -154,7 +154,7 @@ const DroneOperatorDescriptionBox = () => {
               iconClassname="naxatw-text-[1.125rem]"
               onClick={() => downloadGeojson()}
             >
-              Download Geojson
+              Download Waypoints Geojson
             </Button>
             <Button
               variant="ghost"
