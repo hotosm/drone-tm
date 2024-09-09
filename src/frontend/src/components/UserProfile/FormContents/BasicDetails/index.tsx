@@ -67,13 +67,13 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
         <FormControl>
           <Label required>Phone number</Label>
           <div className="naxatw-flex naxatw-space-x-1">
-            <Input
+            {/* <Input
               placeholder="+977"
               className="naxatw-mt-1 naxatw-w-14"
               {...register('country_code', {
                 required: 'Phone Number is Required',
               })}
-            />
+            /> */}
             <Input
               placeholder="Enter Phone number"
               className="naxatw-mt-1 naxatw-w-full"

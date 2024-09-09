@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@Components/RadixComponents/Button';
 import Tab from '@Components/common/Tabs';
-import { useGetIndividualTaskQuery } from '@Api/tasks';
+import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { setSecondPageState } from '@Store/actions/droneOperatorTask';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
@@ -22,6 +22,16 @@ const DroneOperatorDescriptionBox = () => {
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
+
+  const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
+    projectId as string,
+    taskId as string,
+    {
+      select: (data: any) => {
+        return data.data.features;
+      },
+    },
+  );
 
   useEffect(() => {
     setAnimated(true);
@@ -110,6 +120,25 @@ const DroneOperatorDescriptionBox = () => {
       );
   };
 
+  const downloadGeojson = () => {
+    if (!taskWayPoints) return;
+    const waypointGeojson = {
+      type: 'FeatureCollection',
+      features: taskWayPoints,
+    };
+    const fileBlob = new Blob([JSON.stringify(waypointGeojson)], {
+      type: 'application/json',
+    });
+    const url = window.URL.createObjectURL(fileBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'waypoint.geojson';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-3 lg:naxatw-gap-5">
@@ -117,15 +146,26 @@ const DroneOperatorDescriptionBox = () => {
           <p className="naxatw-text-[0.875rem] naxatw-font-normal naxatw-leading-normal naxatw-text-[#484848]">
             Task #{taskDescription?.project_task_index}
           </p>
-          <Button
-            variant="ghost"
-            className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
-            leftIcon="download"
-            iconClassname="naxatw-text-[1.125rem]"
-            onClick={() => handleDownloadFlightPlan()}
-          >
-            Download Flight Plan
-          </Button>
+          <div className="naxatw-flex naxatw-gap-1">
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+              leftIcon="download"
+              iconClassname="naxatw-text-[1.125rem]"
+              onClick={() => downloadGeojson()}
+            >
+              Download Waypoints Geojson
+            </Button>
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+              leftIcon="download"
+              iconClassname="naxatw-text-[1.125rem]"
+              onClick={() => handleDownloadFlightPlan()}
+            >
+              Download Flight Plan
+            </Button>
+          </div>
         </div>
         <Tab
           onTabChange={value => {

@@ -1,17 +1,27 @@
+import { useNavigate } from 'react-router-dom';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import { useGetProjectsListQuery } from '@Api/projects';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import centroid from '@turf/centroid';
+import getBbox from '@turf/bbox';
+import { useCallback, useEffect, useState } from 'react';
+import { FeatureCollection } from 'geojson';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
 const ProjectsMapSection = () => {
+  const [projectProperties, setProjectProperties] = useState<
+    Record<string, any>
+  >({});
+  const navigate = useNavigate();
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
-      zoom: 5,
-      center: [84.124, 28.3949],
+      zoom: 0,
+      center: [0, 0],
       maxZoom: 19,
     },
     disableRotation: true,
@@ -23,7 +33,17 @@ const ProjectsMapSection = () => {
         (acc: Record<string, any>, current: Record<string, any>) => {
           return {
             ...acc,
-            features: [...acc.features, centroid(current.outline)],
+            features: [
+              ...acc.features,
+              {
+                ...centroid(current.outline),
+                properties: {
+                  id: current?.id,
+                  name: current?.name,
+                  slug: current?.slug,
+                },
+              },
+            ],
           };
         },
         {
@@ -35,11 +55,19 @@ const ProjectsMapSection = () => {
     },
   });
 
-  // useEffect(() => {
-  //   if (!projectsList) return;
-  //   const bbox = getBbox(projectsList as FeatureCollection);
-  //   map?.fitBounds(bbox as LngLatBoundsLike, { padding: 30 });
-  // }, [projectsList, map]);
+  useEffect(() => {
+    if (!projectsList) return;
+    const bbox = getBbox(projectsList as FeatureCollection);
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100 });
+  }, [projectsList, map]);
+
+  const getPopupUI = useCallback(() => {
+    return (
+      <div>
+        <h3>{projectProperties?.name}</h3>
+      </div>
+    );
+  }, [projectProperties]);
 
   return (
     <MapContainer
@@ -61,21 +89,20 @@ const ProjectsMapSection = () => {
         geojson={projectsList}
       />
 
-      {/* <VectorLayer
+      <AsyncPopup
         map={map as Map}
-        isMapLoaded={isMapLoaded}
-        id="uploaded-project-area"
-        geojson={projectsList as GeojsonType}
-        visibleOnMap={true}
-        layerOptions={{
-          type: 'fill',
-          paint: {
-            'fill-color': '#328ffd',
-            'fill-outline-color': '#000000',
-            'fill-opacity': 0.8,
-          },
+        title={projectProperties?.slug}
+        showPopup={(feature: Record<string, any>) =>
+          feature?.layer?.id === 'unclustered-point'
+        }
+        popupUI={getPopupUI}
+        fetchPopupData={(properties: Record<string, any>) => {
+          setProjectProperties(properties);
         }}
-      /> */}
+        buttonText="Go To Project"
+        handleBtnClick={() => navigate(`./${projectProperties?.id}`)}
+        getCoordOnProperties
+      />
     </MapContainer>
   );
 };
