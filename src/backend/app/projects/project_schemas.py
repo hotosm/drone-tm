@@ -278,7 +278,7 @@ class DbProject(BaseModel):
 
     async def all(
         db: Connection,
-        user_id: Optional[uuid.UUID] = None,
+        user_id: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
     ):
