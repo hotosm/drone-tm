@@ -4,7 +4,14 @@ import shutil
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import FileResponse
 from app.config import settings
-from drone_flightplan import create_flightplan, waypoints
+from drone_flightplan import (
+    create_flightplan,
+    create_placemarks,
+    calculate_parameters,
+    add_elevation_from_dem,
+    wpml,
+    waypoints,
+)
 from app.models.enums import HTTPStatus
 from app.tasks.task_logic import get_task_geojson
 from app.db import database
@@ -58,38 +65,46 @@ async def get_task_waypoint(
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
 
-    if not download:
-        points = waypoints.create_waypoint(
-            task_geojson,
-            altitude,
-            gsd,
-            forward_overlap,
-            side_overlap,
-            generate_each_points,
-            generate_3d,
-        )
-        return geojson.loads(points)
+    points = waypoints.create_waypoint(
+        task_geojson,
+        altitude,
+        gsd,
+        forward_overlap,
+        side_overlap,
+        generate_each_points,
+        generate_3d,
+    )
 
-    else:
-        if project.is_terrain_follow:
-            dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
-            get_file_from_bucket(
-                settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
-            )
-        output_file = create_flightplan.create_flightplan(
-            aoi=task_geojson,
-            forward_overlap=forward_overlap,
-            side_overlap=side_overlap,
-            agl=altitude,
-            gsd=gsd,
-            generate_each_points=generate_each_points,
-            dem=dem_path if project.is_terrain_follow else None,
-            outfile=f"/tmp/{uuid.uuid4()}",
+    parameters = calculate_parameters.calculate_parameters(
+        forward_overlap,
+        side_overlap,
+        altitude,
+        gsd,
+        2,  # Image Interval is set to 2
+    )
+
+    if project.is_terrain_follow:
+        dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+        get_file_from_bucket(
+            settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
         )
 
-        return FileResponse(
-            output_file, media_type="application/zip", filename="output.kmz"
+        # TODO: Do this with inmemory data
+        outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
+        add_elevation_from_dem.add_elevation_from_dem(
+            dem_path, points, outfile_with_elevation
         )
+
+        inpointsfile = open(outfile_with_elevation, "r")
+        points_with_elevation = inpointsfile.read()
+
+    placemarks = create_placemarks.create_placemarks(
+        geojson.loads(points_with_elevation), parameters
+    )
+    if download:
+        outfile = outfile = f"/tmp/{uuid.uuid4()}"
+        return wpml.create_wpml(placemarks, outfile)
+    return placemarks
 
 
 @router.post("/")
