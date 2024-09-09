@@ -74,7 +74,7 @@ async def get_task_waypoint(
         if project.is_terrain_follow:
             dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
             get_file_from_bucket(
-                settings.S3_BUCKET_NAME, f"dem/{project_id}/dem.tif", dem_path
+                settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
             )
         output_file = create_flightplan.create_flightplan(
             aoi=task_geojson,
