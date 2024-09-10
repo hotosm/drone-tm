@@ -188,6 +188,19 @@ export const measurementTypeOptions = [
   },
 ];
 
+export const imageMergeTypeOptions = [
+  {
+    name: 'Overlap',
+    value: 'overlap',
+    label: 'Overlap',
+  },
+  {
+    name: 'Spacing',
+    value: 'spacing',
+    label: 'Spacing',
+  },
+];
+
 export const contributionsInfo = [
   {
     key: 'Instructions for Drone Operators',

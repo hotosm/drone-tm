@@ -12,6 +12,7 @@ import Switch from '@Components/RadixComponents/Switch';
 import FileUpload from '@Components/common/UploadArea';
 import {
   FinalOutputOptions,
+  imageMergeTypeOptions,
   measurementTypeOptions,
 } from '@Constants/createProject';
 import InfoMessage from '@Components/common/FormUI/InfoMessage';
@@ -36,9 +37,9 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const isTerrainFollow = useTypedSelector(
     state => state.createproject.isTerrainFollow,
   );
-  // const isFollowTheTerrain = useTypedSelector(
-  //   state => state.createproject.isFollowTheTerrain,
-  // );
+  const imageMergeType = useTypedSelector(
+    state => state.createproject.imageMergeType,
+  );
 
   return (
     <div className="naxatw-h-fit naxatw-px-10 naxatw-py-5">
@@ -130,46 +131,102 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               />
             </FormControl>
           )}
-          <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
-            <FormControl className="naxatw-mt-4 naxatw-gap-1">
-              <Label required>Front Overlap in (%)</Label>
-              <Input
-                placeholder="Image Overlap"
-                type="number"
-                max={100}
-                min={0}
-                {...register('front_overlap', {
-                  required: 'Front Overlap is required',
-                  valueAsNumber: true,
-                  max: 100,
-                  min: 0,
-                })}
-              />
-              <ErrorMessage
-                message={errors?.forward_overlap_percent?.message as string}
-              />
-              <p className="naxatw-text-[#68707F]">Recommended : 75%</p>
-            </FormControl>
-            <FormControl className="naxatw-mt-4 naxatw-gap-1">
-              <Label required>Side Overlap in (%)</Label>
-              <Input
-                placeholder="Image Overlap"
-                type="number"
-                max={100}
-                min={0}
-                {...register('side_overlap', {
-                  required: 'Side Overlap is required',
-                  valueAsNumber: true,
-                  min: 0,
-                  max: 100,
-                })}
-              />
-              <ErrorMessage
-                message={errors?.side_overlap_percent?.message as string}
-              />
-              <p className="naxatw-text-[#68707F]">Recommended : 60%</p>
-            </FormControl>
-          </FlexRow>
+          <FormControl className="naxatw-mt-5">
+            {/* <Label>Measurement Type</Label> */}
+            <RadioButton
+              options={imageMergeTypeOptions}
+              direction="row"
+              onChangeData={val => {
+                dispatch(setCreateProjectState({ imageMergeType: val }));
+                setValue('front_overlap', '');
+                setValue('side_overlap', '');
+                setValue('forward_spacing', '');
+                setValue('side_spacing', '');
+              }}
+              value={imageMergeType}
+            />
+          </FormControl>
+          {imageMergeType === 'overlap' ? (
+            <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
+              <FormControl className="naxatw-mt-2 naxatw-gap-1">
+                <Label required>Front Overlap in (%)</Label>
+                <Input
+                  placeholder="Image Overlap"
+                  type="number"
+                  max={100}
+                  min={0}
+                  {...register('front_overlap', {
+                    required: 'Front Overlap is required',
+                    valueAsNumber: true,
+                    max: 100,
+                    min: 0,
+                  })}
+                />
+                <ErrorMessage
+                  message={errors?.forward_overlap_percent?.message as string}
+                />
+                <p className="naxatw-text-[#68707F]">Recommended : 75%</p>
+              </FormControl>
+              <FormControl className="naxatw-mt-2 naxatw-gap-1">
+                <Label required>Side Overlap in (%)</Label>
+                <Input
+                  placeholder="Image Overlap"
+                  type="number"
+                  max={100}
+                  min={0}
+                  {...register('side_overlap', {
+                    required: 'Side Overlap is required',
+                    valueAsNumber: true,
+                    min: 0,
+                    max: 100,
+                  })}
+                />
+                <ErrorMessage
+                  message={errors?.side_overlap_percent?.message as string}
+                />
+                <p className="naxatw-text-[#68707F]">Recommended : 60%</p>
+              </FormControl>
+            </FlexRow>
+          ) : (
+            <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
+              <FormControl className="naxatw-mt-4 naxatw-gap-1">
+                <Label required>Forward spacing in (m)</Label>
+                <Input
+                  placeholder="Image Spacing"
+                  type="number"
+                  max={100}
+                  min={0}
+                  {...register('forward_spacing', {
+                    required: 'Forward Spacing is required',
+                    valueAsNumber: true,
+                    max: 100,
+                    min: 0,
+                  })}
+                />
+                <ErrorMessage
+                  message={errors?.forward_spacing?.message as string}
+                />
+              </FormControl>
+              <FormControl className="naxatw-mt-4 naxatw-gap-1">
+                <Label required>Side Overlap in (m)</Label>
+                <Input
+                  placeholder="Image Spacing"
+                  type="number"
+                  max={100}
+                  min={0}
+                  {...register('side_spacing', {
+                    required: 'Side Spacing is required',
+                    valueAsNumber: true,
+                    min: 0,
+                    max: 100,
+                  })}
+                />
+                <ErrorMessage
+                  message={errors?.side_spacing?.message as string}
+                />
+              </FormControl>
+            </FlexRow>
+          )}
           <FormControl className="naxatw-mt-4 naxatw-gap-1">
             <Label>Final Output</Label>
             <div className="naxatw-my-4 naxatw-grid naxatw-grid-cols-4 naxatw-gap-3">
@@ -186,22 +243,6 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               ))}
             </div>
           </FormControl>
-
-          {/* <FormControl className="naxatw-mt-4 naxatw-gap-1">
-            <RadioButton
-              options={terrainOptions}
-              topic="Choose terrain"
-              direction="column"
-              onChangeData={val => {
-                dispatch(
-                  setCreateProjectState({
-                    isTerrainFollow: val,
-                  }),
-                );
-              }}
-              value={isTerrainFollow}
-            />
-          </FormControl> */}
 
           <FormControl className="naxatw-mt-4">
             <FlexRow className="naxatw-mb-4 naxatw-items-center naxatw-gap-[10px]">
