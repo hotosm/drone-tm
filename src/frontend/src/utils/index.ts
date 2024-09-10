@@ -67,12 +67,12 @@ export const getSideOverlap = (agl: number, sideSpacing: number) => {
   const sidePhotoWidth = agl * HorizontalFOV;
   const sideOverlapDistance = sidePhotoWidth - sideSpacing;
   const sideOverlap = (sideOverlapDistance * 100) / sidePhotoWidth;
-  return sideOverlap;
+  return sideOverlap.toFixed(2);
 };
 
 export const getFrontOverlap = (agl: number, forwardSpacing: number) => {
   const frontPhotoHeight = agl * VerticalFOV;
   const frontOverlapDistance = frontPhotoHeight - forwardSpacing;
   const frontOverlap = (frontOverlapDistance * 100) / frontPhotoHeight;
-  return frontOverlap;
+  return frontOverlap.toFixed(2);
 };
