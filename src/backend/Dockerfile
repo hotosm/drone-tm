@@ -34,7 +34,9 @@ COPY ./pyproject.toml /project/
 COPY ./pdm.lock /project/
 
 # Install dependencies and project into the local packages directory
-RUN pdm install --check --prod --no-editable
+# RUN pdm install --check --prod --no-editable
+RUN pdm install --group test --check --prod --no-editable
+
 
 # Run stage (final stage)
 FROM python:$PYTHON_BASE AS service

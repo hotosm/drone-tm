@@ -5,7 +5,7 @@
 groups = ["default", "test"]
 strategy = ["cross_platform"]
 lock_version = "4.5.0"
-content_hash = "sha256:a07d17a4f9f770fa6859910012e349eae660ea547c1d00785a94aed29388cb2c"
+content_hash = "sha256:7c4cebbabc3906913782b6427320bb3d2ea8a6e72317199cb1c114b1e85a7f3a"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -416,6 +416,37 @@ dependencies = [
 files = [
     {file = "h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761"},
     {file = "h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d"},
+]
+
+[[package]]
+name = "httpcore"
+version = "1.0.5"
+requires_python = ">=3.8"
+summary = "A minimal low-level HTTP client."
+dependencies = [
+    "certifi",
+    "h11<0.15,>=0.13",
+]
+files = [
+    {file = "httpcore-1.0.5-py3-none-any.whl", hash = "sha256:421f18bac248b25d310f3cacd198d55b8e6125c107797b609ff9b7a6ba7991b5"},
+    {file = "httpcore-1.0.5.tar.gz", hash = "sha256:34a38e2f9291467ee3b44e89dd52615370e152954ba21721378a87b2960f7a61"},
+]
+
+[[package]]
+name = "httpx"
+version = "0.27.2"
+requires_python = ">=3.8"
+summary = "The next generation HTTP client."
+dependencies = [
+    "anyio",
+    "certifi",
+    "httpcore==1.*",
+    "idna",
+    "sniffio",
+]
+files = [
+    {file = "httpx-0.27.2-py3-none-any.whl", hash = "sha256:7bb2708e112d8fdd7829cd4243970f0c223274051cb35ee80c03301ee29a3df0"},
+    {file = "httpx-0.27.2.tar.gz", hash = "sha256:f7c2be1d2f3c3c3160d441802406b206c2b76f5947b11115e6df10c6c65e66c2"},
 ]
 
 [[package]]
