@@ -369,27 +369,36 @@ async def new_event(
             )
 
         case EventType.RESET:
+            # Fetch the task state
             current_task_state = await task_logic.get_task_state(
                 db, project_id, task_id
             )
 
-            if (
-                current_task_state["state"] == State.LOCKED_FOR_MAPPING.name
-                and user_id == current_task_state["user_id"]
-            ):
-                # Task is locked by the user, so reset it (unlock)
-                return await task_logic.update_task_state(
-                    db,
-                    project_id,
-                    task_id,
-                    user_id,
-                    "Task reset by user",
-                    State.LOCKED_FOR_MAPPING,
-                    State.UNLOCKED_TO_MAP,
+            # Extract state and user from the result
+            state = current_task_state.get("state")
+            locked_user_id = current_task_state.get("user_id")
+
+            # Determine error conditions in a single pass
+            if state != State.LOCKED_FOR_MAPPING.name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Task state does not match expected state for reset operation.",
                 )
-            raise HTTPException(
-                status_code=400,
-                detail="Task is not locked by the user or cannot be reset.",
+            if user_id != locked_user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You cannot unlock this task as it is locked by another user.",
+                )
+
+            # Proceed with resetting the task
+            return await task_logic.update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                f"Task has been reset by user {user_data.name}.",
+                State.LOCKED_FOR_MAPPING,
+                State.UNLOCKED_TO_MAP,
             )
 
     return True
