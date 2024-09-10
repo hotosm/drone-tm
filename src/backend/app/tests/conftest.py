@@ -1,3 +1,8 @@
+import os
+print("Current working directory:", os.getcwd())
+
+
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import get_application
