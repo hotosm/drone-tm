@@ -44,3 +44,35 @@ export const altitudeToGsd = (altitude: number): number => {
   if (!altitude) return 0;
   return altitude / GsdToAltConst;
 };
+
+// constant values
+const VerticalFOV = 0.71;
+const HorizontalFOV = 1.26;
+
+export const getForwardSpacing = (agl: number, frontOverlap: number) => {
+  const forwardPhotoHeight = agl * VerticalFOV;
+  const frontOverlapDistance = (forwardPhotoHeight * frontOverlap) / 100;
+  const forwardSpacing = forwardPhotoHeight - frontOverlapDistance;
+  return forwardSpacing;
+};
+
+export const getSideSpacing = (agl: number, sideOverlap: number) => {
+  const sidePhotoWidth = agl * HorizontalFOV;
+  const sideOverlapDistance = (sidePhotoWidth * sideOverlap) / 100;
+  const sideSpacing = sidePhotoWidth - sideOverlapDistance;
+  return sideSpacing;
+};
+
+export const getSideOverlap = (agl: number, sideSpacing: number) => {
+  const sidePhotoWidth = agl * HorizontalFOV;
+  const sideOverlapDistance = sidePhotoWidth - sideSpacing;
+  const sideOverlap = (sideOverlapDistance * 100) / sidePhotoWidth;
+  return sideOverlap;
+};
+
+export const getFrontOverlap = (agl: number, forwardSpacing: number) => {
+  const frontPhotoHeight = agl * VerticalFOV;
+  const frontOverlapDistance = frontPhotoHeight - forwardSpacing;
+  const frontOverlap = (frontOverlapDistance * 100) / frontPhotoHeight;
+  return frontOverlap;
+};
