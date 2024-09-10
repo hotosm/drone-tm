@@ -368,21 +368,20 @@ async def new_event(
                 State.UNFLYABLE_TASK,
             )
 
-        case EventType.RESET:
+        case EventType.UNLOCK:
             # Fetch the task state
             current_task_state = await task_logic.get_task_state(
                 db, project_id, task_id
             )
 
-            # Extract state and user from the result
             state = current_task_state.get("state")
             locked_user_id = current_task_state.get("user_id")
 
-            # Determine error conditions in a single pass
+            # Determine error conditions
             if state != State.LOCKED_FOR_MAPPING.name:
                 raise HTTPException(
                     status_code=400,
-                    detail="Task state does not match expected state for reset operation.",
+                    detail="Task state does not match expected state for unlock operation.",
                 )
             if user_id != locked_user_id:
                 raise HTTPException(
@@ -390,13 +389,13 @@ async def new_event(
                     detail="You cannot unlock this task as it is locked by another user.",
                 )
 
-            # Proceed with resetting the task
+            # Proceed with unlocking the task
             return await task_logic.update_task_state(
                 db,
                 project_id,
                 task_id,
                 user_id,
-                f"Task has been reset by user {user_data.name}.",
+                f"Task has been unlock by user {user_data.name}.",
                 State.LOCKED_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
             )
