@@ -161,6 +161,7 @@ class EventType(str, Enum):
     - ``split`` -- Set the state *unlocked done* then generate additional subdivided task areas.
     - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked for mapping* passing in the required user id.
     - ``comment`` -- Keep the state the same, but simply add a comment.
+    - ``reset`` -- Reset a task state by unlocking it if it's locked.
 
     Note that ``task_id`` must be specified in the endpoint too.
     """
@@ -175,3 +176,4 @@ class EventType(str, Enum):
     SPLIT = "split"
     ASSIGN = "assign"
     COMMENT = "comment"
+    RESET = "reset"

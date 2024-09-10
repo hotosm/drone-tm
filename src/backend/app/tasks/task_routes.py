@@ -368,4 +368,28 @@ async def new_event(
                 State.UNFLYABLE_TASK,
             )
 
+        case EventType.RESET:
+            current_task_state = await task_logic.get_task_state(
+                db, project_id, task_id
+            )
+
+            if (
+                current_task_state["state"] == State.LOCKED_FOR_MAPPING.name
+                and user_id == current_task_state["user_id"]
+            ):
+                # Task is locked by the user, so reset it (unlock)
+                return await task_logic.update_task_state(
+                    db,
+                    project_id,
+                    task_id,
+                    user_id,
+                    "Task reset by user",
+                    State.LOCKED_FOR_MAPPING,
+                    State.UNLOCKED_TO_MAP,
+                )
+            raise HTTPException(
+                status_code=400,
+                detail="Task is not locked by the user or cannot be reset.",
+            )
+
     return True

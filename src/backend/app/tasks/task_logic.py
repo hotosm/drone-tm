@@ -128,3 +128,35 @@ async def request_mapping(
         )
         result = await cur.fetchone()
         return result
+
+
+async def get_task_state(
+    db: Connection, project_id: uuid.UUID, task_id: uuid.UUID
+) -> dict:
+    """
+    Retrieve the latest state of a task by querying the task_events table.
+
+    Args:
+        db (Connection): The database connection.
+        project_id (uuid.UUID): The project ID.
+        task_id (uuid.UUID): The task ID.
+
+    Returns:
+        dict: A dictionary containing the task's state and associated metadata.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            SELECT state, user_id, created_at, comment
+            FROM task_events
+            WHERE project_id = %(project_id)s AND task_id = %(task_id)s
+            ORDER BY created_at DESC
+            LIMIT 1;
+            """,
+            {
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+            },
+        )
+        result = await cur.fetchone()
+        return result
