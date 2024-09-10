@@ -14,6 +14,8 @@ import {
   FinalOutputOptions,
   measurementTypeOptions,
 } from '@Constants/createProject';
+import InfoMessage from '@Components/common/FormUI/InfoMessage';
+import { altitudeToGsd, gsdToAltitude } from '@Utils/index';
 import { Controller } from 'react-hook-form';
 import OutputOptions from './OutputOptions';
 
@@ -22,6 +24,8 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
 
   const { register, errors, watch, control, setValue } = formProps;
   const final_output = watch('final_output');
+  const gsdInputValue = watch('gsd_cm_px');
+  const altitudeInputValue = watch('altitude_from_ground');
 
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
@@ -83,6 +87,13 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   },
                 })}
               />
+              {gsdInputValue ? (
+                <InfoMessage
+                  message={`Equivalent altitude is ${gsdToAltitude(Number(gsdInputValue))}`}
+                />
+              ) : (
+                <></>
+              )}
               <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
             </FormControl>
           ) : (
@@ -91,11 +102,29 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               <Input
                 placeholder="Enter Altitude From Ground in meter"
                 type="number"
+                max={300}
+                min={0}
                 {...register('altitude_from_ground', {
                   required: 'Altitude From Round is Required',
                   valueAsNumber: true,
+                  max: {
+                    value: 300,
+                    message: 'Altitude is too high',
+                  },
+                  min: {
+                    value: 0,
+                    message: 'Altitude cannot be negative',
+                  },
                 })}
               />
+              {altitudeInputValue ? (
+                <InfoMessage
+                  message={`Equivalent gsd is ${altitudeToGsd(Number(altitudeInputValue))}`}
+                />
+              ) : (
+                <></>
+              )}
+
               <ErrorMessage
                 message={errors?.altitude_from_ground?.message as string}
               />
