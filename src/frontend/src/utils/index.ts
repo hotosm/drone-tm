@@ -33,3 +33,14 @@ export const m2ToKm2 = (m2: number) => {
   if (m2 >= 1000 * 1000) return `${m2 / (1000 * 1000)} km²`;
   return `${m2} m²`;
 };
+
+const GsdToAltConst = 29.7;
+export const gsdToAltitude = (gsd: number): number => {
+  if (!gsd) return 0;
+  return gsd * GsdToAltConst;
+};
+
+export const altitudeToGsd = (altitude: number): number => {
+  if (!altitude) return 0;
+  return altitude / GsdToAltConst;
+};
