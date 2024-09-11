@@ -111,7 +111,7 @@ export const ourRationaleData = [
   },
   {
     id: 2,
-    title: 'Limited Engagement Of Communitites',
+    title: 'Limited Engagement Of Communities',
     description:
       'Traditional mapping solutions involve professional consultants with expensive equipment who with communities only briefly, which can lead to delays and lack of locally relevant data.',
   },
