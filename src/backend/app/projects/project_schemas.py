@@ -283,18 +283,38 @@ class DbProject(BaseModel):
         limit: int = 100,
     ):
         """
-        Get all projects. Optionally filter by the project creator (user).
+        Get all projects, count total tasks and task states (ongoing, completed, etc.).
+        Optionally filter by the project creator (user).
         """
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
                 SELECT
-                    id, slug, name, description, per_task_instructions,
-                    ST_AsGeoJSON(outline)::jsonb AS outline,
-                    requires_approval_from_manager_for_locking
-                FROM projects
-                WHERE (author_id = COALESCE(%(user_id)s, author_id))
-                ORDER BY created_at DESC
+                    p.id, p.slug, p.name, p.description, p.per_task_instructions,
+                    ST_AsGeoJSON(p.outline)::jsonb AS outline,
+                    p.requires_approval_from_manager_for_locking,
+
+                    -- Count total tasks for each project
+                    COUNT(t.id) AS total_task_count,
+
+                    -- Count based on the latest state of tasks
+                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_task_count
+
+                FROM projects p
+                LEFT JOIN tasks t ON t.project_id = p.id
+                LEFT JOIN (
+                    -- Get the latest event per task
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.state,
+                        te.created_at
+                    FROM task_events te
+                    ORDER BY te.task_id, te.created_at DESC
+                ) AS te ON te.task_id = t.id
+
+                WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+                GROUP BY p.id
+                ORDER BY p.created_at DESC
                 OFFSET %(skip)s
                 LIMIT %(limit)s
                 """,
@@ -417,9 +437,10 @@ class ProjectOut(BaseModel):
     outline: Optional[Polygon | Feature | FeatureCollection]
     no_fly_zones: Optional[Polygon | Feature | FeatureCollection | MultiPolygon] = None
     requires_approval_from_manager_for_locking: bool
-    task_count: int = 0
+    total_task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     image_url: Optional[str] = None
+    ongoing_task_count: Optional[int] = 0
 
     @model_validator(mode="after")
     def set_image_url(cls, values):
