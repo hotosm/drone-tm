@@ -50,13 +50,13 @@ export default function Footer() {
               <Image src={naxaLogo} />
             </FlexRow>
           </div>
-          <div className="naxatw-flex naxatw-w-1/3 naxatw-flex-col naxatw-justify-between naxatw-gap-4 naxatw-text-center naxatw-font-medium md:naxatw-flex-row">
+          {/* <div className="naxatw-flex naxatw-w-1/3 naxatw-flex-col naxatw-justify-between naxatw-gap-4 naxatw-text-center naxatw-font-medium md:naxatw-flex-row">
             <span className="naxatw-cursor-pointer">Impacts</span>
             <span className="naxatw-cursor-pointer">Privacy Policy</span>
             <span className="naxatw-cursor-pointer">Partners</span>
             <span className="naxatw-cursor-pointer">FAQs</span>
             <span className="naxatw-cursor-pointer">Cookies</span>
-          </div>
+          </div> */}
         </motion.div>
         <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">
           © Drone Arial Tasking Manager. All Rights Reserved 2024
