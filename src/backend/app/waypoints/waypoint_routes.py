@@ -98,9 +98,13 @@ async def get_task_waypoint(
         inpointsfile = open(outfile_with_elevation, "r")
         points_with_elevation = inpointsfile.read()
 
-    placemarks = create_placemarks.create_placemarks(
-        geojson.loads(points_with_elevation), parameters
-    )
+        placemarks = create_placemarks.create_placemarks(
+            geojson.loads(points_with_elevation), parameters
+        )
+    else:
+        placemarks = create_placemarks.create_placemarks(
+            geojson.loads(points), parameters
+        )
     if download:
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
         return wpml.create_wpml(placemarks, outfile)
