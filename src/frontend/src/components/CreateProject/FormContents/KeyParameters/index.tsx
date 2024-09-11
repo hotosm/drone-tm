@@ -1,7 +1,6 @@
 /* eslint-disable camelcase */
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
-import RadioButton from '@Components/common/RadioButton';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { setCreateProjectState } from '@Store/actions/createproject';
@@ -24,6 +23,7 @@ import {
   getSideSpacing,
   gsdToAltitude,
 } from '@Utils/index';
+import SwitchTab from '@Components/common/SwitchTab';
 import { Controller } from 'react-hook-form';
 import OutputOptions from './OutputOptions';
 
@@ -72,20 +72,23 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
         <>
           <FormControl>
             <Label>Measurement Type</Label>
-            <RadioButton
+            <SwitchTab
               options={measurementTypeOptions}
-              direction="row"
-              onChangeData={val => {
-                dispatch(setCreateProjectState({ measurementType: val }));
+              valueKey="value"
+              selectedValue={measurementType}
+              activeClassName="naxatw-bg-red naxatw-text-white"
+              onChange={(selected: any) => {
                 setValue('gsd_cm_px', '');
                 setValue('altitude_from_ground', '');
+                dispatch(
+                  setCreateProjectState({ measurementType: selected.value }),
+                );
               }}
-              value={measurementType}
             />
           </FormControl>
 
           {measurementType === 'gsd' ? (
-            <FormControl className="naxatw-mt-4 naxatw-gap-1">
+            <FormControl className="naxatw-mt-2 naxatw-gap-1">
               <Label required>Ground Sampling Distance (cm/pixel)</Label>
               <Input
                 placeholder="Enter GSD in cm/pixel"
@@ -107,7 +110,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               />
               {gsdInputValue ? (
                 <InfoMessage
-                  message={`Equivalent altitude is ${gsdToAltitude(Number(gsdInputValue))}`}
+                  message={`Equivalent altitude is ${gsdToAltitude(Number(gsdInputValue))?.toFixed(2)?.replace(/\.00$/, '')} m`}
                 />
               ) : (
                 <></>
@@ -137,7 +140,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               />
               {altitudeInputValue ? (
                 <InfoMessage
-                  message={`Equivalent gsd is ${altitudeToGsd(Number(altitudeInputValue))}`}
+                  message={`Equivalent gsd is ${altitudeToGsd(Number(altitudeInputValue))?.toFixed(2)?.replace(/\.00$/, '')} cm/pixel`}
                 />
               ) : (
                 <></>
@@ -149,18 +152,22 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
             </FormControl>
           )}
           <FormControl className="naxatw-mt-5">
-            {/* <Label>Measurement Type</Label> */}
-            <RadioButton
+            <Label>Merge Type</Label>
+
+            <SwitchTab
               options={imageMergeTypeOptions}
-              direction="row"
-              onChangeData={val => {
-                dispatch(setCreateProjectState({ imageMergeType: val }));
+              valueKey="value"
+              selectedValue={imageMergeType}
+              activeClassName="naxatw-bg-red naxatw-text-white"
+              onChange={(selected: any) => {
                 setValue('front_overlap', '');
                 setValue('side_overlap', '');
                 setValue('forward_spacing', '');
                 setValue('side_spacing', '');
+                dispatch(
+                  setCreateProjectState({ imageMergeType: selected.value }),
+                );
               }}
-              value={imageMergeType}
             />
           </FormControl>
           {imageMergeType === 'overlap' ? (
@@ -181,7 +188,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 />
                 {frontOverlapInputValue && agl ? (
                   <InfoMessage
-                    message={`Equivalent forward spacing is ${getForwardSpacing(agl, frontOverlapInputValue)}`}
+                    message={`Equivalent forward spacing is ${getForwardSpacing(agl, frontOverlapInputValue)?.replace(/\.00$/, '')} m`}
                   />
                 ) : (
                   <></>
@@ -207,7 +214,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 />
                 {sideOverlapInputValue && agl ? (
                   <InfoMessage
-                    message={`Equivalent side spacing is ${getSideSpacing(agl, sideOverlapInputValue)}`}
+                    message={`Equivalent side spacing is ${getSideSpacing(agl, sideOverlapInputValue)?.replace(/\.00$/, '')} m`}
                   />
                 ) : (
                   <></>
@@ -236,7 +243,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 />
                 {forwardSpacingInputValue && agl ? (
                   <InfoMessage
-                    message={`Equivalent front overlap is ${getFrontOverlap(agl, forwardSpacingInputValue)}`}
+                    message={`Equivalent front overlap is ${getFrontOverlap(agl, forwardSpacingInputValue)?.replace(/\.00$/, '')}%`}
                   />
                 ) : (
                   <></>
@@ -261,7 +268,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 />
                 {sideSpacingInputValue && agl ? (
                   <InfoMessage
-                    message={`Equivalent side overlap is ${getSideOverlap(agl, sideSpacingInputValue)}`}
+                    message={`Equivalent side overlap is ${getSideOverlap(agl, sideSpacingInputValue)?.replace(/\.00$/, '')}%`}
                   />
                 ) : (
                   <></>
