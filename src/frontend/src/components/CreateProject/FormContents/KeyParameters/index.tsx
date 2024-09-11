@@ -16,7 +16,14 @@ import {
   measurementTypeOptions,
 } from '@Constants/createProject';
 import InfoMessage from '@Components/common/FormUI/InfoMessage';
-import { altitudeToGsd, gsdToAltitude } from '@Utils/index';
+import {
+  altitudeToGsd,
+  getForwardSpacing,
+  getFrontOverlap,
+  getSideOverlap,
+  getSideSpacing,
+  gsdToAltitude,
+} from '@Utils/index';
 import { Controller } from 'react-hook-form';
 import OutputOptions from './OutputOptions';
 
@@ -27,6 +34,10 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const final_output = watch('final_output');
   const gsdInputValue = watch('gsd_cm_px');
   const altitudeInputValue = watch('altitude_from_ground');
+  const frontOverlapInputValue = watch('front_overlap');
+  const sideOverlapInputValue = watch('side_overlap');
+  const forwardSpacingInputValue = watch('forward_spacing');
+  const sideSpacingInputValue = watch('side_spacing');
 
   const keyParamOption = useTypedSelector(
     state => state.createproject.keyParamOption,
@@ -40,6 +51,12 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const imageMergeType = useTypedSelector(
     state => state.createproject.imageMergeType,
   );
+
+  // get altitude
+  const agl =
+    measurementType === 'gsd'
+      ? gsdToAltitude(gsdInputValue)
+      : altitudeInputValue;
 
   return (
     <div className="naxatw-h-fit naxatw-px-10 naxatw-py-5">
@@ -162,6 +179,13 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                     min: 0,
                   })}
                 />
+                {frontOverlapInputValue && agl ? (
+                  <InfoMessage
+                    message={`Equivalent forward spacing is ${getForwardSpacing(agl, frontOverlapInputValue)}`}
+                  />
+                ) : (
+                  <></>
+                )}
                 <ErrorMessage
                   message={errors?.forward_overlap_percent?.message as string}
                 />
@@ -181,6 +205,13 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                     max: 100,
                   })}
                 />
+                {sideOverlapInputValue && agl ? (
+                  <InfoMessage
+                    message={`Equivalent side spacing is ${getSideSpacing(agl, sideOverlapInputValue)}`}
+                  />
+                ) : (
+                  <></>
+                )}
                 <ErrorMessage
                   message={errors?.side_overlap_percent?.message as string}
                 />
@@ -203,12 +234,19 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                     min: 0,
                   })}
                 />
+                {forwardSpacingInputValue && agl ? (
+                  <InfoMessage
+                    message={`Equivalent front overlap is ${getFrontOverlap(agl, forwardSpacingInputValue)}`}
+                  />
+                ) : (
+                  <></>
+                )}
                 <ErrorMessage
                   message={errors?.forward_spacing?.message as string}
                 />
               </FormControl>
               <FormControl className="naxatw-mt-4 naxatw-gap-1">
-                <Label required>Side Overlap in (m)</Label>
+                <Label required>Side Spacing in (m)</Label>
                 <Input
                   placeholder="Image Spacing"
                   type="number"
@@ -221,6 +259,13 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                     max: 100,
                   })}
                 />
+                {sideSpacingInputValue && agl ? (
+                  <InfoMessage
+                    message={`Equivalent side overlap is ${getSideOverlap(agl, sideSpacingInputValue)}`}
+                  />
+                ) : (
+                  <></>
+                )}
                 <ErrorMessage
                   message={errors?.side_spacing?.message as string}
                 />
