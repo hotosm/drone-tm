@@ -270,19 +270,21 @@ const MapSection = () => {
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(setProjectState({ selectedTaskId: properties.id }));
           setLockedUser({
-            id: properties?.locked_user_id || '',
-            name: properties?.locked_user_name || '',
+            id: properties?.locked_user_id || userDetails?.id || '',
+            name: properties?.locked_user_name || userDetails?.name || '',
           });
         }}
         hideButton={
           !(
+            !taskStatusObj?.[selectedTaskId] ||
             taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
             (taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
               lockedUser?.id === userDetails?.id)
           )
         }
         buttonText={
-          taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP'
+          taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
+          !taskStatusObj?.[selectedTaskId]
             ? 'Lock Task'
             : 'Go To Task'
         }

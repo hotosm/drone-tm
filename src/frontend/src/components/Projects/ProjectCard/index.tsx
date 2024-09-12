@@ -4,7 +4,6 @@ interface IProjectCardProps {
   id: number;
   title: string;
   description: string;
-  slug: string;
   imageUrl: string | null;
 }
 
@@ -12,7 +11,7 @@ export default function ProjectCard({
   id,
   title,
   description,
-  slug,
+
   imageUrl,
 }: IProjectCardProps) {
   const navigate = useNavigate();
@@ -40,7 +39,7 @@ export default function ProjectCard({
         )}
       </p>
       <p className="naxatw-mt-2 naxatw-line-clamp-1 naxatw-text-body-sm">
-        {slug}
+        #{id}
       </p>
       <p className="naxatw-line-clamp-1 naxatw-text-body-btn naxatw-text-grey-800">
         {title}
