@@ -171,17 +171,17 @@ async def forgot_password(
     db: Annotated[Connection, Depends(database.get_db)],
     email: EmailStr,
     background_tasks: BackgroundTasks,
-    user: Annotated[dict, Depends(DbUser.get_user_by_email)]
 ):
+    user = await DbUser.get_user_by_email(db, email)
     token = user_deps.create_reset_password_token(user["email_address"])
     # Store the token in the database (or other storage mechanism) FIXME it is necessary to save reset password token.
     # user["reset_password_token"] = token
     background_tasks.add_task(send_reset_password_email, user["email_address"], token)
 
     return JSONResponse(
-        content={"detail": "Password reset email sent"},
-        status_code=200
+        content={"detail": "Password reset email sent"}, status_code=200
     )
+
 
 @router.post("/reset-password/")
 async def reset_password(
@@ -218,6 +218,6 @@ async def reset_password(
             },
         )
     return JSONResponse(
-            content={"detail": "Your password has been successfully reset!"},
-            status_code=200
-        )
+        content={"detail": "Your password has been successfully reset!"},
+        status_code=200,
+    )
