@@ -42,18 +42,18 @@ async def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    user = await user_deps.authenticate(db, form_data.username, form_data.password)
+    user = await user_logic.authenticate(db, form_data.username, form_data.password)
 
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
-    elif not user.is_active:
+    elif not user.get("is_active"):
         raise HTTPException(status_code=400, detail="Inactive user")
 
     user_info = {
-        "id": user.id,
-        "email": user.email_address,
-        "name": user.name,
-        "profile_img": user.profile_img,
+        "id": user.get("id"),
+        "email": user.get("email_address"),
+        "name": user.get("name"),
+        "profile_img": user.get("profile_img"),
     }
 
     access_token, refresh_token = await user_logic.create_access_token(user_info)
