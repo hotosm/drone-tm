@@ -267,3 +267,24 @@ export const keyParametersInfo = [
       'The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format',
   },
 ];
+
+export const taskGenerationGuidelines = {
+  title: `When setting up your task area, please consider the following
+      recommendations based on the equipment and parameters used by the drone
+      operators:`,
+  guidelines: [
+    `If the drone operators are using the RC2 controller with the terrain
+  following parameter, it's recommended to create a square with dimensions
+  up to 300 meters, covering approximately 0.1 km².`,
+    `If the drone operators are using the RC-N2 controller with the
+    terrain following parameter or the RC2 controller without the terrain
+    following parameter, create a square with dimensions up to 550 meters,
+    covering approximately 0.3 km².`,
+    `If the drone operators are using the RC-N2 controller without the
+      terrain following parameter, the recommended square dimensions are up to
+      700 meters, covering approximately 0.5 km².`,
+  ],
+  conclusion: `These guidelines will help ensure that your task area is appropriately
+      sized based on the drone equipment and parameters being used. This will
+      also reduce the chances of RC lagging while flying the drone.`,
+};
