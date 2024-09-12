@@ -472,12 +472,14 @@ async def send_reset_password_email(email: str, token: str):
     message["To"] = email
     message["Subject"] = "Password Reset Request"
 
-    # Send the email using your send_email function
-    await send_email(
-        message,
-        hostname=settings.SMTP_HOST,
-        port=settings.SMTP_PORT,
-        username=settings.SMTP_USER,
-        password=settings.SMTP_PASSWORD,
-        start_tls=settings.SMTP_TLS,
-    )
+    try:
+        log.debug("Sending email message")
+        await send_email(
+            message,
+            hostname=settings.SMTP_HOST,
+            port=settings.SMTP_PORT,
+            username=settings.SMTP_USER,
+            password=settings.SMTP_PASSWORD,
+        )
+    except Exception as e:
+        log.error(f"Error sending email: {e}")

@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 60 * 24 * 1  # 1 day
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 60 * 24 * 8  # 8 day
-    RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 30
+    RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 1
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
