@@ -255,7 +255,7 @@ class DbUser(BaseModel):
     @staticmethod
     async def get_user_by_email(db: Connection, email: str) -> dict[str, Any] | None:
         query = "SELECT * FROM users WHERE email_address = %s LIMIT 1;"
-        async with db.cursor() as cur:
+        async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(query, (email,))
             result = await cur.fetchone()
             return result if result else None

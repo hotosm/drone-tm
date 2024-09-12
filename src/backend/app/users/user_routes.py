@@ -1,11 +1,14 @@
 import os
+
+import jwt
 from app.users import user_schemas
 from app.users import user_deps
 from app.users import user_logic
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
+    DbUser,
     Token,
     UserProfileIn,
     AuthUser,
@@ -17,6 +20,7 @@ from app.models.enums import HTTPStatus
 from psycopg import Connection
 from fastapi.responses import JSONResponse
 from loguru import logger as log
+from pydantic import EmailStr
 
 
 if settings.DEBUG:
@@ -160,3 +164,69 @@ async def my_data(
         user_info_dict.update(has_user_profile.model_dump())
 
     return user_info_dict
+
+
+@router.post("/forgot-password/")
+async def forgot_password(
+    db: Annotated[Connection, Depends(database.get_db)],
+    email: EmailStr,
+    background_tasks: BackgroundTasks,
+):
+    user = await DbUser.get_user_by_email(db, email)
+    if not user:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="User with this email does not exist",
+        )
+
+    # Generate reset password token
+    token = user_deps.create_reset_password_token(user["email_address"])
+
+    # Store the token in the database (or other storage mechanism)
+    # user["reset_password_token"] = token
+
+    # Send the email in the background
+    background_tasks.add_task(
+        user_deps.send_reset_password_email, user["email_address"], token
+    )
+
+    return {"message": "Password reset email sent"}
+
+
+@router.post("/reset-password/")
+async def reset_password(
+    db: Annotated[Connection, Depends(database.get_db)], token: str, new_password: str
+):
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid token"
+            )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Token expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid token")
+
+    user = await DbUser.get_user_by_email(db, email)
+    if not user:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+
+    async with db.cursor() as cur:
+        # Update password if provided
+        await cur.execute(
+            """
+                UPDATE users
+                SET password = %(password)s
+                WHERE id = %(user_id)s;
+            """,
+            {
+                "password": user_logic.get_password_hash(new_password),
+                "user_id": user.get("id"),
+            },
+        )
+
+    return {"message": "Password reset successful"}
