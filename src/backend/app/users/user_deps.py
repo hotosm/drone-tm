@@ -6,9 +6,6 @@ from app.users.user_schemas import AuthUser
 from loguru import logger as log
 from datetime import datetime, timedelta
 import jwt
-from aiosmtplib import send as send_email
-from email.mime.text import MIMEText
-from email.utils import formataddr
 
 
 async def init_google_auth():
@@ -66,24 +63,3 @@ def create_reset_password_token(email: str):
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
     return encoded_jwt
-
-
-async def send_reset_password_email(email: str, token: str):
-    reset_link = f"{settings.FRONTEND_URL}/forgot-password?token={token}"
-    message = MIMEText(
-        f"Please use the following link to reset your password: {reset_link}", "html"
-    )
-    message["From"] = formataddr(
-        (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL)
-    )
-    message["To"] = email
-    message["Subject"] = "Password Reset Request"
-
-    await send_email(
-        message,
-        hostname=settings.SMTP_HOST,
-        port=settings.SMTP_PORT,
-        username=settings.SMTP_USER,
-        password=settings.SMTP_PASSWORD,
-        start_tls=settings.SMTP_TLS,
-    )

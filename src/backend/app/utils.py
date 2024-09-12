@@ -445,3 +445,39 @@ def test_email(email_to: str, subject: str = "Test email") -> None:
     send_notification_email(
         email_to=email_to, subject=subject, html_content=html_content
     )
+
+
+async def send_reset_password_email(email: str, token: str):
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+
+    # Load the template from the specified folder
+    template_path = (
+        Path(__file__).parent / "email_templates" / "password" / "password_reset.html"
+    )
+    template_str = template_path.read_text()
+
+    # Pass reset_link to the template
+    context = {
+        "reset_link": reset_link,
+        "project_name": settings.EMAILS_FROM_NAME,
+        "email": email,
+    }
+    html_content = Template(template_str).render(context)
+
+    # Create email content
+    message = MIMEText(html_content, "html")
+    message["From"] = formataddr(
+        (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL)
+    )
+    message["To"] = email
+    message["Subject"] = "Password Reset Request"
+
+    # Send the email using your send_email function
+    await send_email(
+        message,
+        hostname=settings.SMTP_HOST,
+        port=settings.SMTP_PORT,
+        username=settings.SMTP_USER,
+        password=settings.SMTP_PASSWORD,
+        start_tls=settings.SMTP_TLS,
+    )

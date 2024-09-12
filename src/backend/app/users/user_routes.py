@@ -1,5 +1,4 @@
 import os
-
 import jwt
 from app.users import user_schemas
 from app.users import user_deps
@@ -21,6 +20,7 @@ from psycopg import Connection
 from fastapi.responses import JSONResponse
 from loguru import logger as log
 from pydantic import EmailStr
+from app.utils import send_reset_password_email
 
 
 if settings.DEBUG:
@@ -179,16 +179,11 @@ async def forgot_password(
             detail="User with this email does not exist",
         )
 
-    # Generate reset password token
     token = user_deps.create_reset_password_token(user["email_address"])
 
-    # Store the token in the database (or other storage mechanism)
+    # Store the token in the database (or other storage mechanism) FIXME it is necessary to save reset password token.
     # user["reset_password_token"] = token
-
-    # Send the email in the background
-    background_tasks.add_task(
-        user_deps.send_reset_password_email, user["email_address"], token
-    )
+    background_tasks.add_task(send_reset_password_email, user["email_address"], token)
 
     return {"message": "Password reset email sent"}
 
@@ -228,5 +223,4 @@ async def reset_password(
                 "user_id": user.get("id"),
             },
         )
-
     return {"message": "Password reset successful"}
