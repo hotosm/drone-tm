@@ -11,10 +11,10 @@ export default function Navbar() {
           gap={5}
           className="naxatw-h-fit naxatw-text-xs naxatw-leading-none"
         >
-          <p className="naxatw-border-r naxatw-pr-3">About</p>
-          <p className="naxatw-border-r naxatw-pr-3">FAQs</p>
+          {/* <p className="naxatw-border-r naxatw-pr-3">About</p>
+          <p className="naxatw-border-r naxatw-pr-3">FAQs</p> */}
           <a href="https://hotosm.github.io/drone-tm/ ">
-            <p className="naxatw-border-r naxatw-pr-3">Documentations</p>
+            <p className="naxatw-pr-3">Documentations</p>
           </a>
         </FlexRow>
       </FlexRow>

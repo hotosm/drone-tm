@@ -22,6 +22,7 @@ export interface CreateProjectState {
   requireApprovalFromManagerForLocking: string;
   capturedProjectMap: boolean;
   projectMapImage: any;
+  imageMergeType: string;
 }
 
 const initialState: CreateProjectState = {
@@ -43,6 +44,7 @@ const initialState: CreateProjectState = {
   requireApprovalFromManagerForLocking: 'not_required',
   capturedProjectMap: true,
   projectMapImage: null,
+  imageMergeType: 'overlap',
 };
 
 const setCreateProjectState: CaseReducer<

@@ -25,6 +25,7 @@ import {
 import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
 import prepareFormData from '@Utils/prepareFormData';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { getFrontOverlap, getSideOverlap, gsdToAltitude } from '@Utils/index';
 
 /**
  * This function looks up the provided map of components to find and return
@@ -85,6 +86,9 @@ const CreateprojectLayout = () => {
   );
   const capturedProjectMap = useTypedSelector(
     state => state.createproject.capturedProjectMap,
+  );
+  const imageMergeType = useTypedSelector(
+    state => state.createproject.imageMergeType,
   );
 
   const initialState: FieldValues = {
@@ -214,13 +218,29 @@ const CreateprojectLayout = () => {
       return;
     }
 
+    // get altitude
+    const agl =
+      measurementType === 'gsd'
+        ? gsdToAltitude(data?.gsd_cm_px)
+        : data?.altitude_from_ground;
+
     const refactoredData = {
       ...data,
       is_terrain_follow: isTerrainFollow,
       requires_approval_from_manager_for_locking:
         requireApprovalFromManagerForLocking === 'required',
       deadline_at: data?.deadline_at ? data?.deadline_at : null,
+      front_overlap:
+        imageMergeType === 'spacing'
+          ? getFrontOverlap(agl, data?.forward_spacing)
+          : data?.front_overlap,
+      side_overlap:
+        imageMergeType === 'spacing'
+          ? getSideOverlap(agl, data?.side_spacing)
+          : data?.side_overlap,
     };
+    delete refactoredData?.forward_spacing;
+    delete refactoredData?.side_spacing;
 
     // remove key
     if (isNoflyzonePresent === 'no')

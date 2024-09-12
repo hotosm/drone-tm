@@ -1,4 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
+import ErrorMessage from '@Components/common/ErrorMessage';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
 import { Button } from '@Components/RadixComponents/Button';
@@ -11,6 +13,7 @@ import MapSection from './MapSection';
 
 export default function GenerateTask({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
+  const [error, setError] = useState('');
 
   const { register, watch } = formProps;
   const dimension = watch('task_split_dimension');
@@ -53,11 +56,15 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
               type="number"
               className="naxatw-mt-1"
               value={dimension}
+              min={50}
+              max={700}
               {...register('task_split_dimension', {
                 required: 'Required',
                 valueAsNumber: true,
               })}
+              onFocus={() => setError('')}
             />
+            {error && <ErrorMessage message={error} />}
           </FormControl>
           <Button
             withLoader
@@ -66,14 +73,16 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
             disabled={!dimension}
             className="naxatw-mt-4 naxatw-bg-red"
             onClick={() => {
-              if (!projectArea) return;
+              if (!projectArea) return () => {};
+              if (dimension < 50 || dimension > 700)
+                return setError('Dimension must in between 50-700');
               dispatch(
                 setCreateProjectState({
                   splitGeojson: null,
                   capturedProjectMap: false,
                 }),
               );
-              mutate(payload);
+              return mutate(payload);
             }}
           >
             Generate Task
