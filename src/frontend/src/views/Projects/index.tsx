@@ -52,7 +52,7 @@ const Projects = () => {
           )}
         </div>
         {showMap && (
-          <div className="naxatw-h-[350px] naxatw-w-full naxatw-py-2 md:naxatw-h-full md:naxatw-w-1/2">
+          <div className="naxatw-h-full naxatw-w-full naxatw-py-2 md:naxatw-h-full md:naxatw-w-1/2">
             <ProjectsMapSection />
           </div>
         )}
