@@ -59,7 +59,7 @@ const ProjectsMapSection = () => {
   useEffect(() => {
     if (!projectsList || !projectsList?.features?.length) return;
     const bbox = getBbox(projectsList as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100 });
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100, duration: 500 });
   }, [projectsList, map]);
 
   const getPopupUI = useCallback(() => {

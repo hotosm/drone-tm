@@ -114,7 +114,7 @@ const MapSection = () => {
       },
     );
     const bbox = getBbox(tasksCollectiveGeojson as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
   }, [map, tasksData]);
 
   const getPopupUI = useCallback(
