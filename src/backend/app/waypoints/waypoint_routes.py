@@ -107,7 +107,11 @@ async def get_task_waypoint(
         )
     if download:
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
-        return wpml.create_wpml(placemarks, outfile)
+        kmz_file = wpml.create_wpml(placemarks, outfile)
+        return FileResponse(
+            kmz_file, media_type="application/zip", filename="flight_plan.kmz"
+        )
+
     return placemarks
 
 
