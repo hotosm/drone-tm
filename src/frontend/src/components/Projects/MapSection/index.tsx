@@ -26,37 +26,38 @@ const ProjectsMapSection = () => {
     },
     disableRotation: true,
   });
-  const { data: projectsList, isLoading } = useGetProjectsListQuery({
-    select: (data: any) => {
-      // find all polygons centroid and set to geojson save to single geojson
-      const combinedGeojson = data?.data?.reduce(
-        (acc: Record<string, any>, current: Record<string, any>) => {
-          return {
-            ...acc,
-            features: [
-              ...acc.features,
-              {
-                ...centroid(current.outline),
-                properties: {
-                  id: current?.id,
-                  name: current?.name,
-                  slug: current?.slug,
+  const { data: projectsList, isLoading }: Record<string, any> =
+    useGetProjectsListQuery({
+      select: (data: any) => {
+        // find all polygons centroid and set to geojson save to single geojson
+        const combinedGeojson = data?.data?.reduce(
+          (acc: Record<string, any>, current: Record<string, any>) => {
+            return {
+              ...acc,
+              features: [
+                ...acc.features,
+                {
+                  ...centroid(current.outline),
+                  properties: {
+                    id: current?.id,
+                    name: current?.name,
+                    slug: current?.slug,
+                  },
                 },
-              },
-            ],
-          };
-        },
-        {
-          type: 'FeatureCollection',
-          features: [],
-        },
-      );
-      return combinedGeojson;
-    },
-  });
+              ],
+            };
+          },
+          {
+            type: 'FeatureCollection',
+            features: [],
+          },
+        );
+        return combinedGeojson;
+      },
+    });
 
   useEffect(() => {
-    if (!projectsList) return;
+    if (!projectsList || !projectsList?.features?.length) return;
     const bbox = getBbox(projectsList as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100 });
   }, [projectsList, map]);
