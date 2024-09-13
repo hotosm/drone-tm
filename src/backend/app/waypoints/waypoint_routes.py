@@ -14,12 +14,16 @@ from drone_flightplan import (
 )
 from app.models.enums import HTTPStatus
 from app.tasks.task_logic import get_task_geojson
+from app.waypoints.waypoint_logic import check_point_within_buffer
 from app.db import database
 from app.utils import merge_multipolygon
 from app.s3 import get_file_from_bucket
 from typing import Annotated
 from psycopg import Connection
 from app.projects import project_deps
+from geojson_pydantic import Point
+from shapely.geometry import shape
+
 
 # Constant to convert gsd to Altitude above ground level
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
@@ -31,12 +35,13 @@ router = APIRouter(
 )
 
 
-@router.get("/task/{task_id}/")
+@router.post("/task/{task_id}/")
 async def get_task_waypoint(
     db: Annotated[Connection, Depends(database.get_db)],
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
+    take_off_point: Point = None,
 ):
     """
     Retrieve task waypoints and download a flight plan.
@@ -52,8 +57,21 @@ async def get_task_waypoint(
     """
 
     task_geojson = await get_task_geojson(db, task_id)
-
     project = await project_deps.get_project_by_id(project_id, db)
+
+    # create a takeoff point in this format ["lon","lat"]
+    if take_off_point:
+        take_off_point = [take_off_point.longitude, take_off_point.latitude]
+        if not check_point_within_buffer(take_off_point, task_geojson, 200):
+            raise HTTPException(
+                status_code=400,
+                detail="Take off point should be within 200m of the boundary",
+            )
+    else:
+        # take the centroid of the task as the takeoff point
+        task_polygon = shape(task_geojson["features"][0]["geometry"])
+        task_centroid = task_polygon.centroid
+        take_off_point = [task_centroid.x, task_centroid.y]
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
@@ -66,16 +84,18 @@ async def get_task_waypoint(
     altitude = project.altitude_from_ground
 
     points = waypoints.create_waypoint(
-        task_geojson,
-        altitude,
-        gsd,
-        forward_overlap,
-        side_overlap,
-        generate_each_points,
-        generate_3d,
+        project_area=task_geojson,
+        agl=altitude,
+        gsd=gsd,
+        forward_overlap=forward_overlap,
+        side_overlap=side_overlap,
+        rotation_angle=0,
+        generate_each_points=generate_each_points,
+        generate_3d=generate_3d,
+        take_off_point=take_off_point,
     )
 
-    parameters = calculate_parameters.calculate_parameters(
+    parameters = calculate_parameters(
         forward_overlap,
         side_overlap,
         altitude,
@@ -91,20 +111,14 @@ async def get_task_waypoint(
 
         # TODO: Do this with inmemory data
         outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-        add_elevation_from_dem.add_elevation_from_dem(
-            dem_path, points, outfile_with_elevation
-        )
+        add_elevation_from_dem(dem_path, points, outfile_with_elevation)
 
         inpointsfile = open(outfile_with_elevation, "r")
         points_with_elevation = inpointsfile.read()
 
-        placemarks = create_placemarks.create_placemarks(
-            geojson.loads(points_with_elevation), parameters
-        )
+        placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
     else:
-        placemarks = create_placemarks.create_placemarks(
-            geojson.loads(points), parameters
-        )
+        placemarks = create_placemarks(geojson.loads(points), parameters)
     if download:
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
         kmz_file = wpml.create_wpml(placemarks, outfile)
@@ -157,6 +171,7 @@ async def generate_kmz(
         None,
         description="The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format",
     ),
+    take_off_point: Point = None,
 ):
     if not (altitude or gsd):
         raise HTTPException(
@@ -182,19 +197,28 @@ async def generate_kmz(
 
     boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
 
+    # create a takeoff point in this format ["lon","lat"]
+    take_off_point = [take_off_point.longitude, take_off_point.latitude]
+    if not check_point_within_buffer(take_off_point, boundary, 200):
+        raise HTTPException(
+            status_code=400,
+            detail="Take off point should be within 200m of the boundary",
+        )
+
     if not download:
         points = waypoints.create_waypoint(
-            boundary,
-            altitude,
-            gsd,
-            forward_overlap,
-            side_overlap,
-            generate_each_points,
-            generate_3d,
+            project_area=boundary,
+            agl=altitude,
+            gsd=gsd,
+            forward_overlap=forward_overlap,
+            side_overlap=side_overlap,
+            generate_each_points=generate_each_points,
+            generate_3d=generate_3d,
+            take_off_point=take_off_point,
         )
         return geojson.loads(points)
     else:
-        output_file = create_flightplan.create_flightplan(
+        output_file = create_flightplan(
             aoi=boundary,
             forward_overlap=forward_overlap,
             side_overlap=side_overlap,
@@ -203,6 +227,7 @@ async def generate_kmz(
             generate_each_points=generate_each_points,
             dem=dem_path if dem else None,
             outfile=f"/tmp/{uuid.uuid4()}",
+            take_off_point=take_off_point,
         )
 
         return FileResponse(
