@@ -1,7 +1,7 @@
 import { api, authenticated } from '.';
 
 export const getTaskWaypoint = (projectId: string, taskId: string) =>
-  authenticated(api).get(
+  authenticated(api).post(
     `/waypoint/task/${taskId}/?project_id=${projectId}&download=false`,
   );
 
