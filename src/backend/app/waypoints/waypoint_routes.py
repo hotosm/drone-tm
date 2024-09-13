@@ -22,6 +22,7 @@ from typing import Annotated
 from psycopg import Connection
 from app.projects import project_deps
 from geojson_pydantic import Point
+from shapely.geometry import shape
 
 
 # Constant to convert gsd to Altitude above ground level
@@ -56,6 +57,7 @@ async def get_task_waypoint(
     """
 
     task_geojson = await get_task_geojson(db, task_id)
+    project = await project_deps.get_project_by_id(project_id, db)
 
     # create a takeoff point in this format ["lon","lat"]
     if take_off_point:
@@ -65,8 +67,11 @@ async def get_task_waypoint(
                 status_code=400,
                 detail="Take off point should be within 200m of the boundary",
             )
-
-    project = await project_deps.get_project_by_id(project_id, db)
+    else:
+        # take the centroid of the task as the takeoff point
+        task_polygon = shape(task_geojson["features"][0]["geometry"])
+        task_centroid = task_polygon.centroid
+        take_off_point = [task_centroid.x, task_centroid.y]
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
