@@ -196,27 +196,38 @@ async def reset_password(
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid token"
             )
+
+        user = await DbUser.get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="User not found"
+            )
+
+        # Update password within a transaction
+        async with db.transaction():
+            async with db.cursor() as cur:
+                await cur.execute(
+                    """
+                        UPDATE users
+                        SET password = %(password)s
+                        WHERE id = %(user_id)s;
+                    """,
+                    {
+                        "password": user_logic.get_password_hash(new_password),
+                        "user_id": user.get("id"),
+                    },
+                )
+
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Token expired")
     except jwt.JWTError:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid token")
-
-    user = await DbUser.get_user_by_email(db, email)
-    if not user:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
-
-    async with db.cursor() as cur:
-        await cur.execute(
-            """
-                UPDATE users
-                SET password = %(password)s
-                WHERE id = %(user_id)s;
-            """,
-            {
-                "password": user_logic.get_password_hash(new_password),
-                "user_id": user.get("id"),
-            },
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred: {str(e)}",
         )
+
     return JSONResponse(
         content={"detail": "Your password has been successfully reset!"},
         status_code=200,
