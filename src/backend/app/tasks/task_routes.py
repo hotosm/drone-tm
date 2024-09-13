@@ -206,6 +206,7 @@ async def new_event(
                     db, project["author_id"]
                 )
                 html_content = render_email_template(
+                    folder_name="mapping",
                     template_name="requests.html",
                     context={
                         "name": author["name"],
@@ -240,6 +241,7 @@ async def new_event(
                 db, requested_user_id
             )
             html_content = render_email_template(
+                folder_name="mapping",
                 template_name="approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Approved",
@@ -286,6 +288,7 @@ async def new_event(
                 db, requested_user_id
             )
             html_content = render_email_template(
+                folder_name="mapping",
                 template_name="approved_or_rejected.html",
                 context={
                     "email_subject": "Mapping Request Rejected",

@@ -367,31 +367,24 @@ class EmailData:
     subject: str
 
 
-def render_email_template(template_name: str, context: dict[str, Any]) -> str:
+def render_email_template(
+    folder_name: str, template_name: str, context: dict[str, Any]
+) -> str:
     """
-    Render an email template with the given context.
+    Render an email template with the given context from the specified folder.
 
     Args:
+        folder_name (str): The folder containing the template file.
         template_name (str): The name of the template file to be rendered.
         context (dict[str, Any]): A dictionary containing the context variables to be used in the template.
 
     Returns:
         str: The rendered HTML content of the email template.
-
-    Example:
-        html_content = render_email_template(
-            template_name="welcome_email.html",
-            context={"username": "John Doe", "welcome_message": "Welcome to our service!"}
-        )
-
-    This function reads the specified email template from the 'email-templates' directory,
-    then uses the `Template` class from the `jinja2` library to render the template with
-    the provided context variables.
     """
-
-    template_str = (
-        Path(__file__).parent / "email_templates" / "mapping" / template_name
-    ).read_text()
+    template_path = (
+        Path(__file__).parent / "email_templates" / folder_name / template_name
+    )
+    template_str = template_path.read_text()
     html_content = Template(template_str).render(context)
     return html_content
 
@@ -438,6 +431,7 @@ async def send_notification_email(email_to, subject, html_content):
 
 def test_email(email_to: str, subject: str = "Test email") -> None:
     html_content = render_email_template(
+        folder_name="mapping",
         template_name="email_template.html",
         context={"project_name": settings.APP_NAME, "email": email_to},
     )
@@ -450,21 +444,14 @@ def test_email(email_to: str, subject: str = "Test email") -> None:
 async def send_reset_password_email(email: str, token: str):
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
 
-    # Load the template from the specified folder
-    template_path = (
-        Path(__file__).parent / "email_templates" / "password" / "password_reset.html"
-    )
-    template_str = template_path.read_text()
-
-    # Pass reset_link to the template
     context = {
         "reset_link": reset_link,
         "project_name": settings.EMAILS_FROM_NAME,
         "email": email,
     }
-    html_content = Template(template_str).render(context)
 
-    # Create email content
+    html_content = render_email_template("password", "password_reset.html", context)
+
     message = MIMEText(html_content, "html")
     message["From"] = formataddr(
         (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL)
