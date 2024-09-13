@@ -19,7 +19,6 @@ from loguru import logger as log
 from psycopg import Connection
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
-
 from app.projects import project_schemas, project_deps, project_logic
 from app.db import database
 from app.models.enums import HTTPStatus

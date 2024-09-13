@@ -85,7 +85,7 @@ const MapSection = ({
   useEffect(() => {
     if (!projectArea) return;
     const bbox = getBbox(projectArea as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
   }, [map, projectArea]);
 
   const drawSaveFromMap = () => {

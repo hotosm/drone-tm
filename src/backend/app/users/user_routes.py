@@ -1,11 +1,13 @@
 import os
+import jwt
 from app.users import user_schemas
 from app.users import user_deps
 from app.users import user_logic
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
+    DbUser,
     Token,
     UserProfileIn,
     AuthUser,
@@ -17,6 +19,8 @@ from app.models.enums import HTTPStatus
 from psycopg import Connection
 from fastapi.responses import JSONResponse
 from loguru import logger as log
+from pydantic import EmailStr
+from app.utils import send_reset_password_email
 
 
 if settings.DEBUG:
@@ -38,18 +42,18 @@ async def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    user = await user_deps.authenticate(db, form_data.username, form_data.password)
+    user = await user_logic.authenticate(db, form_data.username, form_data.password)
 
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
-    elif not user.is_active:
+    elif not user.get("is_active"):
         raise HTTPException(status_code=400, detail="Inactive user")
 
     user_info = {
-        "id": user.id,
-        "email": user.email_address,
-        "name": user.name,
-        "profile_img": user.profile_img,
+        "id": user.get("id"),
+        "email": user.get("email_address"),
+        "name": user.get("name"),
+        "profile_img": user.get("profile_img"),
     }
 
     access_token, refresh_token = await user_logic.create_access_token(user_info)
@@ -160,3 +164,71 @@ async def my_data(
         user_info_dict.update(has_user_profile.model_dump())
 
     return user_info_dict
+
+
+@router.post("/forgot-password/")
+async def forgot_password(
+    db: Annotated[Connection, Depends(database.get_db)],
+    email: EmailStr,
+    background_tasks: BackgroundTasks,
+):
+    user = await DbUser.get_user_by_email(db, email)
+    token = user_deps.create_reset_password_token(user["email_address"])
+    # Store the token in the database (or other storage mechanism) FIXME it is necessary to save reset password token.
+    # user["reset_password_token"] = token
+    background_tasks.add_task(send_reset_password_email, user["email_address"], token)
+
+    return JSONResponse(
+        content={"detail": "Password reset email sent"}, status_code=200
+    )
+
+
+@router.post("/reset-password/")
+async def reset_password(
+    db: Annotated[Connection, Depends(database.get_db)], token: str, new_password: str
+):
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid token"
+            )
+
+        user = await DbUser.get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="User not found"
+            )
+
+        # Update password within a transaction
+        async with db.transaction():
+            async with db.cursor() as cur:
+                await cur.execute(
+                    """
+                        UPDATE users
+                        SET password = %(password)s
+                        WHERE id = %(user_id)s;
+                    """,
+                    {
+                        "password": user_logic.get_password_hash(new_password),
+                        "user_id": user.get("id"),
+                    },
+                )
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Token expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid token")
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred: {str(e)}",
+        )
+
+    return JSONResponse(
+        content={"detail": "Your password has been successfully reset!"},
+        status_code=200,
+    )

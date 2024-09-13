@@ -1,5 +1,5 @@
 import uuid
-from app.models.enums import State, UserRole
+from app.models.enums import HTTPStatus, State, UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
 from typing import Optional
@@ -253,12 +253,23 @@ class DbUser(BaseModel):
             return result if result else None
 
     @staticmethod
-    async def get_user_by_email(db: Connection, email: str) -> dict[str, Any] | None:
+    async def get_user_by_email(db: Connection, email: str) -> dict[str, Any]:
         query = "SELECT * FROM users WHERE email_address = %s LIMIT 1;"
-        async with db.cursor() as cur:
-            await cur.execute(query, (email,))
-            result = await cur.fetchone()
-            return result if result else None
+        try:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(query, (email,))
+                result = await cur.fetchone()
+                if result is None:
+                    raise HTTPException(
+                        status_code=HTTPStatus.NOT_FOUND,
+                        detail="User with this email does not exist",
+                    )
+                return result
+        except Exception:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail="An error occurred while querying the database.",
+            )
 
     @staticmethod
     async def get_requested_user_id(

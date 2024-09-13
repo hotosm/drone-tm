@@ -4,6 +4,8 @@ from app.config import settings
 from app.users.auth import Auth
 from app.users.user_schemas import AuthUser
 from loguru import logger as log
+from datetime import datetime, timedelta
+import jwt
 
 
 async def init_google_auth():
@@ -50,3 +52,14 @@ async def login_required(
         raise HTTPException(status_code=401, detail="Access token not valid") from e
 
     return AuthUser(**user)
+
+
+def create_reset_password_token(email: str):
+    expire = datetime.now() + timedelta(
+        minutes=settings.RESET_PASSWORD_TOKEN_EXPIRE_MINUTES
+    )
+    to_encode = {"sub": email, "exp": expire}
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    return encoded_jwt

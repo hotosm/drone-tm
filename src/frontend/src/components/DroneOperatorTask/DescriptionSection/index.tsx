@@ -96,6 +96,7 @@ const DroneOperatorDescriptionBox = () => {
   const handleDownloadFlightPlan = () => {
     fetch(
       `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`,
+      {"method":'POST'}
     )
       .then(response => {
         if (!response.ok) {
