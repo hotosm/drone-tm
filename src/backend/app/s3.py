@@ -167,3 +167,16 @@ def get_image_dir_url(bucket_name: str, image_dir: str):
 
     except Exception as e:
         log.error(f"Error checking directory existence: {str(e)}")
+
+
+def list_objects_from_bucket(bucket_name: str, prefix: str):
+    """List all objects in a bucket with a specified prefix.
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        prefix (str): The prefix to filter objects by.
+    Returns:
+        list: A list of objects in the bucket with the specified prefix.
+    """
+    client = s3_client()
+    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+    return objects
