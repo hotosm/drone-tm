@@ -119,13 +119,11 @@ class TaskSplitter(object):
         return shape(features[0].get("geometry"))
 
     def splitBySquare(self, meters: int) -> FeatureCollection:
-        
         xmin, ymin, xmax, ymax = self.aoi.bounds
-        
+
         meter = 0.0000114
         length = float(meters) * meter
         width = float(meters) * meter
-
 
         area_threshold = (length * width) / 4
 
@@ -161,7 +159,7 @@ class TaskSplitter(object):
                     # Get the adjacent polygon with the maximum shared boundary length
                     nearest_polygon = max(
                         adjacent_polygons,
-                        key=lambda p: small_polygon.intersection(p).length
+                        key=lambda p: small_polygon.intersection(p).length,
                     )
 
                     # Merge the small polygon with the nearest large polygon
