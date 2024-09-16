@@ -125,7 +125,7 @@ class TaskSplitter(object):
         length = float(meters) * meter
         width = float(meters) * meter
 
-        area_threshold = (length * width) / 4
+        area_threshold = (length * width) / 3
 
         # Generate grid columns and rows based on AOI bounds
         cols = np.arange(xmin, xmax + width, width)
