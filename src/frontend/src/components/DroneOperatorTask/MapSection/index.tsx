@@ -61,7 +61,7 @@ const MapSection = () => {
     if (!taskWayPoints?.geojsonAsLineString) return;
     const { geojsonAsLineString } = taskWayPoints;
     const bbox = getBbox(geojsonAsLineString as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25 });
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
   }, [map, taskWayPoints]);
 
   const getPopupUI = useCallback(() => {
@@ -75,7 +75,9 @@ const MapSection = () => {
         </center>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
           <p className="naxatw-text-base">Speed: {popupData?.speed} m/s</p>
-          <p className="naxatw-text-base">Elevation: {popupData?.elevation} meter </p>
+          {popupData?.elevation &&
+            <p className="naxatw-text-base">Elevation (Sea Level): {popupData?.elevation} meter </p>
+          }
           <p className="naxatw-text-base">Take Photo: {popupData?.take_photo ? "True" : "False"}</p>
           <p className="naxatw-text-base">
             Gimble angle: {popupData?.gimbal_angle} degree

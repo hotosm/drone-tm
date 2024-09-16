@@ -29,7 +29,7 @@ const MapSection = ({
   useEffect(() => {
     if (!geojson) return;
     const bbox = getBbox(geojson as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 30 });
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 30, duration: 500 });
   }, [geojson, map]);
 
   return (
