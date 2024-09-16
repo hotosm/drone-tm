@@ -2,7 +2,7 @@ import json
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
-from app.tasks.splitter import split_by_square
+from app.tasks.task_splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
 from app.utils import merge_multipolygon
