@@ -7,12 +7,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 class DroneImageProcessor:
-    def __init__(self, node_url="localhost", port=3000, username=None, password=None):
+    def __init__(self, node_odm_host, node_odm_port):
         """
         Initializes the connection to the ODM node.
         """
-        self.node = Node(node_url, port, username, password)
-        # No need to initialize MinIO client here since we'll use s3_client()
+        self.node = Node(node_odm_host, node_odm_port)
 
     def options_list_to_dict(self, options=[]):
         """
@@ -27,7 +26,7 @@ class DroneImageProcessor:
 
     def download_object(self, bucket_name: str, obj, images_folder: str):
         if obj.object_name.endswith((".jpg", ".jpeg", ".JPG", ".png", ".PNG")):
-            log.info(f"Downloading image from s3 {obj.object_name}")
+            # log.info(f"Downloading image from s3 {obj.object_name}")
             local_path = f"{images_folder}/{os.path.basename(obj.object_name)}"
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             get_file_from_bucket(bucket_name, obj.object_name, local_path)
@@ -45,7 +44,6 @@ class DroneImageProcessor:
         prefix = f"projects/{project_id}/"
 
         objects = list_objects_from_bucket(bucket_name, prefix)
-        image_paths = []
 
         # Process images concurrently
         with ThreadPoolExecutor() as executor:
@@ -54,7 +52,19 @@ class DroneImageProcessor:
                 objects,
             )
 
-        return image_paths
+    def list_images(self, directory):
+        """
+        Lists all images in the specified directory.
+
+        :param directory: The directory containing the images.
+        :return: List of image file paths.
+        """
+        images = []
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if file.endswith((".jpg", ".jpeg", ".JPG", ".png", ".PNG")):
+                    images.append(os.path.join(root, file))
+        return images
 
     def process_new_task(self, images, name=None, options=[], progress_callback=None):
         """
@@ -67,6 +77,10 @@ class DroneImageProcessor:
         :return: The created task object.
         """
         opts = self.options_list_to_dict(options)
+
+        # FIXME: take this from the function above
+        opts = {"dsm": True}
+
         task = self.node.create_task(images, opts, name, progress_callback)
         return task
 
@@ -108,21 +122,18 @@ class DroneImageProcessor:
         # Create a temporary directory to store downloaded images
         temp_dir = tempfile.mkdtemp()
         try:
-            images = self.download_images_from_minio(
-                bucket_name, project_id, task_id, temp_dir
-            )
-            if not images:
-                log.error("No images found in the specified MinIO path.")
-                # TODO: raise exception
-                return None
-            return
+            self.download_images_from_minio(bucket_name, project_id, task_id, temp_dir)
+
+            images_list = self.list_images(temp_dir)
+            # print("Images list = ", images_list)
+
             # Start a new processing task
-            task = self.process_new_task(images, name=name, options=options)
+            self.process_new_task(images_list, name=name, options=options)
             # Monitor task progress
-            self.monitor_task(task)
+            # self.monitor_task(task)
             # Optionally, download results
             # self.download_results(task, output_path='output/')
-            return task
+            # return task
         finally:
             # Clean up temporary directory
             # shutil.rmtree(temp_dir)
