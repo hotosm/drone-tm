@@ -1,4 +1,5 @@
 import os
+import uuid
 from typing import Annotated, Optional
 from uuid import UUID
 import geojson
@@ -27,6 +28,8 @@ from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
+from app.projects.image_processing import DroneImageProcessor
+
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -295,3 +298,33 @@ async def read_project(
 ):
     """Get a specific project and all associated tasks by ID."""
     return project
+
+
+@router.post("/process_imagery/{project_id}/{task_id}/")
+async def process_imagery(
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: uuid.UUID,
+):
+    # Initialize the processor
+    processor = DroneImageProcessor(node_url="localhost", port=3000)
+
+    # MinIO bucket and path details
+    bucket_name = settings.S3_BUCKET_NAME
+
+    # Define processing options
+    options = [
+        {"name": "dsm", "value": True},
+        {"name": "orthophoto-resolution", "value": 5},
+    ]
+
+    # Process task from MinIO
+    task = processor.process_task_from_minio(
+        bucket_name, project.id, task_id, name="DTM-Task", options=options
+    )
+
+    if task:
+        # Download the results
+        output_path = "output/"
+        processor.download_results(task, output_path=output_path)
