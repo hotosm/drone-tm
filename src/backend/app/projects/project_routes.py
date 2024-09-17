@@ -308,7 +308,7 @@ async def process_imagery(
     task_id: uuid.UUID,
 ):
     # Initialize the processor
-    processor = DroneImageProcessor(node_url="localhost", port=3000)
+    processor = DroneImageProcessor(settings.NODE_ODM_URL, settings.NODE_ODM_PORT)
 
     # MinIO bucket and path details
     bucket_name = settings.S3_BUCKET_NAME
