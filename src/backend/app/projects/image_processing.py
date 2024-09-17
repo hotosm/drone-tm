@@ -1,7 +1,6 @@
 from pyodm import Node
 import os
-import uuid
-import shutil
+import tempfile
 from app.s3 import get_file_from_bucket, list_objects_from_bucket
 from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
@@ -77,9 +76,9 @@ class DroneImageProcessor:
 
         :param task: The task object.
         """
-        print(f"Monitoring task {task.uuid}...")
+        log.info(f"Monitoring task {task.uuid}...")
         task.wait_for_completion()
-        print("Task completed.")
+        log.info("Task completed.")
         return task
 
     def download_results(self, task, output_path):
@@ -89,9 +88,9 @@ class DroneImageProcessor:
         :param task: The task object.
         :param output_path: The directory where results will be saved.
         """
-        print(f"Downloading results to {output_path}...")
+        log.info(f"Downloading results to {output_path}...")
         task.download_all(output_path)
-        print("Download completed.")
+        log.info("Download completed.")
 
     def process_task_from_minio(
         self, bucket_name, project_id, task_id, name=None, options=[]
@@ -107,13 +106,14 @@ class DroneImageProcessor:
         :return: The task object.
         """
         # Create a temporary directory to store downloaded images
-        temp_dir = f"/tmp/{uuid.uuid4()}"
+        temp_dir = tempfile.mkdtemp()
         try:
             images = self.download_images_from_minio(
                 bucket_name, project_id, task_id, temp_dir
             )
             if not images:
-                print("No images found in the specified MinIO path.")
+                log.error("No images found in the specified MinIO path.")
+                # TODO: raise exception
                 return None
             return
             # Start a new processing task
@@ -125,7 +125,8 @@ class DroneImageProcessor:
             return task
         finally:
             # Clean up temporary directory
-            shutil.rmtree(temp_dir)
+            # shutil.rmtree(temp_dir)
+            pass
 
 
 # # Example usage:
