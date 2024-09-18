@@ -3,7 +3,7 @@ import uuid
 import tempfile
 import shutil
 from pyodm import Node
-from app.s3 import get_file_from_bucket, list_objects_from_bucket
+from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
 
@@ -113,8 +113,9 @@ class DroneImageProcessor:
         :param output_path: The directory where results will be saved.
         """
         log.info(f"Downloading results to {output_path}...")
-        task.download_assets(output_path)
+        path = task.download_zip(output_path)
         log.info("Download completed.")
+        return path
 
     def process_images_from_s3(self, bucket_name, name=None, options=[]):
         """
@@ -130,9 +131,7 @@ class DroneImageProcessor:
         # Create a temporary directory to store downloaded images
         temp_dir = tempfile.mkdtemp()
         try:
-            self.download_images_from_minio(
-                bucket_name, self.project_id, self.task_id, temp_dir
-            )
+            self.download_images_from_minio(bucket_name, temp_dir)
 
             images_list = self.list_images(temp_dir)
 
@@ -140,9 +139,16 @@ class DroneImageProcessor:
             task = self.process_new_task(images_list, name=name, options=options)
             # Monitor task progress
             self.monitor_task(task)
+
             # Optionally, download results
-            self.download_results(task, output_path="/tmp/{self.project_id}/assets")
+            output_file_path = f"/tmp/{self.project_id}"
+            path_to_download = self.download_results(task, output_path=output_file_path)
+
+            # Upload the results into s3
+            s3_path = f"projects/{self.project_id}/{self.task_id}/assets"
+            add_file_to_bucket(bucket_name, path_to_download, s3_path)
             return task
+
         finally:
             # Clean up temporary directory
             shutil.rmtree(temp_dir)
