@@ -105,8 +105,7 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: Optional[EmailStr] = None
     EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
 
-    NODE_ODM_URL: Optional[str] = "odm-api"
-    NODE_ODM_PORT: Optional[int] = 3000
+    NODE_ODM_URL: Optional[str] = "http://odm-api:3000"
 
     @computed_field
     @property
