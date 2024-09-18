@@ -70,15 +70,20 @@ const MapSection = () => {
         <center>
           <h3>{popupData?.index}</h3>
           <p>
-            {popupData?.coordinates?.lat?.toFixed(8)},&nbsp;{popupData?.coordinates?.lng?.toFixed(8)}{' '}
+            {popupData?.coordinates?.lat?.toFixed(8)},&nbsp;
+            {popupData?.coordinates?.lng?.toFixed(8)}{' '}
           </p>
         </center>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
           <p className="naxatw-text-base">Speed: {popupData?.speed} m/s</p>
-          {popupData?.elevation &&
-            <p className="naxatw-text-base">Elevation (Sea Level): {popupData?.elevation} meter </p>
-          }
-          <p className="naxatw-text-base">Take Photo: {popupData?.take_photo ? "True" : "False"}</p>
+          {popupData?.elevation && (
+            <p className="naxatw-text-base">
+              Elevation (Sea Level): {popupData?.elevation} meter{' '}
+            </p>
+          )}
+          <p className="naxatw-text-base">
+            Take Photo: {popupData?.take_photo ? 'True' : 'False'}
+          </p>
           <p className="naxatw-text-base">
             Gimble angle: {popupData?.gimbal_angle} degree
           </p>
