@@ -14,6 +14,7 @@ from fastapi import (
     File,
     Form,
     Response,
+    BackgroundTasks,
 )
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
@@ -28,7 +29,6 @@ from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
-from app.projects.image_processing import DroneImageProcessor
 
 
 router = APIRouter(
@@ -302,20 +302,12 @@ async def read_project(
 
 @router.post("/process_imagery/{project_id}/{task_id}/")
 async def process_imagery(
+    task_id: uuid.UUID,
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: uuid.UUID,
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    background_tasks: BackgroundTasks,
 ):
-    # Initialize the processor
-    processor = DroneImageProcessor(settings.NODE_ODM_URL, project.id, task_id)
-
-    # Define processing options
-    options = [
-        {"name": "dsm", "value": True},
-        {"name": "orthophoto-resolution", "value": 5},
-    ]
-
-    processor.process_images_from_s3(
-        settings.S3_BUCKET_NAME, name=f"DTM-Task-{task_id}", options=options
-    )
+    background_tasks.add_task(project_logic.process_drone_images, project.id, task_id)
+    return {"message": "Processing started"}

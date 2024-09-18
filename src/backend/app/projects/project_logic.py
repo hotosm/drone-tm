@@ -11,6 +11,7 @@ from shapely.geometry import shape
 from io import BytesIO
 from app.s3 import add_obj_to_bucket
 from app.config import settings
+from app.projects.image_processing import DroneImageProcessor
 
 
 async def upload_file_to_s3(
@@ -154,4 +155,19 @@ async def preview_split_by_square(boundary: str, meters: int):
             boundary,
             meters=meters,
         )
+    )
+
+
+def process_drone_images(project_id: uuid.UUID, task_id: uuid.UUID):
+    # Initialize the processor
+    processor = DroneImageProcessor(settings.NODE_ODM_URL, project_id, task_id)
+
+    # Define processing options
+    options = [
+        {"name": "dsm", "value": True},
+        {"name": "orthophoto-resolution", "value": 5},
+    ]
+
+    processor.process_images_from_s3(
+        settings.S3_BUCKET_NAME, name=f"DTM-Task-{task_id}", options=options
     )
