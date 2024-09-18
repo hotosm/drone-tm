@@ -19,6 +19,8 @@ const DroneOperatorDescriptionBox = () => {
   const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
   const { secondPageState, secondPage } = secondPageStates;
   const [animated, setAnimated] = useState(false);
+  const [showDownloadOptions, setShowDownloadOptions] =
+    useState<boolean>(false);
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
@@ -96,7 +98,7 @@ const DroneOperatorDescriptionBox = () => {
   const handleDownloadFlightPlan = () => {
     fetch(
       `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`,
-      {"method":'POST'}
+      { method: 'POST' },
     )
       .then(response => {
         if (!response.ok) {
@@ -147,25 +149,45 @@ const DroneOperatorDescriptionBox = () => {
           <p className="naxatw-text-[0.875rem] naxatw-font-normal naxatw-leading-normal naxatw-text-[#484848]">
             Task #{taskDescription?.project_task_index}
           </p>
-          <div className="naxatw-flex naxatw-gap-1">
+
+          <div className="naxatw-relative">
             <Button
               variant="ghost"
               className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
               leftIcon="download"
               iconClassname="naxatw-text-[1.125rem]"
-              onClick={() => downloadGeojson()}
+              onClick={() => setShowDownloadOptions(prev => !prev)}
             >
-              Download Waypoints Geojson
+              Download
             </Button>
-            <Button
-              variant="ghost"
-              className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
-              leftIcon="download"
-              iconClassname="naxatw-text-[1.125rem]"
-              onClick={() => handleDownloadFlightPlan()}
-            >
-              Download Flight Plan
-            </Button>
+            {showDownloadOptions && (
+              <div className="naxatw-absolute naxatw-right-0 naxatw-top-10 naxatw-z-20 naxatw-w-[140px] naxatw-rounded-sm naxatw-border naxatw-bg-white naxatw-shadow-2xl">
+                <div
+                  className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={() => handleDownloadFlightPlan()}
+                  onClick={() => {
+                    handleDownloadFlightPlan();
+                    setShowDownloadOptions(false);
+                  }}
+                >
+                  Download flight plan
+                </div>
+                <div
+                  className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={() => downloadGeojson()}
+                  onClick={() => {
+                    downloadGeojson();
+                    setShowDownloadOptions(false);
+                  }}
+                >
+                  Download geojson
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <Tab
