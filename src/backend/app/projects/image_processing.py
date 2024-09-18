@@ -1,5 +1,6 @@
-from pyodm import Node
 import os
+import uuid
+from pyodm import Node
 import tempfile
 from app.s3 import get_file_from_bucket, list_objects_from_bucket
 from loguru import logger as log
@@ -7,11 +8,19 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 class DroneImageProcessor:
-    def __init__(self, node_odm_host, node_odm_port):
+    def __init__(
+        self,
+        node_odm_url: str,
+        project_id: uuid.UUID,
+        task_id: uuid.UUID,
+    ):
         """
         Initializes the connection to the ODM node.
         """
-        self.node = Node(node_odm_host, node_odm_port)
+        # self.node = Node(node_odm_host, node_odm_port)
+        self.node = Node.from_url(node_odm_url)
+        self.project_id = project_id
+        self.task_id = task_id
 
     def options_list_to_dict(self, options=[]):
         """
@@ -128,12 +137,12 @@ class DroneImageProcessor:
             # print("Images list = ", images_list)
 
             # Start a new processing task
-            self.process_new_task(images_list, name=name, options=options)
+            task = self.process_new_task(images_list, name=name, options=options)
             # Monitor task progress
-            # self.monitor_task(task)
+            self.monitor_task(task)
             # Optionally, download results
-            # self.download_results(task, output_path='output/')
-            # return task
+            self.download_results(task, output_path="output/")
+            return task
         finally:
             # Clean up temporary directory
             # shutil.rmtree(temp_dir)
