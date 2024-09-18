@@ -52,7 +52,7 @@ def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
         s3_path = f"/{s3_path}"
 
     client = s3_client()
-    client.fput_object(bucket_name, file_path, s3_path)
+    client.fput_object(bucket_name, s3_path, file_path)
 
 
 def add_obj_to_bucket(
