@@ -145,7 +145,7 @@ class DroneImageProcessor:
             path_to_download = self.download_results(task, output_path=output_file_path)
 
             # Upload the results into s3
-            s3_path = f"projects/{self.project_id}/{self.task_id}/assets"
+            s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
             add_file_to_bucket(bucket_name, path_to_download, s3_path)
             return task
 
