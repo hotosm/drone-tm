@@ -308,7 +308,7 @@ async def process_imagery(
     task_id: uuid.UUID,
 ):
     # Initialize the processor
-    processor = DroneImageProcessor(settings.NODE_ODM_URL, settings.NODE_ODM_PORT)
+    processor = DroneImageProcessor(settings.NODE_ODM_URL, project.id, task_id)
 
     # MinIO bucket and path details
     bucket_name = settings.S3_BUCKET_NAME
@@ -321,7 +321,7 @@ async def process_imagery(
 
     # Process task from MinIO
     task = processor.process_task_from_minio(
-        bucket_name, project.id, task_id, name="DTM-Task", options=options
+        bucket_name, project.id, task_id, name=f"DTM-Task-{task_id}", options=options
     )
 
     if task:
