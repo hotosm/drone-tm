@@ -1,7 +1,8 @@
 import os
 import uuid
-from pyodm import Node
 import tempfile
+import shutil
+from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket
 from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
@@ -40,7 +41,7 @@ class DroneImageProcessor:
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             get_file_from_bucket(bucket_name, obj.object_name, local_path)
 
-    def download_images_from_minio(self, bucket_name, project_id, task_id, local_dir):
+    def download_images_from_minio(self, bucket_name, local_dir):
         """
         Downloads images from MinIO under the specified path.
 
@@ -50,7 +51,7 @@ class DroneImageProcessor:
         :param local_dir: Local directory to save the images.
         :return: List of local image file paths.
         """
-        prefix = f"projects/{project_id}/"
+        prefix = f"projects/{self.project_id}/{self.task_id}"
 
         objects = list_objects_from_bucket(bucket_name, prefix)
 
@@ -100,7 +101,7 @@ class DroneImageProcessor:
         :param task: The task object.
         """
         log.info(f"Monitoring task {task.uuid}...")
-        task.wait_for_completion()
+        task.wait_for_completion(interval=5)
         log.info("Task completed.")
         return task
 
@@ -112,12 +113,10 @@ class DroneImageProcessor:
         :param output_path: The directory where results will be saved.
         """
         log.info(f"Downloading results to {output_path}...")
-        task.download_all(output_path)
+        task.download_assets(output_path)
         log.info("Download completed.")
 
-    def process_task_from_minio(
-        self, bucket_name, project_id, task_id, name=None, options=[]
-    ):
+    def process_images_from_s3(self, bucket_name, name=None, options=[]):
         """
         Processes images from MinIO storage.
 
@@ -131,45 +130,20 @@ class DroneImageProcessor:
         # Create a temporary directory to store downloaded images
         temp_dir = tempfile.mkdtemp()
         try:
-            self.download_images_from_minio(bucket_name, project_id, task_id, temp_dir)
+            self.download_images_from_minio(
+                bucket_name, self.project_id, self.task_id, temp_dir
+            )
 
             images_list = self.list_images(temp_dir)
-            # print("Images list = ", images_list)
 
             # Start a new processing task
             task = self.process_new_task(images_list, name=name, options=options)
             # Monitor task progress
             self.monitor_task(task)
             # Optionally, download results
-            self.download_results(task, output_path="output/")
+            self.download_results(task, output_path="/tmp/{self.project_id}/assets")
             return task
         finally:
             # Clean up temporary directory
-            # shutil.rmtree(temp_dir)
+            shutil.rmtree(temp_dir)
             pass
-
-
-# # Example usage:
-# if __name__ == "__main__":
-#     # Initialize the processor
-#     processor = DroneImageProcessor(node_url='localhost', port=3000)
-
-#     # MinIO bucket and path details
-#     bucket_name = 'dtm-data'
-#     project_id = '896321bc-ed8e-415f-8769-e419a14f7d76'
-#     task_id = 'd44701d1-438e-40c3-838f-d60581ad9299'
-
-#     # Define processing options
-#     options = [
-#         {'name': 'dsm', 'value': True},
-#         {'name': 'orthophoto-resolution', 'value': 5},
-#         # Add more options as needed
-#     ]
-
-#     # Process task from MinIO
-#     task = processor.process_task_from_minio(bucket_name, project_id, task_id, name='My Drone Task', options=options)
-
-#     if task:
-#         # Download the results
-#         output_path = 'output/'
-#         processor.download_results(task, output_path=output_path)

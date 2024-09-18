@@ -310,21 +310,12 @@ async def process_imagery(
     # Initialize the processor
     processor = DroneImageProcessor(settings.NODE_ODM_URL, project.id, task_id)
 
-    # MinIO bucket and path details
-    bucket_name = settings.S3_BUCKET_NAME
-
     # Define processing options
     options = [
         {"name": "dsm", "value": True},
         {"name": "orthophoto-resolution", "value": 5},
     ]
 
-    # Process task from MinIO
-    task = processor.process_task_from_minio(
-        bucket_name, project.id, task_id, name=f"DTM-Task-{task_id}", options=options
+    processor.process_images_from_s3(
+        settings.S3_BUCKET_NAME, name=f"DTM-Task-{task_id}", options=options
     )
-
-    if task:
-        # Download the results
-        output_path = "output/"
-        processor.download_results(task, output_path=output_path)
