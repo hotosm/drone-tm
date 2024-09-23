@@ -311,3 +311,20 @@ async def process_imagery(
 ):
     background_tasks.add_task(project_logic.process_drone_images, project.id, task_id)
     return {"message": "Processing started"}
+
+
+@router.get(
+    "/assets/{project_id}/{task_id}/",
+    tags=["Image Processing"],
+    response_model=project_schemas.AssetsInfo,
+)
+async def get_assets_info(
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: uuid.UUID,
+):
+    """
+    Endpoint to get the number of images and the URL to download the assets for a given project and task.
+    """
+    return await project_logic.get_project_info_from_s3(project.id, task_id)
