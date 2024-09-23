@@ -300,7 +300,7 @@ async def read_project(
     return project
 
 
-@router.post("/process_imagery/{project_id}/{task_id}/")
+@router.post("/process_imagery/{project_id}/{task_id}/", tags=["Image Processing"])
 async def process_imagery(
     task_id: uuid.UUID,
     project: Annotated[

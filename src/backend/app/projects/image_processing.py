@@ -73,8 +73,7 @@ class DroneImageProcessor:
 
         for file in path.rglob("*"):
             if file.suffix.lower() in {".jpg", ".jpeg", ".png"}:
-                images.append(file)
-
+                images.append(str(file))
         return images
 
     def process_new_task(self, images, name=None, options=[], progress_callback=None):
