@@ -8,6 +8,7 @@ export interface IDroneOperatorTaskState {
   checkedImages: Record<number, boolean>;
   popOver: boolean;
   files: any[];
+  selectedTakeOffPointOption: string;
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -17,6 +18,7 @@ const initialState: IDroneOperatorTaskState = {
   checkedImages: {},
   popOver: false,
   files: [],
+  selectedTakeOffPointOption: 'current_location',
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -54,6 +56,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setFiles: (state, action) => {
       state.files = action.payload;
+    },
+    setSelectedTakeOffPointOption: (state, action) => {
+      state.selectedTakeOffPointOption = action.payload;
     },
   },
 });

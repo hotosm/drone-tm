@@ -10,4 +10,5 @@ export const {
   unCheckAllImages,
   checkAllImages,
   setFiles,
+  setSelectedTakeOffPointOption,
 } = droneOperatorTaskSlice.actions;
