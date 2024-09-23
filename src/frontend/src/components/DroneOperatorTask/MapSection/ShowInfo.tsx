@@ -13,7 +13,7 @@ const ShowInfo = ({
 }: IShowInfo) => {
   return (
     <div
-      className={`naxatw-absolute naxatw-left-[calc(50%-7.5rem)] naxatw-top-2 naxatw-z-30 naxatw-w-[15rem] naxatw-rounded-lg naxatw-bg-white naxatw-p-2 naxatw-shadow-xl ${wrapperClassName}`}
+      className={`naxatw-absolute naxatw-left-[calc(50%-7.5rem)] naxatw-top-2 naxatw-z-10 naxatw-w-[15rem] naxatw-rounded-lg naxatw-bg-white naxatw-p-2 naxatw-shadow-xl ${wrapperClassName}`}
     >
       <div className="naxatw-flex naxatw-items-center naxatw-gap-1">
         <i className="material-icons-outlined naxatw-text-base">info</i>{' '}

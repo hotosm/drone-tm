@@ -196,14 +196,15 @@ const MapSection = ({ className }: { className?: string }) => {
             </>
           )}
 
-          <div className="naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-30">
+          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 lg:naxatw-right-3 lg:naxatw-top-3">
             <Button
               withLoader
               leftIcon="place"
-              className="naxatw-w-48 naxatw-bg-red"
+              className="naxatw-w-[11.8rem] naxatw-bg-red"
               onClick={() => {
                 if (newTakeOffPoint) {
-                  console.log('hit api with above take off point');
+                  // console.log('hit api with above take off point');
+                  dispatch(setSelectedTakeOffPoint(null));
                 } else {
                   dispatch(toggleModal('update-flight-take-off-point'));
                 }
