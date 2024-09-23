@@ -1,7 +1,7 @@
-import os
 import uuid
 import tempfile
 import shutil
+from pathlib import Path
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
@@ -36,12 +36,11 @@ class DroneImageProcessor:
 
     def download_object(self, bucket_name: str, obj, images_folder: str):
         if obj.object_name.endswith((".jpg", ".jpeg", ".JPG", ".png", ".PNG")):
-            # log.info(f"Downloading image from s3 {obj.object_name}")
-            local_path = f"{images_folder}/{os.path.basename(obj.object_name)}"
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            local_path = Path(images_folder) / Path(obj.object_name).name
+            local_path.parent.mkdir(parents=True, exist_ok=True)
             get_file_from_bucket(bucket_name, obj.object_name, local_path)
 
-    def download_images_from_minio(self, bucket_name, local_dir):
+    def download_images_from_s3(self, bucket_name, local_dir):
         """
         Downloads images from MinIO under the specified path.
 
@@ -70,10 +69,12 @@ class DroneImageProcessor:
         :return: List of image file paths.
         """
         images = []
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                if file.endswith((".jpg", ".jpeg", ".JPG", ".png", ".PNG")):
-                    images.append(os.path.join(root, file))
+        path = Path(directory)
+
+        for file in path.rglob("*"):
+            if file.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+                images.append(file)
+
         return images
 
     def process_new_task(self, images, name=None, options=[], progress_callback=None):
@@ -131,7 +132,7 @@ class DroneImageProcessor:
         # Create a temporary directory to store downloaded images
         temp_dir = tempfile.mkdtemp()
         try:
-            self.download_images_from_minio(bucket_name, temp_dir)
+            self.download_images_from_s3(bucket_name, temp_dir)
 
             images_list = self.list_images(temp_dir)
 
