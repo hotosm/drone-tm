@@ -105,16 +105,19 @@ async def get_task_waypoint(
 
     if project.is_terrain_follow:
         dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
-        get_file_from_bucket(
-            settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
-        )
+        try:
+            get_file_from_bucket(
+                settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
+            )
+            # TODO: Do this with inmemory data
+            outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
+            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
 
-        # TODO: Do this with inmemory data
-        outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-        add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+            inpointsfile = open(outfile_with_elevation, "r")
+            points_with_elevation = inpointsfile.read()
 
-        inpointsfile = open(outfile_with_elevation, "r")
-        points_with_elevation = inpointsfile.read()
+        except Exception:
+            points_with_elevation = points
 
         placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
     else:

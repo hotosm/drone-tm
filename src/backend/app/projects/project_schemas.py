@@ -457,3 +457,10 @@ class PresignedUrlRequest(BaseModel):
     task_id: uuid.UUID
     image_name: List[str]
     expiry: int  # Expiry time in hours
+
+
+class AssetsInfo(BaseModel):
+    project_id: str
+    task_id: str
+    image_count: int
+    assets_url: Optional[str]
