@@ -2,7 +2,7 @@ import json
 from pydantic import BaseModel, model_validator
 
 
-class Point(BaseModel):
+class PointField(BaseModel):
     longitude: float
     latitude: float
 
