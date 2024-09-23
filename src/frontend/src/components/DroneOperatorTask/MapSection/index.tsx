@@ -1,23 +1,23 @@
 /* eslint-disable react/no-array-index-key */
-import { useCallback, useEffect, useState } from 'react';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
-import { useParams } from 'react-router-dom';
-import { FeatureCollection } from 'geojson';
 import { useGetTaskWaypointQuery } from '@Api/tasks';
-import getBbox from '@turf/bbox';
-import { coordAll } from '@turf/meta';
+import marker from '@Assets/images/marker.png';
+import right from '@Assets/images/rightArrow.png';
+import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
+import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import right from '@Assets/images/rightArrow.png';
-import marker from '@Assets/images/marker.png';
+import getBbox from '@turf/bbox';
+import { coordAll } from '@turf/meta';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
-import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
+import { FeatureCollection } from 'geojson';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 
-const MapSection = () => {
+const MapSection = ({ className }: { className?: string }) => {
   const { projectId, taskId } = useParams();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const { map, isMapLoaded } = useMapLibreGLMap({
@@ -99,7 +99,9 @@ const MapSection = () => {
 
   return (
     <>
-      <div className="naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200">
+      <div
+        className={`naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
+      >
         <MapContainer
           map={map}
           isMapLoaded={isMapLoaded}

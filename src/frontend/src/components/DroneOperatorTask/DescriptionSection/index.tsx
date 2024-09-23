@@ -1,16 +1,16 @@
 /* eslint-disable no-nested-ternary */
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Button } from '@Components/RadixComponents/Button';
-import Tab from '@Components/common/Tabs';
 import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { setSecondPageState } from '@Store/actions/droneOperatorTask';
+import { Button } from '@Components/RadixComponents/Button';
+import useWindowDimensions from '@Hooks/useWindowDimensions';
+import { useTypedSelector } from '@Store/hooks';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import UploadsBox from './UploadsBox';
+import MapSection from '../MapSection';
 import DescriptionBox from './DescriptionBox';
+import UploadsBox from './UploadsBox';
 
 const { BASE_URL } = process.env;
 
@@ -21,6 +21,7 @@ const DroneOperatorDescriptionBox = () => {
   const [animated, setAnimated] = useState(false);
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
+  const { width } = useWindowDimensions();
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
@@ -80,20 +81,6 @@ const DroneOperatorDescriptionBox = () => {
         );
     }
   };
-  const dispatch = useTypedDispatch();
-
-  const headerTabOptions = [
-    {
-      id: 1,
-      label: 'Description',
-      value: 'description',
-    },
-    {
-      id: 2,
-      label: 'Uploads',
-      value: 'uploads',
-    },
-  ];
 
   const handleDownloadFlightPlan = () => {
     fetch(
@@ -190,17 +177,7 @@ const DroneOperatorDescriptionBox = () => {
             )}
           </div>
         </div>
-        <Tab
-          onTabChange={value => {
-            dispatch(setSecondPageState(value));
-          }}
-          tabOptions={headerTabOptions}
-          activeTab={secondPageState}
-          orientation="row"
-          className={`naxatw-h-[3rem] naxatw-border-b naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red ${!secondPage ? 'naxatw-hidden' : 'naxatw-block'}`}
-          activeClassName="naxatw-border-b-2 naxatw-bg-transparent naxatw-border-red"
-          clickable
-        />
+        {width < 640 && <MapSection />}
         {renderComponent(secondPageState)}
       </div>
     </>
