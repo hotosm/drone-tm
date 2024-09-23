@@ -180,3 +180,33 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     client = s3_client()
     objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
     return objects
+
+
+def get_presigned_url(bucket_name: str, object_name: str, expires: int = 3600):
+    """Generate a presigned URL for an object in an S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The name of the object in the bucket.
+        expires (int, optional): The time in seconds until the URL expires.
+            Defaults to 3600.
+
+    Returns:
+        str: The presigned URL to access the object.
+    """
+    client = s3_client()
+    return client.presigned_get_object(bucket_name, object_name, expires=expires)
+
+
+def get_object_metadata(bucket_name: str, object_name: str):
+    """Get object metadata from an S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The name of the object in the bucket.
+
+    Returns:
+        dict: A dictionary containing metadata about the object.
+    """
+    client = s3_client()
+    return client.stat_object(bucket_name, object_name)
