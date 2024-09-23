@@ -9,15 +9,24 @@ import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLaye
 import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import { Button } from '@Components/RadixComponents/Button';
+import { toggleModal } from '@Store/actions/common';
+import { setSelectedTakeOffPoint } from '@Store/actions/droneOperatorTask';
+import { useTypedSelector } from '@Store/hooks';
 import getBbox from '@turf/bbox';
+import { point } from '@turf/helpers';
 import { coordAll } from '@turf/meta';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { FeatureCollection } from 'geojson';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { useCallback, useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import GetCoordinatesOnClick from './GetCoordinatesOnClick';
+import ShowInfo from './ShowInfo';
 
 const MapSection = ({ className }: { className?: string }) => {
+  const dispatch = useDispatch();
   const { projectId, taskId } = useParams();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const { map, isMapLoaded } = useMapLibreGLMap({
@@ -29,6 +38,9 @@ const MapSection = ({ className }: { className?: string }) => {
     },
     disableRotation: true,
   });
+  const newTakeOffPoint = useTypedSelector(
+    state => state.droneOperatorTask.selectedTakeOffPoint,
+  );
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
@@ -182,6 +194,58 @@ const MapSection = ({ className }: { className?: string }) => {
                 }}
               />
             </>
+          )}
+
+          <div className="naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-30">
+            <Button
+              withLoader
+              leftIcon="place"
+              className="naxatw-w-48 naxatw-bg-red"
+              onClick={() => {
+                if (newTakeOffPoint) {
+                  console.log('hit api with above take off point');
+                } else {
+                  dispatch(toggleModal('update-flight-take-off-point'));
+                }
+              }}
+            >
+              {newTakeOffPoint
+                ? 'Save Starting Point'
+                : 'Change Starting Point'}
+            </Button>
+          </div>
+
+          {newTakeOffPoint && (
+            <VectorLayer
+              map={map as Map}
+              isMapLoaded={isMapLoaded}
+              id="newtakeOffPoint"
+              geojson={newTakeOffPoint as GeojsonType}
+              visibleOnMap
+              layerOptions={{}}
+              hasImage
+              image={marker}
+              iconAnchor="bottom"
+            />
+          )}
+
+          {newTakeOffPoint === 'place_on_map' && (
+            <GetCoordinatesOnClick
+              getCoordinates={(coordinates: Record<string, any>) =>
+                dispatch(
+                  setSelectedTakeOffPoint(
+                    point([coordinates.lng, coordinates?.lat]),
+                  ),
+                )
+              }
+            />
+          )}
+
+          {newTakeOffPoint && (
+            <ShowInfo
+              heading="Choose starting point"
+              message="Click on map to update starting point and press save starting point button."
+            />
           )}
 
           <AsyncPopup
