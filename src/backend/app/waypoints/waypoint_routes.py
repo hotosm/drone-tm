@@ -13,7 +13,11 @@ from drone_flightplan import (
     waypoints,
 )
 from app.models.enums import HTTPStatus
-from app.tasks.task_logic import get_task_geojson, update_take_off_point_in_db
+from app.tasks.task_logic import (
+    get_task_geojson,
+    get_take_off_point_from_db,
+    update_take_off_point_in_db,
+)
 from app.waypoints.waypoint_logic import check_point_within_buffer
 from app.db import database
 from app.utils import merge_multipolygon
@@ -61,20 +65,29 @@ async def get_task_waypoint(
     # create a takeoff point in this format ["lon","lat"]
     if take_off_point:
         take_off_point = [take_off_point.longitude, take_off_point.latitude]
+
+        # Validate that the take-off point is within a 200m buffer of the task boundary
         if not check_point_within_buffer(take_off_point, task_geojson, 200):
             raise HTTPException(
                 status_code=400,
                 detail="Take off point should be within 200m of the boundary",
             )
-    else:
-        # take the centroid of the task as the takeoff point
-        task_polygon = shape(task_geojson["features"][0]["geometry"])
-        task_centroid = task_polygon.centroid
-        take_off_point = [task_centroid.x, task_centroid.y]
 
-    # Update take_off_point in tasks table
-    geojson_point = {"type": "Point", "coordinates": take_off_point}
-    await update_take_off_point_in_db(db, task_id, geojson_point)
+        # Update take_off_point in tasks table
+        geojson_point = {"type": "Point", "coordinates": take_off_point}
+        await update_take_off_point_in_db(db, task_id, geojson_point)
+
+    else:
+        # Retrieve the take-off point from the database if not explicitly provided
+        take_off_point_from_db = await get_take_off_point_from_db(db, task_id)
+
+        if take_off_point_from_db:
+            take_off_point = take_off_point_from_db["coordinates"]
+        else:
+            # Use the centroid of the task polygon as the default take-off point
+            task_polygon = shape(task_geojson["features"][0]["geometry"])
+            task_centroid = task_polygon.centroid
+            take_off_point = [task_centroid.x, task_centroid.y]
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
