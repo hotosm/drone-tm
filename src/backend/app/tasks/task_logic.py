@@ -43,7 +43,11 @@ async def get_take_off_point_from_db(db: Connection, task_id: uuid.UUID):
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND, detail="Task not found"
             )
-        return json.loads(data["take_off_point"])
+        return (
+            json.loads(data["take_off_point"])
+            if data.get("take_off_point") is not None
+            else None
+        )
 
 
 async def get_task_geojson(db: Connection, task_id: uuid.UUID):
