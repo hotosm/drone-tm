@@ -1,15 +1,15 @@
-import { useNavigate } from 'react-router-dom';
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
-import { useGetProjectsListQuery } from '@Api/projects';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import centroid from '@turf/centroid';
-import getBbox from '@turf/bbox';
 import { useCallback, useEffect, useState } from 'react';
-import { FeatureCollection } from 'geojson';
-import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
+import { useNavigate } from 'react-router-dom';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import getBbox from '@turf/bbox';
+import centroid from '@turf/centroid';
+import { FeatureCollection } from 'geojson';
+import { useGetProjectsListQuery } from '@Api/projects';
+import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
+import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
+import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
 const ProjectsMapSection = () => {
@@ -78,6 +78,7 @@ const ProjectsMapSection = () => {
       style={{
         width: '100%',
         height: '100%',
+        borderRadius: '8px',
       }}
     >
       <BaseLayerSwitcher />
