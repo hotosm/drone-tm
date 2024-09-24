@@ -3,6 +3,7 @@ from loguru import logger as log
 from minio import Minio
 from io import BytesIO
 from typing import Any
+from datetime import timedelta
 
 
 def s3_client():
@@ -182,20 +183,22 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return objects
 
 
-def get_presigned_url(bucket_name: str, object_name: str, expires: int = 3600):
+def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
     """Generate a presigned URL for an object in an S3 bucket.
 
     Args:
         bucket_name (str): The name of the S3 bucket.
         object_name (str): The name of the object in the bucket.
-        expires (int, optional): The time in seconds until the URL expires.
-            Defaults to 3600.
+        expires (int, optional): The time in hours until the URL expires.
+            Defaults to 2 hour.
 
     Returns:
         str: The presigned URL to access the object.
     """
     client = s3_client()
-    return client.presigned_get_object(bucket_name, object_name, expires=expires)
+    return client.presigned_get_object(
+        bucket_name, object_name, expires=timedelta(hours=expires)
+    )
 
 
 def get_object_metadata(bucket_name: str, object_name: str):

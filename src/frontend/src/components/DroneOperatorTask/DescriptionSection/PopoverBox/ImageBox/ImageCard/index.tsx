@@ -21,7 +21,7 @@ const ImageCard = ({
   return (
     <>
       <div
-        className="naxatw-flex naxatw-h-24 naxatw-w-[6.75rem] naxatw-flex-col naxatw-gap-1 naxatw-rounded-lg naxatw-bg-gray-100 naxatw-px-1 hover:naxatw-bg-gray-300"
+        className="naxatw-flex naxatw-h-24 naxatw-w-full naxatw-flex-col naxatw-gap-1 naxatw-rounded-lg naxatw-bg-gray-100 naxatw-px-1 hover:naxatw-bg-gray-300"
         role="presentation"
         onClick={() => dispatch(setSelectedImage(image))}
       >
