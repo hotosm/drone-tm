@@ -87,7 +87,7 @@ repos:
   # Lint / autoformat: Python code
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.6.2"
+    rev: "v0.6.7"
     hooks:
       # Run the linter
       - id: ruff

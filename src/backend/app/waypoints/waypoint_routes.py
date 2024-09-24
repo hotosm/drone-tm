@@ -21,9 +21,8 @@ from app.s3 import get_file_from_bucket
 from typing import Annotated
 from psycopg import Connection
 from app.projects import project_deps
-from geojson_pydantic import Point
 from shapely.geometry import shape
-
+from app.waypoints import waypoint_schemas
 
 # Constant to convert gsd to Altitude above ground level
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
@@ -41,7 +40,7 @@ async def get_task_waypoint(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
-    take_off_point: Point = None,
+    take_off_point: waypoint_schemas.PointField = None,
 ):
     """
     Retrieve task waypoints and download a flight plan.
@@ -178,7 +177,7 @@ async def generate_kmz(
         None,
         description="The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format",
     ),
-    take_off_point: Point = None,
+    take_off_point: waypoint_schemas.PointField = None,
 ):
     if not (altitude or gsd):
         raise HTTPException(
