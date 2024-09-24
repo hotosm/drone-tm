@@ -68,13 +68,27 @@ const MapSection = ({ className }: { className?: string }) => {
     },
   );
 
-  // zoom to task
+  // zoom to task (waypoint)
   useEffect(() => {
-    if (!taskWayPoints?.geojsonAsLineString) return;
+    if (!taskWayPoints?.geojsonAsLineString || !isMapLoaded || !map) return;
     const { geojsonAsLineString } = taskWayPoints;
-    const bbox = getBbox(geojsonAsLineString as FeatureCollection);
+    let bbox = null;
+    // calculate bbox with with updated take-off point
+    if (newTakeOffPoint && newTakeOffPoint !== 'place_on_map') {
+      const combinedFeatures: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: [
+          ...geojsonAsLineString.features,
+          // @ts-ignore
+          newTakeOffPoint,
+        ],
+      };
+      bbox = getBbox(combinedFeatures);
+    } else {
+      bbox = getBbox(geojsonAsLineString as FeatureCollection);
+    }
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
-  }, [map, taskWayPoints]);
+  }, [map, taskWayPoints, newTakeOffPoint, isMapLoaded]);
 
   const getPopupUI = useCallback(() => {
     return (
@@ -242,7 +256,7 @@ const MapSection = ({ className }: { className?: string }) => {
             />
           )}
 
-          {newTakeOffPoint && (
+          {newTakeOffPoint === 'place_on_map' && (
             <ShowInfo
               heading="Choose starting point"
               message="Click on map to update starting point and press save starting point button."
