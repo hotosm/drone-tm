@@ -200,12 +200,12 @@ async def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
         # Generate a presigned URL for the assets ZIP file
         try:
             # Check if the object exists
-            assets_path = f"processed/{project_id}/{task_id}/assets.zip"
+            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL
             presigned_url = get_presigned_url(
-                settings.S3_BUCKET_NAME, assets_path, expires=3600
+                settings.S3_BUCKET_NAME, assets_path, expires=2
             )
         except S3Error as e:
             if e.code == "NoSuchKey":
