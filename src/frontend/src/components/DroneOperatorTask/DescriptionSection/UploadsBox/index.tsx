@@ -3,7 +3,7 @@
 /* eslint-disable no-unused-vars */
 import { Button } from '@Components/RadixComponents/Button';
 import { toggleModal } from '@Store/actions/common';
-import { setFiles, showPopover } from '@Store/actions/droneOperatorTask';
+import { setFiles } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 
 const UploadsBox = () => {

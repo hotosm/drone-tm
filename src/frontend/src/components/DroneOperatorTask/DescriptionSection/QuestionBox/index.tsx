@@ -12,9 +12,14 @@ import UploadsBox from '../UploadsBox';
 interface IQuestionBoxProps {
   flyable: string;
   setFlyable: React.Dispatch<React.SetStateAction<any>>;
+  haveNoImages: boolean;
 }
 
-const QuestionBox = ({ flyable, setFlyable }: IQuestionBoxProps) => {
+const QuestionBox = ({
+  flyable,
+  setFlyable,
+  haveNoImages,
+}: IQuestionBoxProps) => {
   const { projectId, taskId } = useParams();
 
   const dispatch = useTypedDispatch();
@@ -119,7 +124,7 @@ const QuestionBox = ({ flyable, setFlyable }: IQuestionBoxProps) => {
             </Button>
           </div>
         </motion.div>
-        {flyable === 'yes' && <UploadsBox />}
+        {flyable === 'yes' && haveNoImages && <UploadsBox />}
       </div>
     </>
   );
