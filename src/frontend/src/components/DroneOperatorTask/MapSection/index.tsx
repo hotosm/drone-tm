@@ -10,9 +10,11 @@ import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { Button } from '@Components/RadixComponents/Button';
+import { postTaskWaypoint } from '@Services/tasks';
 import { toggleModal } from '@Store/actions/common';
 import { setSelectedTakeOffPoint } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import getBbox from '@turf/bbox';
 import { point } from '@turf/helpers';
 import { coordAll } from '@turf/meta';
@@ -22,12 +24,14 @@ import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { useCallback, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
   const { projectId, taskId } = useParams();
+  const queryClient = useQueryClient();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
@@ -67,6 +71,21 @@ const MapSection = ({ className }: { className?: string }) => {
       },
     },
   );
+
+  const { mutate: postWaypoint, isLoading: isUpdatingTakeOffPoint } =
+    useMutation<any, any, any, unknown>({
+      mutationFn: postTaskWaypoint,
+      onSuccess: async data => {
+        // update task cached waypoint data with response
+        queryClient.setQueryData(['task-waypoints'], () => {
+          return data;
+        });
+        dispatch(setSelectedTakeOffPoint(null));
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.detail || err.message);
+      },
+    });
 
   // zoom to task (waypoint)
   useEffect(() => {
@@ -122,6 +141,26 @@ const MapSection = ({ className }: { className?: string }) => {
       </div>
     );
   }, [popupData]);
+
+  const handleSaveStartingPoint = () => {
+    const { geometry } = newTakeOffPoint as Record<string, any>;
+    const [lng, lat] = geometry.coordinates;
+    postWaypoint({
+      projectId,
+      taskId,
+      data: {
+        longitude: lng,
+        latitude: lat,
+      },
+    });
+  };
+
+  useEffect(
+    () => () => {
+      dispatch(setSelectedTakeOffPoint(null));
+    },
+    [dispatch],
+  );
 
   return (
     <>
@@ -217,12 +256,12 @@ const MapSection = ({ className }: { className?: string }) => {
               className="naxatw-w-[11.8rem] naxatw-bg-red"
               onClick={() => {
                 if (newTakeOffPoint) {
-                  // console.log('hit api with above take off point');
-                  dispatch(setSelectedTakeOffPoint(null));
+                  handleSaveStartingPoint();
                 } else {
                   dispatch(toggleModal('update-flight-take-off-point'));
                 }
               }}
+              isLoading={isUpdatingTakeOffPoint}
             >
               {newTakeOffPoint
                 ? 'Save Starting Point'

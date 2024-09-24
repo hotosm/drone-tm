@@ -8,6 +8,13 @@ export const getTaskWaypoint = (projectId: string, taskId: string) =>
 export const getIndividualTask = (taskId: string) =>
   authenticated(api).get(`/tasks/${taskId}`);
 
-export const postWaypoint = (payload: any) => {
-  authenticated(api).get('/waypoint/', payload);
+export const postTaskWaypoint = (payload: Record<string, any>) => {
+  const { taskId, projectId, data } = payload;
+  return authenticated(api).post(
+    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false`,
+    data,
+    {
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
 };
