@@ -13,7 +13,7 @@ from drone_flightplan import (
     waypoints,
 )
 from app.models.enums import HTTPStatus
-from app.tasks.task_logic import get_task_geojson
+from app.tasks.task_logic import get_task_geojson, update_take_off_point_in_db
 from app.waypoints.waypoint_logic import check_point_within_buffer
 from app.db import database
 from app.utils import merge_multipolygon
@@ -72,6 +72,10 @@ async def get_task_waypoint(
         task_polygon = shape(task_geojson["features"][0]["geometry"])
         task_centroid = task_polygon.centroid
         take_off_point = [task_centroid.x, task_centroid.y]
+
+    # Update take_off_point in tasks table
+    geojson_point = {"type": "Point", "coordinates": take_off_point}
+    await update_take_off_point_in_db(db, task_id, geojson_point)
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
