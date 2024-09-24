@@ -74,6 +74,9 @@ class DbTask(Base):
     )
     project_task_index = cast(int, Column(Integer))
     outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
+    take_off_point = cast(
+        WKBElement, Column(Geometry("POINT", srid=4326), nullable=True)
+    )
 
 
 class DbProject(Base):
