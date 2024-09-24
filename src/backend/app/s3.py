@@ -196,7 +196,9 @@ def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
         str: The presigned URL to access the object.
     """
     client = s3_client()
-    return client.presigned_get_object(bucket_name, object_name, expires=timedelta(hours=expires))
+    return client.presigned_get_object(
+        bucket_name, object_name, expires=timedelta(hours=expires)
+    )
 
 
 def get_object_metadata(bucket_name: str, object_name: str):
