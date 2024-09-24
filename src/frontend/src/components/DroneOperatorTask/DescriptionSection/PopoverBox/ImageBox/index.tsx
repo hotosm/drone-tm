@@ -3,27 +3,24 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-console */
 /* eslint-disable no-unused-vars */
-import { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
 
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import {
-  setCheckedImages,
-  showPopover,
-  unCheckAllImages,
-  checkAllImages,
-} from '@Store/actions/droneOperatorTask';
-import Icon from '@Components/common/Icon';
 import { Button } from '@Components/RadixComponents/Button';
 import { getImageUploadLink } from '@Services/droneOperator';
-import delay from '@Utils/createDelay';
-import chunkArray from '@Utils/createChunksOfArray';
+import {
+  checkAllImages,
+  setCheckedImages,
+  unCheckAllImages,
+} from '@Store/actions/droneOperatorTask';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
+import chunkArray from '@Utils/createChunksOfArray';
+import delay from '@Utils/createDelay';
 import widthCalulator from '@Utils/percentageCalculator';
-import ImageCard from './ImageCard';
 import FilesUploadingPopOver from '../LoadingBox';
+import ImageCard from './ImageCard';
 import PreviewImage from './PreviewImage';
 
 // interface IImageBoxPopOverProps {
@@ -151,7 +148,7 @@ const ImageBoxPopOver = () => {
         className={`naxatw-grid naxatw-gap-4 ${clickedImage ? 'naxatw-grid-cols-[70%_auto]' : 'naxatw-grid-cols-1'}`}
       >
         <div
-          className={`scrollbar-images-grid naxatw-grid naxatw-h-[28rem] naxatw-gap-4 naxatw-overflow-y-auto ${clickedImage ? 'naxatw-grid-cols-5' : 'naxatw-grid-cols-6'}`}
+          className={`scrollbar-images-grid naxatw-grid naxatw-h-[28rem] naxatw-gap-4 naxatw-overflow-y-auto ${clickedImage ? 'naxatw-grid-cols-2 md:naxatw-grid-cols-5' : 'naxatw-grid-cols-3 md:naxatw-grid-cols-6'}`}
         >
           {imageObject?.map((image, index) => (
             <ImageCard

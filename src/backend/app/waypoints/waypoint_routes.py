@@ -13,7 +13,11 @@ from drone_flightplan import (
     waypoints,
 )
 from app.models.enums import HTTPStatus
-from app.tasks.task_logic import get_task_geojson
+from app.tasks.task_logic import (
+    get_task_geojson,
+    get_take_off_point_from_db,
+    update_take_off_point_in_db,
+)
 from app.waypoints.waypoint_logic import check_point_within_buffer
 from app.db import database
 from app.utils import merge_multipolygon
@@ -21,9 +25,8 @@ from app.s3 import get_file_from_bucket
 from typing import Annotated
 from psycopg import Connection
 from app.projects import project_deps
-from geojson_pydantic import Point
 from shapely.geometry import shape
-
+from app.waypoints import waypoint_schemas
 
 # Constant to convert gsd to Altitude above ground level
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
@@ -41,7 +44,7 @@ async def get_task_waypoint(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
-    take_off_point: Point = None,
+    take_off_point: waypoint_schemas.PointField = None,
 ):
     """
     Retrieve task waypoints and download a flight plan.
@@ -62,16 +65,29 @@ async def get_task_waypoint(
     # create a takeoff point in this format ["lon","lat"]
     if take_off_point:
         take_off_point = [take_off_point.longitude, take_off_point.latitude]
+
+        # Validate that the take-off point is within a 200m buffer of the task boundary
         if not check_point_within_buffer(take_off_point, task_geojson, 200):
             raise HTTPException(
                 status_code=400,
                 detail="Take off point should be within 200m of the boundary",
             )
+
+        # Update take_off_point in tasks table
+        geojson_point = {"type": "Point", "coordinates": take_off_point}
+        await update_take_off_point_in_db(db, task_id, geojson_point)
+
     else:
-        # take the centroid of the task as the takeoff point
-        task_polygon = shape(task_geojson["features"][0]["geometry"])
-        task_centroid = task_polygon.centroid
-        take_off_point = [task_centroid.x, task_centroid.y]
+        # Retrieve the take-off point from the database if not explicitly provided
+        take_off_point_from_db = await get_take_off_point_from_db(db, task_id)
+
+        if take_off_point_from_db:
+            take_off_point = take_off_point_from_db["coordinates"]
+        else:
+            # Use the centroid of the task polygon as the default take-off point
+            task_polygon = shape(task_geojson["features"][0]["geometry"])
+            task_centroid = task_polygon.centroid
+            take_off_point = [task_centroid.x, task_centroid.y]
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
@@ -105,16 +121,19 @@ async def get_task_waypoint(
 
     if project.is_terrain_follow:
         dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
-        get_file_from_bucket(
-            settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
-        )
+        try:
+            get_file_from_bucket(
+                settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
+            )
+            # TODO: Do this with inmemory data
+            outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
+            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
 
-        # TODO: Do this with inmemory data
-        outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-        add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+            inpointsfile = open(outfile_with_elevation, "r")
+            points_with_elevation = inpointsfile.read()
 
-        inpointsfile = open(outfile_with_elevation, "r")
-        points_with_elevation = inpointsfile.read()
+        except Exception:
+            points_with_elevation = points
 
         placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
     else:
@@ -171,7 +190,7 @@ async def generate_kmz(
         None,
         description="The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format",
     ),
-    take_off_point: Point = None,
+    take_off_point: waypoint_schemas.PointField = None,
 ):
     if not (altitude or gsd):
         raise HTTPException(

@@ -3,6 +3,7 @@ from loguru import logger as log
 from minio import Minio
 from io import BytesIO
 from typing import Any
+from datetime import timedelta
 
 
 def s3_client():
@@ -52,7 +53,7 @@ def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
         s3_path = f"/{s3_path}"
 
     client = s3_client()
-    client.fput_object(bucket_name, file_path, s3_path)
+    client.fput_object(bucket_name, s3_path, file_path)
 
 
 def add_obj_to_bucket(
@@ -167,3 +168,48 @@ def get_image_dir_url(bucket_name: str, image_dir: str):
 
     except Exception as e:
         log.error(f"Error checking directory existence: {str(e)}")
+
+
+def list_objects_from_bucket(bucket_name: str, prefix: str):
+    """List all objects in a bucket with a specified prefix.
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        prefix (str): The prefix to filter objects by.
+    Returns:
+        list: A list of objects in the bucket with the specified prefix.
+    """
+    client = s3_client()
+    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+    return objects
+
+
+def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
+    """Generate a presigned URL for an object in an S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The name of the object in the bucket.
+        expires (int, optional): The time in hours until the URL expires.
+            Defaults to 2 hour.
+
+    Returns:
+        str: The presigned URL to access the object.
+    """
+    client = s3_client()
+    return client.presigned_get_object(
+        bucket_name, object_name, expires=timedelta(hours=expires)
+    )
+
+
+def get_object_metadata(bucket_name: str, object_name: str):
+    """Get object metadata from an S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The name of the object in the bucket.
+
+    Returns:
+        dict: A dictionary containing metadata about the object.
+    """
+    client = s3_client()
+    return client.stat_object(bucket_name, object_name)

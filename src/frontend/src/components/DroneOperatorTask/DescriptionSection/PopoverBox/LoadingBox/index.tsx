@@ -1,5 +1,6 @@
 import Icon from '@Components/common/Icon';
-import { useNavigate } from 'react-router-dom';
+import { toggleModal } from '@Store/actions/common';
+import { useDispatch } from 'react-redux';
 
 interface IFilesUploadingPopOverProps {
   show: boolean;
@@ -14,12 +15,14 @@ const FilesUploadingPopOver = ({
   filesLength,
   uploadedFiles,
 }: IFilesUploadingPopOverProps) => {
-  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  // const navigate = useNavigate();
 
-  // function to redirect to dashboard after 2 seconds
-  function redirectToDashboard() {
+  // function to close modal
+  function closeModal() {
     setTimeout(() => {
-      navigate('/dashboard');
+      // navigate('/dashboard');
+      dispatch(toggleModal());
     }, 2000);
     return null;
   }
@@ -49,8 +52,8 @@ const FilesUploadingPopOver = ({
             <p className="naxatw-text-[0.875rem] naxatw-text-[#7A7676]">
               {uploadedFiles === filesLength && uploadedFiles !== 0 ? (
                 <>
-                  <p>Redirecting to Dashboard ...</p>
-                  {redirectToDashboard()}
+                  {/* <p>Redirecting to Dashboard ...</p> */}
+                  {closeModal()}
                 </>
               ) : (
                 `${uploadedFiles} / ${filesLength} Files Uploaded`

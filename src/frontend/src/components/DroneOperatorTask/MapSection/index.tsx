@@ -1,24 +1,37 @@
 /* eslint-disable react/no-array-index-key */
-import { useCallback, useEffect, useState } from 'react';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
-import { useParams } from 'react-router-dom';
-import { FeatureCollection } from 'geojson';
 import { useGetTaskWaypointQuery } from '@Api/tasks';
-import getBbox from '@turf/bbox';
-import { coordAll } from '@turf/meta';
+import marker from '@Assets/images/marker.png';
+import right from '@Assets/images/rightArrow.png';
+import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
+import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import right from '@Assets/images/rightArrow.png';
-import marker from '@Assets/images/marker.png';
+import { Button } from '@Components/RadixComponents/Button';
+import { postTaskWaypoint } from '@Services/tasks';
+import { toggleModal } from '@Store/actions/common';
+import { setSelectedTakeOffPoint } from '@Store/actions/droneOperatorTask';
+import { useTypedSelector } from '@Store/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import getBbox from '@turf/bbox';
+import { point } from '@turf/helpers';
+import { coordAll } from '@turf/meta';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
-import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
+import { FeatureCollection } from 'geojson';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { useCallback, useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import GetCoordinatesOnClick from './GetCoordinatesOnClick';
+import ShowInfo from './ShowInfo';
 
-const MapSection = () => {
+const MapSection = ({ className }: { className?: string }) => {
+  const dispatch = useDispatch();
   const { projectId, taskId } = useParams();
+  const queryClient = useQueryClient();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
@@ -29,6 +42,9 @@ const MapSection = () => {
     },
     disableRotation: true,
   });
+  const newTakeOffPoint = useTypedSelector(
+    state => state.droneOperatorTask.selectedTakeOffPoint,
+  );
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
@@ -56,13 +72,42 @@ const MapSection = () => {
     },
   );
 
-  // zoom to task
+  const { mutate: postWaypoint, isLoading: isUpdatingTakeOffPoint } =
+    useMutation<any, any, any, unknown>({
+      mutationFn: postTaskWaypoint,
+      onSuccess: async data => {
+        // update task cached waypoint data with response
+        queryClient.setQueryData(['task-waypoints'], () => {
+          return data;
+        });
+        dispatch(setSelectedTakeOffPoint(null));
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.detail || err.message);
+      },
+    });
+
+  // zoom to task (waypoint)
   useEffect(() => {
-    if (!taskWayPoints?.geojsonAsLineString) return;
+    if (!taskWayPoints?.geojsonAsLineString || !isMapLoaded || !map) return;
     const { geojsonAsLineString } = taskWayPoints;
-    const bbox = getBbox(geojsonAsLineString as FeatureCollection);
+    let bbox = null;
+    // calculate bbox with with updated take-off point
+    if (newTakeOffPoint && newTakeOffPoint !== 'place_on_map') {
+      const combinedFeatures: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: [
+          ...geojsonAsLineString.features,
+          // @ts-ignore
+          newTakeOffPoint,
+        ],
+      };
+      bbox = getBbox(combinedFeatures);
+    } else {
+      bbox = getBbox(geojsonAsLineString as FeatureCollection);
+    }
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
-  }, [map, taskWayPoints]);
+  }, [map, taskWayPoints, newTakeOffPoint, isMapLoaded]);
 
   const getPopupUI = useCallback(() => {
     return (
@@ -70,15 +115,20 @@ const MapSection = () => {
         <center>
           <h3>{popupData?.index}</h3>
           <p>
-            {popupData?.coordinates?.lat?.toFixed(8)},&nbsp;{popupData?.coordinates?.lng?.toFixed(8)}{' '}
+            {popupData?.coordinates?.lat?.toFixed(8)},&nbsp;
+            {popupData?.coordinates?.lng?.toFixed(8)}{' '}
           </p>
         </center>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
           <p className="naxatw-text-base">Speed: {popupData?.speed} m/s</p>
-          {popupData?.elevation &&
-            <p className="naxatw-text-base">Elevation (Sea Level): {popupData?.elevation} meter </p>
-          }
-          <p className="naxatw-text-base">Take Photo: {popupData?.take_photo ? "True" : "False"}</p>
+          {popupData?.elevation && (
+            <p className="naxatw-text-base">
+              Elevation (Sea Level): {popupData?.elevation} meter{' '}
+            </p>
+          )}
+          <p className="naxatw-text-base">
+            Take Photo: {popupData?.take_photo ? 'True' : 'False'}
+          </p>
           <p className="naxatw-text-base">
             Gimble angle: {popupData?.gimbal_angle} degree
           </p>
@@ -92,9 +142,31 @@ const MapSection = () => {
     );
   }, [popupData]);
 
+  const handleSaveStartingPoint = () => {
+    const { geometry } = newTakeOffPoint as Record<string, any>;
+    const [lng, lat] = geometry.coordinates;
+    postWaypoint({
+      projectId,
+      taskId,
+      data: {
+        longitude: lng,
+        latitude: lat,
+      },
+    });
+  };
+
+  useEffect(
+    () => () => {
+      dispatch(setSelectedTakeOffPoint(null));
+    },
+    [dispatch],
+  );
+
   return (
     <>
-      <div className="naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200">
+      <div
+        className={`naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
+      >
         <MapContainer
           map={map}
           isMapLoaded={isMapLoaded}
@@ -175,6 +247,59 @@ const MapSection = () => {
                 }}
               />
             </>
+          )}
+
+          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 lg:naxatw-right-3 lg:naxatw-top-3">
+            <Button
+              withLoader
+              leftIcon="place"
+              className="naxatw-w-[11.8rem] naxatw-bg-red"
+              onClick={() => {
+                if (newTakeOffPoint) {
+                  handleSaveStartingPoint();
+                } else {
+                  dispatch(toggleModal('update-flight-take-off-point'));
+                }
+              }}
+              isLoading={isUpdatingTakeOffPoint}
+            >
+              {newTakeOffPoint
+                ? 'Save Starting Point'
+                : 'Change Starting Point'}
+            </Button>
+          </div>
+
+          {newTakeOffPoint && (
+            <VectorLayer
+              map={map as Map}
+              isMapLoaded={isMapLoaded}
+              id="newtakeOffPoint"
+              geojson={newTakeOffPoint as GeojsonType}
+              visibleOnMap
+              layerOptions={{}}
+              hasImage
+              image={marker}
+              iconAnchor="bottom"
+            />
+          )}
+
+          {newTakeOffPoint === 'place_on_map' && (
+            <GetCoordinatesOnClick
+              getCoordinates={(coordinates: Record<string, any>) =>
+                dispatch(
+                  setSelectedTakeOffPoint(
+                    point([coordinates.lng, coordinates?.lat]),
+                  ),
+                )
+              }
+            />
+          )}
+
+          {newTakeOffPoint === 'place_on_map' && (
+            <ShowInfo
+              heading="Choose starting point"
+              message="Click on map to update starting point and press save starting point button."
+            />
           )}
 
           <AsyncPopup

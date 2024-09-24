@@ -1,5 +1,9 @@
 /* eslint-disable import/prefer-default-export */
-import { getIndividualTask, getTaskWaypoint } from '@Services/tasks';
+import {
+  getIndividualTask,
+  getTaskAssetsInfo,
+  getTaskWaypoint,
+} from '@Services/tasks';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 
 export const useGetTaskWaypointQuery = (
@@ -24,6 +28,20 @@ export const useGetIndividualTaskQuery = (
     queryKey: ['task-description'],
     enabled: !!taskId,
     queryFn: () => getIndividualTask(taskId),
+    select: (res: any) => res.data,
+    ...queryOptions,
+  });
+};
+
+export const useGetTaskAssetsInfo = (
+  projectId: string,
+  taskId: string,
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['task-assets-info'],
+    enabled: !!taskId,
+    queryFn: () => getTaskAssetsInfo(projectId, taskId),
     select: (res: any) => res.data,
     ...queryOptions,
   });

@@ -2,15 +2,23 @@ import json
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
-from app.tasks.splitter import split_by_square
+from app.tasks.task_splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
 from app.utils import merge_multipolygon
 import shapely.wkb as wkblib
 from shapely.geometry import shape
 from io import BytesIO
-from app.s3 import add_obj_to_bucket
+from app.s3 import (
+    add_obj_to_bucket,
+    list_objects_from_bucket,
+    get_presigned_url,
+    get_object_metadata,
+)
 from app.config import settings
+from app.projects.image_processing import DroneImageProcessor
+from app.projects import project_schemas
+from minio import S3Error
 
 
 async def upload_file_to_s3(
@@ -155,3 +163,68 @@ async def preview_split_by_square(boundary: str, meters: int):
             meters=meters,
         )
     )
+
+
+def process_drone_images(project_id: uuid.UUID, task_id: uuid.UUID):
+    # Initialize the processor
+    processor = DroneImageProcessor(settings.NODE_ODM_URL, project_id, task_id)
+
+    # Define processing options
+    options = [
+        {"name": "dsm", "value": True},
+        {"name": "orthophoto-resolution", "value": 5},
+    ]
+
+    processor.process_images_from_s3(
+        settings.S3_BUCKET_NAME, name=f"DTM-Task-{task_id}", options=options
+    )
+
+
+async def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
+    """
+    Helper function to get the number of images and the URL to download the assets.
+    """
+    try:
+        # Prefix for the images
+        images_prefix = f"projects/{project_id}/{task_id}/images/"
+
+        # List and count the images
+        objects = list_objects_from_bucket(
+            settings.S3_BUCKET_NAME, prefix=images_prefix
+        )
+        image_extensions = (".jpg", ".jpeg", ".png", ".tif", ".tiff")
+        image_count = sum(
+            1 for obj in objects if obj.object_name.lower().endswith(image_extensions)
+        )
+
+        # Generate a presigned URL for the assets ZIP file
+        try:
+            # Check if the object exists
+            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
+            get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
+
+            # If it exists, generate the presigned URL
+            presigned_url = get_presigned_url(
+                settings.S3_BUCKET_NAME, assets_path, expires=2
+            )
+        except S3Error as e:
+            if e.code == "NoSuchKey":
+                # The object does not exist
+                log.info(
+                    f"Assets ZIP file not found for project {project_id}, task {task_id}."
+                )
+                presigned_url = None
+            else:
+                # An unexpected error occurred
+                log.error(f"An error occurred while accessing assets file: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        return project_schemas.AssetsInfo(
+            project_id=str(project_id),
+            task_id=str(task_id),
+            image_count=image_count,
+            assets_url=presigned_url,
+        )
+    except Exception as e:
+        log.exception(f"An error occurred while retrieving assets info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

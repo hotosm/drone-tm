@@ -119,15 +119,13 @@ class TaskSplitter(object):
         return shape(features[0].get("geometry"))
 
     def splitBySquare(self, meters: int) -> FeatureCollection:
-        # Define bounds of the area of interest (AOI)
         xmin, ymin, xmax, ymax = self.aoi.bounds
-        # Convert meters to degrees (assuming near-equator for simplicity)
+
         meter = 0.0000114
         length = float(meters) * meter
         width = float(meters) * meter
 
-        # Calculate area threshold for distinguishing large and small polygons
-        area_threshold = (length * width) / 4
+        area_threshold = (length * width) / 3
 
         # Generate grid columns and rows based on AOI bounds
         cols = np.arange(xmin, xmax + width, width)
@@ -158,8 +156,11 @@ class TaskSplitter(object):
                     if small_polygon.touches(large_polygon)
                 ]
                 if adjacent_polygons:
-                    # Get the adjacent polygon with the minimum area
-                    nearest_polygon = min(adjacent_polygons, key=lambda p: p.area)
+                    # Get the adjacent polygon with the maximum shared boundary length
+                    nearest_polygon = max(
+                        adjacent_polygons,
+                        key=lambda p: small_polygon.intersection(p).length,
+                    )
 
                     # Merge the small polygon with the nearest large polygon
                     merged_polygon = unary_union([small_polygon, nearest_polygon])

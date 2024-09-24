@@ -1,4 +1,5 @@
 import os
+import uuid
 from typing import Annotated, Optional
 from uuid import UUID
 import geojson
@@ -13,6 +14,7 @@ from fastapi import (
     File,
     Form,
     Response,
+    BackgroundTasks,
 )
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
@@ -27,6 +29,7 @@ from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
+
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -295,3 +298,33 @@ async def read_project(
 ):
     """Get a specific project and all associated tasks by ID."""
     return project
+
+
+@router.post("/process_imagery/{project_id}/{task_id}/", tags=["Image Processing"])
+async def process_imagery(
+    task_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    background_tasks: BackgroundTasks,
+):
+    background_tasks.add_task(project_logic.process_drone_images, project.id, task_id)
+    return {"message": "Processing started"}
+
+
+@router.get(
+    "/assets/{project_id}/{task_id}/",
+    tags=["Image Processing"],
+    response_model=project_schemas.AssetsInfo,
+)
+async def get_assets_info(
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: uuid.UUID,
+):
+    """
+    Endpoint to get the number of images and the URL to download the assets for a given project and task.
+    """
+    return await project_logic.get_project_info_from_s3(project.id, task_id)

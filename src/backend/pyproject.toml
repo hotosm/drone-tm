@@ -32,6 +32,7 @@ dependencies = [
     "python-slugify>=8.0.4",
     "drone-flightplan==0.3.1rc4",
     "psycopg2>=2.9.9",
+    "pyodm>=1.5.11",
 ]
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-only"}
