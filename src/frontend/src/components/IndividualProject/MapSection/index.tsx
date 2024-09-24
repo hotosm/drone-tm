@@ -315,7 +315,8 @@ const MapSection = () => {
             : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
         }
         hasSecondaryButton={
-          taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING'
+          taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
+          lockedUser?.id === userDetails?.id
         }
         secondaryButtonText="Unlock Task"
         handleSecondaryBtnClick={() => handleTaskUnLockClick()}
