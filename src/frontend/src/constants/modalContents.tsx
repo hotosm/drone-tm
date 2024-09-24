@@ -33,7 +33,7 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
 
     case 'raw-image-preview':
       return {
-        className: '!naxatw-w-[60vw]',
+        className: '!naxatw-w-[95vw] md:!naxatw-w-[60vw]',
         title: 'Upload Raw Image',
         content: <ImageBoxPopOver />,
       };
