@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import useOutsideClick from '@Hooks/useOutsideClick';
+import { useState } from 'react';
 import BaseLayerSwitcher from '../MapLibreComponents/BaseLayerSwitcher';
 import baseLayersData from '../MapLibreComponents/BaseLayerSwitcher/baseLayers';
 import { MapInstanceType } from '../MapLibreComponents/types';
@@ -27,6 +27,7 @@ const BaseLayerSwitcherUI = ({
           handleToggle();
         }}
         role="presentation"
+        title="Layer Switcher"
       >
         <i className="material-icons-outlined naxatw-text-xl naxatw-font-black">
           layers
