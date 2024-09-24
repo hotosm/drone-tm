@@ -1,10 +1,15 @@
 import { useParams } from 'react-router-dom';
-import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
+import {
+  useGetIndividualTaskQuery,
+  useGetTaskAssetsInfo,
+  useGetTaskWaypointQuery,
+} from '@Api/tasks';
 import { useState } from 'react';
 // import { useTypedSelector } from '@Store/hooks';
 import { format } from 'date-fns';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
+import UploadsInformation from '../UploadsInformation';
 
 const DescriptionBox = () => {
   // const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
@@ -21,6 +26,8 @@ const DescriptionBox = () => {
       },
     },
   );
+  const { data: taskAssetsInformation }: Record<string, any> =
+    useGetTaskAssetsInfo(projectId as string, taskId as string);
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
@@ -103,7 +110,28 @@ const DescriptionBox = () => {
         ))}
       </div>
       {/* {!secondPage && <QuestionBox />} */}
-      <QuestionBox setFlyable={setFlyable} flyable={flyable} />
+      <QuestionBox
+        setFlyable={setFlyable}
+        flyable={flyable}
+        haveNoImages={taskAssetsInformation?.image_count === 0}
+      />
+
+      {taskAssetsInformation?.image_count > 0 && (
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
+          <UploadsInformation
+            data={[
+              {
+                name: 'Image count',
+                value: taskAssetsInformation?.image_count,
+              },
+              {
+                name: 'Orthophoto available',
+                value: taskAssetsInformation?.assets_url ? 'Yes' : 'No',
+              },
+            ]}
+          />
+        </div>
+      )}
     </>
   );
 };

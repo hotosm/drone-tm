@@ -35,7 +35,6 @@ class DbDrone(BaseDrone):
     @staticmethod
     async def one(db: Connection, drone_id: int):
         """Get a single drone by it's ID"""
-        print("drone_id = ", drone_id)
         async with db.cursor(row_factory=class_row(DbDrone)) as cur:
             await cur.execute(
                 """

@@ -1,8 +1,53 @@
-from psycopg import Connection
 import uuid
+import json
+from psycopg import Connection
 from app.models.enums import HTTPStatus, State
 from fastapi import HTTPException
 from psycopg.rows import dict_row
+
+
+async def update_take_off_point_in_db(
+    db: Connection, task_id: uuid.UUID, take_off_point: str
+):
+    """Update take_off_point in the task table"""
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE tasks
+            SET take_off_point = ST_SetSRID(ST_GeomFromGeoJSON(%(take_off_point)s), 4326)
+            WHERE id = %(task_id)s;
+            """,
+            {
+                "task_id": str(task_id),
+                "take_off_point": json.dumps(take_off_point),
+            },
+        )
+
+
+async def get_take_off_point_from_db(db: Connection, task_id: uuid.UUID):
+    """Get take_off_point from task table"""
+
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            SELECT ST_AsGeoJSON(take_off_point) as take_off_point
+            FROM tasks
+            WHERE id = %(task_id)s;
+            """,
+            {"task_id": str(task_id)},
+        )
+
+        data = await cur.fetchone()
+        if data is None:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="Task not found"
+            )
+        return (
+            json.loads(data["take_off_point"])
+            if data.get("take_off_point") is not None
+            else None
+        )
 
 
 async def get_task_geojson(db: Connection, task_id: uuid.UUID):
