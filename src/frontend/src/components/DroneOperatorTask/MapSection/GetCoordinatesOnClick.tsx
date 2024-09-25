@@ -16,13 +16,16 @@ const GetCoordinatesOnClick = ({
   useEffect(() => {
     if (!map || !isMapLoaded) return () => {};
     map.getCanvas().style.cursor = 'crosshair';
-    map.on('click', e => {
+
+    const handleClick = (e: any) => {
       const latLng = e.lngLat;
       getCoordinates(latLng);
-    });
+    };
+    map.on('click', handleClick);
 
     return () => {
       map.getCanvas().style.cursor = '';
+      map.off('click', handleClick);
     };
   }, [map, isMapLoaded, getCoordinates]);
   return null;
