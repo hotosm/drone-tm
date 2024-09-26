@@ -12,8 +12,11 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
       <table className="naxatw-w-full naxatw-overflow-hidden naxatw-rounded-lg">
         <thead>
           <tr className="naxatw-bg-red naxatw-text-left naxatw-font-normal naxatw-text-white">
-            <td className="naxatw-w-80 naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+            <td className="naxatw-w-20 naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               ID
+            </td>
+            <td className="naxatw-min-w-30 naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+              Project Name
             </td>
             <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Total task area
@@ -33,9 +36,10 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
         <tbody>
           {taskList?.map(task => (
             <tr key={task.task_id}>
-              <td className="naxatw-px-2 naxatw-py-1">
+              <td className="naxatw-line-clamp-1 naxatw-px-2 naxatw-py-1">
                 Task# {task?.project_task_index}
               </td>
+              <td className="naxatw-px-2 naxatw-py-1">{task?.project_name}</td>
               <td className="naxatw-px-2 naxatw-py-1">
                 {Number(task?.task_area)?.toFixed(3)}
               </td>
