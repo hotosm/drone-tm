@@ -1,8 +1,8 @@
 /* eslint-disable no-unused-vars */
-import type { ReactElement } from 'react';
-import type { Map, MapOptions } from 'maplibre-gl';
-import type { Feature, FeatureCollection, GeoJsonTypes } from 'geojson';
 import type { DrawMode } from '@mapbox/mapbox-gl-draw';
+import type { Feature, FeatureCollection, GeoJsonTypes } from 'geojson';
+import type { Map, MapOptions } from 'maplibre-gl';
+import type { ReactElement } from 'react';
 
 export type MapInstanceType = Map;
 
@@ -83,6 +83,9 @@ export interface IAsyncPopup {
   hideButton?: boolean;
   getCoordOnProperties?: boolean;
   showPopup?: (clickedFeature: Record<string, any>) => Boolean;
+  hasSecondaryButton?: boolean;
+  secondaryButtonText?: string;
+  handleSecondaryBtnClick?: (properties: Record<string, any>) => void;
 }
 
 export type DrawModeTypes = DrawMode | null | undefined;

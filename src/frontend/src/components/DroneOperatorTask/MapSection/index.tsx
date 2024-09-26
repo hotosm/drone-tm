@@ -12,7 +12,10 @@ import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { Button } from '@Components/RadixComponents/Button';
 import { postTaskWaypoint } from '@Services/tasks';
 import { toggleModal } from '@Store/actions/common';
-import { setSelectedTakeOffPoint } from '@Store/actions/droneOperatorTask';
+import {
+  setSelectedTakeOffPoint,
+  setSelectedTakeOffPointOption,
+} from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import getBbox from '@turf/bbox';
@@ -81,6 +84,7 @@ const MapSection = ({ className }: { className?: string }) => {
           return data;
         });
         dispatch(setSelectedTakeOffPoint(null));
+        dispatch(setSelectedTakeOffPointOption('current_location'));
       },
       onError: (err: any) => {
         toast.error(err?.response?.data?.detail || err.message);
@@ -158,6 +162,7 @@ const MapSection = ({ className }: { className?: string }) => {
   useEffect(
     () => () => {
       dispatch(setSelectedTakeOffPoint(null));
+      dispatch(setSelectedTakeOffPointOption('current_location'));
     },
     [dispatch],
   );
