@@ -5,6 +5,7 @@ import getBbox from '@turf/bbox';
 import centroid from '@turf/centroid';
 import { FeatureCollection } from 'geojson';
 import { useGetProjectsListQuery } from '@Api/projects';
+import { useTypedSelector } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
@@ -13,6 +14,9 @@ import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
 const ProjectsMapSection = () => {
+  const projectsFilterByOwner = useTypedSelector(
+    state => state.createproject.ProjectsFilterByOwner,
+  );
   const [projectProperties, setProjectProperties] = useState<
     Record<string, any>
   >({});
@@ -27,7 +31,7 @@ const ProjectsMapSection = () => {
     disableRotation: true,
   });
   const { data: projectsList, isLoading }: Record<string, any> =
-    useGetProjectsListQuery({
+    useGetProjectsListQuery(projectsFilterByOwner, {
       select: (data: any) => {
         // find all polygons centroid and set to geojson save to single geojson
         const combinedGeojson = data?.data?.reduce(
@@ -83,13 +87,15 @@ const ProjectsMapSection = () => {
     >
       <BaseLayerSwitcher />
 
-      <VectorLayerWithCluster
-        map={map}
-        visibleOnMap={!isLoading}
-        mapLoaded={isMapLoaded}
-        sourceId="clustered-projects"
-        geojson={projectsList}
-      />
+      {projectsList && (
+        <VectorLayerWithCluster
+          map={map}
+          visibleOnMap={!isLoading}
+          mapLoaded={isMapLoaded}
+          sourceId="clustered-projects"
+          geojson={projectsList}
+        />
+      )}
 
       <AsyncPopup
         map={map as Map}
