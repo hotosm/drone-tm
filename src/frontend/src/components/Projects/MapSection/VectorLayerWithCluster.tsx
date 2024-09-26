@@ -103,6 +103,15 @@ export default function VectorLayerWithCluster({
         if (map.getLayer(sourceId)) {
           map.removeLayer(sourceId);
         }
+        if (map.getLayer('clusters')) {
+          map.removeLayer('clusters');
+        }
+        if (map.getLayer('unclustered-point')) {
+          map.removeLayer('unclustered-point');
+        }
+        if (map.getLayer('cluster-count')) {
+          map.removeLayer('cluster-count');
+        }
       }
     };
   }, [geojson, map, mapLoaded, sourceId, visibleOnMap]);

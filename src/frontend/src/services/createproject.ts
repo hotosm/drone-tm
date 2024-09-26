@@ -1,7 +1,8 @@
 /* eslint-disable import/prefer-default-export */
 import { authenticated, api } from '.';
 
-export const getProjectsList = () => authenticated(api).get('/projects/');
+export const getProjectsList = (filterByOwner: boolean) =>
+  authenticated(api).get(`/projects/?filter_by_owner=${filterByOwner}`);
 
 export const getProjectDetail = (id: string) =>
   authenticated(api).get(`/projects/${id}`);
