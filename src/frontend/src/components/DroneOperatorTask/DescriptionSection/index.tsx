@@ -96,7 +96,6 @@ const DroneOperatorDescriptionBox = () => {
       .then(blob => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        // link.setAttribute('download', '');
         link.href = url;
         link.download = 'flight_plan.kmz';
         document.body.appendChild(link);
