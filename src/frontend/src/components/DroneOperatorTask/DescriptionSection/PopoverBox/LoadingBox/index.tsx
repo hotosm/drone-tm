@@ -1,5 +1,6 @@
 import Icon from '@Components/common/Icon';
 import { toggleModal } from '@Store/actions/common';
+import { useQueryClient } from '@tanstack/react-query';
 import { useDispatch } from 'react-redux';
 
 interface IFilesUploadingPopOverProps {
@@ -16,12 +17,12 @@ const FilesUploadingPopOver = ({
   uploadedFiles,
 }: IFilesUploadingPopOverProps) => {
   const dispatch = useDispatch();
-  // const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  // function to close modal
+  // function to close modal and refetch task assets to update the UI
   function closeModal() {
+    queryClient.invalidateQueries(['task-assets-info']);
     setTimeout(() => {
-      // navigate('/dashboard');
       dispatch(toggleModal());
     }, 2000);
     return null;
