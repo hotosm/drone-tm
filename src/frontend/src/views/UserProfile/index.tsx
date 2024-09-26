@@ -22,6 +22,7 @@ import { removeKeysFromObject } from '@Utils/index';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import Tab from '@Components/common/Tabs';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import useWindowDimensions from '@Hooks/useWindowDimensions';
 
 const getActiveFormContent = (
   activeTab: number,
@@ -47,7 +48,7 @@ const getActiveFormContent = (
 const UserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
-
+  const { width } = useWindowDimensions();
   const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
   const isDroneOperator =
     localStorage.getItem('signedInAs') === 'Drone Operator';
@@ -123,35 +124,33 @@ const UserProfile = () => {
   };
 
   return (
-    <section className="naxatw-h-screen-nav naxatw-bg-grey-50 naxatw-px-16 naxatw-pt-8">
+    <section className="naxatw-h-screen">
       <UserProfileHeader />
-      <section className="naxatw-mt-5 naxatw-bg-grey-50 naxatw-px-5 xl:naxatw-px-20 2xl:naxatw-px-60">
-        <div className="naxatw-grid naxatw-h-[38rem] naxatw-grid-cols-3 naxatw-gap-14 naxatw-bg-white naxatw-py-5">
-          <div className="naxatw-col-span-1">
-            <Tab
-              orientation="column"
-              onTabChange={() => {}}
-              tabOptions={tabOptions}
-              activeTab={userProfileActiveTab}
-            />
-          </div>
-          <div className="naxatw-relative naxatw-col-span-2">
+      <div className="naxatw-mx-auto naxatw-flex naxatw-h-[80vh] naxatw-w-full naxatw-flex-col naxatw-gap-2 naxatw-border naxatw-shadow-lg md:naxatw-w-[34rem] md:naxatw-flex-row">
+        <div className="naxatw-w-full naxatw-border-r md:naxatw-w-2/6">
+          <Tab
+            className="naxatw-w-full naxatw-border-b"
+            orientation={width < 768 ? 'row' : 'column'}
+            onTabChange={() => {}}
+            tabOptions={tabOptions}
+            activeTab={userProfileActiveTab}
+          />
+        </div>
+        <div className="naxatw-flex naxatw-flex-[70%] naxatw-flex-col naxatw-justify-between naxatw-py-1">
+          <div className="naxatw-h-[calc(80vh-7rem)] naxatw-overflow-y-scroll md:naxatw-h-[calc(80vh-5rem)]">
             {getActiveFormContent(userProfileActiveTab, signedInAs, formProps)}
-            {userProfileActiveTab !== 1 && (
-              <Button
-                variant="ghost"
-                className="naxatw-absolute naxatw-bottom-0 naxatw-left-[3.75rem] naxatw-border naxatw-border-red naxatw-text-red"
-                leftIcon="chevron_left"
-                onClick={onBackBtnClick}
-              >
-                Previous
-              </Button>
-            )}
+          </div>
+          <div className="naxatw-flex naxatw-h-[50px] naxatw-justify-between naxatw-px-12 naxatw-py-1">
             <Button
-              className="naxatw-absolute naxatw-bottom-0 naxatw-right-[3.75rem] naxatw-bg-red"
-              rightIcon={
-                userProfileActiveTab !== 3 ? 'chevron_right' : undefined
-              }
+              className="naxatw-text-red"
+              variant="ghost"
+              onClick={onBackBtnClick}
+              leftIcon="chevron_left"
+            >
+              Back
+            </Button>
+            <Button
+              className="naxatw-bg-red"
               onClick={e => {
                 e.preventDefault();
                 handleSubmit(onSubmit)();
@@ -162,7 +161,7 @@ const UserProfile = () => {
             </Button>
           </div>
         </div>
-      </section>
+      </div>
     </section>
   );
 };

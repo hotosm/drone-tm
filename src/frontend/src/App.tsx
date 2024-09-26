@@ -19,6 +19,7 @@ import {
   getModalContent,
   getPromptDialogContent,
 } from '@Constants/modalContents';
+import ScrollToTop from '@Components/common/ScrollToTop';
 
 export default function App() {
   const dispatch = useTypedDispatch();
@@ -81,13 +82,21 @@ export default function App() {
         >
           {getPromptDialogContent(promptDialogContent)?.content}
         </PromptDialog>
-
-        {generateRoutes({
-          routes:
-            process.env.NODE_ENV !== 'production'
-              ? [...testRoutes, ...appRoutes]
-              : appRoutes,
-        })}
+        <div
+          id="app_playground"
+          className="app_playground scrollbar naxatw-overflow-y-auto naxatw-px-3"
+          style={{
+            height: 'calc(100vh-3.5rem)',
+          }}
+        >
+          {generateRoutes({
+            routes:
+              process.env.NODE_ENV !== 'production'
+                ? [...testRoutes, ...appRoutes]
+                : appRoutes,
+          })}
+        </div>
+        <ScrollToTop />
       </div>
     </>
   );
