@@ -46,7 +46,7 @@ const Dashboard = () => {
     });
 
   return (
-    <section className="naxatw-h-screen-nav naxatw-bg-grey-50 naxatw-px-16 naxatw-pt-8">
+    <section className="naxatw-h-screen-nav naxatw-bg-grey-50 naxatw-px-3 naxatw-pt-8 md:naxatw-px-16">
       <FlexRow className="naxatw-mb-4 naxatw-py-3">
         <h5 className="naxatw-font-bold">Profile</h5>
       </FlexRow>
