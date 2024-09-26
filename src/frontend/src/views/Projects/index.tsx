@@ -9,11 +9,21 @@ import ProjectCardSkeleton from '@Components/Projects/ProjectCardSkeleton';
 import { useEffect } from 'react';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { setCreateProjectState } from '@Store/actions/createproject';
+import { useDispatch } from 'react-redux';
 
 const Projects = () => {
+  const dispatch = useDispatch();
   const showMap = useTypedSelector(state => state.common.showMap);
+  const projectsFilterByOwner = useTypedSelector(
+    state => state.createproject.ProjectsFilterByOwner,
+  );
+
   // fetch api for projectsList
-  const { data: projectsList, isLoading } = useGetProjectsListQuery();
+  const { data: projectsList, isLoading } = useGetProjectsListQuery(
+    projectsFilterByOwner,
+  );
+
   const { data: userDetails } = useGetUserDetailsQuery();
   const localStorageUserDetails = getLocalStorageValue('userprofile');
 
@@ -23,8 +33,14 @@ const Projects = () => {
     localStorage.setItem('userprofile', userDetailsString as string);
   }, [userDetails, localStorageUserDetails]);
 
+  useEffect(() => {
+    return () => {
+      dispatch(setCreateProjectState({ ProjectsFilterByOwner: 'no' }));
+    };
+  }, [dispatch]);
+
   return (
-    <section className="naxatw-px-16 naxatw-pt-2">
+    <section className="naxatw-px-3 naxatw-pt-2 lg:naxatw-px-16">
       <ProjectsHeader />
       <div className="naxatw-grid naxatw-gap-2 md:naxatw-flex md:naxatw-h-[calc(100vh-8.5rem)]">
         <div
@@ -52,7 +68,7 @@ const Projects = () => {
           )}
         </div>
         {showMap && (
-          <div className="naxatw-h-full naxatw-w-full naxatw-py-2 md:naxatw-h-full md:naxatw-w-1/2">
+          <div className="naxatw-h-[70vh] naxatw-w-full naxatw-py-2 md:naxatw-h-full md:naxatw-w-1/2">
             <ProjectsMapSection />
           </div>
         )}
