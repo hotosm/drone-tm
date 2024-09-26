@@ -149,6 +149,7 @@ class UserTasksStatsOut(BaseModel):
     state: str
     project_id: uuid.UUID
     project_task_index: int
+    project_name: str
 
     @staticmethod
     async def get_tasks_by_user(
@@ -160,6 +161,7 @@ class UserTasksStatsOut(BaseModel):
                     tasks.id AS task_id,
                     tasks.project_task_index AS project_task_index,
                     task_events.project_id AS project_id,
+                    projects.name AS project_name,
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
                     CASE
@@ -173,6 +175,8 @@ class UserTasksStatsOut(BaseModel):
                     task_events
                 LEFT JOIN
                     tasks ON task_events.task_id = tasks.id
+                LEFT JOIN
+                    projects ON task_events.project_id = projects.id
                 WHERE
                     (
                         %(role)s = 'DRONE_PILOT' AND task_events.user_id = %(user_id)s
