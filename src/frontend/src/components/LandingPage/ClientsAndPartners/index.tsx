@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import worldBankLogo from '@Assets/images/LandingPage/WorldbankLogo.png';
 import { fadeUpVariant } from '@Constants/animations';
 import gfdrrLogo from '@Assets/images/GFDRR-logo.png';
-import JamaicaFlyingLabsLogo from '@Assets/images/LandingPage/JamaicaFlyingLabs_Logo.png';
 import { FlexRow } from '@Components/common/Layouts';
 
 export default function ClientAndPartners() {
@@ -34,7 +33,6 @@ export default function ClientAndPartners() {
             >
               <Image src={worldBankLogo} alt="world bank logo" />
               <Image src={gfdrrLogo} alt="gfdrrLogo" width={260} />
-              <Image src={JamaicaFlyingLabsLogo} alt="gfdrrLogo" width={200} />
             </FlexRow>
           </motion.div>
         </div>
