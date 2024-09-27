@@ -83,26 +83,33 @@ async def download_boundaries(
         if out is None:
             raise HTTPException(status_code=404, detail="Geometry not found.")
 
+        if isinstance(out, str):
+            out = json.loads(out)
+
+        # Convert the geometry to a FeatureCollection if it is a valid GeoJSON geometry
+        if isinstance(out, dict) and "type" in out and "coordinates" in out:
+            out = {
+                "type": "FeatureCollection",
+                "features": [{"type": "Feature", "geometry": out, "properties": {}}],
+            }
+
         # Determine filename and content-type based on export type
         if export_type == "geojson":
             filename = (
-                (f"task_{task_id}.geojson" if task_id else "project_outline.geojson")
-                if split_area
-                else "project_aoi.geojson"
+                f"task_{task_id}.geojson" if task_id else "project_outline.geojson"
             )
+            if not split_area:
+                filename = "project_aoi.geojson"
             content_type = "application/geo+json"
-            content = out
+            content = json.dumps(out)
 
         elif export_type == "kml":
-            filename = (
-                (f"task_{task_id}.kml" if task_id else "project_outline.kml")
-                if split_area
-                else "project_aoi.kml"
-            )
+            filename = f"task_{task_id}.kml" if task_id else "project_outline.kml"
+            if not split_area:
+                filename = "project_aoi.kml"
             content_type = "application/vnd.google-earth.kml+xml"
-            if isinstance(out, str):
-                out = json.loads(out)
             content = geojson_to_kml(out)
+
         else:
             raise HTTPException(
                 status_code=400, detail="Invalid export type specified."
@@ -112,7 +119,7 @@ async def download_boundaries(
             "Content-Disposition": f"attachment; filename={filename}",
             "Content-Type": content_type,
         }
-        return Response(content=content, headers=headers)
+        return Response(content=content.encode("utf-8"), headers=headers)
 
     except HTTPException as e:
         log.error(f"Error during boundaries download: {e.detail}")
