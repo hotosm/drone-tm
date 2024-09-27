@@ -153,7 +153,7 @@ async def custom_404_handler(request: Request, _):
         if format == "json" or not is_browser:
             return JSONResponse(status_code=404, content={"detail": "Not found"})
         return frontend_html.TemplateResponse(
-            name="index.html", context={"request": request}, status_code=404
+            name="index.html", context={"request": request}
         )
 
     except Exception:

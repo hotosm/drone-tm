@@ -311,13 +311,11 @@ async def read_projects(
             db, user_id=user_id, skip=skip, limit=limit
         )
         if not projects:
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND, detail="No projects found."
-            )
+            return []
 
         return projects
     except KeyError as e:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY) from e
 
 
 @router.get(
