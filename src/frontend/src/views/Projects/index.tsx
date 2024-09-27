@@ -20,9 +20,8 @@ const Projects = () => {
   );
 
   // fetch api for projectsList
-  const { data: projectsList, isLoading } = useGetProjectsListQuery(
-    projectsFilterByOwner,
-  );
+  const { data: projectsList, isLoading }: Record<string, any> =
+    useGetProjectsListQuery(projectsFilterByOwner);
 
   const { data: userDetails } = useGetUserDetailsQuery();
   const localStorageUserDetails = getLocalStorageValue('userprofile');
@@ -54,17 +53,20 @@ const Projects = () => {
               ))}
             </>
           ) : (
-            (projectsList as Record<string, any>[])?.map(
-              (project: Record<string, any>) => (
-                <ProjectCard
-                  key={project.id}
-                  id={project.id}
-                  imageUrl={project?.image_url}
-                  title={project.name}
-                  description={project.description}
-                />
-              ),
-            )
+            <>
+              {!projectsList?.length && <div>No projects available</div>}
+              {(projectsList as Record<string, any>[])?.map(
+                (project: Record<string, any>) => (
+                  <ProjectCard
+                    key={project.id}
+                    id={project.id}
+                    imageUrl={project?.image_url}
+                    title={project.name}
+                    description={project.description}
+                  />
+                ),
+              )}
+            </>
           )}
         </div>
         {showMap && (
