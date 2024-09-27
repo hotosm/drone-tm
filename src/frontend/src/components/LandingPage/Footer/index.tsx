@@ -1,7 +1,8 @@
 /* eslint-disable no-unused-vars */
-import { Flex, FlexRow } from '@Components/common/Layouts';
-import Icon from '@Components/common/Icon';
+import { FlexRow } from '@Components/common/Layouts';
+// import Icon from '@Components/common/Icon';
 import Image from '@Components/RadixComponents/Image';
+import JamaicaFlyingLabsLogo from '@Assets/images/LandingPage/JamaicaFlyingLabs_Logo.png';
 import naxaLogo from '@Assets/images/LandingPage/Naxa-logo.png';
 import hotLogo from '@Assets/images/LandingPage/HOT-logo.png';
 import { Button } from '@Components/RadixComponents/Button';
@@ -57,6 +58,12 @@ export default function Footer() {
             <span className="naxatw-cursor-pointer">FAQs</span>
             <span className="naxatw-cursor-pointer">Cookies</span>
           </div> */}
+          <div className="naxatw-flex naxatw-w-[200px] naxatw-flex-col naxatw-items-start">
+            <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">
+              Official Training Partner
+            </p>
+            <Image src={JamaicaFlyingLabsLogo} alt="gfdrrLogo" width={200} />
+          </div>
         </motion.div>
         <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">
           © Drone Arial Tasking Manager. All Rights Reserved 2024
