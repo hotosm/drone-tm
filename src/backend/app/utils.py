@@ -470,3 +470,60 @@ async def send_reset_password_email(email: str, token: str):
         )
     except Exception as e:
         log.error(f"Error sending email: {e}")
+
+
+def geojson_to_kml(geojson_data: dict) -> str:
+    """
+    Converts GeoJSON data to KML format.
+
+    Args:
+        geojson_data (dict): GeoJSON data as a dictionary.
+
+    Returns:
+        str: KML formatted string.
+    """
+    kml_output = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<kml xmlns="http://www.opengis.net/kml/2.2">',
+        "<Document>",
+    ]
+
+    # Iterate through each feature in the GeoJSON
+    for feature in geojson_data.get("features", []):
+        geometry_type = feature["geometry"]["type"]
+        coordinates = feature["geometry"]["coordinates"]
+
+        # Create a KML Placemark for each feature
+        kml_output.append("<Placemark>")
+
+        # Add properties as name or description if available
+        if "properties" in feature and feature["properties"]:
+            if "name" in feature["properties"]:
+                kml_output.append(f"<name>{feature['properties']['name']}</name>")
+            if "description" in feature["properties"]:
+                kml_output.append(
+                    f"<description>{feature['properties']['description']}</description>"
+                )
+
+        # Handle different geometry types (Point, LineString, Polygon)
+        if geometry_type == "Point":
+            lon, lat = coordinates
+            kml_output.append(f"<Point><coordinates>{lon},{lat}</coordinates></Point>")
+        elif geometry_type == "LineString":
+            coord_string = " ".join([f"{lon},{lat}" for lon, lat in coordinates])
+            kml_output.append(
+                f"<LineString><coordinates>{coord_string}</coordinates></LineString>"
+            )
+        elif geometry_type == "Polygon":
+            for polygon in coordinates:
+                coord_string = " ".join([f"{lon},{lat}" for lon, lat in polygon])
+                kml_output.append(
+                    f"<Polygon><outerBoundaryIs><LinearRing><coordinates>{coord_string}</coordinates></LinearRing></outerBoundaryIs></Polygon>"
+                )
+
+        kml_output.append("</Placemark>")
+
+    kml_output.append("</Document>")
+    kml_output.append("</kml>")
+
+    return "\n".join(kml_output)
