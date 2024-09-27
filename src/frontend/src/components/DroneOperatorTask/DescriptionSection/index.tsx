@@ -22,6 +22,7 @@ const DroneOperatorDescriptionBox = () => {
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
   const { width } = useWindowDimensions();
+  const Token = localStorage.getItem('token');
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
@@ -82,7 +83,7 @@ const DroneOperatorDescriptionBox = () => {
     }
   };
 
-  const handleDownloadFlightPlan = () => {
+  const downloadFlightPlanKmz = () => {
     fetch(
       `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`,
       { method: 'POST' },
@@ -109,7 +110,7 @@ const DroneOperatorDescriptionBox = () => {
       );
   };
 
-  const downloadGeojson = () => {
+  const downloadFlightPlanGeojson = () => {
     if (!taskWayPoints) return;
     const waypointGeojson = {
       type: 'FeatureCollection',
@@ -126,6 +127,60 @@ const DroneOperatorDescriptionBox = () => {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+  };
+
+  const downloadTaskAreaKml = () => {
+    fetch(
+      `${BASE_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=kml`,
+      { method: 'GET', headers: { 'Access-token': Token || '' } },
+    )
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Network response was ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'task_area.kml';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error =>
+        toast.error(`There wan an error while downloading file
+        ${error}`),
+      );
+  };
+
+  const downloadTaskAreaGeojson = () => {
+    fetch(
+      `${BASE_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=geojson`,
+      { method: 'GET', headers: { 'Access-token': Token || '' } },
+    )
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Network response was ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'task_area.geojson';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error =>
+        toast.error(`There wan an error while downloading file
+        ${error}`),
+      );
   };
 
   return (
@@ -147,30 +202,54 @@ const DroneOperatorDescriptionBox = () => {
               Download
             </Button>
             {showDownloadOptions && (
-              <div className="naxatw-absolute naxatw-right-0 naxatw-top-10 naxatw-z-20 naxatw-w-[140px] naxatw-rounded-sm naxatw-border naxatw-bg-white naxatw-shadow-2xl">
+              <div className="naxatw-absolute naxatw-right-0 naxatw-top-10 naxatw-z-20 naxatw-w-[200px] naxatw-rounded-sm naxatw-border naxatw-bg-white naxatw-shadow-2xl">
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={() => handleDownloadFlightPlan()}
+                  onKeyDown={() => downloadFlightPlanKmz()}
                   onClick={() => {
-                    handleDownloadFlightPlan();
+                    downloadFlightPlanKmz();
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download flight plan
+                  Download flight plan as kmz
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={() => downloadGeojson()}
+                  onKeyDown={() => downloadFlightPlanGeojson()}
                   onClick={() => {
-                    downloadGeojson();
+                    downloadFlightPlanGeojson();
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download geojson
+                  Download flight plan as geojson
+                </div>
+                <div
+                  className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={() => downloadTaskAreaKml()}
+                  onClick={() => {
+                    downloadTaskAreaKml();
+                    setShowDownloadOptions(false);
+                  }}
+                >
+                  Download task area as kml
+                </div>
+                <div
+                  className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={() => downloadTaskAreaGeojson()}
+                  onClick={() => {
+                    downloadTaskAreaGeojson();
+                    setShowDownloadOptions(false);
+                  }}
+                >
+                  Download task area as geojson
                 </div>
               </div>
             )}
