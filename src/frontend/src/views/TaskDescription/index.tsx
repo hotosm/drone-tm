@@ -6,10 +6,9 @@ import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 const TaskDescription = () => {
   const { width } = useWindowDimensions();
-
   return (
     <>
-      <div className="naxatw-min-h-[calc(100vh-60px)]">
+      <div className="naxatw-h-screen-nav">
         <div className="naxatw-mx-auto naxatw-w-11/12 naxatw-max-w-[90rem] naxatw-px-0 naxatw-pb-[2.9375rem] naxatw-pt-3 md:naxatw-px-8">
           <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
             <DroneOperatorTaskHeader />

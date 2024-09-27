@@ -31,9 +31,9 @@ export default function PasswordSection({ formProps }: { formProps: any }) {
           <Input
             type="password"
             className="naxatw-mt-1"
-            placeholder="Enter Password Again"
+            placeholder="Enter confirm Password"
             {...register('confirm_password', {
-              required: 'Type password Again',
+              required: 'Confirm Password is Required',
             })}
           />
           <ErrorMessage message={formState.errors?.confirm_password?.message} />

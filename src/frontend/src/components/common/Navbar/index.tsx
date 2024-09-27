@@ -10,7 +10,7 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   return (
-    <nav className="naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
+    <nav className="naxatw-h-[3.5rem] naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
       <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-px-16">
         <div
           className="naxatw-cursor-pointer"

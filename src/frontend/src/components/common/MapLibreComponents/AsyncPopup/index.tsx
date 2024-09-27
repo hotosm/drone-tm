@@ -1,13 +1,13 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/no-danger */
-import { useEffect, useRef, useState } from 'react';
-import { renderToString } from 'react-dom/server';
-import { Popup } from 'maplibre-gl';
-import type { MapMouseEvent } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import '@Components/common/MapLibreComponents/map.css';
 import { Button } from '@Components/RadixComponents/Button';
 import Skeleton from '@Components/RadixComponents/Skeleton';
+import type { MapMouseEvent } from 'maplibre-gl';
+import { Popup } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useEffect, useRef, useState } from 'react';
+import { renderToString } from 'react-dom/server';
 import { IAsyncPopup } from '../types';
 
 const popup = new Popup({
@@ -26,6 +26,9 @@ export default function AsyncPopup({
   buttonText = 'View More',
   hideButton = false,
   getCoordOnProperties = false,
+  hasSecondaryButton = false,
+  secondaryButtonText = '',
+  handleSecondaryBtnClick,
   showPopup = (_clickedFeature: Record<string, any>) => true,
 }: IAsyncPopup) {
   const [properties, setProperties] = useState<Record<string, any> | null>(
@@ -106,14 +109,27 @@ export default function AsyncPopup({
       </div>
       <div dangerouslySetInnerHTML={{ __html: popupHTML }} />
       {!isLoading && !hideButton && (
-        <div className="naxatw-flex naxatw-items-center naxatw-p-3">
-          <Button
-            className="naxatw-mx-auto naxatw-bg-red naxatw-font-primary naxatw-text-white"
-            size="sm"
-            onClick={() => handleBtnClick?.(properties)}
-          >
-            {buttonText}
-          </Button>
+        <div className="naxatw-flex naxatw-w-full naxatw-justify-center naxatw-pt-3">
+          <div className="naxatw-flex naxatw-gap-2">
+            {hasSecondaryButton && (
+              <Button
+                className="naxatw-mx-auto naxatw-border-red naxatw-font-primary naxatw-text-red"
+                size="sm"
+                variant="outline"
+                onClick={() => handleSecondaryBtnClick?.(properties)}
+              >
+                {secondaryButtonText}
+              </Button>
+            )}
+
+            <Button
+              className="naxatw-mx-auto naxatw-bg-red naxatw-font-primary naxatw-text-white"
+              size="sm"
+              onClick={() => handleBtnClick?.(properties)}
+            >
+              {buttonText}
+            </Button>
+          </div>
         </div>
       )}
     </div>

@@ -1,19 +1,18 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useParams, useNavigate } from 'react-router-dom';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { Flex } from '@Components/common/Layouts';
+import { useGetProjectsDetailQuery } from '@Api/projects';
 import Tab from '@Components/common/Tabs';
 import {
+  Contributions,
+  Instructions,
   MapSection,
   Tasks,
-  Instructions,
-  Contributions,
 } from '@Components/IndividualProject';
-import { useGetProjectsDetailQuery } from '@Api/projects';
-import { setProjectState } from '@Store/actions/project';
 import { projectOptions } from '@Constants/index';
+import { setProjectState } from '@Store/actions/project';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { useNavigate, useParams } from 'react-router-dom';
 
 // function to render the content based on active tab
 const getActiveTabContent = (
@@ -66,19 +65,19 @@ const IndividualProject = () => {
     });
 
   return (
-    <section className="individual project naxatw-h-screen-nav naxatw-px-16 naxatw-py-8 xl:naxatw-px-20">
+    <section className="individual project naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
       {/* <----------- temporary breadcrumb -----------> */}
-      <div className="breadcrumb naxatw-py-4">
+      <div className="breadcrumb naxatw-line-clamp-1 naxatw-flex naxatw-py-4">
         <span
           role="button"
-          className="naxatw-cursor-pointer naxatw-text-body-md"
+          className="naxatw-cursor-pointer naxatw-whitespace-nowrap naxatw-text-body-md"
           onClick={() => {
             navigate('/projects');
           }}
         >
           Project /
         </span>
-        <span className="naxatw-ml-1 naxatw-text-body-md naxatw-font-semibold">
+        <span className="naxatw-ml-1 naxatw-line-clamp-1 naxatw-text-body-md naxatw-font-semibold">
           {
             // @ts-ignore
             projectData?.name || '--'
@@ -86,8 +85,8 @@ const IndividualProject = () => {
         </span>
         {/* <----------- temporary breadcrumb -----------> */}
       </div>
-      <Flex gap={5} className="naxatw-w-full !naxatw-flex-row">
-        <div className="naxatw-h-[36.375rem] naxatw-w-[37.5%]">
+      <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">
+        <div className="naxatw-order-2 naxatw-w-full naxatw-max-w-[27rem]">
           <Tab
             orientation="row"
             className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
@@ -99,7 +98,7 @@ const IndividualProject = () => {
             activeTab={individualProjectActiveTab}
             clickable
           />
-          <div className="naxatw-h-[92.5%] naxatw-border-t">
+          <div className="naxatw-h-fit naxatw-max-h-[calc(200px)] naxatw-border-t">
             {getActiveTabContent(
               individualProjectActiveTab,
               projectData as Record<string, any>,
@@ -107,10 +106,10 @@ const IndividualProject = () => {
             )}
           </div>
         </div>
-        <div className="!naxatw-min-h-[calc(100vh-11rem)] naxatw-w-full naxatw-overflow-hidden naxatw-rounded-md">
+        <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full md:naxatw-order-2">
           <MapSection />
         </div>
-      </Flex>
+      </div>
     </section>
   );
 };

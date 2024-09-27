@@ -1,20 +1,19 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { format } from 'date-fns';
+import { toast } from 'react-toastify';
 import {
   useGetIndividualTaskQuery,
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
-import { useState } from 'react';
-// import { useTypedSelector } from '@Store/hooks';
-import { format } from 'date-fns';
+import { Button } from '@Components/RadixComponents/Button';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
 
 const DescriptionBox = () => {
-  // const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
   const [flyable, setFlyable] = useState('yes');
-  // const { secondPage } = secondPageStates;
   const { taskId, projectId } = useParams();
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
@@ -98,6 +97,32 @@ const DescriptionBox = () => {
       },
     });
 
+  const handleDownloadResult = () => {
+    if (!taskAssetsInformation?.assets_url) return;
+
+    fetch(`${taskAssetsInformation?.assets_url}`, { method: 'GET' })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Network response was ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'assets.zip';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error =>
+        toast.error(`There wan an error while downloading file
+          ${error}`),
+      );
+  };
+
   return (
     <>
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
@@ -109,12 +134,13 @@ const DescriptionBox = () => {
           />
         ))}
       </div>
-      {/* {!secondPage && <QuestionBox />} */}
-      <QuestionBox
-        setFlyable={setFlyable}
-        flyable={flyable}
-        haveNoImages={taskAssetsInformation?.image_count === 0}
-      />
+      {taskAssetsInformation?.image_count === 0 && (
+        <QuestionBox
+          setFlyable={setFlyable}
+          flyable={flyable}
+          haveNoImages={taskAssetsInformation?.image_count === 0}
+        />
+      )}
 
       {taskAssetsInformation?.image_count > 0 && (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
@@ -130,6 +156,19 @@ const DescriptionBox = () => {
               },
             ]}
           />
+          {taskAssetsInformation?.assets_url && (
+            <div className="">
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
+                leftIcon="download"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => handleDownloadResult()}
+              >
+                Download Result
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </>

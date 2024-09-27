@@ -23,6 +23,7 @@ export interface CreateProjectState {
   capturedProjectMap: boolean;
   projectMapImage: any;
   imageMergeType: string;
+  ProjectsFilterByOwner: 'yes' | 'no';
 }
 
 const initialState: CreateProjectState = {
@@ -45,6 +46,7 @@ const initialState: CreateProjectState = {
   capturedProjectMap: true,
   projectMapImage: null,
   imageMergeType: 'overlap',
+  ProjectsFilterByOwner: 'no',
 };
 
 const setCreateProjectState: CaseReducer<

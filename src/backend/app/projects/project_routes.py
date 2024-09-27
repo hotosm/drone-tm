@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from typing import Annotated, Optional
@@ -29,6 +30,7 @@ from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
+from app.utils import geojson_to_kml
 
 
 router = APIRouter(
@@ -55,6 +57,10 @@ async def download_boundaries(
         default=False,
         description="Whether to split the area or not. Set to True to download task boundaries, otherwise AOI will be downloaded.",
     ),
+    export_type: str = Query(
+        default="geojson",
+        description="The format of the file to download. Options are 'geojson' or 'kml'.",
+    ),
 ):
     """Downloads the AOI or task boundaries for a project as a GeoJSON file.
 
@@ -64,6 +70,7 @@ async def download_boundaries(
         user_data (AuthUser): The authenticated user data, checks if the user has permission.
         task_id (Optional[UUID]): The task ID in UUID format. If not provided and split_area is True, all tasks will be downloaded.
         split_area (bool): Whether to split the area or not. Set to True to download task boundaries, otherwise AOI will be downloaded.
+        export_type (str): The format of the file to download. Can be either 'geojson' or 'kml'.
 
     Returns:
         Response: The HTTP response object containing the downloaded file.
@@ -76,17 +83,43 @@ async def download_boundaries(
         if out is None:
             raise HTTPException(status_code=404, detail="Geometry not found.")
 
-        filename = (
-            (f"task_{task_id}.geojson" if task_id else "project_outline.geojson")
-            if split_area
-            else "project_aoi.geojson"
-        )
+        if isinstance(out, str):
+            out = json.loads(out)
+
+        # Convert the geometry to a FeatureCollection if it is a valid GeoJSON geometry
+        if isinstance(out, dict) and "type" in out and "coordinates" in out:
+            out = {
+                "type": "FeatureCollection",
+                "features": [{"type": "Feature", "geometry": out, "properties": {}}],
+            }
+
+        # Determine filename and content-type based on export type
+        if export_type == "geojson":
+            filename = (
+                f"task_{task_id}.geojson" if task_id else "project_outline.geojson"
+            )
+            if not split_area:
+                filename = "project_aoi.geojson"
+            content_type = "application/geo+json"
+            content = json.dumps(out)
+
+        elif export_type == "kml":
+            filename = f"task_{task_id}.kml" if task_id else "project_outline.kml"
+            if not split_area:
+                filename = "project_aoi.kml"
+            content_type = "application/vnd.google-earth.kml+xml"
+            content = geojson_to_kml(out)
+
+        else:
+            raise HTTPException(
+                status_code=400, detail="Invalid export type specified."
+            )
 
         headers = {
             "Content-Disposition": f"attachment; filename={filename}",
-            "Content-Type": "application/geo+json",
+            "Content-Type": content_type,
         }
-        return Response(content=out, headers=headers)
+        return Response(content=content.encode("utf-8"), headers=headers)
 
     except HTTPException as e:
         log.error(f"Error during boundaries download: {e.detail}")

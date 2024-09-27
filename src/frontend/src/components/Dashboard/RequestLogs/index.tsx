@@ -55,8 +55,9 @@ const RequestLogs = () => {
             className="naxatw-flex naxatw-h-fit naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-rounded-xl naxatw-border naxatw-border-gray-300 naxatw-p-3"
           >
             <div>
-              The <strong>Task# {task.project_task_index}</strong> is requested
-              for Mapping
+              The <strong>Task# {task.project_task_index}</strong> from{' '}
+              <strong>{task?.project_name}</strong> project is requested for
+              Mapping.
             </div>
             <div className="naxatw-flex naxatw-w-[172px] naxatw-gap-3">
               <Button

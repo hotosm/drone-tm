@@ -1,30 +1,29 @@
 /* eslint-disable no-nested-ternary */
 /* eslint-disable no-unused-vars */
-import { useNavigate, useParams } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
-import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
-import getBbox from '@turf/bbox';
-import { FeatureCollection } from 'geojson';
-import { GeolocateControl, LngLatBoundsLike, Map } from 'maplibre-gl';
-import { setProjectState } from '@Store/actions/project';
 import {
   useGetProjectsDetailQuery,
   useGetTaskStatesQuery,
   useGetUserDetailsQuery,
 } from '@Api/projects';
 import lock from '@Assets/images/lock.png';
-import { postTaskStatus } from '@Services/project';
-import { useMutation } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import baseLayersData from '@Components/common/MapLibreComponents/BaseLayerSwitcher/baseLayers';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
+import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
+import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
+import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
+import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
+import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import { postTaskStatus } from '@Services/project';
+import { setProjectState } from '@Store/actions/project';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import { useMutation } from '@tanstack/react-query';
+import getBbox from '@turf/bbox';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { FeatureCollection } from 'geojson';
+import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import Legend from './Legend';
 
 const MapSection = () => {
@@ -79,6 +78,20 @@ const MapSection = () => {
         toast.success('Task Locked for Mapping');
         setLockedUser({ name: userDetails?.name, id: userDetails?.id });
       }
+    },
+    onError: (err: any) => {
+      toast.error(err.message);
+    },
+  });
+
+  const { mutate: unLockTask } = useMutation<any, any, any, unknown>({
+    mutationFn: postTaskStatus,
+    onSuccess: (res: any) => {
+      setTaskStatusObj({
+        ...taskStatusObj,
+        [res.data.task_id]: 'UNLOCKED_TO_MAP',
+      });
+      toast.success('Task Unlocked Successfully');
     },
     onError: (err: any) => {
       toast.error(err.message);
@@ -146,6 +159,14 @@ const MapSection = () => {
       projectId: id,
       taskId: selectedTaskId,
       data: { event: 'request' },
+    });
+  };
+
+  const handleTaskUnLockClick = () => {
+    unLockTask({
+      projectId: id,
+      taskId: selectedTaskId,
+      data: { event: 'unlock' },
     });
   };
 
@@ -293,6 +314,12 @@ const MapSection = () => {
             ? handleTaskLockClick()
             : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
         }
+        hasSecondaryButton={
+          taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
+          lockedUser?.id === userDetails?.id
+        }
+        secondaryButtonText="Unlock Task"
+        handleSecondaryBtnClick={() => handleTaskUnLockClick()}
       />
       <Legend />
     </MapContainer>
