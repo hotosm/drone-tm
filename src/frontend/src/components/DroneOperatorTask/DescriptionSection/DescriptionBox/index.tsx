@@ -156,18 +156,19 @@ const DescriptionBox = () => {
               },
             ]}
           />
-          <div className="">
-            <Button
-              variant="ghost"
-              className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-              leftIcon="download"
-              iconClassname="naxatw-text-[1.125rem]"
-              onClick={() => handleDownloadResult()}
-              disabled={!taskAssetsInformation?.assets_url}
-            >
-              Download Result
-            </Button>
-          </div>
+          {taskAssetsInformation?.assets_url && (
+            <div className="">
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
+                leftIcon="download"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => handleDownloadResult()}
+              >
+                Download Result
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </>

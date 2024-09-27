@@ -32,7 +32,7 @@ export default function ProjectsHeader() {
             ]}
             labelKey="label"
             valueKey="value"
-            className="naxatw-w-[100px]"
+            className="!naxatw-w-[100px]"
             selectedOption={projectsFilterByOwner}
             onChange={value =>
               dispatch(setCreateProjectState({ ProjectsFilterByOwner: value }))
