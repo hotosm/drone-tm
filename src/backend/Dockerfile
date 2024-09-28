@@ -22,19 +22,37 @@ RUN set -ex \
         "libgdal-dev" \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PDM
-RUN pip install -U pdm
-# Disable update check
-ENV PDM_CHECK_UPDATE=false
-
 WORKDIR /project
 
-# Copy files needed for building the project
-COPY ./pyproject.toml /project/
-COPY ./pdm.lock /project/
+# Install uv
+# Ref: https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
+COPY --from=ghcr.io/astral-sh/uv:0.4.15 /uv /bin/uv
 
-# Install dependencies and project into the local packages directory
-RUN pdm install --check --prod --no-editable
+# Place executables in the environment at the front of the path
+ENV PATH="/project/.venv/bin:$PATH"
+
+# Compile bytecode
+ENV UV_COMPILE_BYTECODE=1
+
+# uv Cache
+ENV UV_LINK_MODE=copy
+
+# Copy files needed for building the project
+COPY ./pyproject.toml  ./alembic.ini ./uv.lock /project/
+
+
+# Install dependencies using uv
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \  
+    uv sync --frozen --no-install-project
+
+# Copy files needed for building the project
+COPY ./pyproject.toml  ./alembic.ini /project/
+
+# Sync the project using uv
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync
 
 # Run stage (final stage)
 FROM python:$PYTHON_BASE AS service
@@ -70,8 +88,8 @@ WORKDIR /project/src/backend
 # Set environment PATH
 ENV PATH="/project/.venv/bin:$PATH"
 
-# Install PDM in runtime stage
-RUN pip install -U pdm
+# Install uv in runtime stage
+COPY --from=ghcr.io/astral-sh/uv:0.4.15 /uv /bin/uv
 
 # Copy the source files to the final image
 COPY . /project/src/backend
