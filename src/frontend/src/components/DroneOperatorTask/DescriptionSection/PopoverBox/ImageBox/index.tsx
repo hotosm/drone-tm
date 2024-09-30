@@ -54,6 +54,8 @@ const ImageBoxPopOver = () => {
   const { mutate: startImageryProcess } = useMutation({
     mutationFn: () => postProcessImagery(projectId, taskId),
     onSuccess: () => toast.success('Image processing started'),
+    retry: (failureCount: any, error: any) =>
+      error.status === 304 && failureCount < 5,
   });
 
   // function that gets the signed urls for the images and again puts them in chunks of 4
