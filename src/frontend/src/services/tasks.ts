@@ -20,3 +20,6 @@ export const postTaskWaypoint = (payload: Record<string, any>) => {
 };
 export const getTaskAssetsInfo = (projectId: string, taskId: string) =>
   authenticated(api).get(`/projects/assets/${projectId}/${taskId}/`);
+
+export const postProcessImagery = (projectId: string, taskId: string) =>
+  authenticated(api).post(`/projects/process_imagery/${projectId}/${taskId}`);

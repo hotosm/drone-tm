@@ -3,12 +3,12 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-console */
 /* eslint-disable no-unused-vars */
-import { useMutation } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
-
+import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 import { Button } from '@Components/RadixComponents/Button';
 import { getImageUploadLink } from '@Services/droneOperator';
+import { useMutation } from '@tanstack/react-query';
 import {
   checkAllImages,
   setCheckedImages,
@@ -19,6 +19,8 @@ import callApiSimultaneously from '@Utils/callApiSimultaneously';
 import chunkArray from '@Utils/createChunksOfArray';
 import delay from '@Utils/createDelay';
 import widthCalulator from '@Utils/percentageCalculator';
+import { postProcessImagery } from '@Services/tasks';
+
 import FilesUploadingPopOver from '../LoadingBox';
 import ImageCard from './ImageCard';
 import PreviewImage from './PreviewImage';
@@ -31,7 +33,6 @@ import PreviewImage from './PreviewImage';
 const ImageBoxPopOver = () => {
   const dispatch = useTypedDispatch();
 
-  // const { taskId, projectId } = useParams();
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
   const taskId = pathname?.[4];
@@ -49,6 +50,11 @@ const ImageBoxPopOver = () => {
   const checkedImages = useTypedSelector(
     state => state.droneOperatorTask.checkedImages,
   );
+
+  const { mutate: startImageryProcess } = useMutation({
+    mutationFn: () => postProcessImagery(projectId, taskId),
+    onSuccess: () => toast.success('Image processing started'),
+  });
 
   // function that gets the signed urls for the images and again puts them in chunks of 4
   const { mutate } = useMutation({
@@ -75,6 +81,7 @@ const ImageBoxPopOver = () => {
           await delay(500);
         }
       }
+      startImageryProcess();
     },
   });
 
