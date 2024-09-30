@@ -6,7 +6,11 @@ export default async function callApiSimultaneously(urls: any, data: any) {
   // eslint-disable-next-line no-promise-executor-return
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  const retryFc = async (url: string, singleData: any, n: number) => {
+  const retryFc = async (
+    url: string,
+    singleData: any,
+    n: number,
+  ): Promise<any> => {
     try {
       return await axios.put(url, singleData);
     } catch (err) {
