@@ -1,11 +1,12 @@
+import jwt
 from app.users.user_logic import verify_token
-from fastapi import HTTPException, Request, Header
+from fastapi import HTTPException, Request, Security
+from fastapi.security.api_key import APIKeyHeader
 from app.config import settings
 from app.users.auth import Auth
 from app.users.user_schemas import AuthUser
 from loguru import logger as log
 from datetime import datetime, timedelta
-import jwt
 
 
 async def init_google_auth():
@@ -27,7 +28,7 @@ async def init_google_auth():
 
 
 async def login_required(
-    request: Request, access_token: str = Header(None)
+    request: Request, access_token: str = Security(APIKeyHeader(name="access-token"))
 ) -> AuthUser:
     """Dependency to inject into endpoints requiring login."""
     if settings.DEBUG:
@@ -37,9 +38,6 @@ async def login_required(
             name="admin",
             profile_img="",
         )
-
-    if not access_token:
-        raise HTTPException(status_code=401, detail="No access token provided")
 
     if not access_token:
         raise HTTPException(status_code=401, detail="No access token provided")
