@@ -151,7 +151,14 @@ async def delete_project_by_id(
     Raises:
         HTTPException: If the project is not found.
     """
-    project_id = await project_schemas.DbProject.delete(db, project.id)
+    user_id = user_data.id
+    project_id = await project_schemas.DbProject.delete(db, project.id, user_id)
+    if not project_id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Project not found or user not authorized to delete it.",
+        )
+
     return {"message": f"Project successfully deleted {project_id}"}
 
 
@@ -311,13 +318,11 @@ async def read_projects(
             db, user_id=user_id, skip=skip, limit=limit
         )
         if not projects:
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND, detail="No projects found."
-            )
+            return []
 
         return projects
     except KeyError as e:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY) from e
 
 
 @router.get(

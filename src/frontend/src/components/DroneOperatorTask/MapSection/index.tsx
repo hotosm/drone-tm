@@ -269,8 +269,8 @@ const MapSection = ({ className }: { className?: string }) => {
               isLoading={isUpdatingTakeOffPoint}
             >
               {newTakeOffPoint
-                ? 'Save Starting Point'
-                : 'Change Starting Point'}
+                ? 'Save Take off Point'
+                : 'Change Take off Point'}
             </Button>
           </div>
 

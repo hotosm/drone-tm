@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import {
   useGetIndividualTaskQuery,
@@ -42,7 +41,7 @@ const DescriptionBox = () => {
               {
                 name: 'Created date',
                 value: taskData?.created_at
-                  ? format(new Date(taskData?.created_at), 'yyyy-mm-dd')
+                  ? taskData?.created_at?.slice(0, 10) || '-'
                   : null,
               },
               {

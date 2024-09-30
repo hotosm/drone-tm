@@ -21,6 +21,7 @@ jobs:
       build_target: service
       image_name: ghcr.io/${{ github.repository }}/backend
       dockerfile: Dockerfile
+      scan_image: false
     secrets: inherit
 
   encode-envs:

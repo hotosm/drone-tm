@@ -395,27 +395,27 @@ class DbProject(BaseModel):
             return new_project_id[0]
 
     @staticmethod
-    async def delete(db: Connection, project_id: uuid.UUID) -> uuid.UUID:
+    async def delete(db: Connection, project_id: uuid.UUID, user_id: str) -> uuid.UUID:
         """Delete a single project."""
         sql = """
-            WITH deleted_project AS (
-                DELETE FROM projects
-                WHERE id = %(project_id)s
-                RETURNING id
-            ), deleted_tasks AS (
-                DELETE FROM tasks
-                WHERE project_id = %(project_id)s
-                RETURNING project_id
-            ), deleted_task_events AS (
-                DELETE FROM task_events
-                WHERE project_id = %(project_id)s
-                RETURNING project_id
-            )
-            SELECT id FROM deleted_project
+        WITH deleted_project AS (
+            DELETE FROM projects
+            WHERE id = %(project_id)s AND author_id = %(user_id)s
+            RETURNING id
+        ), deleted_tasks AS (
+            DELETE FROM tasks
+            WHERE project_id = %(project_id)s
+            RETURNING project_id
+        ), deleted_task_events AS (
+            DELETE FROM task_events
+            WHERE project_id = %(project_id)s
+            RETURNING project_id
+        )
+        SELECT id FROM deleted_project
         """
 
         async with db.cursor() as cur:
-            await cur.execute(sql, {"project_id": project_id})
+            await cur.execute(sql, {"project_id": project_id, "user_id": user_id})
             deleted_project_id = await cur.fetchone()
 
             if not deleted_project_id:
