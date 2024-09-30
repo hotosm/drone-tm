@@ -65,6 +65,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
               onFocus={() => setError('')}
             />
             {error && <ErrorMessage message={error} />}
+            <p className="naxatw-text-[#68707F]">Recommended : 50-700</p>
           </FormControl>
           <Button
             withLoader
