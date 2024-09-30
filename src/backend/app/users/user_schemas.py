@@ -189,6 +189,17 @@ class DbUser(BaseModel):
     profile_img: Optional[str] = None
 
     @staticmethod
+    async def all(db: Connection):
+        "Fetch  all users."
+        async with db.cursor(row_factory=class_row(DbUser)) as cur:
+            await cur.execute(
+                """
+                SELECT * FROM users;
+                """
+            )
+            return await cur.fetchall()
+
+    @staticmethod
     async def one(db: Connection, user_id: str):
         """Fetch user from the database by user_id."""
         async with db.cursor(row_factory=class_row(DbUser)) as cur:
