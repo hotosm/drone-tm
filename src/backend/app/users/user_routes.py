@@ -61,6 +61,14 @@ async def login_access_token(
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
+@router.get("/", tags=["users"], response_model=list[user_schemas.DbUser])
+async def get_user(
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    return await user_schemas.DbUser.all(db)
+
+
 @router.patch("/{user_id}/profile")
 @router.post("/{user_id}/profile")
 async def update_user_profile(
