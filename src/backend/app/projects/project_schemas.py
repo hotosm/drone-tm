@@ -204,6 +204,12 @@ class DbProject(BaseModel):
             )
             project_record = await cur.fetchone()
 
+        if not project_record:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=f"Project with ID {project_id} not found.",
+            )
+
         async with db.cursor(row_factory=class_row(TaskOut)) as cur:
             await cur.execute(
                 """
@@ -395,12 +401,12 @@ class DbProject(BaseModel):
             return new_project_id[0]
 
     @staticmethod
-    async def delete(db: Connection, project_id: uuid.UUID, user_id: str) -> uuid.UUID:
-        """Delete a single project."""
+    async def delete(db: Connection, project_id: uuid.UUID) -> uuid.UUID:
+        """Delete a single project if the user is the author or a superuser."""
         sql = """
         WITH deleted_project AS (
             DELETE FROM projects
-            WHERE id = %(project_id)s AND author_id = %(user_id)s
+            WHERE id = %(project_id)s
             RETURNING id
         ), deleted_tasks AS (
             DELETE FROM tasks
@@ -415,13 +421,15 @@ class DbProject(BaseModel):
         """
 
         async with db.cursor() as cur:
-            await cur.execute(sql, {"project_id": project_id, "user_id": user_id})
+            await cur.execute(sql, {"project_id": project_id})
             deleted_project_id = await cur.fetchone()
 
             if not deleted_project_id:
                 log.warning(f"Failed to delete project ({project_id})")
-                raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
-
+                raise HTTPException(
+                    status_code=HTTPStatus.FORBIDDEN,
+                    detail="User not authorized to delete it.",
+                )
             return deleted_project_id[0]
 
 

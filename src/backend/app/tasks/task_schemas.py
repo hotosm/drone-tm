@@ -12,6 +12,7 @@ from typing import Optional
 class NewEvent(BaseModel):
     event: EventType
     comment: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
 
 class Task(BaseModel):
@@ -150,6 +151,7 @@ class UserTasksStatsOut(BaseModel):
     project_id: uuid.UUID
     project_task_index: int
     project_name: str
+    updated_at: Optional[datetime]
 
     @staticmethod
     async def get_tasks_by_user(
@@ -164,6 +166,7 @@ class UserTasksStatsOut(BaseModel):
                     projects.name AS project_name,
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
+                    task_events.updated_at,
                     CASE
                         WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
                         WHEN task_events.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
