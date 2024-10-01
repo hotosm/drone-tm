@@ -23,7 +23,6 @@ router = APIRouter(
 
 @router.get("/{project_id}/{task_id}/images")
 async def download_images(
-    db: Annotated[Connection, Depends(database.get_db)],
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     project: Annotated[
