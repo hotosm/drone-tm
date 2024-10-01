@@ -34,6 +34,7 @@ async def read_task(
                 SELECT
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
+                    task_events.updated_at,
                     projects.name AS project_name,
                     project_task_index,
                     projects.front_overlap AS front_overlap,
