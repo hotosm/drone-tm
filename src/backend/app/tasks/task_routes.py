@@ -34,11 +34,7 @@ async def download_images(
     """Retrieve URLs of uploaded images for a specific task by its ID."""
     # Download Image URL from S3
     image_dir = f"projects/{project_id}/{task_id}/images/"
-    image_urls = s3.get_image_urls_from_dir(settings.S3_BUCKET_NAME, image_dir)
-    if not image_urls:
-        return []
-
-    return image_urls
+    return s3.get_image_urls_from_dir(settings.S3_BUCKET_NAME, image_dir)
 
 
 @router.get("/{task_id}")

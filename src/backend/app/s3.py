@@ -168,7 +168,7 @@ def get_image_urls_from_dir(bucket_name: str, image_dir: str):
             for obj in objects
             if obj.object_name.lower().endswith(tuple(image_extensions))
         )
-        return image_urls if image_urls else None
+        return image_urls if image_urls else []
 
     except Exception as e:
         log.error(f"Error listing image files: {str(e)}")
