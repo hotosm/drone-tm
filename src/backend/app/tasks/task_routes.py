@@ -12,12 +12,33 @@ from psycopg import Connection
 from app.db import database
 from app.utils import send_notification_email, render_email_template
 from psycopg.rows import dict_row
+from app import s3
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",
     tags=["tasks"],
     responses={404: {"description": "Not found"}},
 )
+
+
+@router.get("/{project_id}/{task_id}/images")
+async def download_images(
+    db: Annotated[Connection, Depends(database.get_db)],
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    user_data: AuthUser = Depends(login_required),
+):
+    """Retrieve URLs of uploaded images for a specific task by its ID."""
+    # Download Image URL from S3
+    image_dir = f"projects/{project_id}/{task_id}/images/"
+    image_urls = s3.get_image_urls_from_dir(settings.S3_BUCKET_NAME, image_dir)
+    if not image_urls:
+        return []
+
+    return image_urls
 
 
 @router.get("/{task_id}")

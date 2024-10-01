@@ -136,7 +136,47 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
             response.release_conn()
 
 
-def get_image_dir_url(bucket_name: str, image_dir: str):
+def get_image_urls_from_dir(bucket_name: str, image_dir: str):
+    """Generate the full URLs for image files in an S3 bucket directory.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        image_dir (str): The directory path within the bucket where images are stored.
+
+    Returns:
+        list: A list of full URLs to access the image files.
+    """
+    minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
+
+    # Ensure image_dir starts with a forward slash
+    if not image_dir.startswith("/"):
+        image_dir = f"/{image_dir}"
+
+    # Construct the base URL
+    protocol = "https" if is_secure else "http"
+    base_url = f"{protocol}://{minio_url}/{bucket_name}"
+    minio_client = s3_client()
+    image_urls = []
+
+    try:
+        objects = minio_client.list_objects(bucket_name, prefix=image_dir.lstrip("/"))
+
+        # Define supported image file extensions
+        image_extensions = {".jpg", ".jpeg", ".png"}
+
+        for obj in objects:
+            if any(obj.object_name.lower().endswith(ext) for ext in image_extensions):
+                image_url = f"{base_url}/{obj.object_name.lstrip('/')}"
+                image_urls.append(image_url)
+
+        return image_urls if image_urls else None
+
+    except Exception as e:
+        log.error(f"Error listing image files: {str(e)}")
+        return None
+
+
+def get_project_image_url(bucket_name: str, image_dir: str):
     """Generate the full URL for the image directory in an S3 bucket.
 
     Args:
