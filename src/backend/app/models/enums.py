@@ -142,6 +142,8 @@ class State(int, Enum):
     LOCKED_FOR_VALIDATION = 3
     UNLOCKED_DONE = 4
     UNFLYABLE_TASK = 5
+    IMAGE_UPLOADED = 6
+    IMAGE_PROCESSED = 7
 
 
 class EventType(str, Enum):
