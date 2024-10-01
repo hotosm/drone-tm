@@ -20,7 +20,6 @@ class AuthUser(BaseModel):
     email: EmailStr
     name: str
     profile_img: Optional[str] = None
-    is_superuser: bool = False
 
 
 class UserBase(BaseModel):
