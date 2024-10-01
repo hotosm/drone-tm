@@ -78,15 +78,17 @@ const UserProfile = () => {
     role: isDroneOperator ? 2 : 1,
   };
 
-  const { register, setValue, handleSubmit, formState, control } = useForm({
-    defaultValues: initialState,
-  });
+  const { register, setValue, handleSubmit, formState, control, watch } =
+    useForm({
+      defaultValues: initialState,
+    });
 
   const formProps = {
     register,
     setValue,
     formState,
     control,
+    watch,
   };
 
   const { mutate: updateUserProfile } = useMutation<any, any, any, unknown>({
