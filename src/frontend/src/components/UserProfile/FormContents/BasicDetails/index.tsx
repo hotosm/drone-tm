@@ -59,6 +59,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
             placeholder="Enter City"
             className="naxatw-mt-1"
             {...register('city', {
+              setValueAs: (value: string) => value.trim(),
               required: 'City is Required',
             })}
           />
@@ -80,6 +81,10 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               type="number"
               {...register('phone_number', {
                 required: 'Phone Number is Required',
+                minLength: {
+                  value: 5,
+                  message: 'Invalid Phone Number',
+                },
               })}
             />
           </div>
