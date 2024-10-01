@@ -163,12 +163,11 @@ def get_image_urls_from_dir(bucket_name: str, image_dir: str):
 
         # Define supported image file extensions
         image_extensions = {".jpg", ".jpeg", ".png"}
-
-        for obj in objects:
-            if any(obj.object_name.lower().endswith(ext) for ext in image_extensions):
-                image_url = f"{base_url}/{obj.object_name.lstrip('/')}"
-                image_urls.append(image_url)
-
+        image_urls.extend(
+            f"{base_url}/{obj.object_name.lstrip('/')}"
+            for obj in objects
+            if obj.object_name.lower().endswith(tuple(image_extensions))
+        )
         return image_urls if image_urls else None
 
     except Exception as e:
