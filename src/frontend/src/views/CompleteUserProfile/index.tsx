@@ -1,13 +1,13 @@
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useNavigate } from 'react-router-dom';
-import { UserProfileHeader } from '@Components/UserProfile';
+import { UserProfileHeader } from '@Components/CompleteUserProfile';
 import { useForm } from 'react-hook-form';
 import {
   BasicDetails,
   OrganizationDetails,
   OtherDetails,
   PasswordSection,
-} from '@Components/UserProfile/FormContents';
+} from '@Components/CompleteUserProfile/FormContents';
 import {
   tabOptions,
   projectCreatorKeys,
@@ -45,7 +45,7 @@ const getActiveFormContent = (
   }
 };
 
-const UserProfile = () => {
+const CompleteUserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
@@ -168,4 +168,4 @@ const UserProfile = () => {
   );
 };
 
-export default hasErrorBoundary(UserProfile);
+export default hasErrorBoundary(CompleteUserProfile);
