@@ -217,7 +217,7 @@ class TaskEvent(Base):
         Index("idx_task_event_composite", "task_id", "project_id"),
         Index("idx_task_event_project_id_user_id", "user_id", "project_id"),
     )
-    updated_at = cast(datetime, Column(DateTime, nullable=True  ))
+    updated_at = cast(datetime, Column(DateTime, nullable=True))
 
 
 class Drone(Base):
