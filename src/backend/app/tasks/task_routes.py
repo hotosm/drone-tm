@@ -199,6 +199,7 @@ async def new_event(
                 message,
                 State.UNLOCKED_TO_MAP,
                 state_after,
+                detail.updated_at,
             )
             # Send email notification if approval is required
             if state_after == State.REQUEST_FOR_MAPPING:
@@ -272,6 +273,7 @@ async def new_event(
                 "Request accepted for mapping",
                 State.REQUEST_FOR_MAPPING,
                 State.LOCKED_FOR_MAPPING,
+                detail.updated_at,
             )
 
         case EventType.REJECTED:
@@ -318,6 +320,7 @@ async def new_event(
                 "Request for mapping rejected",
                 State.REQUEST_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
         case EventType.FINISH:
             return await task_logic.update_task_state(
@@ -328,6 +331,7 @@ async def new_event(
                 "Done: unlocked to validate",
                 State.LOCKED_FOR_MAPPING,
                 State.UNLOCKED_TO_VALIDATE,
+                detail.updated_at,
             )
         case EventType.VALIDATE:
             return task_logic.update_task_state(
@@ -338,6 +342,7 @@ async def new_event(
                 "Done: locked for validation",
                 State.UNLOCKED_TO_VALIDATE,
                 State.LOCKED_FOR_VALIDATION,
+                detail.updated_at,
             )
         case EventType.GOOD:
             return await task_logic.update_task_state(
@@ -348,6 +353,7 @@ async def new_event(
                 "Done: Task is Good",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_DONE,
+                detail.updated_at,
             )
 
         case EventType.BAD:
@@ -359,6 +365,7 @@ async def new_event(
                 "Done: needs to redo",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
         case EventType.COMMENT:
             return await task_logic.update_task_state(
@@ -369,6 +376,7 @@ async def new_event(
                 detail.comment,
                 State.LOCKED_FOR_MAPPING,
                 State.UNFLYABLE_TASK,
+                detail.updated_at,
             )
 
         case EventType.UNLOCK:
@@ -401,6 +409,7 @@ async def new_event(
                 f"Task has been unlock by user {user_data.name}.",
                 State.LOCKED_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
 
     return True

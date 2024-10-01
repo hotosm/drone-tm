@@ -4,6 +4,7 @@ from psycopg import Connection
 from app.models.enums import HTTPStatus, State
 from fastapi import HTTPException
 from psycopg.rows import dict_row
+from datetime import datetime
 
 
 async def update_take_off_point_in_db(
@@ -88,6 +89,7 @@ async def update_task_state(
     comment: str,
     initial_state: State,
     final_state: State,
+    updated_at: datetime,
 ):
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -104,8 +106,8 @@ async def update_task_state(
                 FROM last
                 WHERE user_id = %(user_id)s AND state = %(initial_state)s
             )
-            INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, created_at)
-            SELECT gen_random_uuid(), project_id, task_id, user_id, %(final_state)s, %(comment)s, now()
+            INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+            SELECT gen_random_uuid(), project_id, task_id, user_id, %(final_state)s, %(comment)s, %(updated_at)s, now()
             FROM last
             WHERE user_id = %(user_id)s
             RETURNING project_id, task_id, comment;
@@ -117,6 +119,7 @@ async def update_task_state(
                 "comment": comment,
                 "initial_state": initial_state.name,
                 "final_state": final_state.name,
+                "updated_at": updated_at,
             },
         )
         result = await cur.fetchone()
@@ -131,6 +134,7 @@ async def request_mapping(
     comment: str,
     initial_state: State,
     final_state: State,
+    updated_at: datetime,
 ):
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -147,7 +151,7 @@ async def request_mapping(
                 FROM task_events
                 WHERE project_id= %(project_id)s AND task_id= %(task_id)s AND state = %(unlocked_to_map_state)s
             )
-            INSERT INTO task_events (event_id, project_id, task_id, user_id, comment, state, created_at)
+            INSERT INTO task_events (event_id, project_id, task_id, user_id, comment, state, updated_at, created_at)
 
             SELECT
                 gen_random_uuid(),
@@ -156,6 +160,7 @@ async def request_mapping(
                 %(user_id)s,
                 %(comment)s,
                 %(request_for_map_state)s,
+                %(updated_at)s,
                 now()
             FROM last
             RIGHT JOIN released ON true
@@ -169,6 +174,7 @@ async def request_mapping(
                 "comment": comment,
                 "unlocked_to_map_state": initial_state.name,
                 "request_for_map_state": final_state.name,
+                "updated_at": updated_at,
             },
         )
         result = await cur.fetchone()
