@@ -5,7 +5,7 @@ import { countriesWithPhoneCodes } from '@Constants/countryCode';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { Button } from '@Components/RadixComponents/Button';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { patchUserProfile } from '@Services/common';
 import { toast } from 'react-toastify';
 
@@ -18,6 +18,7 @@ const BasicDetails = () => {
     password: null,
     phone_number: userProfile?.phone_number || null,
   };
+  const queryClient = useQueryClient();
 
   const { register, handleSubmit, formState, control } = useForm({
     defaultValues: initialState,
@@ -31,6 +32,8 @@ const BasicDetails = () => {
   >({
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
     onSuccess: () => {
+      queryClient.invalidateQueries(['user-profile']);
+
       toast.success('Basic Updated Successfully');
     },
     onError: err => {
