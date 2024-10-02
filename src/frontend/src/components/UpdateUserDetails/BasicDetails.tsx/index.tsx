@@ -96,7 +96,7 @@ const BasicDetails = () => {
             placeholder="Enter City"
             className="naxatw-mt-1"
             {...register('city', {
-              setValueAs: (value: string) => value.trim(),
+              setValueAs: (value: string) => value?.trim(),
               required: 'City is Required',
             })}
           />

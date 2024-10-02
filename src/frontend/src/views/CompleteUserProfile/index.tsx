@@ -1,6 +1,5 @@
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useNavigate } from 'react-router-dom';
-import { UserProfileHeader } from '@Components/CompleteUserProfile';
 import { useForm } from 'react-hook-form';
 import {
   BasicDetails,
@@ -126,8 +125,7 @@ const CompleteUserProfile = () => {
   };
 
   return (
-    <section className="naxatw-h-screen">
-      <UserProfileHeader />
+    <section className="naxatw-h-screen md:naxatw-pt-[5%]">
       <div className="naxatw-mx-auto naxatw-flex naxatw-h-[80vh] naxatw-w-full naxatw-flex-col naxatw-gap-2 naxatw-border naxatw-shadow-lg md:naxatw-w-[34rem] md:naxatw-flex-row">
         <div className="naxatw-w-full naxatw-border-r md:naxatw-w-2/6">
           <Tab
