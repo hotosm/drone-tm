@@ -4,10 +4,9 @@ import {
   ProjectsHeader,
   ProjectsMapSection,
 } from '@Components/Projects';
-import { useGetProjectsListQuery, useGetUserDetailsQuery } from '@Api/projects';
+import { useGetProjectsListQuery } from '@Api/projects';
 import ProjectCardSkeleton from '@Components/Projects/ProjectCardSkeleton';
 import { useEffect } from 'react';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { setCreateProjectState } from '@Store/actions/createproject';
 import { useDispatch } from 'react-redux';
@@ -22,15 +21,6 @@ const Projects = () => {
   // fetch api for projectsList
   const { data: projectsList, isLoading }: Record<string, any> =
     useGetProjectsListQuery(projectsFilterByOwner);
-
-  const { data: userDetails } = useGetUserDetailsQuery();
-  const localStorageUserDetails = getLocalStorageValue('userprofile');
-
-  useEffect(() => {
-    if (!userDetails || !localStorageUserDetails) return;
-    const userDetailsString = JSON.stringify(userDetails);
-    localStorage.setItem('userprofile', userDetailsString as string);
-  }, [userDetails, localStorageUserDetails]);
 
   useEffect(() => {
     return () => {
