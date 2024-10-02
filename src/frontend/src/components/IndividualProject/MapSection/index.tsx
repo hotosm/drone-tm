@@ -158,7 +158,7 @@ const MapSection = () => {
     lockTask({
       projectId: id,
       taskId: selectedTaskId,
-      data: { event: 'request' },
+      data: { event: 'request', updated_at: new Date().toISOString() },
     });
   };
 
@@ -166,7 +166,7 @@ const MapSection = () => {
     unLockTask({
       projectId: id,
       taskId: selectedTaskId,
-      data: { event: 'unlock' },
+      data: { event: 'unlock', updated_at: new Date().toISOString() },
     });
   };
 
@@ -181,7 +181,6 @@ const MapSection = () => {
     >
       <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
       <LocateUser isMapLoaded={isMapLoaded} />
-
       {projectArea && (
         <VectorLayer
           map={map as Map}
