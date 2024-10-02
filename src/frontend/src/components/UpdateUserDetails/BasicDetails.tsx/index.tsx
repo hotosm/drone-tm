@@ -15,7 +15,6 @@ const BasicDetails = () => {
     name: userProfile?.name,
     country: userProfile?.country || null,
     city: userProfile?.city || null,
-    password: null,
     phone_number: userProfile?.phone_number || null,
   };
   const queryClient = useQueryClient();
@@ -33,12 +32,12 @@ const BasicDetails = () => {
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
     onSuccess: () => {
       queryClient.invalidateQueries(['user-profile']);
-
       toast.success('Details Updated Successfully');
     },
     onError: err => {
       // eslint-disable-next-line no-console
       console.log(err);
+      toast.error(err?.response?.data?.detail || 'Something went wrong');
     },
   });
 

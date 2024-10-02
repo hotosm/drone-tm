@@ -29,11 +29,12 @@ const Password = () => {
   >({
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
     onSuccess: () => {
-      toast.success('Password Updated successfully');
+      toast.success('Password Updated Successfully');
     },
     onError: err => {
       // eslint-disable-next-line no-console
       console.log(err);
+      toast.error(err?.response?.data?.detail || 'Something went wrong');
     },
   });
 

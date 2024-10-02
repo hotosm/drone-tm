@@ -49,6 +49,7 @@ const OtherDetails = () => {
     onError: err => {
       // eslint-disable-next-line no-console
       console.log(err);
+      toast.error(err?.response?.data?.detail || 'Something went wrong');
     },
   });
 
