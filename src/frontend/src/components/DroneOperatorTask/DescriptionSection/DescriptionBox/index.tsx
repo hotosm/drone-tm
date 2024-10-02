@@ -45,6 +45,12 @@ const DescriptionBox = () => {
                   : null,
               },
               {
+                name: 'TAsk locked date',
+                value: taskData?.updated_at
+                  ? taskData?.updated_at?.slice(0, 10) || '-'
+                  : null,
+              },
+              {
                 name: 'Total task area',
                 value: taskData?.task_area
                   ? `${Number(taskData?.task_area)?.toFixed(3)} km²`
