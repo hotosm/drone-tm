@@ -5,6 +5,9 @@ import { countriesWithPhoneCodes } from '@Constants/countryCode';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { Button } from '@Components/RadixComponents/Button';
+import { useMutation } from '@tanstack/react-query';
+import { patchUserProfile } from '@Services/common';
+import { toast } from 'react-toastify';
 
 const BasicDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -19,6 +22,26 @@ const BasicDetails = () => {
   const { register, handleSubmit, formState, control } = useForm({
     defaultValues: initialState,
   });
+
+  const { mutate: updateBasicInfo, isLoading } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
+    mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
+    onSuccess: () => {
+      toast.success('Basic Updated Successfully');
+    },
+    onError: err => {
+      // eslint-disable-next-line no-console
+      console.log(err);
+    },
+  });
+
+  const onSubmit = (formData: Record<string, any>) => {
+    updateBasicInfo({ userId: userProfile?.id, data: formData });
+  };
 
   return (
     <section className="naxatw-w-full naxatw-px-14">
@@ -110,8 +133,10 @@ const BasicDetails = () => {
           className="naxatw-bg-red"
           onClick={e => {
             e.preventDefault();
+            handleSubmit(onSubmit)();
           }}
           withLoader
+          isLoading={isLoading}
         >
           Save
         </Button>
