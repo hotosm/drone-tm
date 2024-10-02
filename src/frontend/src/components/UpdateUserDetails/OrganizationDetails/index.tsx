@@ -47,7 +47,7 @@ const OrganizationDetails = () => {
   return (
     <section className="naxatw-w-full naxatw-px-14">
       <Flex>
-        <p className="naxatw-py-2 naxatw-text-lg naxatw-font-bold">
+        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">
           Organization Details
         </p>
       </Flex>
