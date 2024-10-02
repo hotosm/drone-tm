@@ -107,11 +107,6 @@ async def update_user_profile(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Old password is incorrect",
                 )
-        else:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Old and new password are required !",
-            )
 
     user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
     return JSONResponse(
