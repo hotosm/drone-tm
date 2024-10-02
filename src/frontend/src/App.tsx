@@ -52,7 +52,7 @@ export default function App() {
     '/',
     '/login',
     '/forgot-password',
-    '/user-profile',
+    '/complete-profile',
   ];
 
   return (
