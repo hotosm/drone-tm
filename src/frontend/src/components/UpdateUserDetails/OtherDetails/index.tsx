@@ -8,6 +8,10 @@ import FileUpload from '@Components/common/UploadArea';
 import { droneOperatorOptions } from '@Constants/index';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { setCommonState } from '@Store/actions/common';
+import { Button } from '@Components/RadixComponents/Button';
+import { patchUserProfile } from '@Services/common';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 
 const OtherDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -24,10 +28,33 @@ const OtherDetails = () => {
     certified_drone_operator: userProfile?.certified_drone_operator || false,
     drone_you_own: userProfile?.drone_you_own || null,
   };
+  const queryClient = useQueryClient();
 
   const { register, handleSubmit, setValue, formState } = useForm({
     defaultValues: initialState,
   });
+
+  const { mutate: updateOtherDetails, isLoading } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
+    mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['user-profile']);
+
+      toast.success('Details Updated Successfully');
+    },
+    onError: err => {
+      // eslint-disable-next-line no-console
+      console.log(err);
+    },
+  });
+
+  const onSubmit = (formData: Record<string, any>) => {
+    updateOtherDetails({ userId: userProfile?.id, data: formData });
+  };
 
   return (
     <section className="naxatw-px-14">
@@ -108,6 +135,19 @@ const OtherDetails = () => {
           placeholder="*The supported file formats are pdf, .jpeg, .png"
         />
       </FlexColumn>
+      <div className="naxatw-flex naxatw-justify-center naxatw-py-4">
+        <Button
+          className="naxatw-bg-red"
+          onClick={e => {
+            e.preventDefault();
+            handleSubmit(onSubmit)();
+          }}
+          withLoader
+          isLoading={isLoading}
+        >
+          Save
+        </Button>
+      </div>
     </section>
   );
 };
