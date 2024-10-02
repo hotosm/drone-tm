@@ -7,11 +7,14 @@ import { useNavigate } from 'react-router-dom';
 import UserAvatar from '@Components/common/UserAvatar';
 import { toast } from 'react-toastify';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import { useGetUserDetailsQuery } from '@Api/projects';
 
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
 
+  // eslint-disable-next-line no-unused-vars
+  const { data: userDetails } = useGetUserDetailsQuery();
   const userProfile = getLocalStorageValue('userprofile');
 
   const settingOptions = [
