@@ -2,8 +2,11 @@ import ErrorMessage from '@Components/common/ErrorMessage';
 import { FormControl, Input, Label } from '@Components/common/FormUI';
 import { Flex, FlexColumn } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
+import { patchUserProfile } from '@Services/common';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import { useForm } from 'react-hook-form';
+import { toast } from 'react-toastify';
 
 const OrganizationDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -13,10 +16,33 @@ const OrganizationDetails = () => {
     organization_address: userProfile?.organization_address || null,
     job_title: userProfile?.job_title || null,
   };
+  const queryClient = useQueryClient();
 
   const { register, handleSubmit, formState } = useForm({
     defaultValues: initialState,
   });
+
+  const { mutate: updateOrganizationDetails, isLoading } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
+    mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['user-profile']);
+
+      toast.success('Organization details updated successfully');
+    },
+    onError: err => {
+      // eslint-disable-next-line no-console
+      console.log(err);
+    },
+  });
+
+  const onSubmit = (formData: Record<string, any>) => {
+    updateOrganizationDetails({ userId: userProfile?.id, data: formData });
+  };
 
   return (
     <section className="naxatw-w-full naxatw-px-14">
@@ -71,8 +97,10 @@ const OrganizationDetails = () => {
           className="naxatw-bg-red"
           onClick={e => {
             e.preventDefault();
+            handleSubmit(onSubmit)();
           }}
           withLoader
+          isLoading={isLoading}
         >
           Save
         </Button>
