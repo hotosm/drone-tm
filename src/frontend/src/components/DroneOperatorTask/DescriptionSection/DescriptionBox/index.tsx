@@ -45,6 +45,12 @@ const DescriptionBox = () => {
                   : null,
               },
               {
+                name: 'TAsk locked date',
+                value: taskData?.updated_at
+                  ? taskData?.updated_at?.slice(0, 10) || '-'
+                  : null,
+              },
+              {
                 name: 'Total task area',
                 value: taskData?.task_area
                   ? `${Number(taskData?.task_area)?.toFixed(3)} km²`
@@ -99,27 +105,38 @@ const DescriptionBox = () => {
   const handleDownloadResult = () => {
     if (!taskAssetsInformation?.assets_url) return;
 
-    fetch(`${taskAssetsInformation?.assets_url}`, { method: 'GET' })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Network response was ${response.statusText}`);
-        }
-        return response.blob();
-      })
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'assets.zip';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-      })
-      .catch(error =>
-        toast.error(`There wan an error while downloading file
-          ${error}`),
-      );
+    // fetch(`${taskAssetsInformation?.assets_url}`, { method: 'GET' })
+    //   .then(response => {
+    //     if (!response.ok) {
+    //       throw new Error(`Network response was ${response.statusText}`);
+    //     }
+    //     return response.blob();
+    //   })
+    //   .then(blob => {
+    //     const url = window.URL.createObjectURL(blob);
+    //     const link = document.createElement('a');
+    //     link.href = url;
+    //     link.download = 'assets.zip';
+    //     document.body.appendChild(link);
+    //     link.click();
+    //     link.remove();
+    //     window.URL.revokeObjectURL(url);
+    //   })
+    //   .catch(error =>
+    //     toast.error(`There wan an error while downloading file
+    //       ${error}`),
+    //   );
+
+    try {
+      const link = document.createElement('a');
+      link.href = taskAssetsInformation?.assets_url;
+      link.download = 'assets.zip';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(`There wan an error while downloading file ${error}`);
+    }
   };
 
   return (

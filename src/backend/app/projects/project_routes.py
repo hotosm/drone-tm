@@ -31,6 +31,7 @@ from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
 from app.utils import geojson_to_kml
+from app.users import user_schemas
 
 
 router = APIRouter(
@@ -152,13 +153,14 @@ async def delete_project_by_id(
         HTTPException: If the project is not found.
     """
     user_id = user_data.id
-    project_id = await project_schemas.DbProject.delete(db, project.id, user_id)
-    if not project_id:
+    user = await user_schemas.DbUser.get_user_by_id(db, user_id)
+    # Allow deletion if the user is the project creator or a superuser
+    if project.author_id != user_id and not user.get("is_superuser"):
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
-            detail="Project not found or user not authorized to delete it.",
+            detail="User not authorized to delete this project.",
         )
-
+    project_id = await project_schemas.DbProject.delete(db, project.id)
     return {"message": f"Project successfully deleted {project_id}"}
 
 
