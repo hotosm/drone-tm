@@ -13,13 +13,14 @@ export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
 
-  const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
+  const { data: userDetails, isFetching }: Record<string, any> =
+    useGetUserDetailsQuery();
   const userProfile = getLocalStorageValue('userprofile');
 
   useEffect(() => {
-    if (userDetails?.has_user_profile) return;
+    if (userDetails?.has_user_profile || isFetching) return;
     if (!userDetails?.has_user_profile) navigate('/complete-profile');
-  }, [userDetails?.has_user_profile, navigate]);
+  }, [userDetails?.has_user_profile, navigate, isFetching]);
 
   const settingOptions = [
     {
