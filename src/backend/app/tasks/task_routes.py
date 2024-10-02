@@ -33,25 +33,32 @@ async def read_task(
                 """
                 SELECT
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
-                    task_events.created_at,
-                    task_events.updated_at,
+                    te.created_at,
+                    te.updated_at,
                     projects.name AS project_name,
-                    project_task_index,
+                    tasks.project_task_index,
                     projects.front_overlap AS front_overlap,
                     projects.side_overlap AS side_overlap,
                     projects.gsd_cm_px AS gsd_cm_px,
                     projects.gimble_angles_degrees AS gimble_angles_degrees
-                FROM
-                    task_events
-                JOIN
-                    tasks ON task_events.task_id = tasks.id
-                JOIN
-                    projects ON task_events.project_id = projects.id
-                WHERE task_events.task_id = %(task_id)s""",
+                FROM (
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.created_at,
+                        te.updated_at
+                    FROM task_events te
+                    WHERE te.task_id = %(task_id)s
+                    ORDER BY te.task_id, te.created_at DESC
+                ) AS te
+                JOIN tasks ON te.task_id = tasks.id
+                JOIN projects ON tasks.project_id = projects.id
+                WHERE te.task_id = %(task_id)s;
+                """,
                 {"task_id": task_id},
             )
             records = await cur.fetchone()
             return records
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,

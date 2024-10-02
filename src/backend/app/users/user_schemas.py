@@ -114,6 +114,7 @@ class BaseUserProfile(BaseModel):
 
 class UserProfileIn(BaseUserProfile):
     password: Optional[str] = None
+    old_password: Optional[str] = None
 
 
 class DbUserProfile(BaseUserProfile):

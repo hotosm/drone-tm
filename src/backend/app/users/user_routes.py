@@ -76,6 +76,7 @@ async def update_user_profile(
     profile_update: UserProfileIn,
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
+    request: Request,
 ):
     """
     Update user profile based on provided user_id and profile_update data.
@@ -89,7 +90,6 @@ async def update_user_profile(
     """
 
     user = await user_schemas.DbUser.get_user_by_id(db, user_id)
-
     if user_data.id != user_id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
@@ -98,6 +98,16 @@ async def update_user_profile(
 
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+
+    if request.method == "PATCH":
+        if not user_logic.verify_password(
+            profile_update.old_password, user.get("password")
+        ):
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Old password is incorrect",
+            )
+
     user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
     return JSONResponse(
         status_code=HTTPStatus.OK,
