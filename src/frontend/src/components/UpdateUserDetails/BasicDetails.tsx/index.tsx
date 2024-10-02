@@ -1,3 +1,4 @@
+import { toast } from 'react-toastify';
 import { Controller, useForm } from 'react-hook-form';
 import { FormControl, Input, Label, Select } from '@Components/common/FormUI';
 import { Flex, FlexColumn } from '@Components/common/Layouts';
@@ -7,7 +8,6 @@ import ErrorMessage from '@Components/common/ErrorMessage';
 import { Button } from '@Components/RadixComponents/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { patchUserProfile } from '@Services/common';
-import { toast } from 'react-toastify';
 
 const BasicDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -34,7 +34,7 @@ const BasicDetails = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['user-profile']);
 
-      toast.success('Basic Updated Successfully');
+      toast.success('Details Updated Successfully');
     },
     onError: err => {
       // eslint-disable-next-line no-console

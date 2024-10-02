@@ -1,12 +1,12 @@
+import { useForm } from 'react-hook-form';
+import { toast } from 'react-toastify';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { FormControl, Input, Label } from '@Components/common/FormUI';
 import { Flex, FlexColumn } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { patchUserProfile } from '@Services/common';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import { useForm } from 'react-hook-form';
-import { toast } from 'react-toastify';
 
 const OrganizationDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -32,7 +32,7 @@ const OrganizationDetails = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['user-profile']);
 
-      toast.success('Organization details updated successfully');
+      toast.success('Details Updated successfully');
     },
     onError: err => {
       // eslint-disable-next-line no-console
