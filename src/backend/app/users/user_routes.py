@@ -88,7 +88,6 @@ async def update_user_profile(
     Raises:
         HTTPException: If user with given user_id is not found in the database.
     """
-
     user = await user_schemas.DbUser.get_user_by_id(db, user_id)
     if user_data.id != user_id:
         raise HTTPException(
@@ -100,13 +99,14 @@ async def update_user_profile(
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
 
     if request.method == "PATCH":
-        if not user_logic.verify_password(
-            profile_update.old_password, user.get("password")
-        ):
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Old password is incorrect",
-            )
+        if profile_update.old_password and profile_update.password:
+            if not user_logic.verify_password(
+                profile_update.old_password, user.get("password")
+            ):
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Old password is incorrect",
+                )
 
     user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
     return JSONResponse(
