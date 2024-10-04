@@ -46,9 +46,14 @@ export const useGetUserDetailsQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['user=profile'],
+    queryKey: ['user-profile'],
     queryFn: getUserProfileInfo,
-    select: (res: any) => res.data,
+    select: (res: any) => {
+      const userDetails = res.data;
+      const userDetailsString = JSON.stringify(userDetails);
+      localStorage.setItem('userprofile', userDetailsString as string);
+      return userDetails;
+    },
     ...queryOptions,
   });
 };

@@ -47,7 +47,7 @@ function GoogleAuth() {
           if (userDetails?.has_user_profile) {
             navigate('/projects');
           } else {
-            navigate('/user-profile');
+            navigate('/complete-profile');
           }
         };
         await completeLogin();
@@ -56,7 +56,7 @@ function GoogleAuth() {
       setIsReadyToRedirect(true);
     };
     loginRedirect();
-  }, [location.search]);
+  }, [location.search, navigate]);
 
   return (
     <Flex className="naxatw-h-screen-nav naxatw-w-full naxatw-animate-pulse naxatw-items-center naxatw-justify-center">

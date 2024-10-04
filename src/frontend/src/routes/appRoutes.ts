@@ -1,12 +1,13 @@
 import Projects from '@Views/Projects';
 import Dashboard from '@Views/Dashboard';
-import UserProfile from '@Views/UserProfile';
+import CompleteUserProfile from '@Views/CompleteUserProfile';
 import CreateProject from '@Components/CreateProject';
 import GoogleAuth from '@Components/GoogleAuth';
 import userRoutes from '@UserModule/routes';
 import LandingPage from '@Views/LandingPage';
 import IndividualProject from '@Views/IndividualProject';
 import TaskDescription from '@Views/TaskDescription';
+import UpdateUserProfile from '@Views/UpdateUserProfile';
 import { IRoute } from './types';
 
 const appRoutes: IRoute[] = [
@@ -48,15 +49,22 @@ const appRoutes: IRoute[] = [
     authenticated: true,
   },
   {
-    path: '/user-profile',
-    name: 'User Profile',
-    component: UserProfile,
+    path: '/complete-profile',
+    name: 'Complete Profile',
+    component: CompleteUserProfile,
     authenticated: true,
   },
   {
     path: 'projects/:projectId/tasks/:taskId',
     name: 'Task description',
     component: TaskDescription,
+    authenticated: true,
+  },
+
+  {
+    path: '/user-profile',
+    name: 'User Profile',
+    component: UpdateUserProfile,
     authenticated: true,
   },
 ];

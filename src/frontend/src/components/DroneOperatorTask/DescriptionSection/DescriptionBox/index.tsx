@@ -45,7 +45,7 @@ const DescriptionBox = () => {
                   : null,
               },
               {
-                name: 'TAsk locked date',
+                name: 'Task locked date',
                 value: taskData?.updated_at
                   ? taskData?.updated_at?.slice(0, 10) || '-'
                   : null,
