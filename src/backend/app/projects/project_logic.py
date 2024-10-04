@@ -180,7 +180,7 @@ def process_drone_images(project_id: uuid.UUID, task_id: uuid.UUID):
     )
 
 
-async def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
+def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     """
     Helper function to get the number of images and the URL to download the assets.
     """
