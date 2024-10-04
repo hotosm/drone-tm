@@ -23,7 +23,7 @@ from app.utils import (
 )
 from psycopg.rows import dict_row
 from app.config import settings
-from app.s3 import get_image_dir_url
+from app.s3 import get_presigned_url
 
 
 def validate_geojson(
@@ -456,7 +456,8 @@ class ProjectOut(BaseModel):
         project_id = values.id
         if project_id:
             image_dir = f"projects/{project_id}/map_screenshot.png"
-            values.image_url = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
+            # values.image_url = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
+            values.image_url = get_presigned_url(settings.S3_BUCKET_NAME, image_dir, 5)
         return values
 
 
