@@ -307,7 +307,6 @@ class DbProject(BaseModel):
             )
 
             task_records = await cur.fetchall()
-            print(task_records)
             project_record.tasks = task_records if task_records is not None else []
             project_record.task_count = len(task_records)
             return project_record
