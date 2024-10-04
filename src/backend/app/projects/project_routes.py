@@ -309,6 +309,7 @@ async def read_projects(
     filter_by_owner: Optional[bool] = Query(
         False, description="Filter projects by authenticated user (creator)"
     ),
+    search: Optional[str] = Query(None, description="Search projects by name"),
     skip: int = 0,
     limit: int = 100,
 ):
@@ -317,7 +318,7 @@ async def read_projects(
     try:
         user_id = user_data.id if filter_by_owner else None
         projects = await project_schemas.DbProject.all(
-            db, user_id=user_id, skip=skip, limit=limit
+            db, user_id=user_id, search=search, skip=skip, limit=limit
         )
         if not projects:
             return []
