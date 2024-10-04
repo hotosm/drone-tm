@@ -219,13 +219,6 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 log.error(f"An error occurred while accessing assets file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-        # return {
-        #     "project_id":str(project_id),
-        #     "task_id":str(task_id),
-        #     "image_count":image_count,
-        #     "assets_url":presigned_url,
-        # }
-
         return project_schemas.AssetsInfo(
             project_id=str(project_id),
             task_id=str(task_id),
