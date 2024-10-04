@@ -2,6 +2,7 @@ import json
 import uuid
 from typing import Annotated, Optional, List
 from datetime import datetime, date
+from app.projects import project_logic
 import geojson
 from loguru import logger as log
 from pydantic import BaseModel, computed_field, Field, model_validator
@@ -24,6 +25,13 @@ from app.utils import (
 from psycopg.rows import dict_row
 from app.config import settings
 from app.s3 import get_image_dir_url
+
+
+class AssetsInfo(BaseModel):
+    project_id: str
+    task_id: str
+    image_count: int
+    assets_url: Optional[str]
 
 
 def validate_geojson(
@@ -121,16 +129,41 @@ class ProjectIn(BaseModel):
         return value
 
 
+class AssetsInfoData(BaseModel):
+    project_id: int
+
+
 class TaskOut(BaseModel):
     """Base project model."""
 
     id: uuid.UUID
+    project_id: uuid.UUID
     project_task_index: int
-    outline: Optional[Polygon | Feature | FeatureCollection]
+    outline: Optional[Polygon | Feature | FeatureCollection] = None
     state: Optional[str] = None
     user_id: Optional[str] = None
     task_area: Optional[float] = None
     name: Optional[str] = None
+    image_count: Optional[int] = None
+    assets_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def set_assets_url(cls, values):
+        """Set image_url and image count before rendering the model."""
+        task_id = values.id
+        project_id = values.project_id
+
+        if task_id and project_id:
+            data = project_logic.get_project_info_from_s3(project_id, task_id)
+            if data:
+                return values.copy(
+                    update={
+                        "assets_url": data.assets_url,
+                        "image_count": data.image_count,
+                    }
+                )
+
+        return values
 
 
 class DbProject(BaseModel):
@@ -227,6 +260,7 @@ class DbProject(BaseModel):
                     SELECT
                         t.id,
                         t.project_task_index,
+                        t.project_id,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'coordinates' AS coordinates,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'type' AS type,
                         ST_XMin(ST_Envelope(t.outline)) AS xmin,
@@ -253,6 +287,7 @@ class DbProject(BaseModel):
                     user_id,
                     name,
                     task_area,
+                    project_id,
                     jsonb_build_object(
                         'type', 'Feature',
                         'geometry', jsonb_build_object(
@@ -272,6 +307,7 @@ class DbProject(BaseModel):
             )
 
             task_records = await cur.fetchall()
+            print(task_records)
             project_record.tasks = task_records if task_records is not None else []
             project_record.task_count = len(task_records)
             return project_record
@@ -457,10 +493,3 @@ class PresignedUrlRequest(BaseModel):
     task_id: uuid.UUID
     image_name: List[str]
     expiry: int  # Expiry time in hours
-
-
-class AssetsInfo(BaseModel):
-    project_id: str
-    task_id: str
-    image_count: int
-    assets_url: Optional[str]

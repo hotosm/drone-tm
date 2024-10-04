@@ -180,7 +180,7 @@ def process_drone_images(project_id: uuid.UUID, task_id: uuid.UUID):
     )
 
 
-async def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
+def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     """
     Helper function to get the number of images and the URL to download the assets.
     """
@@ -218,6 +218,13 @@ async def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 # An unexpected error occurred
                 log.error(f"An error occurred while accessing assets file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
+
+        # return {
+        #     "project_id":str(project_id),
+        #     "task_id":str(task_id),
+        #     "image_count":image_count,
+        #     "assets_url":presigned_url,
+        # }
 
         return project_schemas.AssetsInfo(
             project_id=str(project_id),

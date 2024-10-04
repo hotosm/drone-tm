@@ -121,15 +121,12 @@ class Task(BaseModel):
             existing_tasks = await cur.fetchall()
             # Get all task_ids from the tasks table
             task_ids = await Task.get_all_tasks(db, project_id)
-            print("task ids = ", task_ids)
 
             # Create a set of existing task_ids for quick lookup
             existing_task_ids = {task.task_id for task in existing_tasks}
-            print("existing task ids = ", existing_task_ids)
 
             # task ids that are not in task_events table
             remaining_task_ids = [x for x in task_ids if x not in existing_task_ids]
-            print("remaining task ids = ", remaining_task_ids)
 
             # Add missing tasks with state as "UNLOCKED_FOR_MAPPING"
             remaining_tasks = [
@@ -140,7 +137,6 @@ class Task(BaseModel):
                 }
                 for task_id in remaining_task_ids
             ]
-            print("remaining tasks = ", remaining_tasks)
             # Combine both existing tasks and remaining tasks
             combined_tasks = existing_tasks + remaining_tasks
             return combined_tasks
