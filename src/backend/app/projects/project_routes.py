@@ -368,4 +368,4 @@ async def get_assets_info(
     """
     Endpoint to get the number of images and the URL to download the assets for a given project and task.
     """
-    return await project_logic.get_project_info_from_s3(project.id, task_id)
+    return project_logic.get_project_info_from_s3(project.id, task_id)
