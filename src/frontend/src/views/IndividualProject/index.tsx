@@ -86,7 +86,7 @@ const IndividualProject = () => {
         {/* <----------- temporary breadcrumb -----------> */}
       </div>
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">
-        <div className="naxatw-order-2 naxatw-w-full naxatw-max-w-[27rem]">
+        <div className="naxatw-order-2 naxatw-w-full naxatw-max-w-[30rem]">
           <Tab
             orientation="row"
             className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
