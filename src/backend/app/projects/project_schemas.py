@@ -285,13 +285,15 @@ class DbProject(BaseModel):
     async def all(
         db: Connection,
         user_id: Optional[str] = None,
+        search: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
     ):
         """
         Get all projects, count total tasks and task states (ongoing, completed, etc.).
-        Optionally filter by the project creator (user).
+        Optionally filter by the project creator (user) and search by project name.
         """
+        search_term = f"%{search}%" if search else "%"
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
@@ -319,12 +321,18 @@ class DbProject(BaseModel):
                 ) AS te ON te.task_id = t.id
 
                 WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+                AND p.name ILIKE %(search)s
                 GROUP BY p.id
                 ORDER BY p.created_at DESC
                 OFFSET %(skip)s
                 LIMIT %(limit)s
                 """,
-                {"skip": skip, "limit": limit, "user_id": user_id},
+                {
+                    "skip": skip,
+                    "limit": limit,
+                    "user_id": user_id,
+                    "search": search_term,
+                },
             )
             db_projects = await cur.fetchall()
             return db_projects
