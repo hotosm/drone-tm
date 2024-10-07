@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { useTypedSelector } from '@Store/hooks';
 import {
   ProjectCard,
@@ -6,18 +8,20 @@ import {
 } from '@Components/Projects';
 import { useGetProjectsListQuery } from '@Api/projects';
 import ProjectCardSkeleton from '@Components/Projects/ProjectCardSkeleton';
-import { useEffect, useState } from 'react';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { setCreateProjectState } from '@Store/actions/createproject';
-import { useDispatch } from 'react-redux';
 import Pagination from '@Components/Projects/Pagination';
 import Skeleton from '@Components/RadixComponents/Skeleton';
+import { setCommonState } from '@Store/actions/common';
 
 const Projects = () => {
   const dispatch = useDispatch();
   const showMap = useTypedSelector(state => state.common.showMap);
   const projectsFilterByOwner = useTypedSelector(
     state => state.createproject.ProjectsFilterByOwner,
+  );
+  const projectSearchKey = useTypedSelector(
+    state => state.common.projectSearchKey,
   );
   const [paginationState, setSetPaginationState] = useState({
     activePage: 1,
@@ -36,12 +40,18 @@ const Projects = () => {
         filter_by_owner: projectsFilterByOwner === 'yes',
         page: paginationState?.activePage,
         results_per_page: paginationState?.selectedNumberOfRows,
+        search: projectSearchKey,
       },
     });
 
   useEffect(() => {
+    handlePaginationState({ activePage: 1 });
+  }, [projectSearchKey, projectsFilterByOwner]);
+
+  useEffect(() => {
     return () => {
       dispatch(setCreateProjectState({ ProjectsFilterByOwner: 'no' }));
+      dispatch(setCommonState({ projectSearchKey: '' }));
     };
   }, [dispatch]);
 

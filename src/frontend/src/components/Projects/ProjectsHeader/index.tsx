@@ -1,11 +1,14 @@
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FlexRow } from '@Components/common/Layouts';
 import Switch from '@Components/RadixComponents/Switch';
 import { setCommonState } from '@Store/actions/common';
 import { Button } from '@Components/RadixComponents/Button';
 import { Select } from '@Components/common/FormUI';
 import { setCreateProjectState } from '@Store/actions/createproject';
+import SearchInput from '@Components/common/FormUI/SearchInput';
+import useDebounceListener from '@Hooks/useDebouncedListener';
 
 export default function ProjectsHeader() {
   const dispatch = useTypedDispatch();
@@ -15,11 +18,25 @@ export default function ProjectsHeader() {
   const projectsFilterByOwner = useTypedSelector(
     state => state.createproject.ProjectsFilterByOwner,
   );
+  const [searchValue, setSearchValue] = useState('');
+  const debouncedValue = useDebounceListener(searchValue || '', 300);
+
+  useEffect(() => {
+    dispatch(setCommonState({ projectSearchKey: debouncedValue as string }));
+  }, [debouncedValue, dispatch]);
 
   return (
     <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-py-3">
       <h5 className="naxatw-font-bold">Projects</h5>
       <FlexRow gap={4} className="naxatw-items-center">
+        <div>
+          <SearchInput
+            inputValue={searchValue}
+            placeholder="Project Name"
+            onChange={(e: any) => setSearchValue(e.target.value)}
+            onClear={() => setSearchValue('')}
+          />
+        </div>
         <div>
           <Select
             placeholder="Select"
