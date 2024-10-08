@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
@@ -41,6 +42,12 @@ const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
                 id: current?.id,
                 name: current?.name,
                 slug: current?.slug,
+                colorCode:
+                  current?.status === 'not-started'
+                    ? '#808080'
+                    : current?.status === 'completed'
+                      ? '#028a0f'
+                      : '#11b4da',
               },
             },
           ],
