@@ -42,13 +42,13 @@ const UpdateUserProfile = () => {
   }, []);
 
   return (
-    <div className="main-content naxatw-w-full naxatw-flex-col naxatw-gap-3 md:naxatw-bg-gray-200">
+    <div className="main-content naxatw-w-full naxatw-flex-col naxatw-gap-3 md:naxatw-bg-gray-50">
       <div className="naxatw-flex naxatw-h-full naxatw-flex-col md:naxatw-px-20">
         <div className="naxatw-py-3">
           <Header />
         </div>
         <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-items-center naxatw-justify-center md:naxatw-pb-16">
-          <div className="naxatw-flex naxatw-h-full naxatw-max-h-[600px] naxatw-w-full naxatw-max-w-[34rem] naxatw-flex-col naxatw-bg-white md:naxatw-flex-row">
+          <div className="naxatw-flex naxatw-h-full naxatw-max-h-[600px] naxatw-w-full naxatw-max-w-[34rem] naxatw-flex-col naxatw-bg-white naxatw-shadow-2xl md:naxatw-flex-row">
             <div className="naxatw-h-fit naxatw-w-full naxatw-border-r md:naxatw-h-full md:naxatw-w-2/6">
               <Tab
                 className="naxatw-w-full naxatw-border-b"
