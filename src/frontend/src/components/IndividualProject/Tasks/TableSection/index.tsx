@@ -21,7 +21,7 @@ const tasksDataColumns = [
   // },
 ];
 
-export default function TableSection() {
+export default function TableSection({ isFetching }: { isFetching: boolean }) {
   const tasksData = useTypedSelector(state => state.project.tasksData);
 
   const taskDataForTable = useMemo(() => {
@@ -49,6 +49,7 @@ export default function TableSection() {
       }}
       data={taskDataForTable as Record<string, any>[]}
       withPagination={false}
+      loading={isFetching}
     />
   );
 }

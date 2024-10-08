@@ -21,7 +21,7 @@ const getActiveTabContent = (
   data: Record<string, any>,
   isProjectDataLoading: boolean,
 ) => {
-  if (activeTab === 'tasks') return <Tasks />;
+  if (activeTab === 'tasks') return <Tasks isFetching={isProjectDataLoading} />;
   if (activeTab === 'instructions')
     return (
       <Instructions
@@ -29,7 +29,8 @@ const getActiveTabContent = (
         isProjectDataLoading={isProjectDataLoading}
       />
     );
-  if (activeTab === 'contributions') return <Contributions />;
+  if (activeTab === 'contributions')
+    return <Contributions isFetching={isProjectDataLoading} />;
   return <></>;
 };
 
