@@ -8,29 +8,29 @@ interface ITaskLogsTableProps {
 const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
   const navigate = useNavigate();
   return (
-    <div className="flex">
-      <table className="naxatw-w-full naxatw-overflow-hidden naxatw-rounded-lg">
-        <thead>
+    <div className="flex scrollbar naxatw-max-h-[calc(100vh-22rem)] naxatw-overflow-y-auto">
+      <table className="naxatw-relative naxatw-w-full naxatw-rounded-lg">
+        <thead className="">
           <tr className="naxatw-bg-red naxatw-text-left naxatw-font-normal naxatw-text-white">
-            <td className="naxatw-w-20 naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+            <td className="naxatw-sticky naxatw-top-0 naxatw-w-20 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
               ID
             </td>
-            <td className="naxatw-min-w-30 naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+            <td className="naxatw-min-w-30 naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
               Project Name
             </td>
-            <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+            <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
               Total task area
             </td>
             {/* <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Est.flight time
             </td> */}
-            <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+            <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
               Created Date
             </td>
-            <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
+            <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
               Status
             </td>
-            <td className="naxatw-w-12" />
+            <td className="naxatw-sticky naxatw-top-0 naxatw-w-12 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1" />
           </tr>
         </thead>
         <tbody>
