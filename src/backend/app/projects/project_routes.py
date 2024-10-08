@@ -346,7 +346,7 @@ async def read_projects(
 
 
 @router.get(
-    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut
+    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectInfo
 )
 async def read_project(
     project: Annotated[
