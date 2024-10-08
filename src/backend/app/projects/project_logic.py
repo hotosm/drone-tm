@@ -165,9 +165,13 @@ async def preview_split_by_square(boundary: str, meters: int):
     )
 
 
-def process_drone_images(project_id: uuid.UUID, task_id: uuid.UUID):
+def process_drone_images(
+    project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, db: Connection
+):
     # Initialize the processor
-    processor = DroneImageProcessor(settings.NODE_ODM_URL, project_id, task_id)
+    processor = DroneImageProcessor(
+        settings.NODE_ODM_URL, project_id, task_id, user_id, db
+    )
 
     # Define processing options
     options = [
