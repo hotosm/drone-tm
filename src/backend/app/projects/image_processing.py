@@ -143,16 +143,6 @@ class DroneImageProcessor:
 
             images_list = self.list_images(temp_dir)
 
-            await task_logic.update_task_state(
-                self.db,
-                self.project.id,
-                self.task_id,
-                self.user_id,
-                "Task images processing started.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSED,
-                timestamp(),
-            )
             # Start a new processing task
             task = self.process_new_task(images_list, name=name, options=options)
             # Monitor task progress
@@ -168,12 +158,12 @@ class DroneImageProcessor:
             # now update the task as completed in Db.
             await task_logic.update_task_state(
                 self.db,
-                self.project_id,
+                self.project.id,
                 self.task_id,
                 self.user_id,
                 "Task completed.",
+                State.IMAGE_UPLOADED,
                 State.IMAGE_PROCESSED,
-                State.UNLOCKED_DONE,
                 timestamp(),
             )
             return task
