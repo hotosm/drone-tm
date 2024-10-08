@@ -341,7 +341,10 @@ class DbProject(BaseModel):
                     COUNT(t.id) AS total_task_count,
 
                     -- Count based on the latest state of tasks
-                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_task_count
+                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_task_count,
+
+                    -- Count based on the latest state of tasks
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
 
                 FROM projects p
                 LEFT JOIN tasks t ON t.project_id = p.id
@@ -492,6 +495,8 @@ class ProjectOut(BaseModel):
     tasks: Optional[list[TaskOut]] = []
     image_url: Optional[str] = None
     ongoing_task_count: Optional[int] = 0
+    completed_task_count: Optional[int] = 0
+    status: Optional[str] = "not-started"
 
     @model_validator(mode="after")
     def set_image_url(cls, values):
@@ -501,6 +506,21 @@ class ProjectOut(BaseModel):
             image_dir = f"projects/{project_id}/map_screenshot.png"
             # values.image_url = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
             values.image_url = get_presigned_url(settings.S3_BUCKET_NAME, image_dir, 5)
+        return values
+
+    @model_validator(mode="after")
+    def calculate_status(cls, values):
+        """Set the project status based on task counts."""
+        ongoing_task_count = values.ongoing_task_count
+        completed_task_count = values.completed_task_count
+
+        if ongoing_task_count == 0:
+            values.status = "not-started"
+        elif ongoing_task_count > 0 and ongoing_task_count != completed_task_count:
+            values.status = "ongoing"
+        elif ongoing_task_count == completed_task_count:
+            values.status = "completed"
+
         return values
 
 
