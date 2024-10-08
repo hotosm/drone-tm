@@ -1,3 +1,5 @@
+/* eslint-disable no-nested-ternary */
+import StatusChip from '@Components/common/Chip/StatusChip';
 import { useNavigate } from 'react-router-dom';
 
 interface IProjectCardProps {
@@ -6,8 +8,9 @@ interface IProjectCardProps {
   description: string;
   imageUrl: string | null;
   totalTasks: number;
-  ongoingTasks: number;
+  status: string;
   slug: string;
+  completedTask: number;
 }
 
 export default function ProjectCard({
@@ -16,8 +19,9 @@ export default function ProjectCard({
   description,
   imageUrl,
   totalTasks,
-  ongoingTasks,
+  status,
   slug,
+  completedTask,
 }: IProjectCardProps) {
   const navigate = useNavigate();
   const onProjectCardClick = () => {
@@ -47,10 +51,14 @@ export default function ProjectCard({
         <p className="naxatw-mt-2 naxatw-line-clamp-1 naxatw-flex-grow naxatw-text-body-sm">
           ID:#{slug}
         </p>
-        <div className="naxatw-flex naxatw-w-16 naxatw-items-center naxatw-justify-end">
-          <div className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border naxatw-border-[#417EC9] naxatw-px-2 naxatw-text-xs naxatw-text-[#417EC9]">
-            Ongoing
-          </div>
+        <div className="naxatw-flex naxatw-w-20 naxatw-items-center naxatw-justify-end">
+          {status === 'not-started' ? (
+            <StatusChip color="#808080" text={status} />
+          ) : status === 'ongoing' ? (
+            <StatusChip color="#417EC9" text={status} />
+          ) : (
+            <StatusChip color="#028a0f" text={status} />
+          )}
         </div>
       </div>
       <p className="naxatw-line-clamp-1 naxatw-text-body-btn naxatw-text-grey-800">
@@ -59,14 +67,16 @@ export default function ProjectCard({
       <p className="naxatw-line-clamp-2 naxatw-text-body-sm">{description}</p>
       <div className="naxatw-absolute naxatw-bottom-2 naxatw-left-0 naxatw-w-full naxatw-px-3 naxatw-py-1">
         <div className="naxatw-flex naxatw-items-end naxatw-justify-start naxatw-px-1">
-          <p className="naxatw-font-semibold naxatw-text-red">{ongoingTasks}</p>{' '}
+          <p className="naxatw-font-semibold naxatw-text-red">
+            {completedTask}
+          </p>{' '}
           <p>/</p>
-          <p>{totalTasks}</p> <p className="naxatw-pl-2">Tasks Ongoing</p>
+          <p>{totalTasks}</p> <p className="naxatw-pl-2">Tasks Completed</p>
         </div>
         <div className="naxatw-h-1 naxatw-w-full naxatw-overflow-hidden naxatw-rounded-xl naxatw-bg-gray-200">
           <div
             className="naxatw-h-1 naxatw-bg-red"
-            style={{ width: `${(ongoingTasks / totalTasks) * 100}%` }}
+            style={{ width: `${(completedTask / totalTasks) * 100}%` }}
           />
         </div>
       </div>

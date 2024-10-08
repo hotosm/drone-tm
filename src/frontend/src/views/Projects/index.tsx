@@ -84,7 +84,8 @@ const Projects = () => {
                     title={project.name}
                     description={project.description}
                     totalTasks={project?.total_task_count}
-                    ongoingTasks={project?.ongoing_task_count}
+                    status={project?.status}
+                    completedTask={project?.completed_task_count}
                   />
                 ),
               )}

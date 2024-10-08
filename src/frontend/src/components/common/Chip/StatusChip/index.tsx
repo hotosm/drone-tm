@@ -1,5 +1,3 @@
-import React from 'react';
-
 const StatusChip = ({
   color = '#417EC9',
   text = 'Ongoing',
