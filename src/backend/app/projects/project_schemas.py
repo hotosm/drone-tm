@@ -5,7 +5,7 @@ from datetime import datetime, date
 from app.projects import project_logic
 import geojson
 from loguru import logger as log
-from pydantic import BaseModel, computed_field, Field, model_validator
+from pydantic import BaseModel, computed_field, Field, model_validator, root_validator
 from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
 from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
@@ -373,7 +373,19 @@ class DbProject(BaseModel):
                 },
             )
             db_projects = await cur.fetchall()
-            return db_projects
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT COUNT(*) FROM projects p
+                WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+                AND p.name ILIKE %(search)s""",
+                {"user_id": user_id, "search": search_term},
+            )
+
+            total_count = await cur.fetchone()
+
+        return db_projects, total_count[0]
 
     @staticmethod
     async def create(db: Connection, project: ProjectIn, user_id: str) -> uuid.UUID:
@@ -479,8 +491,30 @@ class DbProject(BaseModel):
             return deleted_project_id[0]
 
 
-class ProjectOut(BaseModel):
-    """Base project model."""
+class Pagination(BaseModel):
+    has_next: bool
+    has_prev: bool
+    next_num: Optional[int]
+    prev_num: Optional[int]
+    page: int
+    per_page: int
+    total: int
+
+    @root_validator(pre=True)
+    def calculate_pagination(cls, values):
+        page = values.get("page", 1)
+        total = values.get("total", 1)
+
+        values["has_next"] = page < total
+        values["has_prev"] = page > 1
+        values["next_num"] = page + 1 if values["has_next"] else None
+        values["prev_num"] = page - 1 if values["has_prev"] else None
+
+        return values
+
+
+class ProjectInfo(BaseModel):
+    """Out model for the project endpoint."""
 
     id: uuid.UUID
     slug: Optional[str] = None
@@ -522,6 +556,13 @@ class ProjectOut(BaseModel):
             values.status = "completed"
 
         return values
+
+
+class ProjectOut(BaseModel):
+    """Base project model."""
+
+    results: Optional[list[ProjectInfo]] = []
+    pagination: Optional[Pagination] = {}
 
 
 class PresignedUrlRequest(BaseModel):

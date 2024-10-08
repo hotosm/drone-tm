@@ -303,7 +303,7 @@ async def generate_presigned_url(
         )
 
 
-@router.get("/", tags=["Projects"], response_model=list[project_schemas.ProjectOut])
+@router.get("/", tags=["Projects"], response_model=project_schemas.ProjectOut)
 async def read_projects(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
@@ -311,26 +311,43 @@ async def read_projects(
         False, description="Filter projects by authenticated user (creator)"
     ),
     search: Optional[str] = Query(None, description="Search projects by name"),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="Page number"),
+    results_per_page: int = Query(
+        20, gt=0, le=100, description="Number of results per page"
+    ),
 ):
     "Get all projects with task count."
 
     try:
         user_id = user_data.id if filter_by_owner else None
-        projects = await project_schemas.DbProject.all(
-            db, user_id=user_id, search=search, skip=skip, limit=limit
+        skip = (page - 1) * results_per_page
+        projects, total_count = await project_schemas.DbProject.all(
+            db, user_id=user_id, search=search, skip=skip, limit=results_per_page
         )
         if not projects:
-            return []
+            return {
+                "results": [],
+                "pagination": {
+                    "page": page,
+                    "per_page": results_per_page,
+                    "total": total_count,
+                },
+            }
 
-        return projects
+        return {
+            "results": projects,
+            "pagination": {
+                "page": page,
+                "per_page": results_per_page,
+                "total": total_count,
+            },
+        }
     except KeyError as e:
         raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY) from e
 
 
 @router.get(
-    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut
+    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectInfo
 )
 async def read_project(
     project: Annotated[
