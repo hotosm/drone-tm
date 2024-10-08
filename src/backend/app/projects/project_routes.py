@@ -349,8 +349,12 @@ async def process_imagery(
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
     background_tasks: BackgroundTasks,
+    db: Annotated[Connection, Depends(database.get_db)],
 ):
-    background_tasks.add_task(project_logic.process_drone_images, project.id, task_id)
+    user_id = user_data.id
+    background_tasks.add_task(
+        project_logic.process_drone_images, project.id, task_id, user_id, db
+    )
     return {"message": "Processing started"}
 
 
