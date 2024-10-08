@@ -125,7 +125,7 @@ class DroneImageProcessor:
         log.info("Download completed.")
         return path
 
-    def process_images_from_s3(self, bucket_name, name=None, options=[]):
+    async def process_images_from_s3(self, bucket_name, name=None, options=[]):
         """
         Processes images from MinIO storage.
 
@@ -136,13 +136,24 @@ class DroneImageProcessor:
         :param options: Processing options ([{'name': optionName, 'value': optionValue}, ...]).
         :return: The task object.
         """
-        # Create a temporary directory to store downloaded images
+        # Create a temporary directory to store downloaded imagesfeat/update-completed-task
         temp_dir = tempfile.mkdtemp()
         try:
             self.download_images_from_s3(bucket_name, temp_dir)
 
             images_list = self.list_images(temp_dir)
 
+            # TODO: Update task state to reflect completion of image uploads (will remove thsi.).
+            await task_logic.update_task_state(
+                self.db,
+                self.project.id,
+                self.task_id,
+                self.user_id,
+                "Task images processing started.",
+                State.LOCKED_FOR_MAPPING,
+                State.IMAGE_PROCESSED,
+                timestamp(),
+            )
             # Start a new processing task
             task = self.process_new_task(images_list, name=name, options=options)
             # Monitor task progress
@@ -156,7 +167,7 @@ class DroneImageProcessor:
             s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
             add_file_to_bucket(bucket_name, path_to_download, s3_path)
             # now update the task as completed in Db.
-            task_logic.update_task_state(
+            await task_logic.update_task_state(
                 self.db,
                 self.project_id,
                 self.task_id,

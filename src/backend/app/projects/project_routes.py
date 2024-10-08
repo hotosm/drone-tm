@@ -3,6 +3,7 @@ import os
 import uuid
 from typing import Annotated, Optional
 from uuid import UUID
+from app.tasks import task_logic
 import geojson
 from datetime import timedelta
 from fastapi import (
@@ -24,13 +25,13 @@ from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic
 from app.db import database
-from app.models.enums import HTTPStatus
+from app.models.enums import HTTPStatus, State
 from app.s3 import s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
-from app.utils import geojson_to_kml
+from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
 
 
@@ -352,6 +353,17 @@ async def process_imagery(
     db: Annotated[Connection, Depends(database.get_db)],
 ):
     user_id = user_data.id
+    # TODO: Update task state to reflect completion of image uploads.
+    await task_logic.update_task_state(
+        db,
+        project.id,
+        task_id,
+        user_id,
+        "Task images upload completed.",
+        State.LOCKED_FOR_MAPPING,
+        State.IMAGE_UPLOADED,
+        timestamp(),
+    )
     background_tasks.add_task(
         project_logic.process_drone_images, project.id, task_id, user_id, db
     )
