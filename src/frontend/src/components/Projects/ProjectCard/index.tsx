@@ -7,6 +7,7 @@ interface IProjectCardProps {
   imageUrl: string | null;
   totalTasks: number;
   ongoingTasks: number;
+  slug: string;
 }
 
 export default function ProjectCard({
@@ -16,6 +17,7 @@ export default function ProjectCard({
   imageUrl,
   totalTasks,
   ongoingTasks,
+  slug,
 }: IProjectCardProps) {
   const navigate = useNavigate();
   const onProjectCardClick = () => {
@@ -43,7 +45,7 @@ export default function ProjectCard({
       </p>
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-2">
         <p className="naxatw-mt-2 naxatw-line-clamp-1 naxatw-flex-grow naxatw-text-body-sm">
-          ID:#{id}
+          ID:#{slug}
         </p>
         <div className="naxatw-flex naxatw-w-16 naxatw-items-center naxatw-justify-end">
           <div className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border naxatw-border-[#417EC9] naxatw-px-2 naxatw-text-xs naxatw-text-[#417EC9]">
