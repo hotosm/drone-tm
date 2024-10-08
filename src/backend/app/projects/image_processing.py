@@ -136,14 +136,13 @@ class DroneImageProcessor:
         :param options: Processing options ([{'name': optionName, 'value': optionValue}, ...]).
         :return: The task object.
         """
-        # Create a temporary directory to store downloaded imagesfeat/update-completed-task
+        # Create a temporary directory to store downloaded images
         temp_dir = tempfile.mkdtemp()
         try:
             self.download_images_from_s3(bucket_name, temp_dir)
 
             images_list = self.list_images(temp_dir)
 
-            # TODO: Update task state to reflect completion of image uploads (will remove thsi.).
             await task_logic.update_task_state(
                 self.db,
                 self.project.id,
