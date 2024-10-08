@@ -170,7 +170,7 @@ class UserTasksStatsOut(BaseModel):
                     CASE
                         WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
                         WHEN task_events.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                        WHEN task_events.state = 'UNLOCKED_DONE' THEN 'completed'
+                        WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
                         WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
                         ELSE 'UNLOCKED_TO_MAP'
                     END AS state

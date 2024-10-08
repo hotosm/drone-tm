@@ -253,7 +253,7 @@ class DbProject(BaseModel):
                         CASE
                             WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
                             WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                            WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
+                            WHEN te.state = 'IMAGE_PROCESSED' THEN 'completed'
                             WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
                             ELSE 'UNLOCKED_TO_MAP'
                         END AS calculated_state
