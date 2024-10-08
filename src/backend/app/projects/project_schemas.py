@@ -252,10 +252,10 @@ class DbProject(BaseModel):
                         te.user_id,
                         CASE
                             WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                            WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
+                            WHEN te.state = 'LOCKED_FOR_MAPPING' OR te.state = 'IMAGE_UPLOADED' THEN 'ongoing'
                             WHEN te.state = 'IMAGE_PROCESSED' THEN 'completed'
                             WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                            ELSE 'UNLOCKED_TO_MAP'
+                            ELSE ''
                         END AS calculated_state
                     FROM
                         task_events te
@@ -273,7 +273,7 @@ class DbProject(BaseModel):
                         ST_YMin(ST_Envelope(t.outline)) AS ymin,
                         ST_XMax(ST_Envelope(t.outline)) AS xmax,
                         ST_YMax(ST_Envelope(t.outline)) AS ymax,
-                        COALESCE(tsc.calculated_state, 'UNLOCKED_TO_MAP') AS state,
+                        COALESCE(tsc.calculated_state) AS state,
                         tsc.user_id,
                         u.name,
                         ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
