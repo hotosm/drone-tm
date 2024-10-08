@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import getBbox from '@turf/bbox';
 import centroid from '@turf/centroid';
 import { FeatureCollection } from 'geojson';
-import { useGetProjectsListQuery } from '@Api/projects';
-import { useTypedSelector } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
@@ -13,10 +11,7 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
-const ProjectsMapSection = () => {
-  const projectsFilterByOwner = useTypedSelector(
-    state => state.createproject.ProjectsFilterByOwner,
-  );
+const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
   const [projectProperties, setProjectProperties] = useState<
     Record<string, any>
   >({});
@@ -30,41 +25,40 @@ const ProjectsMapSection = () => {
     },
     disableRotation: true,
   });
-  const { data: projectsList, isLoading }: Record<string, any> =
-    useGetProjectsListQuery(projectsFilterByOwner, {
-      select: (data: any) => {
-        // find all polygons centroid and set to geojson save to single geojson
-        const combinedGeojson = data?.data?.reduce(
-          (acc: Record<string, any>, current: Record<string, any>) => {
-            return {
-              ...acc,
-              features: [
-                ...acc.features,
-                {
-                  ...centroid(current.outline),
-                  properties: {
-                    id: current?.id,
-                    name: current?.name,
-                    slug: current?.slug,
-                  },
-                },
-              ],
-            };
-          },
-          {
-            type: 'FeatureCollection',
-            features: [],
-          },
-        );
-        return combinedGeojson;
+
+  const projectsGeojson = useMemo(() => {
+    if (!projectList || !projectList?.length) return [];
+    // find all polygons centroid and set to geojson save to single geojson
+    const combinedGeojson = projectList?.reduce(
+      (acc: Record<string, any>, current: Record<string, any>) => {
+        return {
+          ...acc,
+          features: [
+            ...acc.features,
+            {
+              ...centroid(current.outline),
+              properties: {
+                id: current?.id,
+                name: current?.name,
+                slug: current?.slug,
+              },
+            },
+          ],
+        };
       },
-    });
+      {
+        type: 'FeatureCollection',
+        features: [],
+      },
+    );
+    return combinedGeojson;
+  }, [projectList]);
 
   useEffect(() => {
-    if (!projectsList || !projectsList?.features?.length) return;
-    const bbox = getBbox(projectsList as FeatureCollection);
+    if (!projectsGeojson || !projectsGeojson?.features?.length) return;
+    const bbox = getBbox(projectsGeojson as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100, duration: 500 });
-  }, [projectsList, map]);
+  }, [projectsGeojson, map]);
 
   const getPopupUI = useCallback(() => {
     return (
@@ -87,13 +81,13 @@ const ProjectsMapSection = () => {
     >
       <BaseLayerSwitcher />
 
-      {projectsList && (
+      {projectsGeojson && (
         <VectorLayerWithCluster
           map={map}
-          visibleOnMap={!isLoading}
+          visibleOnMap
           mapLoaded={isMapLoaded}
           sourceId="clustered-projects"
-          geojson={projectsList}
+          geojson={projectsGeojson}
         />
       )}
 

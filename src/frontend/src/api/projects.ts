@@ -5,12 +5,16 @@ import { getTaskStates } from '@Services/project';
 import { getUserProfileInfo } from '@Services/common';
 
 export const useGetProjectsListQuery = (
-  projectsFilterByOwner: 'yes' | 'no',
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['projects-list', projectsFilterByOwner],
-    queryFn: () => getProjectsList(projectsFilterByOwner === 'yes'),
+    queryKey: queryOptions?.queryKey
+      ? ['projects-list', ...Object.values(queryOptions?.queryKey || {})]
+      : ['projects-list'],
+    queryFn: () =>
+      getProjectsList(
+        queryOptions?.queryKey ? { ...queryOptions.queryKey } : {},
+      ),
     select: (res: any) => res.data,
     ...queryOptions,
   });
