@@ -149,7 +149,7 @@ class DroneImageProcessor:
                 self.task_id,
                 self.user_id,
                 "Task images processing started.",
-                State.LOCKED_FOR_MAPPING,
+                State.IMAGE_UPLOADED,
                 State.IMAGE_PROCESSED,
                 timestamp(),
             )
@@ -172,7 +172,7 @@ class DroneImageProcessor:
                 self.task_id,
                 self.user_id,
                 "Task completed.",
-                State.LOCKED_FOR_MAPPING,
+                State.IMAGE_PROCESSED,
                 State.UNLOCKED_DONE,
                 timestamp(),
             )
