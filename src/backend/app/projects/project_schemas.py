@@ -5,7 +5,7 @@ from datetime import datetime, date
 from app.projects import project_logic
 import geojson
 from loguru import logger as log
-from pydantic import BaseModel, computed_field, Field, model_validator
+from pydantic import BaseModel, computed_field, Field, model_validator, root_validator
 from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
 from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
@@ -24,7 +24,7 @@ from app.utils import (
 )
 from psycopg.rows import dict_row
 from app.config import settings
-from app.s3 import get_image_dir_url
+from app.s3 import get_presigned_url
 
 
 class AssetsInfo(BaseModel):
@@ -237,6 +237,12 @@ class DbProject(BaseModel):
             )
             project_record = await cur.fetchone()
 
+        if not project_record:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=f"Project with ID {project_id} not found.",
+            )
+
         async with db.cursor(row_factory=class_row(TaskOut)) as cur:
             await cur.execute(
                 """
@@ -246,10 +252,10 @@ class DbProject(BaseModel):
                         te.user_id,
                         CASE
                             WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                            WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                            WHEN te.state = 'UNLOCKED_DONE' THEN 'completed'
+                            WHEN te.state = 'LOCKED_FOR_MAPPING' OR te.state = 'IMAGE_UPLOADED' THEN 'ongoing'
+                            WHEN te.state = 'IMAGE_PROCESSED' THEN 'completed'
                             WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                            ELSE 'UNLOCKED_TO_MAP'
+                            ELSE ''
                         END AS calculated_state
                     FROM
                         task_events te
@@ -267,7 +273,7 @@ class DbProject(BaseModel):
                         ST_YMin(ST_Envelope(t.outline)) AS ymin,
                         ST_XMax(ST_Envelope(t.outline)) AS xmax,
                         ST_YMax(ST_Envelope(t.outline)) AS ymax,
-                        COALESCE(tsc.calculated_state, 'UNLOCKED_TO_MAP') AS state,
+                        COALESCE(tsc.calculated_state) AS state,
                         tsc.user_id,
                         u.name,
                         ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
@@ -314,13 +320,15 @@ class DbProject(BaseModel):
     async def all(
         db: Connection,
         user_id: Optional[str] = None,
+        search: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
     ):
         """
         Get all projects, count total tasks and task states (ongoing, completed, etc.).
-        Optionally filter by the project creator (user).
+        Optionally filter by the project creator (user) and search by project name.
         """
+        search_term = f"%{search}%" if search else "%"
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
@@ -333,7 +341,10 @@ class DbProject(BaseModel):
                     COUNT(t.id) AS total_task_count,
 
                     -- Count based on the latest state of tasks
-                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_task_count
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
+
+                    -- Count based on the latest state of tasks
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
 
                 FROM projects p
                 LEFT JOIN tasks t ON t.project_id = p.id
@@ -348,15 +359,33 @@ class DbProject(BaseModel):
                 ) AS te ON te.task_id = t.id
 
                 WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+                AND p.name ILIKE %(search)s
                 GROUP BY p.id
                 ORDER BY p.created_at DESC
                 OFFSET %(skip)s
                 LIMIT %(limit)s
                 """,
-                {"skip": skip, "limit": limit, "user_id": user_id},
+                {
+                    "skip": skip,
+                    "limit": limit,
+                    "user_id": user_id,
+                    "search": search_term,
+                },
             )
             db_projects = await cur.fetchall()
-            return db_projects
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT COUNT(*) FROM projects p
+                WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+                AND p.name ILIKE %(search)s""",
+                {"user_id": user_id, "search": search_term},
+            )
+
+            total_count = await cur.fetchone()
+
+        return db_projects, total_count[0]
 
     @staticmethod
     async def create(db: Connection, project: ProjectIn, user_id: str) -> uuid.UUID:
@@ -430,12 +459,12 @@ class DbProject(BaseModel):
             return new_project_id[0]
 
     @staticmethod
-    async def delete(db: Connection, project_id: uuid.UUID, user_id: str) -> uuid.UUID:
-        """Delete a single project."""
+    async def delete(db: Connection, project_id: uuid.UUID) -> uuid.UUID:
+        """Delete a single project if the user is the author or a superuser."""
         sql = """
         WITH deleted_project AS (
             DELETE FROM projects
-            WHERE id = %(project_id)s AND author_id = %(user_id)s
+            WHERE id = %(project_id)s
             RETURNING id
         ), deleted_tasks AS (
             DELETE FROM tasks
@@ -450,18 +479,42 @@ class DbProject(BaseModel):
         """
 
         async with db.cursor() as cur:
-            await cur.execute(sql, {"project_id": project_id, "user_id": user_id})
+            await cur.execute(sql, {"project_id": project_id})
             deleted_project_id = await cur.fetchone()
 
             if not deleted_project_id:
                 log.warning(f"Failed to delete project ({project_id})")
-                raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
-
+                raise HTTPException(
+                    status_code=HTTPStatus.FORBIDDEN,
+                    detail="User not authorized to delete it.",
+                )
             return deleted_project_id[0]
 
 
-class ProjectOut(BaseModel):
-    """Base project model."""
+class Pagination(BaseModel):
+    has_next: bool
+    has_prev: bool
+    next_num: Optional[int]
+    prev_num: Optional[int]
+    page: int
+    per_page: int
+    total: int
+
+    @root_validator(pre=True)
+    def calculate_pagination(cls, values):
+        page = values.get("page", 1)
+        total = values.get("total", 1)
+
+        values["has_next"] = page < total
+        values["has_prev"] = page > 1
+        values["next_num"] = page + 1 if values["has_next"] else None
+        values["prev_num"] = page - 1 if values["has_prev"] else None
+
+        return values
+
+
+class ProjectInfo(BaseModel):
+    """Out model for the project endpoint."""
 
     id: uuid.UUID
     slug: Optional[str] = None
@@ -476,6 +529,8 @@ class ProjectOut(BaseModel):
     tasks: Optional[list[TaskOut]] = []
     image_url: Optional[str] = None
     ongoing_task_count: Optional[int] = 0
+    completed_task_count: Optional[int] = 0
+    status: Optional[str] = "not-started"
 
     @model_validator(mode="after")
     def set_image_url(cls, values):
@@ -483,8 +538,32 @@ class ProjectOut(BaseModel):
         project_id = values.id
         if project_id:
             image_dir = f"projects/{project_id}/map_screenshot.png"
-            values.image_url = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
+            # values.image_url = get_image_dir_url(settings.S3_BUCKET_NAME, image_dir)
+            values.image_url = get_presigned_url(settings.S3_BUCKET_NAME, image_dir, 5)
         return values
+
+    @model_validator(mode="after")
+    def calculate_status(cls, values):
+        """Set the project status based on task counts."""
+        ongoing_task_count = values.ongoing_task_count
+        completed_task_count = values.completed_task_count
+        total_task_count = values.total_task_count
+
+        if ongoing_task_count == 0:
+            values.status = "not-started"
+        elif ongoing_task_count > 0 and ongoing_task_count != completed_task_count:
+            values.status = "ongoing"
+        elif ongoing_task_count == total_task_count:
+            values.status = "completed"
+
+        return values
+
+
+class ProjectOut(BaseModel):
+    """Base project model."""
+
+    results: Optional[list[ProjectInfo]] = []
+    pagination: Optional[Pagination] = {}
 
 
 class PresignedUrlRequest(BaseModel):

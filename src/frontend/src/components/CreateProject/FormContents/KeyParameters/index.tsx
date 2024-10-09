@@ -126,7 +126,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 max={300}
                 min={0}
                 {...register('altitude_from_ground', {
-                  required: 'Altitude From Round is Required',
+                  required: 'Altitude From ground is Required',
                   valueAsNumber: true,
                   max: {
                     value: 300,

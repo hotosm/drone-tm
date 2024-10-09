@@ -33,24 +33,32 @@ async def read_task(
                 """
                 SELECT
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
-                    task_events.created_at,
+                    te.created_at,
+                    te.updated_at,
                     projects.name AS project_name,
-                    project_task_index,
+                    tasks.project_task_index,
                     projects.front_overlap AS front_overlap,
                     projects.side_overlap AS side_overlap,
                     projects.gsd_cm_px AS gsd_cm_px,
                     projects.gimble_angles_degrees AS gimble_angles_degrees
-                FROM
-                    task_events
-                JOIN
-                    tasks ON task_events.task_id = tasks.id
-                JOIN
-                    projects ON task_events.project_id = projects.id
-                WHERE task_events.task_id = %(task_id)s""",
+                FROM (
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.created_at,
+                        te.updated_at
+                    FROM task_events te
+                    WHERE te.task_id = %(task_id)s
+                    ORDER BY te.task_id, te.created_at DESC
+                ) AS te
+                JOIN tasks ON te.task_id = tasks.id
+                JOIN projects ON tasks.project_id = projects.id
+                WHERE te.task_id = %(task_id)s;
+                """,
                 {"task_id": task_id},
             )
             records = await cur.fetchone()
             return records
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -89,7 +97,7 @@ async def get_task_stats(
                 SELECT
                     COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
                     COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
-                    COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
                     COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
                 FROM (
                     SELECT DISTINCT ON (te.task_id)
@@ -199,6 +207,7 @@ async def new_event(
                 message,
                 State.UNLOCKED_TO_MAP,
                 state_after,
+                detail.updated_at,
             )
             # Send email notification if approval is required
             if state_after == State.REQUEST_FOR_MAPPING:
@@ -272,6 +281,7 @@ async def new_event(
                 "Request accepted for mapping",
                 State.REQUEST_FOR_MAPPING,
                 State.LOCKED_FOR_MAPPING,
+                detail.updated_at,
             )
 
         case EventType.REJECTED:
@@ -318,6 +328,7 @@ async def new_event(
                 "Request for mapping rejected",
                 State.REQUEST_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
         case EventType.FINISH:
             return await task_logic.update_task_state(
@@ -328,6 +339,7 @@ async def new_event(
                 "Done: unlocked to validate",
                 State.LOCKED_FOR_MAPPING,
                 State.UNLOCKED_TO_VALIDATE,
+                detail.updated_at,
             )
         case EventType.VALIDATE:
             return task_logic.update_task_state(
@@ -338,6 +350,7 @@ async def new_event(
                 "Done: locked for validation",
                 State.UNLOCKED_TO_VALIDATE,
                 State.LOCKED_FOR_VALIDATION,
+                detail.updated_at,
             )
         case EventType.GOOD:
             return await task_logic.update_task_state(
@@ -348,6 +361,7 @@ async def new_event(
                 "Done: Task is Good",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_DONE,
+                detail.updated_at,
             )
 
         case EventType.BAD:
@@ -359,6 +373,7 @@ async def new_event(
                 "Done: needs to redo",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
         case EventType.COMMENT:
             return await task_logic.update_task_state(
@@ -369,6 +384,7 @@ async def new_event(
                 detail.comment,
                 State.LOCKED_FOR_MAPPING,
                 State.UNFLYABLE_TASK,
+                detail.updated_at,
             )
 
         case EventType.UNLOCK:
@@ -401,6 +417,7 @@ async def new_event(
                 f"Task has been unlock by user {user_data.name}.",
                 State.LOCKED_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
 
     return True

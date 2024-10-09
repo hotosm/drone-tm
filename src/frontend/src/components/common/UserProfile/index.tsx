@@ -2,17 +2,25 @@
 /* eslint-disable jsx-a11y/no-noninteractive-tabindex */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '@Components/common/UserAvatar';
 import { toast } from 'react-toastify';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import { useGetUserDetailsQuery } from '@Api/projects';
 
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
 
+  const { data: userDetails, isFetching }: Record<string, any> =
+    useGetUserDetailsQuery();
   const userProfile = getLocalStorageValue('userprofile');
+
+  useEffect(() => {
+    if (userDetails?.has_user_profile || isFetching) return;
+    if (!userDetails?.has_user_profile) navigate('/complete-profile');
+  }, [userDetails?.has_user_profile, navigate, isFetching]);
 
   const settingOptions = [
     {

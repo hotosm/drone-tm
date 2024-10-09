@@ -1,13 +1,12 @@
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useNavigate } from 'react-router-dom';
-import { UserProfileHeader } from '@Components/UserProfile';
 import { useForm } from 'react-hook-form';
 import {
   BasicDetails,
   OrganizationDetails,
   OtherDetails,
   PasswordSection,
-} from '@Components/UserProfile/FormContents';
+} from '@Components/CompleteUserProfile/FormContents';
 import {
   tabOptions,
   projectCreatorKeys,
@@ -45,7 +44,7 @@ const getActiveFormContent = (
   }
 };
 
-const UserProfile = () => {
+const CompleteUserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
@@ -78,15 +77,17 @@ const UserProfile = () => {
     role: isDroneOperator ? 2 : 1,
   };
 
-  const { register, setValue, handleSubmit, formState, control } = useForm({
-    defaultValues: initialState,
-  });
+  const { register, setValue, handleSubmit, formState, control, watch } =
+    useForm({
+      defaultValues: initialState,
+    });
 
   const formProps = {
     register,
     setValue,
     formState,
     control,
+    watch,
   };
 
   const { mutate: updateUserProfile } = useMutation<any, any, any, unknown>({
@@ -124,8 +125,7 @@ const UserProfile = () => {
   };
 
   return (
-    <section className="naxatw-h-screen">
-      <UserProfileHeader />
+    <section className="naxatw-h-screen md:naxatw-pt-[5%]">
       <div className="naxatw-mx-auto naxatw-flex naxatw-h-[80vh] naxatw-w-full naxatw-flex-col naxatw-gap-2 naxatw-border naxatw-shadow-lg md:naxatw-w-[34rem] md:naxatw-flex-row">
         <div className="naxatw-w-full naxatw-border-r md:naxatw-w-2/6">
           <Tab
@@ -166,4 +166,4 @@ const UserProfile = () => {
   );
 };
 
-export default hasErrorBoundary(UserProfile);
+export default hasErrorBoundary(CompleteUserProfile);
