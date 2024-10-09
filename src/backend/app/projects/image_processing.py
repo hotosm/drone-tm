@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
 import asyncio
 
+
 class DroneImageProcessor:
     def __init__(
         self,
