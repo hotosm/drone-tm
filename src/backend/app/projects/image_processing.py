@@ -10,6 +10,7 @@ from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_b
 from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
+import asyncio
 
 
 class DroneImageProcessor:
@@ -125,7 +126,7 @@ class DroneImageProcessor:
         log.info("Download completed.")
         return path
 
-    async def process_images_from_s3(self, bucket_name, name=None, options=[]):
+    def process_images_from_s3(self, bucket_name, name=None, options=[]):
         """
         Processes images from MinIO storage.
 
@@ -156,15 +157,19 @@ class DroneImageProcessor:
             s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
             add_file_to_bucket(bucket_name, path_to_download, s3_path)
             # now update the task as completed in Db.
-            await task_logic.update_task_state(
-                self.db,
-                self.project.id,
-                self.task_id,
-                self.user_id,
-                "Task completed.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSED,
-                timestamp(),
+            # Call the async function using asyncio
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(
+                task_logic.update_task_state(
+                    self.db,
+                    self.project_id,
+                    self.task_id,
+                    self.user_id,
+                    "Task completed.",
+                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSED,
+                    timestamp(),
+                )
             )
             return task
 
