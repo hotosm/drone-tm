@@ -277,7 +277,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                               paint: {
                                 'fill-color': '#ACD2C4',
                                 'fill-outline-color': '#484848',
-                                'fill-opacity': 0.5,
+                                'fill-opacity': 0.7,
                               },
                             }
                           : {

@@ -7,7 +7,7 @@ const StatusChip = ({
 }) => {
   return (
     <div
-      className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border naxatw-px-2 naxatw-text-xs naxatw-capitalize"
+      className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-text-nowrap naxatw-rounded-full naxatw-border naxatw-px-2 naxatw-text-xs naxatw-capitalize"
       style={{ borderColor: color, color }}
     >
       {text}
