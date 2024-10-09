@@ -513,12 +513,13 @@ class ProjectOut(BaseModel):
         """Set the project status based on task counts."""
         ongoing_task_count = values.ongoing_task_count
         completed_task_count = values.completed_task_count
+        total_task_count = values.total_task_count
 
         if ongoing_task_count == 0:
             values.status = "not-started"
         elif ongoing_task_count > 0 and ongoing_task_count != completed_task_count:
             values.status = "ongoing"
-        elif ongoing_task_count == completed_task_count:
+        elif ongoing_task_count == total_task_count:
             values.status = "completed"
 
         return values
