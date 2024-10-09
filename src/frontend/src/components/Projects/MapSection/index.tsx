@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
@@ -41,6 +42,12 @@ const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
                 id: current?.id,
                 name: current?.name,
                 slug: current?.slug,
+                colorCode:
+                  current?.status === 'not-started'
+                    ? '#808080'
+                    : current?.status === 'completed'
+                      ? '#028a0f'
+                      : '#11b4da',
               },
             },
           ],
@@ -55,10 +62,16 @@ const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
   }, [projectList]);
 
   useEffect(() => {
-    if (!projectsGeojson || !projectsGeojson?.features?.length) return;
+    if (
+      !projectsGeojson ||
+      !projectsGeojson?.features?.length ||
+      !map ||
+      !isMapLoaded
+    )
+      return;
     const bbox = getBbox(projectsGeojson as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100, duration: 500 });
-  }, [projectsGeojson, map]);
+  }, [projectsGeojson, map, isMapLoaded]);
 
   const getPopupUI = useCallback(() => {
     return (

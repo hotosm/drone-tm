@@ -59,7 +59,7 @@ export default function VectorLayerWithCluster({
       source: sourceId,
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-color': '#11b4da',
+        'circle-color': ['get', 'colorCode'],
         'circle-radius': 8,
         'circle-stroke-width': 1,
         'circle-stroke-color': '#fff',
