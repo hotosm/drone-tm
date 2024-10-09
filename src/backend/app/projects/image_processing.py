@@ -158,8 +158,7 @@ class DroneImageProcessor:
             add_file_to_bucket(bucket_name, path_to_download, s3_path)
             # now update the task as completed in Db.
             # Call the async function using asyncio
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(
+            asyncio.run(
                 task_logic.update_task_state(
                     self.db,
                     self.project_id,
