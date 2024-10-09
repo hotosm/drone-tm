@@ -158,7 +158,7 @@ class DroneImageProcessor:
             # now update the task as completed in Db.
             await task_logic.update_task_state(
                 self.db,
-                self.project.id,
+                self.project_id,
                 self.task_id,
                 self.user_id,
                 "Task completed.",
