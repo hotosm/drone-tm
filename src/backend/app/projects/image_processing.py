@@ -10,7 +10,7 @@ from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_b
 from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
-import asyncio
+from asgiref.sync import async_to_sync
 
 
 class DroneImageProcessor:
@@ -158,17 +158,18 @@ class DroneImageProcessor:
             add_file_to_bucket(bucket_name, path_to_download, s3_path)
             # now update the task as completed in Db.
             # Call the async function using asyncio
-            asyncio.run(
-                task_logic.update_task_state(
-                    self.db,
-                    self.project_id,
-                    self.task_id,
-                    self.user_id,
-                    "Task completed.",
-                    State.IMAGE_UPLOADED,
-                    State.IMAGE_PROCESSED,
-                    timestamp(),
-                )
+
+            # Update background task status to COMPLETED
+            update_task_status_sync = async_to_sync(task_logic.update_task_state)
+            update_task_status_sync(
+                self.db,
+                self.project_id,
+                self.task_id,
+                self.user_id,
+                "Task completed.",
+                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSED,
+                timestamp(),
             )
             return task
 
