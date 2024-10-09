@@ -140,9 +140,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           case 'UNFLYABLE_TASK':
             return 'This task is not flyable';
           case 'IMAGE_UPLOADED':
-            return `This Task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSED':
-            return `This Task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
 
           default:
             return '';
