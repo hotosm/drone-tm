@@ -341,7 +341,7 @@ class DbProject(BaseModel):
                     COUNT(t.id) AS total_task_count,
 
                     -- Count based on the latest state of tasks
-                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_task_count,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
 
                     -- Count based on the latest state of tasks
                     COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
