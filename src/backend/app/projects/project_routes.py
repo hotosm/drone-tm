@@ -404,14 +404,13 @@ async def get_assets_info(
     for all tasks associated with the project.
     """
     if task_id is None:
-        print("*" * 100)
         # Fetch all tasks associated with the project
         tasks = await project_deps.get_tasks_by_project_id(project.id, db)
 
         results = []
 
         for task in tasks:
-            task_info = await project_logic.get_project_info_from_s3(
+            task_info = project_logic.get_project_info_from_s3(
                 project.id, task.get("id")
             )
             results.append(task_info)
