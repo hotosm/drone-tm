@@ -116,12 +116,12 @@ const IndividualProject = () => {
             {getActiveTabContent(
               individualProjectActiveTab,
               projectData as Record<string, any>,
-              isProjectDataFetching,
+              isProjectDataFetching || isFetching,
             )}
           </div>
         </div>
         <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full md:naxatw-order-2">
-          {isProjectDataFetching ? (
+          {isProjectDataFetching || isFetching ? (
             <Skeleton className="naxatw-h-full naxatw-w-full" />
           ) : (
             <MapSection projectData={projectData as Record<string, any>} />
