@@ -1,7 +1,9 @@
+import { useGetAllAssetsUrlQuery } from '@Api/projects';
 import DataTable from '@Components/common/DataTable';
 import Icon from '@Components/common/Icon';
 import { useTypedSelector } from '@Store/hooks';
 import { useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 const contributionsDataColumns = [
@@ -55,24 +57,35 @@ const contributionsDataColumns = [
 ];
 
 export default function TableSection({ isFetching }: { isFetching: boolean }) {
+  const { id } = useParams();
   const tasksData = useTypedSelector(state => state.project.tasksData);
 
+  const { data: allUrls, isFetching: isUrlFetching } = useGetAllAssetsUrlQuery(
+    id as string,
+  );
+
+  const getTasksAssets = (taskID: string, assetsList: any[]) => {
+    if (!assetsList || !taskID) return null;
+    return assetsList.find((assets: any) => assets?.task_id === taskID);
+  };
+
   const taskDataForTable = useMemo(() => {
-    if (!tasksData) return [];
+    if (!tasksData || isUrlFetching) return [];
     return tasksData?.reduce((acc: any, curr: any) => {
       if (!curr?.state || curr?.state === 'UNLOCKED_TO_MAP') return acc;
+      const selectedAssetsDetails = getTasksAssets(curr?.id, allUrls as any[]);
       return [
         ...acc,
         {
           user: curr?.name || '-',
           task_mapped: `Task# ${curr?.project_task_index}`,
           task_state: curr?.state,
-          assets_url: curr?.assetsDetail?.assets_url,
-          image_count: curr?.assetsDetail?.image_count,
+          assets_url: selectedAssetsDetails?.assets_url,
+          image_count: selectedAssetsDetails?.image_count,
         },
       ];
     }, []);
-  }, [tasksData]);
+  }, [tasksData, allUrls, isUrlFetching]);
 
   return (
     <DataTable
@@ -82,7 +95,7 @@ export default function TableSection({ isFetching }: { isFetching: boolean }) {
       }}
       data={taskDataForTable as Record<string, any>[]}
       withPagination={false}
-      loading={isFetching}
+      loading={isFetching || isUrlFetching}
     />
   );
 }

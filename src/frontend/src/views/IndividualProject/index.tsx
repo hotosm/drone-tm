@@ -1,9 +1,6 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import {
-  useGetAllAssetsUrlQuery,
-  useGetProjectsDetailQuery,
-} from '@Api/projects';
+import { useGetProjectsDetailQuery } from '@Api/projects';
 import Tab from '@Components/common/Tabs';
 import {
   Contributions,
@@ -46,23 +43,14 @@ const IndividualProject = () => {
     state => state.project.individualProjectActiveTab,
   );
 
-  const { data: allUrls, isFetching } = useGetAllAssetsUrlQuery(id as string);
-
-  const getTasksAssets = (taskID: string, assetsList: any[]) => {
-    if (!assetsList || !taskID) return null;
-    return assetsList.find((assets: any) => assets?.task_id === taskID);
-  };
-
   const { data: projectData, isFetching: isProjectDataFetching } =
     useGetProjectsDetailQuery(id as string, {
-      enabled: !!allUrls && !isFetching,
       onSuccess: (res: any) => {
         dispatch(
           setProjectState({
             // modify each task geojson and set locked user id and name to properties and save to redux state called taskData
             tasksData: res.tasks?.map((task: Record<string, any>) => ({
               ...task,
-              assetsDetail: getTasksAssets(task?.id, allUrls as any[]),
               outline: {
                 ...task.outline,
                 properties: {
@@ -116,12 +104,12 @@ const IndividualProject = () => {
             {getActiveTabContent(
               individualProjectActiveTab,
               projectData as Record<string, any>,
-              isProjectDataFetching || isFetching,
+              isProjectDataFetching,
             )}
           </div>
         </div>
         <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full md:naxatw-order-2">
-          {isProjectDataFetching || isFetching ? (
+          {isProjectDataFetching ? (
             <Skeleton className="naxatw-h-full naxatw-w-full" />
           ) : (
             <MapSection projectData={projectData as Record<string, any>} />
