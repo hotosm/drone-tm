@@ -7,11 +7,33 @@ from loguru import logger as log
 from fastapi import Depends, HTTPException, Path, File, UploadFile
 from psycopg import Connection
 from geojson import FeatureCollection
-
+from psycopg.rows import dict_row
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.projects.project_schemas import DbProject
 from app.utils import multipolygon_to_polygon
+
+
+async def get_tasks_by_project_id(project_id: UUID, db: Connection):
+    """Get tasks by project id."""
+    try:
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """SELECT id FROM tasks WHERE project_id = %(project_id)s""",
+                {"project_id": project_id},
+            )
+
+            data = await cur.fetchall()
+
+            if data is None:
+                raise HTTPException(
+                    status_code=HTTPStatus.FORBIDDEN,
+                    detail="No tasks found for this project.",
+                )
+            return data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def get_project_by_id(
@@ -27,7 +49,7 @@ async def get_project_by_id(
     try:
         return await DbProject.one(db, project_id)
     except KeyError as e:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN) from e
 
 
 async def geojson_upload(
