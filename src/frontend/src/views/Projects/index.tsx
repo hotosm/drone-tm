@@ -25,7 +25,7 @@ const Projects = () => {
   );
   const [paginationState, setSetPaginationState] = useState({
     activePage: 1,
-    selectedNumberOfRows: 10,
+    selectedNumberOfRows: 12,
   });
 
   const handlePaginationState = (value: Record<string, number>) => {
