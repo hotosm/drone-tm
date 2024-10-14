@@ -392,6 +392,7 @@ async def process_imagery(
     tags=["Image Processing"],
 )
 async def get_assets_info(
+    user_data: Annotated[AuthUser, Depends(login_required)],
     db: Annotated[Connection, Depends(database.get_db)],
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
