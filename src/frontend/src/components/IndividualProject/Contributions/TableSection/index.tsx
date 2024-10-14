@@ -67,8 +67,8 @@ export default function TableSection({ isFetching }: { isFetching: boolean }) {
           user: curr?.name || '-',
           task_mapped: `Task# ${curr?.project_task_index}`,
           task_state: curr?.state,
-          assets_url: curr?.assets_url,
-          image_count: curr?.image_count,
+          assets_url: curr?.assetsDetail?.assets_url,
+          image_count: curr?.assetsDetail?.image_count,
         },
       ];
     }, []);
