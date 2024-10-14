@@ -388,17 +388,34 @@ async def process_imagery(
 
 
 @router.get(
-    "/assets/{project_id}/{task_id}/",
+    "/assets/{project_id}/",
     tags=["Image Processing"],
-    response_model=project_schemas.AssetsInfo,
 )
 async def get_assets_info(
+    db: Annotated[Connection, Depends(database.get_db)],
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: uuid.UUID,
+    task_id: Optional[uuid.UUID] = None,
 ):
     """
-    Endpoint to get the number of images and the URL to download the assets for a given project and task.
+    Endpoint to get the number of images and the URL to download the assets
+    for a given project and task. If no task_id is provided, returns info
+    for all tasks associated with the project.
     """
-    return project_logic.get_project_info_from_s3(project.id, task_id)
+    if task_id is None:
+        print("*" * 100)
+        # Fetch all tasks associated with the project
+        tasks = await project_deps.get_tasks_by_project_id(project.id, db)
+
+        results = []
+
+        for task in tasks:
+            task_info = await project_logic.get_project_info_from_s3(
+                project.id, task.get("id")
+            )
+            results.append(task_info)
+
+        return results
+    else:
+        return project_logic.get_project_info_from_s3(project.id, task_id)
