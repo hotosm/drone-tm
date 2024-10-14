@@ -537,6 +537,8 @@ class ProjectInfo(BaseModel):
         else:
             values.status = "ongoing"
 
+        return values
+
 
 class ProjectOut(BaseModel):
     """Base project model."""
