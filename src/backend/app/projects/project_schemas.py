@@ -530,12 +530,21 @@ class ProjectInfo(BaseModel):
         completed_task_count = values.completed_task_count
         total_task_count = values.total_task_count
 
+<<<<<<< HEAD
         if completed_task_count == 0 and ongoing_task_count == 0:
             values.status = "not-started"
         elif completed_task_count == total_task_count:
             values.status = "completed"
         else:
             values.status = "ongoing"
+=======
+        if ongoing_task_count == 0:
+            values.status = "not-started"
+        elif ongoing_task_count > 0 and ongoing_task_count != completed_task_count:
+            values.status = "ongoing"
+        elif ongoing_task_count == total_task_count:
+            values.status = "completed"
+>>>>>>> 5e8a37ab505a3c4c12fa2a98348992c427652b61
 
         return values
 
