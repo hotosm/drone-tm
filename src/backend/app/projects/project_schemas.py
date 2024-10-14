@@ -2,7 +2,6 @@ import json
 import uuid
 from typing import Annotated, Optional, List
 from datetime import datetime, date
-from app.projects import project_logic
 import geojson
 from loguru import logger as log
 from pydantic import BaseModel, computed_field, Field, model_validator, root_validator
@@ -146,24 +145,6 @@ class TaskOut(BaseModel):
     name: Optional[str] = None
     image_count: Optional[int] = None
     assets_url: Optional[str] = None
-
-    @model_validator(mode="after")
-    def set_assets_url(cls, values):
-        """Set image_url and image count before rendering the model."""
-        task_id = values.id
-        project_id = values.project_id
-
-        if task_id and project_id:
-            data = project_logic.get_project_info_from_s3(project_id, task_id)
-            if data:
-                return values.copy(
-                    update={
-                        "assets_url": data.assets_url,
-                        "image_count": data.image_count,
-                    }
-                )
-
-        return values
 
 
 class DbProject(BaseModel):
@@ -549,12 +530,12 @@ class ProjectInfo(BaseModel):
         completed_task_count = values.completed_task_count
         total_task_count = values.total_task_count
 
-        if ongoing_task_count == 0:
+        if completed_task_count == 0 and ongoing_task_count == 0:
             values.status = "not-started"
-        elif ongoing_task_count > 0 and ongoing_task_count != completed_task_count:
-            values.status = "ongoing"
-        elif ongoing_task_count == total_task_count:
+        elif completed_task_count == total_task_count:
             values.status = "completed"
+        else:
+            values.status = "ongoing"
 
         return values
 

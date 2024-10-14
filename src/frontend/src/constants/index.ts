@@ -81,9 +81,8 @@ export const droneOperatorKeys = [
 ];
 
 export const rowsPerPageOptions = [
-  { label: '10', value: 10 },
-  { label: '20', value: 20 },
+  { label: '12', value: 12 },
+  { label: '18', value: 18 },
+  { label: '24', value: 24 },
   { label: '30', value: 30 },
-  { label: '50', value: 50 },
-  { label: '100', value: 100 },
 ];

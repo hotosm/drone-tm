@@ -25,7 +25,7 @@ const Projects = () => {
   );
   const [paginationState, setSetPaginationState] = useState({
     activePage: 1,
-    selectedNumberOfRows: 10,
+    selectedNumberOfRows: 12,
   });
 
   const handlePaginationState = (value: Record<string, number>) => {
@@ -60,7 +60,7 @@ const Projects = () => {
       <ProjectsHeader />
       <div className="naxatw-grid naxatw-gap-2 naxatw-pb-10 md:naxatw-flex md:naxatw-h-[calc(100vh-11rem)] md:naxatw-pb-0">
         <div
-          className={`scrollbar naxatw-grid naxatw-grid-rows-[19rem] naxatw-gap-3 naxatw-overflow-y-auto naxatw-py-2 ${showMap ? 'naxatw-w-full naxatw-grid-cols-1 md:naxatw-w-1/3 md:naxatw-grid-cols-1 lg:naxatw-grid-cols-1 xl:naxatw-grid-cols-2' : 'naxatw-w-full naxatw-grid-cols-1 sm:naxatw-grid-cols-2 md:naxatw-grid-cols-3 lg:naxatw-grid-cols-5'}`}
+          className={`scrollbar naxatw-grid naxatw-grid-rows-[19rem] naxatw-gap-3 naxatw-overflow-y-auto naxatw-py-2 ${showMap ? 'naxatw-w-full naxatw-grid-cols-1 md:naxatw-w-1/2 md:naxatw-grid-cols-1 lg:naxatw-grid-cols-2 xl:naxatw-grid-cols-3' : 'naxatw-w-full naxatw-grid-cols-1 sm:naxatw-grid-cols-2 md:naxatw-grid-cols-3 lg:naxatw-grid-cols-6'}`}
           style={{ gridAutoRows: '19rem' }}
         >
           {isLoading ? (
@@ -93,7 +93,7 @@ const Projects = () => {
           )}
         </div>
         {showMap && (
-          <div className="naxatw-h-[70vh] naxatw-w-full naxatw-py-2 naxatw-shadow-xl md:naxatw-h-full md:naxatw-w-2/3">
+          <div className="naxatw-h-[70vh] naxatw-w-full naxatw-py-2 naxatw-shadow-xl md:naxatw-h-full md:naxatw-w-1/2">
             {!isLoading ? (
               <ProjectsMapSection projectList={projectListData?.results} />
             ) : (

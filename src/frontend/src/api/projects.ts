@@ -1,7 +1,7 @@
 /* eslint-disable import/prefer-default-export */
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { getProjectsList, getProjectDetail } from '@Services/createproject';
-import { getTaskStates } from '@Services/project';
+import { getAllAssetsUrl, getTaskStates } from '@Services/project';
 import { getUserProfileInfo } from '@Services/common';
 
 export const useGetProjectsListQuery = (
@@ -58,6 +58,18 @@ export const useGetUserDetailsQuery = (
       localStorage.setItem('userprofile', userDetailsString as string);
       return userDetails;
     },
+    ...queryOptions,
+  });
+};
+
+export const useGetAllAssetsUrlQuery = (
+  projectId: string,
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['all-assets-url'],
+    queryFn: () => getAllAssetsUrl(projectId),
+    select: (data: any) => data.data,
     ...queryOptions,
   });
 };
