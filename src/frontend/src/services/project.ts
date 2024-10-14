@@ -14,4 +14,4 @@ export const getRequestedTasks = () =>
   authenticated(api).get('/tasks/requested_tasks/pending');
 
 export const getAllAssetsUrl = (projectId: string) =>
-  authenticated(api).get(`/projects/assets/${projectId}`);
+  authenticated(api).get(`/projects/assets/${projectId}/`);
