@@ -180,7 +180,7 @@ def process_drone_images(
     ]
 
     webhook_url = (
-        f"{settings.BACKEND_URL}/api/projects/odm/webhook/{project_id}/{task_id}"
+        f"{settings.BACKEND_URL}/api/projects/odm/webhook/{project_id}/{task_id}/"
     )
 
     processor.process_images_from_s3(
