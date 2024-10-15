@@ -81,6 +81,8 @@ class Settings(BaseSettings):
         return pg_url
 
     FRONTEND_URL: str = "http://localhost:3040"
+    BACKEND_URL: str = "http://localhost:8000"
+
     S3_ENDPOINT: str = "http://s3:9000"
     S3_ACCESS_KEY: Optional[str] = ""
     S3_SECRET_KEY: Optional[str] = ""

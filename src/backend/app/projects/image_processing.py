@@ -11,6 +11,7 @@ from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
 from asgiref.sync import async_to_sync
+from app.config import settings
 
 
 class DroneImageProcessor:
@@ -85,7 +86,9 @@ class DroneImageProcessor:
                 images.append(str(file))
         return images
 
-    def process_new_task(self, images, name=None, options=[], progress_callback=None):
+    def process_new_task(
+        self, images, name=None, options=[], progress_callback=None, webhook=None
+    ):
         """
         Sends a set of images via the API to start processing.
 
@@ -100,7 +103,9 @@ class DroneImageProcessor:
         # FIXME: take this from the function above
         opts = {"dsm": True}
 
-        task = self.node.create_task(images, opts, name, progress_callback)
+        task = self.node.create_task(
+            images, opts, name, progress_callback, webhook=webhook
+        )
         return task
 
     def monitor_task(self, task):
@@ -126,7 +131,7 @@ class DroneImageProcessor:
         log.info("Download completed.")
         return path
 
-    def process_images_from_s3(self, bucket_name, name=None, options=[]):
+    def process_images_from_s3(self, bucket_name, name=None, options=[], webhook=None):
         """
         Processes images from MinIO storage.
 
@@ -145,35 +150,85 @@ class DroneImageProcessor:
             images_list = self.list_images(temp_dir)
 
             # Start a new processing task
-            task = self.process_new_task(images_list, name=name, options=options)
-            # Monitor task progress
-            self.monitor_task(task)
-
-            # Optionally, download results
-            output_file_path = f"/tmp/{self.project_id}"
-            path_to_download = self.download_results(task, output_path=output_file_path)
-
-            # Upload the results into s3
-            s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
-            add_file_to_bucket(bucket_name, path_to_download, s3_path)
-            # now update the task as completed in Db.
-            # Call the async function using asyncio
-
-            # Update background task status to COMPLETED
-            update_task_status_sync = async_to_sync(task_logic.update_task_state)
-            update_task_status_sync(
-                self.db,
-                self.project_id,
-                self.task_id,
-                self.user_id,
-                "Task completed.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSED,
-                timestamp(),
+            task = self.process_new_task(
+                images_list, name=name, options=options, webhook=webhook
             )
+
+            # If webhook is passed, webhook does this job.
+            if not webhook:
+                # Monitor task progress
+                self.monitor_task(task)
+
+                # Optionally, download results
+                output_file_path = f"/tmp/{self.project_id}"
+                path_to_download = self.download_results(
+                    task, output_path=output_file_path
+                )
+
+                # Upload the results into s3
+                s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
+                add_file_to_bucket(bucket_name, path_to_download, s3_path)
+                # now update the task as completed in Db.
+                # Call the async function using asyncio
+
+                # Update background task status to COMPLETED
+                update_task_status_sync = async_to_sync(task_logic.update_task_state)
+                update_task_status_sync(
+                    self.db,
+                    self.project_id,
+                    self.task_id,
+                    self.user_id,
+                    "Task completed.",
+                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSED,
+                    timestamp(),
+                )
             return task
 
         finally:
             # Clean up temporary directory
             shutil.rmtree(temp_dir)
             pass
+
+
+def download_and_upload_assets_from_odm_to_s3(
+    node_odm_url: str, task_id: str, dtm_project_id: uuid.UUID, dtm_task_id: uuid.UUID
+):
+    """
+    Downloads results from ODM and uploads them to S3 (Minio).
+
+    :param task_id: UUID of the ODM task.
+    :param dtm_project_id: UUID of the project.
+    :param dtm_task_id: UUID of the task.
+    """
+    log.info(f"Starting download for task {task_id}")
+
+    # Replace with actual ODM node details and URL
+    node = Node.from_url(node_odm_url)
+
+    try:
+        # Get the task object using the task_id
+        task = node.get_task(task_id)
+
+        # Create a temporary directory to store the results
+        output_file_path = f"/tmp/{dtm_project_id}"
+
+        log.info(f"Downloading results for task {task_id} to {output_file_path}")
+
+        # Download results as a zip file
+        assets_path = task.download_zip(output_file_path)
+
+        # Upload the results into S3 (Minio)
+        s3_path = f"projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+        log.info(f"Uploading {output_file_path} to S3 path: {s3_path}")
+        add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
+
+        log.info(f"Assets for task {task_id} successfully uploaded to S3.")
+
+    except Exception as e:
+        log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
+
+    finally:
+        # Clean up the temporary directory
+        shutil.rmtree(output_file_path)
+        log.info(f"Temporary directory {output_file_path} cleaned up.")
