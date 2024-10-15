@@ -179,8 +179,15 @@ def process_drone_images(
         {"name": "orthophoto-resolution", "value": 5},
     ]
 
+    webhook_url = (
+        f"{settings.BACKEND_URL}/api/projects/odm/webhook/{project_id}/{task_id}"
+    )
+
     processor.process_images_from_s3(
-        settings.S3_BUCKET_NAME, name=f"DTM-Task-{task_id}", options=options
+        settings.S3_BUCKET_NAME,
+        name=f"DTM-Task-{task_id}",
+        options=options,
+        webhook=webhook_url,
     )
 
 

@@ -419,3 +419,24 @@ async def get_assets_info(
         return results
     else:
         return project_logic.get_project_info_from_s3(project.id, task_id)
+
+
+@router.get("/odm/webhook/{project_id}/{task_id}", tags=["Image Processing"])
+async def odm_webhook(project_id: uuid.UUID, task_id: uuid.UUID):
+    """
+    Webhook to receive notifications from ODM processing tasks.
+    """
+    try:
+        log.info("Received ODM webhook")
+
+        # Log the received task ID and status
+        log.info(f"Task ID: {task_id}, Status: .......")
+
+        # You can add logic here to update your system based on task status
+        # For example: updating a database, sending a notification, etc.
+
+        return {"message": "Webhook received", "task_id": task_id, "status": "status"}
+
+    except Exception as e:
+        log.error(f"Error processing webhook: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

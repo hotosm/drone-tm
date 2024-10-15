@@ -85,7 +85,9 @@ class DroneImageProcessor:
                 images.append(str(file))
         return images
 
-    def process_new_task(self, images, name=None, options=[], progress_callback=None):
+    def process_new_task(
+        self, images, name=None, options=[], progress_callback=None, webhook=None
+    ):
         """
         Sends a set of images via the API to start processing.
 
@@ -100,7 +102,9 @@ class DroneImageProcessor:
         # FIXME: take this from the function above
         opts = {"dsm": True}
 
-        task = self.node.create_task(images, opts, name, progress_callback)
+        task = self.node.create_task(
+            images, opts, name, progress_callback, webhook=webhook
+        )
         return task
 
     def monitor_task(self, task):
@@ -126,7 +130,7 @@ class DroneImageProcessor:
         log.info("Download completed.")
         return path
 
-    def process_images_from_s3(self, bucket_name, name=None, options=[]):
+    def process_images_from_s3(self, bucket_name, name=None, options=[], webhook=None):
         """
         Processes images from MinIO storage.
 
@@ -146,31 +150,36 @@ class DroneImageProcessor:
 
             # Start a new processing task
             task = self.process_new_task(images_list, name=name, options=options)
-            # Monitor task progress
-            self.monitor_task(task)
 
-            # Optionally, download results
-            output_file_path = f"/tmp/{self.project_id}"
-            path_to_download = self.download_results(task, output_path=output_file_path)
+            # If webhook is passed, webhook does this job.
+            if not webhook:
+                # Monitor task progress
+                self.monitor_task(task)
 
-            # Upload the results into s3
-            s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
-            add_file_to_bucket(bucket_name, path_to_download, s3_path)
-            # now update the task as completed in Db.
-            # Call the async function using asyncio
+                # Optionally, download results
+                output_file_path = f"/tmp/{self.project_id}"
+                path_to_download = self.download_results(
+                    task, output_path=output_file_path
+                )
 
-            # Update background task status to COMPLETED
-            update_task_status_sync = async_to_sync(task_logic.update_task_state)
-            update_task_status_sync(
-                self.db,
-                self.project_id,
-                self.task_id,
-                self.user_id,
-                "Task completed.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSED,
-                timestamp(),
-            )
+                # Upload the results into s3
+                s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
+                add_file_to_bucket(bucket_name, path_to_download, s3_path)
+                # now update the task as completed in Db.
+                # Call the async function using asyncio
+
+                # Update background task status to COMPLETED
+                update_task_status_sync = async_to_sync(task_logic.update_task_state)
+                update_task_status_sync(
+                    self.db,
+                    self.project_id,
+                    self.task_id,
+                    self.user_id,
+                    "Task completed.",
+                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSED,
+                    timestamp(),
+                )
             return task
 
         finally:
