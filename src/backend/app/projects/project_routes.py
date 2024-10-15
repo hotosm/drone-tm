@@ -425,13 +425,15 @@ async def get_assets_info(
 
 
 @router.post(
-    "/odm/webhook/{dtm_project_id}/{dtm_task_id}/",
+    "/odm/webhook/{dtm_user_id}/{dtm_project_id}/{dtm_task_id}/",
     tags=["Image Processing"],
 )
 async def odm_webhook(
     request: Request,
+    db: Annotated[Connection, Depends(database.get_db)],
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
+    dtm_user_id: str,
     background_tasks: BackgroundTasks,
 ):
     """
@@ -458,10 +460,12 @@ async def odm_webhook(
         # Call function to download assets from ODM and upload to S3
         background_tasks.add_task(
             image_processing.download_and_upload_assets_from_odm_to_s3,
+            db,
             settings.NODE_ODM_URL,
             task_id,
             dtm_project_id,
             dtm_task_id,
+            dtm_user_id,
         )
     elif status["code"] == 30:
         # failed task
