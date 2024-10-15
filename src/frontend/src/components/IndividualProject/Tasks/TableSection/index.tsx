@@ -21,14 +21,13 @@ const tasksDataColumns = [
   // },
 ];
 
-export default function TableSection() {
+export default function TableSection({ isFetching }: { isFetching: boolean }) {
   const tasksData = useTypedSelector(state => state.project.tasksData);
 
   const taskDataForTable = useMemo(() => {
     if (!tasksData) return [];
     return tasksData?.reduce((acc: any, curr: any) => {
-      if (!(curr?.state === '' || curr?.state === 'UNLOCKED_TO_MAP'))
-        return acc;
+      if (!(!curr?.state || curr?.state === 'UNLOCKED_TO_MAP')) return acc;
       return [
         ...acc,
         {
@@ -49,6 +48,7 @@ export default function TableSection() {
       }}
       data={taskDataForTable as Record<string, any>[]}
       withPagination={false}
+      loading={isFetching}
     />
   );
 }

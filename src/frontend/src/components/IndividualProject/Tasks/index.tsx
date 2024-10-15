@@ -3,7 +3,7 @@
 // import { FlexRow } from '@Components/common/Layouts';
 import TableSection from './TableSection';
 
-export default function Tasks() {
+export default function Tasks({ isFetching }: { isFetching: boolean }) {
   return (
     <section className="naxatw-py-5">
       {/* <FlexRow className="naxatw-w-full naxatw-justify-between">
@@ -24,7 +24,7 @@ export default function Tasks() {
         </div>
       </FlexRow> */}
       <div className="naxatw-mt-2">
-        <TableSection />
+        <TableSection isFetching={isFetching} />
       </div>
     </section>
   );

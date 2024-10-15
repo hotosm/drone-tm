@@ -39,7 +39,7 @@ export default function SearchInput({
         <Icon
           name="clear"
           onClick={onClear}
-          className="hover:naxatw-text-primary-400"
+          className="naxatw-rounded-full naxatw-px-1 !naxatw-text-xs naxatw-text-gray-800 hover:naxatw-bg-redlight"
         />
       )}
     </FlexRow>

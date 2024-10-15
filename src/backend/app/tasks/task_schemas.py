@@ -122,6 +122,7 @@ class Task(BaseModel):
             existing_tasks = await cur.fetchall()
             # Get all task_ids from the tasks table
             task_ids = await Task.get_all_tasks(db, project_id)
+
             # Create a set of existing task_ids for quick lookup
             existing_task_ids = {task.task_id for task in existing_tasks}
 
@@ -137,7 +138,6 @@ class Task(BaseModel):
                 }
                 for task_id in remaining_task_ids
             ]
-
             # Combine both existing tasks and remaining tasks
             combined_tasks = existing_tasks + remaining_tasks
             return combined_tasks
@@ -169,10 +169,10 @@ class UserTasksStatsOut(BaseModel):
                     task_events.updated_at,
                     CASE
                         WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                        WHEN task_events.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                        WHEN task_events.state = 'UNLOCKED_DONE' THEN 'completed'
+                        WHEN task_events.state = 'LOCKED_FOR_MAPPING' OR task_events.state = 'IMAGE_UPLOADED' THEN 'ongoing'
+                        WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
                         WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                        ELSE 'UNLOCKED_TO_MAP'
+                        ELSE ''
                     END AS state
                 FROM
                     task_events

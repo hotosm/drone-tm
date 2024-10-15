@@ -1,16 +1,20 @@
 /* eslint-disable import/prefer-default-export */
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { getProjectsList, getProjectDetail } from '@Services/createproject';
-import { getTaskStates } from '@Services/project';
+import { getAllAssetsUrl, getTaskStates } from '@Services/project';
 import { getUserProfileInfo } from '@Services/common';
 
 export const useGetProjectsListQuery = (
-  projectsFilterByOwner: 'yes' | 'no',
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['projects-list', projectsFilterByOwner],
-    queryFn: () => getProjectsList(projectsFilterByOwner === 'yes'),
+    queryKey: queryOptions?.queryKey
+      ? ['projects-list', ...Object.values(queryOptions?.queryKey || {})]
+      : ['projects-list'],
+    queryFn: () =>
+      getProjectsList(
+        queryOptions?.queryKey ? { ...queryOptions.queryKey } : {},
+      ),
     select: (res: any) => res.data,
     ...queryOptions,
   });
@@ -46,9 +50,26 @@ export const useGetUserDetailsQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['user=profile'],
+    queryKey: ['user-profile'],
     queryFn: getUserProfileInfo,
-    select: (res: any) => res.data,
+    select: (res: any) => {
+      const userDetails = res.data;
+      const userDetailsString = JSON.stringify(userDetails);
+      localStorage.setItem('userprofile', userDetailsString as string);
+      return userDetails;
+    },
+    ...queryOptions,
+  });
+};
+
+export const useGetAllAssetsUrlQuery = (
+  projectId: string,
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['all-assets-url'],
+    queryFn: () => getAllAssetsUrl(projectId),
+    select: (data: any) => data.data,
     ...queryOptions,
   });
 };

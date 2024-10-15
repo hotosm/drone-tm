@@ -2,10 +2,15 @@ import uuid
 import tempfile
 import shutil
 from pathlib import Path
+from app.tasks import task_logic
+from app.models.enums import State
+from app.utils import timestamp
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
+from psycopg import Connection
+from asgiref.sync import async_to_sync
 
 
 class DroneImageProcessor:
@@ -14,6 +19,8 @@ class DroneImageProcessor:
         node_odm_url: str,
         project_id: uuid.UUID,
         task_id: uuid.UUID,
+        user_id: str,
+        db: Connection,
     ):
         """
         Initializes the connection to the ODM node.
@@ -22,6 +29,8 @@ class DroneImageProcessor:
         self.node = Node.from_url(node_odm_url)
         self.project_id = project_id
         self.task_id = task_id
+        self.user_id = user_id
+        self.db = db
 
     def options_list_to_dict(self, options=[]):
         """
@@ -140,9 +149,7 @@ class DroneImageProcessor:
             images_list = self.list_images(temp_dir)
 
             # Start a new processing task
-            task = self.process_new_task(
-                images_list, name=name, options=options, webhook=webhook
-            )
+            task = self.process_new_task(images_list, name=name, options=options)
 
             # If webhook is passed, webhook does this job.
             if not webhook:
@@ -158,6 +165,21 @@ class DroneImageProcessor:
                 # Upload the results into s3
                 s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
                 add_file_to_bucket(bucket_name, path_to_download, s3_path)
+                # now update the task as completed in Db.
+                # Call the async function using asyncio
+
+                # Update background task status to COMPLETED
+                update_task_status_sync = async_to_sync(task_logic.update_task_state)
+                update_task_status_sync(
+                    self.db,
+                    self.project_id,
+                    self.task_id,
+                    self.user_id,
+                    "Task completed.",
+                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSED,
+                    timestamp(),
+                )
             return task
 
         finally:

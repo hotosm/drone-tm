@@ -8,6 +8,7 @@ import {
   MapSection,
   Tasks,
 } from '@Components/IndividualProject';
+import Skeleton from '@Components/RadixComponents/Skeleton';
 import { projectOptions } from '@Constants/index';
 import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
@@ -20,7 +21,7 @@ const getActiveTabContent = (
   data: Record<string, any>,
   isProjectDataLoading: boolean,
 ) => {
-  if (activeTab === 'tasks') return <Tasks />;
+  if (activeTab === 'tasks') return <Tasks isFetching={isProjectDataLoading} />;
   if (activeTab === 'instructions')
     return (
       <Instructions
@@ -28,7 +29,8 @@ const getActiveTabContent = (
         isProjectDataLoading={isProjectDataLoading}
       />
     );
-  if (activeTab === 'contributions') return <Contributions />;
+  if (activeTab === 'contributions')
+    return <Contributions isFetching={isProjectDataLoading} />;
   return <></>;
 };
 
@@ -41,7 +43,7 @@ const IndividualProject = () => {
     state => state.project.individualProjectActiveTab,
   );
 
-  const { data: projectData, isLoading: isProjectDataLoading } =
+  const { data: projectData, isFetching: isProjectDataFetching } =
     useGetProjectsDetailQuery(id as string, {
       onSuccess: (res: any) => {
         dispatch(
@@ -86,7 +88,7 @@ const IndividualProject = () => {
         {/* <----------- temporary breadcrumb -----------> */}
       </div>
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">
-        <div className="naxatw-order-2 naxatw-w-full naxatw-max-w-[27rem]">
+        <div className="naxatw-order-2 naxatw-w-full naxatw-max-w-[30rem]">
           <Tab
             orientation="row"
             className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
@@ -102,12 +104,16 @@ const IndividualProject = () => {
             {getActiveTabContent(
               individualProjectActiveTab,
               projectData as Record<string, any>,
-              isProjectDataLoading,
+              isProjectDataFetching,
             )}
           </div>
         </div>
         <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full md:naxatw-order-2">
-          <MapSection />
+          {isProjectDataFetching ? (
+            <Skeleton className="naxatw-h-full naxatw-w-full" />
+          ) : (
+            <MapSection projectData={projectData as Record<string, any>} />
+          )}
         </div>
       </div>
     </section>

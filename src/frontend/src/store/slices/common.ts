@@ -15,6 +15,7 @@ export interface CommonState {
   openSignInMenu: boolean;
   userProfileActiveTab: number;
   isCertifiedDroneUser: 'yes' | 'no';
+  projectSearchKey: string;
 }
 
 const initialState: CommonState = {
@@ -26,6 +27,7 @@ const initialState: CommonState = {
   openSignInMenu: false,
   userProfileActiveTab: 1,
   isCertifiedDroneUser: 'no',
+  projectSearchKey: '',
 };
 
 const setCommonState: CaseReducer<

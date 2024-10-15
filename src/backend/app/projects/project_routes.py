@@ -3,6 +3,7 @@ import os
 import uuid
 from typing import Annotated, Optional
 from uuid import UUID
+from app.tasks import task_logic
 import geojson
 from datetime import timedelta
 from fastapi import (
@@ -24,13 +25,13 @@ from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic
 from app.db import database
-from app.models.enums import HTTPStatus
+from app.models.enums import HTTPStatus, State
 from app.s3 import s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
-from app.utils import geojson_to_kml
+from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
 
 
@@ -302,33 +303,51 @@ async def generate_presigned_url(
         )
 
 
-@router.get("/", tags=["Projects"], response_model=list[project_schemas.ProjectOut])
+@router.get("/", tags=["Projects"], response_model=project_schemas.ProjectOut)
 async def read_projects(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
     filter_by_owner: Optional[bool] = Query(
         False, description="Filter projects by authenticated user (creator)"
     ),
-    skip: int = 0,
-    limit: int = 100,
+    search: Optional[str] = Query(None, description="Search projects by name"),
+    page: int = Query(1, ge=1, description="Page number"),
+    results_per_page: int = Query(
+        20, gt=0, le=100, description="Number of results per page"
+    ),
 ):
     "Get all projects with task count."
 
     try:
         user_id = user_data.id if filter_by_owner else None
-        projects = await project_schemas.DbProject.all(
-            db, user_id=user_id, skip=skip, limit=limit
+        skip = (page - 1) * results_per_page
+        projects, total_count = await project_schemas.DbProject.all(
+            db, user_id=user_id, search=search, skip=skip, limit=results_per_page
         )
         if not projects:
-            return []
+            return {
+                "results": [],
+                "pagination": {
+                    "page": page,
+                    "per_page": results_per_page,
+                    "total": total_count,
+                },
+            }
 
-        return projects
+        return {
+            "results": projects,
+            "pagination": {
+                "page": page,
+                "per_page": results_per_page,
+                "total": total_count,
+            },
+        }
     except KeyError as e:
         raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY) from e
 
 
 @router.get(
-    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectOut
+    "/{project_id}", tags=["Projects"], response_model=project_schemas.ProjectInfo
 )
 async def read_project(
     project: Annotated[
@@ -348,26 +367,58 @@ async def process_imagery(
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
     background_tasks: BackgroundTasks,
+    db: Annotated[Connection, Depends(database.get_db)],
 ):
-    background_tasks.add_task(project_logic.process_drone_images, project.id, task_id)
+    user_id = user_data.id
+    # TODO: Update task state to reflect completion of image uploads.
+    await task_logic.update_task_state(
+        db,
+        project.id,
+        task_id,
+        user_id,
+        "Task images upload completed.",
+        State.LOCKED_FOR_MAPPING,
+        State.IMAGE_UPLOADED,
+        timestamp(),
+    )
+    background_tasks.add_task(
+        project_logic.process_drone_images, project.id, task_id, user_id, db
+    )
     return {"message": "Processing started"}
 
 
 @router.get(
-    "/assets/{project_id}/{task_id}/",
+    "/assets/{project_id}/",
     tags=["Image Processing"],
-    response_model=project_schemas.AssetsInfo,
 )
 async def get_assets_info(
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: uuid.UUID,
+    task_id: Optional[uuid.UUID] = None,
 ):
     """
-    Endpoint to get the number of images and the URL to download the assets for a given project and task.
+    Endpoint to get the number of images and the URL to download the assets
+    for a given project and task. If no task_id is provided, returns info
+    for all tasks associated with the project.
     """
-    return await project_logic.get_project_info_from_s3(project.id, task_id)
+    if task_id is None:
+        # Fetch all tasks associated with the project
+        tasks = await project_deps.get_tasks_by_project_id(project.id, db)
+
+        results = []
+
+        for task in tasks:
+            task_info = project_logic.get_project_info_from_s3(
+                project.id, task.get("id")
+            )
+            results.append(task_info)
+
+        return results
+    else:
+        return project_logic.get_project_info_from_s3(project.id, task_id)
 
 
 @router.get("/odm/webhook/{project_id}/{task_id}", tags=["Image Processing"])
