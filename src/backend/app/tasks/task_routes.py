@@ -229,7 +229,7 @@ async def new_event(
                 )
                 background_tasks.add_task(
                     send_notification_email,
-                    user_data.email,
+                    author["email_address"],
                     "Request for mapping",
                     html_content,
                 )
