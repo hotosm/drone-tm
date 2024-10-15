@@ -192,7 +192,12 @@ class DroneImageProcessor:
 
 
 def download_and_upload_assets_from_odm_to_s3(
-    node_odm_url: str, task_id: str, dtm_project_id: uuid.UUID, dtm_task_id: uuid.UUID
+    db: Connection,
+    node_odm_url: str,
+    task_id: str,
+    dtm_project_id: uuid.UUID,
+    dtm_task_id: uuid.UUID,
+    user_id: str,
 ):
     """
     Downloads results from ODM and uploads them to S3 (Minio).
@@ -224,6 +229,19 @@ def download_and_upload_assets_from_odm_to_s3(
         add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
         log.info(f"Assets for task {task_id} successfully uploaded to S3.")
+
+        # Update background task status to COMPLETED
+        update_task_status_sync = async_to_sync(task_logic.update_task_state)
+        update_task_status_sync(
+            db,
+            dtm_project_id,
+            dtm_task_id,
+            user_id,
+            "Task completed.",
+            State.IMAGE_UPLOADED,
+            State.IMAGE_PROCESSED,
+            timestamp(),
+        )
 
     except Exception as e:
         log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
