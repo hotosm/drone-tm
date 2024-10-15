@@ -11,6 +11,7 @@ from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
 from asgiref.sync import async_to_sync
+from app.config import settings
 
 
 class DroneImageProcessor:
@@ -149,7 +150,9 @@ class DroneImageProcessor:
             images_list = self.list_images(temp_dir)
 
             # Start a new processing task
-            task = self.process_new_task(images_list, name=name, options=options)
+            task = self.process_new_task(
+                images_list, name=name, options=options, webhook=webhook
+            )
 
             # If webhook is passed, webhook does this job.
             if not webhook:
@@ -186,3 +189,46 @@ class DroneImageProcessor:
             # Clean up temporary directory
             shutil.rmtree(temp_dir)
             pass
+
+
+def download_and_upload_assets_from_odm_to_s3(
+    node_odm_url: str, task_id: str, dtm_project_id: uuid.UUID, dtm_task_id: uuid.UUID
+):
+    """
+    Downloads results from ODM and uploads them to S3 (Minio).
+
+    :param task_id: UUID of the ODM task.
+    :param dtm_project_id: UUID of the project.
+    :param dtm_task_id: UUID of the task.
+    """
+    log.info(f"Starting download for task {task_id}")
+
+    # Replace with actual ODM node details and URL
+    node = Node.from_url(node_odm_url)
+
+    try:
+        # Get the task object using the task_id
+        task = node.get_task(task_id)
+
+        # Create a temporary directory to store the results
+        output_file_path = f"/tmp/{dtm_project_id}"
+
+        log.info(f"Downloading results for task {task_id} to {output_file_path}")
+
+        # Download results as a zip file
+        assets_path = task.download_zip(output_file_path)
+
+        # Upload the results into S3 (Minio)
+        s3_path = f"projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+        log.info(f"Uploading {output_file_path} to S3 path: {s3_path}")
+        add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
+
+        log.info(f"Assets for task {task_id} successfully uploaded to S3.")
+
+    except Exception as e:
+        log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
+
+    finally:
+        # Clean up the temporary directory
+        shutil.rmtree(output_file_path)
+        log.info(f"Temporary directory {output_file_path} cleaned up.")

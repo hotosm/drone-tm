@@ -17,13 +17,14 @@ from fastapi import (
     Form,
     Response,
     BackgroundTasks,
+    Request,
 )
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
 from psycopg import Connection
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
-from app.projects import project_schemas, project_deps, project_logic
+from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.db import database
 from app.models.enums import HTTPStatus, State
 from app.s3 import s3_client
@@ -182,9 +183,11 @@ async def create_project(
         if dem
         else None
     )
-    await project_logic.upload_file_to_s3(
-        project_id, image, "map_screenshot.png"
-    ) if image else None
+    (
+        await project_logic.upload_file_to_s3(project_id, image, "map_screenshot.png")
+        if image
+        else None
+    )
 
     # Update DEM and Image URLs in the database
     await project_logic.update_url(db, project_id, dem_url)
@@ -421,22 +424,46 @@ async def get_assets_info(
         return project_logic.get_project_info_from_s3(project.id, task_id)
 
 
-@router.get("/odm/webhook/{project_id}/{task_id}", tags=["Image Processing"])
-async def odm_webhook(project_id: uuid.UUID, task_id: uuid.UUID):
+@router.post(
+    "/odm/webhook/{dtm_project_id}/{dtm_task_id}/",
+    tags=["Image Processing"],
+)
+async def odm_webhook(
+    request: Request,
+    dtm_project_id: uuid.UUID,
+    dtm_task_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+):
     """
     Webhook to receive notifications from ODM processing tasks.
     """
+    # Try to parse the JSON body
     try:
-        log.info("Received ODM webhook")
-
-        # Log the received task ID and status
-        log.info(f"Task ID: {task_id}, Status: .......")
-
-        # You can add logic here to update your system based on task status
-        # For example: updating a database, sending a notification, etc.
-
-        return {"message": "Webhook received", "task_id": task_id, "status": "status"}
-
+        payload = await request.json()
     except Exception as e:
-        log.error(f"Error processing webhook: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        log.error(f"Error parsing JSON: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    task_id = payload.get("uuid")
+    status = payload.get("status")
+
+    if not task_id or not status:
+        raise HTTPException(status_code=400, detail="Invalid webhook payload")
+
+    log.info(f"Task ID: {task_id}, Status: {status}")
+
+    # If status is 'success', download and upload assets to S3.
+    # 40 is the status code for success in odm
+    if status["code"] == 40:
+        # Call function to download assets from ODM and upload to S3
+        background_tasks.add_task(
+            image_processing.download_and_upload_assets_from_odm_to_s3,
+            settings.NODE_ODM_URL,
+            task_id,
+            dtm_project_id,
+            dtm_task_id,
+        )
+    elif status["code"] == 30:
+        # failed task
+        log.error(f'ODM task {task_id} failed: {status["errorMessage"]}')
+    return {"message": "Webhook received", "task_id": task_id}
