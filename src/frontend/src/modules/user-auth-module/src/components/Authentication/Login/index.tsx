@@ -83,7 +83,11 @@ export default function Login() {
         className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
       >
         <Image src={Person} />
-        <h3>{signedInAs}</h3>
+        <h3>
+          {signedInAs === 'PROJECT_CREATOR'
+            ? 'Project Creator'
+            : 'Drone Operator'}
+        </h3>
 
         {/* google login button */}
         <div
