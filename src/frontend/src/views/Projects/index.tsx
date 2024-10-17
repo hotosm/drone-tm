@@ -6,7 +6,10 @@ import {
   ProjectsHeader,
   ProjectsMapSection,
 } from '@Components/Projects';
-import { useGetProjectsListQuery } from '@Api/projects';
+import {
+  useGetProjectCentroidQuery,
+  useGetProjectsListQuery,
+} from '@Api/projects';
 import ProjectCardSkeleton from '@Components/Projects/ProjectCardSkeleton';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { setCreateProjectState } from '@Store/actions/createproject';
@@ -43,6 +46,10 @@ const Projects = () => {
         search: projectSearchKey,
       },
     });
+
+  // fetch project centroid
+  const { data: projectCentroids, isFetching: isCentroidFetching } =
+    useGetProjectCentroidQuery();
 
   useEffect(() => {
     handlePaginationState({ activePage: 1 });
@@ -94,8 +101,10 @@ const Projects = () => {
         </div>
         {showMap && (
           <div className="naxatw-h-[70vh] naxatw-w-full naxatw-py-2 naxatw-shadow-xl md:naxatw-h-full md:naxatw-w-1/2">
-            {!isLoading ? (
-              <ProjectsMapSection projectList={projectListData?.results} />
+            {!isCentroidFetching ? (
+              <ProjectsMapSection
+                projectCentroidList={projectCentroids as Record<string, any>[]}
+              />
             ) : (
               <Skeleton className="axatw-animate-pulse naxatw-h-full naxatw-w-full" />
             )}

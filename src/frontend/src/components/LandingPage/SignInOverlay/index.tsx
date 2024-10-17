@@ -46,7 +46,7 @@ export default function SignInOverlay() {
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
             onClick={() => {
-              localStorage.setItem('signedInAs', 'Project Creator');
+              localStorage.setItem('signedInAs', 'PROJECT_CREATOR');
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {
@@ -67,7 +67,7 @@ export default function SignInOverlay() {
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
             onClick={() => {
-              localStorage.setItem('signedInAs', 'Drone Operator');
+              localStorage.setItem('signedInAs', 'DRONE_PILOT');
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {

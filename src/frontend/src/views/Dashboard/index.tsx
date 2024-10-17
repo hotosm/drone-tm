@@ -17,9 +17,9 @@ const getContent = (activeTab: string, title: string) => {
 };
 
 const Dashboard = () => {
-  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
   const [activeTab, setActiveTab] = useState(
-    signedInAs === 'Project Creator'
+    signedInAs === 'PROJECT_CREATOR'
       ? {
           value: 'request_logs',
           title: 'Request Logs',
@@ -30,7 +30,7 @@ const Dashboard = () => {
         },
   );
   const dashboardCards =
-    signedInAs === 'Project Creator'
+    signedInAs === 'PROJECT_CREATOR'
       ? dashboardCardsForProjectCreator
       : dashboardCardsForDroneOperator;
 
