@@ -2,7 +2,7 @@ import uuid
 from app.models.enums import HTTPStatus, State, UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
-from typing import Optional
+from typing import List, Optional
 from psycopg import Connection
 from psycopg.rows import class_row
 import psycopg
@@ -95,20 +95,31 @@ class BaseUserProfile(BaseModel):
     drone_you_own: Optional[str] = None
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
-    role: Optional[UserRole] = None
+    role: Optional[List[UserRole]] = None
 
     @field_validator("role", mode="after")
     @classmethod
     def integer_role_to_string(cls, value: UserRole):
+        if isinstance(value, list):
+            value = [str(role.name) for role in value]
+
         if isinstance(value, int):
             value = UserRole(value)
-        return str(value.name)
+
+        unique_roles = set(value)
+        value = list(unique_roles)
+        return value
 
     @field_validator("role", mode="before")
     @classmethod
     def srting_role_to_integer(cls, value: UserRole) -> str:
         if isinstance(value, str):
-            value = UserRole[value].value
+            role_list = value.strip("{}").split(",")
+            value = [
+                UserRole[role.strip()].value
+                for role in role_list
+                if role.strip() in UserRole.__members__
+            ]
         return value
 
 
@@ -130,6 +141,26 @@ class DbUserProfile(BaseUserProfile):
         model_dump = profile_update.model_dump(
             exclude_none=True, exclude=["password", "old_password"]
         )
+
+        # If there are new roles, update the existing roles
+        if "role" in model_dump and model_dump["role"] is not None:
+            new_roles = model_dump["role"]
+
+            # Create a query to update roles
+            role_update_query = """
+                UPDATE user_profile
+                SET role = (
+                    SELECT ARRAY(
+                        SELECT DISTINCT unnest(array_cat(role, %s))
+                    )
+                )
+                WHERE user_id = %s;
+            """
+
+            async with db.cursor() as cur:
+                await cur.execute(role_update_query, (new_roles, user_id))
+
+        # Prepare the columns and placeholders for the main update
         columns = ", ".join(model_dump.keys())
         value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
         sql = f"""
@@ -168,6 +199,58 @@ class DbUserProfile(BaseUserProfile):
                     },
                 )
             return True
+
+    # class DbUserProfile(BaseUserProfile):
+    #     """UserProfile model for interacting with the user_profile table."""
+
+    #     user_id: int
+
+    #     @staticmethod
+    #     async def update(db: Connection, user_id: int, profile_update: UserProfileIn):
+    #         """Update or insert a user profile."""
+
+    #         # Prepare data for insert or update
+    #         model_dump = profile_update.model_dump(
+    #             exclude_none=True, exclude=["password", "old_password"]
+    #         )
+    #         columns = ", ".join(model_dump.keys())
+    #         value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
+    #         sql = f"""
+    #             INSERT INTO user_profile (
+    #                 user_id, {columns}
+    #             )
+    #             VALUES (
+    #                 %(user_id)s, {value_placeholders}
+    #             )
+    #             ON CONFLICT (user_id)
+    #             DO UPDATE SET
+    #                 {', '.join(f"{key} = EXCLUDED.{key}" for key in model_dump.keys())};
+    #         """
+
+    #         # Prepare password update query if a new password is provided
+    #         password_update_query = """
+    #             UPDATE users
+    #             SET password = %(password)s
+    #             WHERE id = %(user_id)s;
+    #         """
+
+    #         model_dump["user_id"] = user_id
+
+    #         async with db.cursor() as cur:
+    #             await cur.execute(sql, model_dump)
+
+    #             if profile_update.password:
+    #                 # Update password if provided
+    #                 await cur.execute(
+    #                     password_update_query,
+    #                     {
+    #                         "password": user_logic.get_password_hash(
+    #                             profile_update.password
+    #                         ),
+    #                         "user_id": user_id,
+    #                     },
+    #                 )
+    #             return True
 
     async def get_userprofile_by_userid(db: Connection, user_id: str):
         """Fetch the user profile by user ID."""
