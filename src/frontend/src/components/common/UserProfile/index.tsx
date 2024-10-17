@@ -20,16 +20,10 @@ export default function UserProfile() {
   const role = localStorage.getItem('signedInAs');
 
   useEffect(() => {
-    if (userDetails?.role?.includes(role) || isFetching) return;
+    if (!userDetails || userDetails?.role?.includes(role) || isFetching) return;
     if (!userDetails?.has_user_profile || !userDetails?.role?.includes(role))
       navigate('/complete-profile');
-  }, [
-    userDetails?.has_user_profile,
-    userDetails?.role,
-    role,
-    navigate,
-    isFetching,
-  ]);
+  }, [userDetails, role, navigate, isFetching]);
 
   const settingOptions = [
     {
