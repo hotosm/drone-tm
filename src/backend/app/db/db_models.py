@@ -278,7 +278,6 @@ class DbUserProfile(Base):
     __tablename__ = "user_profile"
     user_id = cast(str, Column(String, ForeignKey("users.id"), primary_key=True))
     role = cast(list, Column(ARRAY(Enum(UserRole))))
-    # role = cast(UserRole, Column(Enum(UserRole), default=UserRole.DRONE_PILOT))
     phone_number = cast(str, Column(String))
     country = cast(str, Column(String))
     city = cast(str, Column(String))

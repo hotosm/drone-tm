@@ -200,58 +200,6 @@ class DbUserProfile(BaseUserProfile):
                 )
             return True
 
-    # class DbUserProfile(BaseUserProfile):
-    #     """UserProfile model for interacting with the user_profile table."""
-
-    #     user_id: int
-
-    #     @staticmethod
-    #     async def update(db: Connection, user_id: int, profile_update: UserProfileIn):
-    #         """Update or insert a user profile."""
-
-    #         # Prepare data for insert or update
-    #         model_dump = profile_update.model_dump(
-    #             exclude_none=True, exclude=["password", "old_password"]
-    #         )
-    #         columns = ", ".join(model_dump.keys())
-    #         value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
-    #         sql = f"""
-    #             INSERT INTO user_profile (
-    #                 user_id, {columns}
-    #             )
-    #             VALUES (
-    #                 %(user_id)s, {value_placeholders}
-    #             )
-    #             ON CONFLICT (user_id)
-    #             DO UPDATE SET
-    #                 {', '.join(f"{key} = EXCLUDED.{key}" for key in model_dump.keys())};
-    #         """
-
-    #         # Prepare password update query if a new password is provided
-    #         password_update_query = """
-    #             UPDATE users
-    #             SET password = %(password)s
-    #             WHERE id = %(user_id)s;
-    #         """
-
-    #         model_dump["user_id"] = user_id
-
-    #         async with db.cursor() as cur:
-    #             await cur.execute(sql, model_dump)
-
-    #             if profile_update.password:
-    #                 # Update password if provided
-    #                 await cur.execute(
-    #                     password_update_query,
-    #                     {
-    #                         "password": user_logic.get_password_hash(
-    #                             profile_update.password
-    #                         ),
-    #                         "user_id": user_id,
-    #                     },
-    #                 )
-    #             return True
-
     async def get_userprofile_by_userid(db: Connection, user_id: str):
         """Fetch the user profile by user ID."""
         query = """
