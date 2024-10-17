@@ -19,6 +19,20 @@ from app.config import settings
 from app.projects.image_processing import DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
+from psycopg.rows import dict_row
+
+
+async def get_centroids(db: Connection):
+    try:
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """SELECT ST_AsGeoJSON(centroid)::jsonb AS centroid FROM projects"""
+            )
+            centroids = await cur.fetchall()
+
+            return centroids
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def upload_file_to_s3(

@@ -42,6 +42,26 @@ router = APIRouter(
 )
 
 
+@router.get("/centroids", tags=["Projects"])
+async def read_project_centroids(
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)]
+):
+    """
+    Get all project centroids.
+    """
+    try:
+        centroids = await project_logic.get_centroids(
+            db,
+        )
+        if not centroids:
+            return []
+
+        return centroids
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{project_id}/download-boundaries", tags=["Projects"])
 async def download_boundaries(
     project_id: Annotated[
