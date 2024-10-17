@@ -1,6 +1,10 @@
 /* eslint-disable import/prefer-default-export */
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
-import { getProjectsList, getProjectDetail } from '@Services/createproject';
+import {
+  getProjectsList,
+  getProjectDetail,
+  getProjectCentroid,
+} from '@Services/createproject';
 import { getAllAssetsUrl, getTaskStates } from '@Services/project';
 import { getUserProfileInfo } from '@Services/common';
 
@@ -69,6 +73,17 @@ export const useGetAllAssetsUrlQuery = (
   return useQuery({
     queryKey: ['all-assets-url'],
     queryFn: () => getAllAssetsUrl(projectId),
+    select: (data: any) => data.data,
+    ...queryOptions,
+  });
+};
+
+export const useGetProjectCentroidQuery = (
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['all-projects-centroid'],
+    queryFn: () => getProjectCentroid(),
     select: (data: any) => data.data,
     ...queryOptions,
   });
