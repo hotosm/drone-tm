@@ -49,8 +49,7 @@ const CompleteUserProfile = () => {
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
   const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
-  const isDroneOperator =
-    localStorage.getItem('signedInAs') === 'DRONE_OPERATOR';
+  const isDroneOperator = localStorage.getItem('signedInAs') === 'DRONE_PILOT';
 
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,

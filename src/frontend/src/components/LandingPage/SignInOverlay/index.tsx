@@ -67,7 +67,7 @@ export default function SignInOverlay() {
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
             onClick={() => {
-              localStorage.setItem('signedInAs', 'DRONE_OPERATOR');
+              localStorage.setItem('signedInAs', 'DRONE_PILOT');
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {
