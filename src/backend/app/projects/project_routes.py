@@ -42,10 +42,12 @@ router = APIRouter(
 )
 
 
-@router.get("/centroids", tags=["Projects"])
+@router.get(
+    "/centroids", tags=["Projects"], response_model=list[project_schemas.CentroidOut]
+)
 async def read_project_centroids(
     db: Annotated[Connection, Depends(database.get_db)],
-    user_data: Annotated[AuthUser, Depends(login_required)]
+    # user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """
     Get all project centroids.

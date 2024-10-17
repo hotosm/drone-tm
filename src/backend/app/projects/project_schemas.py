@@ -26,6 +26,33 @@ from app.config import settings
 from app.s3 import get_presigned_url
 
 
+class CentroidOut(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+    centroid: dict
+    total_task_count: int
+    ongoing_task_count: int
+    completed_task_count: int
+    status: str = None
+
+    @model_validator(mode="after")
+    def calculate_status(cls, values):
+        """Set the project status based on task counts."""
+        ongoing_task_count = values.ongoing_task_count
+        completed_task_count = values.completed_task_count
+        total_task_count = values.total_task_count
+
+        if completed_task_count == 0 and ongoing_task_count == 0:
+            values.status = "not-started"
+        elif completed_task_count == total_task_count:
+            values.status = "completed"
+        else:
+            values.status = "ongoing"
+
+        return values
+
+
 class AssetsInfo(BaseModel):
     project_id: str
     task_id: str
