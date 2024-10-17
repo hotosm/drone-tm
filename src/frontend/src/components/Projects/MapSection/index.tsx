@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import getBbox from '@turf/bbox';
-import centroid from '@turf/centroid';
 import { FeatureCollection } from 'geojson';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
@@ -12,7 +11,11 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
-const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
+const ProjectsMapSection = ({
+  projectCentroidList,
+}: {
+  projectCentroidList: Record<string, any>[];
+}) => {
   const [projectProperties, setProjectProperties] = useState<
     Record<string, any>
   >({});
@@ -27,17 +30,17 @@ const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
     disableRotation: true,
   });
 
-  const projectsGeojson = useMemo(() => {
-    if (!projectList || !projectList?.length) return [];
+  const projectsCentroidGeojson: any = useMemo(() => {
+    if (!projectCentroidList || !projectCentroidList?.length) return [];
     // find all polygons centroid and set to geojson save to single geojson
-    const combinedGeojson = projectList?.reduce(
+    const combinedGeojson = projectCentroidList?.reduce(
       (acc: Record<string, any>, current: Record<string, any>) => {
         return {
           ...acc,
           features: [
             ...acc.features,
             {
-              ...centroid(current.outline),
+              geometry: current?.centroid,
               properties: {
                 id: current?.id,
                 name: current?.name,
@@ -59,19 +62,19 @@ const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
       },
     );
     return combinedGeojson;
-  }, [projectList]);
+  }, [projectCentroidList]);
 
   useEffect(() => {
     if (
-      !projectsGeojson ||
-      !projectsGeojson?.features?.length ||
+      !projectsCentroidGeojson ||
+      !projectsCentroidGeojson?.features?.length ||
       !map ||
       !isMapLoaded
     )
       return;
-    const bbox = getBbox(projectsGeojson as FeatureCollection);
+    const bbox = getBbox(projectsCentroidGeojson as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100, duration: 500 });
-  }, [projectsGeojson, map, isMapLoaded]);
+  }, [projectsCentroidGeojson, map, isMapLoaded]);
 
   const getPopupUI = useCallback(() => {
     return (
@@ -94,13 +97,13 @@ const ProjectsMapSection = ({ projectList }: { projectList: any }) => {
     >
       <BaseLayerSwitcher />
 
-      {projectsGeojson && (
+      {projectsCentroidGeojson && (
         <VectorLayerWithCluster
           map={map}
           visibleOnMap
           mapLoaded={isMapLoaded}
           sourceId="clustered-projects"
-          geojson={projectsGeojson}
+          geojson={projectsCentroidGeojson}
         />
       )}
 
