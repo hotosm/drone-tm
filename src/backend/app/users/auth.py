@@ -19,6 +19,7 @@ class Login(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    role: str
 
 
 class Auth:
@@ -83,15 +84,18 @@ class Auth:
 
         data = resp.json()
         serializer = URLSafeSerializer(self.secret_key)
+        
         user_data = {
             "id": data.get("id"),
             "email": data.get("email"),
             "name": data.get("name"),
             "profile_img": data.get("picture") if data.get("picture") else None,
+            "role": "USER",
+
         }
         token = serializer.dumps(user_data)
         access_token = base64.b64encode(bytes(token, "utf-8")).decode("utf-8")
-        token = Token(access_token=access_token)
+        token = Token(access_token=access_token, role='user')
         return json.loads(token.model_dump_json())
 
     def deserialize_access_token(self, access_token: str) -> dict:

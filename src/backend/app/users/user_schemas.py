@@ -45,6 +45,7 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    role: str
 
 
 class UserPublic(UserBase):

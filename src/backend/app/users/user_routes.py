@@ -145,9 +145,10 @@ async def callback(request: Request, google_auth=Depends(init_google_auth)):
     access_token = google_auth.callback(callback_url).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)
+    
     access_token, refresh_token = await user_logic.create_access_token(user_data)
 
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(access_token=access_token, refresh_token=refresh_token, role=user_data.get("role"))
 
 
 @router.get("/refresh-token", response_model=Token)
@@ -157,7 +158,7 @@ async def update_token(user_data: Annotated[AuthUser, Depends(login_required)]):
     access_token, refresh_token = await user_logic.create_access_token(
         user_data.model_dump()
     )
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(access_token=access_token, refresh_token=refresh_token, role="user")
 
 
 @router.get("/my-info/")
