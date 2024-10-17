@@ -56,6 +56,8 @@ const CompleteUserProfile = () => {
     state => state.common.userProfileActiveTab,
   );
   const userProfile = getLocalStorageValue('userprofile');
+  const existingRole = userProfile?.role?.[0] === 'PROJECT_CREATOR' ? 1 : 2;
+  const newRole = isDroneOperator ? 2 : 1;
 
   const initialState = {
     name: userProfile?.name,
@@ -74,7 +76,7 @@ const CompleteUserProfile = () => {
     experience_years: null,
     certified_drone_operator: false,
     drone_you_own: null,
-    role: isDroneOperator ? 2 : 1,
+    role: userProfile?.role ? [existingRole, newRole] : [newRole],
   };
 
   const { register, setValue, handleSubmit, formState, control, watch } =
