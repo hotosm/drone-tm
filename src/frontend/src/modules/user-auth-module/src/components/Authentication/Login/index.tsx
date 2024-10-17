@@ -35,7 +35,7 @@ export default function Login() {
     return setShowPassword(prev => !prev);
   };
 
-  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: signInUser,

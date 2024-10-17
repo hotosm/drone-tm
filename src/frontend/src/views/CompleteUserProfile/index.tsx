@@ -32,7 +32,7 @@ const getActiveFormContent = (
     case 1:
       return <BasicDetails formProps={formProps} />;
     case 2:
-      return userType === 'Project Creator' ? (
+      return userType === 'PROJECT_CREATOR' ? (
         <OrganizationDetails formProps={formProps} />
       ) : (
         <OtherDetails formProps={formProps} />
@@ -48,9 +48,9 @@ const CompleteUserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
-  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
   const isDroneOperator =
-    localStorage.getItem('signedInAs') === 'Drone Operator';
+    localStorage.getItem('signedInAs') === 'DRONE_OPERATOR';
 
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
