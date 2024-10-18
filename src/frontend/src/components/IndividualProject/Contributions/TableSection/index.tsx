@@ -91,6 +91,7 @@ export default function TableSection({
           task_state: curr?.state,
           assets_url: selectedAssetsDetails?.assets_url,
           image_count: selectedAssetsDetails?.image_count,
+          task_id: curr?.id,
         },
       ];
     }, []);
