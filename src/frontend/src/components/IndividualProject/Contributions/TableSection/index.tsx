@@ -59,7 +59,7 @@ const contributionsDataColumns = [
 interface ITableSectionProps {
   isFetching: boolean;
   // eslint-disable-next-line no-unused-vars
-  handleTableRowClick: (taskId: string) => {};
+  handleTableRowClick: (rowData: any) => {};
 }
 
 export default function TableSection({
