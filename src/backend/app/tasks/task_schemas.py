@@ -186,7 +186,7 @@ class UserTasksStatsOut(BaseModel):
                     )
                     OR
                     (
-                        %(role)s!= 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                        %(role)s != 'DRONE_PILOT' AND task_events.user_id = %(user_id)s
                     )
                 ORDER BY
                     tasks.id, task_events.created_at DESC

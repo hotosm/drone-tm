@@ -85,18 +85,14 @@ async def get_task_stats(
 
             if not records:
                 raise HTTPException(status_code=404, detail="User profile not found")
-            roles = [record["role"] for record in records]
-
-            if UserRole.PROJECT_CREATOR.name in roles:
-                role = "PROJECT_CREATOR"
-            else:
-                role = "DRONE_PILOT"
-
+            
+            role = user_data.role
+            
             # Query for task statistics
             raw_sql = """
                 SELECT
                     COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 1 END) AS ongoing_tasks,
                     COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
                     COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
                 FROM (
@@ -108,11 +104,8 @@ async def get_task_stats(
                     WHERE
                         (%(role)s = 'DRONE_PILOT' AND te.user_id = %(user_id)s)
                         OR
-                        (%(role)s != 'DRONE_PILOT' AND te.task_id IN (
-                            SELECT t.id
-                            FROM tasks t
-                            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
-                        ))
+                        (%(role)s != 'DRONE_PILOT' AND te.user_id = %(user_id)s)
+                        
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
             """
@@ -149,13 +142,7 @@ async def list_tasks(
         if not records:
             raise HTTPException(status_code=404, detail="User profile not found")
 
-        roles = [record["role"] for record in records]
-
-        if UserRole.PROJECT_CREATOR.name in roles:
-            role = "PROJECT_CREATOR"
-        else:
-            role = "DRONE_PILOT"
-
+    role = user_data.role    
     return await task_schemas.UserTasksStatsOut.get_tasks_by_user(
         db, user_id, role, skip, limit
     )
