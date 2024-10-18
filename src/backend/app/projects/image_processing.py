@@ -191,7 +191,7 @@ class DroneImageProcessor:
             pass
 
 
-def download_and_upload_assets_from_odm_to_s3(
+async def download_and_upload_assets_from_odm_to_s3(
     db: Connection,
     node_odm_url: str,
     task_id: str,
@@ -231,8 +231,7 @@ def download_and_upload_assets_from_odm_to_s3(
         log.info(f"Assets for task {task_id} successfully uploaded to S3.")
 
         # Update background task status to COMPLETED
-        update_task_status_sync = async_to_sync(task_logic.update_task_state)
-        update_task_status_sync(
+        await task_logic.update_task_state(
             db,
             dtm_project_id,
             dtm_task_id,
