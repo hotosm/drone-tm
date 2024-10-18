@@ -32,7 +32,7 @@ const getActiveFormContent = (
     case 1:
       return <BasicDetails formProps={formProps} />;
     case 2:
-      return userType === 'Project Creator' ? (
+      return userType === 'PROJECT_CREATOR' ? (
         <OrganizationDetails formProps={formProps} />
       ) : (
         <OtherDetails formProps={formProps} />
@@ -48,14 +48,15 @@ const CompleteUserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
-  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
-  const isDroneOperator =
-    localStorage.getItem('signedInAs') === 'Drone Operator';
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
+  const isDroneOperator = localStorage.getItem('signedInAs') === 'DRONE_PILOT';
 
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
   const userProfile = getLocalStorageValue('userprofile');
+  const existingRole = userProfile?.role?.[0] === 'PROJECT_CREATOR' ? 1 : 2;
+  const newRole = isDroneOperator ? 2 : 1;
 
   const initialState = {
     name: userProfile?.name,
@@ -74,7 +75,7 @@ const CompleteUserProfile = () => {
     experience_years: null,
     certified_drone_operator: false,
     drone_you_own: null,
-    role: isDroneOperator ? 2 : 1,
+    role: userProfile?.role ? [existingRole, newRole] : [newRole],
   };
 
   const { register, setValue, handleSubmit, formState, control, watch } =

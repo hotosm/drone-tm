@@ -13,7 +13,7 @@ import useDebounceListener from '@Hooks/useDebouncedListener';
 export default function ProjectsHeader() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
-  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
   const showMap = useTypedSelector(state => state.common.showMap);
   const projectsFilterByOwner = useTypedSelector(
     state => state.createproject.ProjectsFilterByOwner,
@@ -75,7 +75,7 @@ export default function ProjectsHeader() {
           />
         </FlexRow>
 
-        {signedInAs === 'Project Creator' && (
+        {signedInAs === 'PROJECT_CREATOR' && (
           <Button
             variant="secondary"
             className="!naxatw-bg-red naxatw-text-white"

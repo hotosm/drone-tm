@@ -16,7 +16,7 @@ const getActiveFormContent = (activeTab: number, userType: string) => {
     case 1:
       return <BasicDetails />;
     case 2:
-      return userType === 'Project Creator' ? (
+      return userType === 'PROJECT_CREATOR' ? (
         <OrganizationDetails />
       ) : (
         <OtherDetails />
@@ -35,7 +35,7 @@ const UpdateUserProfile = () => {
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
-  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
 
   useEffect(() => {
     return () => {};
