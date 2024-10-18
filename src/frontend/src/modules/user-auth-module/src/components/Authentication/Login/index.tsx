@@ -74,7 +74,7 @@ export default function Login() {
   });
 
   const onSubmit = (data: { username: string; password: string }) =>
-    mutate(data);
+    mutate({ ...data, role: signedInAs });
 
   return (
     <>
