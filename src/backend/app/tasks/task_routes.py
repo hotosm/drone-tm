@@ -3,7 +3,7 @@ from typing import Annotated
 from app.projects import project_deps, project_schemas
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State
+from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks import task_schemas, task_logic
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -152,10 +152,19 @@ async def new_event(
 ):
     user_id = user_data.id
     project = project.model_dump()
+    user_role = user_data.role
+
     match detail.event:
         case EventType.REQUESTS:
             # Determine the appropriate state and message
             is_author = project["author_id"] == user_id
+
+            if user_role != UserRole.DRONE_PILOT and not is_author:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project author or drone operators can request tasks for this project.",
+                )
+
             requires_approval = project["requires_approval_from_manager_for_locking"]
 
             if is_author or not requires_approval:
