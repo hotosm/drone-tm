@@ -42,6 +42,28 @@ router = APIRouter(
 )
 
 
+@router.get(
+    "/centroids", tags=["Projects"], response_model=list[project_schemas.CentroidOut]
+)
+async def read_project_centroids(
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """
+    Get all project centroids.
+    """
+    try:
+        centroids = await project_logic.get_centroids(
+            db,
+        )
+        if not centroids:
+            return []
+
+        return centroids
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{project_id}/download-boundaries", tags=["Projects"])
 async def download_boundaries(
     project_id: Annotated[
@@ -448,7 +470,6 @@ async def odm_webhook(
 
     task_id = payload.get("uuid")
     status = payload.get("status")
-
     if not task_id or not status:
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
@@ -457,6 +478,8 @@ async def odm_webhook(
     # If status is 'success', download and upload assets to S3.
     # 40 is the status code for success in odm
     if status["code"] == 40:
+        log.info(f"Task ID: {task_id}, Status: going for download......")
+
         # Call function to download assets from ODM and upload to S3
         background_tasks.add_task(
             image_processing.download_and_upload_assets_from_odm_to_s3,
@@ -468,6 +491,16 @@ async def odm_webhook(
             dtm_user_id,
         )
     elif status["code"] == 30:
-        # failed task
-        log.error(f'ODM task {task_id} failed: {status["errorMessage"]}')
+        background_tasks.add_task(
+            image_processing.download_and_upload_assets_from_odm_to_s3,
+            db,
+            settings.NODE_ODM_URL,
+            task_id,
+            dtm_project_id,
+            dtm_task_id,
+            dtm_user_id,
+        )
+
+    log.info(f"Task ID: {task_id}, Status: Webhook received")
+
     return {"message": "Webhook received", "task_id": task_id}

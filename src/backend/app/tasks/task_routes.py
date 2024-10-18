@@ -73,30 +73,12 @@ async def get_task_stats(
 ):
     "Retrieve statistics related to tasks for the authenticated user."
     user_id = user_data.id
-
     try:
         async with db.cursor(row_factory=dict_row) as cur:
-            # Check if the user profile exists
-            await cur.execute(
-                """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
-                {"user_id": user_id},
-            )
-            records = await cur.fetchall()
-
-            if not records:
-                raise HTTPException(status_code=404, detail="User profile not found")
-            roles = [record["role"] for record in records]
-
-            if UserRole.PROJECT_CREATOR.name in roles:
-                role = "PROJECT_CREATOR"
-            else:
-                role = "DRONE_PILOT"
-
-            # Query for task statistics
             raw_sql = """
                 SELECT
                     COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 1 END) AS ongoing_tasks,
                     COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
                     COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
                 FROM (
@@ -106,17 +88,21 @@ async def get_task_stats(
                         te.created_at
                     FROM task_events te
                     WHERE
-                        (%(role)s = 'DRONE_PILOT' AND te.user_id = %(user_id)s)
+                        (
+                        %(role)s = 'DRONE_PILOT'
+                        AND te.user_id = %(user_id)s
+                    )
                         OR
-                        (%(role)s != 'DRONE_PILOT' AND te.task_id IN (
-                            SELECT t.id
-                            FROM tasks t
-                            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                        (%(role)s = 'PROJECT_CREATOR' AND te.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.author_id = %(user_id)s
                         ))
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
             """
-            await cur.execute(raw_sql, {"user_id": user_id, "role": role})
+
+            await cur.execute(raw_sql, {"user_id": user_id, "role": user_data.role})
             db_counts = await cur.fetchone()
 
         return db_counts
@@ -137,25 +123,7 @@ async def list_tasks(
 ):
     """Get all tasks for a all user."""
     user_id = user_data.id
-
-    async with db.cursor(row_factory=dict_row) as cur:
-        # Check if the user profile exists
-        await cur.execute(
-            """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
-            {"user_id": user_id},
-        )
-        records = await cur.fetchall()
-
-        if not records:
-            raise HTTPException(status_code=404, detail="User profile not found")
-
-        roles = [record["role"] for record in records]
-
-        if UserRole.PROJECT_CREATOR.name in roles:
-            role = "PROJECT_CREATOR"
-        else:
-            role = "DRONE_PILOT"
-
+    role = user_data.role
     return await task_schemas.UserTasksStatsOut.get_tasks_by_user(
         db, user_id, role, skip, limit
     )
@@ -183,10 +151,19 @@ async def new_event(
 ):
     user_id = user_data.id
     project = project.model_dump()
+    user_role = user_data.role
+
     match detail.event:
         case EventType.REQUESTS:
             # Determine the appropriate state and message
             is_author = project["author_id"] == user_id
+
+            if user_role != UserRole.DRONE_PILOT and not is_author:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project author or drone operators can request tasks for this project.",
+                )
+
             requires_approval = project["requires_approval_from_manager_for_locking"]
 
             if is_author or not requires_approval:

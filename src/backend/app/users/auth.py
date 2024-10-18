@@ -57,7 +57,7 @@ class Auth:
         login_url, _ = self.oauth.authorization_url(self.authorization_url)
         return json.loads(Login(login_url=login_url).model_dump_json())
 
-    def callback(self, callback_url: str) -> str:
+    def callback(self, callback_url: str, role: str) -> str:
         """Performs token exchange between Google and the callback website.
 
         Core will use Oauth secret key from configuration while deserializing token,
@@ -83,11 +83,13 @@ class Auth:
 
         data = resp.json()
         serializer = URLSafeSerializer(self.secret_key)
+
         user_data = {
             "id": data.get("id"),
             "email": data.get("email"),
             "name": data.get("name"),
             "profile_img": data.get("picture") if data.get("picture") else None,
+            "role": role,
         }
         token = serializer.dumps(user_data)
         access_token = base64.b64encode(bytes(token, "utf-8")).decode("utf-8")

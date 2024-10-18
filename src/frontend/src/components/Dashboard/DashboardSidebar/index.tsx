@@ -14,7 +14,9 @@ const DashboardSidebar = () => {
         <img src={userDetails?.profile_img} alt="profile" />
       </Flex>
       <h5 className="mt-2.5">{userDetails?.name}</h5>
-      <p className="naxatw-py-1 naxatw-text-body-sm">{role}</p>
+      <p className="naxatw-py-1 naxatw-text-body-sm">
+        {role === 'PROJECT_CREATOR' ? 'Project Creator' : 'Drone Operator'}
+      </p>
       <p className="naxatw-text-body-sm">{userDetails?.email_address}</p>
 
       <Button
@@ -39,7 +41,9 @@ const DashboardSidebar = () => {
         </FlexRow>
         <FlexRow className="naxatw-justify-center naxatw-gap-1 md:naxatw-justify-normal">
           <p className="md:naxatw-min-w-[30%]">Role</p>:
-          <p className="naxatw-break-words md:naxatw-min-w-[65%]">{role}</p>
+          <p className="naxatw-break-words md:naxatw-min-w-[65%]">
+            {role === 'PROJECT_CREATOR' ? 'Project Creator' : 'Drone Operator'}
+          </p>
         </FlexRow>
       </FlexColumn>
     </FlexColumn>

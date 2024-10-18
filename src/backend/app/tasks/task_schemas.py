@@ -159,7 +159,8 @@ class UserTasksStatsOut(BaseModel):
     ):
         async with db.cursor(row_factory=class_row(UserTasksStatsOut)) as cur:
             await cur.execute(
-                """SELECT DISTINCT ON (tasks.id)
+                """
+                SELECT DISTINCT ON (tasks.id)
                     tasks.id AS task_id,
                     tasks.project_task_index AS project_task_index,
                     task_events.project_id AS project_id,
@@ -169,7 +170,7 @@ class UserTasksStatsOut(BaseModel):
                     task_events.updated_at,
                     CASE
                         WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                        WHEN task_events.state = 'LOCKED_FOR_MAPPING' OR task_events.state = 'IMAGE_UPLOADED' THEN 'ongoing'
+                        WHEN task_events.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 'ongoing'
                         WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
                         WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
                         ELSE ''
@@ -182,16 +183,31 @@ class UserTasksStatsOut(BaseModel):
                     projects ON task_events.project_id = projects.id
                 WHERE
                     (
-                        %(role)s = 'DRONE_PILOT' AND task_events.user_id = %(user_id)s
+                        %(role)s = 'DRONE_PILOT'
+                        AND task_events.user_id = %(user_id)s
                     )
                     OR
                     (
-                        %(role)s!= 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                        %(role)s = 'PROJECT_CREATOR'
+                        AND task_events.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.id IN (
+                                SELECT t.project_id
+                                FROM tasks t
+                                WHERE t.project_id IN (
+                                    SELECT DISTINCT te2.project_id
+                                    FROM task_events te2
+                                    WHERE te2.user_id = %(user_id)s
+                                )
+                            )
+                        )
                     )
                 ORDER BY
                     tasks.id, task_events.created_at DESC
                 OFFSET %(skip)s
-                LIMIT %(limit)s;""",
+                LIMIT %(limit)s;
+                """,
                 {"user_id": user_id, "role": role, "skip": skip, "limit": limit},
             )
             try:

@@ -13,6 +13,7 @@ function GoogleAuth() {
   const [isReadyToRedirect, setIsReadyToRedirect] = useState(false);
   const [userProfileDetails, setUserProfileDetails] =
     useState<UserProfileDetailsType>();
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -21,7 +22,7 @@ function GoogleAuth() {
 
     const loginRedirect = async () => {
       if (authcode) {
-        const callbackUrl = `${BASE_URL}/users/callback/?code=${authcode}&state=${state}`;
+        const callbackUrl = `${BASE_URL}/users/callback/?code=${authcode}&state=${state}&role=${signedInAs}`;
         const userDetailsUrl = `${BASE_URL}/users/my-info/`;
 
         const completeLogin = async () => {

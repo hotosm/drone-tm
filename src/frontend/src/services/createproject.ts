@@ -17,3 +17,6 @@ export const postPreviewSplitBySquare = (data: any) =>
 
 export const postTaskBoundary = ({ id, data }: { id: number; data: any }) =>
   authenticated(api).post(`/projects/${id}/upload-task-boundaries`, data);
+
+export const getProjectCentroid = () =>
+  authenticated(api).get('/projects/centroids');

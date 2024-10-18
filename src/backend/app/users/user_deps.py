@@ -37,6 +37,7 @@ async def login_required(
             email="admin@hotosm.org",
             name="admin",
             profile_img="",
+            role="",
         )
 
     if not access_token:
