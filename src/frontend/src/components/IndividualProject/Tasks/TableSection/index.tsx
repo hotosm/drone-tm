@@ -1,27 +1,28 @@
+import { useMemo } from 'react';
 import DataTable from '@Components/common/DataTable';
 import { useTypedSelector } from '@Store/hooks';
-import { useMemo } from 'react';
 
 const tasksDataColumns = [
   {
     header: 'ID',
     accessorKey: 'id',
   },
-  // {
-  //   header: 'Flight Time',
-  //   accessorKey: 'flight_time',
-  // },
   {
     header: 'Task Area in km²',
     accessorKey: 'task_area',
   },
-  // {
-  //   header: 'Status',
-  //   accessorKey: 'status',
-  // },
 ];
 
-export default function TableSection({ isFetching }: { isFetching: boolean }) {
+interface ITableSectionProps {
+  isFetching: boolean;
+  // eslint-disable-next-line no-unused-vars
+  handleTableRowClick: (taskId: string) => {};
+}
+
+export default function TableSection({
+  isFetching,
+  handleTableRowClick,
+}: ITableSectionProps) {
   const tasksData = useTypedSelector(state => state.project.tasksData);
 
   const taskDataForTable = useMemo(() => {
@@ -34,6 +35,7 @@ export default function TableSection({ isFetching }: { isFetching: boolean }) {
           id: `Task# ${curr?.project_task_index}`,
           flight_time: curr?.flight_time || '-',
           task_area: Number(curr?.task_area)?.toFixed(3),
+          task_id: curr?.id,
           // status: curr?.state,
         },
       ];
@@ -49,6 +51,7 @@ export default function TableSection({ isFetching }: { isFetching: boolean }) {
       data={taskDataForTable as Record<string, any>[]}
       withPagination={false}
       loading={isFetching}
+      handleTableRowClick={handleTableRowClick}
     />
   );
 }
