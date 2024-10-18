@@ -81,7 +81,7 @@ class Settings(BaseSettings):
         return pg_url
 
     FRONTEND_URL: str = "http://localhost:3040"
-    BACKEND_URL: str = "http://backend:8000"
+    BACKEND_URL: str = "http://localhost:8000"
 
     S3_ENDPOINT: str = "http://s3:9000"
     S3_ACCESS_KEY: Optional[str] = ""
@@ -106,9 +106,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     EMAILS_FROM_EMAIL: Optional[EmailStr] = None
     EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
+
     NODE_ODM_URL: Optional[str] = "http://odm-api:3000"
-    print("*"*100, NODE_ODM_URL)
-    # NODE_ODM_URL: Optional[str] = "https://odm.dronetm.org/?token=a24ba366-7c11-43e4-992a-3119d6dad089"
 
     @computed_field
     @property

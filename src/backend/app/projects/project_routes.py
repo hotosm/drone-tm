@@ -34,7 +34,6 @@ from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
 from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
-from asgiref.sync import async_to_sync
 
 
 router = APIRouter(
@@ -480,7 +479,7 @@ async def odm_webhook(
     # 40 is the status code for success in odm
     if status["code"] == 40:
         log.info(f"Task ID: {task_id}, Status: going for download......")
-        
+
         # Call function to download assets from ODM and upload to S3
         background_tasks.add_task(
             image_processing.download_and_upload_assets_from_odm_to_s3,
@@ -501,7 +500,7 @@ async def odm_webhook(
             dtm_task_id,
             dtm_user_id,
         )
-        
+
         # # failed task
         # log.error(f'ODM task {task_id} failed: {status["errorMessage"]}')
         # # Update background task status to COMPLETED
@@ -517,5 +516,5 @@ async def odm_webhook(
         #     timestamp(),
         # )
     log.info(f"Task ID: {task_id}, Status: Webhook received")
-    
+
     return {"message": "Webhook received", "task_id": task_id}

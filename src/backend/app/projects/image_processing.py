@@ -5,7 +5,6 @@ from pathlib import Path
 from app.tasks import task_logic
 from app.models.enums import State
 from app.utils import timestamp
-from app.db import database
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
@@ -241,8 +240,8 @@ async def download_and_upload_assets_from_odm_to_s3(
             "Task completed.",
             State.IMAGE_UPLOADED,
             State.IMAGE_PROCESSED,
-            timestamp())
-            
+            timestamp(),
+        )
 
     except Exception as e:
         log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
