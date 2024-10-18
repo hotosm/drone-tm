@@ -47,11 +47,12 @@ router = APIRouter(
 )
 async def read_project_centroids(
     db: Annotated[Connection, Depends(database.get_db)],
-    # user_data: Annotated[AuthUser, Depends(login_required)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """
     Get all project centroids.
     """
+    print("*" * 100, user_data)
     try:
         centroids = await project_logic.get_centroids(
             db,
