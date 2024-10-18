@@ -238,6 +238,7 @@ export default function DataTable({
                 onClick={() => {
                   handleTableRowClick?.(row?.original);
                 }}
+                className={`${handleTableRowClick ? 'naxatw-cursor-pointer' : ''} `}
               >
                 {row.getVisibleCells().map(cell => (
                   <TableCell key={cell.id}>
