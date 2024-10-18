@@ -73,7 +73,6 @@ async def get_task_stats(
 ):
     "Retrieve statistics related to tasks for the authenticated user."
     user_id = user_data.id
-
     try:
         async with db.cursor(row_factory=dict_row) as cur:
             raw_sql = """
@@ -97,7 +96,7 @@ async def get_task_stats(
                         (%(role)s = 'PROJECT_CREATOR' AND te.project_id IN (
                             SELECT p.id
                             FROM projects p
-                            WHERE p.author_id = %(user_id)s -- Adjust this if your ownership is tracked differently
+                            WHERE p.author_id = %(user_id)s
                         ))
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
