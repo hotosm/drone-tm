@@ -169,21 +169,10 @@ class UserTasksStatsOut(BaseModel):
                     task_events.created_at,
                     task_events.updated_at,
                     CASE
-                        WHEN %(role)s = 'DRONE_PILOT' AND task_events.state != 'REQUEST_FOR_MAPPING' THEN
-                            CASE
-                                WHEN task_events.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 'ongoing'
-                                WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
-                                WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                                ELSE ''
-                            END
-                        WHEN %(role)s = 'PROJECT_CREATOR' THEN
-                            CASE
-                                WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                                WHEN task_events.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 'ongoing'
-                                WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
-                                WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                                ELSE ''
-                            END
+                        WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
+                        WHEN task_events.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 'ongoing'
+                        WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
+                        WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
                         ELSE ''
                     END AS state
                 FROM

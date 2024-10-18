@@ -501,20 +501,6 @@ async def odm_webhook(
             dtm_user_id,
         )
 
-        # # failed task
-        # log.error(f'ODM task {task_id} failed: {status["errorMessage"]}')
-        # # Update background task status to COMPLETED
-        # # update_task_status_sync = async_to_sync(task_logic.update_task_state)
-        # await task_logic.update_task_state(
-        #     db,
-        #     dtm_project_id,
-        #     dtm_task_id,
-        #     dtm_user_id,
-        #     "Task completed.",
-        #     State.IMAGE_UPLOADED,
-        #     State.IMAGE_PROCESSED,
-        #     timestamp(),
-        # )
     log.info(f"Task ID: {task_id}, Status: Webhook received")
 
     return {"message": "Webhook received", "task_id": task_id}
