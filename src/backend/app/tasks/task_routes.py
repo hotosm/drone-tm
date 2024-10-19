@@ -12,6 +12,7 @@ from psycopg import Connection
 from app.db import database
 from app.utils import send_notification_email, render_email_template
 from psycopg.rows import dict_row
+from loguru import logger as log
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",
@@ -124,6 +125,7 @@ async def list_tasks(
     """Get all tasks for a all user."""
     user_id = user_data.id
     role = user_data.role
+    log.info(f"Fetching tasks for user {user_id} with role: {role}")
     return await task_schemas.UserTasksStatsOut.get_tasks_by_user(
         db, user_id, role, skip, limit
     )
@@ -157,8 +159,7 @@ async def new_event(
         case EventType.REQUESTS:
             # Determine the appropriate state and message
             is_author = project["author_id"] == user_id
-
-            if user_role != UserRole.DRONE_PILOT and not is_author:
+            if user_role != UserRole.DRONE_PILOT.name and not is_author:
                 raise HTTPException(
                     status_code=403,
                     detail="Only the project author or drone operators can request tasks for this project.",
