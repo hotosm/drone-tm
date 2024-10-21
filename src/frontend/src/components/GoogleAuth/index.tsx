@@ -37,19 +37,23 @@ function GoogleAuth() {
             credentials: 'include',
             headers: { 'access-token': token.access_token },
           });
-          const userDetails = await response2.json();
+          setTimeout(async () => {
+            const userDetails = await response2.json();
+            // stringify the response and set it to local storage
+            const userDetailsString = JSON.stringify(userDetails);
+            localStorage.setItem('userprofile', userDetailsString);
+            setUserProfileDetails(userDetails);
 
-          // stringify the response and set it to local storage
-          const userDetailsString = JSON.stringify(userDetails);
-          localStorage.setItem('userprofile', userDetailsString);
-          setUserProfileDetails(userDetails);
-
-          // navigate according the user
-          if (userDetails?.has_user_profile) {
-            navigate('/projects');
-          } else {
-            navigate('/complete-profile');
-          }
+            // navigate according the user profile completion
+            if (
+              userDetails?.has_user_profile &&
+              userDetails?.role?.includes(signedInAs)
+            ) {
+              navigate('/projects');
+            } else {
+              navigate('/complete-profile');
+            }
+          });
         };
         await completeLogin();
         toast.success('Logged In Successfully');
@@ -57,7 +61,7 @@ function GoogleAuth() {
       setIsReadyToRedirect(true);
     };
     loginRedirect();
-  }, [location.search, navigate]);
+  }, [location.search, navigate, signedInAs]);
 
   return (
     <Flex className="naxatw-h-screen-nav naxatw-w-full naxatw-animate-pulse naxatw-items-center naxatw-justify-center">
