@@ -173,6 +173,7 @@ class UserTasksStatsOut(BaseModel):
                         WHEN task_events.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 'ongoing'
                         WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
                         WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                        WHEN task_events.state = 'IMAGE_PROCESSING_FAILED' THEN 'task failed'
                         ELSE ''
                     END AS state
                 FROM

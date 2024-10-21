@@ -36,6 +36,7 @@ async def read_task(
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     te.created_at,
                     te.updated_at,
+                    te.state,
                     projects.name AS project_name,
                     tasks.project_task_index,
                     projects.front_overlap AS front_overlap,
@@ -46,7 +47,8 @@ async def read_task(
                     SELECT DISTINCT ON (te.task_id)
                         te.task_id,
                         te.created_at,
-                        te.updated_at
+                        te.updated_at,
+                        te.state
                     FROM task_events te
                     WHERE te.task_id = %(task_id)s
                     ORDER BY te.task_id, te.created_at DESC
@@ -79,9 +81,10 @@ async def get_task_stats(
             raw_sql = """
                 SELECT
                     COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
                     COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
                     COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+
                 FROM (
                     SELECT DISTINCT ON (te.task_id)
                         te.task_id,
