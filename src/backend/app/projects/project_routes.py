@@ -489,17 +489,37 @@ async def odm_webhook(
             dtm_project_id,
             dtm_task_id,
             dtm_user_id,
+            State.IMAGE_UPLOADED,
+            "Task completed.",
         )
     elif status["code"] == 30:
-        background_tasks.add_task(
-            image_processing.download_and_upload_assets_from_odm_to_s3,
-            db,
-            settings.NODE_ODM_URL,
-            task_id,
-            dtm_project_id,
-            dtm_task_id,
-            dtm_user_id,
+        current_state = await task_logic.get_current_state(
+            db, dtm_project_id, dtm_task_id
         )
+        # If the current state is not already IMAGE_PROCESSING_FAILED, update it
+        if current_state != State.IMAGE_PROCESSING_FAILED:
+            await task_logic.update_task_state(
+                db,
+                dtm_project_id,
+                dtm_task_id,
+                dtm_user_id,
+                "Image processing failed.",
+                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_FAILED,
+                timestamp(),
+            )
+
+            background_tasks.add_task(
+                image_processing.download_and_upload_assets_from_odm_to_s3,
+                db,
+                settings.NODE_ODM_URL,
+                task_id,
+                dtm_project_id,
+                dtm_task_id,
+                dtm_user_id,
+                State.IMAGE_PROCESSING_FAILED,
+                "Image processing failed.",
+            )
 
     log.info(f"Task ID: {task_id}, Status: Webhook received")
 
