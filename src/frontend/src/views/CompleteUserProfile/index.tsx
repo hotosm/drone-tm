@@ -14,7 +14,7 @@ import {
 } from '@Constants/index';
 import { setCommonState } from '@Store/actions/common';
 import { Button } from '@Components/RadixComponents/Button';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postUserProfile } from '@Services/common';
 import { toast } from 'react-toastify';
 import { removeKeysFromObject } from '@Utils/index';
@@ -22,6 +22,7 @@ import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import Tab from '@Components/common/Tabs';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
+import { useGetUserDetailsQuery } from '@Api/projects';
 
 const getActiveFormContent = (
   activeTab: number,
@@ -48,9 +49,10 @@ const CompleteUserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
+  const queryClient = useQueryClient();
   const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
   const isDroneOperator = localStorage.getItem('signedInAs') === 'DRONE_PILOT';
-
+  useGetUserDetailsQuery();
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
@@ -95,6 +97,7 @@ const CompleteUserProfile = () => {
     mutationFn: payloadDataObject => postUserProfile(payloadDataObject),
     onSuccess: () => {
       toast.success('UserProfile Updated Successfully');
+      queryClient.invalidateQueries(['user-profile']);
       dispatch(setCommonState({ userProfileActiveTab: 1 }));
       navigate('/projects');
     },
