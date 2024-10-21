@@ -9,7 +9,6 @@ import OtherDetails from '@Components/UpdateUserDetails/OtherDetails';
 import Password from '@Components/UpdateUserDetails/Password';
 import { tabOptions } from '@Constants/index';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
-import { useGetUserDetailsQuery } from '@Api/projects';
 
 const getActiveFormContent = (activeTab: number, userType: string) => {
   switch (activeTab) {
@@ -32,7 +31,6 @@ const UpdateUserProfile = () => {
   const dispatch = useDispatch();
   const { width } = useWindowDimensions();
 
-  useGetUserDetailsQuery();
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
