@@ -19,9 +19,7 @@ async def get_current_state(db, project_id, task_id):
                 """,
                 {"task_id": task_id, "project_id": project_id},
             )
-            result = await cur.fetchone()
-            print(result)
-            return result
+            return await cur.fetchone()
 
     except Exception as err:
         raise HTTPException(

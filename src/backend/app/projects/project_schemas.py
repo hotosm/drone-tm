@@ -263,6 +263,8 @@ class DbProject(BaseModel):
                             WHEN te.state = 'LOCKED_FOR_MAPPING' OR te.state = 'IMAGE_UPLOADED' THEN 'ongoing'
                             WHEN te.state = 'IMAGE_PROCESSED' THEN 'completed'
                             WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
+                            WHEN te.state = 'IMAGE_PROCESSING_FAILED' THEN 'task failed'
+
                             ELSE ''
                         END AS calculated_state
                     FROM
