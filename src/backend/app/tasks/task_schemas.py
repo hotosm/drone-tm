@@ -188,19 +188,10 @@ class UserTasksStatsOut(BaseModel):
                     )
                     OR
                     (
-                        %(role)s = 'PROJECT_CREATOR'
-                        AND task_events.project_id IN (
+                        %(role)s = 'PROJECT_CREATOR' AND task_events.project_id IN (
                             SELECT p.id
                             FROM projects p
-                            WHERE p.id IN (
-                                SELECT t.project_id
-                                FROM tasks t
-                                WHERE t.project_id IN (
-                                    SELECT DISTINCT te2.project_id
-                                    FROM task_events te2
-                                    WHERE te2.user_id = %(user_id)s
-                                )
-                            )
+                            WHERE p.author_id = %(user_id)s
                         )
                     )
                 ORDER BY

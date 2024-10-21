@@ -60,7 +60,7 @@ async def login_access_token(
 
     access_token, refresh_token = await user_logic.create_access_token(user_info)
 
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(access_token=access_token, refresh_token=refresh_token, role=role)
 
 
 @router.get("/", tags=["users"], response_model=list[user_schemas.DbUser])
