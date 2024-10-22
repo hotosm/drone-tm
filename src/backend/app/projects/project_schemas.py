@@ -197,6 +197,7 @@ class DbProject(BaseModel):
     altitude_from_ground: Optional[float] = None
     is_terrain_follow: bool = False
     image_url: Optional[str] = None
+    created_at: datetime
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""

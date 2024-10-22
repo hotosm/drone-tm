@@ -395,17 +395,6 @@ async def process_imagery(
     db: Annotated[Connection, Depends(database.get_db)],
 ):
     user_id = user_data.id
-    # TODO: Update task state to reflect completion of image uploads.
-    await task_logic.update_task_state(
-        db,
-        project.id,
-        task_id,
-        user_id,
-        "Task images upload completed.",
-        State.LOCKED_FOR_MAPPING,
-        State.IMAGE_UPLOADED,
-        timestamp(),
-    )
     background_tasks.add_task(
         project_logic.process_drone_images, project.id, task_id, user_id, db
     )
@@ -493,9 +482,7 @@ async def odm_webhook(
             "Task completed.",
         )
     elif status["code"] == 30:
-        current_state = await task_logic.get_current_state(
-            db, dtm_project_id, dtm_task_id
-        )
+        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
         # If the current state is not already IMAGE_PROCESSING_FAILED, update it
         if current_state != State.IMAGE_PROCESSING_FAILED:
             await task_logic.update_task_state(
