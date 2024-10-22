@@ -86,3 +86,10 @@ export const rowsPerPageOptions = [
   { label: '24', value: 24 },
   { label: '30', value: 30 },
 ];
+
+export const taskStatusObj = {
+  request_logs: ['REQUEST_FOR_MAPPING'],
+  ongoing: ['LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED'],
+  completed: ['IMAGE_PROCESSED'],
+  unflyable: ['UNFLYABLE_TASK'],
+};

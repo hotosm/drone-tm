@@ -7,26 +7,6 @@ from psycopg.rows import dict_row
 from datetime import datetime
 
 
-async def get_current_state(db, project_id, task_id):
-    try:
-        async with db.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT DISTINCT ON (state) state
-                FROM task_events
-                WHERE task_id = %(task_id)s AND project_id = %(project_id)s
-                ORDER BY state, created_at DESC
-                """,
-                {"task_id": task_id, "project_id": project_id},
-            )
-            return await cur.fetchone()
-
-    except Exception as err:
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(err)
-        )
-
-
 async def update_take_off_point_in_db(
     db: Connection, task_id: uuid.UUID, take_off_point: str
 ):

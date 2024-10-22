@@ -1,19 +1,20 @@
 import { useGetTaskListQuery } from '@Api/dashboard';
 import { FlexColumn } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
+import { taskStatusObj } from '@Constants/index';
 import { postTaskStatus } from '@Services/project';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { toast } from 'react-toastify';
 
 const RequestLogs = () => {
+  const queryClient = useQueryClient();
   const { data: requestedTasks }: any = useGetTaskListQuery({
     select: (data: any) =>
-      data?.data?.filter(
-        (task: Record<string, any>) => task?.state === 'request logs',
+      data?.data?.filter((task: Record<string, any>) =>
+        taskStatusObj.request_logs.includes(task?.state),
       ),
   });
-  const queryClient = useQueryClient();
 
   const { mutate: respondToRequest } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,

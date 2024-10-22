@@ -395,17 +395,6 @@ async def process_imagery(
     db: Annotated[Connection, Depends(database.get_db)],
 ):
     user_id = user_data.id
-    # TODO: Update task state to reflect completion of image uploads.
-    await task_logic.update_task_state(
-        db,
-        project.id,
-        task_id,
-        user_id,
-        "Task images upload completed.",
-        State.LOCKED_FOR_MAPPING,
-        State.IMAGE_UPLOADED,
-        timestamp(),
-    )
     background_tasks.add_task(
         project_logic.process_drone_images, project.id, task_id, user_id, db
     )
@@ -443,7 +432,10 @@ async def get_assets_info(
 
         return results
     else:
-        return project_logic.get_project_info_from_s3(project.id, task_id)
+        current_state = await task_logic.get_task_state(db, project.id, task_id)
+        project_info = project_logic.get_project_info_from_s3(project.id, task_id)
+        project_info.state = current_state.get("state")
+        return project_info
 
 
 @router.post(
@@ -480,22 +472,50 @@ async def odm_webhook(
     if status["code"] == 40:
         log.info(f"Task ID: {task_id}, Status: going for download......")
 
-        # Call function to download assets from ODM and upload to S3
-        background_tasks.add_task(
-            image_processing.download_and_upload_assets_from_odm_to_s3,
-            db,
-            settings.NODE_ODM_URL,
-            task_id,
-            dtm_project_id,
-            dtm_task_id,
-            dtm_user_id,
-            State.IMAGE_UPLOADED,
-            "Task completed.",
-        )
+        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
+        current_state_value = State[current_state.get("state")]
+        match current_state_value:
+            case State.IMAGE_UPLOADED:
+                log.info(
+                    f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
+                )
+                # Call function to download assets from ODM and upload to S3
+                background_tasks.add_task(
+                    image_processing.download_and_upload_assets_from_odm_to_s3,
+                    db,
+                    settings.NODE_ODM_URL,
+                    task_id,
+                    dtm_project_id,
+                    dtm_task_id,
+                    dtm_user_id,
+                    State.IMAGE_UPLOADED,
+                    "Task completed.",
+                )
+
+            case State.IMAGE_PROCESSING_FAILED:
+                log.warning(
+                    f"Task ID: {task_id}, Status: previously failed, updating to IMAGE_UPLOADED"
+                )
+                # Call function to download assets from ODM and upload to S3
+                background_tasks.add_task(
+                    image_processing.download_and_upload_assets_from_odm_to_s3,
+                    db,
+                    settings.NODE_ODM_URL,
+                    task_id,
+                    dtm_project_id,
+                    dtm_task_id,
+                    dtm_user_id,
+                    State.IMAGE_UPLOADED,
+                    "Task completed.",
+                )
+
+            case _:
+                log.info(
+                    f"Task ID: {task_id}, Status: updating to IMAGE_UPLOADED from {current_state}"
+                )
+
     elif status["code"] == 30:
-        current_state = await task_logic.get_current_state(
-            db, dtm_project_id, dtm_task_id
-        )
+        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
         # If the current state is not already IMAGE_PROCESSING_FAILED, update it
         if current_state != State.IMAGE_PROCESSING_FAILED:
             await task_logic.update_task_state(

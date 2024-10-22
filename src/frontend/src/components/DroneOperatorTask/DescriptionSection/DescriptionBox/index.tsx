@@ -6,10 +6,14 @@ import {
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
+import { useMutation } from '@tanstack/react-query';
+import { postProcessImagery } from '@Services/tasks';
+import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
+import UploadsBox from '../UploadsBox';
 
 const DescriptionBox = () => {
   const [flyable, setFlyable] = useState('yes');
@@ -26,6 +30,13 @@ const DescriptionBox = () => {
   );
   const { data: taskAssetsInformation }: Record<string, any> =
     useGetTaskAssetsInfo(projectId as string, taskId as string);
+
+  const { mutate: reStartImageryProcess } = useMutation({
+    mutationFn: () => postProcessImagery(projectId as string, taskId as string),
+    onSuccess: () => {
+      toast.success('Image processing re-started');
+    },
+  });
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
@@ -170,8 +181,13 @@ const DescriptionBox = () => {
                 name: 'Orthophoto available',
                 value: taskAssetsInformation?.assets_url ? 'Yes' : 'No',
               },
+              {
+                name: 'Image Status',
+                value: formatString(taskAssetsInformation?.state),
+              },
             ]}
           />
+
           {taskAssetsInformation?.assets_url && (
             <div className="">
               <Button
@@ -183,6 +199,24 @@ const DescriptionBox = () => {
               >
                 Download Result
               </Button>
+            </div>
+          )}
+          {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
+            <div className="">
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
+                leftIcon="replay"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => reStartImageryProcess()}
+              >
+                Re-run processing
+              </Button>
+            </div>
+          )}
+          {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
+            <div className="">
+              <UploadsBox label="Re-upload Raw Image" />
             </div>
           )}
         </div>
