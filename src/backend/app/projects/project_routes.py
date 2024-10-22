@@ -432,7 +432,10 @@ async def get_assets_info(
 
         return results
     else:
-        return project_logic.get_project_info_from_s3(project.id, task_id)
+        current_state = await task_logic.get_task_state(db, project.id, task_id)
+        project_info = project_logic.get_project_info_from_s3(project.id, task_id)
+        project_info.state = current_state.get("state")
+        return project_info
 
 
 @router.post(
@@ -470,7 +473,8 @@ async def odm_webhook(
         log.info(f"Task ID: {task_id}, Status: going for download......")
 
         current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
-        match current_state:
+        current_state_value = State[current_state.get("state")]
+        match current_state_value:
             case State.IMAGE_UPLOADED:
                 log.info(
                     f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
