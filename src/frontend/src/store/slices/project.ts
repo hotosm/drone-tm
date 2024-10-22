@@ -7,6 +7,7 @@ export interface ProjectState {
   tasksData: Record<string, any>[] | null;
   projectArea: Record<string, any> | null;
   selectedTaskId: string;
+  taskClickedOnTable: Record<string, any> | null;
 }
 
 const initialState: ProjectState = {
@@ -14,6 +15,7 @@ const initialState: ProjectState = {
   tasksData: null,
   projectArea: null,
   selectedTaskId: '',
+  taskClickedOnTable: null,
 };
 
 const setProjectState: CaseReducer<

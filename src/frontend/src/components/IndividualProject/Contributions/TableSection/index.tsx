@@ -56,7 +56,16 @@ const contributionsDataColumns = [
   },
 ];
 
-export default function TableSection({ isFetching }: { isFetching: boolean }) {
+interface ITableSectionProps {
+  isFetching: boolean;
+  // eslint-disable-next-line no-unused-vars
+  handleTableRowClick: (rowData: any) => {};
+}
+
+export default function TableSection({
+  isFetching,
+  handleTableRowClick,
+}: ITableSectionProps) {
   const { id } = useParams();
   const tasksData = useTypedSelector(state => state.project.tasksData);
 
@@ -82,6 +91,7 @@ export default function TableSection({ isFetching }: { isFetching: boolean }) {
           task_state: curr?.state,
           assets_url: selectedAssetsDetails?.assets_url,
           image_count: selectedAssetsDetails?.image_count,
+          task_id: curr?.id,
         },
       ];
     }, []);
@@ -96,6 +106,7 @@ export default function TableSection({ isFetching }: { isFetching: boolean }) {
       data={taskDataForTable as Record<string, any>[]}
       withPagination={false}
       loading={isFetching || isUrlFetching}
+      handleTableRowClick={handleTableRowClick}
     />
   );
 }

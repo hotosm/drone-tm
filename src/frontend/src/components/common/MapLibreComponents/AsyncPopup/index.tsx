@@ -30,11 +30,14 @@ export default function AsyncPopup({
   secondaryButtonText = '',
   handleSecondaryBtnClick,
   showPopup = (_clickedFeature: Record<string, any>) => true,
+  openPopupFor,
+  popupCoordinate,
 }: IAsyncPopup) {
   const [properties, setProperties] = useState<Record<string, any> | null>(
     null,
   );
   const popupRef = useRef(null);
+  const [coordinates, setCoordinates] = useState<any>(null);
   const [popupHTML, setPopupHTML] = useState<string>('');
 
   useEffect(() => {
@@ -61,7 +64,8 @@ export default function AsyncPopup({
             },
       );
 
-      popup.setLngLat(e.lngLat);
+      setCoordinates(e.lngLat);
+      // popup.setLngLat(e.lngLat);
     }
     map.on('click', displayPopup);
   }, [map, getCoordOnProperties, showPopup]);
@@ -72,17 +76,25 @@ export default function AsyncPopup({
   }, [map, properties]); // eslint-disable-line
 
   useEffect(() => {
-    if (!map || !properties || !popupUI || !popupRef.current) return;
+    if (!map || !properties || !popupUI || !popupRef.current || !coordinates)
+      return;
     const htmlString = renderToString(popupUI(properties));
     popup.setDOMContent(popupRef.current).addTo(map);
     setPopupHTML(htmlString);
-  }, [map, popupUI, properties]);
+    popup.setLngLat(coordinates);
+  }, [map, popupUI, properties, coordinates]);
 
   const onPopupClose = () => {
     popup.remove();
     onClose?.();
     setProperties(null);
   };
+
+  useEffect(() => {
+    if (!map || !openPopupFor || !popupCoordinate) return;
+    setProperties(openPopupFor);
+    setCoordinates(popupCoordinate);
+  }, [map, openPopupFor, popupCoordinate]);
 
   if (!properties) return <div />;
 
