@@ -469,18 +469,47 @@ async def odm_webhook(
     if status["code"] == 40:
         log.info(f"Task ID: {task_id}, Status: going for download......")
 
-        # Call function to download assets from ODM and upload to S3
-        background_tasks.add_task(
-            image_processing.download_and_upload_assets_from_odm_to_s3,
-            db,
-            settings.NODE_ODM_URL,
-            task_id,
-            dtm_project_id,
-            dtm_task_id,
-            dtm_user_id,
-            State.IMAGE_UPLOADED,
-            "Task completed.",
-        )
+        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
+        match current_state:
+            case State.IMAGE_UPLOADED:
+                log.info(
+                    f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
+                )
+                # Call function to download assets from ODM and upload to S3
+                background_tasks.add_task(
+                    image_processing.download_and_upload_assets_from_odm_to_s3,
+                    db,
+                    settings.NODE_ODM_URL,
+                    task_id,
+                    dtm_project_id,
+                    dtm_task_id,
+                    dtm_user_id,
+                    State.IMAGE_UPLOADED,
+                    "Task completed.",
+                )
+
+            case State.IMAGE_PROCESSING_FAILED:
+                log.warning(
+                    f"Task ID: {task_id}, Status: previously failed, updating to IMAGE_UPLOADED"
+                )
+                # Call function to download assets from ODM and upload to S3
+                background_tasks.add_task(
+                    image_processing.download_and_upload_assets_from_odm_to_s3,
+                    db,
+                    settings.NODE_ODM_URL,
+                    task_id,
+                    dtm_project_id,
+                    dtm_task_id,
+                    dtm_user_id,
+                    State.IMAGE_UPLOADED,
+                    "Task completed.",
+                )
+
+            case _:
+                log.info(
+                    f"Task ID: {task_id}, Status: updating to IMAGE_UPLOADED from {current_state}"
+                )
+
     elif status["code"] == 30:
         current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
         # If the current state is not already IMAGE_PROCESSING_FAILED, update it

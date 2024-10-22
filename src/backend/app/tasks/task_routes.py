@@ -409,7 +409,10 @@ async def new_event(
             locked_user_id = current_task_state.get("user_id")
 
             # Determine error conditions
-            if state != State.LOCKED_FOR_MAPPING.name:
+            if (
+                state != State.LOCKED_FOR_MAPPING.name
+                or State.IMAGE_PROCESSING_FAILED.name
+            ):
                 raise HTTPException(
                     status_code=400,
                     detail="Task state does not match expected state for image upload.",
