@@ -19,7 +19,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
               Project Name
             </td>
             <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
-              Total task area
+              Total task area in km²
             </td>
             {/* <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Est.flight time
