@@ -8,6 +8,7 @@ import {
 } from '@Api/tasks';
 import { useMutation } from '@tanstack/react-query';
 import { postProcessImagery } from '@Services/tasks';
+import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
@@ -180,7 +181,10 @@ const DescriptionBox = () => {
                 name: 'Orthophoto available',
                 value: taskAssetsInformation?.assets_url ? 'Yes' : 'No',
               },
-              { name: 'Image Status', value: taskAssetsInformation?.state },
+              {
+                name: 'Image Status',
+                value: formatString(taskAssetsInformation?.state),
+              },
             ]}
           />
 

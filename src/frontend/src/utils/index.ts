@@ -76,3 +76,12 @@ export const getFrontOverlap = (agl: number, forwardSpacing: number) => {
   const frontOverlap = (frontOverlapDistance * 100) / frontPhotoHeight;
   return frontOverlap.toFixed(2);
 };
+
+// remove underscore and capitalize the word
+export const formatString = (value: string) => {
+  if (!value) return '';
+  return value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/^\w/, char => char.toUpperCase());
+};
