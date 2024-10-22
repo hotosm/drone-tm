@@ -197,19 +197,19 @@ const DescriptionBox = () => {
               </Button>
             </div>
           )}
-          {/* {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && ( */}
-          <div className="">
-            <Button
-              variant="ghost"
-              className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-              leftIcon="replay"
-              iconClassname="naxatw-text-[1.125rem]"
-              onClick={() => reStartImageryProcess()}
-            >
-              Re-run processing
-            </Button>
-          </div>
-          {/* )} */}
+          {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
+            <div className="">
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
+                leftIcon="replay"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => reStartImageryProcess()}
+              >
+                Re-run processing
+              </Button>
+            </div>
+          )}
           {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
             <div className="">
               <UploadsBox label="Re-upload Raw Image" />
