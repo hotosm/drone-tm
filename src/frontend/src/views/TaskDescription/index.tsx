@@ -10,7 +10,7 @@ const TaskDescription = () => {
     <>
       <div className="naxatw-h-screen-nav">
         <div className="naxatw-mx-auto naxatw-px-3 naxatw-pb-[2.9375rem] lg:naxatw-px-20">
-          <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
+          <div className="naxatw-mt-8 naxatw-flex naxatw-flex-col naxatw-gap-3">
             <DroneOperatorTaskHeader />
             <div className="naxatw-grid naxatw-grid-cols-1 naxatw-gap-5 sm:naxatw-grid-cols-[30%_70%]">
               <DroneOperatorDescriptionBox />
