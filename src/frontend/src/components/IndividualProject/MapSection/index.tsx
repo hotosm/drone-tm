@@ -271,11 +271,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                               'fill-opacity': 0.5,
                             },
                           }
-                        : taskStatusObj?.[`${task?.id}`] === 'IMAGE_PROCESSED'
+                        : taskStatusObj?.[`${task?.id}`] === 'UNFLYABLE_TASK'
                           ? {
                               type: 'fill',
                               paint: {
-                                'fill-color': '#ACD2C4',
+                                'fill-color': '#9EA5AD',
                                 'fill-outline-color': '#484848',
                                 'fill-opacity': 0.7,
                               },
