@@ -1,6 +1,7 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 import { useGetProjectsDetailQuery } from '@Api/projects';
+import BreadCrumb from '@Components/common/Breadcrumb';
 import Tab from '@Components/common/Tabs';
 import {
   Contributions,
@@ -13,7 +14,7 @@ import { projectOptions } from '@Constants/index';
 import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 // function to render the content based on active tab
 const getActiveTabContent = (
@@ -37,13 +38,12 @@ const getActiveTabContent = (
 const IndividualProject = () => {
   const { id } = useParams();
   const dispatch = useTypedDispatch();
-  const navigate = useNavigate();
 
   const individualProjectActiveTab = useTypedSelector(
     state => state.project.individualProjectActiveTab,
   );
 
-  const { data: projectData, isFetching: isProjectDataFetching } =
+  const { data: projectData, isFetching: isProjectDataFetching }: any =
     useGetProjectsDetailQuery(id as string, {
       onSuccess: (res: any) => {
         dispatch(
@@ -68,25 +68,12 @@ const IndividualProject = () => {
 
   return (
     <section className="individual project naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
-      {/* <----------- temporary breadcrumb -----------> */}
-      <div className="breadcrumb naxatw-line-clamp-1 naxatw-flex naxatw-py-4">
-        <span
-          role="button"
-          className="naxatw-cursor-pointer naxatw-whitespace-nowrap naxatw-text-body-md"
-          onClick={() => {
-            navigate('/projects');
-          }}
-        >
-          Project /
-        </span>
-        <span className="naxatw-ml-1 naxatw-line-clamp-1 naxatw-text-body-md naxatw-font-semibold">
-          {
-            // @ts-ignore
-            projectData?.name || '--'
-          }
-        </span>
-        {/* <----------- temporary breadcrumb -----------> */}
-      </div>
+      <BreadCrumb
+        data={[
+          { name: 'Project', navLink: '/projects' },
+          { name: projectData?.name || '--', navLink: '' },
+        ]}
+      />
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">
         <div className="naxatw-order-2 naxatw-w-full naxatw-max-w-[30rem]">
           <Tab
