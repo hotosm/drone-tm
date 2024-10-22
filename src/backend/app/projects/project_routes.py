@@ -432,7 +432,10 @@ async def get_assets_info(
 
         return results
     else:
-        return project_logic.get_project_info_from_s3(project.id, task_id)
+        current_state = await task_logic.get_task_state(db, project.id, task_id)
+        project_info = project_logic.get_project_info_from_s3(project.id, task_id)
+        project_info.state = current_state.get("state")
+        return project_info
 
 
 @router.post(
