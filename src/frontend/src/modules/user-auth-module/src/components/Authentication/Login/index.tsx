@@ -52,7 +52,16 @@ export default function Login() {
       const userDetails = await response2.json();
       const userDetailsString = JSON.stringify(userDetails);
       localStorage.setItem('userprofile', userDetailsString);
-      navigate('/projects');
+
+      // navigate according the user profile completion
+      if (
+        userDetails?.has_user_profile &&
+        userDetails?.role?.includes(signedInAs)
+      ) {
+        navigate('/projects');
+      } else {
+        navigate('/complete-profile');
+      }
     },
     onError: err => {
       toast.error(err.response.data.detail);
@@ -74,7 +83,7 @@ export default function Login() {
   });
 
   const onSubmit = (data: { username: string; password: string }) =>
-    mutate(data);
+    mutate({ ...data, role: signedInAs });
 
   return (
     <>

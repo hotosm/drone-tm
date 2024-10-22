@@ -49,8 +49,8 @@ def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
         s3_path (str): The path in the S3 bucket where the file will be stored.
     """
     # Ensure s3_path starts with a forward slash
-    if not s3_path.startswith("/"):
-        s3_path = f"/{s3_path}"
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
     client.fput_object(bucket_name, s3_path, file_path)
@@ -101,8 +101,8 @@ def get_file_from_bucket(bucket_name: str, s3_path: str, file_path: str):
             file will be saved.
     """
     # Ensure s3_path starts with a forward slash
-    if not s3_path.startswith("/"):
-        s3_path = f"/{s3_path}"
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
     client.fget_object(bucket_name, s3_path, file_path)
@@ -119,8 +119,8 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
         BytesIO: A BytesIO object containing the content of the downloaded S3 object.
     """
     # Ensure s3_path starts with a forward slash
-    if not s3_path.startswith("/"):
-        s3_path = f"/{s3_path}"
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
     response = None

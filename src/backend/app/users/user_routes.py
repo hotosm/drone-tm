@@ -3,7 +3,7 @@ import jwt
 from app.users import user_schemas
 from app.users import user_deps
 from app.users import user_logic
-from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Form
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
@@ -38,6 +38,7 @@ router = APIRouter(
 async def login_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[Connection, Depends(database.get_db)],
+    role: str = Form(...),
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
@@ -54,11 +55,12 @@ async def login_access_token(
         "email": user.get("email_address"),
         "name": user.get("name"),
         "profile_img": user.get("profile_img"),
+        "role": role,
     }
 
     access_token, refresh_token = await user_logic.create_access_token(user_info)
 
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(access_token=access_token, refresh_token=refresh_token, role=role)
 
 
 @router.get("/", tags=["users"], response_model=list[user_schemas.DbUser])
@@ -136,18 +138,26 @@ async def login_url(google_auth=Depends(init_google_auth)):
 
 
 @router.get("/callback/")
-async def callback(request: Request, google_auth=Depends(init_google_auth)):
+async def callback(
+    request: Request,
+    role: str,
+    google_auth=Depends(init_google_auth),
+):
     """Performs token exchange between Google and DTM API"""
 
     # Enforce https callback url
     callback_url = str(request.url).replace("http://", "https://")
-
-    access_token = google_auth.callback(callback_url).get("access_token")
+    access_token = google_auth.callback(callback_url, role).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)
+
     access_token, refresh_token = await user_logic.create_access_token(user_data)
 
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        role=role,
+    )
 
 
 @router.get("/refresh-token", response_model=Token)
@@ -157,7 +167,9 @@ async def update_token(user_data: Annotated[AuthUser, Depends(login_required)]):
     access_token, refresh_token = await user_logic.create_access_token(
         user_data.model_dump()
     )
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return Token(
+        access_token=access_token, refresh_token=refresh_token, role=user_data.role
+    )
 
 
 @router.get("/my-info/")
