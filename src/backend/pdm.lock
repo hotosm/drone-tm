@@ -5,10 +5,20 @@
 groups = ["default"]
 strategy = ["cross_platform"]
 lock_version = "4.5.0"
-content_hash = "sha256:5af1cd91bffbaffb22f9affb9a5dea337d37697f4a6b024b7ace22cd9c73c6a2"
+content_hash = "sha256:9f4782e0a7e1d39c893cf6d319a5d68362566cfdc4baccaf56d51f8254da0afb"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
+
+[[package]]
+name = "affine"
+version = "2.4.0"
+requires_python = ">=3.7"
+summary = "Matrices describing affine transformation of the plane"
+files = [
+    {file = "affine-2.4.0-py3-none-any.whl", hash = "sha256:8a3df80e2b2378aef598a83c1392efd47967afec4242021a0b06b4c7cbc61a92"},
+    {file = "affine-2.4.0.tar.gz", hash = "sha256:a24d818d6a836c131976d22f8c27b8d3ca32d0af64c1d8d29deb7bafa4da1eea"},
+]
 
 [[package]]
 name = "aiosmtplib"
@@ -116,6 +126,19 @@ files = [
 ]
 
 [[package]]
+name = "attrs"
+version = "24.2.0"
+requires_python = ">=3.7"
+summary = "Classes Without Boilerplate"
+dependencies = [
+    "importlib-metadata; python_version < \"3.8\"",
+]
+files = [
+    {file = "attrs-24.2.0-py3-none-any.whl", hash = "sha256:81921eb96de3191c8258c199618104dd27ac608d9366f5e35d011eae1867ede2"},
+    {file = "attrs-24.2.0.tar.gz", hash = "sha256:5cfb1b9148b5b086569baec03f20d7b6bf3bcacc9a42bebf87ffaaca362f6346"},
+]
+
+[[package]]
 name = "bcrypt"
 version = "4.2.0"
 requires_python = ">=3.7"
@@ -144,6 +167,16 @@ files = [
     {file = "bcrypt-4.2.0-cp39-abi3-win32.whl", hash = "sha256:77800b7147c9dc905db1cba26abe31e504d8247ac73580b4aa179f98e6608f34"},
     {file = "bcrypt-4.2.0-cp39-abi3-win_amd64.whl", hash = "sha256:61ed14326ee023917ecd093ee6ef422a72f3aec6f07e21ea5f10622b735538a9"},
     {file = "bcrypt-4.2.0.tar.gz", hash = "sha256:cf69eaf5185fd58f268f805b505ce31f9b9fc2d64b376642164e9244540c1221"},
+]
+
+[[package]]
+name = "cachetools"
+version = "5.5.0"
+requires_python = ">=3.7"
+summary = "Extensible memoizing collections and decorators"
+files = [
+    {file = "cachetools-5.5.0-py3-none-any.whl", hash = "sha256:02134e8439cdc2ffb62023ce1debca2944c3f289d66bb17ead3ab3dede74b292"},
+    {file = "cachetools-5.5.0.tar.gz", hash = "sha256:2cc24fb4cbe39633fb7badd9db9ca6295d766d9c2995f245725a46715d050f2a"},
 ]
 
 [[package]]
@@ -269,6 +302,55 @@ dependencies = [
 files = [
     {file = "click-8.1.7-py3-none-any.whl", hash = "sha256:ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28"},
     {file = "click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de"},
+]
+
+[[package]]
+name = "click-plugins"
+version = "1.1.1"
+summary = "An extension module for click to enable registering CLI commands via setuptools entry-points."
+dependencies = [
+    "click>=4.0",
+]
+files = [
+    {file = "click-plugins-1.1.1.tar.gz", hash = "sha256:46ab999744a9d831159c3411bb0c79346d94a444df9a3a3742e9ed63645f264b"},
+    {file = "click_plugins-1.1.1-py2.py3-none-any.whl", hash = "sha256:5d262006d3222f5057fd81e1623d4443e41dcda5dc815c06b442aa3c02889fc8"},
+]
+
+[[package]]
+name = "cligj"
+version = "0.7.2"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, <4"
+summary = "Click params for commmand line interfaces to GeoJSON"
+dependencies = [
+    "click>=4.0",
+]
+files = [
+    {file = "cligj-0.7.2-py3-none-any.whl", hash = "sha256:c1ca117dbce1fe20a5809dc96f01e1c2840f6dcc939b3ddbb1111bf330ba82df"},
+    {file = "cligj-0.7.2.tar.gz", hash = "sha256:a4bc13d623356b373c2c27c53dbd9c68cae5d526270bfa71f6c6fa69669c6b27"},
+]
+
+[[package]]
+name = "color-operations"
+version = "0.1.6"
+requires_python = ">=3.8"
+summary = "Apply basic color-oriented image operations."
+dependencies = [
+    "numpy",
+]
+files = [
+    {file = "color_operations-0.1.6-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:65662664bb1d39e4d48a16ccd010e4fd2281a5abb7102ebf1d65245319ee1268"},
+    {file = "color_operations-0.1.6-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:6faaa11e03fa88cdf3564a6abaadd02068c7f88df968cefa3bd33d1a1e30d6c2"},
+    {file = "color_operations-0.1.6-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:fbe49f8b91ed0c93dd1c5ec4baa144fcfe6a70ecaa81d9ca8c8ae2ad84dc560e"},
+    {file = "color_operations-0.1.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3770e4e7bd0a972a65c5df313d5e32532db42b2f10898c417f769de93a7ba167"},
+    {file = "color_operations-0.1.6-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c6d499de4d820183e9a0599b6e9ad445b7bc84c50c9162e7c3ba05660c34a668"},
+    {file = "color_operations-0.1.6-cp311-cp311-win_amd64.whl", hash = "sha256:5c6d35dc7c194595b1391e0ccc2e38cbd7cb87be37dd27ed49a058bb7c1a5442"},
+    {file = "color_operations-0.1.6-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:906316d4e67d057496d4547a8050f1c555c49d712e0f4f79908ee5da8ca7aef3"},
+    {file = "color_operations-0.1.6-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:e6fce57bcda78a871b58b30df05b478c4b2da9736ef500554bb1c9c41e02aca2"},
+    {file = "color_operations-0.1.6-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c0d3fb1085d83f0082a223901a91325a68b8d03b10ed9d40881d4489dcc641f0"},
+    {file = "color_operations-0.1.6-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:715672ee6d827d4b068f7558f9e473de54eafced3c9a195641b0cf39d9aea700"},
+    {file = "color_operations-0.1.6-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:59b6fea23da0d19afc15bb56c4707275d5ac6c7fd27936c5c64fcdf628c82a53"},
+    {file = "color_operations-0.1.6-cp312-cp312-win_amd64.whl", hash = "sha256:375226cdc52b8b3fe576efb47e0fb4b3dc2c9a8ecbb82c208e86df7153a76882"},
+    {file = "color_operations-0.1.6.tar.gz", hash = "sha256:9b5ff7409d189b8254a3524fc78202e2db4021be973592875d61722abe027ec6"},
 ]
 
 [[package]]
@@ -438,6 +520,37 @@ files = [
 ]
 
 [[package]]
+name = "httpcore"
+version = "1.0.6"
+requires_python = ">=3.8"
+summary = "A minimal low-level HTTP client."
+dependencies = [
+    "certifi",
+    "h11<0.15,>=0.13",
+]
+files = [
+    {file = "httpcore-1.0.6-py3-none-any.whl", hash = "sha256:27b59625743b85577a8c0e10e55b50b5368a4f2cfe8cc7bcfa9cf00829c2682f"},
+    {file = "httpcore-1.0.6.tar.gz", hash = "sha256:73f6dbd6eb8c21bbf7ef8efad555481853f5f6acdeaff1edb0694289269ee17f"},
+]
+
+[[package]]
+name = "httpx"
+version = "0.27.2"
+requires_python = ">=3.8"
+summary = "The next generation HTTP client."
+dependencies = [
+    "anyio",
+    "certifi",
+    "httpcore==1.*",
+    "idna",
+    "sniffio",
+]
+files = [
+    {file = "httpx-0.27.2-py3-none-any.whl", hash = "sha256:7bb2708e112d8fdd7829cd4243970f0c223274051cb35ee80c03301ee29a3df0"},
+    {file = "httpx-0.27.2.tar.gz", hash = "sha256:f7c2be1d2f3c3c3160d441802406b206c2b76f5947b11115e6df10c6c65e66c2"},
+]
+
+[[package]]
 name = "idna"
 version = "3.10"
 requires_python = ">=3.6"
@@ -562,6 +675,47 @@ dependencies = [
 files = [
     {file = "minio-7.2.9-py3-none-any.whl", hash = "sha256:fe5523d9c4a4d6cfc07e96905852841bccdb22b22770e1efca4bf5ae8b65774b"},
     {file = "minio-7.2.9.tar.gz", hash = "sha256:a83c2fcd981944602a8dc11e8e07543ed9cda0a9462264e3f46a13171c56bccb"},
+]
+
+[[package]]
+name = "morecantile"
+version = "5.4.2"
+requires_python = ">=3.8"
+summary = "Construct and use map tile grids (a.k.a TileMatrixSet / TMS)."
+dependencies = [
+    "attrs",
+    "pydantic~=2.0",
+    "pyproj~=3.1",
+]
+files = [
+    {file = "morecantile-5.4.2-py3-none-any.whl", hash = "sha256:2f09ab980aa4ff519cd3891018d963e4a2c42e232f854b441137cc727359322d"},
+    {file = "morecantile-5.4.2.tar.gz", hash = "sha256:19b5a1550b2151e9abeffd348f987587f98b08cd7dce4af9362466fc74e3f3e6"},
+]
+
+[[package]]
+name = "numexpr"
+version = "2.10.1"
+requires_python = ">=3.9"
+summary = "Fast numerical expression evaluator for NumPy"
+dependencies = [
+    "numpy>=1.23.0",
+]
+files = [
+    {file = "numexpr-2.10.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:a3c0b0bf165b2d886eb981afa4e77873ca076f5d51c491c4d7b8fc10f17c876f"},
+    {file = "numexpr-2.10.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:56648a04679063175681195670ad53e5c8ca19668166ed13875199b5600089c7"},
+    {file = "numexpr-2.10.1-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ce04ae6efe2a9d0be1a0e114115c3ae70c68b8b8fbc615c5c55c15704b01e6a4"},
+    {file = "numexpr-2.10.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:45f598182b4f5c153222e47d5163c3bee8d5ebcaee7e56dd2a5898d4d97e4473"},
+    {file = "numexpr-2.10.1-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:6a50370bea77ba94c3734a44781c716751354c6bfda2d369af3aed3d67d42871"},
+    {file = "numexpr-2.10.1-cp311-cp311-win32.whl", hash = "sha256:fa4009d84a8e6e21790e718a80a22d57fe7f215283576ef2adc4183f7247f3c7"},
+    {file = "numexpr-2.10.1-cp311-cp311-win_amd64.whl", hash = "sha256:fcbf013bb8494e8ef1d11fa3457827c1571c6a3153982d709e5d17594999d4dd"},
+    {file = "numexpr-2.10.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:82fc95c301b15ff4823f98989ee363a2d5555d16a7cfd3710e98ddee726eaaaa"},
+    {file = "numexpr-2.10.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:cbf79fef834f88607f977ab9867061dcd9b40ccb08bb28547c6dc6c73e560895"},
+    {file = "numexpr-2.10.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:552c8d4b2e3b87cdb2abb40a781b9a61a9090a9f66ac7357fc5a0b93aff76be3"},
+    {file = "numexpr-2.10.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:22cc65e9121aeb3187a2b50827715b2b087ea70e8ab21416ea52662322087b43"},
+    {file = "numexpr-2.10.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:00204e5853713b5eba5f3d0bc586a5d8d07f76011b597c8b4087592cc2ec2928"},
+    {file = "numexpr-2.10.1-cp312-cp312-win32.whl", hash = "sha256:82bf04a1495ac475de4ab49fbe0a3a2710ed3fd1a00bc03847316b5d7602402d"},
+    {file = "numexpr-2.10.1-cp312-cp312-win_amd64.whl", hash = "sha256:300e577b3c006dd7a8270f1bb2e8a00ee15bf235b1650fe2a6febec2954bc2c3"},
+    {file = "numexpr-2.10.1.tar.gz", hash = "sha256:9bba99d354a65f1a008ab8b87f07d84404c668e66bab624df5b6b5373403cf81"},
 ]
 
 [[package]]
@@ -835,6 +989,16 @@ files = [
 ]
 
 [[package]]
+name = "pyparsing"
+version = "3.2.0"
+requires_python = ">=3.9"
+summary = "pyparsing module - Classes and methods to define and execute parsing grammars"
+files = [
+    {file = "pyparsing-3.2.0-py3-none-any.whl", hash = "sha256:93d9577b88da0bbea8cc8334ee8b918ed014968fd2ec383e868fb8afb1ccef84"},
+    {file = "pyparsing-3.2.0.tar.gz", hash = "sha256:cbf74e27246d595d9a74b186b810f6fbb86726dbf3b9532efb343f6d7294fe9c"},
+]
+
+[[package]]
 name = "pyproj"
 version = "3.7.0"
 requires_python = ">=3.10"
@@ -862,6 +1026,32 @@ files = [
     {file = "pyproj-3.7.0-cp313-cp313-win32.whl", hash = "sha256:b9e8353fc3c79dc14d1f5ac758a1a6e4eee04102c3c0b138670f121f5ac52eb4"},
     {file = "pyproj-3.7.0-cp313-cp313-win_amd64.whl", hash = "sha256:10a8dc6ec61af97c89ff032647d743f8dc023645773da42ef43f7ae1125b3509"},
     {file = "pyproj-3.7.0.tar.gz", hash = "sha256:bf658f4aaf815d9d03c8121650b6f0b8067265c36e31bc6660b98ef144d81813"},
+]
+
+[[package]]
+name = "pystac"
+version = "1.11.0"
+requires_python = ">=3.10"
+summary = "Python library for working with the SpatioTemporal Asset Catalog (STAC) specification"
+dependencies = [
+    "python-dateutil>=2.7.0",
+]
+files = [
+    {file = "pystac-1.11.0-py3-none-any.whl", hash = "sha256:10ac7c7b4ea6c5ec8333829a09ec1a33b596f02d1a97ffbbd72cd1b6c10598c1"},
+    {file = "pystac-1.11.0.tar.gz", hash = "sha256:acb1e04be398a0cda2d8870ab5e90457783a8014a206590233171d8b2ae0d9e7"},
+]
+
+[[package]]
+name = "python-dateutil"
+version = "2.9.0.post0"
+requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+summary = "Extensions to the standard Python datetime module"
+dependencies = [
+    "six>=1.5",
+]
+files = [
+    {file = "python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3"},
+    {file = "python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"},
 ]
 
 [[package]]
@@ -895,6 +1085,38 @@ dependencies = [
 files = [
     {file = "python-slugify-8.0.4.tar.gz", hash = "sha256:59202371d1d05b54a9e7720c5e038f928f45daaffe41dd10822f3907b937c856"},
     {file = "python_slugify-8.0.4-py2.py3-none-any.whl", hash = "sha256:276540b79961052b66b7d116620b36518847f52d5fd9e3a70164fc8c50faa6b8"},
+]
+
+[[package]]
+name = "rasterio"
+version = "1.4.1"
+requires_python = ">=3.9"
+summary = "Fast and direct raster I/O for use with Numpy and SciPy"
+dependencies = [
+    "affine",
+    "attrs",
+    "certifi",
+    "click-plugins",
+    "click>=4.0",
+    "cligj>=0.5",
+    "importlib-metadata; python_version < \"3.10\"",
+    "numpy>=1.24",
+    "pyparsing",
+]
+files = [
+    {file = "rasterio-1.4.1-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:5037188f3582cdb21a308d6cacfc6a4f2828cd05d382f8b848c8bb405a0778b4"},
+    {file = "rasterio-1.4.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:50fb06c2895cc055f34d813600cb5dc56b170d02c216913fdf80b573d771e972"},
+    {file = "rasterio-1.4.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ef99c77d2c52bd95b42ff862c252a74c7528ec3b3cbb665c783e3948ebd811cf"},
+    {file = "rasterio-1.4.1-cp311-cp311-win_amd64.whl", hash = "sha256:6832fb300615e5d8649346b4aad557330cfae23bc5499832d106c415cc85173b"},
+    {file = "rasterio-1.4.1-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:a0cd7b8eda7d3b0097a42a047d2604c3f1f27b4093e2a4e1e7ad379c9f639f65"},
+    {file = "rasterio-1.4.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:af5e0559eb8da3cf0adbc1d26ce86e505ea82814012b7b6711855674ae3f6425"},
+    {file = "rasterio-1.4.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5b85f7d912b868ce8dd25e01d5042c8426cc9208a715f093081503ee864e870b"},
+    {file = "rasterio-1.4.1-cp312-cp312-win_amd64.whl", hash = "sha256:e7b18c4ccf0d813b6056704af86e14d6841e29ec558a9bce2f1ce2e3ee2ef70d"},
+    {file = "rasterio-1.4.1-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:c5b626dc0c08dc593e462265ce974266f3e1dd90fa67807bef33704d88c62a28"},
+    {file = "rasterio-1.4.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:0c2f21b4fe0f6f8af0a902c4f86fb51d25a058fabf4dada1d453f8dce6be7938"},
+    {file = "rasterio-1.4.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2466adf39009115de23209a4b343fdb0db9a3aef97119d826d09df26b7f3beb9"},
+    {file = "rasterio-1.4.1-cp313-cp313-win_amd64.whl", hash = "sha256:2e6a8fbdf31053a3ff95c138976ffc8ee547f361326cb42bd26fcee26422e157"},
+    {file = "rasterio-1.4.1.tar.gz", hash = "sha256:d750362bb792d2311f94803ff309baec48486ecba75c9b905ea9b1f5eb06ef9f"},
 ]
 
 [[package]]
@@ -941,6 +1163,30 @@ files = [
 ]
 
 [[package]]
+name = "rio-tiler"
+version = "7.0.0"
+requires_python = ">=3.8"
+summary = "User friendly Rasterio plugin to read raster datasets."
+dependencies = [
+    "attrs",
+    "cachetools",
+    "color-operations",
+    "httpx",
+    "importlib-resources>=1.1.0; python_version < \"3.9\"",
+    "morecantile<7.0,>=5.0",
+    "numexpr",
+    "numpy",
+    "pydantic~=2.0",
+    "pystac>=0.5.4",
+    "rasterio>=1.3.0",
+    "typing-extensions",
+]
+files = [
+    {file = "rio_tiler-7.0.0-py3-none-any.whl", hash = "sha256:4a6220c488cfe3c94a3127be7f889d3d4ce9500f53f06dc1ccd53c66780a9242"},
+    {file = "rio_tiler-7.0.0.tar.gz", hash = "sha256:bfaecc399ee03f2eb4c90f07fc2f1aa276fc6a55f72a3837c0d75b2d7b01403d"},
+]
+
+[[package]]
 name = "shapely"
 version = "2.0.5"
 requires_python = ">=3.7"
@@ -962,6 +1208,16 @@ files = [
     {file = "shapely-2.0.5-cp312-cp312-win32.whl", hash = "sha256:3ac7dc1350700c139c956b03d9c3df49a5b34aaf91d024d1510a09717ea39199"},
     {file = "shapely-2.0.5-cp312-cp312-win_amd64.whl", hash = "sha256:30e8737983c9d954cd17feb49eb169f02f1da49e24e5171122cf2c2b62d65c95"},
     {file = "shapely-2.0.5.tar.gz", hash = "sha256:bff2366bc786bfa6cb353d6b47d0443c570c32776612e527ee47b6df63fcfe32"},
+]
+
+[[package]]
+name = "six"
+version = "1.16.0"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
+summary = "Python 2 and 3 compatibility utilities"
+files = [
+    {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
+    {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
 ]
 
 [[package]]
