@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
 from asgiref.sync import async_to_sync
 from app.config import settings
+import zipfile
 
 
 class DroneImageProcessor:
@@ -234,6 +235,31 @@ async def download_and_upload_assets_from_odm_to_s3(
         add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
         log.info(f"Assets for task {task_id} successfully uploaded to S3.")
+
+        # Extract the zip file to find the orthophoto
+        with zipfile.ZipFile(assets_path, "r") as zip_ref:
+            zip_ref.extractall(output_file_path)
+
+        # Locate the orthophoto (odm_orthophoto.tif)
+        orthophoto_path = os.path.join(
+            output_file_path, "odm_orthophoto", "odm_orthophoto.tif"
+        )
+        if not os.path.exists(orthophoto_path):
+            log.error(f"Orthophoto file not found at {orthophoto_path}")
+            raise FileNotFoundError(f"Orthophoto not found in {output_file_path}")
+
+        log.info(f"Orthophoto found at {orthophoto_path}")
+
+        # Upload the orthophoto to S3
+        s3_ortho_path = (
+            f"projects/{dtm_project_id}/{dtm_task_id}/orthophoto/odm_orthophoto.tif"
+        )
+        log.info(f"Uploading orthophoto to S3 path: {s3_ortho_path}")
+        add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
+
+        log.info(
+            f"Orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
+        )
 
         # Update background task status to COMPLETED
         await task_logic.update_task_state(
