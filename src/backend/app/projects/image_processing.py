@@ -1,3 +1,4 @@
+import os
 import uuid
 import tempfile
 import shutil
@@ -5,6 +6,7 @@ from pathlib import Path
 from app.tasks import task_logic
 from app.models.enums import State
 from app.utils import timestamp
+from app.db import database
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
@@ -192,7 +194,6 @@ class DroneImageProcessor:
 
 
 async def download_and_upload_assets_from_odm_to_s3(
-    db: Connection,
     node_odm_url: str,
     task_id: str,
     dtm_project_id: uuid.UUID,
@@ -205,9 +206,10 @@ async def download_and_upload_assets_from_odm_to_s3(
     :param task_id: UUID of the ODM task.
     :param dtm_project_id: UUID of the project.
     :param dtm_task_id: UUID of the task.
+    :param current_state: Current state of the task (IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED).
+
     """
     log.info(f"Starting download for task {task_id}")
-
     # Replace with actual ODM node details and URL
     node = Node.from_url(node_odm_url)
 
@@ -231,21 +233,30 @@ async def download_and_upload_assets_from_odm_to_s3(
         log.info(f"Assets for task {task_id} successfully uploaded to S3.")
 
         # Update background task status to COMPLETED
-        await task_logic.update_task_state(
-            db,
-            dtm_project_id,
-            dtm_task_id,
-            user_id,
-            "Task completed.",
-            State.IMAGE_UPLOADED,
-            State.IMAGE_PROCESSED,
-            timestamp(),
-        )
+        pool = await database.get_db_connection_pool()
+
+        async with pool.connection() as conn:
+            await task_logic.update_task_state(
+                db=conn,
+                project_id=dtm_project_id,
+                task_id=dtm_task_id,
+                user_id=user_id,
+                comment="Task completed.",
+                initial_state=State.IMAGE_UPLOADED,
+                final_state=State.IMAGE_PROCESSED,
+                updated_at=timestamp(),
+            )
 
     except Exception as e:
         log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
 
     finally:
         # Clean up the temporary directory
-        shutil.rmtree(output_file_path)
-        log.info(f"Temporary directory {output_file_path} cleaned up.")
+        if os.path.exists(output_file_path):
+            try:
+                shutil.rmtree(output_file_path)
+                log.info(f"Temporary directory {output_file_path} cleaned up.")
+            except Exception as cleanup_error:
+                log.error(
+                    f"Error cleaning up temporary directory {output_file_path}: {cleanup_error}"
+                )
