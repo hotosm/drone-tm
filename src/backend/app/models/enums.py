@@ -133,6 +133,9 @@ class State(int, Enum):
     - ``locked for validation``
     - ``unlocked done``
     - ``Unflyable task``
+    - ``image uploaded``
+    - ``image processed``
+    - ``image processing failed``
     """
 
     REQUEST_FOR_MAPPING = -1
@@ -144,6 +147,7 @@ class State(int, Enum):
     UNFLYABLE_TASK = 5
     IMAGE_UPLOADED = 6
     IMAGE_PROCESSED = 7
+    IMAGE_PROCESSING_FAILED = 8
 
 
 class EventType(str, Enum):

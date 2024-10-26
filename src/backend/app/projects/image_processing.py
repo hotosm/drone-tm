@@ -1,3 +1,4 @@
+import os
 import uuid
 import tempfile
 import shutil
@@ -198,6 +199,8 @@ async def download_and_upload_assets_from_odm_to_s3(
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
     user_id: str,
+    current_state: State,
+    comment: str,
 ):
     """
     Downloads results from ODM and uploads them to S3 (Minio).
@@ -205,6 +208,8 @@ async def download_and_upload_assets_from_odm_to_s3(
     :param task_id: UUID of the ODM task.
     :param dtm_project_id: UUID of the project.
     :param dtm_task_id: UUID of the task.
+    :param current_state: Current state of the task (IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED).
+
     """
     log.info(f"Starting download for task {task_id}")
     # Replace with actual ODM node details and URL
@@ -249,5 +254,11 @@ async def download_and_upload_assets_from_odm_to_s3(
 
     finally:
         # Clean up the temporary directory
-        shutil.rmtree(output_file_path)
-        log.info(f"Temporary directory {output_file_path} cleaned up.")
+        if os.path.exists(output_file_path):
+            try:
+                shutil.rmtree(output_file_path)
+                log.info(f"Temporary directory {output_file_path} cleaned up.")
+            except Exception as cleanup_error:
+                log.error(
+                    f"Error cleaning up temporary directory {output_file_path}: {cleanup_error}"
+                )

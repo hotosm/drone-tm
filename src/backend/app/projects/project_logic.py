@@ -19,6 +19,38 @@ from app.config import settings
 from app.projects.image_processing import DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
+from psycopg.rows import dict_row
+
+
+async def get_centroids(db: Connection):
+    try:
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute("""
+                SELECT
+                    p.id,
+                    p.slug,
+                    p.name,
+                    ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
+                    COUNT(t.id) AS total_task_count,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
+                FROM
+                    projects p
+                LEFT JOIN
+                    tasks t ON p.id = t.project_id
+                LEFT JOIN
+                    task_events te ON t.id = te.task_id
+                GROUP BY
+                    p.id, p.slug, p.name, p.centroid;
+            """)
+            centroids = await cur.fetchall()
+
+            if not centroids:
+                raise HTTPException(status_code=404, detail="No centroids found.")
+
+            return centroids
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def upload_file_to_s3(
