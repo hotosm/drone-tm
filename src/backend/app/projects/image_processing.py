@@ -244,7 +244,7 @@ async def download_and_upload_assets_from_odm_to_s3(
                 project_id=dtm_project_id,
                 task_id=dtm_task_id,
                 user_id=user_id,
-                comment="Task completed.",
+                comment=comment,
                 initial_state=current_state,
                 final_state=State.IMAGE_PROCESSED,
                 updated_at=timestamp(),

@@ -7,23 +7,17 @@ import { useNavigate } from 'react-router-dom';
 import UserAvatar from '@Components/common/UserAvatar';
 import { toast } from 'react-toastify';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import { useGetUserDetailsQuery } from '@Api/projects';
 
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
-
-  const { data: userDetails, isFetching }: Record<string, any> =
-    useGetUserDetailsQuery();
-
   const userProfile = getLocalStorageValue('userprofile');
   const role = localStorage.getItem('signedInAs');
 
   useEffect(() => {
-    if (!userDetails || userDetails?.role?.includes(role) || isFetching) return;
-    if (!userDetails?.has_user_profile || !userDetails?.role?.includes(role))
-      navigate('/complete-profile');
-  }, [userDetails, role, navigate, isFetching]);
+    if (!userProfile || userProfile?.role?.includes(role)) return;
+    navigate('/complete-profile');
+  }, [userProfile, role, navigate]);
 
   const settingOptions = [
     {

@@ -462,6 +462,7 @@ async def odm_webhook(
 
     task_id = payload.get("uuid")
     status = payload.get("status")
+
     if not task_id or not status:
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
