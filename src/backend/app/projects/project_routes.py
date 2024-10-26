@@ -470,6 +470,7 @@ async def odm_webhook(
 
     task_id = payload.get("uuid")
     status = payload.get("status")
+
     if not task_id or not status:
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
@@ -478,46 +479,17 @@ async def odm_webhook(
     # If status is 'success', download and upload assets to S3.
     # 40 is the status code for success in odm
     if status["code"] == 40:
-        log.info(f"Task ID: {task_id}, Status: going for download......")
-
         # Call function to download assets from ODM and upload to S3
         background_tasks.add_task(
             image_processing.download_and_upload_assets_from_odm_to_s3,
-            node_odm_url=settings.NODE_ODM_URL,
-            task_id=task_id,
-            dtm_project_id=dtm_project_id,
-            dtm_task_id=dtm_task_id,
-            user_id=dtm_user_id,
+            db,
+            settings.NODE_ODM_URL,
+            task_id,
+            dtm_project_id,
+            dtm_task_id,
+            dtm_user_id,
         )
     elif status["code"] == 30:
-        current_state = await task_logic.get_current_state(
-            db, dtm_project_id, dtm_task_id
-        )
-        # If the current state is not already IMAGE_PROCESSING_FAILED, update it
-        if current_state != State.IMAGE_PROCESSING_FAILED:
-            await task_logic.update_task_state(
-                db,
-                dtm_project_id,
-                dtm_task_id,
-                dtm_user_id,
-                "Image processing failed.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSING_FAILED,
-                timestamp(),
-            )
-
-            background_tasks.add_task(
-                image_processing.download_and_upload_assets_from_odm_to_s3,
-                db,
-                settings.NODE_ODM_URL,
-                task_id,
-                dtm_project_id,
-                dtm_task_id,
-                dtm_user_id,
-                State.IMAGE_PROCESSING_FAILED,
-                "Image processing failed.",
-            )
-
-    log.info(f"Task ID: {task_id}, Status: Webhook received")
-
+        # failed task
+        log.error(f'ODM task {task_id} failed: {status["errorMessage"]}')
     return {"message": "Webhook received", "task_id": task_id}
