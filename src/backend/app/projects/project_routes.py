@@ -482,7 +482,6 @@ async def odm_webhook(
                 # Call function to download assets from ODM and upload to S3
                 background_tasks.add_task(
                     image_processing.download_and_upload_assets_from_odm_to_s3,
-                    db,
                     settings.NODE_ODM_URL,
                     task_id,
                     dtm_project_id,
@@ -499,7 +498,6 @@ async def odm_webhook(
                 # Call function to download assets from ODM and upload to S3
                 background_tasks.add_task(
                     image_processing.download_and_upload_assets_from_odm_to_s3,
-                    db,
                     settings.NODE_ODM_URL,
                     task_id,
                     dtm_project_id,
@@ -531,7 +529,6 @@ async def odm_webhook(
 
             background_tasks.add_task(
                 image_processing.download_and_upload_assets_from_odm_to_s3,
-                db,
                 settings.NODE_ODM_URL,
                 task_id,
                 dtm_project_id,
