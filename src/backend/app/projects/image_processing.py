@@ -199,8 +199,6 @@ async def download_and_upload_assets_from_odm_to_s3(
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
     user_id: str,
-    current_state: State,
-    comment: str,
 ):
     """
     Downloads results from ODM and uploads them to S3 (Minio).
