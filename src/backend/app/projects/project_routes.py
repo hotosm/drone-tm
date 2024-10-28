@@ -343,6 +343,22 @@ async def generate_presigned_url(
                             detail=f"Failed to delete existing image: {error}",
                         )
 
+                    # # Update task as images uploaded
+                    # pool = await database.get_db_connection_pool()
+                    # current_task_state = await task_logic.get_task_state(
+                    #     conn, data.project_id, data.task_id
+                    # )
+                    # async with pool.connection() as conn:
+                    #     await task_logic.update_task_state(
+                    #         conn,
+                    #         data.project_id,
+                    #         data.task_id,
+                    #         data.user_id,
+                    #         "Image re-upload",
+                    #         current_task_state,
+                    #         final_state=State.IMAGE_UPLOADED,
+                    #         updated_at=timestamp(),
+                    #     )
                 except Exception as e:
                     raise HTTPException(
                         status_code=HTTPStatus.BAD_REQUEST,
