@@ -34,6 +34,7 @@ from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
 from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
+from minio.deleteobjects import DeleteObject
 
 
 router = APIRouter(
@@ -287,8 +288,9 @@ async def preview_split_by_square(
 
 @router.post("/generate-presigned-url/", tags=["Image Upload"])
 async def generate_presigned_url(
-    data: project_schemas.PresignedUrlRequest,
     user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.PresignedUrlRequest,
+    replace_existing: bool = False,
 ):
     """
     Generate a pre-signed URL for uploading an image to S3 Bucket.
@@ -297,21 +299,57 @@ async def generate_presigned_url(
     an S3 bucket. The URL expires after a specified duration.
 
     Args:
-
-        image_name: The name of the image you want to upload
-        expiry : Expiry time in hours
+        image_name: The name of the image(s) you want to upload.
+        expiry : Expiry time in hours.
+        replace_existing: A boolean flag to indicate if the image should be replaced.
 
     Returns:
-
-        str: The pre-signed URL to upload the image
+        list: A list of dictionaries with the image name and the pre-signed URL to upload.
     """
     try:
-        # Generate a pre-signed URL for an object
+        # Initialize the S3 client
         client = s3_client()
         urls = []
-        for image in data.image_name:
-            image_path = f"projects/{data.project_id}/{data.task_id}/images/{image}"
 
+        # Process each image in the request
+        for image in data.image_name:
+            # Construct the image path
+            image_path = (
+                f"projects/{data.project_id}/{data.task_id}/images/"
+                if replace_existing
+                else f"projects/{data.project_id}/{data.task_id}/images/{image}"
+            )
+            # If replace_existing is True, delete the image first
+            if replace_existing:
+                try:
+                    # Prepare the list of objects to delete (recursively if necessary)
+                    delete_object_list = map(
+                        lambda x: DeleteObject(x.object_name),
+                        client.list_objects(
+                            settings.S3_BUCKET_NAME, image_path, recursive=True
+                        ),
+                    )
+
+                    # Remove the objects (images)
+                    errors = client.remove_objects(
+                        settings.S3_BUCKET_NAME, delete_object_list
+                    )
+
+                    # Handle deletion errors, if any
+                    for error in errors:
+                        log.error("Error occurred when deleting object", error)
+                        raise HTTPException(
+                            status_code=HTTPStatus.BAD_REQUEST,
+                            detail=f"Failed to delete existing image: {error}",
+                        )
+
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=HTTPStatus.BAD_REQUEST,
+                        detail=f"Failed to delete existing image. {e}",
+                    )
+
+            # Generate a new pre-signed URL for the image upload
             url = client.get_presigned_url(
                 "PUT",
                 settings.S3_BUCKET_NAME,
@@ -321,6 +359,7 @@ async def generate_presigned_url(
             urls.append({"image_name": image, "url": url})
 
         return urls
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
