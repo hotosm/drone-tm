@@ -262,32 +262,41 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                             'fill-opacity': 0.5,
                           },
                         }
-                      : taskStatusObj?.[`${task?.id}`] === 'IMAGE_UPLOADED'
+                      : taskStatusObj?.[`${task?.id}`] === 'IMAGE_PROCESSED'
                         ? {
                             type: 'fill',
                             paint: {
-                              'fill-color': '#9C77B2',
+                              'fill-color': '#ACD2C4',
                               'fill-outline-color': '#484848',
-                              'fill-opacity': 0.5,
+                              'fill-opacity': 0.7,
                             },
                           }
-                        : taskStatusObj?.[`${task?.id}`] === 'UNFLYABLE_TASK'
+                        : taskStatusObj?.[`${task?.id}`] === 'IMAGE_UPLOADED'
                           ? {
                               type: 'fill',
                               paint: {
-                                'fill-color': '#9EA5AD',
-                                'fill-outline-color': '#484848',
-                                'fill-opacity': 0.7,
-                              },
-                            }
-                          : {
-                              type: 'fill',
-                              paint: {
-                                'fill-color': '#ffffff',
+                                'fill-color': '#9C77B2',
                                 'fill-outline-color': '#484848',
                                 'fill-opacity': 0.5,
                               },
                             }
+                          : taskStatusObj?.[`${task?.id}`] === 'UNFLYABLE_TASK'
+                            ? {
+                                type: 'fill',
+                                paint: {
+                                  'fill-color': '#9EA5AD',
+                                  'fill-outline-color': '#484848',
+                                  'fill-opacity': 0.7,
+                                },
+                              }
+                            : {
+                                type: 'fill',
+                                paint: {
+                                  'fill-color': '#ffffff',
+                                  'fill-outline-color': '#484848',
+                                  'fill-opacity': 0.5,
+                                },
+                              }
               }
               hasImage={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
