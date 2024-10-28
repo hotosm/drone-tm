@@ -143,7 +143,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSED':
             return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
-
+          case 'IMAGE_PROCESSING_FAILED':
+            return `This task's image processing is failed started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           default:
             return '';
         }
@@ -280,23 +281,34 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                                 'fill-opacity': 0.5,
                               },
                             }
-                          : taskStatusObj?.[`${task?.id}`] === 'UNFLYABLE_TASK'
+                          : taskStatusObj?.[`${task?.id}`] ===
+                              'IMAGE_PROCESSING_FAILED'
                             ? {
                                 type: 'fill',
                                 paint: {
-                                  'fill-color': '#9EA5AD',
-                                  'fill-outline-color': '#484848',
-                                  'fill-opacity': 0.7,
-                                },
-                              }
-                            : {
-                                type: 'fill',
-                                paint: {
-                                  'fill-color': '#ffffff',
+                                  'fill-color': '#f00000',
                                   'fill-outline-color': '#484848',
                                   'fill-opacity': 0.5,
                                 },
                               }
+                            : taskStatusObj?.[`${task?.id}`] ===
+                                'UNFLYABLE_TASK'
+                              ? {
+                                  type: 'fill',
+                                  paint: {
+                                    'fill-color': '#9EA5AD',
+                                    'fill-outline-color': '#484848',
+                                    'fill-opacity': 0.7,
+                                  },
+                                }
+                              : {
+                                  type: 'fill',
+                                  paint: {
+                                    'fill-color': '#ffffff',
+                                    'fill-outline-color': '#484848',
+                                    'fill-opacity': 0.5,
+                                  },
+                                }
               }
               hasImage={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
@@ -327,7 +339,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             (taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
               lockedUser?.id === userDetails?.id) ||
             taskStatusObj?.[selectedTaskId] === 'IMAGE_UPLOADED' ||
-            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSED'
+            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSED' ||
+            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSING_FAILED'
           )
         }
         buttonText={
