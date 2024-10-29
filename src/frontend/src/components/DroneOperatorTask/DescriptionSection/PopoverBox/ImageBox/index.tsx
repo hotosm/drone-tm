@@ -23,7 +23,6 @@ import PreviewImage from './PreviewImage';
 
 const ImageBoxPopOver = () => {
   const dispatch = useTypedDispatch();
-
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
   const taskId = pathname?.[4];
@@ -40,6 +39,9 @@ const ImageBoxPopOver = () => {
   );
   const checkedImages = useTypedSelector(
     state => state.droneOperatorTask.checkedImages,
+  );
+  const uploadedImageType = useTypedSelector(
+    state => state.droneOperatorTask.uploadedImagesType,
   );
 
   const { mutate: updateStatus } = useMutation<any, any, any, unknown>({
@@ -64,7 +66,10 @@ const ImageBoxPopOver = () => {
   // function that gets the signed urls for the images and again puts them in chunks of 4
   const { mutate } = useMutation({
     mutationFn: async (data: any) => {
-      const urlsData = await getImageUploadLink(data);
+      const urlsData = await getImageUploadLink(
+        uploadedImageType === 'replace',
+        data,
+      );
 
       // urls fromm array of objects is retrieved and stored in value
       const urls = urlsData.data.map((url: any) => url.url);
