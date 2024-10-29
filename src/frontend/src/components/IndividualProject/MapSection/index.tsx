@@ -1,15 +1,10 @@
 /* eslint-disable no-nested-ternary */
-/* eslint-disable no-unused-vars */
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
 import { toast } from 'react-toastify';
-import {
-  useGetProjectsDetailQuery,
-  useGetTaskStatesQuery,
-  useGetUserDetailsQuery,
-} from '@Api/projects';
+import { useGetTaskStatesQuery, useGetUserDetailsQuery } from '@Api/projects';
 import lock from '@Assets/images/lock.png';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
@@ -53,6 +48,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   );
   const tasksData = useTypedSelector(state => state.project.tasksData);
   const projectArea = useTypedSelector(state => state.project.projectArea);
+  const taskClickedOnTable = useTypedSelector(
+    state => state.project.taskClickedOnTable,
+  );
 
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
@@ -143,7 +141,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSED':
             return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
-
+          case 'IMAGE_PROCESSING_FAILED':
+            return `This task's image processing is failed started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           default:
             return '';
         }
@@ -262,32 +261,52 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                             'fill-opacity': 0.5,
                           },
                         }
-                      : taskStatusObj?.[`${task?.id}`] === 'IMAGE_UPLOADED'
+                      : taskStatusObj?.[`${task?.id}`] === 'IMAGE_PROCESSED'
                         ? {
                             type: 'fill',
                             paint: {
-                              'fill-color': '#9C77B2',
+                              'fill-color': '#ACD2C4',
                               'fill-outline-color': '#484848',
-                              'fill-opacity': 0.5,
+                              'fill-opacity': 0.7,
                             },
                           }
-                        : taskStatusObj?.[`${task?.id}`] === 'IMAGE_PROCESSED'
+                        : taskStatusObj?.[`${task?.id}`] === 'IMAGE_UPLOADED'
                           ? {
                               type: 'fill',
                               paint: {
-                                'fill-color': '#ACD2C4',
-                                'fill-outline-color': '#484848',
-                                'fill-opacity': 0.7,
-                              },
-                            }
-                          : {
-                              type: 'fill',
-                              paint: {
-                                'fill-color': '#ffffff',
+                                'fill-color': '#9C77B2',
                                 'fill-outline-color': '#484848',
                                 'fill-opacity': 0.5,
                               },
                             }
+                          : taskStatusObj?.[`${task?.id}`] ===
+                              'IMAGE_PROCESSING_FAILED'
+                            ? {
+                                type: 'fill',
+                                paint: {
+                                  'fill-color': '#f00000',
+                                  'fill-outline-color': '#484848',
+                                  'fill-opacity': 0.5,
+                                },
+                              }
+                            : taskStatusObj?.[`${task?.id}`] ===
+                                'UNFLYABLE_TASK'
+                              ? {
+                                  type: 'fill',
+                                  paint: {
+                                    'fill-color': '#9EA5AD',
+                                    'fill-outline-color': '#484848',
+                                    'fill-opacity': 0.7,
+                                  },
+                                }
+                              : {
+                                  type: 'fill',
+                                  paint: {
+                                    'fill-color': '#ffffff',
+                                    'fill-outline-color': '#484848',
+                                    'fill-opacity': 0.5,
+                                  },
+                                }
               }
               hasImage={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
@@ -305,6 +324,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           feature?.source?.includes('tasks-layer')
         }
         fetchPopupData={(properties: Record<string, any>) => {
+          dispatch(
+            setProjectState({
+              taskClickedOnTable: null,
+            }),
+          );
           dispatch(setProjectState({ selectedTaskId: properties.id }));
           setLockedUser({
             id: properties?.locked_user_id || userDetails?.id || '',
@@ -318,7 +342,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             (taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
               lockedUser?.id === userDetails?.id) ||
             taskStatusObj?.[selectedTaskId] === 'IMAGE_UPLOADED' ||
-            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSED'
+            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSED' ||
+            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSING_FAILED'
           )
         }
         buttonText={
@@ -338,6 +363,16 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         }
         secondaryButtonText="Unlock Task"
         handleSecondaryBtnClick={() => handleTaskUnLockClick()}
+        // trigger from popup outside
+        openPopupFor={taskClickedOnTable}
+        popupCoordinate={taskClickedOnTable?.centroidCoordinates}
+        onClose={() =>
+          dispatch(
+            setProjectState({
+              taskClickedOnTable: null,
+            }),
+          )
+        }
       />
       <Legend />
     </MapContainer>

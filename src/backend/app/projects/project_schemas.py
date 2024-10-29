@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
-from app.models.enums import FinalOutput, ProjectVisibility
+from app.models.enums import FinalOutput, ProjectVisibility, UserRole
 from app.models.enums import (
     IntEnum,
     ProjectStatus,
@@ -58,6 +58,7 @@ class AssetsInfo(BaseModel):
     task_id: str
     image_count: int
     assets_url: Optional[str]
+    state: Optional[UserRole] = None
 
 
 def validate_geojson(
@@ -197,6 +198,7 @@ class DbProject(BaseModel):
     altitude_from_ground: Optional[float] = None
     is_terrain_follow: bool = False
     image_url: Optional[str] = None
+    created_at: datetime
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""
@@ -258,15 +260,7 @@ class DbProject(BaseModel):
                     SELECT DISTINCT ON (te.task_id)
                         te.task_id,
                         te.user_id,
-                        CASE
-                            WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                            WHEN te.state = 'LOCKED_FOR_MAPPING' OR te.state = 'IMAGE_UPLOADED' THEN 'ongoing'
-                            WHEN te.state = 'IMAGE_PROCESSED' THEN 'completed'
-                            WHEN te.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                            WHEN te.state = 'IMAGE_PROCESSING_FAILED' THEN 'task failed'
-
-                            ELSE ''
-                        END AS calculated_state
+                        te.state
                     FROM
                         task_events te
                     ORDER BY
@@ -283,7 +277,7 @@ class DbProject(BaseModel):
                         ST_YMin(ST_Envelope(t.outline)) AS ymin,
                         ST_XMax(ST_Envelope(t.outline)) AS xmax,
                         ST_YMax(ST_Envelope(t.outline)) AS ymax,
-                        COALESCE(tsc.calculated_state) AS state,
+                        tsc.state AS state,
                         tsc.user_id,
                         u.name,
                         ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
@@ -343,7 +337,7 @@ class DbProject(BaseModel):
             await cur.execute(
                 """
                 SELECT
-                    p.id, p.slug, p.name, p.description, p.per_task_instructions,
+                    p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at,
                     ST_AsGeoJSON(p.outline)::jsonb AS outline,
                     p.requires_approval_from_manager_for_locking,
 
@@ -541,6 +535,7 @@ class ProjectInfo(BaseModel):
     ongoing_task_count: Optional[int] = 0
     completed_task_count: Optional[int] = 0
     status: Optional[str] = "not-started"
+    created_at: datetime
 
     @model_validator(mode="after")
     def set_image_url(cls, values):

@@ -36,6 +36,7 @@ from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
 from rio_tiler.io import Reader
 from rio_tiler.errors import TileOutsideBounds
+from minio.deleteobjects import DeleteObject
 
 
 router = APIRouter(
@@ -289,8 +290,9 @@ async def preview_split_by_square(
 
 @router.post("/generate-presigned-url/", tags=["Image Upload"])
 async def generate_presigned_url(
-    data: project_schemas.PresignedUrlRequest,
     user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.PresignedUrlRequest,
+    replace_existing: bool = False,
 ):
     """
     Generate a pre-signed URL for uploading an image to S3 Bucket.
@@ -299,21 +301,54 @@ async def generate_presigned_url(
     an S3 bucket. The URL expires after a specified duration.
 
     Args:
-
-        image_name: The name of the image you want to upload
-        expiry : Expiry time in hours
+        image_name: The name of the image(s) you want to upload.
+        expiry : Expiry time in hours.
+        replace_existing: A boolean flag to indicate if the image should be replaced.
 
     Returns:
-
-        str: The pre-signed URL to upload the image
+        list: A list of dictionaries with the image name and the pre-signed URL to upload.
     """
     try:
-        # Generate a pre-signed URL for an object
+        # Initialize the S3 client
         client = s3_client()
         urls = []
+
+        # Process each image in the request
         for image in data.image_name:
             image_path = f"projects/{data.project_id}/{data.task_id}/images/{image}"
 
+            # If replace_existing is True, delete the image first
+            if replace_existing:
+                image_dir = f"projects/{data.project_id}/{data.task_id}/images/"
+                try:
+                    # Prepare the list of objects to delete (recursively if necessary)
+                    delete_object_list = map(
+                        lambda x: DeleteObject(x.object_name),
+                        client.list_objects(
+                            settings.S3_BUCKET_NAME, image_dir, recursive=True
+                        ),
+                    )
+
+                    # Remove the objects (images)
+                    errors = client.remove_objects(
+                        settings.S3_BUCKET_NAME, delete_object_list
+                    )
+
+                    # Handle deletion errors, if any
+                    for error in errors:
+                        log.error("Error occurred when deleting object", error)
+                        raise HTTPException(
+                            status_code=HTTPStatus.BAD_REQUEST,
+                            detail=f"Failed to delete existing image: {error}",
+                        )
+
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=HTTPStatus.BAD_REQUEST,
+                        detail=f"Failed to delete existing image. {e}",
+                    )
+
+            # Generate a new pre-signed URL for the image upload
             url = client.get_presigned_url(
                 "PUT",
                 settings.S3_BUCKET_NAME,
@@ -323,6 +358,7 @@ async def generate_presigned_url(
             urls.append({"image_name": image, "url": url})
 
         return urls
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -397,17 +433,6 @@ async def process_imagery(
     db: Annotated[Connection, Depends(database.get_db)],
 ):
     user_id = user_data.id
-    # TODO: Update task state to reflect completion of image uploads.
-    await task_logic.update_task_state(
-        db,
-        project.id,
-        task_id,
-        user_id,
-        "Task images upload completed.",
-        State.LOCKED_FOR_MAPPING,
-        State.IMAGE_UPLOADED,
-        timestamp(),
-    )
     background_tasks.add_task(
         project_logic.process_drone_images, project.id, task_id, user_id, db
     )
@@ -445,7 +470,10 @@ async def get_assets_info(
 
         return results
     else:
-        return project_logic.get_project_info_from_s3(project.id, task_id)
+        current_state = await task_logic.get_task_state(db, project.id, task_id)
+        project_info = project_logic.get_project_info_from_s3(project.id, task_id)
+        project_info.state = current_state.get("state")
+        return project_info
 
 
 @router.post(
@@ -472,6 +500,7 @@ async def odm_webhook(
 
     task_id = payload.get("uuid")
     status = payload.get("status")
+
     if not task_id or not status:
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
@@ -482,22 +511,48 @@ async def odm_webhook(
     if status["code"] == 40:
         log.info(f"Task ID: {task_id}, Status: going for download......")
 
-        # Call function to download assets from ODM and upload to S3
-        background_tasks.add_task(
-            image_processing.download_and_upload_assets_from_odm_to_s3,
-            db,
-            settings.NODE_ODM_URL,
-            task_id,
-            dtm_project_id,
-            dtm_task_id,
-            dtm_user_id,
-            State.IMAGE_UPLOADED,
-            "Task completed.",
-        )
+        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
+        current_state_value = State[current_state.get("state")]
+        match current_state_value:
+            case State.IMAGE_UPLOADED:
+                log.info(
+                    f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
+                )
+                # Call function to download assets from ODM and upload to S3
+                background_tasks.add_task(
+                    image_processing.download_and_upload_assets_from_odm_to_s3,
+                    settings.NODE_ODM_URL,
+                    task_id,
+                    dtm_project_id,
+                    dtm_task_id,
+                    dtm_user_id,
+                    State.IMAGE_UPLOADED,
+                    "Task completed.",
+                )
+
+            case State.IMAGE_PROCESSING_FAILED:
+                log.warning(
+                    f"Task ID: {task_id}, Status: previously failed, updating to IMAGE_UPLOADED"
+                )
+                # Call function to download assets from ODM and upload to S3
+                background_tasks.add_task(
+                    image_processing.download_and_upload_assets_from_odm_to_s3,
+                    settings.NODE_ODM_URL,
+                    task_id,
+                    dtm_project_id,
+                    dtm_task_id,
+                    dtm_user_id,
+                    State.IMAGE_UPLOADED,
+                    "Task completed.",
+                )
+
+            case _:
+                log.info(
+                    f"Task ID: {task_id}, Status: updating to IMAGE_UPLOADED from {current_state}"
+                )
+
     elif status["code"] == 30:
-        current_state = await task_logic.get_current_state(
-            db, dtm_project_id, dtm_task_id
-        )
+        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
         # If the current state is not already IMAGE_PROCESSING_FAILED, update it
         if current_state != State.IMAGE_PROCESSING_FAILED:
             await task_logic.update_task_state(
@@ -513,7 +568,6 @@ async def odm_webhook(
 
             background_tasks.add_task(
                 image_processing.download_and_upload_assets_from_odm_to_s3,
-                db,
                 settings.NODE_ODM_URL,
                 task_id,
                 dtm_project_id,

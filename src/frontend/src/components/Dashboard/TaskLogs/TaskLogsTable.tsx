@@ -1,3 +1,4 @@
+import { formatString } from '@Utils/index';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,7 +20,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
               Project Name
             </td>
             <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
-              Total task area
+              Total task area in km²
             </td>
             {/* <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Est.flight time
@@ -47,7 +48,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
               <td className="naxatw-px-2 naxatw-py-1">
                 {format(new Date(task.created_at), 'yyyy-MM-dd')}
               </td>
-              <td className="naxatw-px-2">{task.state}</td>
+              <td className="naxatw-px-2">{formatString(task.state)}</td>
               <td className="naxatw-flex naxatw-items-center naxatw-px-2">
                 <div
                   className="naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg hover:naxatw-bg-gray-200"

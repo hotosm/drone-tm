@@ -168,14 +168,7 @@ class UserTasksStatsOut(BaseModel):
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
                     task_events.updated_at,
-                    CASE
-                        WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                        WHEN task_events.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED') THEN 'ongoing'
-                        WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
-                        WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                        WHEN task_events.state = 'IMAGE_PROCESSING_FAILED' THEN 'task failed'
-                        ELSE ''
-                    END AS state
+                    task_events.state
                 FROM
                     task_events
                 LEFT JOIN
