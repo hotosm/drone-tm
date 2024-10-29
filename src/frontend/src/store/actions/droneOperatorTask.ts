@@ -12,4 +12,5 @@ export const {
   setFiles,
   setSelectedTakeOffPointOption,
   setSelectedTakeOffPoint,
+  setUploadedImagesType,
 } = droneOperatorTaskSlice.actions;
