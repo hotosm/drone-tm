@@ -76,7 +76,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       }
     },
     onError: (err: any) => {
-      toast.error(err.message);
+      toast.error(err?.response?.data?.detail || err?.message || '');
     },
   });
 
@@ -90,7 +90,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       toast.success('Task Unlocked Successfully');
     },
     onError: (err: any) => {
-      toast.error(err.message);
+      toast.error(err?.response?.data?.detail || err?.message || '');
     },
   });
 

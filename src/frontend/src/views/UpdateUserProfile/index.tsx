@@ -1,3 +1,6 @@
+import { useDispatch } from 'react-redux';
+import { setCommonState } from '@Store/actions/common';
+import { useTypedSelector } from '@Store/hooks';
 import Tab from '@Components/common/Tabs';
 import BasicDetails from '@Components/UpdateUserDetails/BasicDetails.tsx';
 import Header from '@Components/UpdateUserDetails/Header';
@@ -6,10 +9,7 @@ import OtherDetails from '@Components/UpdateUserDetails/OtherDetails';
 import Password from '@Components/UpdateUserDetails/Password';
 import { tabOptions } from '@Constants/index';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
-import { setCommonState } from '@Store/actions/common';
-import { useTypedSelector } from '@Store/hooks';
-import { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useGetUserDetailsQuery } from '@Api/projects';
 
 const getActiveFormContent = (activeTab: number, userType: string) => {
   switch (activeTab) {
@@ -32,14 +32,11 @@ const UpdateUserProfile = () => {
   const dispatch = useDispatch();
   const { width } = useWindowDimensions();
 
+  useGetUserDetailsQuery();
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
   const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
-
-  useEffect(() => {
-    return () => {};
-  }, []);
 
   return (
     <div className="main-content naxatw-w-full naxatw-flex-col naxatw-gap-3 md:naxatw-bg-gray-50">
