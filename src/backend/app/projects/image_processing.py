@@ -6,6 +6,7 @@ from pathlib import Path
 from app.tasks import task_logic
 from app.models.enums import State
 from app.utils import timestamp
+from app.db import database
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
@@ -13,7 +14,6 @@ from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
 from asgiref.sync import async_to_sync
 from app.config import settings
-from app.db import database
 
 
 class DroneImageProcessor:
@@ -199,6 +199,8 @@ async def download_and_upload_assets_from_odm_to_s3(
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
     user_id: str,
+    current_state: State,
+    comment: str,
 ):
     """
     Downloads results from ODM and uploads them to S3 (Minio).
@@ -210,6 +212,7 @@ async def download_and_upload_assets_from_odm_to_s3(
 
     """
     log.info(f"Starting download for task {task_id}")
+
     # Replace with actual ODM node details and URL
     node = Node.from_url(node_odm_url)
 
@@ -241,8 +244,8 @@ async def download_and_upload_assets_from_odm_to_s3(
                 project_id=dtm_project_id,
                 task_id=dtm_task_id,
                 user_id=user_id,
-                comment="Task completed.",
-                initial_state=State.IMAGE_UPLOADED,
+                comment=comment,
+                initial_state=current_state,
                 final_state=State.IMAGE_PROCESSED,
                 updated_at=timestamp(),
             )

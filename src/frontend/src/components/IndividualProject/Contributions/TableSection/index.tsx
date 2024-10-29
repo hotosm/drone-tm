@@ -2,6 +2,7 @@ import { useGetAllAssetsUrlQuery } from '@Api/projects';
 import DataTable from '@Components/common/DataTable';
 import Icon from '@Components/common/Icon';
 import { useTypedSelector } from '@Store/hooks';
+import { formatString } from '@Utils/index';
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -88,7 +89,7 @@ export default function TableSection({
         {
           user: curr?.name || '-',
           task_mapped: `Task# ${curr?.project_task_index}`,
-          task_state: curr?.state,
+          task_state: formatString(curr?.state),
           assets_url: selectedAssetsDetails?.assets_url,
           image_count: selectedAssetsDetails?.image_count,
           task_id: curr?.id,
