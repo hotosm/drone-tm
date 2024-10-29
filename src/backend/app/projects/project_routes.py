@@ -560,7 +560,7 @@ async def get_orthophoto_tile(
 
             except TileOutsideBounds:
                 raise HTTPException(
-                    status_code=400, detail="Tile is outside the bounds of the image."
+                    status_code=200, detail="Tile is outside the bounds of the image."
                 )
 
     except Exception as e:
