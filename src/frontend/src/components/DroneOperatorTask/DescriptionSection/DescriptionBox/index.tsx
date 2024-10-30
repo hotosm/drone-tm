@@ -7,7 +7,7 @@ import {
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postProcessImagery } from '@Services/tasks';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
@@ -15,6 +15,7 @@ import { Label } from '@Components/common/FormUI';
 import SwitchTab from '@Components/common/SwitchTab';
 import { setUploadedImagesType } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
+import { postTaskStatus } from '@Services/project';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
@@ -22,6 +23,7 @@ import UploadsBox from '../UploadsBox';
 
 const DescriptionBox = () => {
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const [flyable, setFlyable] = useState('yes');
   const { taskId, projectId } = useParams();
   const uploadedImageType = useTypedSelector(
@@ -40,9 +42,22 @@ const DescriptionBox = () => {
   const { data: taskAssetsInformation }: Record<string, any> =
     useGetTaskAssetsInfo(projectId as string, taskId as string);
 
+  const { mutate: updateStatus } = useMutation<any, any, any, unknown>({
+    mutationFn: postTaskStatus,
+    onError: (err: any) => {
+      toast.error(err.message);
+    },
+  });
+
   const { mutate: reStartImageryProcess } = useMutation({
     mutationFn: () => postProcessImagery(projectId as string, taskId as string),
     onSuccess: () => {
+      updateStatus({
+        projectId,
+        taskId,
+        data: { event: 'image_upload', updated_at: new Date().toISOString() },
+      });
+      queryClient.invalidateQueries(['task-assets-info']);
       toast.success('Image processing re-started');
     },
   });
