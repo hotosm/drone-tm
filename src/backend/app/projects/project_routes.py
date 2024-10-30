@@ -587,7 +587,7 @@ async def odm_webhook(
     tags=["Image Processing"],
 )
 async def get_orthophoto_tile(
-    user_data: Annotated[AuthUser, Depends(login_required)],
+    # user_data: Annotated[AuthUser, Depends(login_required)],
     project_id: str,
     task_id: str,
     z: int,
@@ -613,6 +613,7 @@ async def get_orthophoto_tile(
                 return Response(content=tile, media_type="image/png")
 
             except TileOutsideBounds:
+                return []
                 raise HTTPException(
                     status_code=200, detail="Tile is outside the bounds of the image."
                 )
