@@ -102,7 +102,8 @@ class DroneImageProcessor:
         :return: The created task object.
         """
         opts = self.options_list_to_dict(options)
-
+        # FIXME: take this from the function above
+        opts = {"dsm": True}
         task = self.node.create_task(
             images, opts, name, progress_callback, webhook=webhook
         )
