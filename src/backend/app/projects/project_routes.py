@@ -313,20 +313,17 @@ async def generate_presigned_url(
 
         # Process each image in the request
         for image in data.image_name:
-            # Construct the image path
-            image_path = (
-                f"projects/{data.project_id}/{data.task_id}/images/"
-                if replace_existing
-                else f"projects/{data.project_id}/{data.task_id}/images/{image}"
-            )
+            image_path = f"projects/{data.project_id}/{data.task_id}/images/{image}"
+
             # If replace_existing is True, delete the image first
             if replace_existing:
+                image_dir = f"projects/{data.project_id}/{data.task_id}/images/"
                 try:
                     # Prepare the list of objects to delete (recursively if necessary)
                     delete_object_list = map(
                         lambda x: DeleteObject(x.object_name),
                         client.list_objects(
-                            settings.S3_BUCKET_NAME, image_path, recursive=True
+                            settings.S3_BUCKET_NAME, image_dir, recursive=True
                         ),
                     )
 
@@ -343,22 +340,6 @@ async def generate_presigned_url(
                             detail=f"Failed to delete existing image: {error}",
                         )
 
-                    # # Update task as images uploaded
-                    # pool = await database.get_db_connection_pool()
-                    # current_task_state = await task_logic.get_task_state(
-                    #     conn, data.project_id, data.task_id
-                    # )
-                    # async with pool.connection() as conn:
-                    #     await task_logic.update_task_state(
-                    #         conn,
-                    #         data.project_id,
-                    #         data.task_id,
-                    #         data.user_id,
-                    #         "Image re-upload",
-                    #         current_task_state,
-                    #         final_state=State.IMAGE_UPLOADED,
-                    #         updated_at=timestamp(),
-                    #     )
                 except Exception as e:
                     raise HTTPException(
                         status_code=HTTPStatus.BAD_REQUEST,
