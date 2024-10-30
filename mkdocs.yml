@@ -74,6 +74,8 @@ nav:
       - Code of Conduct: https://docs.hotosm.org/code-of-conduct
       - FAQ: about/faq.md
       - The Team: about/team.md
+  - User Manuals:
+      - Flightplans: manuals/generating-flightplans.md
   - Developer Guide:
       - Setup: dev/setup.md
   - Timeline: timeline.md
