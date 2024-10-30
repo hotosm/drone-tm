@@ -1,6 +1,7 @@
 import ExitCreateProjectModal from '@Components/CreateProject/ExitCreateProjectModal';
 import ImageBoxPopOver from '@Components/DroneOperatorTask/DescriptionSection/PopoverBox/ImageBox';
 import ChooseTakeOffPointOptions from '@Components/DroneOperatorTask/ModalContent/ChooseTakeOffPointOptions';
+import TaskOrthophotoPreview from '@Components/DroneOperatorTask/ModalContent/TaskOrthophotoPreview';
 import { ReactElement } from 'react';
 
 export type ModalContentsType =
@@ -8,6 +9,7 @@ export type ModalContentsType =
   | 'quit-create-project'
   | 'raw-image-preview'
   | 'update-flight-take-off-point'
+  | 'task-ortho-photo-preview'
   | null;
 export type PromptDialogContentsType = 'delete-layer' | null;
 
@@ -36,6 +38,13 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
         className: '!naxatw-w-[95vw] md:!naxatw-w-[60vw]',
         title: 'Upload Raw Image',
         content: <ImageBoxPopOver />,
+      };
+
+    case 'task-ortho-photo-preview':
+      return {
+        className: '!naxatw-w-[95vw] md:!naxatw-w-[60vw]',
+        title: 'Orhtophoto Preview',
+        content: <TaskOrthophotoPreview />,
       };
     case 'update-flight-take-off-point':
       return {
