@@ -75,7 +75,7 @@ nav:
       - FAQ: about/faq.md
       - The Team: about/team.md
   - User Manuals:
-      - Flightplans: manuals/generating-flightplans.md
+      - Flightplans: manuals/generate-flightplans.md
   - Developer Guide:
       - Setup: dev/setup.md
   - Timeline: timeline.md
