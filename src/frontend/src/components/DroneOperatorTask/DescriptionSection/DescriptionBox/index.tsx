@@ -13,7 +13,10 @@ import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import { Label } from '@Components/common/FormUI';
 import SwitchTab from '@Components/common/SwitchTab';
-import { setUploadedImagesType } from '@Store/actions/droneOperatorTask';
+import {
+  setSelectedTaskDetailToViewOrthophoto,
+  setUploadedImagesType,
+} from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
 import { toggleModal } from '@Store/actions/common';
 import DescriptionBoxComponent from './DescriptionComponent';
@@ -53,6 +56,14 @@ const DescriptionBox = () => {
       enabled: !!taskWayPoints,
       select: (data: any) => {
         const { data: taskData } = data;
+
+        dispatch(
+          dispatch(
+            setSelectedTaskDetailToViewOrthophoto({
+              outline: taskData?.outline,
+            }),
+          ),
+        );
 
         return [
           {
