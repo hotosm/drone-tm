@@ -10,6 +10,10 @@ from geojson import Feature, FeatureCollection, GeoJSON
 from shapely.geometry import Polygon, shape
 from shapely.geometry.geo import mapping
 from shapely.ops import unary_union
+from pyproj import Transformer
+from shapely.ops import transform as shapely_transform
+###
+
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -119,27 +123,36 @@ class TaskSplitter(object):
         return shape(features[0].get("geometry"))
 
     def splitBySquare(self, meters: int) -> FeatureCollection:
-        xmin, ymin, xmax, ymax = self.aoi.bounds
+        # Set up transformations: WGS84 (EPSG:4326) <-> Web Mercator (EPSG:3857)
+        transformer_to_mercator = Transformer.from_crs(
+            "EPSG:4326", "EPSG:3857", always_xy=True
+        )
+        transformer_to_wgs84 = Transformer.from_crs(
+            "EPSG:3857", "EPSG:4326", always_xy=True
+        )
 
-        meter = 0.0000114
-        length = float(meters) * meter
-        width = float(meters) * meter
+        # Transform AOI to Web Mercator for accurate grid calculations in meters
+        aoi_mercator = shapely_transform(transformer_to_mercator.transform, self.aoi)
+        xmin, ymin, xmax, ymax = aoi_mercator.bounds
 
-        area_threshold = (length * width) / 3
+        # Generate grid columns and rows based on AOI bounds and specified square length in meters
+        cols = np.arange(xmin, xmax + meters, meters)
+        rows = np.arange(ymin, ymax + meters, meters)
 
-        # Generate grid columns and rows based on AOI bounds
-        cols = np.arange(xmin, xmax + width, width)
-        rows = np.arange(ymin, ymax + length, length)
         polygons = []
         small_polygons = []
+
+        area_threshold = (meters**2) / 3
+
+        # Create a grid of square cells in Web Mercator
         for x in cols[:-1]:
             for y in rows[:-1]:
-                # Create a square grid polygon
                 grid_polygon = Polygon(
-                    [(x, y), (x + width, y), (x + width, y + length), (x, y + length)]
+                    [(x, y), (x + meters, y), (x + meters, y + meters), (x, y + meters)]
                 )
+
                 # Clip the grid polygon to fit within the AOI
-                clipped_polygon = grid_polygon.intersection(self.aoi)
+                clipped_polygon = grid_polygon.intersection(aoi_mercator)
                 if not clipped_polygon.is_empty:
                     if clipped_polygon.area < area_threshold:
                         small_polygons.append(clipped_polygon)
@@ -186,8 +199,14 @@ class TaskSplitter(object):
                     polygons.append(small_polygon)
                     break
 
+        # Transform all polygons back to WGS84 for final output
+        polygons_wgs84 = [
+            shapely_transform(transformer_to_wgs84.transform, p) for p in polygons
+        ]
+
+        # Convert polygons to GeoJSON FeatureCollection
         merged_geojson = FeatureCollection(
-            [Feature(geometry=mapping(p)) for p in polygons]
+            [Feature(geometry=mapping(p)) for p in polygons_wgs84]
         )
 
         # Store the result in the instance variable and return it
