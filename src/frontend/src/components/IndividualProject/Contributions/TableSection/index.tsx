@@ -46,7 +46,12 @@ const contributionsDataColumns = [
       };
 
       const handleViewResult = () => {
-        dispatch(setSelectedTaskDetailToViewOrthophoto(rowData?.outline));
+        dispatch(
+          setSelectedTaskDetailToViewOrthophoto({
+            outline: rowData?.outline,
+            taskId: rowData?.task_id,
+          }),
+        );
         dispatch(toggleModal('task-ortho-photo-preview'));
       };
 

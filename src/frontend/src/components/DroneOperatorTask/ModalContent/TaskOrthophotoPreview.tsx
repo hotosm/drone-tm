@@ -11,12 +11,15 @@ const { BASE_URL } = process.env;
 
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
+  const taskOutline = useTypedSelector(
+    state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto.outline,
+  );
+  const taskIdFromRedux = useTypedSelector(
+    state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
+  );
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
-  const taskId = pathname?.[4];
-  const taskOutline = useTypedSelector(
-    state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto,
-  );
+  const taskId = pathname?.[4] || taskIdFromRedux;
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
@@ -50,6 +53,7 @@ const TaskOrthophotoPreview = () => {
   useEffect(() => {
     if (!map || !isMapLoaded || !projectId || !taskId || !orhtophotoSource)
       return;
+
     map.addSource('ortho-photo', orhtophotoSource.source);
     map.addLayer(orhtophotoSource.layer);
   }, [map, isMapLoaded, projectId, taskId, orhtophotoSource]);
