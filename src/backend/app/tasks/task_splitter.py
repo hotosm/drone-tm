@@ -12,7 +12,6 @@ from shapely.geometry.geo import mapping
 from shapely.ops import unary_union
 from pyproj import Transformer
 from shapely.ops import transform as shapely_transform
-###
 
 
 # Instantiate logger
