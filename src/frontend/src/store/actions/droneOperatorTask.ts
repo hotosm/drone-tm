@@ -13,4 +13,5 @@ export const {
   setSelectedTakeOffPointOption,
   setSelectedTakeOffPoint,
   setUploadedImagesType,
+  setSelectedTaskDetailToViewOrthophoto,
 } = droneOperatorTaskSlice.actions;

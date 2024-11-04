@@ -13,8 +13,12 @@ import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import { Label } from '@Components/common/FormUI';
 import SwitchTab from '@Components/common/SwitchTab';
-import { setUploadedImagesType } from '@Store/actions/droneOperatorTask';
+import {
+  setSelectedTaskDetailToViewOrthophoto,
+  setUploadedImagesType,
+} from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
+import { toggleModal } from '@Store/actions/common';
 import { postTaskStatus } from '@Services/project';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
@@ -67,6 +71,14 @@ const DescriptionBox = () => {
       enabled: !!taskWayPoints,
       select: (data: any) => {
         const { data: taskData } = data;
+
+        dispatch(
+          dispatch(
+            setSelectedTaskDetailToViewOrthophoto({
+              outline: taskData?.outline,
+            }),
+          ),
+        );
 
         return [
           {
@@ -213,7 +225,18 @@ const DescriptionBox = () => {
           />
 
           {taskAssetsInformation?.assets_url && (
-            <div className="">
+            <div className="naxatw-flex naxatw-gap-1">
+              <Button
+                variant="outline"
+                className="naxatw-border-red naxatw-text-red"
+                leftIcon="visibility"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() =>
+                  dispatch(toggleModal('task-ortho-photo-preview'))
+                }
+              >
+                View Orthophoto
+              </Button>
               <Button
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"

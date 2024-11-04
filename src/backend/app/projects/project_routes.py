@@ -27,13 +27,15 @@ from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.db import database
 from app.models.enums import HTTPStatus, State
-from app.s3 import s3_client
+from app.s3 import get_cog_path, s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
 from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
+from rio_tiler.io import Reader
+from rio_tiler.errors import TileOutsideBounds
 from minio.deleteobjects import DeleteObject
 
 
@@ -578,3 +580,43 @@ async def odm_webhook(
     log.info(f"Task ID: {task_id}, Status: Webhook received")
 
     return {"message": "Webhook received", "task_id": task_id}
+
+
+@router.get(
+    "/orthophoto/{z}/{x}/{y}.png",
+    tags=["Image Processing"],
+)
+async def get_orthophoto_tile(
+    # user_data: Annotated[AuthUser, Depends(login_required)],
+    project_id: str,
+    task_id: str,
+    z: int,
+    x: int,
+    y: int,
+):
+    """
+    Endpoint to serve COG tiles as PNG images.
+
+    :param project_id: ID of the project.
+    :param task_id: ID of the task.
+    :param z: Zoom level.
+    :param x: Tile X coordinate.
+    :param y: Tile Y coordinate.
+    :return: PNG image tile.
+    """
+    try:
+        cog_path = get_cog_path("dtm-data", project_id, task_id)
+        with Reader(cog_path) as tiff:
+            try:
+                img = tiff.tile(int(x), int(y), int(z), tilesize=256, expression=None)
+                tile = img.render()
+                return Response(content=tile, media_type="image/png")
+
+            except TileOutsideBounds:
+                return []
+                raise HTTPException(
+                    status_code=200, detail="Tile is outside the bounds of the image."
+                )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating tile: {str(e)}")
