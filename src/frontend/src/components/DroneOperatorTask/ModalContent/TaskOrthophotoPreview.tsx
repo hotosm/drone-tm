@@ -12,7 +12,8 @@ const { BASE_URL } = process.env;
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
   const taskOutline = useTypedSelector(
-    state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto.outline,
+    state =>
+      state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.outline,
   );
   const taskIdFromRedux = useTypedSelector(
     state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
@@ -37,7 +38,7 @@ const TaskOrthophotoPreview = () => {
         tiles: [
           `${BASE_URL}/projects/orthophoto/{z}/{x}/{y}.png?project_id=${projectId}&task_id=${taskId}`,
         ],
-        maxZoom: 22,
+        tileSize: 256,
       },
       layer: {
         id: 'ortho-photo',
