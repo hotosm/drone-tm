@@ -34,6 +34,26 @@ async def read_task(
                 """
                 SELECT
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
+
+                    -- Construct the outline as a GeoJSON Feature
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'geometry', jsonb_build_object(
+                            'type', ST_GeometryType(tasks.outline)::text,  -- Get the type of the geometry (e.g., Polygon, MultiPolygon)
+                            'coordinates', ST_AsGeoJSON(tasks.outline, 8)::jsonb->'coordinates'  -- Get the geometry coordinates
+                        ),
+                        'properties', jsonb_build_object(
+                            'id', tasks.id,
+                            'bbox', jsonb_build_array(  -- Build the bounding box
+                                ST_XMin(ST_Envelope(tasks.outline)),
+                                ST_YMin(ST_Envelope(tasks.outline)),
+                                ST_XMax(ST_Envelope(tasks.outline)),
+                                ST_YMax(ST_Envelope(tasks.outline))
+                            )
+                        ),
+                        'id', tasks.id
+                    ) AS outline,
+
                     te.created_at,
                     te.updated_at,
                     te.state,
@@ -43,6 +63,7 @@ async def read_task(
                     projects.side_overlap AS side_overlap,
                     projects.gsd_cm_px AS gsd_cm_px,
                     projects.gimble_angles_degrees AS gimble_angles_degrees
+
                 FROM (
                     SELECT DISTINCT ON (te.task_id)
                         te.task_id,
