@@ -48,6 +48,9 @@ const DescriptionBox = () => {
 
   const { mutate: updateStatus } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['task-assets-info']);
+    },
     onError: (err: any) => {
       toast.error(err.message);
     },
@@ -61,7 +64,6 @@ const DescriptionBox = () => {
         taskId,
         data: { event: 'image_upload', updated_at: new Date().toISOString() },
       });
-      queryClient.invalidateQueries(['task-assets-info']);
       toast.success('Image processing re-started');
     },
   });
