@@ -227,7 +227,7 @@ def get_cog_path(bucket_name: str, project_id: str, task_id: str):
         str: The presigned URL to access the COG file.
     """
     # Construct the S3 path for the COG file
-    s3_path = f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
+    s3_path = f"dtm-data/projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
 
     # Get the presigned URL
     return get_presigned_url(bucket_name, s3_path)
