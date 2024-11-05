@@ -52,19 +52,21 @@ const TaskOrthophotoPreview = () => {
   );
 
   useEffect(() => {
-    if (!map || !isMapLoaded || !projectId || !taskId || !orhtophotoSource)
+    if (
+      !map ||
+      !isMapLoaded ||
+      !projectId ||
+      !taskId ||
+      !orhtophotoSource ||
+      !taskOutline
+    )
       return;
+    const { bbox } = taskOutline.properties;
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 50, duration: 500 });
 
     map.addSource('ortho-photo', orhtophotoSource.source);
     map.addLayer(orhtophotoSource.layer);
-  }, [map, isMapLoaded, projectId, taskId, orhtophotoSource]);
-
-  // zoom to layer in the project area
-  useEffect(() => {
-    if (!map || !isMapLoaded || !taskOutline) return;
-    const { bbox } = taskOutline.properties;
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 50, duration: 500 });
-  }, [map, isMapLoaded, taskOutline]);
+  }, [map, isMapLoaded, projectId, taskId, orhtophotoSource, taskOutline]);
 
   useEffect(() => {
     return () => {
