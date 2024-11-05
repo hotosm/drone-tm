@@ -123,7 +123,9 @@ async def get_task_waypoint(
         dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
         try:
             get_file_from_bucket(
-                settings.S3_BUCKET_NAME, f"projects/{project_id}/dem.tif", dem_path
+                settings.S3_BUCKET_NAME,
+                f"{settings.S3_PATH_PREFIX}/projects/{project_id}/dem.tif",
+                dem_path,
             )
             # TODO: Do this with inmemory data
             outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"

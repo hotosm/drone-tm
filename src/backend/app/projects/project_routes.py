@@ -315,11 +315,11 @@ async def generate_presigned_url(
 
         # Process each image in the request
         for image in data.image_name:
-            image_path = f"projects/{data.project_id}/{data.task_id}/images/{image}"
+            image_path = f"{settings.S3_PATH_PREFIX}/projects/{data.project_id}/{data.task_id}/images/{image}"
 
             # If replace_existing is True, delete the image first
             if replace_existing:
-                image_dir = f"projects/{data.project_id}/{data.task_id}/images/"
+                image_dir = f"{settings.S3_PATH_PREFIX}/projects/{data.project_id}/{data.task_id}/images/"
                 try:
                     # Prepare the list of objects to delete (recursively if necessary)
                     delete_object_list = map(
@@ -605,7 +605,7 @@ async def get_orthophoto_tile(
     :return: PNG image tile.
     """
     try:
-        cog_path = get_cog_path("dtm-data", project_id, task_id)
+        cog_path = get_cog_path(settings.S3_BUCKET_NAME, project_id, task_id)
         with Reader(cog_path) as tiff:
             try:
                 img = tiff.tile(int(x), int(y), int(z), tilesize=256, expression=None)
