@@ -34,9 +34,9 @@ from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
 from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
-from rio_tiler.io import Reader
 from rio_tiler.errors import TileOutsideBounds
 from minio.deleteobjects import DeleteObject
+import asyncio
 
 
 router = APIRouter(
@@ -591,7 +591,6 @@ async def odm_webhook(
     tags=["Image Processing"],
 )
 async def get_orthophoto_tile(
-    # user_data: Annotated[AuthUser, Depends(login_required)],
     project_id: str,
     task_id: str,
     z: int,
@@ -599,28 +598,19 @@ async def get_orthophoto_tile(
     y: int,
 ):
     """
-    Endpoint to serve COG tiles as PNG images.
-
-    :param project_id: ID of the project.
-    :param task_id: ID of the task.
-    :param z: Zoom level.
-    :param x: Tile X coordinate.
-    :param y: Tile Y coordinate.
-    :return: PNG image tile.
+    Endpoint to serve COG tiles as PNG images with safer and more efficient handling.
     """
+    cog_path = get_cog_path(settings.S3_BUCKET_NAME, project_id, task_id)
+
     try:
-        cog_path = get_cog_path(settings.S3_BUCKET_NAME, project_id, task_id)
-        with Reader(cog_path) as tiff:
-            try:
-                img = tiff.tile(int(x), int(y), int(z), tilesize=256, expression=None)
-                tile = img.render()
-                return Response(content=tile, media_type="image/png")
+        # Use asyncio.to_thread to move blocking raster file I/O to a separate thread
+        tile = await asyncio.to_thread(
+            project_logic.read_tile_from_cog, cog_path, x, y, z
+        )
+        return Response(content=tile, media_type="image/png")
 
-            except TileOutsideBounds:
-                return []
-                raise HTTPException(
-                    status_code=200, detail="Tile is outside the bounds of the image."
-                )
-
+    except TileOutsideBounds:
+        # Return a 204 No Content if tile is outside the bounds
+        return Response(status_code=204, content="")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating tile: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
