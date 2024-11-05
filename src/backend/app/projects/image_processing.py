@@ -63,7 +63,7 @@ class DroneImageProcessor:
         :param local_dir: Local directory to save the images.
         :return: List of local image file paths.
         """
-        prefix = f"{settings.S3_PATH_PREFIX}/projects/{self.project_id}/{self.task_id}"
+        prefix = f"dtm-data/projects/{self.project_id}/{self.task_id}"
 
         objects = list_objects_from_bucket(bucket_name, prefix)
 
@@ -167,7 +167,9 @@ class DroneImageProcessor:
                 )
 
                 # Upload the results into s3
-                s3_path = f"{settings.S3_PATH_PREFIX}/projects/{self.project_id}/{self.task_id}/assets.zip"
+                s3_path = (
+                    f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
+                )
                 add_file_to_bucket(bucket_name, path_to_download, s3_path)
                 # now update the task as completed in Db.
                 # Call the async function using asyncio
@@ -228,7 +230,7 @@ async def download_and_upload_assets_from_odm_to_s3(
         assets_path = task.download_zip(output_file_path)
 
         # Upload the results into S3 (Minio)
-        s3_path = f"{settings.S3_PATH_PREFIX}/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+        s3_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
         log.info(f"Uploading {output_file_path} to S3 path: {s3_path}")
         add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
@@ -249,7 +251,7 @@ async def download_and_upload_assets_from_odm_to_s3(
         log.info(f"Orthophoto found at {orthophoto_path}")
 
         # Upload the orthophoto to S3
-        s3_ortho_path = f"{settings.S3_PATH_PREFIX}/projects/{dtm_project_id}/{dtm_task_id}/orthophoto/odm_orthophoto.tif"
+        s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/orthophoto/odm_orthophoto.tif"
         log.info(f"Uploading orthophoto to S3 path: {s3_ortho_path}")
         add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 

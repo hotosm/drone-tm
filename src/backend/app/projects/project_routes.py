@@ -315,11 +315,15 @@ async def generate_presigned_url(
 
         # Process each image in the request
         for image in data.image_name:
-            image_path = f"{settings.S3_PATH_PREFIX}/projects/{data.project_id}/{data.task_id}/images/{image}"
+            image_path = (
+                f"dtm-data/projects/{data.project_id}/{data.task_id}/images/{image}"
+            )
 
             # If replace_existing is True, delete the image first
             if replace_existing:
-                image_dir = f"{settings.S3_PATH_PREFIX}/projects/{data.project_id}/{data.task_id}/images/"
+                image_dir = (
+                    f"dtm-data/projects/{data.project_id}/{data.task_id}/images/"
+                )
                 try:
                     # Prepare the list of objects to delete (recursively if necessary)
                     delete_object_list = map(

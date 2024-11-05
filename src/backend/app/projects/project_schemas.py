@@ -542,9 +542,7 @@ class ProjectInfo(BaseModel):
         """Set image_url before rendering the model."""
         project_id = values.id
         if project_id:
-            image_dir = (
-                f"{settings.S3_PATH_PREFIX}/projects/{project_id}/map_screenshot.png"
-            )
+            image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
             values.image_url = get_presigned_url(settings.S3_BUCKET_NAME, image_dir, 5)
         return values
 

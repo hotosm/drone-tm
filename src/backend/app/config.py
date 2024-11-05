@@ -86,8 +86,7 @@ class Settings(BaseSettings):
     S3_ENDPOINT: str = "http://s3:9000"
     S3_ACCESS_KEY: Optional[str] = ""
     S3_SECRET_KEY: Optional[str] = ""
-    S3_BUCKET_NAME: str = "dronetm"
-    S3_PATH_PREFIX: str = "dtm-data"
+    S3_BUCKET_NAME: str = "dtm-data"
     S3_DOWNLOAD_ROOT: Optional[str] = None
 
     ALGORITHM: str = "HS256"
