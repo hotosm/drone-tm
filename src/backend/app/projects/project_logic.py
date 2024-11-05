@@ -20,6 +20,8 @@ from app.projects.image_processing import DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
 from psycopg.rows import dict_row
+from rio_tiler.io import Reader
+from rio_tiler.errors import TileOutsideBounds
 
 
 async def get_centroids(db: Connection):
@@ -69,7 +71,7 @@ async def upload_file_to_s3(
         str: The S3 URL for the uploaded file.
     """
     # Define the S3 file path
-    file_path = f"/projects/{project_id}/{file_name}"
+    file_path = f"dtm-data/projects/{project_id}/{file_name}"
 
     # Read the file bytes
     file_bytes = await file.read()
@@ -227,7 +229,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     """
     try:
         # Prefix for the images
-        images_prefix = f"projects/{project_id}/{task_id}/images/"
+        images_prefix = f"dtm-data/projects/{project_id}/{task_id}/images/"
 
         # List and count the images
         objects = list_objects_from_bucket(
@@ -241,7 +243,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
         # Generate a presigned URL for the assets ZIP file
         try:
             # Check if the object exists
-            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
+            assets_path = f"dtm-data/projects/{project_id}/{task_id}/assets.zip"
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL
@@ -269,3 +271,23 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     except Exception as e:
         log.exception(f"An error occurred while retrieving assets info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def read_tile_from_cog(cog_path: str, x: int, y: int, z: int) -> bytes:
+    """
+    Helper function to safely read a tile from a COG file.
+    This function is run in a separate thread.
+    """
+    try:
+        # Open the COG file safely and fetch the specified tile
+        with Reader(cog_path) as tiff:
+            img = tiff.tile(int(x), int(y), int(z), tilesize=256)
+            tile = img.render()  # Render the tile as a PNG byte array
+        return tile
+
+    except TileOutsideBounds:
+        # Reraise to handle in async function
+        raise
+    except Exception as e:
+        # Catch any unforeseen errors and reraise as needed
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
