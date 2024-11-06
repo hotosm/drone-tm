@@ -52,6 +52,12 @@ const TaskOrthophotoPreview = () => {
   );
 
   useEffect(() => {
+    if (!map || !isMapLoaded || !taskOutline) return;
+    const { bbox } = taskOutline.properties;
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 50, duration: 500 });
+  }, [map, isMapLoaded, taskOutline]);
+
+  useEffect(() => {
     if (
       !map ||
       !isMapLoaded ||
@@ -61,11 +67,46 @@ const TaskOrthophotoPreview = () => {
       !taskOutline
     )
       return;
-    const { bbox } = taskOutline.properties;
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 50, duration: 500 });
 
-    map.addSource('ortho-photo', orhtophotoSource.source);
-    map.addLayer(orhtophotoSource.layer);
+    // check if the map view intersects the bbox of task
+    function isInOrthophotoBoundsAndZoom() {
+      const bounds = map?.getBounds(); // Get the current map bounds (sw, ne)
+      const zoom = map?.getZoom();
+      if (!bounds || !zoom) return null;
+      const { bbox } = taskOutline.properties; // tasks bbox
+      return (
+        bounds.getWest() < bbox[2] &&
+        bounds.getEast() > bbox[0] &&
+        bounds.getNorth() > bbox[1] &&
+        bounds.getSouth() < bbox[3] &&
+        zoom > 12
+      );
+    }
+
+    function addOrthophotoLayerIfInBounds() {
+      if (!map || !orhtophotoSource) return;
+      if (isInOrthophotoBoundsAndZoom()) {
+        if (!map.getSource('ortho-photo')) {
+          map.addSource('ortho-photo', orhtophotoSource.source);
+          map.addLayer(orhtophotoSource.layer);
+        }
+      } else {
+        if (map.getLayer('ortho-photo')) {
+          map.removeLayer('ortho-photo');
+        }
+        if (map.getSource('ortho-photo')) {
+          map.removeSource('ortho-photo');
+        }
+      }
+    }
+
+    map.on('moveend', () => {
+      addOrthophotoLayerIfInBounds();
+    });
+
+    map.on('zoomend', () => {
+      addOrthophotoLayerIfInBounds();
+    });
   }, [map, isMapLoaded, projectId, taskId, orhtophotoSource, taskOutline]);
 
   useEffect(() => {
