@@ -257,9 +257,9 @@ async def download_and_upload_assets_from_odm_to_s3(
             f"Orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
         )
 
-        #NOTE: This function uses a separate database connection pool because it is called by an internal server
+        # NOTE: This function uses a separate database connection pool because it is called by an internal server
         # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
-        
+
         pool = await database.get_db_connection_pool()
         async with pool as pool_instance:
             async with pool_instance.connection() as conn:
@@ -273,10 +273,14 @@ async def download_and_upload_assets_from_odm_to_s3(
                     final_state=State.IMAGE_PROCESSED,
                     updated_at=timestamp(),
                 )
-                log.info(f"Task {dtm_task_id} state updated to IMAGE_PROCESSED in the database.")
-                    
+                log.info(
+                    f"Task {dtm_task_id} state updated to IMAGE_PROCESSED in the database."
+                )
+
     except Exception as e:
-        log.error(f"An error occurred in the download, upload, or status update steps for task {task_id}. Details: {e}")
+        log.error(
+            f"An error occurred in the download, upload, or status update steps for task {task_id}. Details: {e}"
+        )
 
     finally:
         if os.path.exists(output_file_path):

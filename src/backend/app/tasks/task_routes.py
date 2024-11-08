@@ -21,73 +21,14 @@ router = APIRouter(
 )
 
 
-@router.get("/{task_id}")
+@router.get("/{task_id}", response_model=task_schemas.TaskDetailsOut)
 async def read_task(
     task_id: uuid.UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: AuthUser = Depends(login_required),
 ):
     "Retrieve details of a specific task by its ID."
-    try:
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT
-                    ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
-
-                    -- Construct the outline as a GeoJSON Feature
-                    jsonb_build_object(
-                        'type', 'Feature',
-                        'geometry', jsonb_build_object(
-                            'type', ST_GeometryType(tasks.outline)::text,  -- Get the type of the geometry (e.g., Polygon, MultiPolygon)
-                            'coordinates', ST_AsGeoJSON(tasks.outline, 8)::jsonb->'coordinates'  -- Get the geometry coordinates
-                        ),
-                        'properties', jsonb_build_object(
-                            'id', tasks.id,
-                            'bbox', jsonb_build_array(  -- Build the bounding box
-                                ST_XMin(ST_Envelope(tasks.outline)),
-                                ST_YMin(ST_Envelope(tasks.outline)),
-                                ST_XMax(ST_Envelope(tasks.outline)),
-                                ST_YMax(ST_Envelope(tasks.outline))
-                            )
-                        ),
-                        'id', tasks.id
-                    ) AS outline,
-
-                    te.created_at,
-                    te.updated_at,
-                    te.state,
-                    projects.name AS project_name,
-                    tasks.project_task_index,
-                    projects.front_overlap AS front_overlap,
-                    projects.side_overlap AS side_overlap,
-                    projects.gsd_cm_px AS gsd_cm_px,
-                    projects.gimble_angles_degrees AS gimble_angles_degrees
-
-                FROM (
-                    SELECT DISTINCT ON (te.task_id)
-                        te.task_id,
-                        te.created_at,
-                        te.updated_at,
-                        te.state
-                    FROM task_events te
-                    WHERE te.task_id = %(task_id)s
-                    ORDER BY te.task_id, te.created_at DESC
-                ) AS te
-                JOIN tasks ON te.task_id = tasks.id
-                JOIN projects ON tasks.project_id = projects.id
-                WHERE te.task_id = %(task_id)s;
-                """,
-                {"task_id": task_id},
-            )
-            records = await cur.fetchone()
-            return records
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch task. {e}",
-        )
+    return await task_schemas.TaskDetailsOut.get_task_details(db, task_id)
 
 
 @router.get("/statistics/")
