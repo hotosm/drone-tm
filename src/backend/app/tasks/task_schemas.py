@@ -316,3 +316,10 @@ class TaskDetailsOut(BaseModel):
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                 detail=f"Failed to fetch task. {e}",
             )
+
+
+class TaskStats(BaseModel):
+    request_logs: int
+    ongoing_tasks: int
+    completed_tasks: int
+    unflyable_tasks: int

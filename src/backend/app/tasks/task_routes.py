@@ -3,7 +3,7 @@ from typing import Annotated
 from app.projects import project_deps, project_schemas
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State, UserRole
+from app.models.enums import EventType, State, UserRole
 from app.tasks import task_schemas, task_logic
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -11,7 +11,6 @@ from app.users import user_schemas
 from psycopg import Connection
 from app.db import database
 from app.utils import send_notification_email, render_email_template
-from psycopg.rows import dict_row
 from loguru import logger as log
 
 router = APIRouter(
@@ -21,7 +20,7 @@ router = APIRouter(
 )
 
 
-@router.get("/{task_id}", response_model=task_schemas.TaskDetailsOut)
+@router.get("/{task_id}")
 async def read_task(
     task_id: uuid.UUID,
     db: Annotated[Connection, Depends(database.get_db)],
@@ -37,47 +36,7 @@ async def get_task_stats(
     user_data: AuthUser = Depends(login_required),
 ):
     "Retrieve statistics related to tasks for the authenticated user."
-    user_id = user_data.id
-    try:
-        async with db.cursor(row_factory=dict_row) as cur:
-            raw_sql = """
-                SELECT
-                    COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
-                    COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
-
-                FROM (
-                    SELECT DISTINCT ON (te.task_id)
-                        te.task_id,
-                        te.state,
-                        te.created_at
-                    FROM task_events te
-                    WHERE
-                        (
-                        %(role)s = 'DRONE_PILOT'
-                        AND te.user_id = %(user_id)s
-                    )
-                        OR
-                        (%(role)s = 'PROJECT_CREATOR' AND te.project_id IN (
-                            SELECT p.id
-                            FROM projects p
-                            WHERE p.author_id = %(user_id)s
-                        ))
-                    ORDER BY te.task_id, te.created_at DESC
-                ) AS te;
-            """
-
-            await cur.execute(raw_sql, {"user_id": user_id, "role": user_data.role})
-            db_counts = await cur.fetchone()
-
-        return db_counts
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch task statistics. {e}",
-        )
+    return await task_logic.get_task_stats(db, user_data)
 
 
 @router.get("/", response_model=list[task_schemas.UserTasksStatsOut])

@@ -1,10 +1,57 @@
 import uuid
 import json
+from app.users.user_schemas import AuthUser
+from app.tasks.task_schemas import TaskStats
 from psycopg import Connection
 from app.models.enums import HTTPStatus, State
 from fastapi import HTTPException
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row, class_row
 from datetime import datetime
+
+
+async def get_task_stats(db: Connection, user_data: AuthUser):
+    try:
+        async with db.cursor(row_factory=class_row(TaskStats)) as cur:
+            raw_sql = """
+                SELECT
+                    COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+
+                FROM (
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.state,
+                        te.created_at
+                    FROM task_events te
+                    WHERE
+                        (
+                        %(role)s = 'DRONE_PILOT'
+                        AND te.user_id = %(user_id)s
+                    )
+                        OR
+                        (%(role)s = 'PROJECT_CREATOR' AND te.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.author_id = %(user_id)s
+                        ))
+                    ORDER BY te.task_id, te.created_at DESC
+                ) AS te;
+            """
+
+            await cur.execute(
+                raw_sql, {"user_id": user_data.id, "role": user_data.role}
+            )
+            db_counts = await cur.fetchone()
+
+        return db_counts
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch task statistics. {e}",
+        )
 
 
 async def update_take_off_point_in_db(
