@@ -254,7 +254,7 @@ const MapSection = ({ className }: { className?: string }) => {
             </>
           )}
 
-          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 lg:naxatw-right-3 lg:naxatw-top-3">
+          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
             <Button
               withLoader
               leftIcon="place"
@@ -269,8 +269,8 @@ const MapSection = ({ className }: { className?: string }) => {
               isLoading={isUpdatingTakeOffPoint}
             >
               {newTakeOffPoint
-                ? 'Save Starting Point'
-                : 'Change Starting Point'}
+                ? 'Save Take off Point'
+                : 'Change Take off Point'}
             </Button>
           </div>
 

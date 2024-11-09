@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+/* eslint-disable no-nested-ternary */
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import getBbox from '@turf/bbox';
-import centroid from '@turf/centroid';
 import { FeatureCollection } from 'geojson';
-import { useGetProjectsListQuery } from '@Api/projects';
-import { useTypedSelector } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
@@ -13,10 +11,11 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import VectorLayerWithCluster from './VectorLayerWithCluster';
 
-const ProjectsMapSection = () => {
-  const projectsFilterByOwner = useTypedSelector(
-    state => state.createproject.ProjectsFilterByOwner,
-  );
+const ProjectsMapSection = ({
+  projectCentroidList,
+}: {
+  projectCentroidList: Record<string, any>[];
+}) => {
   const [projectProperties, setProjectProperties] = useState<
     Record<string, any>
   >({});
@@ -30,41 +29,52 @@ const ProjectsMapSection = () => {
     },
     disableRotation: true,
   });
-  const { data: projectsList, isLoading }: Record<string, any> =
-    useGetProjectsListQuery(projectsFilterByOwner, {
-      select: (data: any) => {
-        // find all polygons centroid and set to geojson save to single geojson
-        const combinedGeojson = data?.data?.reduce(
-          (acc: Record<string, any>, current: Record<string, any>) => {
-            return {
-              ...acc,
-              features: [
-                ...acc.features,
-                {
-                  ...centroid(current.outline),
-                  properties: {
-                    id: current?.id,
-                    name: current?.name,
-                    slug: current?.slug,
-                  },
-                },
-              ],
-            };
-          },
-          {
-            type: 'FeatureCollection',
-            features: [],
-          },
-        );
-        return combinedGeojson;
+
+  const projectsCentroidGeojson: any = useMemo(() => {
+    if (!projectCentroidList || !projectCentroidList?.length) return [];
+    // find all polygons centroid and set to geojson save to single geojson
+    const combinedGeojson = projectCentroidList?.reduce(
+      (acc: Record<string, any>, current: Record<string, any>) => {
+        return {
+          ...acc,
+          features: [
+            ...acc.features,
+            {
+              geometry: current?.centroid,
+              properties: {
+                id: current?.id,
+                name: current?.name,
+                slug: current?.slug,
+                colorCode:
+                  current?.status === 'not-started'
+                    ? '#808080'
+                    : current?.status === 'completed'
+                      ? '#028a0f'
+                      : '#11b4da',
+              },
+            },
+          ],
+        };
       },
-    });
+      {
+        type: 'FeatureCollection',
+        features: [],
+      },
+    );
+    return combinedGeojson;
+  }, [projectCentroidList]);
 
   useEffect(() => {
-    if (!projectsList || !projectsList?.features?.length) return;
-    const bbox = getBbox(projectsList as FeatureCollection);
+    if (
+      !projectsCentroidGeojson ||
+      !projectsCentroidGeojson?.features?.length ||
+      !map ||
+      !isMapLoaded
+    )
+      return;
+    const bbox = getBbox(projectsCentroidGeojson as FeatureCollection);
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100, duration: 500 });
-  }, [projectsList, map]);
+  }, [projectsCentroidGeojson, map, isMapLoaded]);
 
   const getPopupUI = useCallback(() => {
     return (
@@ -87,13 +97,13 @@ const ProjectsMapSection = () => {
     >
       <BaseLayerSwitcher />
 
-      {projectsList && (
+      {projectsCentroidGeojson && (
         <VectorLayerWithCluster
           map={map}
-          visibleOnMap={!isLoading}
+          visibleOnMap
           mapLoaded={isMapLoaded}
           sourceId="clustered-projects"
-          geojson={projectsList}
+          geojson={projectsCentroidGeojson}
         />
       )}
 

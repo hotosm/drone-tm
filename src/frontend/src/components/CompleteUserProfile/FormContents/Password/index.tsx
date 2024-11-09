@@ -3,7 +3,9 @@ import { FormControl, Input, Label } from '@Components/common/FormUI';
 import { Flex, FlexColumn } from '@Components/common/Layouts';
 
 export default function PasswordSection({ formProps }: { formProps: any }) {
-  const { register, formState } = formProps;
+  const { register, formState, watch } = formProps;
+
+  const password = watch('password');
   return (
     <section className="naxatw-px-14">
       <Flex>
@@ -33,7 +35,9 @@ export default function PasswordSection({ formProps }: { formProps: any }) {
             className="naxatw-mt-1"
             placeholder="Enter confirm Password"
             {...register('confirm_password', {
-              required: 'Confirm Password is Required',
+              validate: (value: string) =>
+                value === password || 'The passwords do not match',
+              // required: 'Confirm Password is Required',
             })}
           />
           <ErrorMessage message={formState.errors?.confirm_password?.message} />

@@ -10,6 +10,8 @@ export interface IDroneOperatorTaskState {
   files: any[];
   selectedTakeOffPointOption: string;
   selectedTakeOffPoint: any[] | string | null;
+  uploadedImagesType: 'add' | 'replace';
+  selectedTaskDetailToViewOrthophoto: any;
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -21,6 +23,8 @@ const initialState: IDroneOperatorTaskState = {
   files: [],
   selectedTakeOffPointOption: 'current_location',
   selectedTakeOffPoint: null,
+  uploadedImagesType: 'add',
+  selectedTaskDetailToViewOrthophoto: null,
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -64,6 +68,14 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setSelectedTakeOffPoint: (state, action) => {
       state.selectedTakeOffPoint = action.payload;
+    },
+
+    setUploadedImagesType: (state, action) => {
+      state.uploadedImagesType = action.payload;
+    },
+
+    setSelectedTaskDetailToViewOrthophoto: (state, action) => {
+      state.selectedTaskDetailToViewOrthophoto = action.payload;
     },
   },
 });

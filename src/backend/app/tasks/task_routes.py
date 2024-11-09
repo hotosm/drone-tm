@@ -12,6 +12,7 @@ from psycopg import Connection
 from app.db import database
 from app.utils import send_notification_email, render_email_template
 from psycopg.rows import dict_row
+from loguru import logger as log
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",
@@ -33,24 +34,55 @@ async def read_task(
                 """
                 SELECT
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
-                    task_events.created_at,
+
+                    -- Construct the outline as a GeoJSON Feature
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'geometry', jsonb_build_object(
+                            'type', ST_GeometryType(tasks.outline)::text,  -- Get the type of the geometry (e.g., Polygon, MultiPolygon)
+                            'coordinates', ST_AsGeoJSON(tasks.outline, 8)::jsonb->'coordinates'  -- Get the geometry coordinates
+                        ),
+                        'properties', jsonb_build_object(
+                            'id', tasks.id,
+                            'bbox', jsonb_build_array(  -- Build the bounding box
+                                ST_XMin(ST_Envelope(tasks.outline)),
+                                ST_YMin(ST_Envelope(tasks.outline)),
+                                ST_XMax(ST_Envelope(tasks.outline)),
+                                ST_YMax(ST_Envelope(tasks.outline))
+                            )
+                        ),
+                        'id', tasks.id
+                    ) AS outline,
+
+                    te.created_at,
+                    te.updated_at,
+                    te.state,
                     projects.name AS project_name,
-                    project_task_index,
+                    tasks.project_task_index,
                     projects.front_overlap AS front_overlap,
                     projects.side_overlap AS side_overlap,
                     projects.gsd_cm_px AS gsd_cm_px,
                     projects.gimble_angles_degrees AS gimble_angles_degrees
-                FROM
-                    task_events
-                JOIN
-                    tasks ON task_events.task_id = tasks.id
-                JOIN
-                    projects ON task_events.project_id = projects.id
-                WHERE task_events.task_id = %(task_id)s""",
+
+                FROM (
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.created_at,
+                        te.updated_at,
+                        te.state
+                    FROM task_events te
+                    WHERE te.task_id = %(task_id)s
+                    ORDER BY te.task_id, te.created_at DESC
+                ) AS te
+                JOIN tasks ON te.task_id = tasks.id
+                JOIN projects ON tasks.project_id = projects.id
+                WHERE te.task_id = %(task_id)s;
+                """,
                 {"task_id": task_id},
             )
             records = await cur.fetchone()
             return records
+
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -65,32 +97,15 @@ async def get_task_stats(
 ):
     "Retrieve statistics related to tasks for the authenticated user."
     user_id = user_data.id
-
     try:
         async with db.cursor(row_factory=dict_row) as cur:
-            # Check if the user profile exists
-            await cur.execute(
-                """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
-                {"user_id": user_id},
-            )
-            records = await cur.fetchall()
-
-            if not records:
-                raise HTTPException(status_code=404, detail="User profile not found")
-            roles = [record["role"] for record in records]
-
-            if UserRole.PROJECT_CREATOR.name in roles:
-                role = "PROJECT_CREATOR"
-            else:
-                role = "DRONE_PILOT"
-
-            # Query for task statistics
             raw_sql = """
                 SELECT
                     COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state = 'LOCKED_FOR_MAPPING' THEN 1 END) AS ongoing_tasks,
-                    COUNT(CASE WHEN te.state = 'UNLOCKED_DONE' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
                     COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+
                 FROM (
                     SELECT DISTINCT ON (te.task_id)
                         te.task_id,
@@ -98,17 +113,21 @@ async def get_task_stats(
                         te.created_at
                     FROM task_events te
                     WHERE
-                        (%(role)s = 'DRONE_PILOT' AND te.user_id = %(user_id)s)
+                        (
+                        %(role)s = 'DRONE_PILOT'
+                        AND te.user_id = %(user_id)s
+                    )
                         OR
-                        (%(role)s != 'DRONE_PILOT' AND te.task_id IN (
-                            SELECT t.id
-                            FROM tasks t
-                            WHERE t.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                        (%(role)s = 'PROJECT_CREATOR' AND te.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.author_id = %(user_id)s
                         ))
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
             """
-            await cur.execute(raw_sql, {"user_id": user_id, "role": role})
+
+            await cur.execute(raw_sql, {"user_id": user_id, "role": user_data.role})
             db_counts = await cur.fetchone()
 
         return db_counts
@@ -129,25 +148,8 @@ async def list_tasks(
 ):
     """Get all tasks for a all user."""
     user_id = user_data.id
-
-    async with db.cursor(row_factory=dict_row) as cur:
-        # Check if the user profile exists
-        await cur.execute(
-            """SELECT role FROM user_profile WHERE user_id = %(user_id)s""",
-            {"user_id": user_id},
-        )
-        records = await cur.fetchall()
-
-        if not records:
-            raise HTTPException(status_code=404, detail="User profile not found")
-
-        roles = [record["role"] for record in records]
-
-        if UserRole.PROJECT_CREATOR.name in roles:
-            role = "PROJECT_CREATOR"
-        else:
-            role = "DRONE_PILOT"
-
+    role = user_data.role
+    log.info(f"Fetching tasks for user {user_id} with role: {role}")
     return await task_schemas.UserTasksStatsOut.get_tasks_by_user(
         db, user_id, role, skip, limit
     )
@@ -175,10 +177,18 @@ async def new_event(
 ):
     user_id = user_data.id
     project = project.model_dump()
+    user_role = user_data.role
+
     match detail.event:
         case EventType.REQUESTS:
             # Determine the appropriate state and message
             is_author = project["author_id"] == user_id
+            if user_role != UserRole.DRONE_PILOT.name and not is_author:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project author or drone operators can request tasks for this project.",
+                )
+
             requires_approval = project["requires_approval_from_manager_for_locking"]
 
             if is_author or not requires_approval:
@@ -199,6 +209,7 @@ async def new_event(
                 message,
                 State.UNLOCKED_TO_MAP,
                 state_after,
+                detail.updated_at,
             )
             # Send email notification if approval is required
             if state_after == State.REQUEST_FOR_MAPPING:
@@ -220,7 +231,7 @@ async def new_event(
                 )
                 background_tasks.add_task(
                     send_notification_email,
-                    user_data.email,
+                    author["email_address"],
                     "Request for mapping",
                     html_content,
                 )
@@ -272,6 +283,7 @@ async def new_event(
                 "Request accepted for mapping",
                 State.REQUEST_FOR_MAPPING,
                 State.LOCKED_FOR_MAPPING,
+                detail.updated_at,
             )
 
         case EventType.REJECTED:
@@ -318,6 +330,7 @@ async def new_event(
                 "Request for mapping rejected",
                 State.REQUEST_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
         case EventType.FINISH:
             return await task_logic.update_task_state(
@@ -328,6 +341,7 @@ async def new_event(
                 "Done: unlocked to validate",
                 State.LOCKED_FOR_MAPPING,
                 State.UNLOCKED_TO_VALIDATE,
+                detail.updated_at,
             )
         case EventType.VALIDATE:
             return task_logic.update_task_state(
@@ -338,6 +352,7 @@ async def new_event(
                 "Done: locked for validation",
                 State.UNLOCKED_TO_VALIDATE,
                 State.LOCKED_FOR_VALIDATION,
+                detail.updated_at,
             )
         case EventType.GOOD:
             return await task_logic.update_task_state(
@@ -348,6 +363,7 @@ async def new_event(
                 "Done: Task is Good",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_DONE,
+                detail.updated_at,
             )
 
         case EventType.BAD:
@@ -359,6 +375,7 @@ async def new_event(
                 "Done: needs to redo",
                 State.LOCKED_FOR_VALIDATION,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
             )
         case EventType.COMMENT:
             return await task_logic.update_task_state(
@@ -369,6 +386,7 @@ async def new_event(
                 detail.comment,
                 State.LOCKED_FOR_MAPPING,
                 State.UNFLYABLE_TASK,
+                detail.updated_at,
             )
 
         case EventType.UNLOCK:
@@ -401,6 +419,46 @@ async def new_event(
                 f"Task has been unlock by user {user_data.name}.",
                 State.LOCKED_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
+                detail.updated_at,
+            )
+
+        case EventType.IMAGE_UPLOAD:
+            current_task_state = await task_logic.get_task_state(
+                db, project_id, task_id
+            )
+            if not current_task_state:
+                raise HTTPException(
+                    status_code=400, detail="Task is not ready for image upload."
+                )
+            state = current_task_state.get("state")
+            locked_user_id = current_task_state.get("user_id")
+
+            # Determine error conditions: Current State must be IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED or lokec for mapping.
+            if state not in (
+                State.IMAGE_UPLOADED.name,
+                State.IMAGE_PROCESSING_FAILED.name,
+                State.LOCKED_FOR_MAPPING.name,
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Task state does not match expected state for image upload.",
+                )
+
+            if user_id != locked_user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You cannot upload an image for this task as it is locked by another user.",
+                )
+
+            return await task_logic.update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                f"Task image uploaded by user {user_data.name}.",
+                State[state],
+                State.IMAGE_UPLOADED,
+                detail.updated_at,
             )
 
     return True

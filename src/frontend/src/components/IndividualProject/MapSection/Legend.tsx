@@ -5,7 +5,7 @@ import { useState } from 'react';
 const Legend = () => {
   const [showLegendItems, setShowLegendItems] = useState<Boolean>(true);
   return (
-    <div className="naxatw-absolute naxatw-bottom-2 naxatw-left-3 naxatw-z-50 naxatw-w-40 naxatw-rounded-sm naxatw-bg-white naxatw-p-3">
+    <div className="naxatw-absolute naxatw-bottom-2 naxatw-left-3 naxatw-z-50 naxatw-w-52 naxatw-rounded-sm naxatw-bg-white naxatw-p-3">
       <div className="naxatw-flex naxatw-justify-between">
         <div className="naxatw-text-base naxatw-font-semibold">Legend</div>
         <i
@@ -21,6 +21,14 @@ const Legend = () => {
           <div className="naxatw-flex naxatw-gap-2">
             <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#ACD2C4]" />
             <div className="naxatw-text-sm">Finished Tasks</div>
+          </div>
+          <div className="naxatw-flex naxatw-gap-2">
+            <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#9C77B2] naxatw-opacity-60" />
+            <div className="naxatw-text-sm">Image Processing</div>
+          </div>
+          <div className="naxatw-flex naxatw-gap-2">
+            <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#D73F3F] naxatw-opacity-60" />
+            <div className="naxatw-text-sm">Image Processing Failed</div>
           </div>
           <div className="naxatw-flex naxatw-gap-2">
             <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#F3C5C5]" />

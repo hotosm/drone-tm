@@ -1,19 +1,19 @@
 import { useMemo } from 'react';
 import { useGetTaskListQuery } from '@Api/dashboard';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { taskStatusObj } from '@Constants/index';
 import TaskLogsTable from './TaskLogsTable';
 
 interface TaskLogsProps {
   title: string;
 }
 
-const getStatusByTitle = (title: string): string => {
-  if (title === 'Ongoing Tasks') return 'ongoing';
-  if (title === 'Request Logs') return 'request logs';
-  if (title === 'Unflyable Tasks') return 'unflyable task';
-  if (title === 'Completed Tasks') return 'completed';
-
-  return '';
+const getStatusListByTitle = (title: string): string[] => {
+  if (title === 'Ongoing Tasks') return taskStatusObj.ongoing;
+  if (title === 'Request Logs') return taskStatusObj.request_logs;
+  if (title === 'Unflyable Tasks') return taskStatusObj.unflyable;
+  if (title === 'Completed Tasks') return taskStatusObj.completed;
+  return [];
 };
 
 const TaskLogs = ({ title }: TaskLogsProps) => {
@@ -21,8 +21,8 @@ const TaskLogs = ({ title }: TaskLogsProps) => {
 
   const filteredData = useMemo(
     () =>
-      taskList?.filter(
-        (task: Record<string, any>) => task?.state === getStatusByTitle(title),
+      taskList?.filter((task: Record<string, any>) =>
+        getStatusListByTitle(title)?.includes(task?.state),
       ),
     [title, taskList],
   );

@@ -13,6 +13,7 @@ function GoogleAuth() {
   const [isReadyToRedirect, setIsReadyToRedirect] = useState(false);
   const [userProfileDetails, setUserProfileDetails] =
     useState<UserProfileDetailsType>();
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -21,7 +22,7 @@ function GoogleAuth() {
 
     const loginRedirect = async () => {
       if (authcode) {
-        const callbackUrl = `${BASE_URL}/users/callback/?code=${authcode}&state=${state}`;
+        const callbackUrl = `${BASE_URL}/users/callback/?code=${authcode}&state=${state}&role=${signedInAs}`;
         const userDetailsUrl = `${BASE_URL}/users/my-info/`;
 
         const completeLogin = async () => {
@@ -36,18 +37,21 @@ function GoogleAuth() {
             credentials: 'include',
             headers: { 'access-token': token.access_token },
           });
-          const userDetails = await response2.json();
 
+          const userDetails = await response2.json();
           // stringify the response and set it to local storage
           const userDetailsString = JSON.stringify(userDetails);
           localStorage.setItem('userprofile', userDetailsString);
           setUserProfileDetails(userDetails);
 
-          // navigate according the user
-          if (userDetails?.has_user_profile) {
+          // navigate according the user profile completion
+          if (
+            userDetails?.has_user_profile &&
+            userDetails?.role?.includes(signedInAs)
+          ) {
             navigate('/projects');
           } else {
-            navigate('/user-profile');
+            navigate('/complete-profile');
           }
         };
         await completeLogin();
@@ -56,7 +60,7 @@ function GoogleAuth() {
       setIsReadyToRedirect(true);
     };
     loginRedirect();
-  }, [location.search]);
+  }, [location.search, navigate, signedInAs]);
 
   return (
     <Flex className="naxatw-h-screen-nav naxatw-w-full naxatw-animate-pulse naxatw-items-center naxatw-justify-center">

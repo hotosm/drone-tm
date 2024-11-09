@@ -7,14 +7,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse, JSONResponse
-
+from psycopg_pool import AsyncConnectionPool
 from app.config import settings
 from app.projects import project_routes
 from app.drones import drone_routes
 from app.waypoints import waypoint_routes
 from app.users import user_routes
 from app.tasks import task_routes
-from app.db.database import get_db_connection_pool
 
 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -105,23 +104,19 @@ def get_application() -> FastAPI:
 
 
 @asynccontextmanager
-async def lifespan(
-    app: FastAPI,
-):
+async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
 
-    db_pool = await get_db_connection_pool()
-    await db_pool.open()
-    # Create a pooled db connection and make available in app state
-    # NOTE we can access 'request.app.state.db_pool' in endpoints
-    app.state.db_pool = db_pool
+    async with AsyncConnectionPool(
+        conninfo=settings.DTM_DB_URL.unicode_string()
+    ) as db_pool:
+        # The pool is now used within the context manager
+        app.state.db_pool = db_pool
+        yield  # FastAPI will run the application here
 
-    yield
-
-    # Shutdown events
+    # Pool will be closed automatically when the context manager exits
     log.debug("Shutting down FastAPI server.")
-    await app.state.db_pool.close()
 
 
 api = get_application()

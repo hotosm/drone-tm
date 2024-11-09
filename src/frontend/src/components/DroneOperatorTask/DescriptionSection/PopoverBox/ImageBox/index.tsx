@@ -1,14 +1,10 @@
-/* eslint-disable jsx-a11y/interactive-supports-focus */
-/* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable no-await-in-loop */
-/* eslint-disable no-console */
-/* eslint-disable no-unused-vars */
-import { useMutation } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
-
+import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 import { Button } from '@Components/RadixComponents/Button';
 import { getImageUploadLink } from '@Services/droneOperator';
+import { useMutation } from '@tanstack/react-query';
 import {
   checkAllImages,
   setCheckedImages,
@@ -19,19 +15,14 @@ import callApiSimultaneously from '@Utils/callApiSimultaneously';
 import chunkArray from '@Utils/createChunksOfArray';
 import delay from '@Utils/createDelay';
 import widthCalulator from '@Utils/percentageCalculator';
+import { postProcessImagery } from '@Services/tasks';
+import { postTaskStatus } from '@Services/project';
 import FilesUploadingPopOver from '../LoadingBox';
 import ImageCard from './ImageCard';
 import PreviewImage from './PreviewImage';
 
-// interface IImageBoxPopOverProps {
-//   show: boolean;
-//   imageFiles: any[];
-// }
-
 const ImageBoxPopOver = () => {
   const dispatch = useTypedDispatch();
-
-  // const { taskId, projectId } = useParams();
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
   const taskId = pathname?.[4];
@@ -49,11 +40,36 @@ const ImageBoxPopOver = () => {
   const checkedImages = useTypedSelector(
     state => state.droneOperatorTask.checkedImages,
   );
+  const uploadedImageType = useTypedSelector(
+    state => state.droneOperatorTask.uploadedImagesType,
+  );
+
+  const { mutate: updateStatus } = useMutation<any, any, any, unknown>({
+    mutationFn: postTaskStatus,
+    onError: (err: any) => {
+      toast.error(err.message);
+    },
+  });
+
+  const { mutate: startImageryProcess } = useMutation({
+    mutationFn: () => postProcessImagery(projectId, taskId),
+    onSuccess: () => {
+      updateStatus({
+        projectId,
+        taskId,
+        data: { event: 'image_upload', updated_at: new Date().toISOString() },
+      });
+      toast.success('Image processing started');
+    },
+  });
 
   // function that gets the signed urls for the images and again puts them in chunks of 4
   const { mutate } = useMutation({
     mutationFn: async (data: any) => {
-      const urlsData = await getImageUploadLink(data);
+      const urlsData = await getImageUploadLink(
+        uploadedImageType === 'replace',
+        data,
+      );
 
       // urls fromm array of objects is retrieved and stored in value
       const urls = urlsData.data.map((url: any) => url.url);
@@ -75,6 +91,7 @@ const ImageBoxPopOver = () => {
           await delay(500);
         }
       }
+      startImageryProcess();
     },
   });
 
@@ -175,7 +192,7 @@ const ImageBoxPopOver = () => {
       <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between">
         <div className="naxatw-flex naxatw-gap-6">
           <div
-            role="button"
+            role="presentation"
             className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-gap-2 naxatw-overflow-hidden"
             onClick={handleSelectAllImages}
           >
@@ -188,7 +205,7 @@ const ImageBoxPopOver = () => {
             </p>
           </div>
           <div
-            role="button"
+            role="presentation"
             className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-gap-2"
             onClick={handleDeselectAllImages}
           >

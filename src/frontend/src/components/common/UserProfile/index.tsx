@@ -2,17 +2,32 @@
 /* eslint-disable jsx-a11y/no-noninteractive-tabindex */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '@Components/common/UserAvatar';
 import { toast } from 'react-toastify';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import { useGetUserDetailsQuery } from '@Api/projects';
 
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
-
   const userProfile = getLocalStorageValue('userprofile');
+  const role = localStorage.getItem('signedInAs');
+
+  const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery({
+    enabled: !!(userProfile?.role && role),
+  });
+
+  useEffect(() => {
+    if (
+      !userProfile ||
+      userProfile?.role?.includes(role) ||
+      userDetails?.role?.includes(role)
+    )
+      return;
+    navigate('/complete-profile');
+  }, [userProfile, role, navigate, userDetails]);
 
   const settingOptions = [
     {

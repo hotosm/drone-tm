@@ -217,6 +217,7 @@ class TaskEvent(Base):
         Index("idx_task_event_composite", "task_id", "project_id"),
         Index("idx_task_event_project_id_user_id", "user_id", "project_id"),
     )
+    updated_at = cast(datetime, Column(DateTime, nullable=True))
 
 
 class Drone(Base):
@@ -276,7 +277,7 @@ class GroundControlPoint(Base):
 class DbUserProfile(Base):
     __tablename__ = "user_profile"
     user_id = cast(str, Column(String, ForeignKey("users.id"), primary_key=True))
-    role = cast(UserRole, Column(Enum(UserRole), default=UserRole.DRONE_PILOT))
+    role = cast(list, Column(ARRAY(Enum(UserRole))))
     phone_number = cast(str, Column(String))
     country = cast(str, Column(String))
     city = cast(str, Column(String))

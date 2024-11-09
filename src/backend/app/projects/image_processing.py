@@ -1,11 +1,20 @@
+import os
 import uuid
 import tempfile
 import shutil
 from pathlib import Path
+from app.tasks import task_logic
+from app.models.enums import State
+from app.utils import timestamp
+from app.db import database
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
 from concurrent.futures import ThreadPoolExecutor
+from psycopg import Connection
+from asgiref.sync import async_to_sync
+from app.config import settings
+import zipfile
 
 
 class DroneImageProcessor:
@@ -14,6 +23,8 @@ class DroneImageProcessor:
         node_odm_url: str,
         project_id: uuid.UUID,
         task_id: uuid.UUID,
+        user_id: str,
+        db: Connection,
     ):
         """
         Initializes the connection to the ODM node.
@@ -22,6 +33,8 @@ class DroneImageProcessor:
         self.node = Node.from_url(node_odm_url)
         self.project_id = project_id
         self.task_id = task_id
+        self.user_id = user_id
+        self.db = db
 
     def options_list_to_dict(self, options=[]):
         """
@@ -50,7 +63,7 @@ class DroneImageProcessor:
         :param local_dir: Local directory to save the images.
         :return: List of local image file paths.
         """
-        prefix = f"projects/{self.project_id}/{self.task_id}"
+        prefix = f"dtm-data/projects/{self.project_id}/{self.task_id}"
 
         objects = list_objects_from_bucket(bucket_name, prefix)
 
@@ -76,7 +89,9 @@ class DroneImageProcessor:
                 images.append(str(file))
         return images
 
-    def process_new_task(self, images, name=None, options=[], progress_callback=None):
+    def process_new_task(
+        self, images, name=None, options=[], progress_callback=None, webhook=None
+    ):
         """
         Sends a set of images via the API to start processing.
 
@@ -87,11 +102,11 @@ class DroneImageProcessor:
         :return: The created task object.
         """
         opts = self.options_list_to_dict(options)
-
         # FIXME: take this from the function above
         opts = {"dsm": True}
-
-        task = self.node.create_task(images, opts, name, progress_callback)
+        task = self.node.create_task(
+            images, opts, name, progress_callback, webhook=webhook
+        )
         return task
 
     def monitor_task(self, task):
@@ -117,7 +132,7 @@ class DroneImageProcessor:
         log.info("Download completed.")
         return path
 
-    def process_images_from_s3(self, bucket_name, name=None, options=[]):
+    def process_images_from_s3(self, bucket_name, name=None, options=[], webhook=None):
         """
         Processes images from MinIO storage.
 
@@ -136,20 +151,139 @@ class DroneImageProcessor:
             images_list = self.list_images(temp_dir)
 
             # Start a new processing task
-            task = self.process_new_task(images_list, name=name, options=options)
-            # Monitor task progress
-            self.monitor_task(task)
+            task = self.process_new_task(
+                images_list, name=name, options=options, webhook=webhook
+            )
 
-            # Optionally, download results
-            output_file_path = f"/tmp/{self.project_id}"
-            path_to_download = self.download_results(task, output_path=output_file_path)
+            # If webhook is passed, webhook does this job.
+            if not webhook:
+                # Monitor task progress
+                self.monitor_task(task)
 
-            # Upload the results into s3
-            s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
-            add_file_to_bucket(bucket_name, path_to_download, s3_path)
+                # Optionally, download results
+                output_file_path = f"/tmp/{self.project_id}"
+                path_to_download = self.download_results(
+                    task, output_path=output_file_path
+                )
+
+                # Upload the results into s3
+                s3_path = (
+                    f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
+                )
+                add_file_to_bucket(bucket_name, path_to_download, s3_path)
+                # now update the task as completed in Db.
+                # Call the async function using asyncio
+
+                # Update background task status to COMPLETED
+                update_task_status_sync = async_to_sync(task_logic.update_task_state)
+                update_task_status_sync(
+                    self.db,
+                    self.project_id,
+                    self.task_id,
+                    self.user_id,
+                    "Task completed.",
+                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSED,
+                    timestamp(),
+                )
             return task
 
         finally:
             # Clean up temporary directory
             shutil.rmtree(temp_dir)
             pass
+
+
+async def download_and_upload_assets_from_odm_to_s3(
+    node_odm_url: str,
+    task_id: str,
+    dtm_project_id: uuid.UUID,
+    dtm_task_id: uuid.UUID,
+    user_id: str,
+    current_state: State,
+    comment: str,
+):
+    """
+    Downloads results from ODM and uploads them to S3 (Minio).
+
+    :param task_id: UUID of the ODM task.
+    :param dtm_project_id: UUID of the project.
+    :param dtm_task_id: UUID of the task.
+    :param current_state: Current state of the task (IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED).
+
+    """
+    log.info(f"Starting download for task {task_id}")
+
+    # Replace with actual ODM node details and URL
+    node = Node.from_url(node_odm_url)
+
+    try:
+        # Get the task object using the task_id
+        task = node.get_task(task_id)
+
+        # Create a temporary directory to store the results
+        output_file_path = f"/tmp/{dtm_project_id}"
+
+        log.info(f"Downloading results for task {task_id} to {output_file_path}")
+
+        # Download results as a zip file
+        assets_path = task.download_zip(output_file_path)
+
+        # Upload the results into S3 (Minio)
+        s3_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+        log.info(f"Uploading {output_file_path} to S3 path: {s3_path}")
+        add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
+
+        log.info(f"Assets for task {task_id} successfully uploaded to S3.")
+
+        # Extract the zip file to find the orthophoto
+        with zipfile.ZipFile(assets_path, "r") as zip_ref:
+            zip_ref.extractall(output_file_path)
+
+        # Locate the orthophoto (odm_orthophoto.tif)
+        orthophoto_path = os.path.join(
+            output_file_path, "odm_orthophoto", "odm_orthophoto.tif"
+        )
+        if not os.path.exists(orthophoto_path):
+            log.error(f"Orthophoto file not found at {orthophoto_path}")
+            raise FileNotFoundError(f"Orthophoto not found in {output_file_path}")
+
+        log.info(f"Orthophoto found at {orthophoto_path}")
+
+        # Upload the orthophoto to S3
+        s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/orthophoto/odm_orthophoto.tif"
+        log.info(f"Uploading orthophoto to S3 path: {s3_ortho_path}")
+        add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
+
+        log.info(
+            f"Orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
+        )
+
+        # Update background task status to COMPLETED
+        pool = await database.get_db_connection_pool()
+
+        async with pool.connection() as conn:
+            await task_logic.update_task_state(
+                db=conn,
+                project_id=dtm_project_id,
+                task_id=dtm_task_id,
+                user_id=user_id,
+                comment=comment,
+                initial_state=current_state,
+                final_state=State.IMAGE_PROCESSED,
+                updated_at=timestamp(),
+            )
+
+    except Exception as e:
+        log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
+
+    finally:
+        # Clean up the temporary directory
+        if os.path.exists(output_file_path):
+            try:
+                shutil.rmtree(output_file_path)
+                log.info(f"Temporary directory {output_file_path} cleaned up.")
+            except Exception as cleanup_error:
+                log.error(
+                    f"Error cleaning up temporary directory {output_file_path}: {cleanup_error}"
+                )

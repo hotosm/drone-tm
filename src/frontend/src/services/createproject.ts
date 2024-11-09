@@ -1,8 +1,8 @@
 /* eslint-disable import/prefer-default-export */
 import { authenticated, api } from '.';
 
-export const getProjectsList = (filterByOwner: boolean) =>
-  authenticated(api).get(`/projects/?filter_by_owner=${filterByOwner}`);
+export const getProjectsList = (params: Record<string, any>) =>
+  authenticated(api).get(`/projects/`, { params });
 
 export const getProjectDetail = (id: string) =>
   authenticated(api).get(`/projects/${id}`);
@@ -17,3 +17,6 @@ export const postPreviewSplitBySquare = (data: any) =>
 
 export const postTaskBoundary = ({ id, data }: { id: number; data: any }) =>
   authenticated(api).post(`/projects/${id}/upload-task-boundaries`, data);
+
+export const getProjectCentroid = () =>
+  authenticated(api).get('/projects/centroids');

@@ -12,6 +12,7 @@ from typing import Optional
 class NewEvent(BaseModel):
     event: EventType
     comment: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
 
 class Task(BaseModel):
@@ -121,6 +122,7 @@ class Task(BaseModel):
             existing_tasks = await cur.fetchall()
             # Get all task_ids from the tasks table
             task_ids = await Task.get_all_tasks(db, project_id)
+
             # Create a set of existing task_ids for quick lookup
             existing_task_ids = {task.task_id for task in existing_tasks}
 
@@ -136,7 +138,6 @@ class Task(BaseModel):
                 }
                 for task_id in remaining_task_ids
             ]
-
             # Combine both existing tasks and remaining tasks
             combined_tasks = existing_tasks + remaining_tasks
             return combined_tasks
@@ -150,6 +151,7 @@ class UserTasksStatsOut(BaseModel):
     project_id: uuid.UUID
     project_task_index: int
     project_name: str
+    updated_at: Optional[datetime]
 
     @staticmethod
     async def get_tasks_by_user(
@@ -157,20 +159,16 @@ class UserTasksStatsOut(BaseModel):
     ):
         async with db.cursor(row_factory=class_row(UserTasksStatsOut)) as cur:
             await cur.execute(
-                """SELECT DISTINCT ON (tasks.id)
+                """
+                SELECT DISTINCT ON (tasks.id)
                     tasks.id AS task_id,
                     tasks.project_task_index AS project_task_index,
                     task_events.project_id AS project_id,
                     projects.name AS project_name,
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
-                    CASE
-                        WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                        WHEN task_events.state = 'LOCKED_FOR_MAPPING' THEN 'ongoing'
-                        WHEN task_events.state = 'UNLOCKED_DONE' THEN 'completed'
-                        WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                        ELSE 'UNLOCKED_TO_MAP'
-                    END AS state
+                    task_events.updated_at,
+                    task_events.state
                 FROM
                     task_events
                 LEFT JOIN
@@ -179,16 +177,22 @@ class UserTasksStatsOut(BaseModel):
                     projects ON task_events.project_id = projects.id
                 WHERE
                     (
-                        %(role)s = 'DRONE_PILOT' AND task_events.user_id = %(user_id)s
+                        %(role)s = 'DRONE_PILOT'
+                        AND task_events.user_id = %(user_id)s
                     )
                     OR
                     (
-                        %(role)s!= 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                        %(role)s = 'PROJECT_CREATOR' AND task_events.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.author_id = %(user_id)s
+                        )
                     )
                 ORDER BY
                     tasks.id, task_events.created_at DESC
                 OFFSET %(skip)s
-                LIMIT %(limit)s;""",
+                LIMIT %(limit)s;
+                """,
                 {"user_id": user_id, "role": role, "skip": skip, "limit": limit},
             )
             try:

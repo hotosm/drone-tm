@@ -81,9 +81,10 @@ To get started with Drone TM:
 |✅| 🖥️ simple UI with user sign up and login |
 |✅| 🖥️ project area subdivision into smaller task areas for operators |
 |✅| 📱 flight plan generation in task areas for DJI drones |
+|✅| 🖥️ upload of drone imagery collected during flight |
 |⚙️| 📱 follow terrain during flight plan generation in hilly/mountainous regions |
 |⚙️| 📱 allow adjustments to the flight plan orientation based on field conditions |
-|⚙️| 🖥️ drone imagery upload merging into a final combined image for the project |
+|⚙️| 🖥️ merging of drone imagery into a final combined image for the project |
 | | 🖥️ user access management for each part of the UI |
 | | 📱 & 🖥️ real-time updates for drone flight progress |
 | | 📱 flight plan generation for other drone manufacturers |

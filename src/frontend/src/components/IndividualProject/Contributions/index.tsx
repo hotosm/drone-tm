@@ -1,10 +1,22 @@
 import TableSection from './TableSection';
 
-export default function Contributions() {
+interface IContributionsProps {
+  isFetching: boolean;
+  // eslint-disable-next-line no-unused-vars
+  handleTableRowClick: (rowData: any) => {};
+}
+
+export default function Contributions({
+  isFetching,
+  handleTableRowClick,
+}: IContributionsProps) {
   return (
     <section className="naxatw-py-5">
       <div className="mt-2">
-        <TableSection />
+        <TableSection
+          isFetching={isFetching}
+          handleTableRowClick={handleTableRowClick}
+        />
       </div>
     </section>
   );

@@ -3,7 +3,16 @@
 // import { FlexRow } from '@Components/common/Layouts';
 import TableSection from './TableSection';
 
-export default function Tasks() {
+interface ITasksProps {
+  isFetching: boolean;
+  // eslint-disable-next-line no-unused-vars
+  handleTableRowClick: (rowData: any) => {};
+}
+
+export default function Tasks({
+  isFetching,
+  handleTableRowClick,
+}: ITasksProps) {
   return (
     <section className="naxatw-py-5">
       {/* <FlexRow className="naxatw-w-full naxatw-justify-between">
@@ -24,7 +33,10 @@ export default function Tasks() {
         </div>
       </FlexRow> */}
       <div className="naxatw-mt-2">
-        <TableSection />
+        <TableSection
+          isFetching={isFetching}
+          handleTableRowClick={handleTableRowClick}
+        />
       </div>
     </section>
   );

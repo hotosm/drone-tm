@@ -26,7 +26,7 @@ WORKDIR /project
 
 # Install uv
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
-COPY --from=ghcr.io/astral-sh/uv:0.4.15 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 # Place executables in the environment at the front of the path
 ENV PATH="/project/.venv/bin:$PATH"

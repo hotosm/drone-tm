@@ -2,7 +2,7 @@ import uuid
 from app.models.enums import HTTPStatus, State, UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
-from typing import Optional
+from typing import List, Optional
 from psycopg import Connection
 from psycopg.rows import class_row
 import psycopg
@@ -20,6 +20,7 @@ class AuthUser(BaseModel):
     email: EmailStr
     name: str
     profile_img: Optional[str] = None
+    role: str = None
 
 
 class UserBase(BaseModel):
@@ -45,6 +46,7 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    role: str
 
 
 class UserPublic(UserBase):
@@ -95,25 +97,37 @@ class BaseUserProfile(BaseModel):
     drone_you_own: Optional[str] = None
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
-    role: Optional[UserRole] = None
+    role: Optional[List[UserRole]] = None
 
     @field_validator("role", mode="after")
     @classmethod
     def integer_role_to_string(cls, value: UserRole):
+        if isinstance(value, list):
+            value = [str(role.name) for role in value]
+
         if isinstance(value, int):
             value = UserRole(value)
-        return str(value.name)
+
+        unique_roles = set(value)
+        value = list(unique_roles)
+        return value
 
     @field_validator("role", mode="before")
     @classmethod
     def srting_role_to_integer(cls, value: UserRole) -> str:
         if isinstance(value, str):
-            value = UserRole[value].value
+            role_list = value.strip("{}").split(",")
+            value = [
+                UserRole[role.strip()].value
+                for role in role_list
+                if role.strip() in UserRole.__members__
+            ]
         return value
 
 
 class UserProfileIn(BaseUserProfile):
     password: Optional[str] = None
+    old_password: Optional[str] = None
 
 
 class DbUserProfile(BaseUserProfile):
@@ -126,7 +140,29 @@ class DbUserProfile(BaseUserProfile):
         """Update or insert a user profile."""
 
         # Prepare data for insert or update
-        model_dump = profile_update.model_dump(exclude_none=True, exclude=["password"])
+        model_dump = profile_update.model_dump(
+            exclude_none=True, exclude=["password", "old_password"]
+        )
+
+        # If there are new roles, update the existing roles
+        if "role" in model_dump and model_dump["role"] is not None:
+            new_roles = model_dump["role"]
+
+            # Create a query to update roles
+            role_update_query = """
+                UPDATE user_profile
+                SET role = (
+                    SELECT ARRAY(
+                        SELECT DISTINCT unnest(array_cat(role, %s))
+                    )
+                )
+                WHERE user_id = %s;
+            """
+
+            async with db.cursor() as cur:
+                await cur.execute(role_update_query, (new_roles, user_id))
+
+        # Prepare the columns and placeholders for the main update
         columns = ", ".join(model_dump.keys())
         value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
         sql = f"""
@@ -187,6 +223,17 @@ class DbUser(BaseModel):
     is_superuser: bool
     name: str
     profile_img: Optional[str] = None
+
+    @staticmethod
+    async def all(db: Connection):
+        "Fetch  all users."
+        async with db.cursor(row_factory=class_row(DbUser)) as cur:
+            await cur.execute(
+                """
+                SELECT * FROM users;
+                """
+            )
+            return await cur.fetchall()
 
     @staticmethod
     async def one(db: Connection, user_id: str):
