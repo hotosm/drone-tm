@@ -6,11 +6,13 @@ from typing import List, Optional
 from psycopg import Connection
 from psycopg.rows import class_row
 import psycopg
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from typing import Any
 from loguru import logger as log
 from app.users import user_logic
 from psycopg.rows import dict_row
+from app.s3 import get_presigned_url
+from app.config import settings
 
 
 class AuthUser(BaseModel):
@@ -98,6 +100,8 @@ class BaseUserProfile(BaseModel):
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
     role: Optional[List[UserRole]] = None
+    certificate_file: Optional[str] = None
+
 
     @field_validator("role", mode="after")
     @classmethod
@@ -141,9 +145,20 @@ class DbUserProfile(BaseUserProfile):
 
         # Prepare data for insert or update
         model_dump = profile_update.model_dump(
-            exclude_none=True, exclude=["password", "old_password"]
+            exclude_none=True, exclude=["password", "old_password", "certificate_file"]
         )
-
+        
+        if  profile_update.certificate_file:
+            certificate_file = profile_update.certificate_file
+            if certificate_file:
+                s3_path = f"dtm-data/users/{user_id}/certificate/{certificate_file}"
+                try:
+                    # Generate the presigned URL using the existing function
+                    presigned_url = get_presigned_url(settings.S3_BUCKET_NAME, s3_path, expires=1)
+                    model_dump["certificate_file_url"] = presigned_url
+                except Exception as e:
+                    log.error(f"Failed to generate presigned URL for certificate file: {e}")
+                
         # If there are new roles, update the existing roles
         if "role" in model_dump and model_dump["role"] is not None:
             new_roles = model_dump["role"]
@@ -200,7 +215,7 @@ class DbUserProfile(BaseUserProfile):
                         "user_id": user_id,
                     },
                 )
-            return True
+        return model_dump
 
     async def get_userprofile_by_userid(db: Connection, user_id: str):
         """Fetch the user profile by user ID."""
