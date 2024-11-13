@@ -9,8 +9,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     DbUser,
     Token,
-    UserProfileIn,
+    UserProfileCreate,
     AuthUser,
+    UserProfileUpdate,
 )
 from app.users.user_deps import login_required, init_google_auth
 from app.config import settings
@@ -70,19 +71,19 @@ async def get_user(
 ):
     return await user_schemas.DbUser.all(db)
 
+
 @router.post("/{user_id}/profile")
-async def update_user_profile(
+async def create_user_profile(
     user_id: str,
-    profile_update: UserProfileIn,
+    profile_update: UserProfileCreate,
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    request: Request,
 ):
     """
     Create user profile based on provided user_id and profile_update data.
     Args:
         user_id (int): The ID of the user whose profile is being updated.
-        profile_update (UserUserProfileIn): Updated profile data to apply.
+        profile_update (UserProfileUpdate): Updated profile data to apply.
     Returns:
         dict: Updated user profile information.
     Raises:
@@ -95,7 +96,7 @@ async def update_user_profile(
             detail="You are not authorized to update profile",
         )
 
-    user =  await user_schemas.DbUserProfile.update(db, user_id, profile_update)
+    user =  await user_schemas.DbUserProfile.create(db, user_id, profile_update)
     return JSONResponse(
         status_code=HTTPStatus.OK,
         content={"message": "User profile updated successfully", "results": user},
@@ -106,7 +107,7 @@ async def update_user_profile(
 @router.patch("/{user_id}/profile")
 async def update_user_profile(
     user_id: str,
-    profile_update: UserProfileIn,
+    profile_update: UserProfileUpdate,
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
@@ -114,7 +115,7 @@ async def update_user_profile(
     Update user profile based on provided user_id and profile_update data.
     Args:
         user_id (int): The ID of the user whose profile is being updated.
-        profile_update (UserUserProfileIn): Updated profile data to apply.
+        profile_update (UserProfileUpdate): Updated profile data to apply.
     Returns:
         dict: Updated user profile information.
     Raises:
