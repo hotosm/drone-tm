@@ -6,7 +6,7 @@ from typing import List, Optional
 from psycopg import Connection
 from psycopg.rows import class_row
 import psycopg
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from typing import Any
 from loguru import logger as log
 from app.users import user_logic
@@ -102,7 +102,6 @@ class BaseUserProfile(BaseModel):
     role: Optional[List[UserRole]] = None
     certificate_file: Optional[str] = None
 
-
     @field_validator("role", mode="after")
     @classmethod
     def integer_role_to_string(cls, value: UserRole):
@@ -132,10 +131,11 @@ class BaseUserProfile(BaseModel):
 class UserProfileCreate(BaseUserProfile):
     password: str
 
+
 class UserProfileUpdate(BaseUserProfile):
     old_password: Optional[str] = None
     password: Optional[str] = None
-    
+
 
 class DbUserProfile(BaseUserProfile):
     """UserProfile model for interacting with the user_profile table."""
@@ -143,13 +143,17 @@ class DbUserProfile(BaseUserProfile):
     user_id: int
 
     @staticmethod
-    async def _handle_certificate_file(profile: BaseModel, user_id: int) -> Optional[str]:
+    async def _handle_certificate_file(
+        profile: BaseModel, user_id: int
+    ) -> Optional[str]:
         """Handle the certificate file upload and return the presigned URL."""
-        certificate_file = getattr(profile, 'certificate_file', None)
+        certificate_file = getattr(profile, "certificate_file", None)
         if certificate_file:
             s3_path = f"dtm-data/users/{user_id}/certificate/{certificate_file}"
             try:
-                presigned_url = get_presigned_url(settings.S3_BUCKET_NAME, s3_path, expires=1)
+                presigned_url = get_presigned_url(
+                    settings.S3_BUCKET_NAME, s3_path, expires=1
+                )
                 return presigned_url
             except Exception as e:
                 log.error(f"Failed to generate presigned URL for certificate file: {e}")
@@ -177,7 +181,9 @@ class DbUserProfile(BaseUserProfile):
         model_data = profile_create.model_dump(exclude_none=True, exclude={"password"})
 
         # Handle certificate file
-        certificate_url = await DbUserProfile._handle_certificate_file(profile_create, user_id)
+        certificate_url = await DbUserProfile._handle_certificate_file(
+            profile_create, user_id
+        )
 
         # Prepare the SQL query for inserting the new profile
         columns = ", ".join(model_data.keys())
@@ -192,23 +198,27 @@ class DbUserProfile(BaseUserProfile):
 
         async with db.cursor() as cur:
             await cur.execute(sql, model_data)
-        
+
         if certificate_url:
             model_data["certificate_url"] = certificate_url
-            
+
         return model_data
 
     @staticmethod
     async def update(db: Connection, user_id: int, profile_update: UserProfileUpdate):
         """Update or insert a user profile."""
-        model_data = profile_update.model_dump(exclude_none=True, exclude={"password", "old_password", "certificate_file"})
-        certificate_url = await DbUserProfile._handle_certificate_file(profile_update, user_id)
+        model_data = profile_update.model_dump(
+            exclude_none=True, exclude={"password", "old_password", "certificate_file"}
+        )
+        certificate_url = await DbUserProfile._handle_certificate_file(
+            profile_update, user_id
+        )
 
         await DbUserProfile._update_roles(db, user_id, model_data.get("role"))
 
         # Prepare the columns and placeholders for the main update
         columns = ", ".join(model_data.keys())
-        
+
         value_placeholders = ", ".join(f"%({key})s" for key in model_data.keys())
         sql = f"""
             INSERT INTO user_profile (
@@ -230,7 +240,7 @@ class DbUserProfile(BaseUserProfile):
         """
 
         model_data["user_id"] = user_id
-        
+
         async with db.cursor() as cur:
             await cur.execute(sql, model_data)
 
@@ -239,15 +249,17 @@ class DbUserProfile(BaseUserProfile):
                 await cur.execute(
                     password_update_query,
                     {
-                        "password": user_logic.get_password_hash(profile_update.password),
+                        "password": user_logic.get_password_hash(
+                            profile_update.password
+                        ),
                         "user_id": user_id,
                     },
                 )
         if certificate_url:
             model_data["certificate_url"] = certificate_url
-            
+
         return model_data
-    
+
     async def get_userprofile_by_userid(db: Connection, user_id: str):
         """Fetch the user profile by user ID."""
         query = """

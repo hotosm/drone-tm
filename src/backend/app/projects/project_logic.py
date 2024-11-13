@@ -49,9 +49,9 @@ async def get_centroids(db: Connection):
 
             if not centroids:
                 return []
-            
+
             return centroids
-        
+
     except Exception as e:
         log.error(f"Error during reading centroids: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

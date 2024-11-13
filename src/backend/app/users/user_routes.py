@@ -96,12 +96,11 @@ async def create_user_profile(
             detail="You are not authorized to update profile",
         )
 
-    user =  await user_schemas.DbUserProfile.create(db, user_id, profile_update)
+    user = await user_schemas.DbUserProfile.create(db, user_id, profile_update)
     return JSONResponse(
         status_code=HTTPStatus.OK,
         content={"message": "User profile updated successfully", "results": user},
     )
-
 
 
 @router.patch("/{user_id}/profile")
@@ -127,7 +126,7 @@ async def update_user_profile(
             status_code=HTTPStatus.FORBIDDEN,
             detail="You are not authorized to update profile",
         )
-        
+
     if profile_update.old_password and profile_update.password:
         if not user_logic.verify_password(
             profile_update.old_password, user.get("password")
