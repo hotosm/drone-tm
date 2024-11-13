@@ -1,13 +1,14 @@
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
+import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { setSelectedTaskDetailToViewOrthophoto } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
-import { LngLatBoundsLike } from 'maplibre-gl';
+import { LngLatBoundsLike, RasterSourceSpecification } from 'maplibre-gl';
 import { useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 
-const { BASE_URL } = process.env;
+// const { BASE_URL } = process.env;
 
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
@@ -15,40 +16,32 @@ const TaskOrthophotoPreview = () => {
     state =>
       state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.outline,
   );
-  const taskIdFromRedux = useTypedSelector(
-    state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
-  );
-  const pathname = window.location.pathname?.split('/');
-  const projectId = pathname?.[2];
-  const taskId = pathname?.[4] || taskIdFromRedux;
+  // const taskIdFromRedux = useTypedSelector(
+  //   state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
+  // );
+  // const pathname = window.location.pathname?.split('/');
+  // const projectId = pathname?.[2];
+  // const taskId = pathname?.[4] || taskIdFromRedux;
 
   const { map, isMapLoaded } = useMapLibreGLMap({
-    containerId: 'dashboard-map',
+    containerId: 'orthophoto-map',
     mapOptions: {
-      zoom: 0,
-      center: [0, 0],
+      zoom: 21,
+      // center: [0, 0],
+      center: [85.32859011690468, 27.73057073397034],
     },
     disableRotation: true,
   });
 
-  const orhtophotoSource: Record<string, any> = useMemo(
+  const orthophotoSource: RasterSourceSpecification = useMemo(
     () => ({
-      source: {
-        type: 'raster',
-        tiles: [
-          `${BASE_URL}/projects/orthophoto/{z}/{x}/{y}.png?project_id=${projectId}&task_id=${taskId}`,
-        ],
-        tileSize: 256,
-      },
-      layer: {
-        id: 'ortho-photo',
-        type: 'raster',
-        source: 'ortho-photo',
-        layout: {},
-      },
+      type: 'raster',
+      url: `cog://https://dev-dronetm.s3.ap-south-1.amazonaws.com/dtm-data/projects/450ae0ab-f578-48bc-9537-2e54c6d6e601/d6cbaa24-856b-45f5-b8d1-0b91d36adcac/orthophoto/odm_orthophoto_3857.tif`,
+      tileSize: 256,
     }),
 
-    [projectId, taskId],
+    // [projectId, taskId],
+    [],
   );
 
   useEffect(() => {
@@ -56,58 +49,6 @@ const TaskOrthophotoPreview = () => {
     const { bbox } = taskOutline.properties;
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 50, duration: 500 });
   }, [map, isMapLoaded, taskOutline]);
-
-  useEffect(() => {
-    if (
-      !map ||
-      !isMapLoaded ||
-      !projectId ||
-      !taskId ||
-      !orhtophotoSource ||
-      !taskOutline
-    )
-      return;
-
-    // check if the map view intersects the bbox of task
-    function isInOrthophotoBoundsAndZoom() {
-      const bounds = map?.getBounds(); // Get the current map bounds (sw, ne)
-      const zoom = map?.getZoom();
-      if (!bounds || !zoom) return null;
-      const { bbox } = taskOutline.properties; // tasks bbox
-      return (
-        bounds.getWest() < bbox[2] &&
-        bounds.getEast() > bbox[0] &&
-        bounds.getNorth() > bbox[1] &&
-        bounds.getSouth() < bbox[3] &&
-        zoom > 12
-      );
-    }
-
-    function addOrthophotoLayerIfInBounds() {
-      if (!map || !orhtophotoSource) return;
-      if (isInOrthophotoBoundsAndZoom()) {
-        if (!map.getSource('ortho-photo')) {
-          map.addSource('ortho-photo', orhtophotoSource.source);
-          map.addLayer(orhtophotoSource.layer);
-        }
-      } else {
-        if (map.getLayer('ortho-photo')) {
-          map.removeLayer('ortho-photo');
-        }
-        if (map.getSource('ortho-photo')) {
-          map.removeSource('ortho-photo');
-        }
-      }
-    }
-
-    map.on('moveend', () => {
-      addOrthophotoLayerIfInBounds();
-    });
-
-    map.on('zoomend', () => {
-      addOrthophotoLayerIfInBounds();
-    });
-  }, [map, isMapLoaded, projectId, taskId, orhtophotoSource, taskOutline]);
 
   useEffect(() => {
     return () => {
@@ -120,13 +61,18 @@ const TaskOrthophotoPreview = () => {
       <MapContainer
         map={map}
         isMapLoaded={isMapLoaded}
-        containerId="dashboard-map"
+        containerId="orthophoto-map"
         style={{
           width: '100%',
           height: '100%',
         }}
       >
         <BaseLayerSwitcherUI />
+        <COGOrthophotoViewer
+          id="task-orthophoto"
+          source={orthophotoSource}
+          visibleOnMap
+        />
       </MapContainer>
     </div>
   );
