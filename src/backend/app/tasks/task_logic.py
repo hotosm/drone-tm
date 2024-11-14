@@ -1,10 +1,60 @@
 import uuid
 import json
+from app.users.user_schemas import AuthUser
+from app.tasks.task_schemas import NewEvent, TaskStats
+from app.users import user_schemas
+from app.utils import render_email_template, send_notification_email
 from psycopg import Connection
-from app.models.enums import HTTPStatus, State
-from fastapi import HTTPException
-from psycopg.rows import dict_row
+from app.models.enums import EventType, HTTPStatus, State, UserRole
+from fastapi import HTTPException, BackgroundTasks
+from psycopg.rows import dict_row, class_row
 from datetime import datetime
+from app.config import settings
+
+
+async def get_task_stats(db: Connection, user_data: AuthUser):
+    try:
+        async with db.cursor(row_factory=class_row(TaskStats)) as cur:
+            raw_sql = """
+                SELECT
+                    COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+
+                FROM (
+                    SELECT DISTINCT ON (te.task_id)
+                        te.task_id,
+                        te.state,
+                        te.created_at
+                    FROM task_events te
+                    WHERE
+                        (
+                        %(role)s = 'DRONE_PILOT'
+                        AND te.user_id = %(user_id)s
+                    )
+                        OR
+                        (%(role)s = 'PROJECT_CREATOR' AND te.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.author_id = %(user_id)s
+                        ))
+                    ORDER BY te.task_id, te.created_at DESC
+                ) AS te;
+            """
+
+            await cur.execute(
+                raw_sql, {"user_id": user_data.id, "role": user_data.role}
+            )
+            db_counts = await cur.fetchone()
+
+        return db_counts
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch task statistics. {e}",
+        )
 
 
 async def update_take_off_point_in_db(
@@ -217,3 +267,295 @@ async def get_task_state(
             status_code=500,
             detail=f"An error occurred while retrieving the task state: {str(e)}",
         )
+
+
+async def handle_event(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    user_id: str,
+    project: dict,
+    user_role: UserRole,
+    detail: NewEvent,
+    user_data: AuthUser,
+    background_tasks: BackgroundTasks,
+):
+    match detail.event:
+        case EventType.REQUESTS:
+            # Determine the appropriate state and message
+            is_author = project["author_id"] == user_id
+            if user_role != UserRole.DRONE_PILOT.name and not is_author:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project author or drone operators can request tasks for this project.",
+                )
+
+            requires_approval = project["requires_approval_from_manager_for_locking"]
+
+            if is_author or not requires_approval:
+                state_after = State.LOCKED_FOR_MAPPING
+                message = "Request accepted automatically" + (
+                    " as the author" if is_author else ""
+                )
+            else:
+                state_after = State.REQUEST_FOR_MAPPING
+                message = "Request for mapping"
+
+            # Perform the mapping request
+            data = await request_mapping(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                message,
+                State.UNLOCKED_TO_MAP,
+                state_after,
+                detail.updated_at,
+            )
+            # Send email notification if approval is required
+            if state_after == State.REQUEST_FOR_MAPPING:
+                author = await user_schemas.DbUser.get_user_by_id(
+                    db, project["author_id"]
+                )
+                html_content = render_email_template(
+                    folder_name="mapping",
+                    template_name="requests.html",
+                    context={
+                        "name": author["name"],
+                        "drone_operator_name": user_data.name,
+                        "task_id": task_id,
+                        "project_id": project_id,
+                        "project_name": project["name"],
+                        "description": project["description"],
+                        "FRONTEND_URL": settings.FRONTEND_URL,
+                    },
+                )
+                background_tasks.add_task(
+                    send_notification_email,
+                    author["email_address"],
+                    "Request for mapping",
+                    html_content,
+                )
+
+            return data
+
+        case EventType.MAP:
+            if user_id != project["author_id"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project creator can approve the mapping.",
+                )
+
+            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
+                db, project_id, task_id
+            )
+            drone_operator = await user_schemas.DbUser.get_user_by_id(
+                db, requested_user_id
+            )
+            html_content = render_email_template(
+                folder_name="mapping",
+                template_name="approved_or_rejected.html",
+                context={
+                    "email_subject": "Mapping Request Approved",
+                    "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
+                    "task_status": "approved",
+                    "name": user_data.name,
+                    "drone_operator_name": drone_operator["name"],
+                    "task_id": task_id,
+                    "project_id": project_id,
+                    "project_name": project["name"],
+                    "description": project["description"],
+                    "FRONTEND_URL": settings.FRONTEND_URL,
+                },
+            )
+
+            background_tasks.add_task(
+                send_notification_email,
+                drone_operator["email_address"],
+                "Task is approved",
+                html_content,
+            )
+
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                requested_user_id,
+                "Request accepted for mapping",
+                State.REQUEST_FOR_MAPPING,
+                State.LOCKED_FOR_MAPPING,
+                detail.updated_at,
+            )
+
+        case EventType.REJECTED:
+            if user_id != project["author_id"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the project creator can approve the mapping.",
+                )
+
+            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
+                db, project_id, task_id
+            )
+            drone_operator = await user_schemas.DbUser.get_user_by_id(
+                db, requested_user_id
+            )
+            html_content = render_email_template(
+                folder_name="mapping",
+                template_name="approved_or_rejected.html",
+                context={
+                    "email_subject": "Mapping Request Rejected",
+                    "email_body": "We are sorry to inform you that your mapping request has been rejected.",
+                    "task_status": "rejected",
+                    "name": user_data.name,
+                    "drone_operator_name": drone_operator["name"],
+                    "task_id": task_id,
+                    "project_id": project_id,
+                    "project_name": project["name"],
+                    "description": project["description"],
+                },
+            )
+
+            background_tasks.add_task(
+                send_notification_email,
+                drone_operator["email_address"],
+                "Task is Rejected",
+                html_content,
+            )
+
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                requested_user_id,
+                "Request for mapping rejected",
+                State.REQUEST_FOR_MAPPING,
+                State.UNLOCKED_TO_MAP,
+                detail.updated_at,
+            )
+        case EventType.FINISH:
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                "Done: unlocked to validate",
+                State.LOCKED_FOR_MAPPING,
+                State.UNLOCKED_TO_VALIDATE,
+                detail.updated_at,
+            )
+        case EventType.VALIDATE:
+            return update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                "Done: locked for validation",
+                State.UNLOCKED_TO_VALIDATE,
+                State.LOCKED_FOR_VALIDATION,
+                detail.updated_at,
+            )
+        case EventType.GOOD:
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                "Done: Task is Good",
+                State.LOCKED_FOR_VALIDATION,
+                State.UNLOCKED_DONE,
+                detail.updated_at,
+            )
+
+        case EventType.BAD:
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                "Done: needs to redo",
+                State.LOCKED_FOR_VALIDATION,
+                State.UNLOCKED_TO_MAP,
+                detail.updated_at,
+            )
+        case EventType.COMMENT:
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                detail.comment,
+                State.LOCKED_FOR_MAPPING,
+                State.UNFLYABLE_TASK,
+                detail.updated_at,
+            )
+
+        case EventType.UNLOCK:
+            # Fetch the task state
+            current_task_state = await get_task_state(db, project_id, task_id)
+
+            state = current_task_state.get("state")
+            locked_user_id = current_task_state.get("user_id")
+
+            # Determine error conditions
+            if state != State.LOCKED_FOR_MAPPING.name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Task state does not match expected state for unlock operation.",
+                )
+            if user_id != locked_user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You cannot unlock this task as it is locked by another user.",
+                )
+
+            # Proceed with unlocking the task
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                f"Task has been unlock by user {user_data.name}.",
+                State.LOCKED_FOR_MAPPING,
+                State.UNLOCKED_TO_MAP,
+                detail.updated_at,
+            )
+
+        case EventType.IMAGE_UPLOAD:
+            current_task_state = await get_task_state(db, project_id, task_id)
+            if not current_task_state:
+                raise HTTPException(
+                    status_code=400, detail="Task is not ready for image upload."
+                )
+            state = current_task_state.get("state")
+            locked_user_id = current_task_state.get("user_id")
+
+            # Determine error conditions: Current State must be IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED or lokec for mapping.
+            if state not in (
+                State.IMAGE_UPLOADED.name,
+                State.IMAGE_PROCESSING_FAILED.name,
+                State.LOCKED_FOR_MAPPING.name,
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Task state does not match expected state for image upload.",
+                )
+
+            if user_id != locked_user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You cannot upload an image for this task as it is locked by another user.",
+                )
+
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                f"Task image uploaded by user {user_data.name}.",
+                State[state],
+                State.IMAGE_UPLOADED,
+                detail.updated_at,
+            )
+
+    return True

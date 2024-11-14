@@ -102,8 +102,6 @@ class DroneImageProcessor:
         :return: The created task object.
         """
         opts = self.options_list_to_dict(options)
-        # FIXME: take this from the function above
-        opts = {"dsm": True}
         task = self.node.create_task(
             images, opts, name, progress_callback, webhook=webhook
         )
@@ -259,26 +257,32 @@ async def download_and_upload_assets_from_odm_to_s3(
             f"Orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
         )
 
-        # Update background task status to COMPLETED
-        pool = await database.get_db_connection_pool()
+        # NOTE: This function uses a separate database connection pool because it is called by an internal server
+        # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
 
-        async with pool.connection() as conn:
-            await task_logic.update_task_state(
-                db=conn,
-                project_id=dtm_project_id,
-                task_id=dtm_task_id,
-                user_id=user_id,
-                comment=comment,
-                initial_state=current_state,
-                final_state=State.IMAGE_PROCESSED,
-                updated_at=timestamp(),
-            )
+        pool = await database.get_db_connection_pool()
+        async with pool as pool_instance:
+            async with pool_instance.connection() as conn:
+                await task_logic.update_task_state(
+                    db=conn,
+                    project_id=dtm_project_id,
+                    task_id=dtm_task_id,
+                    user_id=user_id,
+                    comment=comment,
+                    initial_state=current_state,
+                    final_state=State.IMAGE_PROCESSED,
+                    updated_at=timestamp(),
+                )
+                log.info(
+                    f"Task {dtm_task_id} state updated to IMAGE_PROCESSED in the database."
+                )
 
     except Exception as e:
-        log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
+        log.error(
+            f"An error occurred in the download, upload, or status update steps for task {task_id}. Details: {e}"
+        )
 
     finally:
-        # Clean up the temporary directory
         if os.path.exists(output_file_path):
             try:
                 shutil.rmtree(output_file_path)
