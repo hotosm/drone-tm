@@ -261,19 +261,19 @@ const CreateprojectLayout = () => {
   };
 
   return (
-    <section className="project-form-layout naxatw-h-full naxatw-overflow-auto naxatw-bg-[#FAFAFA]">
+    <section className="project-form-layout naxatw-h-full naxatw-bg-[#FAFAFA]">
       <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-4 naxatw-gap-5 naxatw-p-2">
         {/* description */}
-        <div className="description naxatw-col-span-4 naxatw-animate-fade-up naxatw-bg-white naxatw-px-5 naxatw-py-5 lg:naxatw-col-span-1 lg:naxatw-h-[calc(100vh-220px)]">
+        <div className="description naxatw-col-span-4 naxatw-min-h-[20vh] naxatw-animate-fade-up naxatw-overflow-y-auto naxatw-bg-white naxatw-px-5 naxatw-py-5 lg:naxatw-col-span-1 lg:naxatw-h-[calc(100vh-225px)]">
           {getActiveStepDescription(stepDescriptionComponents, activeStep)}
         </div>
 
         {/* form section */}
         <div className="form naxatw-relative naxatw-col-span-4 naxatw-h-full naxatw-bg-white naxatw-pb-[60px] lg:naxatw-col-span-3">
-          <div className="naxatw-h-full naxatw-w-full naxatw-overflow-y-auto naxatw-px-5 naxatw-py-5 lg:naxatw-h-[calc(100vh-280px)]">
+          <div className="naxatw-h-full naxatw-w-full naxatw-overflow-y-auto naxatw-px-5 naxatw-py-5 lg:naxatw-h-[calc(100vh-285px)]">
             {getActiveStepForm(activeStep, formProps)}
           </div>
-          <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-h-9 naxatw-w-full naxatw-justify-between naxatw-px-10">
+          <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-h-9 naxatw-w-full naxatw-justify-between naxatw-px-8">
             {activeStep !== 1 ? (
               <Button
                 onClick={onPrevBtnClick}
