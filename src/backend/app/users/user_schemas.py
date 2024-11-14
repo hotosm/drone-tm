@@ -143,9 +143,7 @@ class DbUserProfile(BaseUserProfile):
     user_id: int
 
     @staticmethod
-    async def _handle_certificate_file(
-        profile: BaseModel, user_id: int
-    ) -> Optional[str]:
+    async def _handle_certificate_file(profile: BaseModel, user_id: int):
         """Handle the certificate file upload and return the presigned URL."""
         certificate_file = getattr(profile, "certificate_file", None)
         if certificate_file:
@@ -154,7 +152,7 @@ class DbUserProfile(BaseUserProfile):
                 presigned_url = get_presigned_url(
                     settings.S3_BUCKET_NAME, s3_path, expires=1
                 )
-                return presigned_url
+                return presigned_url, s3_path
             except Exception as e:
                 log.error(f"Failed to generate presigned URL for certificate file: {e}")
         return None
@@ -181,9 +179,10 @@ class DbUserProfile(BaseUserProfile):
         model_data = profile_create.model_dump(exclude_none=True, exclude={"password"})
 
         # Handle certificate file
-        certificate_url = await DbUserProfile._handle_certificate_file(
-            profile_create, user_id
-        )
+        result = await DbUserProfile._handle_certificate_file(profile_create, user_id)
+        if result:
+            certificate_url, path = result
+            model_data["certificate_url"] = path
 
         # Prepare the SQL query for inserting the new profile
         columns = ", ".join(model_data.keys())
@@ -199,7 +198,7 @@ class DbUserProfile(BaseUserProfile):
         async with db.cursor() as cur:
             await cur.execute(sql, model_data)
 
-        if certificate_url:
+        if result:
             model_data["certificate_url"] = certificate_url
 
         return model_data
@@ -210,9 +209,10 @@ class DbUserProfile(BaseUserProfile):
         model_data = profile_update.model_dump(
             exclude_none=True, exclude={"password", "old_password", "certificate_file"}
         )
-        certificate_url = await DbUserProfile._handle_certificate_file(
-            profile_update, user_id
-        )
+        result = await DbUserProfile._handle_certificate_file(profile_update, user_id)
+        if result:
+            certificate_url, path = result
+            model_data["certificate_url"] = path
 
         await DbUserProfile._update_roles(db, user_id, model_data.get("role"))
 
@@ -255,7 +255,7 @@ class DbUserProfile(BaseUserProfile):
                         "user_id": user_id,
                     },
                 )
-        if certificate_url:
+        if result:
             model_data["certificate_url"] = certificate_url
 
         return model_data
