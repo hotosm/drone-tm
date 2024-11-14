@@ -83,7 +83,7 @@ const MapSection = () => {
       isMapLoaded={isMapLoaded}
       style={{
         width: '100%',
-        height: '448px',
+        height: '100%',
       }}
     >
       <BaseLayerSwitcher />
