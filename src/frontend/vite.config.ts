@@ -46,7 +46,7 @@ export default defineConfig({
       API_URL_V1: process.env.API_URL_V1,
       SITE_NAME: process.env.SITE_NAME,
       STATIC_BASE_URL: process.env.STATIC_BASE_URL,
-      S3_ENDPOINT: process.env.S3_ENDPOINT,
+      COG_URL: process.env.COG_URL,
     },
   },
   server: {
