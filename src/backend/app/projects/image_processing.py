@@ -226,6 +226,11 @@ async def download_and_upload_assets_from_odm_to_s3(
 ):
     """
     Downloads results from ODM, reprojects the orthophoto to EPSG:3857, and uploads it to S3.
+    
+    :param task_id: UUID of the ODM task.
+    :param dtm_project_id: UUID of the project.
+    :param dtm_task_id: UUID of the task.
+    :param current_state: Current state of the task (IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED).
     """
     log.info(f"Starting download for task {task_id}")
 
