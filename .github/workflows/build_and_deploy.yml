@@ -59,6 +59,7 @@ jobs:
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
       extra_build_args: BASE64_ARGS_TO_ENV=${{ needs.encode-envs.outputs.ENCODED_ENV }}
+      scan_image: false
     secrets: inherit
 
   deploy_to_vm:

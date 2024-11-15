@@ -211,7 +211,6 @@ def process_drone_images(
     options = [
         {"name": "dsm", "value": True},
         {"name": "orthophoto-resolution", "value": 5},
-        {"name": "cog", "value": True},
     ]
 
     webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
