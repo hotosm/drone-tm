@@ -201,18 +201,23 @@ def reproject_to_web_mercator(input_file, output_file):
         input_file (str): Path to the input COG file.
         output_file (str): Path to the output reprojected COG file.
     """
-    # Define the target projection (Web Mercator)
-    target_srs = "EPSG:3857"
+    try:
+        # Define the target projection (Web Mercator)
+        target_srs = "EPSG:3857"
 
-    # Use gdal.Warp to perform the reprojection
-    gdal.Warp(
-        output_file,
-        input_file,
-        dstSRS=target_srs,
-        format="COG",  # Output format as Cloud Optimized GeoTIFF
-        resampleAlg="near",  # Resampling method, 'near' for nearest neighbor
-    )
-    log.info(f"File reprojected to Web Mercator and saved as {output_file}")
+        # Use gdal.Warp to perform the reprojection
+        gdal.Warp(
+            output_file,
+            input_file,
+            dstSRS=target_srs,
+            format="COG",  # Output format as Cloud Optimized GeoTIFF
+            resampleAlg="near",  # Resampling method, 'near' for nearest neighbor
+        )
+        log.info(f"File reprojected to Web Mercator and saved as {output_file}")
+
+    except Exception as e:
+        log.error(f"An error occurred during reprojection: {e}")
+        raise
 
 
 async def download_and_upload_assets_from_odm_to_s3(
@@ -280,6 +285,8 @@ async def download_and_upload_assets_from_odm_to_s3(
         log.info(
             f"Reprojected orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
         )
+        # NOTE: This function uses a separate database connection pool because it is called by an internal server
+        # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
 
         pool = await database.get_db_connection_pool()
         async with pool as pool_instance:
