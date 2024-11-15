@@ -8,7 +8,7 @@ import { LngLatBoundsLike, RasterSourceSpecification } from 'maplibre-gl';
 import { useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 
-// const { BASE_URL } = process.env;
+const { S3_ENDPOINT } = process.env;
 
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
@@ -16,19 +16,18 @@ const TaskOrthophotoPreview = () => {
     state =>
       state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.outline,
   );
-  // const taskIdFromRedux = useTypedSelector(
-  //   state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
-  // );
-  // const pathname = window.location.pathname?.split('/');
-  // const projectId = pathname?.[2];
-  // const taskId = pathname?.[4] || taskIdFromRedux;
+  const taskIdFromRedux = useTypedSelector(
+    state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
+  );
+  const pathname = window.location.pathname?.split('/');
+  const projectId = pathname?.[2];
+  const taskId = pathname?.[4] || taskIdFromRedux;
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'orthophoto-map',
     mapOptions: {
       zoom: 21,
-      // center: [0, 0],
-      center: [85.32859011690468, 27.73057073397034],
+      center: [0, 0],
     },
     disableRotation: true,
   });
@@ -36,12 +35,11 @@ const TaskOrthophotoPreview = () => {
   const orthophotoSource: RasterSourceSpecification = useMemo(
     () => ({
       type: 'raster',
-      url: `cog://https://dev-dronetm.s3.ap-south-1.amazonaws.com/dtm-data/projects/450ae0ab-f578-48bc-9537-2e54c6d6e601/d6cbaa24-856b-45f5-b8d1-0b91d36adcac/orthophoto/odm_orthophoto_3857.tif`,
+      url: `cog://${S3_ENDPOINT}/dtm-data/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
       tileSize: 256,
     }),
 
-    // [projectId, taskId],
-    [],
+    [projectId, taskId],
   );
 
   useEffect(() => {
