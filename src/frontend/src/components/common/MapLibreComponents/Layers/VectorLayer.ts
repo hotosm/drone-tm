@@ -56,11 +56,19 @@ export default function VectorLayer({
       });
 
       if (hasImage) {
-        map.loadImage(image, (error, img: any) => {
-          if (error) throw error;
-          // Add the loaded image to the style's sprite with the ID 'kitten'.
-          map.addImage(imageId, img);
+        // map.loadImage(image, (error, img: any) => {
+        //   if (error) throw error;
+        //   // Add the loaded image to the style's sprite with the ID 'kitten'.
+        //   map.addImage(imageId, img);
+        // });
+
+        // changes on map libre 4
+        map.loadImage(image).then(({ data }) => {
+          if (!map.hasImage(imageId)) {
+            map.addImage(imageId, data);
+          }
         });
+
         map.addLayer({
           id: imageId,
           type: 'symbol',
