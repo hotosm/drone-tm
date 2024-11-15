@@ -26,6 +26,7 @@ import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
 import prepareFormData from '@Utils/prepareFormData';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { getFrontOverlap, getSideOverlap, gsdToAltitude } from '@Utils/index';
+import { useEffect } from 'react';
 
 /**
  * This function looks up the provided map of components to find and return
@@ -259,6 +260,21 @@ const CreateprojectLayout = () => {
     }
     createProject(formData);
   };
+
+  useEffect(() => {
+    return () => {
+      reset();
+      dispatch(resetUploadedAndDrawnAreas());
+      dispatch(
+        setCreateProjectState({
+          activeStep: 1,
+          splitGeojson: null,
+          uploadedProjectArea: null,
+          uploadedNoFlyZone: null,
+        }),
+      );
+    };
+  }, [reset, dispatch]);
 
   return (
     <section className="project-form-layout naxatw-h-full naxatw-bg-[#FAFAFA]">
