@@ -15,6 +15,7 @@ from psycopg import Connection
 from asgiref.sync import async_to_sync
 from app.config import settings
 import zipfile
+from osgeo import gdal
 
 
 class DroneImageProcessor:
@@ -192,6 +193,33 @@ class DroneImageProcessor:
             pass
 
 
+def reproject_to_web_mercator(input_file, output_file):
+    """
+    Reprojects a COG file to Web Mercator (EPSG:3857) using GDAL.
+
+    Args:
+        input_file (str): Path to the input COG file.
+        output_file (str): Path to the output reprojected COG file.
+    """
+    try:
+        # Define the target projection (Web Mercator)
+        target_srs = "EPSG:3857"
+
+        # Use gdal.Warp to perform the reprojection
+        gdal.Warp(
+            output_file,
+            input_file,
+            dstSRS=target_srs,
+            format="COG",  # Output format as Cloud Optimized GeoTIFF
+            resampleAlg="near",  # Resampling method, 'near' for nearest neighbor
+        )
+        log.info(f"File reprojected to Web Mercator and saved as {output_file}")
+
+    except Exception as e:
+        log.error(f"An error occurred during reprojection: {e}")
+        raise
+
+
 async def download_and_upload_assets_from_odm_to_s3(
     node_odm_url: str,
     task_id: str,
@@ -202,13 +230,12 @@ async def download_and_upload_assets_from_odm_to_s3(
     comment: str,
 ):
     """
-    Downloads results from ODM and uploads them to S3 (Minio).
+    Downloads results from ODM, reprojects the orthophoto to EPSG:3857, and uploads it to S3.
 
     :param task_id: UUID of the ODM task.
     :param dtm_project_id: UUID of the project.
     :param dtm_task_id: UUID of the task.
     :param current_state: Current state of the task (IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED).
-
     """
     log.info(f"Starting download for task {task_id}")
 
@@ -238,7 +265,6 @@ async def download_and_upload_assets_from_odm_to_s3(
         with zipfile.ZipFile(assets_path, "r") as zip_ref:
             zip_ref.extractall(output_file_path)
 
-        # Locate the orthophoto (odm_orthophoto.tif)
         orthophoto_path = os.path.join(
             output_file_path, "odm_orthophoto", "odm_orthophoto.tif"
         )
@@ -248,15 +274,17 @@ async def download_and_upload_assets_from_odm_to_s3(
 
         log.info(f"Orthophoto found at {orthophoto_path}")
 
-        # Upload the orthophoto to S3
+        # NOTE: Reproject the orthophoto to EPSG:3857, overwriting the original file
+        reproject_to_web_mercator(orthophoto_path, orthophoto_path)
+
+        # Upload the reprojected orthophoto to S3
         s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/orthophoto/odm_orthophoto.tif"
-        log.info(f"Uploading orthophoto to S3 path: {s3_ortho_path}")
+        log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
         add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
         log.info(
-            f"Orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
+            f"Reprojected orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
         )
-
         # NOTE: This function uses a separate database connection pool because it is called by an internal server
         # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
 
@@ -279,7 +307,7 @@ async def download_and_upload_assets_from_odm_to_s3(
 
     except Exception as e:
         log.error(
-            f"An error occurred in the download, upload, or status update steps for task {task_id}. Details: {e}"
+            f"An error occurred during processing for task {task_id}. Details: {e}"
         )
 
     finally:
