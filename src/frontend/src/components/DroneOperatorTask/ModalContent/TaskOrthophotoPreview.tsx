@@ -8,7 +8,7 @@ import { LngLatBoundsLike, RasterSourceSpecification } from 'maplibre-gl';
 import { useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 
-const { S3_ENDPOINT } = process.env;
+const { COG_URL } = process.env;
 
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
@@ -35,7 +35,7 @@ const TaskOrthophotoPreview = () => {
   const orthophotoSource: RasterSourceSpecification = useMemo(
     () => ({
       type: 'raster',
-      url: `cog://${S3_ENDPOINT}/dtm-data/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
+      url: `cog://${COG_URL}/dtm-data/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
       tileSize: 256,
     }),
 
