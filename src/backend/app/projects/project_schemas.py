@@ -199,6 +199,7 @@ class DbProject(BaseModel):
     is_terrain_follow: bool = False
     image_url: Optional[str] = None
     created_at: datetime
+    author_id: str
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""
@@ -337,7 +338,7 @@ class DbProject(BaseModel):
             await cur.execute(
                 """
                 SELECT
-                    p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at,
+                    p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at, p.author_id,
                     ST_AsGeoJSON(p.outline)::jsonb AS outline,
                     p.requires_approval_from_manager_for_locking,
 
@@ -536,6 +537,7 @@ class ProjectInfo(BaseModel):
     completed_task_count: Optional[int] = 0
     status: Optional[str] = "not-started"
     created_at: datetime
+    author_id: str
 
     @model_validator(mode="after")
     def set_image_url(cls, values):
