@@ -19,6 +19,7 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation } from '@tanstack/react-query';
 import getBbox from '@turf/bbox';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { getLayerOptionsByStatus } from '@Constants/projectDescription';
 import Legend from './Legend';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
@@ -233,81 +234,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
               visibleOnMap={task?.id && taskStatusObj}
               geojson={task.outline as GeojsonType}
               interactions={['feature']}
-              layerOptions={
-                taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING'
-                  ? {
-                      type: 'fill',
-                      paint: {
-                        'fill-color': '#98BBC8',
-                        'fill-outline-color': '#484848',
-                        'fill-opacity': 0.8,
-                      },
-                    }
-                  : taskStatusObj?.[`${task?.id}`] === 'REQUEST_FOR_MAPPING'
-                    ? {
-                        type: 'fill',
-                        paint: {
-                          'fill-color': '#F3C5C5',
-                          'fill-outline-color': '#484848',
-                          'fill-opacity': 0.7,
-                        },
-                      }
-                    : taskStatusObj?.[`${task?.id}`] === 'UNLOCKED_TO_VALIDATE'
-                      ? {
-                          type: 'fill',
-                          paint: {
-                            'fill-color': '#176149',
-                            'fill-outline-color': '#484848',
-                            'fill-opacity': 0.5,
-                          },
-                        }
-                      : taskStatusObj?.[`${task?.id}`] === 'IMAGE_PROCESSED'
-                        ? {
-                            type: 'fill',
-                            paint: {
-                              'fill-color': '#ACD2C4',
-                              'fill-outline-color': '#484848',
-                              'fill-opacity': 0.7,
-                            },
-                          }
-                        : taskStatusObj?.[`${task?.id}`] === 'IMAGE_UPLOADED'
-                          ? {
-                              type: 'fill',
-                              paint: {
-                                'fill-color': '#9C77B2',
-                                'fill-outline-color': '#484848',
-                                'fill-opacity': 0.5,
-                              },
-                            }
-                          : taskStatusObj?.[`${task?.id}`] ===
-                              'IMAGE_PROCESSING_FAILED'
-                            ? {
-                                type: 'fill',
-                                paint: {
-                                  'fill-color': '#f00000',
-                                  'fill-outline-color': '#484848',
-                                  'fill-opacity': 0.5,
-                                },
-                              }
-                            : taskStatusObj?.[`${task?.id}`] ===
-                                'UNFLYABLE_TASK'
-                              ? {
-                                  type: 'fill',
-                                  paint: {
-                                    'fill-color': '#9EA5AD',
-                                    'fill-outline-color': '#484848',
-                                    'fill-opacity': 0.7,
-                                  },
-                                }
-                              : {
-                                  type: 'fill',
-                                  paint: {
-                                    'fill-color': '#ffffff',
-                                    'fill-outline-color': '#484848',
-                                    'fill-opacity': 0.5,
-                                  },
-                                }
-              }
+              layerOptions={getLayerOptionsByStatus(
+                taskStatusObj?.[`${task?.id}`],
+              )}
               hasImage={
                 taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
               }
