@@ -199,6 +199,7 @@ class DbProject(BaseModel):
     is_terrain_follow: bool = False
     image_url: Optional[str] = None
     created_at: datetime
+    author_id: str
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""
@@ -536,6 +537,7 @@ class ProjectInfo(BaseModel):
     completed_task_count: Optional[int] = 0
     status: Optional[str] = "not-started"
     created_at: datetime
+    author_id: str
 
     @model_validator(mode="after")
     def set_image_url(cls, values):
