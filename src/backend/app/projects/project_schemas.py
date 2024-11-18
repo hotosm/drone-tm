@@ -338,7 +338,7 @@ class DbProject(BaseModel):
             await cur.execute(
                 """
                 SELECT
-                    p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at,
+                    p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at, p.author_id,
                     ST_AsGeoJSON(p.outline)::jsonb AS outline,
                     p.requires_approval_from_manager_for_locking,
 
