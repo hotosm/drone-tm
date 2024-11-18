@@ -11,7 +11,7 @@ export default function KeyParameters() {
   );
 
   return (
-    <div className="scrollbar naxatw-max-h-[65vh] naxatw-overflow-y-auto naxatw-px-2">
+    <div className="">
       {keyParamOption === 'basic' ? (
         keyParametersInfo?.map(info => (
           <div className="naxatw-animate-fade-up naxatw-py-2" key={info.key}>

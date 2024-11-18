@@ -20,6 +20,7 @@ import {
 import { useTypedSelector } from '@Store/hooks';
 import { toggleModal } from '@Store/actions/common';
 import { postTaskStatus } from '@Services/project';
+import Skeleton from '@Components/RadixComponents/Skeleton';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
@@ -43,10 +44,20 @@ const DescriptionBox = () => {
       },
     },
   );
-  const { data: taskAssetsInformation }: Record<string, any> =
-    useGetTaskAssetsInfo(projectId as string, taskId as string);
+  const {
+    data: taskAssetsInformation,
+    isFetching: taskAssetsInfoLoading,
+  }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
+  );
 
-  const { mutate: updateStatus } = useMutation<any, any, any, unknown>({
+  const { mutate: updateStatus, isLoading: statusUpdating } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
     mutationFn: postTaskStatus,
     onSuccess: () => {
       queryClient.invalidateQueries(['task-assets-info']);
@@ -56,17 +67,19 @@ const DescriptionBox = () => {
     },
   });
 
-  const { mutate: reStartImageryProcess } = useMutation({
-    mutationFn: () => postProcessImagery(projectId as string, taskId as string),
-    onSuccess: () => {
-      updateStatus({
-        projectId,
-        taskId,
-        data: { event: 'image_upload', updated_at: new Date().toISOString() },
-      });
-      toast.success('Image processing re-started');
-    },
-  });
+  const { mutate: reStartImageryProcess, isLoading: imageProcessingStarting } =
+    useMutation({
+      mutationFn: () =>
+        postProcessImagery(projectId as string, taskId as string),
+      onSuccess: () => {
+        updateStatus({
+          projectId,
+          taskId,
+          data: { event: 'image_upload', updated_at: new Date().toISOString() },
+        });
+        toast.success('Image processing re-started');
+      },
+    });
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
@@ -226,6 +239,8 @@ const DescriptionBox = () => {
             ]}
           />
 
+          {taskAssetsInfoLoading && <Skeleton className="naxatw-h-48" />}
+
           {taskAssetsInformation?.assets_url && (
             <div className="naxatw-flex naxatw-gap-1">
               <Button
@@ -258,6 +273,7 @@ const DescriptionBox = () => {
                 leftIcon="replay"
                 iconClassname="naxatw-text-[1.125rem]"
                 onClick={() => reStartImageryProcess()}
+                disabled={imageProcessingStarting || statusUpdating}
               >
                 Re-run processing
               </Button>

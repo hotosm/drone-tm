@@ -20,7 +20,7 @@ export default function Conditions({
   );
 
   return (
-    <FlexColumn gap={5} className="naxatw-px-10 naxatw-py-5">
+    <FlexColumn gap={5} className="">
       <FormControl>
         <Label>Instructions for Drone Operators</Label>
         <Input

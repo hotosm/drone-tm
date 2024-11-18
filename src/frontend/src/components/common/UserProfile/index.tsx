@@ -15,19 +15,21 @@ export default function UserProfile() {
   const userProfile = getLocalStorageValue('userprofile');
   const role = localStorage.getItem('signedInAs');
 
-  const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery({
-    enabled: !!(userProfile?.role && role),
-  });
+  const { data: userDetails, isFetching }: Record<string, any> =
+    useGetUserDetailsQuery({
+      enabled: !!(userProfile?.role && role),
+    });
 
   useEffect(() => {
     if (
       !userProfile ||
       userProfile?.role?.includes(role) ||
-      userDetails?.role?.includes(role)
+      userDetails?.role?.includes(role) ||
+      isFetching
     )
       return;
     navigate('/complete-profile');
-  }, [userProfile, role, navigate, userDetails]);
+  }, [userProfile, role, navigate, userDetails, isFetching]);
 
   const settingOptions = [
     {
