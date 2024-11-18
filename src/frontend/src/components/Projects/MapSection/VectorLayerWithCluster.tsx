@@ -68,20 +68,18 @@ export default function VectorLayerWithCluster({
     });
 
     // inspect a cluster on click
-    map.on('click', 'clusters', (e: any) => {
+    map.on('click', 'clusters', async (e: any) => {
       const features = map.queryRenderedFeatures(e.point, {
         layers: ['clusters'],
       });
       const clusterId = features[0].properties.cluster_id;
-      map
+      const zoom = await map
         .getSource(sourceId)
-        .getClusterExpansionZoom(clusterId, (err: any, zoom: any) => {
-          if (err) return;
-          map.easeTo({
-            center: features[0].geometry.coordinates,
-            zoom,
-          });
-        });
+        .getClusterExpansionZoom(clusterId);
+      map.easeTo({
+        center: features[0].geometry.coordinates,
+        zoom,
+      });
     });
 
     map.on('mouseenter', 'clusters', () => {

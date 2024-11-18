@@ -20,8 +20,6 @@ from app.projects.image_processing import DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
 from psycopg.rows import dict_row
-from rio_tiler.io import Reader
-from rio_tiler.errors import TileOutsideBounds
 
 
 async def get_centroids(db: Connection):
@@ -272,23 +270,3 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     except Exception as e:
         log.exception(f"An error occurred while retrieving assets info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-def read_tile_from_cog(cog_path: str, x: int, y: int, z: int) -> bytes:
-    """
-    Helper function to safely read a tile from a COG file.
-    This function is run in a separate thread.
-    """
-    try:
-        # Open the COG file safely and fetch the specified tile
-        with Reader(cog_path) as tiff:
-            img = tiff.tile(int(x), int(y), int(z), tilesize=256)
-            tile = img.render()  # Render the tile as a PNG byte array
-        return tile
-
-    except TileOutsideBounds:
-        # Reraise to handle in async function
-        raise
-    except Exception as e:
-        # Catch any unforeseen errors and reraise as needed
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
