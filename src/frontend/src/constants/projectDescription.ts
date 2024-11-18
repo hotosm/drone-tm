@@ -70,3 +70,28 @@ export const getLayerOptionsByStatus = (status: string) => {
   // @ts-ignore
   return layerOptions?.[status] || layerOptions.default;
 };
+
+export const showPrimaryButton = (
+  status: string,
+  lockedUser: any,
+  currentUser: any,
+  author: any,
+) => {
+  switch (status) {
+    case 'UNLOCKED_TO_MAP':
+      return true;
+    case 'LOCKED_FOR_MAPPING':
+      if (lockedUser === currentUser || author === currentUser) return true;
+      return false;
+    case 'IMAGE_UPLOADED':
+      if (lockedUser === currentUser || author === currentUser) return true;
+      return false;
+    case 'IMAGE_PROCESSED':
+      return true;
+    case 'IMAGE_PROCESSING_FAILED':
+      if (lockedUser === currentUser || author === currentUser) return true;
+      return false;
+    default:
+      return false;
+  }
+};

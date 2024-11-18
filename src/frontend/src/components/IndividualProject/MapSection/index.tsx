@@ -19,7 +19,10 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation } from '@tanstack/react-query';
 import getBbox from '@turf/bbox';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { getLayerOptionsByStatus } from '@Constants/projectDescription';
+import {
+  getLayerOptionsByStatus,
+  showPrimaryButton,
+} from '@Constants/projectDescription';
 import Legend from './Legend';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
@@ -265,14 +268,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           });
         }}
         hideButton={
-          !(
-            !taskStatusObj?.[selectedTaskId] ||
-            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
-            (taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
-              lockedUser?.id === userDetails?.id) ||
-            taskStatusObj?.[selectedTaskId] === 'IMAGE_UPLOADED' ||
-            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSED' ||
-            taskStatusObj?.[selectedTaskId] === 'IMAGE_PROCESSING_FAILED'
+          !showPrimaryButton(
+            taskStatusObj?.[selectedTaskId],
+            lockedUser?.id,
+            userDetails?.id,
+            projectData?.author_id,
           )
         }
         buttonText={
