@@ -27,16 +27,14 @@ from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.db import database
 from app.models.enums import HTTPStatus, State
-from app.s3 import get_cog_path, s3_client
+from app.s3 import s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
 from app.utils import geojson_to_kml, timestamp
 from app.users import user_schemas
-from rio_tiler.errors import TileOutsideBounds
 from minio.deleteobjects import DeleteObject
-import asyncio
 
 
 router = APIRouter(
@@ -584,33 +582,3 @@ async def odm_webhook(
     log.info(f"Task ID: {task_id}, Status: Webhook received")
 
     return {"message": "Webhook received", "task_id": task_id}
-
-
-@router.get(
-    "/orthophoto/{z}/{x}/{y}.png",
-    tags=["Image Processing"],
-)
-async def get_orthophoto_tile(
-    project_id: str,
-    task_id: str,
-    z: int,
-    x: int,
-    y: int,
-):
-    """
-    Endpoint to serve COG tiles as PNG images with safer and more efficient handling.
-    """
-    cog_path = get_cog_path(settings.S3_BUCKET_NAME, project_id, task_id)
-
-    try:
-        # Use asyncio.to_thread to move blocking raster file I/O to a separate thread
-        tile = await asyncio.to_thread(
-            project_logic.read_tile_from_cog, cog_path, x, y, z
-        )
-        return Response(content=tile, media_type="image/png")
-
-    except TileOutsideBounds:
-        # Return a 204 No Content if tile is outside the bounds
-        return Response(status_code=204, content="")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
