@@ -101,6 +101,7 @@ class BaseUserProfile(BaseModel):
     certified_drone_operator: Optional[bool] = False
     role: Optional[List[UserRole]] = None
     certificate_file: Optional[str] = None
+    registration_file: Optional[str] = None
 
     @field_validator("role", mode="after")
     @classmethod
@@ -143,19 +144,40 @@ class DbUserProfile(BaseUserProfile):
     user_id: int
 
     @staticmethod
-    async def _handle_certificate_file(profile: BaseModel, user_id: int):
-        """Handle the certificate file upload and return the presigned URL."""
-        certificate_file = getattr(profile, "certificate_file", None)
-        if certificate_file:
-            s3_path = f"dtm-data/users/{user_id}/certificate/{certificate_file}"
-            try:
-                presigned_url = get_presigned_url(
-                    settings.S3_BUCKET_NAME, s3_path, expires=1
-                )
-                return presigned_url, s3_path
-            except Exception as e:
-                log.error(f"Failed to generate presigned URL for certificate file: {e}")
-        return None
+    async def _handle_file_upload(profile: UserProfileCreate, user_id: int):
+        """
+        Handle file uploads (certificate and registration) and return presigned URLs and S3 paths.
+
+        Args:
+            profile (UserProfileCreate): The user profile containing file fields.
+            user_id (int): The user's ID.
+
+        Returns:
+            dict: A dictionary with presigned URLs and S3 paths for each file type.
+        """
+        result = {}
+
+        file_paths = {
+            "certificate_file": f"dtm-data/users/{user_id}/certificate/{profile.certificate_file}",
+            "registration_file": f"dtm-data/users/{user_id}/registration/{profile.registration_file}",
+        }
+
+        for file_type, s3_path in file_paths.items():
+            file_name = getattr(profile, file_type, None)
+            if file_name:
+                try:
+                    presigned_url = get_presigned_url(
+                        settings.S3_BUCKET_NAME, s3_path, expires=1
+                    )
+                    result[file_type] = {
+                        "presigned_url": presigned_url,
+                        "s3_path": s3_path,
+                    }
+                except Exception as e:
+                    log.error(f"Failed to generate presigned URL for {file_type}: {e}")
+                    result[file_type] = {"error": str(e)}
+
+        return result
 
     @staticmethod
     async def _update_roles(db: Connection, user_id: int, new_roles: Optional[list]):
@@ -178,11 +200,18 @@ class DbUserProfile(BaseUserProfile):
         """Create a new user profile."""
         model_data = profile_create.model_dump(exclude_none=True, exclude={"password"})
 
-        # Handle certificate file
-        result = await DbUserProfile._handle_certificate_file(profile_create, user_id)
-        if result:
-            certificate_url, path = result
-            model_data["certificate_url"] = path
+        field_mapping = {
+            "certificate_file": "certificate_url",
+            "registration_file": "registration_certificate_url",
+        }
+
+        results = await DbUserProfile._handle_file_upload(profile_create, user_id)
+        for file_type, file_data in results.items():
+            if file_data.get("s3_path"):
+                model_data[field_mapping[file_type]] = file_data["s3_path"]
+
+        model_data.pop("certificate_file", None)
+        model_data.pop("registration_file", None)
 
         # Prepare the SQL query for inserting the new profile
         columns = ", ".join(model_data.keys())
@@ -198,21 +227,30 @@ class DbUserProfile(BaseUserProfile):
         async with db.cursor() as cur:
             await cur.execute(sql, model_data)
 
-        if result:
-            model_data["certificate_url"] = certificate_url
+        for file_type, url_key in field_mapping.items():
+            if results.get(file_type):
+                model_data[url_key] = results[file_type].get("presigned_url")
 
         return model_data
 
     @staticmethod
     async def update(db: Connection, user_id: int, profile_update: UserProfileUpdate):
         """Update or insert a user profile."""
+        field_mapping = {
+            "certificate_file": "certificate_url",
+            "registration_file": "registration_certificate_url",
+        }
+
         model_data = profile_update.model_dump(
             exclude_none=True, exclude={"password", "old_password", "certificate_file"}
         )
-        result = await DbUserProfile._handle_certificate_file(profile_update, user_id)
-        if result:
-            certificate_url, path = result
-            model_data["certificate_url"] = path
+        results = await DbUserProfile._handle_file_upload(profile_update, user_id)
+        for file_type, file_data in results.items():
+            if file_data.get("s3_path"):
+                model_data[field_mapping[file_type]] = file_data["s3_path"]
+
+        model_data.pop("certificate_file", None)
+        model_data.pop("registration_file", None)
 
         await DbUserProfile._update_roles(db, user_id, model_data.get("role"))
 
@@ -255,8 +293,9 @@ class DbUserProfile(BaseUserProfile):
                         "user_id": user_id,
                     },
                 )
-        if result:
-            model_data["certificate_url"] = certificate_url
+        for file_type, url_key in field_mapping.items():
+            if results.get(file_type):
+                model_data[url_key] = results[file_type].get("presigned_url")
 
         return model_data
 
