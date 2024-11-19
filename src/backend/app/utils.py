@@ -3,6 +3,7 @@ import geojson
 import requests
 import shapely
 import json
+import base64
 from datetime import datetime, timezone
 from typing import Optional, Union, Any
 from geojson_pydantic import Feature, MultiPolygon, Polygon
@@ -527,3 +528,40 @@ def geojson_to_kml(geojson_data: dict) -> str:
     kml_output.append("</kml>")
 
     return "\n".join(kml_output)
+
+
+async def send_project_approval_email_to_regulator(
+    emails: list, project_id: str, creator: str, project_name: str
+):
+    for email in emails:
+        encoded_email = base64.urlsafe_b64encode(email.encode()).decode()
+        project_link = (
+            f"{settings.FRONTEND_URL}/projects/{project_id}/?token={encoded_email}"
+        )
+
+        body = f"""
+        Hello,
+
+        A project has been created by {creator}, and you have been designated as the regulator for this project: {project_name}.
+        Approval Link: {project_link}
+
+        Note: Drone operator will be able to access and view the project only after your approval.
+        """
+
+        message = MIMEText(body, "plain")
+        message["From"] = formataddr(
+            (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL)
+        )
+        message["To"] = ",".join(emails)
+        message["Subject"] = "Project Approval"
+        try:
+            log.debug("Sending email message")
+            await send_email(
+                message,
+                hostname=settings.SMTP_HOST,
+                port=settings.SMTP_PORT,
+                username=settings.SMTP_USER,
+                password=settings.SMTP_PASSWORD,
+            )
+        except Exception as e:
+            log.error(f"Error sending email: {e}")
