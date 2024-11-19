@@ -6,7 +6,11 @@ import { toggleModal } from '@Store/actions/common';
 import { setFiles } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 
-const UploadsBox = ({ label = 'Upload Raw Image' }: { label?: string }) => {
+const UploadsBox = ({
+  label = 'Upload Images and GCP',
+}: {
+  label?: string;
+}) => {
   const dispatch = useTypedDispatch();
   const files = useTypedSelector(state => state.droneOperatorTask.files);
   const handleFileChange = (event: any) => {
@@ -34,9 +38,15 @@ const UploadsBox = ({ label = 'Upload Raw Image' }: { label?: string }) => {
             <span className="material-icons-outlined naxatw-text-red">
               cloud_upload
             </span>
-            <p className="naxatw-text-sm">
-              The supported file formats are .jpg, .jpeg, .png
-            </p>
+            <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-text-center">
+              <p className="naxatw-text-sm">
+                The supported file formats are .jpg, .jpeg, .png.
+              </p>
+              <p className="naxatw-text-sm">
+                The GCP file should be named gcp_list.txt
+              </p>
+            </div>
+
             {files.length > 0 && (
               <p className="naxatw-text-sm naxatw-text-green-700">
                 {files.length} items selected
