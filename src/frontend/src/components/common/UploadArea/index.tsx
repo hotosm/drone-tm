@@ -141,14 +141,14 @@ export default function FileUpload({
               key={id}
               className="naxatw-items-center naxatw-justify-between naxatw-rounded-lg naxatw-border naxatw-px-4 naxatw-py-2"
             >
-              <FlexRow gap={4} className="naxatw-items-center">
+              <FlexRow gap={4} className="naxatw-min-h-10 naxatw-items-center">
                 <Image src={previewURL} width={40} alt="" />
                 <FlexColumn>
                   <h5 className="naxatw-text-sm">{file?.name}</h5>
                   {file && file?.lastModified && (
                     <p className="naxatw-text-xs naxatw-text-grey-600">
-                      Uploaded on
-                      {format(new Date(file.lastModifiedDate), 'MMM dd yyyy')}
+                      Uploaded on{' '}
+                      {format(new Date(file.lastModified), 'MMM dd yyyy')}
                     </p>
                   )}
                 </FlexColumn>
