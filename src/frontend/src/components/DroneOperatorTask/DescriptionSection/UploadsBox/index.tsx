@@ -7,7 +7,7 @@ import { setFiles } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 
 const UploadsBox = ({
-  label = 'Upload Images and GCP',
+  label = 'Upload Images, GCP, and align.laz',
 }: {
   label?: string;
 }) => {
@@ -44,6 +44,9 @@ const UploadsBox = ({
               </p>
               <p className="naxatw-text-sm">
                 The GCP file should be named gcp_list.txt
+              </p>
+              <p className="naxatw-text-sm">
+                The align file should be named align.laz
               </p>
             </div>
 
