@@ -66,6 +66,14 @@ class ProjectStatus(IntEnum, Enum):
     DRAFT = 2
 
 
+class RegulatorApprovalStatus(IntEnum, Enum):
+    """Enum to describe all possible state of a Project from Regulator"""
+
+    PENDING = 0
+    APPROVED = 1
+    REJECTED = 2
+
+
 class ProjectVisibility(IntEnum, Enum):
     """Enum describing task splitting type."""
 
@@ -120,6 +128,7 @@ class DroneType(IntEnum):
 class UserRole(IntEnum, Enum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
+    REGULATOR = 3
 
 
 class State(int, Enum):

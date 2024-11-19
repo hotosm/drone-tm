@@ -1,4 +1,6 @@
 import os
+import base64
+import uuid
 import jwt
 from app.users import user_schemas
 from app.users import user_deps
@@ -17,6 +19,7 @@ from app.config import settings
 from app.db import database
 from app.models.enums import HTTPStatus
 from psycopg import Connection
+from psycopg.rows import class_row
 from fastapi.responses import JSONResponse
 from loguru import logger as log
 from pydantic import EmailStr
@@ -262,3 +265,84 @@ async def reset_password(
         content={"detail": "Your password has been successfully reset!"},
         status_code=200,
     )
+
+
+@router.post("/regulator/", tags=["Auto Regulator Account Creation"])
+async def regulator_create(
+    db: Annotated[Connection, Depends(database.get_db)], data: dict
+):
+    """
+    Automatically create a regulator account with email and password same as email and with some dummy data
+    for required fields with role as REGULATOR
+    """
+    try:
+        token = data["token"]
+        email = base64.urlsafe_b64decode(token.encode()).decode()
+        async with db.cursor(row_factory=class_row(DbUser)) as cur:
+            await cur.execute(
+                """
+                SELECT * FROM users WHERE email_address = %(email)s;
+                """,
+                {"email": email},
+            )
+            user_data = await cur.fetchone()
+        if not user_data:  ## if user is not already present return user data token
+            sql = """
+            INSERT INTO users (
+                id, name, email_address, password, is_active, is_superuser, profile_img,date_registered
+            )
+            VALUES (
+                %(user_id)s, %(name)s, %(email_address)s, %(password)s,  True, False, now(), %(profile_img)s
+            )
+            RETURNING *
+            """
+            async with db.cursor(row_factory=class_row(DbUser)) as cur:
+                await cur.execute(
+                    sql,
+                    {
+                        "user_id": uuid.uuid4().int,
+                        "name": email,
+                        "email_address": email,
+                        "password": user_logic.get_password_hash(email),
+                        "profile_img": None,
+                    },
+                )
+                user_data = await cur.fetchone()
+
+            user_profile_sql = """
+            INSERT INTO user_profile (
+                user_id, role, phone_number, country, city
+            )
+            VALUES (
+                %(user_id)s, %(role)s, %(phone_number)s, %(country)s, %(city)s
+            )
+            """
+
+            async with db.cursor() as cur:
+                await cur.execute(
+                    user_profile_sql,
+                    {
+                        "user_id": user_data.id,
+                        "role": ["REGULATOR"],
+                        "phone_number": "9866666666",
+                        "country": "Nepal",
+                        "city": "Kathmandu",
+                    },
+                )
+        user_info = {
+            "id": user_data.id,
+            "email": user_data.email_address,
+            "name": user_data.name,
+            "profile_img": user_data.profile_img,
+            "role": "REGULATOR",
+        }
+        access_token, refresh_token = await user_logic.create_access_token(user_info)
+
+        return Token(
+            access_token=access_token, refresh_token=refresh_token, role="REGULATOR"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"An error occurred: {str(e)}",
+        )
