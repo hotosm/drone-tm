@@ -4,8 +4,12 @@ import { FormControl, Label, Input } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import RadioButton from '@Components/common/RadioButton';
-import { lockApprovalOptions } from '@Constants/createProject';
+import {
+  lockApprovalOptions,
+  regulatorApprovalOptions,
+} from '@Constants/createProject';
 import { setCreateProjectState } from '@Store/actions/createproject';
+import MultipleEmailInput from '@Components/common/MultipleEmailInput';
 // import { contributionsOptions } from '@Constants/createProject';
 
 export default function Conditions({
@@ -17,6 +21,12 @@ export default function Conditions({
   const { register, errors } = formProps;
   const requireApprovalFromManagerForLocking = useTypedSelector(
     state => state.createproject.requireApprovalFromManagerForLocking,
+  );
+  const requiresApprovalFromRegulator = useTypedSelector(
+    state => state.createproject.requiresApprovalFromRegulator,
+  );
+  const regulatorEmails = useTypedSelector(
+    state => state.createproject.regulatorEmails,
   );
 
   return (
@@ -58,6 +68,37 @@ export default function Conditions({
         </div>
         <ErrorMessage message={errors?.deadline_at?.message as string} />
       </FormControl>
+
+      <FormControl>
+        <RadioButton
+          required
+          topic="Approval from Regulator"
+          options={regulatorApprovalOptions}
+          direction="column"
+          onChangeData={value => {
+            dispatch(
+              setCreateProjectState({
+                requiresApprovalFromRegulator: value,
+              }),
+            );
+          }}
+          value={requiresApprovalFromRegulator}
+        />
+      </FormControl>
+
+      {requiresApprovalFromRegulator === 'required' && (
+        <FormControl className="naxatw-gap-2">
+          <Label required>Approval Email</Label>
+          <MultipleEmailInput
+            emails={regulatorEmails}
+            onEmailAdd={emails => {
+              dispatch(setCreateProjectState({ regulatorEmails: emails }));
+            }}
+          />
+          <ErrorMessage message={errors?.regulator_emails?.message as string} />
+        </FormControl>
+      )}
+
       <FormControl>
         <RadioButton
           required
