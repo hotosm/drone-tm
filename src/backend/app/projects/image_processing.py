@@ -50,7 +50,7 @@ class DroneImageProcessor:
 
     def download_object(self, bucket_name: str, obj, images_folder: str):
         if obj.object_name.endswith(
-            (".jpg", ".jpeg", ".JPG", ".png", ".PNG", ".txt")
+            (".jpg", ".jpeg", ".JPG", ".png", ".PNG", ".txt", ".laz")
         ):  # Images and GCP File
             local_path = Path(images_folder) / Path(obj.object_name).name
             local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -93,7 +93,8 @@ class DroneImageProcessor:
                 ".jpeg",
                 ".png",
                 ".txt",
-            }:  # Images and GCP File
+                ".laz",
+            }:  # Images, GCP File, and align.laz
                 images.append(str(file))
         return images
 
