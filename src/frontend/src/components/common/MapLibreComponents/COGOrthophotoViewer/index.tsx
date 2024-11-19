@@ -9,6 +9,7 @@ interface IViewOrthophotoProps {
   id: string;
   source: RasterSourceSpecification;
   visibleOnMap?: Boolean;
+  zoomToLayer?: Boolean;
 }
 
 const COGOrthophotoViewer = ({
@@ -17,6 +18,7 @@ const COGOrthophotoViewer = ({
   id,
   source,
   visibleOnMap,
+  zoomToLayer = false,
 }: IViewOrthophotoProps) => {
   useEffect(() => {
     if (!map || !isMapLoaded || !source || !visibleOnMap) return;
@@ -34,14 +36,21 @@ const COGOrthophotoViewer = ({
       });
     }
 
+    const zoomToSource = setTimeout(() => {
+      if (map?.getSource(id) && zoomToLayer)
+        // @ts-ignore
+        map?.fitBounds(map?.getSource(id)?.bounds, { padding: 50 });
+    }, 1000);
+
     // eslint-disable-next-line consistent-return
     return () => {
       if (map?.getSource(id)) {
         map?.removeSource(id);
         if (map?.getLayer(id)) map?.removeLayer(id);
       }
+      clearTimeout(zoomToSource);
     };
-  }, [map, isMapLoaded, id, source, visibleOnMap]);
+  }, [map, isMapLoaded, id, source, visibleOnMap, zoomToLayer]);
 
   return null;
 };
