@@ -49,7 +49,9 @@ class DroneImageProcessor:
         return opts
 
     def download_object(self, bucket_name: str, obj, images_folder: str):
-        if obj.object_name.endswith((".jpg", ".jpeg", ".JPG", ".png", ".PNG")):
+        if obj.object_name.endswith(
+            (".jpg", ".jpeg", ".JPG", ".png", ".PNG", ".txt", ".laz")
+        ):  # Images and GCP File
             local_path = Path(images_folder) / Path(obj.object_name).name
             local_path.parent.mkdir(parents=True, exist_ok=True)
             get_file_from_bucket(bucket_name, obj.object_name, local_path)
@@ -86,7 +88,13 @@ class DroneImageProcessor:
         path = Path(directory)
 
         for file in path.rglob("*"):
-            if file.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+            if file.suffix.lower() in {
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".txt",
+                ".laz",
+            }:  # Images, GCP File, and align.laz
                 images.append(str(file))
         return images
 
