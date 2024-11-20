@@ -160,6 +160,15 @@ export const lockApprovalOptions = [
   { name: 'Not Required', label: 'Not Required', value: 'not_required' },
 ];
 
+export const regulatorApprovalOptions = [
+  { name: 'regulator approval Required', label: 'Required', value: 'required' },
+  {
+    name: 'regulator approval not Required',
+    label: 'Not Required',
+    value: 'not_required',
+  },
+];
+
 export const FinalOutputOptions = [
   { label: '2D Orthophoto', value: 'ORTHOPHOTO_2D', icon: orthoPhotoIcon },
   // { label: '3D Model', value: 'ORTHOPHOTO_3D', icon: _3DModal },
