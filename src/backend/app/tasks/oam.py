@@ -1,4 +1,3 @@
-from http import HTTPStatus
 from fastapi import HTTPException
 import requests
 from urllib.parse import urlencode
@@ -25,13 +24,21 @@ async def upload_orthophoto_to_oam(oam_params, download_url):
         )
 
         res = response.json()
-        if response.status_code == 200 and "results" in res and "upload" in res["results"]:
+        if (
+            response.status_code == 200
+            and "results" in res
+            and "upload" in res["results"]
+        ):
             oam_upload_id = res["results"]["upload"]
-            log.info(f"Orthophoto successfully uploaded to OAM with ID: {oam_upload_id}")
+            log.info(
+                f"Orthophoto successfully uploaded to OAM with ID: {oam_upload_id}"
+            )
             return oam_upload_id
         else:
             err_msg = f"Failed to upload orthophoto. Response: {json.dumps(res)}"
-            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=err_msg)
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=err_msg
+            )
 
     except Exception as e:
         raise HTTPException(
