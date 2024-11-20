@@ -1,5 +1,7 @@
+from fastapi import HTTPException
 from app.config import settings
 from loguru import logger as log
+from app.models.enums import HTTPStatus
 from minio import Minio
 from io import BytesIO
 from typing import Any
@@ -231,3 +233,27 @@ def get_cog_path(bucket_name: str, project_id: str, task_id: str):
 
     # Get the presigned URL
     return get_presigned_url(bucket_name, s3_path)
+
+
+def get_orthophoto_url(bucket_name: str, project_id: str, task_id: str):
+    """Generate the presigned URL for a COG file in an S3 bucket if the file exists.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        project_id (str): The unique project identifier.
+        task_id (str): The unique task identifier.
+
+    Returns:
+        str or None: The presigned URL to access the COG file if it exists, or None otherwise.
+    """
+    s3_path = f"dtm-data/projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
+    try:
+        get_object_metadata(bucket_name, s3_path)
+        return get_presigned_url(bucket_name, s3_path)
+
+    except Exception as e:
+        log.warning(f"File not found or error checking metadata for {s3_path}: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Orthophoto file for project {project_id}, task {task_id} not found in the S3 bucket.",
+        )
