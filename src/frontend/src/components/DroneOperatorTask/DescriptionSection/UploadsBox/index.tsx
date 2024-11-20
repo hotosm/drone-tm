@@ -32,7 +32,7 @@ const UploadsBox = ({
 
         <label
           htmlFor="file-input"
-          className="naxatw-relative naxatw-flex naxatw-h-20 naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700"
+          className="naxatw-relative naxatw-flex naxatw-h-fit naxatw-min-h-20 naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700 naxatw-py-3"
         >
           <div className="n naxatw-flex naxatw-flex-col naxatw-items-center">
             <span className="material-icons-outlined naxatw-text-red">
