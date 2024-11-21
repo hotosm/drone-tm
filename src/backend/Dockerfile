@@ -30,15 +30,22 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
 # Ensure executables are at the front of the path
 ENV PATH="/bin:$PATH"
 
-# Compile bytecode
-ENV UV_COMPILE_BYTECODE=1
-
-# uv Cache and download settings
-ENV UV_LINK_MODE=copy
-ENV UV_PYTHON_DOWNLOADS=never
-ENV UV_NO_CACHE=1
-ENV UV_PYTHON="python$PYTHON_BASE"
-ENV UV_PROJECT_ENVIRONMENT="/opt/python"
+# - Silence uv complaining about not being able to use hard links,
+# - tell uv to byte-compile packages for faster application startups,
+# - prevent uv from accidentally downloading isolated Python builds,
+# - use a temp dir instead of cache during install,
+# - select system python version,
+# - declare `/opt/python` as the target for `uv sync` (i.e. instead of .venv).
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8 \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_NO_CACHE=1 \
+    UV_PYTHON="python$PYTHON_BASE" \
+    UV_PROJECT_ENVIRONMENT=/opt/python
+STOPSIGNAL SIGINT
 
 # Copy files needed for building the project
 COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/

@@ -422,7 +422,7 @@ wheels = [
 [[package]]
 name = "drone-tm"
 version = "0.1.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "aiosmtplib" },
     { name = "alembic" },
@@ -454,7 +454,7 @@ dependencies = [
     { name = "uvicorn" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 debug = [
     { name = "debugpy" },
 ]
@@ -492,52 +492,62 @@ requires-dist = [
     { name = "aiosmtplib", specifier = ">=3.0.1" },
     { name = "alembic", specifier = ">=1.13.1" },
     { name = "asgiref", specifier = ">=3.8.1" },
-    { name = "commitizen", marker = "extra == 'dev'", specifier = ">=3.30.0" },
-    { name = "coverage", marker = "extra == 'test'", specifier = ">=7.6.4" },
-    { name = "coverage-badge", marker = "extra == 'test'", specifier = ">=1.1.2" },
-    { name = "debugpy", marker = "extra == 'debug'", specifier = ">=1.8.7" },
     { name = "drone-flightplan", specifier = ">=0.3.1" },
     { name = "fastapi", specifier = "==0.112.0" },
     { name = "gdal", specifier = "==3.6.2" },
     { name = "geoalchemy2", specifier = "==0.14.2" },
     { name = "geojson", specifier = "==3.1.0" },
     { name = "geojson-pydantic", specifier = "==1.1.0" },
-    { name = "httpx", marker = "extra == 'test'", specifier = "==0.27.2" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jinja2", specifier = ">=3.1.4" },
     { name = "loguru", specifier = ">=0.7.2" },
-    { name = "mdx-truly-sane-lists", marker = "extra == 'docs'", specifier = ">=1.3" },
     { name = "minio", specifier = ">=7.2.7" },
-    { name = "mkdocs", marker = "extra == 'docs'", specifier = "==1.6.1" },
-    { name = "mkdocs-exclude", marker = "extra == 'docs'", specifier = "==1.0.2" },
-    { name = "mkdocs-git-revision-date-localized-plugin", marker = "extra == 'docs'", specifier = ">=1.3.0" },
-    { name = "mkdocs-material", marker = "extra == 'docs'", specifier = "==9.5.42" },
-    { name = "mkdocstrings-python", marker = "extra == 'docs'", specifier = "==1.12.2" },
     { name = "numpy", specifier = "==1.26.4" },
-    { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'monitoring'", specifier = ">=0.48b0" },
-    { name = "opentelemetry-instrumentation-logging", marker = "extra == 'monitoring'", specifier = ">=0.48b0" },
-    { name = "opentelemetry-instrumentation-psycopg2", marker = "extra == 'monitoring'", specifier = ">=0.48b0" },
-    { name = "opentelemetry-instrumentation-requests", marker = "extra == 'monitoring'", specifier = ">=0.48b0" },
     { name = "passlib", extras = ["bcrypt"], specifier = "==1.7.4" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.1" },
     { name = "psycopg", extras = ["pool"], specifier = ">=3.2.1" },
     { name = "psycopg2", specifier = ">=2.9.9" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.8.2" },
     { name = "pydantic-settings", specifier = "==2.4.0" },
-    { name = "pyinstrument", marker = "extra == 'test'", specifier = "==5.0.0" },
     { name = "pyjwt", specifier = ">=2.8.0" },
     { name = "pyodm", specifier = ">=1.5.11" },
-    { name = "pytest", marker = "extra == 'test'", specifier = "==8.3.3" },
-    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = "==0.24.0" },
-    { name = "python-dotenv", marker = "extra == 'docs'", specifier = "==1.0.1" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "python-slugify", specifier = ">=8.0.4" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "requests-oauthlib", specifier = ">=2.0.0" },
-    { name = "sentry-sdk", extras = ["opentelemetry"], marker = "extra == 'monitoring'", specifier = ">=2.17.0" },
     { name = "shapely", specifier = "==2.0.5" },
     { name = "sqlalchemy", specifier = "==2.0.23" },
     { name = "uvicorn", specifier = "==0.30.5" },
+]
+
+[package.metadata.requires-dev]
+debug = [{ name = "debugpy", specifier = ">=1.8.7" }]
+dev = [
+    { name = "commitizen", specifier = ">=3.30.0" },
+    { name = "pre-commit", specifier = ">=4.0.1" },
+]
+docs = [
+    { name = "mdx-truly-sane-lists", specifier = ">=1.3" },
+    { name = "mkdocs", specifier = "==1.6.1" },
+    { name = "mkdocs-exclude", specifier = "==1.0.2" },
+    { name = "mkdocs-git-revision-date-localized-plugin", specifier = ">=1.3.0" },
+    { name = "mkdocs-material", specifier = "==9.5.42" },
+    { name = "mkdocstrings-python", specifier = "==1.12.2" },
+    { name = "python-dotenv", specifier = "==1.0.1" },
+]
+monitoring = [
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.48b0" },
+    { name = "opentelemetry-instrumentation-logging", specifier = ">=0.48b0" },
+    { name = "opentelemetry-instrumentation-psycopg2", specifier = ">=0.48b0" },
+    { name = "opentelemetry-instrumentation-requests", specifier = ">=0.48b0" },
+    { name = "sentry-sdk", extras = ["opentelemetry"], specifier = ">=2.17.0" },
+]
+test = [
+    { name = "coverage", specifier = ">=7.6.4" },
+    { name = "coverage-badge", specifier = ">=1.1.2" },
+    { name = "httpx", specifier = "==0.27.2" },
+    { name = "pyinstrument", specifier = "==5.0.0" },
+    { name = "pytest", specifier = "==8.3.3" },
+    { name = "pytest-asyncio", specifier = "==0.24.0" },
 ]
 
 [[package]]
