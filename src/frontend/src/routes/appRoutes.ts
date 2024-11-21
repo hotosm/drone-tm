@@ -8,6 +8,7 @@ import LandingPage from '@Views/LandingPage';
 import IndividualProject from '@Views/IndividualProject';
 import TaskDescription from '@Views/TaskDescription';
 import UpdateUserProfile from '@Views/UpdateUserProfile';
+import RegulatorsApprovalPage from '@Views/RegulatorsApprovalPage';
 import { IRoute } from './types';
 
 const appRoutes: IRoute[] = [
@@ -65,6 +66,12 @@ const appRoutes: IRoute[] = [
     path: '/user-profile',
     name: 'User Profile',
     component: UpdateUserProfile,
+    authenticated: true,
+  },
+  {
+    path: 'projects/:id/approval',
+    name: 'Task project approval',
+    component: RegulatorsApprovalPage,
     authenticated: true,
   },
 ];
