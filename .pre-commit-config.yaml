@@ -77,6 +77,14 @@ repos:
         stages: [pre-commit, pre-push, manual]
         args: ["--maxkb=10240"]
 
+  # Deps: ensure Python uv lockfile is up to date
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.5.2
+    hooks:
+      - id: uv-lock
+        files: src/backend/pyproject.toml
+        args: [--project, src/backend]
+
   # Versioning: Commit messages & changelog
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v3.30.0
