@@ -46,52 +46,50 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
   });
 
   return (
-    <div>
-      <div className="naxatw-grid naxatw-grid-cols-3 naxatw-bg-white">
-        <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
-          <FormControl>
-            <Label required>Dimension of Square (m)</Label>
-            <Input
-              placeholder="Enter Dimension (in m)"
-              type="number"
-              className="naxatw-mt-1"
-              value={dimension}
-              min={50}
-              max={700}
-              {...register('task_split_dimension', {
-                required: 'Required',
-                valueAsNumber: true,
-              })}
-              onFocus={() => setError('')}
-            />
-            {error && <ErrorMessage message={error} />}
-            <p className="naxatw-text-[#68707F]">Recommended : 50-700</p>
-          </FormControl>
-          <Button
-            withLoader
-            isLoading={isLoading}
-            rightIcon="settings"
-            disabled={!dimension}
-            className="naxatw-mt-4 naxatw-bg-red"
-            onClick={() => {
-              if (!projectArea) return () => {};
-              if (dimension < 50 || dimension > 700)
-                return setError('Dimension must in between 50-700');
-              dispatch(
-                setCreateProjectState({
-                  splitGeojson: null,
-                  capturedProjectMap: false,
-                }),
-              );
-              return mutate(payload);
-            }}
-          >
-            Generate Task
-          </Button>
-        </div>
-        <div className="naxatw-col-span-2 naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6]">
-          <MapSection />
-        </div>
+    <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-3 naxatw-gap-5">
+      <div className="naxatw-col-span-3 md:naxatw-col-span-1">
+        <FormControl>
+          <Label required>Dimension of Square (m)</Label>
+          <Input
+            placeholder="Enter Dimension (in m)"
+            type="number"
+            className="naxatw-mt-1"
+            value={dimension}
+            min={50}
+            max={700}
+            {...register('task_split_dimension', {
+              required: 'Required',
+              valueAsNumber: true,
+            })}
+            onFocus={() => setError('')}
+          />
+          {error && <ErrorMessage message={error} />}
+          <p className="naxatw-text-[#68707F]">Recommended : 50-700</p>
+        </FormControl>
+        <Button
+          withLoader
+          isLoading={isLoading}
+          rightIcon="settings"
+          disabled={!dimension}
+          className="naxatw-mt-4 naxatw-bg-red"
+          onClick={() => {
+            if (!projectArea) return () => {};
+            if (dimension < 50 || dimension > 700)
+              return setError('Dimension must in between 50-700');
+            dispatch(
+              setCreateProjectState({
+                splitGeojson: null,
+                capturedProjectMap: false,
+              }),
+            );
+            return mutate(payload);
+          }}
+        >
+          Generate Task
+        </Button>
+      </div>
+      <div className="naxatw-col-span-3 naxatw-h-[50vh] naxatw-bg-green-50 md:naxatw-col-span-2 md:naxatw-h-full">
+        <MapSection />
       </div>
     </div>
   );

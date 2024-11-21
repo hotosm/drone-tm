@@ -1,5 +1,4 @@
 import { useGetDashboardTaskStaticsQuery } from '@Api/dashboard';
-import { FlexRow } from '@Components/common/Layouts';
 import { DashboardSidebar, DashboardCard } from '@Components/Dashboard';
 import { DashboardCardSkeleton } from '@Components/Dashboard/DashboardCard';
 import RequestLogs from '@Components/Dashboard/RequestLogs';
@@ -46,16 +45,14 @@ const Dashboard = () => {
     });
 
   return (
-    <section className="naxatw-h-screen-nav naxatw-bg-grey-50 naxatw-px-3 naxatw-pt-8 md:naxatw-px-16">
-      <FlexRow className="naxatw-mb-4 naxatw-py-3">
-        <h5 className="naxatw-font-bold">Profile</h5>
-      </FlexRow>
-      <div className="naxatw-grid naxatw-grid-cols-1 naxatw-gap-5 md:naxatw-grid-cols-10">
-        <div className="naxatw-w-full md:naxatw-col-span-3">
+    <section className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-px-3 md:naxatw-px-16">
+      <h5 className="naxatw-py-4 naxatw-font-bold">Profile</h5>
+      <div className="naxatw-grid naxatw-h-full naxatw-w-full naxatw-grid-cols-10 naxatw-gap-5">
+        <div className="naxatw-col-span-10 naxatw-py-4 md:naxatw-col-span-3">
           <DashboardSidebar />
         </div>
-        <div className="naxatw-w-full md:naxatw-col-span-7">
-          <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-5 md:naxatw-grid-cols-4">
+        <div className="naxatw-col-span-10 naxatw-flex naxatw-w-full naxatw-flex-col naxatw-py-4 md:naxatw-col-span-7">
+          <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-5 lg:naxatw-grid-cols-4">
             {isLoading ? (
               <>
                 {Array.from({ length: 4 }, (_, index) => (

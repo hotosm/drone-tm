@@ -126,6 +126,7 @@ export default function useDrawTool({
     const lastCoords = coordinates[coordinates.length - 1];
     map.addSource('line-start-point', {
       type: 'geojson',
+      // @ts-ignore
       data: {
         type: 'Feature',
         geometry: {
@@ -136,6 +137,7 @@ export default function useDrawTool({
     });
     map.addSource('line-end-point', {
       type: 'geojson',
+      // @ts-ignore
       data: {
         type: 'Feature',
         geometry: {
@@ -177,11 +179,10 @@ export default function useDrawTool({
     const featureCollection = draw.getAll();
     const { geometry } = featureCollection.features[0];
     if (!lineStringTypes.includes(geometry.type)) return () => {};
-    map.loadImage(DirectionArrow, (err, image) => {
-      if (err) return;
+    map.loadImage(DirectionArrow).then(({ data }) => {
       if (map.getLayer('arrowId')) return;
       // @ts-ignore
-      map.addImage('arrow', image);
+      map.addImage('arrow', data);
       map.addLayer({
         id: 'arrowId',
         type: 'symbol',
@@ -209,7 +210,7 @@ export default function useDrawTool({
   useEffect(() => {
     if (!map || !drawMode?.includes('draw') || isDrawLayerAdded)
       return () => {};
-    const handleMouseMove = (e: any) => {
+    const handleMouseMove = () => {
       // map.getCanvas().style.cursor = 'crosshair';
       map.getCanvas().style.cursor = '';
       // const description = 'Click to start drawing shape';

@@ -11,7 +11,7 @@ export default function BasicInformation({
   const { register, errors, control } = formProps;
 
   return (
-    <div className="naxatw-px-10 naxatw-py-5">
+    <div className="naxatw-h-full">
       <FormControl className="naxatw-gap-1">
         <Label required>Name</Label>
         <Input
