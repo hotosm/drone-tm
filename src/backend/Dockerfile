@@ -25,32 +25,31 @@ RUN set -ex \
 WORKDIR /project
 
 # Install uv
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
 
-# Place executables in the environment at the front of the path
-ENV PATH="/project/.venv/bin:$PATH"
+# Ensure executables are at the front of the path
+ENV PATH="/bin:$PATH"
 
 # Compile bytecode
 ENV UV_COMPILE_BYTECODE=1
 
-# uv Cache
+# uv Cache and download settings
 ENV UV_LINK_MODE=copy
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_NO_CACHE=1
+ENV UV_PYTHON="python$PYTHON_BASE"
+ENV UV_PROJECT_ENVIRONMENT="/opt/python"
 
 # Copy files needed for building the project
-COPY ./pyproject.toml  ./alembic.ini ./uv.lock /project/
+COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
 
-
-# Install dependencies using uv
+# Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     uv sync --frozen --no-install-project
 
-# Copy files needed for building the project
-COPY ./pyproject.toml  ./alembic.ini /project/
-
-# Sync the project using uv
+# Sync the project again using uv, ensuring all project dependencies are installed
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync
 
@@ -79,17 +78,17 @@ RUN set -ex \
     "libgdal-dev" \
 && rm -rf /var/lib/apt/lists/*
 
-# Retrieve packages from build stage
-COPY --from=build /project/.venv/ /project/.venv
+# Retrieve global Python packages and dependencies from the build stage
+COPY --from=build /opt/python /opt/python
 
 # Set working directory
 WORKDIR /project/src/backend
 
 # Set environment PATH
-ENV PATH="/project/.venv/bin:$PATH"
+ENV PATH="/opt/python/bin:$PATH"
 
 # Install uv in runtime stage
-COPY --from=ghcr.io/astral-sh/uv:0.4.15 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
 
 # Copy the source files to the final image
 COPY . /project/src/backend
