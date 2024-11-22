@@ -88,6 +88,7 @@ const MapSection = ({ className }: { className?: string }) => {
       },
       onError: (err: any) => {
         toast.error(err?.response?.data?.detail || err.message);
+        dispatch(setSelectedTakeOffPoint(null));
       },
     });
 

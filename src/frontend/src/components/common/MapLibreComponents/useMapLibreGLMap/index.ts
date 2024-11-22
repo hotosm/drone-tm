@@ -19,6 +19,10 @@ export default function useMapLibreGLMap({
       center: [0, 0],
       zoom: 1,
       attributionControl: false,
+      maxBounds: [
+        [-179, -89],
+        [179, 89],
+      ],
       ...mapOptions,
     });
     setMap(mapInstance);

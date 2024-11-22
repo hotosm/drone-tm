@@ -14,6 +14,8 @@ from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
 from asgiref.sync import async_to_sync
 from app.config import settings
+import zipfile
+from osgeo import gdal
 
 
 class DroneImageProcessor:
@@ -47,7 +49,9 @@ class DroneImageProcessor:
         return opts
 
     def download_object(self, bucket_name: str, obj, images_folder: str):
-        if obj.object_name.endswith((".jpg", ".jpeg", ".JPG", ".png", ".PNG")):
+        if obj.object_name.endswith(
+            (".jpg", ".jpeg", ".JPG", ".png", ".PNG", ".txt", ".laz")
+        ):  # Images and GCP File
             local_path = Path(images_folder) / Path(obj.object_name).name
             local_path.parent.mkdir(parents=True, exist_ok=True)
             get_file_from_bucket(bucket_name, obj.object_name, local_path)
@@ -62,7 +66,7 @@ class DroneImageProcessor:
         :param local_dir: Local directory to save the images.
         :return: List of local image file paths.
         """
-        prefix = f"projects/{self.project_id}/{self.task_id}"
+        prefix = f"dtm-data/projects/{self.project_id}/{self.task_id}"
 
         objects = list_objects_from_bucket(bucket_name, prefix)
 
@@ -84,7 +88,13 @@ class DroneImageProcessor:
         path = Path(directory)
 
         for file in path.rglob("*"):
-            if file.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+            if file.suffix.lower() in {
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".txt",
+                ".laz",
+            }:  # Images, GCP File, and align.laz
                 images.append(str(file))
         return images
 
@@ -101,10 +111,6 @@ class DroneImageProcessor:
         :return: The created task object.
         """
         opts = self.options_list_to_dict(options)
-
-        # FIXME: take this from the function above
-        opts = {"dsm": True}
-
         task = self.node.create_task(
             images, opts, name, progress_callback, webhook=webhook
         )
@@ -168,7 +174,9 @@ class DroneImageProcessor:
                 )
 
                 # Upload the results into s3
-                s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
+                s3_path = (
+                    f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
+                )
                 add_file_to_bucket(bucket_name, path_to_download, s3_path)
                 # now update the task as completed in Db.
                 # Call the async function using asyncio
@@ -193,21 +201,49 @@ class DroneImageProcessor:
             pass
 
 
+def reproject_to_web_mercator(input_file, output_file):
+    """
+    Reprojects a COG file to Web Mercator (EPSG:3857) using GDAL.
+
+    Args:
+        input_file (str): Path to the input COG file.
+        output_file (str): Path to the output reprojected COG file.
+    """
+    try:
+        # Define the target projection (Web Mercator)
+        target_srs = "EPSG:3857"
+
+        # Use gdal.Warp to perform the reprojection
+        gdal.Warp(
+            output_file,
+            input_file,
+            dstSRS=target_srs,
+            format="COG",  # Output format as Cloud Optimized GeoTIFF
+            resampleAlg="near",  # Resampling method, 'near' for nearest neighbor
+        )
+        log.info(f"File reprojected to Web Mercator and saved as {output_file}")
+
+    except Exception as e:
+        log.error(f"An error occurred during reprojection: {e}")
+        raise
+
+
 async def download_and_upload_assets_from_odm_to_s3(
     node_odm_url: str,
     task_id: str,
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
     user_id: str,
+    current_state: State,
+    comment: str,
 ):
     """
-    Downloads results from ODM and uploads them to S3 (Minio).
+    Downloads results from ODM, reprojects the orthophoto to EPSG:3857, and uploads it to S3.
 
     :param task_id: UUID of the ODM task.
     :param dtm_project_id: UUID of the project.
     :param dtm_task_id: UUID of the task.
     :param current_state: Current state of the task (IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED).
-
     """
     log.info(f"Starting download for task {task_id}")
     # Replace with actual ODM node details and URL
@@ -226,29 +262,60 @@ async def download_and_upload_assets_from_odm_to_s3(
         assets_path = task.download_zip(output_file_path)
 
         # Upload the results into S3 (Minio)
-        s3_path = f"projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+        s3_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
         log.info(f"Uploading {output_file_path} to S3 path: {s3_path}")
         add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
         log.info(f"Assets for task {task_id} successfully uploaded to S3.")
 
-        # Update background task status to COMPLETED
-        pool = await database.get_db_connection_pool()
+        # Extract the zip file to find the orthophoto
+        with zipfile.ZipFile(assets_path, "r") as zip_ref:
+            zip_ref.extractall(output_file_path)
 
-        async with pool.connection() as conn:
-            await task_logic.update_task_state(
-                db=conn,
-                project_id=dtm_project_id,
-                task_id=dtm_task_id,
-                user_id=user_id,
-                comment="Task completed.",
-                initial_state=State.IMAGE_UPLOADED,
-                final_state=State.IMAGE_PROCESSED,
-                updated_at=timestamp(),
-            )
+        orthophoto_path = os.path.join(
+            output_file_path, "odm_orthophoto", "odm_orthophoto.tif"
+        )
+        if not os.path.exists(orthophoto_path):
+            log.error(f"Orthophoto file not found at {orthophoto_path}")
+            raise FileNotFoundError(f"Orthophoto not found in {output_file_path}")
+
+        log.info(f"Orthophoto found at {orthophoto_path}")
+
+        # NOTE: Reproject the orthophoto to EPSG:3857, overwriting the original file
+        reproject_to_web_mercator(orthophoto_path, orthophoto_path)
+
+        # Upload the reprojected orthophoto to S3
+        s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/orthophoto/odm_orthophoto.tif"
+        log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
+        add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
+
+        log.info(
+            f"Reprojected orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
+        )
+        # NOTE: This function uses a separate database connection pool because it is called by an internal server
+        # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
+
+        pool = await database.get_db_connection_pool()
+        async with pool as pool_instance:
+            async with pool_instance.connection() as conn:
+                await task_logic.update_task_state(
+                    db=conn,
+                    project_id=dtm_project_id,
+                    task_id=dtm_task_id,
+                    user_id=user_id,
+                    comment=comment,
+                    initial_state=current_state,
+                    final_state=State.IMAGE_PROCESSED,
+                    updated_at=timestamp(),
+                )
+                log.info(
+                    f"Task {dtm_task_id} state updated to IMAGE_PROCESSED in the database."
+                )
 
     except Exception as e:
-        log.error(f"Error downloading or uploading assets for task {task_id}: {e}")
+        log.error(
+            f"An error occurred during processing for task {task_id}. Details: {e}"
+        )
 
     finally:
         # Clean up the temporary directory

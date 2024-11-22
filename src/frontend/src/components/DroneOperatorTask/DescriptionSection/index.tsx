@@ -2,23 +2,17 @@
 import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
 import { Button } from '@Components/RadixComponents/Button';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
-import { useTypedSelector } from '@Store/hooks';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import MapSection from '../MapSection';
 import DescriptionBox from './DescriptionBox';
-import UploadsBox from './UploadsBox';
 
 const { BASE_URL } = process.env;
 
 const DroneOperatorDescriptionBox = () => {
   const { taskId, projectId } = useParams();
-  const secondPageStates = useTypedSelector(state => state.droneOperatorTask);
-  const { secondPageState, secondPage } = secondPageStates;
-  const [animated, setAnimated] = useState(false);
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
   const { width } = useWindowDimensions();
@@ -36,52 +30,6 @@ const DroneOperatorDescriptionBox = () => {
       },
     },
   );
-
-  useEffect(() => {
-    setAnimated(true);
-    setTimeout(() => {
-      setAnimated(false);
-    }, 100);
-  }, [secondPageState, secondPage]);
-  const variants = {
-    open: { opacity: 1, y: 0 },
-    closed: { opacity: 0, y: '50%' },
-  };
-
-  const renderComponent = (role: string) => {
-    switch (role) {
-      case 'description':
-        return (
-          <motion.div
-            animate={animated ? 'closed' : 'open'}
-            variants={{ ...variants }}
-            className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-5"
-          >
-            <DescriptionBox />
-          </motion.div>
-        );
-      case 'uploads':
-        return (
-          <motion.div
-            animate={animated ? 'closed' : 'open'}
-            variants={{ ...variants }}
-            className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-5"
-          >
-            <UploadsBox />
-          </motion.div>
-        );
-      default:
-        return (
-          <motion.div
-            animate={animated ? 'closed' : 'open'}
-            variants={{ ...variants }}
-            className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-5"
-          >
-            <DescriptionBox />
-          </motion.div>
-        );
-    }
-  };
 
   const downloadFlightPlanKmz = () => {
     fetch(
@@ -256,7 +204,9 @@ const DroneOperatorDescriptionBox = () => {
           </div>
         </div>
         {width < 640 && <MapSection />}
-        {renderComponent(secondPageState)}
+        <div className="scrollbar naxatw-flex naxatw-max-h-[calc(100vh-15rem)] naxatw-w-full naxatw-flex-col naxatw-gap-3 naxatw-overflow-y-auto">
+          <DescriptionBox />
+        </div>
       </div>
     </>
   );

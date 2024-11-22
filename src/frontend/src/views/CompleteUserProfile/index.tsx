@@ -14,7 +14,7 @@ import {
 } from '@Constants/index';
 import { setCommonState } from '@Store/actions/common';
 import { Button } from '@Components/RadixComponents/Button';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postUserProfile } from '@Services/common';
 import { toast } from 'react-toastify';
 import { removeKeysFromObject } from '@Utils/index';
@@ -22,6 +22,7 @@ import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import Tab from '@Components/common/Tabs';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
+import { useGetUserDetailsQuery } from '@Api/projects';
 
 const getActiveFormContent = (
   activeTab: number,
@@ -32,7 +33,7 @@ const getActiveFormContent = (
     case 1:
       return <BasicDetails formProps={formProps} />;
     case 2:
-      return userType === 'Project Creator' ? (
+      return userType === 'PROJECT_CREATOR' ? (
         <OrganizationDetails formProps={formProps} />
       ) : (
         <OtherDetails formProps={formProps} />
@@ -48,14 +49,16 @@ const CompleteUserProfile = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
-  const signedInAs = localStorage.getItem('signedInAs') || 'Project Creator';
-  const isDroneOperator =
-    localStorage.getItem('signedInAs') === 'Drone Operator';
-
+  const queryClient = useQueryClient();
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
+  const isDroneOperator = localStorage.getItem('signedInAs') === 'DRONE_PILOT';
+  useGetUserDetailsQuery();
   const userProfileActiveTab = useTypedSelector(
     state => state.common.userProfileActiveTab,
   );
   const userProfile = getLocalStorageValue('userprofile');
+  const existingRole = userProfile?.role?.[0] === 'PROJECT_CREATOR' ? 1 : 2;
+  const newRole = isDroneOperator ? 2 : 1;
 
   const initialState = {
     name: userProfile?.name,
@@ -74,7 +77,7 @@ const CompleteUserProfile = () => {
     experience_years: null,
     certified_drone_operator: false,
     drone_you_own: null,
-    role: isDroneOperator ? 2 : 1,
+    role: userProfile?.role ? [existingRole, newRole] : [newRole],
   };
 
   const { register, setValue, handleSubmit, formState, control, watch } =
@@ -94,6 +97,7 @@ const CompleteUserProfile = () => {
     mutationFn: payloadDataObject => postUserProfile(payloadDataObject),
     onSuccess: () => {
       toast.success('UserProfile Updated Successfully');
+      queryClient.invalidateQueries(['user-profile']);
       dispatch(setCommonState({ userProfileActiveTab: 1 }));
       navigate('/projects');
     },

@@ -50,6 +50,7 @@ interface DataTableProps {
   useQueryOptions?: Record<string, any>;
   data?: Record<string, any>[];
   loading?: boolean;
+  handleTableRowClick?: any;
 }
 
 const defaultPaginationState = {
@@ -73,6 +74,7 @@ export default function DataTable({
   useQueryOptions,
   data,
   loading,
+  handleTableRowClick,
 }: DataTableProps) {
   const [sorting, setSorting] = useState<ColumnSort[]>([]);
   const debouncedValue = useDebounceListener(searchInput || '', 800);
@@ -233,6 +235,10 @@ export default function DataTable({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
+                onClick={() => {
+                  handleTableRowClick?.(row?.original);
+                }}
+                className={`${handleTableRowClick ? 'naxatw-cursor-pointer' : ''} `}
               >
                 {row.getVisibleCells().map(cell => (
                   <TableCell key={cell.id}>

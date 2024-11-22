@@ -49,8 +49,8 @@ def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
         s3_path (str): The path in the S3 bucket where the file will be stored.
     """
     # Ensure s3_path starts with a forward slash
-    if not s3_path.startswith("/"):
-        s3_path = f"/{s3_path}"
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
     client.fput_object(bucket_name, s3_path, file_path)
@@ -101,8 +101,8 @@ def get_file_from_bucket(bucket_name: str, s3_path: str, file_path: str):
             file will be saved.
     """
     # Ensure s3_path starts with a forward slash
-    if not s3_path.startswith("/"):
-        s3_path = f"/{s3_path}"
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
     client.fget_object(bucket_name, s3_path, file_path)
@@ -119,8 +119,8 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
         BytesIO: A BytesIO object containing the content of the downloaded S3 object.
     """
     # Ensure s3_path starts with a forward slash
-    if not s3_path.startswith("/"):
-        s3_path = f"/{s3_path}"
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
     response = None
@@ -213,3 +213,21 @@ def get_object_metadata(bucket_name: str, object_name: str):
     """
     client = s3_client()
     return client.stat_object(bucket_name, object_name)
+
+
+def get_cog_path(bucket_name: str, project_id: str, task_id: str):
+    """Generate the presigned URL for a COG file in an S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        project_id (str): The unique project identifier.
+        orthophoto_name (str): The name of the COG file.
+
+    Returns:
+        str: The presigned URL to access the COG file.
+    """
+    # Construct the S3 path for the COG file
+    s3_path = f"dtm-data/projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
+
+    # Get the presigned URL
+    return get_presigned_url(bucket_name, s3_path)

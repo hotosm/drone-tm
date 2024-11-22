@@ -6,7 +6,25 @@ from psycopg import Connection
 from loguru import logger as log
 from fastapi import HTTPException
 from psycopg.rows import class_row, dict_row
-from typing import Optional
+from typing import List, Literal, Optional
+from pydantic.functional_validators import field_validator
+
+
+class Geometry(BaseModel):
+    type: Literal["ST_Polygon"]
+    coordinates: List[List[List[float]]]
+
+
+class Properties(BaseModel):
+    id: uuid.UUID
+    bbox: List[float]
+
+
+class Outline(BaseModel):
+    id: uuid.UUID
+    type: Literal["Feature"]
+    geometry: Geometry
+    properties: Properties
 
 
 class NewEvent(BaseModel):
@@ -159,7 +177,8 @@ class UserTasksStatsOut(BaseModel):
     ):
         async with db.cursor(row_factory=class_row(UserTasksStatsOut)) as cur:
             await cur.execute(
-                """SELECT DISTINCT ON (tasks.id)
+                """
+                SELECT DISTINCT ON (tasks.id)
                     tasks.id AS task_id,
                     tasks.project_task_index AS project_task_index,
                     task_events.project_id AS project_id,
@@ -167,13 +186,7 @@ class UserTasksStatsOut(BaseModel):
                     ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
                     task_events.created_at,
                     task_events.updated_at,
-                    CASE
-                        WHEN task_events.state = 'REQUEST_FOR_MAPPING' THEN 'request logs'
-                        WHEN task_events.state = 'LOCKED_FOR_MAPPING' OR task_events.state = 'IMAGE_UPLOADED' THEN 'ongoing'
-                        WHEN task_events.state = 'IMAGE_PROCESSED' THEN 'completed'
-                        WHEN task_events.state = 'UNFLYABLE_TASK' THEN 'unflyable task'
-                        ELSE ''
-                    END AS state
+                    task_events.state
                 FROM
                     task_events
                 LEFT JOIN
@@ -182,16 +195,22 @@ class UserTasksStatsOut(BaseModel):
                     projects ON task_events.project_id = projects.id
                 WHERE
                     (
-                        %(role)s = 'DRONE_PILOT' AND task_events.user_id = %(user_id)s
+                        %(role)s = 'DRONE_PILOT'
+                        AND task_events.user_id = %(user_id)s
                     )
                     OR
                     (
-                        %(role)s!= 'DRONE_PILOT' AND task_events.project_id IN (SELECT id FROM projects WHERE author_id = %(user_id)s)
+                        %(role)s = 'PROJECT_CREATOR' AND task_events.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.author_id = %(user_id)s
+                        )
                     )
                 ORDER BY
                     tasks.id, task_events.created_at DESC
                 OFFSET %(skip)s
-                LIMIT %(limit)s;""",
+                LIMIT %(limit)s;
+                """,
                 {"user_id": user_id, "role": role, "skip": skip, "limit": limit},
             )
             try:
@@ -203,3 +222,104 @@ class UserTasksStatsOut(BaseModel):
                     status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                     detail="Retrieval failed",
                 ) from e
+
+
+class TaskDetailsOut(BaseModel):
+    task_area: float
+    outline: Outline
+    created_at: datetime
+    updated_at: datetime
+    state: State
+    project_name: str
+    project_task_index: int
+    front_overlap: float
+    side_overlap: float
+    gsd_cm_px: float
+    gimble_angles_degrees: Optional[int] = None
+
+    @field_validator("state", mode="after")
+    @classmethod
+    def integer_state_to_string(cls, value: State):
+        if isinstance(value, str):
+            value = value.name
+
+        if isinstance(value, int):
+            value = State(value).name
+        return value
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def srting_state_to_integer(cls, value: State) -> str:
+        if isinstance(value, str):
+            value = State[value.strip()].value
+        return value
+
+    @staticmethod
+    async def get_task_details(db: Connection, task_id: uuid.UUID):
+        try:
+            async with db.cursor(row_factory=class_row(TaskDetailsOut)) as cur:
+                await cur.execute(
+                    """
+                    SELECT
+                        ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
+
+                        -- Construct the outline as a GeoJSON Feature
+                        jsonb_build_object(
+                            'type', 'Feature',
+                            'geometry', jsonb_build_object(
+                                'type', ST_GeometryType(tasks.outline)::text,  -- Get the type of the geometry (e.g., Polygon, MultiPolygon)
+                                'coordinates', ST_AsGeoJSON(tasks.outline, 8)::jsonb->'coordinates'  -- Get the geometry coordinates
+                            ),
+                            'properties', jsonb_build_object(
+                                'id', tasks.id,
+                                'bbox', jsonb_build_array(  -- Build the bounding box
+                                    ST_XMin(ST_Envelope(tasks.outline)),
+                                    ST_YMin(ST_Envelope(tasks.outline)),
+                                    ST_XMax(ST_Envelope(tasks.outline)),
+                                    ST_YMax(ST_Envelope(tasks.outline))
+                                )
+                            ),
+                            'id', tasks.id
+                        ) AS outline,
+
+                        te.created_at,
+                        te.updated_at,
+                        te.state,
+                        projects.name AS project_name,
+                        tasks.project_task_index,
+                        projects.front_overlap AS front_overlap,
+                        projects.side_overlap AS side_overlap,
+                        projects.gsd_cm_px AS gsd_cm_px,
+                        projects.gimble_angles_degrees AS gimble_angles_degrees
+
+                    FROM (
+                        SELECT DISTINCT ON (te.task_id)
+                            te.task_id,
+                            te.created_at,
+                            te.updated_at,
+                            te.state
+                        FROM task_events te
+                        WHERE te.task_id = %(task_id)s
+                        ORDER BY te.task_id, te.created_at DESC
+                    ) AS te
+                    JOIN tasks ON te.task_id = tasks.id
+                    JOIN projects ON tasks.project_id = projects.id
+                    WHERE te.task_id = %(task_id)s;
+                    """,
+                    {"task_id": task_id},
+                )
+                records = await cur.fetchone()
+                return records
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Failed to fetch task. {e}",
+            )
+
+
+class TaskStats(BaseModel):
+    request_logs: int
+    ongoing_tasks: int
+    completed_tasks: int
+    unflyable_tasks: int

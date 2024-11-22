@@ -59,7 +59,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
       : altitudeInputValue;
 
   return (
-    <div className="naxatw-h-fit naxatw-px-10 naxatw-py-5">
+    <div className="naxatw-h-fit">
       {/* <RadioButton
         options={KeyParametersOptions}
         direction="row"
@@ -281,7 +281,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
           )}
           <FormControl className="naxatw-mt-4 naxatw-gap-1">
             <Label>Final Output</Label>
-            <div className="naxatw-my-4 naxatw-grid naxatw-grid-cols-4 naxatw-gap-3">
+            <div className="naxatw-col-span-1 naxatw-my-4 naxatw-grid naxatw-gap-3 sm:naxatw-grid-cols-2 md:naxatw-grid-cols-4">
               {FinalOutputOptions?.map((option, index) => (
                 <OutputOptions
                   key={option.label}

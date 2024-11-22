@@ -12,15 +12,24 @@ import { useGetUserDetailsQuery } from '@Api/projects';
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
   const navigate = useNavigate();
+  const userProfile = getLocalStorageValue('userprofile');
+  const role = localStorage.getItem('signedInAs');
 
   const { data: userDetails, isFetching }: Record<string, any> =
-    useGetUserDetailsQuery();
-  const userProfile = getLocalStorageValue('userprofile');
+    useGetUserDetailsQuery({
+      enabled: !!(userProfile?.role && role),
+    });
 
   useEffect(() => {
-    if (userDetails?.has_user_profile || isFetching) return;
-    if (!userDetails?.has_user_profile) navigate('/complete-profile');
-  }, [userDetails?.has_user_profile, navigate, isFetching]);
+    if (
+      !userProfile ||
+      userProfile?.role?.includes(role) ||
+      userDetails?.role?.includes(role) ||
+      isFetching
+    )
+      return;
+    navigate('/complete-profile');
+  }, [userProfile, role, navigate, userDetails, isFetching]);
 
   const settingOptions = [
     {

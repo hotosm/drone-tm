@@ -19,6 +19,38 @@ from app.config import settings
 from app.projects.image_processing import DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
+from psycopg.rows import dict_row
+
+
+async def get_centroids(db: Connection):
+    try:
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute("""
+                SELECT
+                    p.id,
+                    p.slug,
+                    p.name,
+                    ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
+                    COUNT(t.id) AS total_task_count,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
+                FROM
+                    projects p
+                LEFT JOIN
+                    tasks t ON p.id = t.project_id
+                LEFT JOIN
+                    task_events te ON t.id = te.task_id
+                GROUP BY
+                    p.id, p.slug, p.name, p.centroid;
+            """)
+            centroids = await cur.fetchall()
+
+            if not centroids:
+                raise HTTPException(status_code=404, detail="No centroids found.")
+
+            return centroids
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def upload_file_to_s3(
@@ -37,7 +69,7 @@ async def upload_file_to_s3(
         str: The S3 URL for the uploaded file.
     """
     # Define the S3 file path
-    file_path = f"/projects/{project_id}/{file_name}"
+    file_path = f"dtm-data/projects/{project_id}/{file_name}"
 
     # Read the file bytes
     file_bytes = await file.read()
@@ -194,7 +226,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     """
     try:
         # Prefix for the images
-        images_prefix = f"projects/{project_id}/{task_id}/images/"
+        images_prefix = f"dtm-data/projects/{project_id}/{task_id}/images/"
 
         # List and count the images
         objects = list_objects_from_bucket(
@@ -208,7 +240,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
         # Generate a presigned URL for the assets ZIP file
         try:
             # Check if the object exists
-            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
+            assets_path = f"dtm-data/projects/{project_id}/{task_id}/assets.zip"
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL

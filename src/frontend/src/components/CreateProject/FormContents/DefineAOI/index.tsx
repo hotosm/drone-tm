@@ -7,7 +7,7 @@ import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { FormControl } from '@Components/common/FormUI';
 import { Button } from '@Components/RadixComponents/Button';
 import RadioButton from '@Components/common/RadioButton';
-import { FlexColumn, FlexRow } from '@Components/common/Layouts';
+import { FlexRow } from '@Components/common/Layouts';
 import FileUpload from '@Components/common/UploadArea';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { m2ToKm2 } from '@Utils/index';
@@ -185,204 +185,202 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   };
 
   return (
-    <FlexColumn>
-      <div className="naxatw-bg-white">
-        <div className="naxatw-grid naxatw-grid-cols-3">
-          <div className="naxatw-col-span-1 naxatw-px-10 naxatw-py-5">
-            <p className="naxatw-text-body-btn">
-              Project Area <span className="naxatw-text-red">*</span>
-            </p>
-            {!projectArea ? (
-              <>
-                <FlexRow gap={3} className="naxatw-items-center">
-                  <Button
-                    className="naxatw-mt-2 naxatw-bg-red naxatw-text-white"
-                    rightIcon={drawnProjectArea ? 'save' : 'draw'}
-                    onClick={handleDrawProjectAreaClick}
+    <div className="naxatw-h-full naxatw-bg-white">
+      <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-3 naxatw-gap-5">
+        <div className="naxatw-col-span-3 naxatw-overflow-y-auto naxatw-py-5 md:naxatw-col-span-1">
+          <p className="naxatw-text-body-btn">
+            Project Area <span className="naxatw-text-red">*</span>
+          </p>
+          {!projectArea ? (
+            <>
+              <FlexRow gap={3} className="naxatw-items-center">
+                <Button
+                  className="naxatw-mt-2 naxatw-bg-red naxatw-text-white"
+                  rightIcon={drawnProjectArea ? 'save' : 'draw'}
+                  onClick={handleDrawProjectAreaClick}
+                >
+                  {drawnProjectArea ? 'Save Drawn Area' : 'Draw Project Area'}
+                </Button>
+                {drawnProjectArea && (
+                  <Icon
+                    name="restart_alt"
+                    className="naxatw-text-red"
+                    onClick={() => {
+                      dispatch(
+                        setCreateProjectState({ drawnProjectArea: null }),
+                      );
+                      if (resetDrawTool) {
+                        resetDrawTool();
+                      }
+                    }}
+                  />
+                )}
+              </FlexRow>
+              {!drawProjectAreaEnable && (
+                <>
+                  <FlexRow
+                    className="naxatw-mt-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
+                    gap={3}
                   >
-                    {drawnProjectArea ? 'Save Drawn Area' : 'Draw Project Area'}
-                  </Button>
-                  {drawnProjectArea && (
-                    <Icon
-                      name="restart_alt"
-                      className="naxatw-text-red"
-                      onClick={() => {
-                        dispatch(
-                          setCreateProjectState({ drawnProjectArea: null }),
+                    <hr className="naxatw-w-[40%]" />
+                    <span>or</span>
+                    <hr className="naxatw-w-[40%]" />
+                  </FlexRow>
+                  <FormControl className="naxatw-mt-2">
+                    <Controller
+                      control={control}
+                      name="outline"
+                      rules={{
+                        required: 'Project Area is Required',
+                      }}
+                      render={({ field: { value } }) => {
+                        // console.log(value, 'value12');
+                        return (
+                          <FileUpload
+                            name="outline"
+                            data={value}
+                            onChange={handleProjectAreaFileChange}
+                            fileAccept=".geojson, .kml"
+                            placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                            isValid={validateAreaOfFileUpload}
+                            {...formProps}
+                          />
                         );
-                        if (resetDrawTool) {
-                          resetDrawTool();
-                        }
                       }}
                     />
-                  )}
-                </FlexRow>
-                {!drawProjectAreaEnable && (
-                  <>
-                    <FlexRow
-                      className="naxatw-mt-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
-                      gap={3}
-                    >
-                      <hr className="naxatw-w-[40%]" />
-                      <span>or</span>
-                      <hr className="naxatw-w-[40%]" />
-                    </FlexRow>
-                    <FormControl className="naxatw-mt-2">
-                      <Controller
-                        control={control}
-                        name="outline"
-                        rules={{
-                          required: 'Project Area is Required',
-                        }}
-                        render={({ field: { value } }) => {
-                          // console.log(value, 'value12');
-                          return (
-                            <FileUpload
-                              name="outline"
-                              data={value}
-                              onChange={handleProjectAreaFileChange}
-                              fileAccept=".geojson, .kml"
-                              placeholder="Upload project area (zipped shapefile, geojson or kml files)"
-                              isValid={validateAreaOfFileUpload}
-                              {...formProps}
-                            />
-                          );
-                        }}
-                      />
-                      <ErrorMessage
-                        message={errors?.outline?.message as string}
-                      />
-                    </FormControl>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  className="naxatw-mt-2 naxatw-border naxatw-border-red naxatw-text-red"
-                  rightIcon="restart_alt"
-                  onClick={() => {
-                    dispatch(resetUploadedAndDrawnAreas());
+                    <ErrorMessage
+                      message={errors?.outline?.message as string}
+                    />
+                  </FormControl>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                className="naxatw-mt-2 naxatw-border naxatw-border-red naxatw-text-red"
+                rightIcon="restart_alt"
+                onClick={() => {
+                  dispatch(resetUploadedAndDrawnAreas());
+                }}
+              >
+                Reset Project Area
+              </Button>
+              <p className="naxatw-mt-2 naxatw-text-body-md">
+                Total Area: {m2ToKm2(Math.trunc(totalProjectArea as number))}
+              </p>
+              <div className="naxatw-mt-2">
+                <RadioButton
+                  topic="No flying zone present in project area?"
+                  options={uploadAreaOptions}
+                  direction="column"
+                  onChangeData={(val: 'yes' | 'no') => {
+                    dispatch(
+                      setCreateProjectState({ isNoflyzonePresent: val }),
+                    );
                   }}
-                >
-                  Reset Project Area
-                </Button>
-                <p className="naxatw-mt-2 naxatw-text-body-md">
-                  Total Area: {m2ToKm2(Math.trunc(totalProjectArea as number))}
-                </p>
+                  value={isNoflyzonePresent}
+                />
+              </div>
+              {isNoflyzonePresent === 'yes' && (
                 <div className="naxatw-mt-2">
-                  <RadioButton
-                    topic="No flying zone present in project area?"
-                    options={uploadAreaOptions}
-                    direction="column"
-                    onChangeData={(val: 'yes' | 'no') => {
-                      dispatch(
-                        setCreateProjectState({ isNoflyzonePresent: val }),
-                      );
-                    }}
-                    value={isNoflyzonePresent}
-                  />
-                </div>
-                {isNoflyzonePresent === 'yes' && (
-                  <div className="naxatw-mt-2">
-                    {noFlyZone ? (
-                      <>
+                  {noFlyZone ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="naxatw-mb-2 naxatw-border naxatw-border-red naxatw-text-red"
+                        rightIcon="restart_alt"
+                        onClick={() =>
+                          dispatch(
+                            setCreateProjectState({
+                              noFlyZone: null,
+                              drawnNoFlyZone: null,
+                              drawNoFlyZoneEnable: false,
+                            }),
+                          )
+                        }
+                      >
+                        Reset No Fly Zone
+                      </Button>
+                      <p className="naxatw-mt-2 naxatw-text-body-md">
+                        Total Area:{' '}
+                        {m2ToKm2(Math.trunc(noFlyZoneArea as number))}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <FlexRow className="naxatw-items-center" gap={3}>
                         <Button
-                          variant="ghost"
-                          className="naxatw-mb-2 naxatw-border naxatw-border-red naxatw-text-red"
-                          rightIcon="restart_alt"
-                          onClick={() =>
-                            dispatch(
-                              setCreateProjectState({
-                                noFlyZone: null,
-                                drawnNoFlyZone: null,
-                                drawNoFlyZoneEnable: false,
-                              }),
-                            )
-                          }
+                          className="naxatw-mb-2 naxatw-bg-red naxatw-text-white"
+                          rightIcon="draw"
+                          onClick={handleDrawNoFlyZoneClick}
                         >
-                          Reset No Fly Zone
+                          {!drawNoFlyZoneEnable
+                            ? 'Draw No Fly Zone'
+                            : 'Save No Fly Zone'}
                         </Button>
-                        <p className="naxatw-mt-2 naxatw-text-body-md">
-                          Total Area:{' '}
-                          {m2ToKm2(Math.trunc(noFlyZoneArea as number))}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <FlexRow className="naxatw-items-center" gap={3}>
-                          <Button
-                            className="naxatw-mb-2 naxatw-bg-red naxatw-text-white"
-                            rightIcon="draw"
-                            onClick={handleDrawNoFlyZoneClick}
-                          >
-                            {!drawNoFlyZoneEnable
-                              ? 'Draw No Fly Zone'
-                              : 'Save No Fly Zone'}
-                          </Button>
-                          {drawnNoFlyZone && (
-                            <Icon
-                              name="restart_alt"
-                              className="naxatw-text-red"
-                              onClick={() => {
-                                dispatch(
-                                  setCreateProjectState({
-                                    drawnNoFlyZone: null,
-                                  }),
-                                );
-                                if (resetDrawTool) {
-                                  resetDrawTool();
-                                }
-                              }}
-                            />
-                          )}
-                        </FlexRow>
-                        {!drawNoFlyZoneEnable && (
-                          <>
-                            <FlexRow
-                              className="naxatw-my-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
-                              gap={3}
-                            >
-                              <hr className="naxatw-w-[40%]" />
-                              <span>or</span>
-                              <hr className="naxatw-w-[40%]" />
-                            </FlexRow>
-                            <FormControl className="naxatw-mt-2">
-                              <Controller
-                                control={control}
-                                name="no_fly_zones"
-                                render={({ field: { value } }) => (
-                                  <FileUpload
-                                    name="no_fly_zones"
-                                    data={value}
-                                    onChange={handleNoFlyZoneFileChange}
-                                    isValid={validateAreaOfFileUpload}
-                                    fileAccept=".geojson, .kml"
-                                    placeholder="Upload project area (zipped shapefile, geojson or kml files)"
-                                    {...formProps}
-                                  />
-                                )}
-                              />
-                            </FormControl>
-                          </>
+                        {drawnNoFlyZone && (
+                          <Icon
+                            name="restart_alt"
+                            className="naxatw-text-red"
+                            onClick={() => {
+                              dispatch(
+                                setCreateProjectState({
+                                  drawnNoFlyZone: null,
+                                }),
+                              );
+                              if (resetDrawTool) {
+                                resetDrawTool();
+                              }
+                            }}
+                          />
                         )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <div className="xl:[60vh] naxatw-col-span-2 naxatw-h-[375px] naxatw-overflow-hidden naxatw-rounded-md naxatw-border naxatw-border-[#F3C6C6] lg:naxatw-h-[50vh]">
-            <MapSection
-              onResetButtonClick={handleResetButtonClick}
-              handleDrawProjectAreaClick={handleDrawProjectAreaClick}
-            />
-          </div>
+                      </FlexRow>
+                      {!drawNoFlyZoneEnable && (
+                        <>
+                          <FlexRow
+                            className="naxatw-my-1 naxatw-w-full naxatw-items-center naxatw-justify-center"
+                            gap={3}
+                          >
+                            <hr className="naxatw-w-[40%]" />
+                            <span>or</span>
+                            <hr className="naxatw-w-[40%]" />
+                          </FlexRow>
+                          <FormControl className="naxatw-mt-2">
+                            <Controller
+                              control={control}
+                              name="no_fly_zones"
+                              render={({ field: { value } }) => (
+                                <FileUpload
+                                  name="no_fly_zones"
+                                  data={value}
+                                  onChange={handleNoFlyZoneFileChange}
+                                  isValid={validateAreaOfFileUpload}
+                                  fileAccept=".geojson, .kml"
+                                  placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                                  {...formProps}
+                                />
+                              )}
+                            />
+                          </FormControl>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="naxatw-col-span-3 naxatw-h-[50vh] naxatw-overflow-hidden md:naxatw-col-span-2 md:naxatw-h-full">
+          <MapSection
+            onResetButtonClick={handleResetButtonClick}
+            handleDrawProjectAreaClick={handleDrawProjectAreaClick}
+          />
         </div>
       </div>
-    </FlexColumn>
+    </div>
   );
 };
 

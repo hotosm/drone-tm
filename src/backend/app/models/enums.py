@@ -133,6 +133,9 @@ class State(int, Enum):
     - ``locked for validation``
     - ``unlocked done``
     - ``Unflyable task``
+    - ``image uploaded``
+    - ``image processed``
+    - ``image processing failed``
     """
 
     REQUEST_FOR_MAPPING = -1
@@ -144,6 +147,7 @@ class State(int, Enum):
     UNFLYABLE_TASK = 5
     IMAGE_UPLOADED = 6
     IMAGE_PROCESSED = 7
+    IMAGE_PROCESSING_FAILED = 8
 
 
 class EventType(str, Enum):
@@ -164,6 +168,7 @@ class EventType(str, Enum):
     - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked for mapping* passing in the required user id.
     - ``comment`` -- Keep the state the same, but simply add a comment.
     - ``unlock`` -- Unlock a task state by unlocking it if it's locked.
+    - ``image_upload`` -- Set the state to *image uploaded* when the task image is uploaded.
 
     Note that ``task_id`` must be specified in the endpoint too.
     """
@@ -179,3 +184,4 @@ class EventType(str, Enum):
     ASSIGN = "assign"
     COMMENT = "comment"
     UNLOCK = "unlock"
+    IMAGE_UPLOAD = "image_upload"

@@ -16,9 +16,13 @@ export const postUnflyableComment = ({
     },
   });
 
-export const getImageUploadLink = (data: any) =>
-  authenticated(api).post(`/projects/generate-presigned-url/`, data, {
-    headers: {
-      'Content-Type': 'application/json',
+export const getImageUploadLink = (replaceExistingImages: boolean, data: any) =>
+  authenticated(api).post(
+    `/projects/generate-presigned-url/?replace_existing=${replaceExistingImages}`,
+    data,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
     },
-  });
+  );
