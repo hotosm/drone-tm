@@ -246,7 +246,6 @@ async def download_and_upload_assets_from_odm_to_s3(
     :param current_state: Current state of the task (IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED).
     """
     log.info(f"Starting download for task {task_id}")
-
     # Replace with actual ODM node details and URL
     node = Node.from_url(node_odm_url)
 
@@ -319,6 +318,7 @@ async def download_and_upload_assets_from_odm_to_s3(
         )
 
     finally:
+        # Clean up the temporary directory
         if os.path.exists(output_file_path):
             try:
                 shutil.rmtree(output_file_path)
