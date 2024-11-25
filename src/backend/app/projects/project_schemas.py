@@ -28,8 +28,6 @@ from psycopg.rows import dict_row
 from app.config import settings
 from app.s3 import get_presigned_url
 
-from app.users.user_schemas import AuthUser
-
 
 class CentroidOut(BaseModel):
     id: uuid.UUID
@@ -256,7 +254,7 @@ class DbProject(BaseModel):
 
                 FROM
                     projects
-                JOIN 
+                JOIN
                     users ON projects.author_id = users.id
                 WHERE
                     projects.id = %(project_id)s
