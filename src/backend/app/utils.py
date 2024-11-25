@@ -535,16 +535,16 @@ async def send_project_approval_email_to_regulator(
 ):
     for email in emails:
         encoded_email = base64.urlsafe_b64encode(email.encode()).decode()
-        project_link = (
-            f"{settings.FRONTEND_URL}/projects/{project_id}/approval/?token={encoded_email}"
-        )
+        project_link = f"{settings.FRONTEND_URL}/projects/{project_id}/approval/?token={encoded_email}"
         context = {
             "project_link": project_link,
             "project_name": project_name,
             "creator_name": creator_name,
         }
 
-        html_content = render_email_template("regulator", "approval_request.html", context)
+        html_content = render_email_template(
+            "regulator", "approval_request.html", context
+        )
 
         message = MIMEText(html_content, "html")
         message["From"] = formataddr(

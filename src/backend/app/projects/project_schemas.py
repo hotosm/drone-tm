@@ -29,7 +29,6 @@ from app.config import settings
 from app.s3 import get_presigned_url
 
 
-
 class CentroidOut(BaseModel):
     id: uuid.UUID
     slug: str
@@ -255,7 +254,7 @@ class DbProject(BaseModel):
 
                 FROM
                     projects
-                JOIN 
+                JOIN
                     users ON projects.author_id = users.id
                 LEFT JOIN
                     tasks ON projects.id = tasks.project_id
