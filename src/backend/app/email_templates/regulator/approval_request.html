@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drone Tasking Manager Invite</title>
+    <link href="https://fonts.cdnfonts.com/css/barlow-condensed" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Barlow Condensed', sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: auto;
+        width: 65%;
+      }
+
+      .email-container {
+        max-width: 600px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        margin: 20px;
+      }
+      .content {
+        padding: 25px;
+      }
+
+      .logo-section{
+        margin-bottom: 45px;
+      }
+
+      .button {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 24px;
+        background-color: #d73f3f;
+        color: #ffffff !important;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+        font-weight: 700;
+      }
+
+      .button:hover {
+        text-decoration: underline;
+      }
+
+      .heading h1{
+        font-weight: 400 !important;
+        font-size: 24px;
+      }
+
+      .footer {
+        background-color: #ffffff;
+        text-align: start;
+        padding: 20px;
+        color: #666666;
+        font-size: 14px;
+        border-radius: 0 0 10px 10px;
+        border-top: 1px solid #8d8d8d;
+      }
+      .footer .social-media a{
+        text-decoration: none;
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">   
+      <div class="content">
+        <div class="logo-section">
+            <img src="https://minio.dronetm.org/frontendstatic/assets/DTM-logo-black-35d6444f.svg" alt="DTM-logo-black">
+        </div>
+        <div class="heading">
+          <h2>Project Review Request</h2>
+        </div>
+        <p>
+          Hello,
+          <br>
+A project has been created by <strong>{{creator_name}}</strong>, and you have been designated as the regulator for this project:<strong>{{project_name}}</strong>.
+<br>
+<br>
+<span style="color:#d73f3f;">Note</span> Drone operators will be able to access and view the project only after your approval.
+
+        </p>
+        <a
+            href="{{project_link}}"
+            class="button"
+            >Review Project</a
+          >
+      </div>
+      <div class="footer">
+        <!-- <div class="social-media">
+          <a href="">
+            <img src="./fb_logo.png" alt="">
+          </a>
+          <a href="">
+            <img src="./insta_logo.png" alt="">
+          </a>
+          </a>
+          <a href="">
+            <img src="./x_logo.png" alt="">
+          </a>
+          </a>
+        </div> -->
+       <p>Email sent from Drone Tasking Manager</p>
+      </div>
+    </div>
+  </body>
+</html>
+
+
+
+
+
+

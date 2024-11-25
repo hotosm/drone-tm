@@ -28,6 +28,8 @@ from psycopg.rows import dict_row
 from app.config import settings
 from app.s3 import get_presigned_url
 
+from app.users.user_schemas import AuthUser
+
 
 class CentroidOut(BaseModel):
     id: uuid.UUID
@@ -204,6 +206,7 @@ class DbProject(BaseModel):
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_id: Optional[str] = None
+    author_name: Optional[str] = None
     front_overlap: Optional[float] = None
     side_overlap: Optional[float] = None
     gsd_cm_px: Optional[float] = None
@@ -248,10 +251,13 @@ class DbProject(BaseModel):
                         ),
                         'id', projects.id
                     ) AS no_fly_zones,
-                    ST_AsGeoJSON(projects.centroid)::jsonb AS centroid
+                    ST_AsGeoJSON(projects.centroid)::jsonb AS centroid,
+                    users.name as author_name
 
                 FROM
                     projects
+                JOIN 
+                    users ON projects.author_id = users.id
                 WHERE
                     projects.id = %(project_id)s
                 LIMIT 1;
@@ -557,6 +563,7 @@ class ProjectInfo(BaseModel):
     regulator_approval_status: str = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
+    author_name: Optional[str] = None
     total_task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     image_url: Optional[str] = None
