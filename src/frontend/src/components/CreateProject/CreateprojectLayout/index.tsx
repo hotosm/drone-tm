@@ -91,6 +91,12 @@ const CreateprojectLayout = () => {
   const imageMergeType = useTypedSelector(
     state => state.createproject.imageMergeType,
   );
+  const requiresApprovalFromRegulator = useTypedSelector(
+    state => state.createproject.requiresApprovalFromRegulator,
+  );
+  const regulatorEmails = useTypedSelector(
+    state => state.createproject.regulatorEmails,
+  );
 
   const initialState: FieldValues = {
     name: '',
@@ -108,6 +114,8 @@ const CreateprojectLayout = () => {
     dem: null,
     requires_approval_from_manager_for_locking: false,
     altitude_from_ground: 0,
+    requires_approval_from_regulator: false,
+    regulator_emails: [],
   };
 
   const {
@@ -214,6 +222,18 @@ const CreateprojectLayout = () => {
 
     if (activeStep === 4 && !splitGeojson) return;
 
+    if (activeStep === 5) {
+      if (requiresApprovalFromRegulator === 'required') {
+        if (regulatorEmails?.length) {
+          setValue('requires_approval_from_regulator', true);
+          setValue('regulator_emails', regulatorEmails);
+        } else {
+          toast.error("Please provide regulator's email");
+          return;
+        }
+      }
+    }
+
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
       return;
@@ -239,6 +259,10 @@ const CreateprojectLayout = () => {
         imageMergeType === 'spacing'
           ? getSideOverlap(agl, data?.side_spacing)
           : data?.side_overlap,
+
+      requires_approval_from_regulator:
+        requiresApprovalFromRegulator === 'required',
+      regulator_emails: regulatorEmails,
     };
     delete refactoredData?.forward_spacing;
     delete refactoredData?.side_spacing;
@@ -249,6 +273,8 @@ const CreateprojectLayout = () => {
     delete refactoredData?.dem;
     if (measurementType === 'gsd') delete refactoredData?.altitude_from_ground;
     else delete refactoredData?.gsd_cm_px;
+    if (requiresApprovalFromRegulator !== 'required')
+      delete refactoredData?.regulator_emails;
 
     // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
     const formData = new FormData();

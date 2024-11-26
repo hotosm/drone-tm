@@ -1,3 +1,4 @@
+from datetime import datetime
 import uuid
 from typing import Annotated
 from app.projects import project_deps, project_schemas
@@ -9,6 +10,8 @@ from app.users.user_schemas import AuthUser
 from psycopg import Connection
 from app.db import database
 from loguru import logger as log
+from app.s3 import get_orthophoto_url
+from app.tasks import oam
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",
@@ -86,3 +89,43 @@ async def new_event(
         user_data,
         background_tasks,
     )
+
+
+@router.post("/upload/{project_id}/{task_id}")
+async def upload_orthophoto_to_oam(
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """
+    Uploads an orthophoto (TIFF) file to OpenAerialMap (OAM).
+
+    Args:
+        project_id: The UUID of the project.
+        task_id: The UUID of the task.
+        user_data: Authenticated user data.
+        project: Project details fetched by project ID.
+    """
+
+    s3_url = get_orthophoto_url(settings.S3_BUCKET_NAME, project_id, task_id)
+    oam_params = {
+        "acquisition_end": datetime.now().isoformat(),
+        "acquisition_start": datetime.now().isoformat(),
+        "provider": f"{user_data.name}",
+        "sensor": "DJI MINI4",
+        "tags": "",
+        "title": project.name,
+        "token": settings.OAM_API_TOKEN,
+    }
+
+    oam_upload_id = await oam.upload_orthophoto_to_oam(oam_params, s3_url)
+    # NOTE: Status of the uploaded orthophoto can be checked on OpenAerialMap using the OAM upload ID.https://map.openaerialmap.org/#/upload/status/673dbb268ac1b1000173a51d?
+    return {
+        "message": "Upload initiated",
+        "project_id": project_id,
+        "task_id": task_id,
+        "oam_id": oam_upload_id,
+    }
