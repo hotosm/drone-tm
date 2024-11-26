@@ -547,5 +547,7 @@ async def send_project_approval_email_to_regulator(
         )
 
         await send_notification_email(
-            email_to=email, subject="Project Approval", html_content=html_content
+            email_to=email,
+            subject="Project Review Request for Drone Operations Approval",
+            html_content=html_content,
         )
