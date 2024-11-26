@@ -1,6 +1,36 @@
 import { Button } from '@Components/RadixComponents/Button';
+import { regulatorComment } from '@Services/createproject';
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const ApprovalSection = () => {
+  const { id } = useParams();
+  const [comment, setComment] = useState('');
+  const { mutate: commentToProject, isLoading } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
+    mutationFn: regulatorComment,
+    onSuccess: () => {
+      toast.success('Responded successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || err?.message || '');
+    },
+  });
+
+  const handleApprovalStatus = (status: string) => {
+    commentToProject({
+      regulator_comment: comment,
+      regulator_approval_status: status,
+      projectId: id,
+    });
+  };
+
   return (
     <>
       {' '}
@@ -9,6 +39,8 @@ const ApprovalSection = () => {
           Comment
         </p>
         <textarea
+          value={comment}
+          onChange={e => setComment(e.target.value)}
           placeholder="Comment"
           name=""
           id=""
@@ -19,13 +51,19 @@ const ApprovalSection = () => {
       <div className="naxatw-flex naxatw-items-start naxatw-justify-start naxatw-gap-2">
         <Button
           variant="outline"
+          onClick={() => handleApprovalStatus('REJECTED')}
           className="naxatw-border-red naxatw-font-primary naxatw-text-red"
+          isLoading={isLoading}
+          disabled={isLoading}
         >
           Reject
         </Button>
         <Button
           variant="ghost"
+          onClick={() => handleApprovalStatus('APPROVED')}
           className="naxatw-bg-red naxatw-font-primary naxatw-text-white"
+          isLoading={isLoading}
+          disabled={isLoading}
         >
           Accept
         </Button>
