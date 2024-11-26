@@ -546,4 +546,6 @@ async def send_project_approval_email_to_regulator(
             "regulator", "approval_request.html", context
         )
 
-        await send_notification_email(email_to=email,subject='Project Approval',html_content=html_content)
+        await send_notification_email(
+            email_to=email, subject="Project Approval", html_content=html_content
+        )
