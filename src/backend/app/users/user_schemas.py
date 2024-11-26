@@ -1,4 +1,5 @@
 import uuid
+import base64
 from app.models.enums import HTTPStatus, State, UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
@@ -342,3 +343,15 @@ class DbUser(BaseModel):
             if result is None:
                 raise ValueError("No user requested for mapping")
             return result["user_id"]
+
+
+class Base64Request(BaseModel):
+    token: str
+
+    @field_validator("token")
+    def validate_base64(cls, value: str) -> str:
+        try:
+            base64.b64decode(value, validate=True)
+            return value
+        except Exception:
+            raise ValueError("Invalid Base64 string")

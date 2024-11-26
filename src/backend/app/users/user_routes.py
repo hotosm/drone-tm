@@ -8,12 +8,7 @@ from app.users import user_logic
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Form
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
-from app.users.user_schemas import (
-    DbUser,
-    Token,
-    UserProfileIn,
-    AuthUser,
-)
+from app.users.user_schemas import DbUser, Token, UserProfileIn, AuthUser, Base64Request
 from app.users.user_deps import login_required, init_google_auth
 from app.config import settings
 from app.db import database
@@ -269,14 +264,14 @@ async def reset_password(
 
 @router.post("/regulator/", tags=["Auto Regulator Account Creation"])
 async def regulator_create(
-    db: Annotated[Connection, Depends(database.get_db)], data: dict
+    db: Annotated[Connection, Depends(database.get_db)], data: Base64Request
 ):
     """
     Automatically create a regulator account with email and password same as email and with some dummy data
     for required fields with role as REGULATOR
     """
     try:
-        token = data["token"]
+        token = data.token
         email = base64.urlsafe_b64decode(token.encode()).decode()
         async with db.cursor(row_factory=class_row(DbUser)) as cur:
             await cur.execute(
