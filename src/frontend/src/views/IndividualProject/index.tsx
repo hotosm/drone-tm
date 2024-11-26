@@ -58,28 +58,30 @@ const IndividualProject = () => {
   );
   const tasksList = useTypedSelector(state => state.project.tasksData);
 
-  const { data: projectData, isFetching: isProjectDataFetching }: any =
-    useGetProjectsDetailQuery(id as string, {
-      onSuccess: (res: any) => {
-        dispatch(
-          setProjectState({
-            // modify each task geojson and set locked user id and name to properties and save to redux state called taskData
-            tasksData: res.tasks?.map((task: Record<string, any>) => ({
-              ...task,
-              outline: {
-                ...task.outline,
-                properties: {
-                  ...task.outline.properties,
-                  locked_user_id: task?.user_id,
-                  locked_user_name: task?.name,
-                },
+  const {
+    data: projectData,
+    isFetching: isProjectDataFetching,
+  }: Record<string, any> = useGetProjectsDetailQuery(id as string, {
+    onSuccess: (res: any) => {
+      dispatch(
+        setProjectState({
+          // modify each task geojson and set locked user id and name to properties and save to redux state called taskData
+          tasksData: res.tasks?.map((task: Record<string, any>) => ({
+            ...task,
+            outline: {
+              ...task.outline,
+              properties: {
+                ...task.outline.properties,
+                locked_user_id: task?.user_id,
+                locked_user_name: task?.name,
               },
-            })),
-            projectArea: res.outline,
-          }),
-        );
-      },
-    });
+            },
+          })),
+          projectArea: res.outline,
+        }),
+      );
+    },
+  });
 
   const handleTableRowClick = (taskData: any) => {
     const clickedTask = tasksList?.find(
@@ -115,8 +117,10 @@ const IndividualProject = () => {
             orientation="row"
             className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
             activeClassName="naxatw-border-b-2 naxatw-bg-transparent naxatw-border-red"
-            onTabChange={(val: any) =>
-              dispatch(setProjectState({ individualProjectActiveTab: val }))
+            onTabChange={(val: string | number) =>
+              dispatch(
+                setProjectState({ individualProjectActiveTab: String(val) }),
+              )
             }
             tabOptions={projectOptions}
             activeTab={individualProjectActiveTab}

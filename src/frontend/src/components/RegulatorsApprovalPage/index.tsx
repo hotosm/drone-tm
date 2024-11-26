@@ -4,7 +4,10 @@ import { tabOptions } from '@Constants/approvalPage';
 import { useState } from 'react';
 import InstructionSection from './InstructionSection';
 
-const getContent = (selectedTab: string, projectData: Record<string, any>) => {
+const getContent = (
+  selectedTab: string | number,
+  projectData: Record<string, any>,
+) => {
   if (selectedTab === 'about')
     return <DescriptionSection projectData={projectData} />;
   return (
@@ -14,7 +17,7 @@ const getContent = (selectedTab: string, projectData: Record<string, any>) => {
   );
 };
 const DetailsTemplate = ({ projectData }: Record<string, any>) => {
-  const [selectedTab, setSelectedTab] = useState('about');
+  const [selectedTab, setSelectedTab] = useState<string | number>('about');
 
   return (
     <div className="naxatw-w-full naxatw-max-w-[30rem]">
@@ -22,7 +25,7 @@ const DetailsTemplate = ({ projectData }: Record<string, any>) => {
         orientation="row"
         className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
         activeClassName="naxatw-border-b-2 naxatw-bg-transparent naxatw-border-red"
-        onTabChange={(val: any) => {
+        onTabChange={(val: string | number) => {
           setSelectedTab(val);
         }}
         tabOptions={tabOptions}
