@@ -385,11 +385,14 @@ class DbProject(BaseModel):
 
                 WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
                 AND p.name ILIKE %(search)s
-                AND (
-                    %(user_id)s IS NOT NULL
-                    OR p.requires_approval_from_regulator = 'f'
-                    OR p.regulator_approval_status = 'APPROVED'
-                )
+
+                -- Uncomment this if we want to restrict projects before local regulation accepts it
+                -- AND (
+                --    %(user_id)s IS NOT NULL
+                --    OR p.requires_approval_from_regulator = 'f'
+                --    OR p.regulator_approval_status = 'APPROVED'
+                -- )
+
                 GROUP BY p.id
                 ORDER BY p.created_at DESC
                 OFFSET %(skip)s
