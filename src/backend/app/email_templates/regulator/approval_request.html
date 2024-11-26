@@ -81,21 +81,43 @@
           <img
             src="https://minio.dronetm.org/frontendstatic/assets/DTM-logo-black-35d6444f.svg"
             alt="DTM-logo-black"
+            style="
+              max-width: 100%;
+              height: auto;
+              display: block;
+              margin: 0 auto;
+            "
           />
         </div>
+
         <div class="heading">
           <h2>Project Review Request</h2>
         </div>
         <p>
           Hello,
           <br />
-          A project has been created by <strong>{{creator_name}}</strong>, and
-          you have been designated as the regulator for this
-          project:<strong>{{project_name}}</strong>.
+
+          A new project, titled <strong>{{project_name}}</strong>, has been
+          created by <strong>{{creator_name}}</strong>. As the designated
+          authority for the local regulation committee, your review and approval
+          are required to enable drone operations for this project.
+
           <br />
           <br />
-          <span style="color: #d73f3f">Note</span> Drone operators will be able
-          to access and view the project only after your approval.
+
+          <span
+            >Please note that drone operators will only gain access to and be
+            able to view the project details upon your approval.</span
+          >
+          <br />
+          <br />
+
+          We kindly request you to review the project at your earliest
+          convenience to facilitate the next steps. <br />
+          Should you need any additional information or clarification, please do
+          not hesitate to contact us.
+
+          <br />
         </p>
         <a href="{{project_link}}" class="button">Review Project</a>
       </div>
