@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import { Flex, FlexColumn } from '@Components/common/Layouts';
 import { FormControl, Input, Label } from '@Components/common/FormUI';
@@ -12,6 +12,7 @@ import { Button } from '@Components/RadixComponents/Button';
 import { patchUserProfile } from '@Services/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import callApiSimultaneously from '@Utils/callApiSimultaneously';
 
 const OtherDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -27,12 +28,15 @@ const OtherDetails = () => {
     experience_years: userProfile?.experience_years || null,
     certified_drone_operator: userProfile?.certified_drone_operator || false,
     drone_you_own: userProfile?.drone_you_own || null,
+    certificate_file: userProfile?.certificate_file || null,
+    registration_file: userProfile?.registration_file || null,
   };
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, setValue, formState } = useForm({
-    defaultValues: initialState,
-  });
+  const { register, handleSubmit, setValue, control, formState, getValues } =
+    useForm({
+      defaultValues: initialState,
+    });
 
   const { mutate: updateOtherDetails, isLoading } = useMutation<
     any,
@@ -41,7 +45,23 @@ const OtherDetails = () => {
     unknown
   >({
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
-    onSuccess: () => {
+    onSuccess: async data => {
+      const results = data.data?.results;
+      const values = getValues();
+      const urlsToUpload = [];
+      const assetsToUpload = [];
+      if (results?.certificate_url) {
+        urlsToUpload.push(results?.certificate_url);
+        assetsToUpload.push(values?.certificate_file[0]);
+      }
+      if (results?.registration_certificate_url) {
+        urlsToUpload.push(results?.registration_certificate_url);
+        assetsToUpload.push(values?.registration_file?.[0]);
+      }
+      if (urlsToUpload.length) {
+        await callApiSimultaneously(urlsToUpload, assetsToUpload, 'patch');
+      }
+
       queryClient.invalidateQueries(['user-profile']);
 
       toast.success('Details Updated Successfully');
@@ -54,11 +74,18 @@ const OtherDetails = () => {
   });
 
   const onSubmit = (formData: Record<string, any>) => {
-    updateOtherDetails({ userId: userProfile?.id, data: formData });
+    updateOtherDetails({
+      userId: userProfile?.id,
+      data: {
+        ...formData,
+        certificate_file: formData?.certificate_file?.[0]?.file?.name,
+        registration_file: formData?.registration_file?.[0]?.file?.name,
+      },
+    });
   };
 
   return (
-    <section className="naxatw-px-14">
+    <section className="naxatw-max-h-full naxatw-w-full naxatw-overflow-y-auto naxatw-px-14">
       <Flex>
         <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">
           Other Details
@@ -127,14 +154,57 @@ const OtherDetails = () => {
               formState.errors?.certified_drone_operator?.message as string
             }
           />
+          {isCertifiedDroneOperator === 'yes' && (
+            <Controller
+              control={control}
+              name="certificate_file"
+              rules={{
+                required: 'Certificate file is required',
+              }}
+              render={({ field: { value }, fieldState: { error } }) => {
+                return (
+                  <>
+                    <FileUpload
+                      // @ts-ignore
+                      register={() => {}}
+                      // @ts-ignore
+                      setValue={setValue}
+                      name="certificate_file"
+                      data={value}
+                      onChange={() => {}}
+                      fileAccept=".pdf, .jpeg, .png"
+                      placeholder="The supported file formats are pdf, .jpeg, .png"
+                    />
+                    <ErrorMessage message={error?.message as string} />
+                  </>
+                );
+              }}
+            />
+          )}
         </FormControl>
-        <FileUpload
-          // @ts-ignore
-          register={() => {}}
-          onChange={() => {}}
-          setValue={() => {}}
-          placeholder="*The supported file formats are pdf, .jpeg, .png"
-        />
+        <FormControl className="naxatw-flex-col naxatw-gap-1">
+          <Label>Drone Registration Certificate</Label>
+          <Controller
+            control={control}
+            name="registration_file"
+            render={({ field: { value } }) => {
+              // console.log(value, 'value12');
+              return (
+                <FileUpload
+                  // @ts-ignore
+                  register={() => {}}
+                  // @ts-ignore
+                  setValue={setValue}
+                  name="registration_file"
+                  data={value}
+                  onChange={() => {}}
+                  fileAccept=".pdf, .jpeg, .png"
+                  placeholder="The supported file formats are pdf, .jpeg, .png"
+                />
+              );
+            }}
+          />
+        </FormControl>
       </FlexColumn>
       <div className="naxatw-flex naxatw-justify-center naxatw-py-4">
         <Button
