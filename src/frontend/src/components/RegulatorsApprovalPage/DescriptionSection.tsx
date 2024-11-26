@@ -17,7 +17,9 @@ const DescriptionSection = ({
             <p className="naxatw-w-28">Total Project Area </p>
             <p>:</p>
             <p className="naxatw-font-semibold">
-              {projectData?.project_area || ''}
+              {projectData?.project_area?.toFixed(3)?.replace(/\.00$/, '') ||
+                ''}{' '}
+              km²
             </p>
           </div>
           <div className="naxatw-flex naxatw-gap-2">
