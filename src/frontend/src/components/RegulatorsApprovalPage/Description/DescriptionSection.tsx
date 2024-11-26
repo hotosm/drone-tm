@@ -14,7 +14,7 @@ const DescriptionSection = ({
         <p>{projectData?.description || ''}</p>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
           <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-28">Total Project Area </p>
+            <p className="naxatw-w-[118px]">Total Project Area </p>
             <p>:</p>
             <p className="naxatw-font-semibold">
               {projectData?.project_area?.toFixed(3)?.replace(/\.00$/, '') ||
@@ -23,17 +23,33 @@ const DescriptionSection = ({
             </p>
           </div>
           <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-28">Project Created By </p>
+            <p className="naxatw-w-[118px]">Project Created By </p>
             <p>:</p>{' '}
             <p className="naxatw-font-semibold">
               {projectData?.author_name || ''}
             </p>
           </div>
           <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-28"> Total Tasks </p>
+            <p className="naxatw-w-[118px]"> Total Tasks </p>
             <p>:</p>{' '}
             <p className="naxatw-font-semibold">
               {projectData?.tasks?.length || ''}
+            </p>
+          </div>
+          {projectData?.regulator_comment && (
+            <div className="naxatw-flex naxatw-gap-2">
+              <p className="naxatw-w-[118px]"> Regulator Comment </p>
+              <p>:</p>{' '}
+              <p className="naxatw-font-semibold">
+                {projectData?.regulator_comment || ''}
+              </p>
+            </div>
+          )}
+          <div className="naxatw-flex naxatw-gap-2">
+            <p className="naxatw-w-[118px]">Regulator Approval Status</p>
+            <p>:</p>{' '}
+            <p className="naxatw-font-semibold">
+              {projectData?.regulator_approval_status || ''}
             </p>
           </div>
         </div>
