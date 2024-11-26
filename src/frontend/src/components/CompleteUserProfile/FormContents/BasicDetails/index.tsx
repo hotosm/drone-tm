@@ -1,14 +1,20 @@
 import { Flex, FlexColumn } from '@Components/common/Layouts';
 import { FormControl, Select, Input, Label } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/ErrorMessage';
-import { countriesWithPhoneCodes } from '@Constants/countryCode';
 import { Controller } from 'react-hook-form';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import { countries } from 'countries-list';
 
 export default function BasicDetails({ formProps }: { formProps: any }) {
   const { register, formState, control } = formProps;
 
   const userProfile = getLocalStorageValue('userprofile');
+
+  // eslint-disable-next-line no-unused-vars
+  const countryList = Object.entries(countries).map(([_, value]) => ({
+    name: value?.name,
+    phone: value?.phone?.[0],
+  }));
 
   return (
     <section className="naxatw-px-14">
@@ -42,10 +48,11 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
             }}
             render={({ field: { value, onChange } }) => (
               <Select
+                withSearch
                 placeholder="Choose a Country"
-                options={countriesWithPhoneCodes}
-                labelKey="label"
-                valueKey="label"
+                options={countryList}
+                labelKey="name"
+                valueKey="name"
                 selectedOption={value}
                 onChange={onChange}
               />
