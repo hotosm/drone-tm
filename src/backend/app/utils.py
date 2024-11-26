@@ -3,6 +3,7 @@ import geojson
 import requests
 import shapely
 import json
+import base64
 from datetime import datetime, timezone
 from typing import Optional, Union, Any
 from geojson_pydantic import Feature, MultiPolygon, Polygon
@@ -527,3 +528,24 @@ def geojson_to_kml(geojson_data: dict) -> str:
     kml_output.append("</kml>")
 
     return "\n".join(kml_output)
+
+
+async def send_project_approval_email_to_regulator(
+    emails: list, project_id: str, creator_name: str, project_name: str
+):
+    for email in emails:
+        encoded_email = base64.urlsafe_b64encode(email.encode()).decode()
+        project_link = f"{settings.FRONTEND_URL}/projects/{project_id}/approval/?token={encoded_email}"
+        context = {
+            "project_link": project_link,
+            "project_name": project_name,
+            "creator_name": creator_name,
+        }
+
+        html_content = render_email_template(
+            "regulator", "approval_request.html", context
+        )
+
+        await send_notification_email(
+            email_to=email, subject="Project Approval", html_content=html_content
+        )

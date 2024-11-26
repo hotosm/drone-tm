@@ -21,7 +21,7 @@ const DescriptionSection = ({
             </p>
           </div>
           <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-28">Total Created By </p>
+            <p className="naxatw-w-28">Project Created By </p>
             <p>:</p>{' '}
             <p className="naxatw-font-semibold">
               {projectData?.author_name || ''}
