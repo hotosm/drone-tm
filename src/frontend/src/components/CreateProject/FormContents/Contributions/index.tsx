@@ -72,7 +72,7 @@ export default function Conditions({
       <FormControl>
         <RadioButton
           required
-          topic="Approval from Regulator"
+          topic="Does this project require approval from the local regulatory committee ?"
           options={regulatorApprovalOptions}
           direction="column"
           onChangeData={value => {
@@ -88,7 +88,7 @@ export default function Conditions({
 
       {requiresApprovalFromRegulator === 'required' && (
         <FormControl className="naxatw-gap-2">
-          <Label required>Approval Email</Label>
+          <Label required>Local regulation committee Email Address </Label>
           <MultipleEmailInput
             emails={regulatorEmails}
             onEmailAdd={emails => {
@@ -113,6 +113,7 @@ export default function Conditions({
             );
           }}
           value={requireApprovalFromManagerForLocking}
+          name="requireApprovalFromManagerForLocking"
         />
       </FormControl>
     </FlexColumn>
