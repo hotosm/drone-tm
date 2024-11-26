@@ -1,5 +1,5 @@
 import Tab from '@Components/common/Tabs';
-import DescriptionSection from '@Components/RegulatorsApprovalPage/DescriptionSection';
+import DescriptionSection from '@Components/RegulatorsApprovalPage/Description/DescriptionSection';
 import { tabOptions } from '@Constants/approvalPage';
 import { useState } from 'react';
 import InstructionSection from './InstructionSection';
