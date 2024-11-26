@@ -252,9 +252,13 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         map={map as Map}
         popupUI={getPopupUI}
         title={`Task #${selectedTaskId}`}
-        showPopup={(feature: Record<string, any>) =>
-          feature?.source?.includes('tasks-layer')
-        }
+        showPopup={(feature: Record<string, any>) => {
+          if (!userDetails) return false;
+          return (
+            feature?.source?.includes('tasks-layer') &&
+            !userDetails?.role?.includes('REGULATOR') // Don't show popup if user role is regulator
+          );
+        }}
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(
             setProjectState({
