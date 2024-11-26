@@ -22,7 +22,6 @@ dependencies = [
     "loguru>=0.7.2",
     "minio>=7.2.7",
     "pyjwt>=2.8.0",
-    "passlib[bcrypt]==1.7.4",
     "alembic>=1.13.1",
     "itsdangerous>=2.2.0",
     "Jinja2>=3.1.4",
@@ -34,6 +33,7 @@ dependencies = [
     "pyodm>=1.5.11",
     "asgiref>=3.8.1",
     "drone-flightplan>=0.3.1",
+    "bcrypt>=4.2.1",
 ]
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-only"}
