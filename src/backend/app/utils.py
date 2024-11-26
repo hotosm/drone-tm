@@ -546,20 +546,4 @@ async def send_project_approval_email_to_regulator(
             "regulator", "approval_request.html", context
         )
 
-        message = MIMEText(html_content, "html")
-        message["From"] = formataddr(
-            (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL)
-        )
-        message["To"] = ",".join(emails)
-        message["Subject"] = "Project Approval"
-        try:
-            log.debug("Sending email message")
-            await send_email(
-                message,
-                hostname=settings.SMTP_HOST,
-                port=settings.SMTP_PORT,
-                username=settings.SMTP_USER,
-                password=settings.SMTP_PASSWORD,
-            )
-        except Exception as e:
-            log.error(f"Error sending email: {e}")
+        await send_notification_email(email_to=email,subject='Project Approval',html_content=html_content)
