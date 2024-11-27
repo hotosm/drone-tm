@@ -153,7 +153,7 @@ const ImageMapBox = () => {
       );
 
       // urls fromm array of objects is retrieved and stored in value
-      const urls = urlsData.data.map((url: any) => url.url);
+      const urls = urlsData.data.map(({ url }: { url: string }) => url);
       const chunkedUrls = chunkArray(urls, 4);
       const chunkedFiles = chunkArray(files, 4);
 
@@ -167,7 +167,7 @@ const ImageMapBox = () => {
         const width = widthCalulator(uploadedFilesNumber.current, files.length);
         setLoadingWidth(width);
 
-        // to call api in chunks of 4 with a delay of 2 seconds
+        // to call api in chunks of 4 with a delay of 500ms
         if (index < chunkedUrls.length - 1) {
           await delay(500);
         }
