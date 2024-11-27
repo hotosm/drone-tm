@@ -49,15 +49,15 @@ const ImageMapBox = () => {
   const uploadedImageType = useTypedSelector(
     state => state.droneOperatorTask.uploadedImagesType,
   );
-  const droneOperatorSate = useTypedSelector(state => state.droneOperatorTask);
+  const filesExifData = useTypedSelector(
+    state => state.droneOperatorTask.filesExifData,
+  );
 
   useEffect(() => {
-    if (droneOperatorSate.filesExifData.length === 0) return;
-    const imageFilesGeoData = convertExifDataToGeoJson(
-      droneOperatorSate.filesExifData,
-    );
+    if (filesExifData.length === 0) return;
+    const imageFilesGeoData = convertExifDataToGeoJson(filesExifData);
     setImageFilesGeoJsonData(imageFilesGeoData);
-    const sortedImageFiles = sortByDatetime(droneOperatorSate.filesExifData);
+    const sortedImageFiles = sortByDatetime(filesExifData);
     const imageFilesLineString = {
       type: 'FeatureCollection',
       features: [
@@ -76,17 +76,17 @@ const ImageMapBox = () => {
       ],
     };
     setImageFilesLineStringData(imageFilesLineString);
-    setFiles(droneOperatorSate.filesExifData.map(file => file.file));
-    setImagesNames(droneOperatorSate.filesExifData.map(file => file.file.name));
-  }, [droneOperatorSate.filesExifData]);
+    setFiles(filesExifData.map(file => file.file));
+    setImagesNames(filesExifData.map(file => file.file.name));
+  }, [filesExifData]);
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'image-upload-map',
     mapOptions: {
       zoom: 17,
       center: [
-        droneOperatorSate.filesExifData[0]?.coordinates.longitude || 84.124,
-        droneOperatorSate.filesExifData[0]?.coordinates.latitude || 28.9349,
+        filesExifData[0]?.coordinates.longitude || 84.124,
+        filesExifData[0]?.coordinates.latitude || 28.9349,
       ],
       maxZoom: 19,
     },
@@ -265,7 +265,7 @@ const ImageMapBox = () => {
               getCoordOnProperties
               buttonText="Remove"
               handleBtnClick={fileData => {
-                const newFilesData = droneOperatorSate.filesExifData.filter(
+                const newFilesData = filesExifData.filter(
                   filex => filex.file.name !== fileData.name,
                 );
                 dispatch(setFilesExifData(newFilesData));
