@@ -482,6 +482,14 @@ async def handle_event(
             requested_user_id = await user_schemas.DbUser.get_requested_user_id(
                 db, project_id, task_id, State.LOCKED_FOR_MAPPING
             )
+            project_task_index = next(
+                (
+                    task["project_task_index"]
+                    for task in project["tasks"]
+                    if task["id"] == task_id and task["user_id"] == requested_user_id
+                ),
+                None,
+            )
             drone_operator = await user_schemas.DbUser.get_user_by_id(db, user_data.id)
             html_content = render_email_template(
                 folder_name="mapping",
@@ -492,6 +500,7 @@ async def handle_event(
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
                     "task_id": task_id,
+                    "project_task_index": project_task_index,
                     "project_name": project["name"],
                     "description": project["description"],
                 },

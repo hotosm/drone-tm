@@ -100,17 +100,29 @@
       </div>
       <div class="content">
         <p>Dear {{ name }},</p>
-        <p>We regret to inform you that the task associated with your project "{{ project_name }}" has been marked as <strong>unflyable</strong> by the drone operator, {{ drone_operator_name }}.</p>
+        <p>
+          We regret to inform you that the task associated with your project "{{
+          project_name }}" has been marked as <strong>unflyable</strong> by the
+          drone operator, {{ drone_operator_name }}.
+        </p>
         <p>Please find below the details of the task:</p>
         <div class="task">
           <h2>Task Details</h2>
           <div class="task-details">
             <p><strong>Project:</strong> {{ project_name }}</p>
-            <p><strong>Task ID:</strong> {{ task_id }}</p>
+            <p><strong>Task ID:</strong> {{ project_task_index }}</p>
             <p><strong>Description:</strong> {{ description }}</p>
           </div>
+          <a
+            href="{{FRONTEND_URL}}/projects/{{project_id}}/tasks/{{task_id}}"
+            class="task-button"
+            >Visit Drone Tasking Manager</a
+          >
         </div>
-        <p>Note: Please review the project on your platform to determine the next steps.</p>
+        <p>
+          Note: Please review the project on your platform to determine the next
+          steps.
+        </p>
       </div>
       <div class="footer">
         <p>Thank you for your support,</p>
