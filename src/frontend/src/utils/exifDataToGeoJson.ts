@@ -5,8 +5,8 @@ export default function convertExifDataToGeoJson(data: IFilesExifData[]): {
   type: string;
   features: GeojsonType[];
 } {
-  const features: GeojsonType[] = data.map((item, index) => {
-    const { file, dateTime, coordinates } = item;
+  const features: GeojsonType[] = data.map((exifData, index) => {
+    const { file, dateTime, coordinates } = exifData;
     return {
       type: 'Feature',
       geometry: {
