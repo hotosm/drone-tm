@@ -1,5 +1,6 @@
 import ExitCreateProjectModal from '@Components/CreateProject/ExitCreateProjectModal';
 import ImageBoxPopOver from '@Components/DroneOperatorTask/DescriptionSection/PopoverBox/ImageBox';
+import ImageMapBox from '@Components/DroneOperatorTask/DescriptionSection/PopoverBox/MapBox';
 import ChooseTakeOffPointOptions from '@Components/DroneOperatorTask/ModalContent/ChooseTakeOffPointOptions';
 import TaskOrthophotoPreview from '@Components/DroneOperatorTask/ModalContent/TaskOrthophotoPreview';
 import { ReactElement } from 'react';
@@ -8,6 +9,7 @@ export type ModalContentsType =
   | 'sign-up-success'
   | 'quit-create-project'
   | 'raw-image-preview'
+  | 'raw-image-map-preview'
   | 'update-flight-take-off-point'
   | 'task-ortho-photo-preview'
   | null;
@@ -38,6 +40,13 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
         className: '!naxatw-w-[95vw] md:!naxatw-w-[60vw]',
         title: 'Upload Images, GCP, and align.laz',
         content: <ImageBoxPopOver />,
+      };
+
+    case 'raw-image-map-preview':
+      return {
+        className: '!naxatw-w-[95vw] md:!naxatw-w-[60vw]',
+        title: 'Upload Images, GCP, and align.laz',
+        content: <ImageMapBox />,
       };
 
     case 'task-ortho-photo-preview':
