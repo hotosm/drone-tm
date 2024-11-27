@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
@@ -14,6 +14,7 @@ import { Button } from '@Components/RadixComponents/Button';
 import { Label } from '@Components/common/FormUI';
 import SwitchTab from '@Components/common/SwitchTab';
 import {
+  resetFilesExifData,
   setSelectedTaskDetailToViewOrthophoto,
   setUploadedImagesType,
 } from '@Store/actions/droneOperatorTask';
@@ -66,6 +67,10 @@ const DescriptionBox = () => {
       toast.error(err.message);
     },
   });
+
+  useEffect(() => {
+    dispatch(resetFilesExifData());
+  }, [dispatch]);
 
   const { mutate: reStartImageryProcess, isLoading: imageProcessingStarting } =
     useMutation({

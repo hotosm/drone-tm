@@ -1,7 +1,7 @@
 /* eslint-disable no-await-in-loop */
 import { Button } from '@Components/RadixComponents/Button';
 import { toggleModal } from '@Store/actions/common';
-import { setFiles, setFilesExifData } from '@Store/actions/droneOperatorTask';
+import { setFilesExifData } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import getExifData from '@Utils/getExifData';
 import { toast } from 'react-toastify';
@@ -12,7 +12,9 @@ const UploadsBox = ({
   label?: string;
 }) => {
   const dispatch = useTypedDispatch();
-  const files = useTypedSelector(state => state.droneOperatorTask.files);
+  const files = useTypedSelector(
+    state => state.droneOperatorTask.filesExifData,
+  );
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -20,7 +22,6 @@ const UploadsBox = ({
     const selectedFiles = event.target.files;
     if (!selectedFiles || selectedFiles?.length === 0) return;
     const selectedFilesArray: File[] = Array.from(selectedFiles);
-    dispatch(setFiles(selectedFilesArray));
     try {
       const exifData = await Promise.all(
         selectedFilesArray.map(async (file: File) => {
