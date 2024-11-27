@@ -111,16 +111,16 @@ const CompleteUserProfile = () => {
     },
     onSuccess: async data => {
       const results = data.data?.results;
-      const values = getValues();
+      const values: Record<string, any> = getValues();
       const urlsToUpload = [];
       const assetsToUpload = [];
       if (results?.certificate_url) {
         urlsToUpload.push(results?.certificate_url);
-        assetsToUpload.push(values?.certificate_file?.[0]);
+        assetsToUpload.push(values?.certificate_file?.[0]?.file);
       }
       if (results?.registration_certificate_url) {
         urlsToUpload.push(results?.registration_certificate_url);
-        assetsToUpload.push(values?.registration_file?.[0]);
+        assetsToUpload.push(values?.registration_file?.[0]?.file);
       }
       if (urlsToUpload.length) {
         await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
