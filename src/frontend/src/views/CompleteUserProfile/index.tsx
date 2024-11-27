@@ -15,7 +15,7 @@ import {
 import { setCommonState } from '@Store/actions/common';
 import { Button } from '@Components/RadixComponents/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { postUserProfile } from '@Services/common';
+import { patchUserProfile, postUserProfile } from '@Services/common';
 import { toast } from 'react-toastify';
 import { removeKeysFromObject } from '@Utils/index';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
@@ -23,6 +23,7 @@ import Tab from '@Components/common/Tabs';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import { useGetUserDetailsQuery } from '@Api/projects';
+import callApiSimultaneously from '@Utils/callApiSimultaneously';
 
 const getActiveFormContent = (
   activeTab: number,
@@ -76,14 +77,23 @@ const CompleteUserProfile = () => {
     notify_for_projects_within_km: null,
     experience_years: null,
     certified_drone_operator: false,
+    certificate_file: null,
+    registration_file: null,
     drone_you_own: null,
     role: userProfile?.role ? [existingRole, newRole] : [newRole],
   };
 
-  const { register, setValue, handleSubmit, formState, control, watch } =
-    useForm({
-      defaultValues: initialState,
-    });
+  const {
+    register,
+    setValue,
+    handleSubmit,
+    formState,
+    control,
+    watch,
+    getValues,
+  } = useForm({
+    defaultValues: initialState,
+  });
 
   const formProps = {
     register,
@@ -94,11 +104,31 @@ const CompleteUserProfile = () => {
   };
 
   const { mutate: updateUserProfile } = useMutation<any, any, any, unknown>({
-    mutationFn: payloadDataObject => postUserProfile(payloadDataObject),
-    onSuccess: () => {
-      toast.success('UserProfile Updated Successfully');
+    mutationFn: payloadDataObject => {
+      return payloadDataObject?.data?.role?.length === 1
+        ? postUserProfile(payloadDataObject)
+        : patchUserProfile(payloadDataObject);
+    },
+    onSuccess: async data => {
+      const results = data.data?.results;
+      const values = getValues();
+      const urlsToUpload = [];
+      const assetsToUpload = [];
+      if (results?.certificate_url) {
+        urlsToUpload.push(results?.certificate_url);
+        assetsToUpload.push(values?.certificate_file?.[0]);
+      }
+      if (results?.registration_certificate_url) {
+        urlsToUpload.push(results?.registration_certificate_url);
+        assetsToUpload.push(values?.registration_file?.[0]);
+      }
+      if (urlsToUpload.length) {
+        await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
+      }
+
       queryClient.invalidateQueries(['user-profile']);
       dispatch(setCommonState({ userProfileActiveTab: 1 }));
+      toast.success('UserProfile Updated Successfully');
       navigate('/projects');
     },
     onError: err => {
@@ -118,7 +148,16 @@ const CompleteUserProfile = () => {
     const finalFormData = isDroneOperator
       ? removeKeysFromObject(formData, projectCreatorKeys)
       : removeKeysFromObject(formData, droneOperatorKeys);
-    updateUserProfile({ userId: userProfile?.id, data: finalFormData });
+
+    updateUserProfile({
+      userId: userProfile?.id,
+      data: {
+        ...finalFormData,
+        // post file name with data
+        certificate_file: formData?.certificate_file?.[0]?.file?.name,
+        registration_file: formData?.registration_file?.[0]?.file?.name,
+      },
+    });
   };
 
   const onBackBtnClick = () => {
