@@ -49,13 +49,15 @@ const ImageMapBox = () => {
   const uploadedImageType = useTypedSelector(
     state => state.droneOperatorTask.uploadedImagesType,
   );
-  const { filesExifData } = useTypedSelector(state => state.droneOperatorTask);
+  const droneOperatorSate = useTypedSelector(state => state.droneOperatorTask);
 
   useEffect(() => {
-    if (filesExifData.length === 0) return;
-    const imageFilesGeoData = convertExifDataToGeoJson(filesExifData);
+    if (droneOperatorSate.filesExifData.length === 0) return;
+    const imageFilesGeoData = convertExifDataToGeoJson(
+      droneOperatorSate.filesExifData,
+    );
     setImageFilesGeoJsonData(imageFilesGeoData);
-    const sortedImageFiles = sortByDatetime(filesExifData);
+    const sortedImageFiles = sortByDatetime(droneOperatorSate.filesExifData);
     const imageFilesLineString = {
       type: 'FeatureCollection',
       features: [
@@ -65,26 +67,26 @@ const ImageMapBox = () => {
           geometry: {
             type: 'LineString',
             // get all coordinates
-            coordinates: sortedImageFiles.map(item => [
-              Number(item.coordinates.longitude) ?? 0,
-              Number(item.coordinates.latitude) ?? 0,
+            coordinates: sortedImageFiles.map(fileLocation => [
+              Number(fileLocation.coordinates.longitude) ?? 0,
+              Number(fileLocation.coordinates.latitude) ?? 0,
             ]),
           },
         },
       ],
     };
     setImageFilesLineStringData(imageFilesLineString);
-    setFiles(filesExifData.map(file => file.file));
-    setImagesNames(filesExifData.map(file => file.file.name));
-  }, [filesExifData]);
+    setFiles(droneOperatorSate.filesExifData.map(file => file.file));
+    setImagesNames(droneOperatorSate.filesExifData.map(file => file.file.name));
+  }, [droneOperatorSate.filesExifData]);
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'image-upload-map',
     mapOptions: {
       zoom: 17,
       center: [
-        filesExifData[0]?.coordinates.longitude || 84.124,
-        filesExifData[0]?.coordinates.latitude || 28.9349,
+        droneOperatorSate.filesExifData[0]?.coordinates.longitude || 84.124,
+        droneOperatorSate.filesExifData[0]?.coordinates.latitude || 28.9349,
       ],
       maxZoom: 19,
     },
@@ -263,7 +265,7 @@ const ImageMapBox = () => {
               getCoordOnProperties
               buttonText="Remove"
               handleBtnClick={fileData => {
-                const newFilesData = filesExifData.filter(
+                const newFilesData = droneOperatorSate.filesExifData.filter(
                   filex => filex.file.name !== fileData.name,
                 );
                 dispatch(setFilesExifData(newFilesData));
