@@ -270,3 +270,16 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     except Exception as e:
         log.exception(f"An error occurred while retrieving assets info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def check_regulator_project(db: Connection, project_id: str, email: str):
+    sql = """
+    SELECT id FROM projects WHERE
+    id = %(project_id)s
+    AND %(email)s = ANY(regulator_emails)
+    AND regulator_comment IS NULL
+    """
+    async with db.cursor() as cur:
+        await cur.execute(sql, {"project_id": project_id, "email": email})
+        project = await cur.fetchone()
+        return bool(project)

@@ -6,7 +6,11 @@ import { toggleModal } from '@Store/actions/common';
 import { setFiles } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 
-const UploadsBox = ({ label = 'Upload Raw Image' }: { label?: string }) => {
+const UploadsBox = ({
+  label = 'Upload Images, GCP, and align.laz',
+}: {
+  label?: string;
+}) => {
   const dispatch = useTypedDispatch();
   const files = useTypedSelector(state => state.droneOperatorTask.files);
   const handleFileChange = (event: any) => {
@@ -28,15 +32,24 @@ const UploadsBox = ({ label = 'Upload Raw Image' }: { label?: string }) => {
 
         <label
           htmlFor="file-input"
-          className="naxatw-relative naxatw-flex naxatw-h-20 naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700"
+          className="naxatw-relative naxatw-flex naxatw-h-fit naxatw-min-h-20 naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700 naxatw-py-3"
         >
           <div className="n naxatw-flex naxatw-flex-col naxatw-items-center">
             <span className="material-icons-outlined naxatw-text-red">
               cloud_upload
             </span>
-            <p className="naxatw-text-sm">
-              The supported file formats are .jpg, .jpeg, .png
-            </p>
+            <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-text-center">
+              <p className="naxatw-text-sm">
+                The supported file formats are .jpg, .jpeg, .png.
+              </p>
+              <p className="naxatw-text-sm">
+                The GCP file should be named gcp_list.txt
+              </p>
+              <p className="naxatw-text-sm">
+                The align file should be named align.laz
+              </p>
+            </div>
+
             {files.length > 0 && (
               <p className="naxatw-text-sm naxatw-text-green-700">
                 {files.length} items selected

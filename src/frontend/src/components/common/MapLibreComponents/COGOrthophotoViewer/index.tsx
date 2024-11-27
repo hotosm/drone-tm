@@ -9,6 +9,7 @@ interface IViewOrthophotoProps {
   id: string;
   source: RasterSourceSpecification;
   visibleOnMap?: Boolean;
+  zoomToLayer?: Boolean;
 }
 
 const COGOrthophotoViewer = ({
@@ -17,9 +18,20 @@ const COGOrthophotoViewer = ({
   id,
   source,
   visibleOnMap,
+  zoomToLayer = false,
 }: IViewOrthophotoProps) => {
   useEffect(() => {
     if (!map || !isMapLoaded || !source || !visibleOnMap) return;
+
+    const handleZoomToGeoTiff = () => {
+      if (map?.getSource(id))
+        // @ts-ignore
+        map?.fitBounds(map?.getSource(id)?.bounds, {
+          padding: 50,
+          duration: 1000,
+          zoom: 18,
+        });
+    };
 
     // Registers the 'cog' protocol with the mapLibre instance, enabling support for Cloud Optimized GeoTIFF (COG) files
     mapLibre?.addProtocol('cog', cogProtocol);
@@ -34,14 +46,17 @@ const COGOrthophotoViewer = ({
       });
     }
 
+    if (zoomToLayer && map?.getLayer(id)) map.on('idle', handleZoomToGeoTiff);
+
     // eslint-disable-next-line consistent-return
     return () => {
       if (map?.getSource(id)) {
         map?.removeSource(id);
         if (map?.getLayer(id)) map?.removeLayer(id);
+        map.off('idle', handleZoomToGeoTiff);
       }
     };
-  }, [map, isMapLoaded, id, source, visibleOnMap]);
+  }, [map, isMapLoaded, id, source, visibleOnMap, zoomToLayer]);
 
   return null;
 };

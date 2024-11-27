@@ -4,7 +4,8 @@ import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthop
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { setSelectedTaskDetailToViewOrthophoto } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
-import { LngLatBoundsLike, RasterSourceSpecification } from 'maplibre-gl';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { RasterSourceSpecification } from 'maplibre-gl';
 import { useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 
@@ -12,10 +13,6 @@ const { COG_URL } = process.env;
 
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
-  const taskOutline = useTypedSelector(
-    state =>
-      state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.outline,
-  );
   const taskIdFromRedux = useTypedSelector(
     state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
   );
@@ -26,7 +23,7 @@ const TaskOrthophotoPreview = () => {
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'orthophoto-map',
     mapOptions: {
-      zoom: 21,
+      zoom: 5,
       center: [0, 0],
     },
     disableRotation: true,
@@ -41,12 +38,6 @@ const TaskOrthophotoPreview = () => {
 
     [projectId, taskId],
   );
-
-  useEffect(() => {
-    if (!map || !isMapLoaded || !taskOutline) return;
-    const { bbox } = taskOutline.properties;
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 50, duration: 500 });
-  }, [map, isMapLoaded, taskOutline]);
 
   useEffect(() => {
     return () => {
@@ -66,14 +57,17 @@ const TaskOrthophotoPreview = () => {
         }}
       >
         <BaseLayerSwitcherUI />
-        <COGOrthophotoViewer
-          id="task-orthophoto"
-          source={orthophotoSource}
-          visibleOnMap
-        />
+        {isMapLoaded && (
+          <COGOrthophotoViewer
+            id="task-orthophoto"
+            source={orthophotoSource}
+            visibleOnMap
+            zoomToLayer
+          />
+        )}
       </MapContainer>
     </div>
   );
 };
 
-export default TaskOrthophotoPreview;
+export default hasErrorBoundary(TaskOrthophotoPreview);

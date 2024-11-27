@@ -1,4 +1,5 @@
 import uuid
+import base64
 from app.models.enums import HTTPStatus, State, UserRole
 from pydantic import BaseModel, EmailStr, ValidationInfo, Field
 from pydantic.functional_validators import field_validator
@@ -11,7 +12,7 @@ from typing import Any
 from loguru import logger as log
 from app.users import user_logic
 from psycopg.rows import dict_row
-from app.s3 import get_presigned_url
+from app.s3 import s3_client
 from app.config import settings
 
 
@@ -166,8 +167,9 @@ class DbUserProfile(BaseUserProfile):
             file_name = getattr(profile, file_type, None)
             if file_name:
                 try:
-                    presigned_url = get_presigned_url(
-                        settings.S3_BUCKET_NAME, s3_path, expires=1
+                    client = s3_client()
+                    presigned_url = client.get_presigned_url(
+                        "PUT", settings.S3_BUCKET_NAME, s3_path
                     )
                     result[file_type] = {
                         "presigned_url": presigned_url,
@@ -439,3 +441,15 @@ class DbUser(BaseModel):
             if result is None:
                 raise ValueError("No user requested for mapping")
             return result["user_id"]
+
+
+class Base64Request(BaseModel):
+    token: str
+
+    @field_validator("token")
+    def validate_base64(cls, value: str) -> str:
+        try:
+            base64.b64decode(value, validate=True)
+            return value
+        except Exception:
+            raise ValueError("Invalid Base64 string")

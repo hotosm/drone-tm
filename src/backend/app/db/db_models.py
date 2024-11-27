@@ -25,6 +25,7 @@ from app.models.enums import (
     ProjectVisibility,
     UserRole,
     State,
+    RegulatorApprovalStatus,
 )
 from sqlalchemy.orm import (
     object_session,
@@ -137,11 +138,26 @@ class DbProject(Base):
     requires_approval_from_manager_for_locking = cast(
         bool, Column(Boolean, default=False)
     )
+    requires_approval_from_regulator = cast(bool, Column(Boolean, default=False))
+    regulator_emails = cast(list, Column(ARRAY(String), nullable=True))
     # PROJECT STATUS
     status = cast(
         ProjectStatus,
         Column(Enum(ProjectStatus), default=ProjectStatus.DRAFT, nullable=False),
     )
+    regulator_approval_status = cast(
+        RegulatorApprovalStatus, Column(Enum(RegulatorApprovalStatus), nullable=True)
+    )
+    regulator_comment = cast(str, Column(String, nullable=True))
+    commenting_regulator_id = cast(
+        str,
+        Column(
+            String,
+            ForeignKey("users.id", name="fk_projects_commenting_regulator_id"),
+            nullable=True,
+        ),
+    )
+    commenting_regulator = relationship(DbUser, uselist=False, backref="regulator")
     visibility = cast(
         ProjectVisibility,
         Column(

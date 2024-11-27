@@ -59,7 +59,7 @@ const OtherDetails = () => {
         assetsToUpload.push(values?.registration_file?.[0]);
       }
       if (urlsToUpload.length) {
-        await callApiSimultaneously(urlsToUpload, assetsToUpload, 'patch');
+        await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
       }
 
       queryClient.invalidateQueries(['user-profile']);
