@@ -479,6 +479,8 @@ async def handle_event(
                 detail.updated_at,
             )
         case EventType.COMMENT:
+            author = await user_schemas.DbUser.get_user_by_id(db, project["author_id"])
+
             requested_user_id = await user_schemas.DbUser.get_requested_user_id(
                 db, project_id, task_id, State.LOCKED_FOR_MAPPING
             )
@@ -508,7 +510,7 @@ async def handle_event(
 
             background_tasks.add_task(
                 send_notification_email,
-                drone_operator["email_address"],
+                author["email_address"],
                 "Task Marked as Unflyable",
                 html_content,
             )
