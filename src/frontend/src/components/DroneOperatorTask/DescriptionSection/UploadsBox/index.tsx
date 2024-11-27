@@ -13,10 +13,12 @@ const UploadsBox = ({
 }) => {
   const dispatch = useTypedDispatch();
   const files = useTypedSelector(state => state.droneOperatorTask.files);
-  const handleFileChange = async (event: any) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     event.preventDefault();
     const selectedFiles = event.target.files;
-    if (selectedFiles.length === 0) return;
+    if (!selectedFiles || selectedFiles?.length === 0) return;
     const selectedFilesArray: File[] = Array.from(selectedFiles);
     dispatch(setFiles(selectedFilesArray));
     try {
