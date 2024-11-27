@@ -32,8 +32,8 @@ dependencies = [
     "psycopg2>=2.9.9",
     "pyodm>=1.5.11",
     "asgiref>=3.8.1",
-    "drone-flightplan>=0.3.1",
     "bcrypt>=4.2.1",
+    "drone-flightplan>=0.3.2",
 ]
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-only"}

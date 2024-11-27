@@ -72,7 +72,7 @@ const appRoutes: IRoute[] = [
     path: 'projects/:id/approval',
     name: 'Task project approval',
     component: RegulatorsApprovalPage,
-    authenticated: true,
+    authenticated: false,
   },
 ];
 
