@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ email_subject }}</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .email-container {
+        max-width: 600px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        margin: 20px;
+      }
+
+      .header {
+        background-color: #d73f3f;
+        color: #ffffff;
+        text-align: center;
+        padding: 25px;
+        border-radius: 10px 10px 0 0;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 26px;
+      }
+
+      .content {
+        padding: 25px;
+      }
+
+      .content p {
+        font-size: 16px;
+        line-height: 1.5;
+        color: #333333;
+      }
+
+      .task {
+        margin: 20px 0;
+        background-color: #f9f9f9;
+        padding: 20px;
+        border: 1px solid #eeeeee;
+        border-radius: 8px;
+      }
+
+      .task h2 {
+        margin: 0 0 10px;
+        font-size: 20px;
+        color: #d73f3f;
+      }
+
+      .task p {
+        margin: 5px 0;
+        color: #555555;
+      }
+
+      .task-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .task-details p {
+        margin: 0;
+        font-size: 16px;
+        color: #555555;
+      }
+
+      .footer {
+        background-color: #f4f4f4;
+        text-align: center;
+        padding: 20px;
+        color: #666666;
+        font-size: 14px;
+        border-radius: 0 0 10px 10px;
+      }
+      body {
+        margin: auto;
+        width: 65%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
+        <h1>{{ email_subject }}</h1>
+      </div>
+      <div class="content">
+        <p>Dear {{ name }},</p>
+        <p>We regret to inform you that the task associated with your project "{{ project_name }}" has been marked as <strong>unflyable</strong> by the drone operator, {{ drone_operator_name }}.</p>
+        <p>Please find below the details of the task:</p>
+        <div class="task">
+          <h2>Task Details</h2>
+          <div class="task-details">
+            <p><strong>Project:</strong> {{ project_name }}</p>
+            <p><strong>Task ID:</strong> {{ task_id }}</p>
+            <p><strong>Description:</strong> {{ description }}</p>
+          </div>
+        </div>
+        <p>Note: Please review the project on your platform to determine the next steps.</p>
+      </div>
+      <div class="footer">
+        <p>Thank you for your support,</p>
+        <p>The HOTOSM Team</p>
+      </div>
+    </div>
+  </body>
+</html>

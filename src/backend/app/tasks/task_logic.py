@@ -347,7 +347,7 @@ async def handle_event(
                 )
 
             requested_user_id = await user_schemas.DbUser.get_requested_user_id(
-                db, project_id, task_id
+                db, project_id, task_id, State.REQUEST_FOR_MAPPING
             )
             drone_operator = await user_schemas.DbUser.get_user_by_id(
                 db, requested_user_id
@@ -395,7 +395,7 @@ async def handle_event(
                 )
 
             requested_user_id = await user_schemas.DbUser.get_requested_user_id(
-                db, project_id, task_id
+                db, project_id, task_id, State.REQUEST_FOR_MAPPING
             )
             drone_operator = await user_schemas.DbUser.get_user_by_id(
                 db, requested_user_id
@@ -479,6 +479,31 @@ async def handle_event(
                 detail.updated_at,
             )
         case EventType.COMMENT:
+            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
+                db, project_id, task_id, State.LOCKED_FOR_MAPPING
+            )
+            drone_operator = await user_schemas.DbUser.get_user_by_id(db, user_data.id)
+            html_content = render_email_template(
+                folder_name="mapping",
+                template_name="task_marked_unflyable.html",
+                context={
+                    "email_subject": "Task Marked as Unflyable: Action Required",
+                    "task_status": "unflyable",
+                    "name": user_data.name,
+                    "drone_operator_name": drone_operator["name"],
+                    "task_id": task_id,
+                    "project_name": project["name"],
+                    "description": project["description"],
+                },
+            )
+
+            background_tasks.add_task(
+                send_notification_email,
+                drone_operator["email_address"],
+                "Task Marked as Unflyable",
+                html_content,
+            )
+
             return await update_task_state(
                 db,
                 project_id,
