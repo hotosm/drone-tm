@@ -8,6 +8,10 @@ import { FlexRow } from '../Layouts';
 export default function Navbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const pathnameOnArray = pathname?.split('/');
+  const isApprovalPage =
+    pathnameOnArray?.includes('projects') &&
+    pathnameOnArray?.includes('approval');
 
   return (
     <nav className="naxatw-h-[3.5rem] naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
@@ -23,36 +27,40 @@ export default function Navbar() {
             className="naxatw-h-8 naxatw-w-40"
           />
         </div>
-        <FlexRow className="naxatw-gap-4">
-          <NavLink
-            to="/projects"
-            className={({ isActive }) =>
-              `${
-                isActive || pathname.includes('project')
-                  ? 'naxatw-border-b-2 naxatw-border-red'
-                  : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
-              } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
-            }
-          >
-            Projects
-          </NavLink>
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `${
-                isActive
-                  ? 'naxatw-border-b-2 naxatw-border-red'
-                  : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
-              } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
-            }
-          >
-            Dashboard
-          </NavLink>
-        </FlexRow>
-        <FlexRow className="naxatw-items-center" gap={2}>
-          {/* <Icon name="notifications" /> */}
-          <UserProfile />
-        </FlexRow>
+        {!isApprovalPage && (
+          <>
+            <FlexRow className="naxatw-gap-4">
+              <NavLink
+                to="/projects"
+                className={({ isActive }) =>
+                  `${
+                    isActive || pathname.includes('project')
+                      ? 'naxatw-border-b-2 naxatw-border-red'
+                      : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
+                  } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
+                }
+              >
+                Projects
+              </NavLink>
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) =>
+                  `${
+                    isActive
+                      ? 'naxatw-border-b-2 naxatw-border-red'
+                      : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
+                  } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
+                }
+              >
+                Dashboard
+              </NavLink>
+            </FlexRow>
+            <FlexRow className="naxatw-items-center" gap={2}>
+              {/* <Icon name="notifications" /> */}
+              <UserProfile />
+            </FlexRow>
+          </>
+        )}
       </FlexRow>
     </nav>
   );
