@@ -1,10 +1,10 @@
 /* eslint-disable no-await-in-loop */
-/* eslint-disable no-console */
-/* eslint-disable no-unused-vars */
 import { Button } from '@Components/RadixComponents/Button';
 import { toggleModal } from '@Store/actions/common';
-import { setFiles } from '@Store/actions/droneOperatorTask';
+import { setFiles, setFilesExifData } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import getExifData from '@Utils/getExifData';
+import { toast } from 'react-toastify';
 
 const UploadsBox = ({
   label = 'Upload Images, GCP, and align.laz',
@@ -13,12 +13,27 @@ const UploadsBox = ({
 }) => {
   const dispatch = useTypedDispatch();
   const files = useTypedSelector(state => state.droneOperatorTask.files);
-  const handleFileChange = (event: any) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    event.preventDefault();
     const selectedFiles = event.target.files;
-    if (!selectedFiles) return;
-    const selectedFilesArray = Array.from(selectedFiles);
+    if (!selectedFiles || selectedFiles?.length === 0) return;
+    const selectedFilesArray: File[] = Array.from(selectedFiles);
     dispatch(setFiles(selectedFilesArray));
-    dispatch(toggleModal('raw-image-preview'));
+    try {
+      const exifData = await Promise.all(
+        selectedFilesArray.map(async (file: File) => {
+          // Await the EXIF data for each file
+          const singleFileExif = await getExifData(file);
+          return singleFileExif;
+        }),
+      );
+      dispatch(setFilesExifData(exifData));
+    } catch (error) {
+      toast.error('Error Reading File');
+    }
+    dispatch(toggleModal('raw-image-map-preview'));
   };
 
   return (
@@ -71,7 +86,7 @@ const UploadsBox = ({
           <Button
             variant="ghost"
             className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
-            onClick={() => dispatch(toggleModal('raw-image-preview'))}
+            onClick={() => dispatch(toggleModal('raw-image-map-preview'))}
           >
             Upload
           </Button>
