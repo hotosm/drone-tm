@@ -83,8 +83,8 @@ const ImageMapBox = () => {
     mapOptions: {
       zoom: 17,
       center: [
-        filesExifData[0].coordinates.longitude || 84.124,
-        filesExifData[0].coordinates.latitude || 28.9349,
+        filesExifData[0]?.coordinates.longitude || 84.124,
+        filesExifData[0]?.coordinates.latitude || 28.9349,
       ],
       maxZoom: 19,
     },
