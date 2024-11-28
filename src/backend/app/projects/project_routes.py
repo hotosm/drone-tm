@@ -592,7 +592,7 @@ async def odm_webhook(
     return {"message": "Webhook received", "task_id": task_id}
 
 
-@router.post("/regulator/comment/{project_id}", tags=["Regulator Approval"])
+@router.post("/regulator/comment/{project_id}/", tags=["Regulator Approval"])
 async def regulator_approval(
     project_id: str,
     data: dict,

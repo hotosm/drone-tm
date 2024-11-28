@@ -4,7 +4,7 @@ import { createSlice } from '@reduxjs/toolkit';
 export interface IFilesExifData {
   file: File;
   dateTime: string;
-  coordinates: { longitude: number | null; latitude: number | null };
+  coordinates: { longitude: number; latitude: number };
 }
 export interface IDroneOperatorTaskState {
   secondPage: boolean;
