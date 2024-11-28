@@ -258,9 +258,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         title={`Task #${selectedTaskId}`}
         showPopup={(feature: Record<string, any>) => {
           if (!userDetails) return false;
+
           return (
             feature?.source?.includes('tasks-layer') &&
-            !userDetails?.role?.includes('REGULATOR') // Don't show popup if user role is regulator
+            !userDetails?.role?.includes('REGULATOR') && // Don't show popup if user role is regulator
+            projectData?.regulator_approval_status !== 'REJECTED' // Don't show popup if regulator rejected the approval
           );
         }}
         fetchPopupData={(properties: Record<string, any>) => {
