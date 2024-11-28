@@ -195,22 +195,6 @@ class UserTasksStatsOut(BaseModel):
 
         return values
 
-    # @model_validator(mode="after")
-    # def set_registration_certificate_url(cls, values):
-    #     """Set registration_certificate_url before rendering the model."""
-    #     url = values.registration_certificate_url
-    #     if not url:
-    #         return values
-
-    #     minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
-    #     # Ensure image_dir starts with a forward slash
-    #     url = url if url.startswith("/") else f"/{url}"
-    #     # Construct the full URL
-    #     protocol = "https" if is_secure else "http"
-    #     url = f"{protocol}://{minio_url}/{settings.S3_BUCKET_NAME}{url}"
-    #     values.registration_certificate_url = url
-    #     return values
-
     @staticmethod
     async def get_tasks_by_user(
         db: Connection, user_id: str, role: str, skip: int = 0, limit: int = 50
