@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
     "@mapbox/mapbox-gl-draw": "^1.4.2",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",
