@@ -44,7 +44,9 @@ const DocumentPreviewModal = () => {
   };
 
   return (
-    <div className="naxatw-relative naxatw-h-full naxatw-w-full naxatw-bg-white naxatw-pt-10">
+    <div
+      className={`naxatw-relative naxatw-h-full naxatw-w-full naxatw-bg-white ${documentDetails?.fileType !== 'pdf' ? 'naxatw-pt-10' : ''}`}
+    >
       {documentDetails?.fileType !== 'pdf' && (
         <div className="naxatw-absolute naxatw-right-0 naxatw-top-0 naxatw-flex naxatw-w-full naxatw-justify-end naxatw-bg-white naxatw-px-4 naxatw-py-3 naxatw-shadow-2xl">
           <div

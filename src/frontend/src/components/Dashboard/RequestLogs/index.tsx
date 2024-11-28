@@ -72,28 +72,57 @@ const RequestLogs = () => {
                   <strong>{task?.project_name}</strong> project is requested for
                   Mapping.
                 </div>
-                <div
-                  className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1"
-                  onClick={() => {
-                    dispatch(
-                      setCommonState({
-                        selectedDocumentDetails: getDocumentDetails(
-                          task?.registration_certificate_url,
-                        ) as documentDetailType,
-                      }),
-                    );
-                    dispatch(toggleModal('document-preview'));
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={() => {}}
-                >
-                  <i className="material-icons-outlined naxatw-text-red">
-                    description
-                  </i>
-                  <p className="naxatw-text-sm group-hover:naxatw-underline">
-                    Registration file
-                  </p>
+                <div className="naxatw-flex naxatw-gap-1">
+                  {task?.certificate_url && (
+                    <div
+                      className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1"
+                      onClick={() => {
+                        dispatch(
+                          setCommonState({
+                            selectedDocumentDetails: getDocumentDetails(
+                              task?.certificate_url,
+                            ) as documentDetailType,
+                          }),
+                        );
+                        dispatch(toggleModal('document-preview'));
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                    >
+                      <i className="material-icons-outlined naxatw-text-red">
+                        description
+                      </i>
+                      <p className="naxatw-text-sm group-hover:naxatw-underline">
+                        Drone Operator Certificate
+                      </p>
+                    </div>
+                  )}
+                  {task?.registration_certificate_url && (
+                    <div
+                      className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1"
+                      onClick={() => {
+                        dispatch(
+                          setCommonState({
+                            selectedDocumentDetails: getDocumentDetails(
+                              task?.registration_certificate_url,
+                            ) as documentDetailType,
+                          }),
+                        );
+                        dispatch(toggleModal('document-preview'));
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                    >
+                      <i className="material-icons-outlined naxatw-text-red">
+                        description
+                      </i>
+                      <p className="naxatw-text-sm group-hover:naxatw-underline">
+                        Drone Registration Certificate
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="naxatw-flex naxatw-w-[172px] naxatw-gap-3">
