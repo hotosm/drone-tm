@@ -172,23 +172,44 @@ class UserTasksStatsOut(BaseModel):
     project_task_index: int
     project_name: str
     updated_at: Optional[datetime]
-    registration_certificate_url: Optional[str]
+    registration_certificate_url: Optional[str] = None
+    certificate_url: Optional[str] = None
 
     @model_validator(mode="after")
-    def set_registration_certificate_url(cls, values):
-        """Set registration_certificate_url before rendering the model."""
-        url = values.registration_certificate_url
-        if not url:
-            return values
-
-        minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
-        # Ensure image_dir starts with a forward slash
-        url = url if url.startswith("/") else f"/{url}"
-        # Construct the full URL
+    def set_urls(cls, values):
+        """Set and format certificate and registration URLs."""
+        bucket_name = settings.S3_BUCKET_NAME
+        endpoint, is_secure = is_connection_secure(settings.S3_ENDPOINT)
         protocol = "https" if is_secure else "http"
-        url = f"{protocol}://{minio_url}/{settings.S3_BUCKET_NAME}{url}"
-        values.registration_certificate_url = url
+
+        def format_url(url):
+            if url:
+                url = url if url.startswith("/") else f"/{url}"
+                return f"{protocol}://{endpoint}/{bucket_name}{url}"
+            return url
+
+        values.certificate_url = format_url(values.certificate_url)
+        values.registration_certificate_url = format_url(
+            values.registration_certificate_url
+        )
+
         return values
+
+    # @model_validator(mode="after")
+    # def set_registration_certificate_url(cls, values):
+    #     """Set registration_certificate_url before rendering the model."""
+    #     url = values.registration_certificate_url
+    #     if not url:
+    #         return values
+
+    #     minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
+    #     # Ensure image_dir starts with a forward slash
+    #     url = url if url.startswith("/") else f"/{url}"
+    #     # Construct the full URL
+    #     protocol = "https" if is_secure else "http"
+    #     url = f"{protocol}://{minio_url}/{settings.S3_BUCKET_NAME}{url}"
+    #     values.registration_certificate_url = url
+    #     return values
 
     @staticmethod
     async def get_tasks_by_user(
@@ -206,7 +227,8 @@ class UserTasksStatsOut(BaseModel):
                     task_events.created_at,
                     task_events.updated_at,
                     task_events.state,
-                    user_profile.registration_certificate_url AS registration_certificate_url
+                    user_profile.registration_certificate_url,
+                    user_profile.certificate_url
                 FROM
                     task_events
                 LEFT JOIN
