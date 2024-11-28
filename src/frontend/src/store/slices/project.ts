@@ -11,7 +11,7 @@ export interface ProjectState {
 }
 
 const initialState: ProjectState = {
-  individualProjectActiveTab: 'tasks',
+  individualProjectActiveTab: 'about',
   tasksData: null,
   projectArea: null,
   selectedTaskId: '',
