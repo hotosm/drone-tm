@@ -38,8 +38,6 @@ const ImageMapBox = () => {
 
   const [progressBar, setProgressBar] = useState(false);
   const [loadingWidth, setLoadingWidth] = useState(0);
-  const [imagesNames, setImagesNames] = useState<string[]>([]);
-  const [files, setFiles] = useState<File[]>([]);
   const [imageFilesGeoJsonData, setImageFilesGeoJsonData] =
     useState<Record<string, any>>();
   const [imageFilesLineStringData, setImageFilesLineStringData] =
@@ -52,6 +50,13 @@ const ImageMapBox = () => {
   const filesExifData = useTypedSelector(
     state => state.droneOperatorTask.filesExifData,
   );
+  const modalState = useTypedSelector(state => state.common.showModal);
+
+  useEffect(() => {
+    if (!modalState) {
+      dispatch(setFilesExifData([]));
+    }
+  }, [dispatch, modalState]);
 
   useEffect(() => {
     if (filesExifData.length === 0) return;
@@ -76,26 +81,22 @@ const ImageMapBox = () => {
       ],
     };
     setImageFilesLineStringData(imageFilesLineString);
-    setFiles(filesExifData.map(file => file.file));
-    setImagesNames(filesExifData.map(file => file.file.name));
   }, [filesExifData]);
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'image-upload-map',
     mapOptions: {
-      zoom: 17,
-      center: [
-        filesExifData[0]?.coordinates.longitude || 84.124,
-        filesExifData[0]?.coordinates.latitude || 28.9349,
-      ],
-      maxZoom: 19,
+      zoom: 2,
+      center: [0, 0],
+      maxZoom: 25,
+      renderWorldCopies: false, // Prevent rendering copies of the map outside the primary view
+      refreshExpiredTiles: false,
     },
     disableRotation: true,
   });
 
   useEffect(() => {
     if (isMapLoaded && map) {
-      // Add zoom and rotation controls
       map.addControl(new NavigationControl(), 'top-right');
 
       // Add attribution control
@@ -155,6 +156,7 @@ const ImageMapBox = () => {
       // urls fromm array of objects is retrieved and stored in value
       const urls = urlsData.data.map(({ url }: { url: string }) => url);
       const chunkedUrls = chunkArray(urls, 4);
+      const files = filesExifData.map(file => file.file);
       const chunkedFiles = chunkArray(files, 4);
 
       // this calls api simultaneously for each chunk of files
@@ -184,7 +186,7 @@ const ImageMapBox = () => {
     const filesData = {
       expiry: 5,
       task_id: taskId,
-      image_name: imagesNames,
+      image_name: filesExifData.map(file => file.file.name),
       project_id: projectId,
     };
     mutate(filesData);
@@ -207,7 +209,7 @@ const ImageMapBox = () => {
             <VectorLayer
               map={map as Map}
               isMapLoaded={isMapLoaded}
-              id="image-points"
+              id="image-points-map"
               geojson={imageFilesGeoJsonData as GeojsonType}
               visibleOnMap={!!imageFilesGeoJsonData}
               interactions={['feature']}
@@ -233,6 +235,7 @@ const ImageMapBox = () => {
                   ],
                 },
               }}
+              zoomToExtent
             />
             <VectorLayer
               map={map as Map}
@@ -255,7 +258,7 @@ const ImageMapBox = () => {
             <AsyncPopup
               map={map as Map}
               showPopup={(feature: Record<string, any>) => {
-                return feature?.source === 'image-points';
+                return feature?.source === 'image-points-map';
               }}
               popupUI={getPopupUI}
               fetchPopupData={(properties: Record<string, any>) => {
@@ -282,7 +285,7 @@ const ImageMapBox = () => {
             />
           </MapContainer>
           <p className="naxatw-text-lg naxatw-font-medium">
-            {files.length} Images Selected
+            {filesExifData.length} Images Selected
           </p>
         </div>
         <div className="naxatw-mx-auto naxatw-w-fit">
@@ -290,6 +293,7 @@ const ImageMapBox = () => {
             variant="ghost"
             className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
             onClick={() => handleSubmit()}
+            disabled={filesExifData.length === 0}
           >
             Upload
           </Button>
@@ -299,7 +303,7 @@ const ImageMapBox = () => {
       <FilesUploadingPopOver
         show={progressBar}
         width={loadingWidth}
-        filesLength={files.length}
+        filesLength={filesExifData.length}
         uploadedFiles={uploadedFilesNumber.current}
       />
     </>
