@@ -66,11 +66,15 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       setTaskStatusObj({
         ...taskStatusObj,
         [res.data.task_id]:
-          projectData?.requires_approval_from_manager_for_locking
+          projectData?.requires_approval_from_manager_for_locking &&
+          userDetails?.id !== projectData?.author_id
             ? 'REQUEST_FOR_MAPPING'
             : 'LOCKED_FOR_MAPPING',
       });
-      if (projectData?.requires_approval_from_manager_for_locking) {
+      if (
+        projectData?.requires_approval_from_manager_for_locking &&
+        userDetails?.id !== projectData?.author_id
+      ) {
         toast.success('Task Requested for Mapping');
       } else {
         toast.success('Task Locked for Mapping');
