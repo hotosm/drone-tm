@@ -12,6 +12,7 @@ const DocumentPreviewModal = () => {
         <DocViewer
           documents={[documentDetails]}
           pluginRenderers={DocViewerRenderers}
+          config={{ header: { disableHeader: true } }}
         />
       )}
     </div>
