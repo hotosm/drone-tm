@@ -427,16 +427,14 @@ class DbUser(BaseModel):
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(query, (email,))
                 result = await cur.fetchone()
-                if result is None:
-                    raise HTTPException(
-                        status_code=HTTPStatus.NOT_FOUND,
-                        detail="User with this email does not exist",
-                    )
+                if not result:
+                    return None
+
                 return result
-        except Exception:
+        except Exception as e:
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail="An error occurred while querying the database.",
+                detail=str(e),
             )
 
     @staticmethod

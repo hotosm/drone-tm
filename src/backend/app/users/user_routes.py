@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     DbUser,
+    DbUserProfile,
     Token,
     UserProfileCreate,
     AuthUser,
@@ -293,38 +294,35 @@ async def reset_password(
     )
 
 
-@router.post("/regulator/", tags=["Auto Regulator Account Creation"])
+@router.post("/regulator/", tags=["auto regulator account creation"])
 async def regulator_create(
     db: Annotated[Connection, Depends(database.get_db)], data: Base64Request
 ):
     """
-    Automatically create a regulator account with email and password same as email and with some dummy data
-    for required fields with role as REGULATOR
+    Automatically create or update a regulator account.
+    If the email exists in the database, update the role and related fields.
+    Otherwise, create a new user with default dummy data.
     """
     try:
         token = data.token
         email = base64.urlsafe_b64decode(token.encode()).decode()
-        async with db.cursor(row_factory=class_row(DbUser)) as cur:
-            await cur.execute(
-                """
-                SELECT * FROM users WHERE email_address = %(email)s;
-                """,
-                {"email": email},
+        existing_user = await DbUser.get_user_by_email(db, email)
+        if existing_user:
+            await DbUserProfile._update_roles(
+                db, existing_user.get("id"), ["REGULATOR"]
             )
-            user_data = await cur.fetchone()
-        if not user_data:  ## if user is not already present return user data token
-            sql = """
-            INSERT INTO users (
-                id, name, email_address, password, is_active, is_superuser, profile_img,date_registered
-            )
-            VALUES (
-                %(user_id)s, %(name)s, %(email_address)s, %(password)s,  True, False, now(), %(profile_img)s
-            )
-            RETURNING *
-            """
+        else:
             async with db.cursor(row_factory=class_row(DbUser)) as cur:
                 await cur.execute(
-                    sql,
+                    """
+                    INSERT INTO users (
+                        id, name, email_address, password, is_active, is_superuser, profile_img, date_registered
+                    )
+                    VALUES (
+                        %(user_id)s, %(name)s, %(email_address)s, %(password)s, True, False, %(profile_img)s, now()
+                    )
+                    RETURNING *;
+                    """,
                     {
                         "user_id": uuid.uuid4().int,
                         "name": email,
@@ -335,18 +333,16 @@ async def regulator_create(
                 )
                 user_data = await cur.fetchone()
 
-            user_profile_sql = """
-            INSERT INTO user_profile (
-                user_id, role, phone_number, country, city
-            )
-            VALUES (
-                %(user_id)s, %(role)s, %(phone_number)s, %(country)s, %(city)s
-            )
-            """
-
             async with db.cursor() as cur:
                 await cur.execute(
-                    user_profile_sql,
+                    """
+                    INSERT INTO user_profile (
+                        user_id, role, phone_number, country, city
+                    )
+                    VALUES (
+                        %(user_id)s, %(role)s, %(phone_number)s, %(country)s, %(city)s
+                    );
+                    """,
                     {
                         "user_id": user_data.id,
                         "role": ["REGULATOR"],
@@ -356,10 +352,14 @@ async def regulator_create(
                     },
                 )
         user_info = {
-            "id": user_data.id,
-            "email": user_data.email_address,
-            "name": user_data.name,
-            "profile_img": user_data.profile_img,
+            "id": user_data.get("id") if existing_user else user_data.id,
+            "email": user_data.get("email_address")
+            if existing_user
+            else user_data.email_address,
+            "name": user_data.get("name") if existing_user else user_data.name,
+            "profile_img": user_data.get("profile_img")
+            if existing_user
+            else user_data.profile_img,
             "role": "REGULATOR",
         }
         access_token, refresh_token = await user_logic.create_access_token(user_info)
