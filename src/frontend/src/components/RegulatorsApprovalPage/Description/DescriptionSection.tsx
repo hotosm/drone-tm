@@ -62,8 +62,10 @@ const DescriptionSection = ({
           )}
         </div>
       </div>
-      {page === 'project-approval' &&
-        !projectData?.regulator_approval_status && <ApprovalSection />}
+      {/* {page === 'project-approval' &&
+        projectData?.regulator_approval_status === 'PENDING' && ( */}
+      <ApprovalSection />
+      {/* )} */}
     </div>
   );
 };
