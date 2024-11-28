@@ -138,11 +138,22 @@ const CompleteUserProfile = () => {
   });
 
   const onSubmit = (formData: Record<string, any>) => {
-    if (userProfileActiveTab !== 3) {
-      dispatch(
-        setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }),
-      );
-      return;
+    if (userProfile?.role) {
+      if (userProfileActiveTab !== 2) {
+        dispatch(
+          setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }),
+        );
+        return;
+      }
+    }
+
+    if (!userProfile?.role?.length) {
+      if (userProfileActiveTab !== 3) {
+        dispatch(
+          setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }),
+        );
+        return;
+      }
     }
 
     const finalFormData = isDroneOperator
