@@ -441,21 +441,23 @@ class DbUser(BaseModel):
 
     @staticmethod
     async def get_requested_user_id(
-        db: Connection, project_id: uuid.UUID, task_id: uuid.UUID
+        db: Connection, project_id: uuid.UUID, task_id: uuid.UUID, current_state: State
     ):
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
                 SELECT user_id
                 FROM task_events
-                WHERE project_id = %(project_id)s AND task_id = %(task_id)s and state = %(request_for_map_state)s
+                WHERE project_id = %(project_id)s
+                    AND task_id = %(task_id)s
+                    AND state = %(current_state)s
                 ORDER BY created_at DESC
                 LIMIT 1
                 """,
                 {
                     "project_id": str(project_id),
                     "task_id": str(task_id),
-                    "request_for_map_state": State.REQUEST_FOR_MAPPING.name,
+                    "current_state": current_state.name,
                 },
             )
 

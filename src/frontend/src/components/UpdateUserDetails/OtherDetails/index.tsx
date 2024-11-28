@@ -86,8 +86,12 @@ const OtherDetails = () => {
           : 'no',
       }),
     );
+<<<<<<< HEAD
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+=======
+  }, [userProfile, dispatch]);
+>>>>>>> 5510fd82f24d43d7c1aebeed1384fd165ca13fc7
 
   const onSubmit = (formData: Record<string, any>) => {
     updateOtherDetails({
@@ -188,8 +192,8 @@ const OtherDetails = () => {
                       name="certificate_file"
                       data={value}
                       onChange={() => {}}
-                      fileAccept=".pdf, .jpeg, .png, .pdf"
-                      placeholder="The supported file formats are pdf, .jpeg, .png, .pdf"
+                      fileAccept=".pdf, .jpeg, .png"
+                      placeholder="The supported file formats are pdf, .jpeg, .png"
                     />
                     <ErrorMessage message={error?.message as string} />
                   </>
@@ -214,8 +218,8 @@ const OtherDetails = () => {
                   name="registration_file"
                   data={value}
                   onChange={() => {}}
-                  fileAccept=".pdf, .jpeg, .png, .pdf"
-                  placeholder="The supported file formats are pdf, .jpeg, .png, .pdf"
+                  fileAccept=".pdf, .jpeg, .png"
+                  placeholder="The supported file formats are pdf, .jpeg, .png"
                 />
               );
             }}
