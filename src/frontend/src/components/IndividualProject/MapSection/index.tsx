@@ -303,7 +303,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         secondaryButtonText="Unlock Task"
         handleSecondaryBtnClick={() => handleTaskUnLockClick()}
         // trigger from popup outside
-        openPopupFor={taskClickedOnTable}
+        openPopupFor={
+          projectData?.regulator_approval_status === 'REJECTED' // ignore click if the regulator rejected the approval
+            ? null
+            : taskClickedOnTable
+        }
         popupCoordinate={taskClickedOnTable?.centroidCoordinates}
         onClose={() =>
           dispatch(
