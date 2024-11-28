@@ -33,7 +33,7 @@ export const tabOptions = [
 export const projectOptions = [
   {
     id: 0,
-    label: 'About',
+    label: 'ABOUT',
     value: 'about',
   },
   {

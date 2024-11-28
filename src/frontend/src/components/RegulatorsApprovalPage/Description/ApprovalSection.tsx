@@ -1,6 +1,6 @@
 import { Button } from '@Components/RadixComponents/Button';
 import { regulatorComment } from '@Services/createproject';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -8,6 +8,8 @@ import { toast } from 'react-toastify';
 const ApprovalSection = () => {
   const { id } = useParams();
   const [comment, setComment] = useState('');
+  const queryClient = useQueryClient();
+
   const { mutate: commentToProject, isLoading } = useMutation<
     any,
     any,
@@ -16,7 +18,8 @@ const ApprovalSection = () => {
   >({
     mutationFn: regulatorComment,
     onSuccess: () => {
-      toast.success('Responded successfully');
+      queryClient.invalidateQueries({ queryKey: ['project-detail'] });
+      toast.success('Approval status saved with comment successfully');
       setComment('');
     },
     onError: (err: any) => {
