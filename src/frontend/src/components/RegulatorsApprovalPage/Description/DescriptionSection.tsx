@@ -49,13 +49,15 @@ const DescriptionSection = ({
               </p>
             </div>
           )}
-          <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-[118px]">Regulator Approval Status</p>
-            <p>:</p>{' '}
-            <p className="naxatw-font-semibold">
-              {projectData?.regulator_approval_status || ''}
-            </p>
-          </div>
+          {projectData?.regulator_approval_status && (
+            <div className="naxatw-flex naxatw-gap-2">
+              <p className="naxatw-w-[118px]">Regulator Approval Status</p>
+              <p>:</p>{' '}
+              <p className="naxatw-font-semibold">
+                {projectData?.regulator_approval_status || ''}
+              </p>
+            </div>
+          )}
         </div>
       </div>
       {page === 'project-approval' && <ApprovalSection />}
