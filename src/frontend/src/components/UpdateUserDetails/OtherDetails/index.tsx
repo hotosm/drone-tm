@@ -13,6 +13,7 @@ import { patchUserProfile } from '@Services/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
+import { useEffect } from 'react';
 
 const OtherDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -28,8 +29,12 @@ const OtherDetails = () => {
     experience_years: userProfile?.experience_years || null,
     certified_drone_operator: userProfile?.certified_drone_operator || false,
     drone_you_own: userProfile?.drone_you_own || null,
-    certificate_file: userProfile?.certificate_file || null,
-    registration_file: userProfile?.registration_file || null,
+    certificate_file:
+      userProfile?.certificate_file || userProfile?.certificate_url || null,
+    registration_file:
+      userProfile?.registration_file ||
+      userProfile?.registration_certificate_url ||
+      null,
   };
   const queryClient = useQueryClient();
 
@@ -72,6 +77,16 @@ const OtherDetails = () => {
       toast.error(err?.response?.data?.detail || 'Something went wrong');
     },
   });
+
+  useEffect(() => {
+    dispatch(
+      setCommonState({
+        isCertifiedDroneUser: userProfile?.certified_drone_operator
+          ? 'yes'
+          : 'no',
+      }),
+    );
+  }, [userProfile, dispatch]);
 
   const onSubmit = (formData: Record<string, any>) => {
     updateOtherDetails({
