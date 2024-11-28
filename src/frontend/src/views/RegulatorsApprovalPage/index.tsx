@@ -68,6 +68,13 @@ const RegulatorsApprovalPage = () => {
     enabled: isAuthenticated(), // call only if the user is created and saved token on local storage
   });
 
+  // logout and clear all localstorage value on component unmount
+  useEffect(() => {
+    return () => {
+      localStorage.clear();
+    };
+  }, []);
+
   // render this if user is creating
   if (isLoading)
     return (
