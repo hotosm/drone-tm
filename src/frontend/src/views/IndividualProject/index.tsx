@@ -10,6 +10,7 @@ import {
   Tasks,
 } from '@Components/IndividualProject';
 import Skeleton from '@Components/RadixComponents/Skeleton';
+import DescriptionSection from '@Components/RegulatorsApprovalPage/Description/DescriptionSection';
 import { projectOptions } from '@Constants/index';
 import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
@@ -25,6 +26,8 @@ const getActiveTabContent = (
   // eslint-disable-next-line no-unused-vars
   handleTableRowClick: (rowData: any) => {},
 ) => {
+  if (activeTab === 'about')
+    return <DescriptionSection projectData={data} page="project-description" />;
   if (activeTab === 'tasks')
     return (
       <Tasks
