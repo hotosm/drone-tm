@@ -304,6 +304,7 @@ async def regulator_create(
     Otherwise, create a new user with default dummy data.
     """
     try:
+        user_data = ""
         token = data.token
         email = base64.urlsafe_b64decode(token.encode()).decode()
         existing_user = await DbUser.get_user_by_email(db, email)
