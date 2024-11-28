@@ -1,6 +1,9 @@
 /* eslint-disable no-param-reassign */
 import { useEffect, useMemo, useRef } from 'react';
-import { MapMouseEvent } from 'maplibre-gl';
+import { LngLatLike, MapMouseEvent } from 'maplibre-gl';
+import bbox from '@turf/bbox';
+import { toast } from 'react-toastify';
+import { Feature, FeatureCollection } from 'geojson';
 // import { v4 as uuidv4 } from 'uuid';
 import { IVectorLayer } from '../types';
 
@@ -18,9 +21,11 @@ export default function VectorLayer({
   symbolPlacement = 'point',
   iconAnchor = 'center',
   imageLayerOptions,
+  zoomToExtent = false,
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
+  const firstRender = useRef(true);
   const imageId = `${sourceId}-image/logo`;
 
   useEffect(() => {
@@ -107,6 +112,53 @@ export default function VectorLayer({
       map.off('mouseleave', onMouseLeave);
     };
   }, [map, sourceId]);
+
+  useEffect(() => {
+    if (!map || !geojson || !zoomToExtent) return;
+    if (!firstRender.current) return;
+    firstRender.current = false;
+
+    const handleZoom = () => {
+      if (!map || !geojson || !zoomToExtent) return;
+      let parsedGeojson: Feature | FeatureCollection;
+
+      // Parse GeoJSON if it's a string
+      if (typeof geojson === 'string') {
+        try {
+          parsedGeojson = JSON.parse(geojson) as Feature | FeatureCollection;
+        } catch (error) {
+          toast.error(
+            'Invalid GeoJSON string:',
+            (error as Record<string, any>)?.message,
+          );
+          return;
+        }
+      } else {
+        parsedGeojson = geojson as Feature | FeatureCollection;
+      }
+      const [minLng, minLat, maxLng, maxLat] = bbox(parsedGeojson);
+      const bounds: [LngLatLike, LngLatLike] = [
+        [minLng, minLat], // Southwest corner
+        [maxLng, maxLat], // Northeast corner
+      ];
+
+      // Zoom to the bounds
+      map.fitBounds(bounds, {
+        padding: 20,
+        maxZoom: 14,
+        zoom: 18,
+        // animate: false,
+        duration: 300,
+      });
+      map.off('idle', handleZoom);
+    };
+
+    map.on('idle', handleZoom);
+    // eslint-disable-next-line consistent-return
+    return () => {
+      map.off('idle', handleZoom);
+    };
+  }, [map, geojson, zoomToExtent]);
 
   // add select interaction & return properties on feature select
   useEffect(() => {

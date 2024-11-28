@@ -60,6 +60,7 @@ export interface IVectorLayer extends ILayer {
     | 'bottom-left'
     | 'bottom-right';
   imageLayerOptions?: Object;
+  zoomToExtent?: boolean;
 }
 
 type InteractionsType = 'hover' | 'select';
