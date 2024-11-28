@@ -84,9 +84,8 @@ To get started with Drone TM:
 |✅| 🖥️ upload of drone imagery collected during flight |
 |✅| 📱 follow terrain during flight plan generation in hilly/mountainous regions |
 |✅| 🖥️ merging of drone imagery into a final combined image for the project |
-|⚙️| 🖥️ automated uploading of final imagery to OpenAerialMap (with credit) |
+|⚙️| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) |
 |⚙️| 📱 allow adjustments to the flight plan orientation based on field conditions |
-|⚙️| 📱 & 🖥️ extensive beta testing with real users, gathering feedback |
 |⚙️| 🖥️ precise georeferencing of final imagery using Ground Control Points |
 | | 📱 capture of imagery at multiple (configurable) angles from the drone camera |
 | | 📱 support for more drone models (DJI first, other manufacturers next) |
