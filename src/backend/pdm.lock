@@ -5,7 +5,7 @@
 groups = ["default", "debug", "dev", "docs", "monitoring", "test"]
 strategy = ["cross_platform"]
 lock_version = "4.5.0"
-content_hash = "sha256:4a6f6ce81bd95b44cb79202b3f10e197eb3e7a02d7280536531305d159b0e2fb"
+content_hash = "sha256:4611cfd4c54c188daae85f825080b7fb3fbbf26fd4e968797e9d89532587a34d"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -466,7 +466,7 @@ files = [
 
 [[package]]
 name = "drone-flightplan"
-version = "0.3.1"
+version = "0.3.2"
 requires_python = ">=3.10"
 summary = "Generates an optimized flight plan for drones to conduct precise and efficient aerial mapping"
 dependencies = [
@@ -475,8 +475,8 @@ dependencies = [
     "shapely>=2.0.0",
 ]
 files = [
-    {file = "drone_flightplan-0.3.1-py3-none-any.whl", hash = "sha256:e1e880ed93a048865442f20a72e701fba6e9f54ae9cd1ccbb90222628fd9c8bb"},
-    {file = "drone_flightplan-0.3.1.tar.gz", hash = "sha256:1d79589085cb4e3000b165b610453e889958ea3630b6d76ebdd8b650b93e7f8f"},
+    {file = "drone_flightplan-0.3.2-py3-none-any.whl", hash = "sha256:e264f65b3c26b2f835125fca3714d6188120c956355f1b0992efad162825cee1"},
+    {file = "drone_flightplan-0.3.2.tar.gz", hash = "sha256:b06d0447e93646f845d2297ca783b452f980e4327284bf186d234177f933ce83"},
 ]
 
 [[package]]
@@ -1444,7 +1444,7 @@ files = [
 
 [[package]]
 name = "pydantic"
-version = "2.10.1"
+version = "2.10.2"
 requires_python = ">=3.8"
 summary = "Data validation using Python type hints"
 dependencies = [
@@ -1453,8 +1453,8 @@ dependencies = [
     "typing-extensions>=4.12.2",
 ]
 files = [
-    {file = "pydantic-2.10.1-py3-none-any.whl", hash = "sha256:a8d20db84de64cf4a7d59e899c2caf0fe9d660c7cfc482528e7020d7dd189a7e"},
-    {file = "pydantic-2.10.1.tar.gz", hash = "sha256:a4daca2dc0aa429555e0656d6bf94873a7dc5f54ee42b1f5873d666fb3f35560"},
+    {file = "pydantic-2.10.2-py3-none-any.whl", hash = "sha256:cfb96e45951117c3024e6b67b25cdc33a3cb7b2fa62e239f7af1378358a1d99e"},
+    {file = "pydantic-2.10.2.tar.gz", hash = "sha256:2bc2d7f17232e0841cbba4641e65ba1eb6fafb3a08de3a091ff3ce14a197c4fa"},
 ]
 
 [[package]]
@@ -1527,17 +1527,17 @@ files = [
 
 [[package]]
 name = "pydantic"
-version = "2.10.1"
+version = "2.10.2"
 extras = ["email"]
 requires_python = ">=3.8"
 summary = "Data validation using Python type hints"
 dependencies = [
     "email-validator>=2.0.0",
-    "pydantic==2.10.1",
+    "pydantic==2.10.2",
 ]
 files = [
-    {file = "pydantic-2.10.1-py3-none-any.whl", hash = "sha256:a8d20db84de64cf4a7d59e899c2caf0fe9d660c7cfc482528e7020d7dd189a7e"},
-    {file = "pydantic-2.10.1.tar.gz", hash = "sha256:a4daca2dc0aa429555e0656d6bf94873a7dc5f54ee42b1f5873d666fb3f35560"},
+    {file = "pydantic-2.10.2-py3-none-any.whl", hash = "sha256:cfb96e45951117c3024e6b67b25cdc33a3cb7b2fa62e239f7af1378358a1d99e"},
+    {file = "pydantic-2.10.2.tar.gz", hash = "sha256:2bc2d7f17232e0841cbba4641e65ba1eb6fafb3a08de3a091ff3ce14a197c4fa"},
 ]
 
 [[package]]
