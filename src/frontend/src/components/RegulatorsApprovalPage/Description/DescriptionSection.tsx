@@ -60,7 +60,8 @@ const DescriptionSection = ({
           )}
         </div>
       </div>
-      {page === 'project-approval' && <ApprovalSection />}
+      {page === 'project-approval' &&
+        !projectData?.regulator_approval_status && <ApprovalSection />}
     </div>
   );
 };
