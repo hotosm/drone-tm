@@ -43,7 +43,7 @@ const UpdateUserProfile = () => {
           <Header />
         </div>
         <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-items-center naxatw-justify-center md:naxatw-pb-16">
-          <div className="naxatw-flex naxatw-h-full naxatw-max-h-[600px] naxatw-w-full naxatw-max-w-[34rem] naxatw-flex-col naxatw-bg-white naxatw-shadow-2xl md:naxatw-flex-row">
+          <div className="naxatw-flex naxatw-h-[calc(100vh-200px)] naxatw-min-h-[300px] naxatw-w-full naxatw-max-w-[34rem] naxatw-flex-col naxatw-overflow-y-auto naxatw-bg-white naxatw-shadow-2xl md:naxatw-flex-row">
             <div className="naxatw-h-fit naxatw-w-full naxatw-border-r md:naxatw-h-full md:naxatw-w-2/6">
               <Tab
                 className="naxatw-w-full naxatw-border-b"
@@ -59,7 +59,7 @@ const UpdateUserProfile = () => {
               />
             </div>
             <div className="naxatw-h-full naxatw-w-full md:naxatw-w-4/6">
-              <div className="naxatw-flex naxatw-h-[calc(100vh-13rem)] naxatw-w-full naxatw-overflow-y-auto naxatw-py-2">
+              <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-overflow-y-auto naxatw-py-2">
                 {getActiveFormContent(userProfileActiveTab, signedInAs)}
               </div>
             </div>

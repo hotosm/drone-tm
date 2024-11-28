@@ -6,14 +6,14 @@ import { droneOperatorOptions } from '@Constants/index';
 import FileUpload from '@Components/common/UploadArea';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { setCommonState } from '@Store/actions/common';
+import { Controller } from 'react-hook-form';
 
 export default function OtherDetails({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
   const isCertifiedDroneOperator = useTypedSelector(
     state => state.common.isCertifiedDroneUser,
   );
-
-  const { register, setValue } = formProps;
+  const { register, setValue, control } = formProps;
 
   return (
     <section className="naxatw-px-14">
@@ -84,14 +84,56 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
               formProps.formState.errors?.certified_drone_operator?.message
             }
           />
+          {isCertifiedDroneOperator === 'yes' && (
+            <Controller
+              control={control}
+              name="certificate_file"
+              rules={{
+                required: 'Certificate file is required',
+              }}
+              render={({ field: { value }, fieldState: { error } }) => {
+                return (
+                  <>
+                    <FileUpload
+                      // @ts-ignore
+                      register={() => {}}
+                      // @ts-ignore
+                      setValue={setValue}
+                      name="certificate_file"
+                      data={value}
+                      onChange={() => {}}
+                      fileAccept=".pdf, .jpeg, .png"
+                      placeholder="The supported file formats are pdf, .jpeg, .png"
+                    />
+                    <ErrorMessage message={error?.message as string} />
+                  </>
+                );
+              }}
+            />
+          )}
         </FormControl>
-        <FileUpload
-          // @ts-ignore
-          register={() => {}}
-          onChange={() => {}}
-          setValue={() => {}}
-          placeholder="*The supported file formats are pdf, .jpeg, .png"
-        />
+        <FormControl className="naxatw-flex-col naxatw-gap-1">
+          <Label>Drone Registration Certificate</Label>
+          <Controller
+            control={control}
+            name="registration_file"
+            render={({ field: { value } }) => {
+              return (
+                <FileUpload
+                  // @ts-ignore
+                  register={() => {}}
+                  // @ts-ignore
+                  setValue={setValue}
+                  name="registration_file"
+                  data={value}
+                  onChange={() => {}}
+                  fileAccept=".pdf, .jpeg, .png"
+                  placeholder="The supported file formats are pdf, .jpeg, .png"
+                />
+              );
+            }}
+          />
+        </FormControl>
       </FlexColumn>
     </section>
   );

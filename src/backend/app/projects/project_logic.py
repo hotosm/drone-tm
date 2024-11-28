@@ -46,10 +46,12 @@ async def get_centroids(db: Connection):
             centroids = await cur.fetchall()
 
             if not centroids:
-                raise HTTPException(status_code=404, detail="No centroids found.")
+                return []
 
             return centroids
+
     except Exception as e:
+        log.error(f"Error during reading centroids: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

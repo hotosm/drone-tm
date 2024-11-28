@@ -307,4 +307,6 @@ class DbUserProfile(Base):
     experience_years = cast(int, Column(SmallInteger, nullable=True))
     drone_you_own = cast(str, Column(String, nullable=True))
     certified_drone_operator = cast(bool, Column(Boolean, default=False))
-    certificate = cast(bytes, Column(LargeBinary, nullable=True))
+    certificate_url = cast(str, Column(String, nullable=True))
+    # drone registration certificate
+    registration_certificate_url = cast(str, Column(String, nullable=True))

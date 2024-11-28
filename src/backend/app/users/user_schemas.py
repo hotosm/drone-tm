@@ -1,7 +1,7 @@
 import uuid
 import base64
 from app.models.enums import HTTPStatus, State, UserRole
-from pydantic import BaseModel, EmailStr, ValidationInfo, Field
+from pydantic import BaseModel, EmailStr, ValidationInfo, Field, model_validator
 from pydantic.functional_validators import field_validator
 from typing import List, Optional
 from psycopg import Connection
@@ -12,6 +12,8 @@ from typing import Any
 from loguru import logger as log
 from app.users import user_logic
 from psycopg.rows import dict_row
+from app.s3 import is_connection_secure, s3_client
+from app.config import settings
 
 
 class AuthUser(BaseModel):
@@ -99,6 +101,30 @@ class BaseUserProfile(BaseModel):
     experience_years: Optional[int] = None
     certified_drone_operator: Optional[bool] = False
     role: Optional[List[UserRole]] = None
+    certificate_file: Optional[str] = None
+    registration_file: Optional[str] = None
+    certificate_url: Optional[str] = None
+    registration_certificate_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def set_urls(cls, values):
+        """Set and format certificate and registration URLs."""
+        bucket_name = settings.S3_BUCKET_NAME
+        endpoint, is_secure = is_connection_secure(settings.S3_ENDPOINT)
+        protocol = "https" if is_secure else "http"
+
+        def format_url(url):
+            if url:
+                url = url if url.startswith("/") else f"/{url}"
+                return f"{protocol}://{endpoint}/{bucket_name}{url}"
+            return url
+
+        values.certificate_url = format_url(values.certificate_url)
+        values.registration_certificate_url = format_url(
+            values.registration_certificate_url
+        )
+
+        return values
 
     @field_validator("role", mode="after")
     @classmethod
@@ -126,9 +152,13 @@ class BaseUserProfile(BaseModel):
         return value
 
 
-class UserProfileIn(BaseUserProfile):
-    password: Optional[str] = None
+class UserProfileCreate(BaseUserProfile):
+    password: str
+
+
+class UserProfileUpdate(BaseUserProfile):
     old_password: Optional[str] = None
+    password: Optional[str] = None
 
 
 class DbUserProfile(BaseUserProfile):
@@ -137,19 +167,46 @@ class DbUserProfile(BaseUserProfile):
     user_id: int
 
     @staticmethod
-    async def update(db: Connection, user_id: int, profile_update: UserProfileIn):
-        """Update or insert a user profile."""
+    async def _handle_file_upload(profile: UserProfileCreate, user_id: int):
+        """
+        Handle file uploads (certificate and registration) and return presigned URLs and S3 paths.
 
-        # Prepare data for insert or update
-        model_dump = profile_update.model_dump(
-            exclude_none=True, exclude=["password", "old_password"]
-        )
+        Args:
+            profile (UserProfileCreate): The user profile containing file fields.
+            user_id (int): The user's ID.
 
-        # If there are new roles, update the existing roles
-        if "role" in model_dump and model_dump["role"] is not None:
-            new_roles = model_dump["role"]
+        Returns:
+            dict: A dictionary with presigned URLs and S3 paths for each file type.
+        """
+        result = {}
 
-            # Create a query to update roles
+        file_paths = {
+            "certificate_file": f"dtm-data/users/{user_id}/certificate/{profile.certificate_file}",
+            "registration_file": f"dtm-data/users/{user_id}/registration/{profile.registration_file}",
+        }
+
+        for file_type, s3_path in file_paths.items():
+            file_name = getattr(profile, file_type, None)
+            if file_name:
+                try:
+                    client = s3_client()
+                    presigned_url = client.get_presigned_url(
+                        "PUT", settings.S3_BUCKET_NAME, s3_path
+                    )
+                    result[file_type] = {
+                        "presigned_url": presigned_url,
+                        "s3_path": s3_path,
+                    }
+                except Exception as e:
+                    log.error(f"Failed to generate presigned URL for {file_type}: {e}")
+                    result[file_type] = {"error": str(e)}
+
+        return result
+
+    @staticmethod
+    async def _update_roles(db: Connection, user_id: int, new_roles: Optional[list]):
+        """Update the roles of the user in the database."""
+        if new_roles is not None:
             role_update_query = """
                 UPDATE user_profile
                 SET role = (
@@ -159,13 +216,72 @@ class DbUserProfile(BaseUserProfile):
                 )
                 WHERE user_id = %s;
             """
-
             async with db.cursor() as cur:
                 await cur.execute(role_update_query, (new_roles, user_id))
 
+    @staticmethod
+    async def create(db: Connection, user_id: int, profile_create: UserProfileCreate):
+        """Create a new user profile."""
+        model_data = profile_create.model_dump(exclude_none=True, exclude={"password"})
+
+        field_mapping = {
+            "certificate_file": "certificate_url",
+            "registration_file": "registration_certificate_url",
+        }
+
+        results = await DbUserProfile._handle_file_upload(profile_create, user_id)
+        for file_type, file_data in results.items():
+            if file_data.get("s3_path"):
+                model_data[field_mapping[file_type]] = file_data["s3_path"]
+
+        model_data.pop("certificate_file", None)
+        model_data.pop("registration_file", None)
+
+        # Prepare the SQL query for inserting the new profile
+        columns = ", ".join(model_data.keys())
+        value_placeholders = ", ".join(f"%({key})s" for key in model_data.keys())
+        sql = f"""
+            INSERT INTO user_profile (user_id, {columns})
+            VALUES (%(user_id)s, {value_placeholders})
+            RETURNING *;
+        """
+
+        model_data["user_id"] = user_id
+
+        async with db.cursor() as cur:
+            await cur.execute(sql, model_data)
+
+        for file_type, url_key in field_mapping.items():
+            if results.get(file_type):
+                model_data[url_key] = results[file_type].get("presigned_url")
+
+        return model_data
+
+    @staticmethod
+    async def update(db: Connection, user_id: int, profile_update: UserProfileUpdate):
+        """Update or insert a user profile."""
+        field_mapping = {
+            "certificate_file": "certificate_url",
+            "registration_file": "registration_certificate_url",
+        }
+
+        model_data = profile_update.model_dump(
+            exclude_none=True, exclude={"password", "old_password", "certificate_file"}
+        )
+        results = await DbUserProfile._handle_file_upload(profile_update, user_id)
+        for file_type, file_data in results.items():
+            if file_data.get("s3_path"):
+                model_data[field_mapping[file_type]] = file_data["s3_path"]
+
+        model_data.pop("certificate_file", None)
+        model_data.pop("registration_file", None)
+
+        await DbUserProfile._update_roles(db, user_id, model_data.get("role"))
+
         # Prepare the columns and placeholders for the main update
-        columns = ", ".join(model_dump.keys())
-        value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
+        columns = ", ".join(model_data.keys())
+
+        value_placeholders = ", ".join(f"%({key})s" for key in model_data.keys())
         sql = f"""
             INSERT INTO user_profile (
                 user_id, {columns}
@@ -175,7 +291,7 @@ class DbUserProfile(BaseUserProfile):
             )
             ON CONFLICT (user_id)
             DO UPDATE SET
-                {', '.join(f"{key} = EXCLUDED.{key}" for key in model_dump.keys())};
+                {', '.join(f"{key} = EXCLUDED.{key}" for key in model_data.keys())};
         """
 
         # Prepare password update query if a new password is provided
@@ -185,10 +301,10 @@ class DbUserProfile(BaseUserProfile):
             WHERE id = %(user_id)s;
         """
 
-        model_dump["user_id"] = user_id
+        model_data["user_id"] = user_id
 
         async with db.cursor() as cur:
-            await cur.execute(sql, model_dump)
+            await cur.execute(sql, model_data)
 
             if profile_update.password:
                 # Update password if provided
@@ -201,7 +317,11 @@ class DbUserProfile(BaseUserProfile):
                         "user_id": user_id,
                     },
                 )
-            return True
+        for file_type, url_key in field_mapping.items():
+            if results.get(file_type):
+                model_data[url_key] = results[file_type].get("presigned_url")
+
+        return model_data
 
     async def get_userprofile_by_userid(db: Connection, user_id: str):
         """Fetch the user profile by user ID."""
