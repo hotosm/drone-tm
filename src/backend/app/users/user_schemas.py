@@ -1,7 +1,7 @@
 import uuid
 import base64
 from app.models.enums import HTTPStatus, State, UserRole
-from pydantic import BaseModel, EmailStr, ValidationInfo, Field
+from pydantic import BaseModel, EmailStr, ValidationInfo, Field, model_validator
 from pydantic.functional_validators import field_validator
 from typing import List, Optional
 from psycopg import Connection
@@ -12,7 +12,7 @@ from typing import Any
 from loguru import logger as log
 from app.users import user_logic
 from psycopg.rows import dict_row
-from app.s3 import s3_client
+from app.s3 import is_connection_secure, s3_client
 from app.config import settings
 
 
@@ -103,6 +103,28 @@ class BaseUserProfile(BaseModel):
     role: Optional[List[UserRole]] = None
     certificate_file: Optional[str] = None
     registration_file: Optional[str] = None
+    certificate_url: Optional[str] = None
+    registration_certificate_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def set_urls(cls, values):
+        """Set and format certificate and registration URLs."""
+        bucket_name = settings.S3_BUCKET_NAME
+        endpoint, is_secure = is_connection_secure(settings.S3_ENDPOINT)
+        protocol = "https" if is_secure else "http"
+
+        def format_url(url):
+            if url:
+                url = url if url.startswith("/") else f"/{url}"
+                return f"{protocol}://{endpoint}/{bucket_name}{url}"
+            return url
+
+        values.certificate_url = format_url(values.certificate_url)
+        values.registration_certificate_url = format_url(
+            values.registration_certificate_url
+        )
+
+        return values
 
     @field_validator("role", mode="after")
     @classmethod
