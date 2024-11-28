@@ -45,7 +45,7 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
     case 'raw-image-map-preview':
       return {
         className: '!naxatw-w-[95vw] md:!naxatw-w-[60vw]',
-        title: 'Upload Images, GCP, and align.laz',
+        title: 'Upload Images',
         content: <ImageMapBox />,
       };
 
