@@ -188,8 +188,8 @@ const OtherDetails = () => {
                       name="certificate_file"
                       data={value}
                       onChange={() => {}}
-                      fileAccept=".pdf, .jpeg, .png"
-                      placeholder="The supported file formats are pdf, .jpeg, .png"
+                      fileAccept=".pdf, .jpeg, .png, .pdf"
+                      placeholder="The supported file formats are pdf, .jpeg, .png, .pdf"
                     />
                     <ErrorMessage message={error?.message as string} />
                   </>
@@ -214,8 +214,8 @@ const OtherDetails = () => {
                   name="registration_file"
                   data={value}
                   onChange={() => {}}
-                  fileAccept=".pdf, .jpeg, .png"
-                  placeholder="The supported file formats are pdf, .jpeg, .png"
+                  fileAccept=".pdf, .jpeg, .png, .pdf"
+                  placeholder="The supported file formats are pdf, .jpeg, .png, .pdf"
                 />
               );
             }}
