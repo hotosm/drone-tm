@@ -1,4 +1,5 @@
 import ExitCreateProjectModal from '@Components/CreateProject/ExitCreateProjectModal';
+import DocumentPreviewModal from '@Components/Dashboard/RequestLogs/ModalContent/DocumentPreviewModal';
 import ImageBoxPopOver from '@Components/DroneOperatorTask/DescriptionSection/PopoverBox/ImageBox';
 import ImageMapBox from '@Components/DroneOperatorTask/DescriptionSection/PopoverBox/MapBox';
 import ChooseTakeOffPointOptions from '@Components/DroneOperatorTask/ModalContent/ChooseTakeOffPointOptions';
@@ -12,6 +13,7 @@ export type ModalContentsType =
   | 'raw-image-map-preview'
   | 'update-flight-take-off-point'
   | 'task-ortho-photo-preview'
+  | 'document-preview'
   | null;
 export type PromptDialogContentsType = 'delete-layer' | null;
 
@@ -60,6 +62,12 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
         className: 'naxatw-w-[92vw] naxatw-max-w-[25rem]',
         title: 'Take-off Point',
         content: <ChooseTakeOffPointOptions />,
+      };
+    case 'document-preview':
+      return {
+        className: '!naxatw-w-[95vw] naxatw-h-[95vh] md:!naxatw-w-[60vw]',
+        title: 'Document Preview',
+        content: <DocumentPreviewModal />,
       };
 
     default:

@@ -36,7 +36,7 @@ async def get_task_stats(
     return await task_logic.get_task_stats(db, user_data)
 
 
-@router.get("/", response_model=list[task_schemas.UserTasksStatsOut])
+@router.get("/")
 async def list_tasks(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],

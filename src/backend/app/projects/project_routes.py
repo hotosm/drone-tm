@@ -57,16 +57,9 @@ async def read_project_centroids(
     """
     Get all project centroids.
     """
-    try:
-        centroids = await project_logic.get_centroids(
-            db,
-        )
-        if not centroids:
-            return []
-
-        return centroids
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return await project_logic.get_centroids(
+        db,
+    )
 
 
 @router.get("/{project_id}/download-boundaries", tags=["Projects"])
