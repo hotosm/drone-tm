@@ -17,6 +17,7 @@ const ApprovalSection = () => {
     mutationFn: regulatorComment,
     onSuccess: () => {
       toast.success('Responded successfully');
+      setComment('');
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.detail || err?.message || '');
