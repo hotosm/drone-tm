@@ -128,7 +128,7 @@ class DbDrone(BaseDrone):
             return new_drone_id[0]
 
 
-class DroneAltitude(BaseModel):
+class DroneFlightHeight(BaseModel):
     id: int
     country: str
     country_code: str
@@ -140,10 +140,10 @@ class DroneAltitude(BaseModel):
     @staticmethod
     async def all(db: Connection):
         try:
-            async with db.cursor(row_factory=class_row(DroneAltitude)) as cur:
+            async with db.cursor(row_factory=class_row(DroneFlightHeight)) as cur:
                 await cur.execute("""
                     SELECT *
-                    FROM drone_altitudes;
+                    FROM drone_flight_height;
                 """)
                 return await cur.fetchall()
 
@@ -155,10 +155,10 @@ class DroneAltitude(BaseModel):
     @staticmethod
     async def one(db: Connection, country: str):
         try:
-            async with db.cursor(row_factory=class_row(DroneAltitude)) as cur:
+            async with db.cursor(row_factory=class_row(DroneFlightHeight)) as cur:
                 await cur.execute(
                     """
-                    SELECT * FROM drone_altitudes WHERE country = %(country)s;
+                    SELECT * FROM drone_flight_height WHERE country = %(country)s;
                 """,
                     {"country": country},
                 )

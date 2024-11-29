@@ -312,10 +312,10 @@ class DbUserProfile(Base):
     registration_certificate_url = cast(str, Column(String, nullable=True))
 
 
-class DbDroneAltitude(Base):
+class DbDroneFlightHeight(Base):
     """Describes drone altitude regulations by country."""
 
-    __tablename__ = "drone_altitudes"
+    __tablename__ = "drone_flight_height"
 
     id = cast(int, Column(Integer, primary_key=True, autoincrement=True))
     country = cast(str, Column(String, nullable=False, unique=True))

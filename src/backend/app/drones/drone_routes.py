@@ -90,7 +90,7 @@ async def get_all_altitudes(
     """
     Retrieves all drone altitude regulations.
     """
-    altitudes = await drone_schemas.DroneAltitude.all(db)
+    altitudes = await drone_schemas.DroneFlightHeight.all(db)
     if not altitudes:
         return []
     return altitudes
@@ -106,7 +106,7 @@ async def get_drone_altitude_by_country(
     Get drone altitude details by country.
 
     """
-    result = await drone_schemas.DroneAltitude.one(db, country)
+    result = await drone_schemas.DroneFlightHeight.one(db, country)
 
     if not result:
         return []
