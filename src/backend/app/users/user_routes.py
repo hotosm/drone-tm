@@ -304,26 +304,32 @@ async def regulator_create(
     Otherwise, create a new user with default dummy data.
     """
     try:
-        user_data = ""
-        token = data.token
-        email = base64.urlsafe_b64decode(token.encode()).decode()
+        email = base64.urlsafe_b64decode(data.token.encode()).decode()
         existing_user = await DbUser.get_user_by_email(db, email)
         if existing_user:
             await DbUserProfile._update_roles(
-                db, existing_user.get("id"), ["REGULATOR"]
+                db, user_id=existing_user["id"], new_roles=["REGULATOR"]
             )
+            user_data = {
+                "id": existing_user["id"],
+                "email": existing_user["email_address"],
+                "name": existing_user["name"],
+                "profile_img": existing_user["profile_img"],
+                "role": "REGULATOR",
+            }
         else:
+            sql = """
+            INSERT INTO users (
+                id, name, email_address, password, is_active, is_superuser, profile_img,date_registered
+            )
+            VALUES (
+                %(user_id)s, %(name)s, %(email_address)s, %(password)s,  True, False, now(), %(profile_img)s
+            )
+            RETURNING *
+            """
             async with db.cursor(row_factory=class_row(DbUser)) as cur:
                 await cur.execute(
-                    """
-                    INSERT INTO users (
-                        id, name, email_address, password, is_active, is_superuser, profile_img, date_registered
-                    )
-                    VALUES (
-                        %(user_id)s, %(name)s, %(email_address)s, %(password)s, True, False, %(profile_img)s, now()
-                    )
-                    RETURNING *;
-                    """,
+                    sql,
                     {
                         "user_id": uuid.uuid4().int,
                         "name": email,
@@ -334,16 +340,18 @@ async def regulator_create(
                 )
                 user_data = await cur.fetchone()
 
+            user_profile_sql = """
+            INSERT INTO user_profile (
+                user_id, role, phone_number, country, city
+            )
+            VALUES (
+                %(user_id)s, %(role)s, %(phone_number)s, %(country)s, %(city)s
+            )
+            """
+
             async with db.cursor() as cur:
                 await cur.execute(
-                    """
-                    INSERT INTO user_profile (
-                        user_id, role, phone_number, country, city
-                    )
-                    VALUES (
-                        %(user_id)s, %(role)s, %(phone_number)s, %(country)s, %(city)s
-                    );
-                    """,
+                    user_profile_sql,
                     {
                         "user_id": user_data.id,
                         "role": ["REGULATOR"],
@@ -352,21 +360,20 @@ async def regulator_create(
                         "city": "Kathmandu",
                     },
                 )
-        user_info = {
-            "id": user_data.get("id") if existing_user else user_data.id,
-            "email": user_data.get("email_address")
-            if existing_user
-            else user_data.email_address,
-            "name": user_data.get("name") if existing_user else user_data.name,
-            "profile_img": user_data.get("profile_img")
-            if existing_user
-            else user_data.profile_img,
-            "role": "REGULATOR",
-        }
-        access_token, refresh_token = await user_logic.create_access_token(user_info)
 
+            user_data = {
+                "id": user_data.id,
+                "email": user_data.email_address,
+                "name": user_data.name,
+                "profile_img": user_data.profile_img,
+                "role": "REGULATOR",
+            }
+
+        access_token, refresh_token = await user_logic.create_access_token(user_data)
         return Token(
-            access_token=access_token, refresh_token=refresh_token, role="REGULATOR"
+            access_token=access_token,
+            refresh_token=refresh_token,
+            role="REGULATOR",
         )
     except Exception as e:
         raise HTTPException(
