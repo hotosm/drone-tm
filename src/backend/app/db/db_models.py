@@ -310,3 +310,19 @@ class DbUserProfile(Base):
     certificate_url = cast(str, Column(String, nullable=True))
     # drone registration certificate
     registration_certificate_url = cast(str, Column(String, nullable=True))
+
+
+class DbDroneAltitude(Base):
+    """Describes drone altitude regulations by country."""
+
+    __tablename__ = "drone_altitudes"
+
+    id = cast(int, Column(Integer, primary_key=True, autoincrement=True))
+    country = cast(str, Column(String, nullable=False))
+    country_code = cast(
+        str, Column(String(3), nullable=False)
+    )  # ISO 3166-1 alpha-3 country code
+    max_altitude_ft = cast(float, Column(Float, nullable=False))
+    max_altitude_m = cast(float, Column(Float, nullable=False))
+    created_at = cast(datetime, Column(DateTime, default=timestamp))
+    updated_at = cast(datetime, Column(DateTime, nullable=True))
