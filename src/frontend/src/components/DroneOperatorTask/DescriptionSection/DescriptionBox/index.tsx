@@ -19,7 +19,7 @@ import {
   setUploadedImagesType,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
-import { toggleModal } from '@Store/actions/common';
+// import { toggleModal } from '@Store/actions/common';
 import { postTaskStatus } from '@Services/project';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import DescriptionBoxComponent from './DescriptionComponent';
@@ -248,7 +248,7 @@ const DescriptionBox = () => {
 
           {taskAssetsInformation?.assets_url && (
             <div className="naxatw-flex naxatw-gap-1">
-              <Button
+              {/* <Button
                 variant="outline"
                 className="naxatw-border-red naxatw-text-red"
                 leftIcon="visibility"
@@ -258,7 +258,7 @@ const DescriptionBox = () => {
                 }
               >
                 View Orthophoto
-              </Button>
+              </Button> */}
               <Button
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
