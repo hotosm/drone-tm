@@ -22,19 +22,43 @@ RUN set -ex \
         "libgdal-dev" \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PDM
-RUN pip install -U pdm
-# Disable update check
-ENV PDM_CHECK_UPDATE=false
-
 WORKDIR /project
 
-# Copy files needed for building the project
-COPY ./pyproject.toml /project/
-COPY ./pdm.lock /project/
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
 
-# Install dependencies and project into the local packages directory
-RUN pdm install --check --prod --no-editable
+# Ensure executables are at the front of the path
+ENV PATH="/bin:$PATH"
+
+# - Silence uv complaining about not being able to use hard links,
+# - tell uv to byte-compile packages for faster application startups,
+# - prevent uv from accidentally downloading isolated Python builds,
+# - use a temp dir instead of cache during install,
+# - select system python version,
+# - declare `/opt/python` as the target for `uv sync` (i.e. instead of .venv).
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8 \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_NO_CACHE=1 \
+    UV_PYTHON="python$PYTHON_BASE" \
+    UV_PROJECT_ENVIRONMENT=/opt/python
+STOPSIGNAL SIGINT
+
+# Copy files needed for building the project
+COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
+
+# Install dependencies using uv (caching to improve speed for repeated builds)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv sync --frozen --no-install-project
+
+# Sync the project again using uv, ensuring all project dependencies are installed
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync
 
 # Run stage (final stage)
 FROM python:$PYTHON_BASE AS service
@@ -61,17 +85,17 @@ RUN set -ex \
     "libgdal-dev" \
 && rm -rf /var/lib/apt/lists/*
 
-# Retrieve packages from build stage
-COPY --from=build /project/.venv/ /project/.venv
+# Retrieve global Python packages and dependencies from the build stage
+COPY --from=build /opt/python /opt/python
 
 # Set working directory
 WORKDIR /project/src/backend
 
 # Set environment PATH
-ENV PATH="/project/.venv/bin:$PATH"
+ENV PATH="/opt/python/bin:$PATH"
 
-# Install PDM in runtime stage
-RUN pip install -U pdm
+# Install uv in runtime stage
+COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
 
 # Copy the source files to the final image
 COPY . /project/src/backend
