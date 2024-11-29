@@ -36,3 +36,6 @@ export const regulatorComment = (payload: Record<string, any>) => {
     },
   );
 };
+
+export const getDroneAltitude = (country: string) =>
+  authenticated(api).get(`/drones/drone-altitude/${country}/`);

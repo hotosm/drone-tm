@@ -5,6 +5,8 @@ import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { setCreateProjectState } from '@Store/actions/createproject';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { useQuery } from '@tanstack/react-query';
+import { getDroneAltitude } from '@Services/createproject';
 // import { terrainOptions } from '@Constants/createProject';
 import { FlexRow } from '@Components/common/Layouts';
 import Switch from '@Components/RadixComponents/Switch';
@@ -25,6 +27,7 @@ import {
 } from '@Utils/index';
 import SwitchTab from '@Components/common/SwitchTab';
 import { Controller } from 'react-hook-form';
+
 import OutputOptions from './OutputOptions';
 
 const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
@@ -51,6 +54,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const imageMergeType = useTypedSelector(
     state => state.createproject.imageMergeType,
   );
+  const projectCountry = useTypedSelector(state => state.common.projectCountry);
+
+  const { data: droneAltitude } = useQuery({
+    queryKey: ['drone-altitude', projectCountry],
+    queryFn: () => getDroneAltitude(projectCountry || ''),
+    select: data => data.data,
+    enabled: !!projectCountry,
+  });
 
   // get altitude
   const agl =
@@ -115,7 +126,9 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               ) : (
                 <></>
               )}
-              <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
+              {errors?.gsd_cm_px?.message && (
+                <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
+              )}
             </FormControl>
           ) : (
             <FormControl className="naxatw-mt-4 naxatw-gap-1">
@@ -146,11 +159,25 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 <></>
               )}
 
-              <ErrorMessage
-                message={errors?.altitude_from_ground?.message as string}
-              />
+              {errors?.altitude_from_ground?.message && (
+                <ErrorMessage
+                  message={errors?.altitude_from_ground?.message as string}
+                />
+              )}
             </FormControl>
           )}
+
+          {droneAltitude?.country &&
+            droneAltitude?.max_altitude_ft &&
+            (altitudeInputValue > droneAltitude?.max_altitude_m ||
+              gsdToAltitude(Number(gsdInputValue)) >
+                droneAltitude?.max_altitude_m) && (
+              <InfoMessage
+                className="naxatw-text-[#FFA500]"
+                message={`Since your project is in ${droneAltitude?.country}, the maximum allowable drone altitude is ${droneAltitude?.max_altitude_m} m. Please proceed further if you have permission to fly higher.`}
+              />
+            )}
+
           <FormControl className="naxatw-mt-5">
             <Label>Merge Type</Label>
 
