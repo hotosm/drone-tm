@@ -32,6 +32,11 @@ export const tabOptions = [
 
 export const projectOptions = [
   {
+    id: 0,
+    label: 'ABOUT',
+    value: 'about',
+  },
+  {
     id: 1,
     label: 'AVAILABLE TASKS',
     value: 'tasks',

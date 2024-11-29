@@ -31,14 +31,14 @@ async def login_required(
     request: Request, access_token: str = Security(APIKeyHeader(name="access-token"))
 ) -> AuthUser:
     """Dependency to inject into endpoints requiring login."""
-    if settings.DEBUG:
-        return AuthUser(
-            id="6da91a51-5efd-40c9-a9c4-b66465a75fbe",
-            email="admin@hotosm.org",
-            name="admin",
-            profile_img="",
-            role="",
-        )
+    # if settings.DEBUG:
+    #     return AuthUser(
+    #         id="6da91a51-5efd-40c9-a9c4-b66465a75fbe",
+    #         email="admin@hotosm.org",
+    #         name="admin",
+    #         profile_img="",
+    #         role="",
+    #     )
 
     if not access_token:
         raise HTTPException(status_code=401, detail="No access token provided")

@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     DbUser,
+    DbUserProfile,
     Token,
     UserProfileCreate,
     AuthUser,
@@ -293,26 +294,30 @@ async def reset_password(
     )
 
 
-@router.post("/regulator/", tags=["Auto Regulator Account Creation"])
+@router.post("/regulator/", tags=["auto regulator account creation"])
 async def regulator_create(
     db: Annotated[Connection, Depends(database.get_db)], data: Base64Request
 ):
     """
-    Automatically create a regulator account with email and password same as email and with some dummy data
-    for required fields with role as REGULATOR
+    Automatically create or update a regulator account.
+    If the email exists in the database, update the role and related fields.
+    Otherwise, create a new user with default dummy data.
     """
     try:
-        token = data.token
-        email = base64.urlsafe_b64decode(token.encode()).decode()
-        async with db.cursor(row_factory=class_row(DbUser)) as cur:
-            await cur.execute(
-                """
-                SELECT * FROM users WHERE email_address = %(email)s;
-                """,
-                {"email": email},
+        email = base64.urlsafe_b64decode(data.token.encode()).decode()
+        existing_user = await DbUser.get_user_by_email(db, email)
+        if existing_user:
+            await DbUserProfile._update_roles(
+                db, user_id=existing_user["id"], new_roles=["REGULATOR"]
             )
-            user_data = await cur.fetchone()
-        if not user_data:  ## if user is not already present return user data token
+            user_data = {
+                "id": existing_user["id"],
+                "email": existing_user["email_address"],
+                "name": existing_user["name"],
+                "profile_img": existing_user["profile_img"],
+                "role": "REGULATOR",
+            }
+        else:
             sql = """
             INSERT INTO users (
                 id, name, email_address, password, is_active, is_superuser, profile_img,date_registered
@@ -355,17 +360,20 @@ async def regulator_create(
                         "city": "Kathmandu",
                     },
                 )
-        user_info = {
-            "id": user_data.id,
-            "email": user_data.email_address,
-            "name": user_data.name,
-            "profile_img": user_data.profile_img,
-            "role": "REGULATOR",
-        }
-        access_token, refresh_token = await user_logic.create_access_token(user_info)
 
+            user_data = {
+                "id": user_data.id,
+                "email": user_data.email_address,
+                "name": user_data.name,
+                "profile_img": user_data.profile_img,
+                "role": "REGULATOR",
+            }
+
+        access_token, refresh_token = await user_logic.create_access_token(user_data)
         return Token(
-            access_token=access_token, refresh_token=refresh_token, role="REGULATOR"
+            access_token=access_token,
+            refresh_token=refresh_token,
+            role="REGULATOR",
         )
     except Exception as e:
         raise HTTPException(

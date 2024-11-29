@@ -136,6 +136,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     (properties: Record<string, any>) => {
       const status = taskStatusObj?.[properties?.id];
       const popupText = (taskStatus: string) => {
+        if (projectData?.regulator_approval_status === 'PENDING')
+          return `Unable to proceed, local regulator's approval is pending.`;
+        if (projectData?.regulator_approval_status === 'REJECTED')
+          return 'Unable to proceed, local regulators rejected the project';
         switch (taskStatus) {
           case 'UNLOCKED_TO_MAP':
             return 'This task is available for mapping';
@@ -157,7 +161,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       };
       return <h6>{popupText(status)}</h6>;
     },
-    [taskStatusObj, userDetails],
+    [taskStatusObj, userDetails, projectData],
   );
 
   const handleTaskLockClick = () => {
@@ -258,6 +262,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         title={`Task #${selectedTaskId}`}
         showPopup={(feature: Record<string, any>) => {
           if (!userDetails) return false;
+
           return (
             feature?.source?.includes('tasks-layer') &&
             !userDetails?.role?.includes('REGULATOR') // Don't show popup if user role is regulator
@@ -281,7 +286,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             lockedUser?.id,
             userDetails?.id,
             projectData?.author_id,
-          )
+          ) ||
+          projectData?.regulator_approval_status === 'REJECTED' || // Don't task lock button if regulator rejected the approval
+          projectData?.regulator_approval_status === 'PENDING'
         }
         buttonText={
           taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
@@ -301,7 +308,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         secondaryButtonText="Unlock Task"
         handleSecondaryBtnClick={() => handleTaskUnLockClick()}
         // trigger from popup outside
-        openPopupFor={taskClickedOnTable}
+        openPopupFor={
+          projectData?.regulator_approval_status === 'REJECTED' // ignore click if the regulator rejected the approval
+            ? null
+            : taskClickedOnTable
+        }
         popupCoordinate={taskClickedOnTable?.centroidCoordinates}
         onClose={() =>
           dispatch(

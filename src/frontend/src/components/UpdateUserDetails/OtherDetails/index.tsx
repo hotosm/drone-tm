@@ -86,7 +86,8 @@ const OtherDetails = () => {
           : 'no',
       }),
     );
-  }, [userProfile, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit = (formData: Record<string, any>) => {
     updateOtherDetails({
