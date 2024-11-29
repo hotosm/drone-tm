@@ -180,10 +180,16 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   max={100}
                   min={0}
                   {...register('front_overlap', {
-                    required: 'Front Overlap is required',
+                    required: 'Front Overlap is Required',
                     valueAsNumber: true,
-                    max: 100,
-                    min: 0,
+                    max: {
+                      value: 100,
+                      message: 'Front Overlap too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Front Overlap cannot be negative',
+                    },
                   })}
                 />
                 {frontOverlapInputValue && agl ? (
@@ -208,8 +214,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   {...register('side_overlap', {
                     required: 'Side Overlap is required',
                     valueAsNumber: true,
-                    min: 0,
-                    max: 100,
+                    max: {
+                      value: 100,
+                      message: 'Side Overlap too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Side Overlap cannot be negative',
+                    },
                   })}
                 />
                 {sideOverlapInputValue && agl ? (
@@ -237,8 +249,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   {...register('forward_spacing', {
                     required: 'Forward Spacing is required',
                     valueAsNumber: true,
-                    max: 100,
-                    min: 0,
+                    max: {
+                      value: 100,
+                      message: 'Forward Spacing too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Forward Spacing cannot be negative',
+                    },
                   })}
                 />
                 {forwardSpacingInputValue && agl ? (
@@ -262,8 +280,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   {...register('side_spacing', {
                     required: 'Side Spacing is required',
                     valueAsNumber: true,
-                    min: 0,
-                    max: 100,
+                    max: {
+                      value: 100,
+                      message: 'Side Spacing too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Side Spacing cannot be negative',
+                    },
                   })}
                 />
                 {sideSpacingInputValue && agl ? (
