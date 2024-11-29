@@ -15,6 +15,7 @@ import { toggleModal } from '@Store/actions/common';
 import {
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
+  setSelectedTaskDetailToViewOrthophoto,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,19 +24,25 @@ import { point } from '@turf/helpers';
 import { coordAll } from '@turf/meta';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { FeatureCollection } from 'geojson';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
-import { useCallback, useEffect, useState } from 'react';
+import { LngLatBoundsLike, Map, RasterSourceSpecification } from 'maplibre-gl';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import ToolTip from '@Components/RadixComponents/ToolTip';
+import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import { toast } from 'react-toastify';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
+
+const { COG_URL } = process.env;
 
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
   const { projectId, taskId } = useParams();
   const queryClient = useQueryClient();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
+  const [showOrthoPhotoLayer, setShowOrthoPhotoLayer] = useState(false);
+  const [showTakeOffPoint, setShowTakeOffPoint] = useState(true);
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -159,9 +166,19 @@ const MapSection = ({ className }: { className?: string }) => {
       },
     });
   };
+  const orthophotoSource: RasterSourceSpecification = useMemo(
+    () => ({
+      type: 'raster',
+      url: `cog://${COG_URL}/dtm-data/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
+      tileSize: 256,
+    }),
+
+    [projectId, taskId],
+  );
 
   useEffect(
     () => () => {
+      dispatch(setSelectedTaskDetailToViewOrthophoto(null));
       dispatch(setSelectedTakeOffPoint(null));
       dispatch(setSelectedTakeOffPointOption('current_location'));
     },
@@ -189,11 +206,12 @@ const MapSection = ({ className }: { className?: string }) => {
             <>
               {/* render line */}
               <VectorLayer
+                key={`vectorLayer-${showTakeOffPoint}line`}
                 map={map as Map}
                 isMapLoaded={isMapLoaded}
                 id="waypoint-line"
                 geojson={taskWayPoints?.geojsonAsLineString as GeojsonType}
-                visibleOnMap={!!taskWayPoints}
+                visibleOnMap={!!taskWayPoints && showTakeOffPoint}
                 layerOptions={{
                   type: 'line',
                   paint: {
@@ -209,11 +227,12 @@ const MapSection = ({ className }: { className?: string }) => {
               />
               {/* render points */}
               <VectorLayer
+                key={`vectorLayer-${showTakeOffPoint}point`}
                 map={map as Map}
                 isMapLoaded={isMapLoaded}
                 id="waypoint-points"
                 geojson={taskWayPoints?.geojsonListOfPoint as GeojsonType}
-                visibleOnMap={!!taskWayPoints}
+                visibleOnMap={!!taskWayPoints && showTakeOffPoint}
                 interactions={['feature']}
                 layerOptions={{
                   type: 'circle',
@@ -239,11 +258,12 @@ const MapSection = ({ className }: { className?: string }) => {
               />
               {/* render image and only if index is 0 */}
               <VectorLayer
+                key={`vectorLayer-${showTakeOffPoint}image`}
                 map={map as Map}
                 isMapLoaded={isMapLoaded}
                 id="waypoint-points-image"
                 geojson={taskWayPoints?.geojsonListOfPoint as GeojsonType}
-                visibleOnMap={!!taskWayPoints}
+                visibleOnMap={!!taskWayPoints && showTakeOffPoint}
                 layerOptions={{}}
                 hasImage
                 image={marker}
@@ -255,6 +275,55 @@ const MapSection = ({ className }: { className?: string }) => {
             </>
           )}
 
+          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
+            <Button
+              withLoader
+              leftIcon="place"
+              className="naxatw-w-[11.8rem] naxatw-bg-red"
+              onClick={() => {
+                if (newTakeOffPoint) {
+                  handleSaveStartingPoint();
+                } else {
+                  dispatch(toggleModal('update-flight-take-off-point'));
+                }
+              }}
+              isLoading={isUpdatingTakeOffPoint}
+            >
+              {newTakeOffPoint
+                ? 'Save Take off Point'
+                : 'Change Take off Point'}
+            </Button>
+          </div>
+          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-h-fit">
+            <Button
+              variant="ghost"
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 ${showTakeOffPoint ? 'naxatw-bg-gray-200' : 'naxatw-bg-[#F5F5F5]'} !naxatw-px-[0.315rem]`}
+              onClick={() => setShowTakeOffPoint(!showTakeOffPoint)}
+            >
+              <ToolTip
+                name="flight_take_off"
+                message="Show Take Off Point"
+                symbolType="material-icons"
+                iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
+                className="naxatw-mt-[-4px]"
+              />
+            </Button>
+          </div>
+          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit">
+            <Button
+              variant="ghost"
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-bg-grey-200' : 'naxatw-bg-[#F5F5F5]'}`}
+              onClick={() => setShowOrthoPhotoLayer(!showOrthoPhotoLayer)}
+            >
+              <ToolTip
+                name="visibility"
+                message="Show Take Off Point"
+                symbolType="material-icons"
+                iconClassName="!naxatw-text-xl !naxatw-text-black"
+                className="naxatw-mt-[-4px]"
+              />
+            </Button>
+          </div>
           <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
             <Button
               withLoader
@@ -288,6 +357,14 @@ const MapSection = ({ className }: { className?: string }) => {
               iconAnchor="bottom"
             />
           )}
+
+          <COGOrthophotoViewer
+            key={`task-orthophoto-${showOrthoPhotoLayer}`}
+            id="task-orthophoto"
+            source={orthophotoSource}
+            visibleOnMap={showOrthoPhotoLayer}
+            zoomToLayer
+          />
 
           {newTakeOffPoint === 'place_on_map' && (
             <GetCoordinatesOnClick
