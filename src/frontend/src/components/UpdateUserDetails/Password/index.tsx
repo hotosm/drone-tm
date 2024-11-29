@@ -77,6 +77,11 @@ const Password = () => {
                 value: 8,
                 message: 'Password must have at least 8 characters',
               },
+              validate: {
+                notSameAsOld: value =>
+                  value !== password ||
+                  'New password cannot be the same as the old password',
+              },
             })}
           />
           <ErrorMessage message={formState.errors?.password?.message} />
@@ -88,8 +93,13 @@ const Password = () => {
             className="naxatw-mt-1"
             placeholder="Enter confirm password"
             {...register('confirm_password', {
-              validate: (value: string) =>
-                value === password || 'The passwords do not match',
+              validate: {
+                matchPassword: (value: string) =>
+                  value === password || 'The passwords do not match',
+                notSameAsOld: value =>
+                  value !== password ||
+                  'New password cannot be the same as the old password',
+              },
               // required: 'Confirm Password is Required',
             })}
           />
