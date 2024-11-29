@@ -47,7 +47,6 @@ export default defineConfig({
       SITE_NAME: process.env.SITE_NAME,
       STATIC_BASE_URL: process.env.STATIC_BASE_URL,
       COG_URL: process.env.COG_URL,
-      OSM_NOMINATIM_URL: process.env.OSM_NOMINATIM_URL,
     },
   },
   server: {

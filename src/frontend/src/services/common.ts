@@ -2,7 +2,7 @@ import { UserProfileDetailsType } from '@Components/GoogleAuth/types';
 import axios from 'axios';
 import { api, authenticated } from '.';
 
-const { OSM_NOMINATIM_URL } = process.env;
+const OSM_NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
 
 export const signInUser = (data: any) => api.post('/users/login/', data);
 
