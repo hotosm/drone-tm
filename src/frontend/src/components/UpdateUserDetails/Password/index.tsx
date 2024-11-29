@@ -7,8 +7,10 @@ import { Button } from '@Components/RadixComponents/Button';
 import { patchUserProfile } from '@Services/common';
 import { useMutation } from '@tanstack/react-query';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import { useNavigate } from 'react-router-dom';
 
 const Password = () => {
+  const navigate = useNavigate();
   const initialState = {
     old_password: '',
     password: '',
@@ -30,6 +32,7 @@ const Password = () => {
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
     onSuccess: () => {
       toast.success('Password Updated Successfully');
+      navigate('/dashboard');
     },
     onError: err => {
       // eslint-disable-next-line no-console
