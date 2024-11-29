@@ -7,7 +7,7 @@ import { useTypedDispatch } from '@Store/hooks';
 import { postUnflyableComment } from '@Services/droneOperator';
 import { toast } from 'react-toastify';
 import { useMutation } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import UploadsBox from '../UploadsBox';
 
 interface IQuestionBoxProps {
@@ -22,6 +22,7 @@ const QuestionBox = ({
   haveNoImages,
 }: IQuestionBoxProps) => {
   const { projectId, taskId } = useParams();
+  const navigate = useNavigate();
 
   const dispatch = useTypedDispatch();
   const [comment, setComment] = useState('');
@@ -39,6 +40,7 @@ const QuestionBox = ({
       onSuccess: () => {
         // Optionally, refetch queries or show a success message
         toast.success('Comment Added successfully');
+        navigate(`/projects/${projectId}`);
       },
       onError: (error: Record<string, any>) => {
         // Handle error
