@@ -41,7 +41,7 @@ const MapSection = ({ className }: { className?: string }) => {
   const { projectId, taskId } = useParams();
   const queryClient = useQueryClient();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
-  const [showOrthoPhotoLayer, setShowOrthoPhotoLayer] = useState(false);
+  const [showOrthoPhotoLayer, setShowOrthoPhotoLayer] = useState(true);
   const [showTakeOffPoint, setShowTakeOffPoint] = useState(true);
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
@@ -185,6 +185,45 @@ const MapSection = ({ className }: { className?: string }) => {
     [dispatch],
   );
 
+  function handleOtrhophotoLayerView() {
+    if (!map || !isMapLoaded) return;
+    map.setLayoutProperty(
+      'task-orthophoto',
+      'visibility',
+      `${!showOrthoPhotoLayer ? 'visible' : 'none'}`,
+    );
+    setShowOrthoPhotoLayer(!showOrthoPhotoLayer);
+  }
+
+  function handleTaskWayPoint() {
+    if (!map || !isMapLoaded) return;
+    map.setLayoutProperty(
+      'waypoint-points-layer',
+      'visibility',
+      `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    );
+    map.setLayoutProperty(
+      'waypoint-points-image-layer',
+      'visibility',
+      `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    );
+    map.setLayoutProperty(
+      'waypoint-line-layer',
+      'visibility',
+      `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    );
+    map.setLayoutProperty(
+      'waypoint-points-image-image/logo',
+      'visibility',
+      `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    );
+    map.setLayoutProperty(
+      'waypoint-line-image/logo',
+      'visibility',
+      `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    );
+    setShowTakeOffPoint(!showTakeOffPoint);
+  }
   return (
     <>
       <div
@@ -206,12 +245,11 @@ const MapSection = ({ className }: { className?: string }) => {
             <>
               {/* render line */}
               <VectorLayer
-                key={`vectorLayer-${showTakeOffPoint}line`}
                 map={map as Map}
                 isMapLoaded={isMapLoaded}
                 id="waypoint-line"
                 geojson={taskWayPoints?.geojsonAsLineString as GeojsonType}
-                visibleOnMap={!!taskWayPoints && showTakeOffPoint}
+                visibleOnMap={!!taskWayPoints}
                 layerOptions={{
                   type: 'line',
                   paint: {
@@ -227,12 +265,11 @@ const MapSection = ({ className }: { className?: string }) => {
               />
               {/* render points */}
               <VectorLayer
-                key={`vectorLayer-${showTakeOffPoint}point`}
                 map={map as Map}
                 isMapLoaded={isMapLoaded}
                 id="waypoint-points"
                 geojson={taskWayPoints?.geojsonListOfPoint as GeojsonType}
-                visibleOnMap={!!taskWayPoints && showTakeOffPoint}
+                visibleOnMap={!!taskWayPoints}
                 interactions={['feature']}
                 layerOptions={{
                   type: 'circle',
@@ -258,12 +295,11 @@ const MapSection = ({ className }: { className?: string }) => {
               />
               {/* render image and only if index is 0 */}
               <VectorLayer
-                key={`vectorLayer-${showTakeOffPoint}image`}
                 map={map as Map}
                 isMapLoaded={isMapLoaded}
                 id="waypoint-points-image"
                 geojson={taskWayPoints?.geojsonListOfPoint as GeojsonType}
-                visibleOnMap={!!taskWayPoints && showTakeOffPoint}
+                visibleOnMap={!!taskWayPoints}
                 layerOptions={{}}
                 hasImage
                 image={marker}
@@ -297,8 +333,8 @@ const MapSection = ({ className }: { className?: string }) => {
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 ${showTakeOffPoint ? 'naxatw-bg-gray-200' : 'naxatw-bg-[#F5F5F5]'} !naxatw-px-[0.315rem]`}
-              onClick={() => setShowTakeOffPoint(!showTakeOffPoint)}
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
+              onClick={() => handleTaskWayPoint()}
             >
               <ToolTip
                 name="flight_take_off"
@@ -312,8 +348,8 @@ const MapSection = ({ className }: { className?: string }) => {
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-bg-grey-200' : 'naxatw-bg-[#F5F5F5]'}`}
-              onClick={() => setShowOrthoPhotoLayer(!showOrthoPhotoLayer)}
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red' : 'naxatw-border-gray-400'}`}
+              onClick={() => handleOtrhophotoLayerView()}
             >
               <ToolTip
                 name="visibility"
@@ -359,10 +395,9 @@ const MapSection = ({ className }: { className?: string }) => {
           )}
 
           <COGOrthophotoViewer
-            key={`task-orthophoto-${showOrthoPhotoLayer}`}
             id="task-orthophoto"
             source={orthophotoSource}
-            visibleOnMap={showOrthoPhotoLayer}
+            visibleOnMap
             zoomToLayer
           />
 
