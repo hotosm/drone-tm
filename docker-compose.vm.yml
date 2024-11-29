@@ -100,5 +100,5 @@ services:
       - .env
     networks:
       - dtm-network
-    entrypoint: ["pdm", "run", "alembic", "upgrade", "head"]
+    entrypoint: ["uv", "run", "alembic", "upgrade", "head"]
     restart: "no"

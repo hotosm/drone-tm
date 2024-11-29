@@ -38,7 +38,7 @@ dependencies = [
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-only"}
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pre-commit>=4.0.1",
     "commitizen>=3.30.0",
@@ -74,10 +74,4 @@ monitoring = [
     "opentelemetry-instrumentation-requests>=0.48b0",
 ]
 
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-
-[tool.pdm]
-distribution = true
+[tool.uv]
