@@ -57,7 +57,7 @@ export default function UserProfile() {
 
   return (
     <div
-      className="naxatw-relative"
+      className="naxatw-relative naxatw-z-50"
       tabIndex={0}
       onBlur={() => setToggle(false)}
     >
