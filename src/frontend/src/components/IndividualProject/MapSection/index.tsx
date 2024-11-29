@@ -265,7 +265,12 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
 
           return (
             feature?.source?.includes('tasks-layer') &&
-            !userDetails?.role?.includes('REGULATOR') // Don't show popup if user role is regulator
+            !(
+              (
+                userDetails?.role?.length === 1 &&
+                userDetails?.role?.includes('REGULATOR')
+              ) // Don't show popup if user role is regulator any and no other roles
+            )
           );
         }}
         fetchPopupData={(properties: Record<string, any>) => {
