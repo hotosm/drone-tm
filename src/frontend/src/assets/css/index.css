@@ -69,3 +69,15 @@ body {
     box-shadow: 0 0 0 10px transparent;
   }
 }
+
+#pdf-page-wrapper
+  > div.react-pdf__Page
+  > div.react-pdf__Page__textContent.textLayer {
+  visibility: hidden !important;
+  height: 0 !important;
+}
+#pdf-page-wrapper
+  > div.react-pdf__Page
+  > div.react-pdf__Page__annotations.annotationLayer {
+  height: 0px !important;
+}

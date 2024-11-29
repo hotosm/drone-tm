@@ -1,6 +1,11 @@
 /* eslint-disable no-param-reassign */
 import { createSlice } from '@reduxjs/toolkit';
 
+export interface IFilesExifData {
+  file: File;
+  dateTime: string;
+  coordinates: { longitude: number; latitude: number };
+}
 export interface IDroneOperatorTaskState {
   secondPage: boolean;
   secondPageState: string;
@@ -12,6 +17,7 @@ export interface IDroneOperatorTaskState {
   selectedTakeOffPoint: any[] | string | null;
   uploadedImagesType: 'add' | 'replace';
   selectedTaskDetailToViewOrthophoto: any;
+  filesExifData: IFilesExifData[];
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -25,6 +31,7 @@ const initialState: IDroneOperatorTaskState = {
   selectedTakeOffPoint: null,
   uploadedImagesType: 'add',
   selectedTaskDetailToViewOrthophoto: null,
+  filesExifData: [],
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -76,6 +83,12 @@ export const droneOperatorTaskSlice = createSlice({
 
     setSelectedTaskDetailToViewOrthophoto: (state, action) => {
       state.selectedTaskDetailToViewOrthophoto = action.payload;
+    },
+    setFilesExifData: (state, action) => {
+      state.filesExifData = action.payload;
+    },
+    resetFilesExifData: state => {
+      state.filesExifData = [];
     },
   },
 });

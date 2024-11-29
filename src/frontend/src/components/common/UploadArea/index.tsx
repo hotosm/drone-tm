@@ -52,7 +52,7 @@ export default function FileUpload({
   // for edit
   useEffect(() => {
     // @ts-ignore
-    if (!data || (data && typeof data?.[0] !== 'string')) return;
+    if (!data || !multiple || (data && typeof data?.[0] !== 'string')) return;
     const uploaded = data.map((url: string) => {
       const urlArray = url?.split('/');
       return {
@@ -63,17 +63,27 @@ export default function FileUpload({
     });
     //   @ts-ignore
     setUploadedFiles(uploaded);
-  }, [data]);
+  }, [data, multiple]);
 
   // register form element to useForm
   useEffect(() => {
     register(name);
     if (!data) {
       setValue(name, []);
-    } else {
-      setUploadedFiles(data);
+    } else if (typeof data === 'string' && !multiple) {
+      // @ts-ignore
+      const urlArray = data.split('/');
+      setUploadedFiles([
+        {
+          // @ts-ignore
+          id: uuidv4(),
+          previewURL: data,
+          // @ts-ignore
+          file: { name: urlArray?.[urlArray.length - 1] || null },
+        },
+      ]);
     }
-  }, [register, name, setValue, data]);
+  }, [register, name, setValue, data, multiple]);
 
   const handleFileUpload = async (event: FileEvent) => {
     const { files } = event.target;

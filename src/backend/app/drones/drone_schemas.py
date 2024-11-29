@@ -1,8 +1,10 @@
+from typing import Optional
 from pydantic import BaseModel
 from fastapi import HTTPException
 from app.models.enums import HTTPStatus
 from psycopg import Connection
 from psycopg.rows import class_row
+from datetime import datetime
 
 
 class BaseDrone(BaseModel):
@@ -124,3 +126,44 @@ class DbDrone(BaseDrone):
                     status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=msg
                 )
             return new_drone_id[0]
+
+
+class DroneFlightHeight(BaseModel):
+    id: int
+    country: str
+    country_code: str
+    max_altitude_ft: float
+    max_altitude_m: float
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @staticmethod
+    async def all(db: Connection):
+        try:
+            async with db.cursor(row_factory=class_row(DroneFlightHeight)) as cur:
+                await cur.execute("""
+                    SELECT *
+                    FROM drone_flight_height;
+                """)
+                return await cur.fetchall()
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e)
+            )
+
+    @staticmethod
+    async def one(db: Connection, country: str):
+        try:
+            async with db.cursor(row_factory=class_row(DroneFlightHeight)) as cur:
+                await cur.execute(
+                    """
+                    SELECT * FROM drone_flight_height WHERE country = %(country)s;
+                """,
+                    {"country": country},
+                )
+                return await cur.fetchone()
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e)
+            )

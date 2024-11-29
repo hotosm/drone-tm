@@ -1,4 +1,6 @@
 import os
+import base64
+import uuid
 import jwt
 from app.users import user_schemas
 from app.users import user_deps
@@ -8,15 +10,19 @@ from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.users.user_schemas import (
     DbUser,
+    DbUserProfile,
     Token,
-    UserProfileIn,
+    UserProfileCreate,
     AuthUser,
+    UserProfileUpdate,
+    Base64Request,
 )
 from app.users.user_deps import login_required, init_google_auth
 from app.config import settings
 from app.db import database
 from app.models.enums import HTTPStatus
 from psycopg import Connection
+from psycopg.rows import class_row
 from fastapi.responses import JSONResponse
 from loguru import logger as log
 from pydantic import EmailStr
@@ -71,20 +77,18 @@ async def get_user(
     return await user_schemas.DbUser.all(db)
 
 
-@router.patch("/{user_id}/profile")
 @router.post("/{user_id}/profile")
-async def update_user_profile(
+async def create_user_profile(
     user_id: str,
-    profile_update: UserProfileIn,
+    profile_update: UserProfileCreate,
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    request: Request,
 ):
     """
-    Update user profile based on provided user_id and profile_update data.
+    Create user profile based on provided user_id and profile_update data.
     Args:
         user_id (int): The ID of the user whose profile is being updated.
-        profile_update (UserUserProfileIn): Updated profile data to apply.
+        profile_update (UserProfileUpdate): Updated profile data to apply.
     Returns:
         dict: Updated user profile information.
     Raises:
@@ -97,23 +101,49 @@ async def update_user_profile(
             detail="You are not authorized to update profile",
         )
 
-    if not user:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+    user = await user_schemas.DbUserProfile.create(db, user_id, profile_update)
+    return JSONResponse(
+        status_code=HTTPStatus.OK,
+        content={"message": "User profile updated successfully", "results": user},
+    )
 
-    if request.method == "PATCH":
-        if profile_update.old_password and profile_update.password:
-            if not user_logic.verify_password(
-                profile_update.old_password, user.get("password")
-            ):
-                raise HTTPException(
-                    status_code=HTTPStatus.BAD_REQUEST,
-                    detail="Old password is incorrect",
-                )
 
+@router.patch("/{user_id}/profile")
+async def update_user_profile(
+    user_id: str,
+    profile_update: UserProfileUpdate,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """
+    Update user profile based on provided user_id and profile_update data.
+    Args:
+        user_id (int): The ID of the user whose profile is being updated.
+        profile_update (UserProfileUpdate): Updated profile data to apply.
+    Returns:
+        dict: Updated user profile information.
+    Raises:
+        HTTPException: If user with given user_id is not found in the database.
+    """
+    user = await user_schemas.DbUser.get_user_by_id(db, user_id)
+    if user_data.id != user_id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="You are not authorized to update profile",
+        )
+
+    if profile_update.old_password and profile_update.password:
+        if not user_logic.verify_password(
+            profile_update.old_password, user.get("password")
+        ):
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Old password is incorrect",
+            )
     user = await user_schemas.DbUserProfile.update(db, user_id, profile_update)
     return JSONResponse(
         status_code=HTTPStatus.OK,
-        content={"message": "User profile updated successfully"},
+        content={"message": "User profile updated successfully", "results": user},
     )
 
 
@@ -262,3 +292,91 @@ async def reset_password(
         content={"detail": "Your password has been successfully reset!"},
         status_code=200,
     )
+
+
+@router.post("/regulator/", tags=["auto regulator account creation"])
+async def regulator_create(
+    db: Annotated[Connection, Depends(database.get_db)], data: Base64Request
+):
+    """
+    Automatically create or update a regulator account.
+    If the email exists in the database, update the role and related fields.
+    Otherwise, create a new user with default dummy data.
+    """
+    try:
+        email = base64.urlsafe_b64decode(data.token.encode()).decode()
+        existing_user = await DbUser.get_user_by_email(db, email)
+        if existing_user:
+            await DbUserProfile._update_roles(
+                db, user_id=existing_user["id"], new_roles=["REGULATOR"]
+            )
+            user_data = {
+                "id": existing_user["id"],
+                "email": existing_user["email_address"],
+                "name": existing_user["name"],
+                "profile_img": existing_user["profile_img"],
+                "role": "REGULATOR",
+            }
+        else:
+            sql = """
+            INSERT INTO users (
+                id, name, email_address, password, is_active, is_superuser, profile_img,date_registered
+            )
+            VALUES (
+                %(user_id)s, %(name)s, %(email_address)s, %(password)s,  True, False, now(), %(profile_img)s
+            )
+            RETURNING *
+            """
+            async with db.cursor(row_factory=class_row(DbUser)) as cur:
+                await cur.execute(
+                    sql,
+                    {
+                        "user_id": uuid.uuid4().int,
+                        "name": email,
+                        "email_address": email,
+                        "password": user_logic.get_password_hash(email),
+                        "profile_img": None,
+                    },
+                )
+                user_data = await cur.fetchone()
+
+            user_profile_sql = """
+            INSERT INTO user_profile (
+                user_id, role, phone_number, country, city
+            )
+            VALUES (
+                %(user_id)s, %(role)s, %(phone_number)s, %(country)s, %(city)s
+            )
+            """
+
+            async with db.cursor() as cur:
+                await cur.execute(
+                    user_profile_sql,
+                    {
+                        "user_id": user_data.id,
+                        "role": ["REGULATOR"],
+                        "phone_number": "9866666666",
+                        "country": "Nepal",
+                        "city": "Kathmandu",
+                    },
+                )
+
+            user_data = {
+                "id": user_data.id,
+                "email": user_data.email_address,
+                "name": user_data.name,
+                "profile_img": user_data.profile_img,
+                "role": "REGULATOR",
+            }
+
+        access_token, refresh_token = await user_logic.create_access_token(user_data)
+        return Token(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            role="REGULATOR",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"An error occurred: {str(e)}",
+        )

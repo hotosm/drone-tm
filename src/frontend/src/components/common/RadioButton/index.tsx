@@ -18,6 +18,7 @@ interface RadioButtonProps {
   errorMsg?: string;
   className?: string;
   required?: boolean;
+  name?: string;
 }
 
 const RadioButton: React.FC<RadioButtonProps> = ({
@@ -29,6 +30,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
   errorMsg,
   className,
   required,
+  name = '',
 }) => (
   <div>
     {topic && (
@@ -55,7 +57,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
           >
             <input
               type="radio"
-              id={option.value}
+              id={`${option.value}-${name}`}
               name={option.name}
               value={option.value}
               className={`naxatw-cursor-pointer naxatw-accent-red ${
@@ -68,7 +70,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
               disabled={option?.disabled === true}
             />
             <label
-              htmlFor={option.value}
+              htmlFor={`${option.value}-${name}`}
               className={`naxatw-mb-[2px] naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-bg-white naxatw-text-sm naxatw-text-gray-500 ${className}`}
             >
               <p

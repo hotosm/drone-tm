@@ -32,7 +32,11 @@ from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
-from app.utils import geojson_to_kml, timestamp
+from app.utils import (
+    geojson_to_kml,
+    timestamp,
+    send_project_approval_email_to_regulator,
+)
 from app.users import user_schemas
 from minio.deleteobjects import DeleteObject
 
@@ -53,16 +57,9 @@ async def read_project_centroids(
     """
     Get all project centroids.
     """
-    try:
-        centroids = await project_logic.get_centroids(
-            db,
-        )
-        if not centroids:
-            return []
-
-        return centroids
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return await project_logic.get_centroids(
+        db,
+    )
 
 
 @router.get("/{project_id}/download-boundaries", tags=["Projects"])
@@ -193,6 +190,7 @@ async def delete_project_by_id(
 async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Annotated[Connection, Depends(database.get_db)],
+    background_tasks: BackgroundTasks,
     user_data: Annotated[AuthUser, Depends(login_required)],
     dem: UploadFile = File(None),
     image: UploadFile = File(None),
@@ -218,6 +216,16 @@ async def create_project(
     if not project_id:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
+        )
+
+    if project_info.requires_approval_from_regulator:
+        regulator_emails = project_info.regulator_emails
+        background_tasks.add_task(
+            send_project_approval_email_to_regulator,
+            regulator_emails,
+            project_id,
+            user_data.name,
+            project_info.name,
         )
 
     return {"message": "Project successfully created", "project_id": project_id}
@@ -582,3 +590,70 @@ async def odm_webhook(
     log.info(f"Task ID: {task_id}, Status: Webhook received")
 
     return {"message": "Webhook received", "task_id": task_id}
+
+
+@router.post("/regulator/comment/{project_id}/", tags=["Regulator Approval"])
+async def regulator_approval(
+    project_id: str,
+    data: dict,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    response: Response,
+):
+    """
+    Endpoint to allow a regulator to add comments and approve or reject to a project.
+
+    Args:
+        project_id (str): The unique identifier of the project.
+        data (dict): A dictionary containing the regulator's comment.
+        Expected key: 'regulator_comment' and 'regulator_approval_status.
+        db (Connection): Database connection instance, provided via dependency injection.
+        user_data (AuthUser): Authenticated user data, provided via dependency injection.
+        response (Response): FastAPI Response object to set custom status codes.
+
+    Returns:
+        dict: A response message indicating success or failure.
+
+    Raises:
+        HTTPException: Raised with status code 400 if any error occurs during execution.
+
+    Notes:
+        - Requires the user to be logged in and to have the "REGULATOR" role.
+        - Ensures that the user is authorized to comment on the specified project.
+    """
+
+    try:
+        if (
+            user_data.role != "REGULATOR"
+            or not await project_logic.check_regulator_project(
+                db, project_id, user_data.email
+            )
+        ):
+            response.status_code = 403
+            return {"details": "You are not authorized to perform the action"}
+
+        sql = """
+        UPDATE projects SET
+        regulator_comment = %(comment)s,
+        commenting_regulator_id = %(user_id)s,
+        regulator_approval_status = %(regulator_approval_status)s
+        WHERE id = %(project_id)s
+        """
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                sql,
+                {
+                    "comment": data["regulator_comment"],
+                    "regulator_approval_status": data["regulator_approval_status"],
+                    "user_id": user_data.id,
+                    "project_id": project_id,
+                },
+            )
+
+        return {"message": "Commend Added successfully !!!"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"An error occurred: {str(e)}",
+        )

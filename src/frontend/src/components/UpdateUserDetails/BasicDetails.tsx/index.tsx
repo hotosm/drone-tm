@@ -2,12 +2,12 @@ import { toast } from 'react-toastify';
 import { Controller, useForm } from 'react-hook-form';
 import { FormControl, Input, Label, Select } from '@Components/common/FormUI';
 import { Flex, FlexColumn } from '@Components/common/Layouts';
-import { countriesWithPhoneCodes } from '@Constants/countryCode';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import ErrorMessage from '@Components/common/ErrorMessage';
 import { Button } from '@Components/RadixComponents/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { patchUserProfile } from '@Services/common';
+import { countries } from 'countries-list';
 
 const BasicDetails = () => {
   const userProfile = getLocalStorageValue('userprofile');
@@ -45,6 +45,12 @@ const BasicDetails = () => {
     updateBasicInfo({ userId: userProfile?.id, data: formData });
   };
 
+  // eslint-disable-next-line no-unused-vars
+  const countryList = Object.entries(countries).map(([_, value]) => ({
+    name: value?.name,
+    phone: value?.phone?.[0],
+  }));
+
   return (
     <section className="naxatw-w-full naxatw-px-14">
       <Flex>
@@ -77,10 +83,11 @@ const BasicDetails = () => {
             }}
             render={({ field: { value, onChange } }) => (
               <Select
+                withSearch
                 placeholder="Choose a Country"
-                options={countriesWithPhoneCodes}
-                labelKey="label"
-                valueKey="label"
+                options={countryList}
+                labelKey="name"
+                valueKey="name"
                 selectedOption={value}
                 onChange={onChange}
               />

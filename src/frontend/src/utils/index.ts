@@ -86,3 +86,8 @@ export const formatString = (value: string) => {
     .toLowerCase()
     .replace(/^\w/, char => char.toUpperCase());
 };
+
+export const getFileExtension = (url: string) => {
+  const match = url.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
+  return match ? match[1] : null;
+};

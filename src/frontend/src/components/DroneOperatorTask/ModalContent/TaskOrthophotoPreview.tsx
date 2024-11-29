@@ -57,12 +57,14 @@ const TaskOrthophotoPreview = () => {
         }}
       >
         <BaseLayerSwitcherUI />
-        <COGOrthophotoViewer
-          id="task-orthophoto"
-          source={orthophotoSource}
-          visibleOnMap
-          zoomToLayer
-        />
+        {isMapLoaded && (
+          <COGOrthophotoViewer
+            id="task-orthophoto"
+            source={orthophotoSource}
+            visibleOnMap
+            zoomToLayer
+          />
+        )}
       </MapContainer>
     </div>
   );

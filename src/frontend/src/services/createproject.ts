@@ -20,3 +20,19 @@ export const postTaskBoundary = ({ id, data }: { id: number; data: any }) =>
 
 export const getProjectCentroid = () =>
   authenticated(api).get('/projects/centroids');
+
+export const regulatorUser = (data: Record<string, any>) =>
+  api.post(`/users/regulator/`, data, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+export const regulatorComment = (payload: Record<string, any>) => {
+  const { projectId, ...data } = payload;
+  return authenticated(api).post(
+    `/projects/regulator/comment/${projectId}/`,
+    data,
+    {
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
+};

@@ -3,6 +3,7 @@ import { Flex, FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import avatarImage from '@Assets/images/avatar-images.svg';
 
 const DashboardSidebar = () => {
   const navigate = useNavigate();
@@ -11,7 +12,16 @@ const DashboardSidebar = () => {
   return (
     <FlexColumn className="naxatw-h-full naxatw-items-center naxatw-rounded-xl naxatw-border naxatw-border-gray-500 naxatw-p-2.5 naxatw-py-4">
       <Flex className="naxatw-h-20 naxatw-w-20 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
-        <img src={userDetails?.profile_img} alt="profile" />
+        <img
+          src={userDetails?.profile_img}
+          alt="profile"
+          className="naxatw-h-full naxatw-w-full"
+          // @ts-ignore
+          onError={({ e }) => {
+            e.onerror = null; // prevents looping
+            e.src = avatarImage;
+          }}
+        />
       </Flex>
       <h5 className="mt-2.5">{userDetails?.name}</h5>
       <p className="naxatw-py-1 naxatw-text-body-sm">
