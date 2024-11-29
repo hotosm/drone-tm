@@ -318,7 +318,7 @@ class DbDroneAltitude(Base):
     __tablename__ = "drone_altitudes"
 
     id = cast(int, Column(Integer, primary_key=True, autoincrement=True))
-    country = cast(str, Column(String, nullable=False))
+    country = cast(str, Column(String, nullable=False, unique=True))
     country_code = cast(
         str, Column(String(3), nullable=False)
     )  # ISO 3166-1 alpha-3 country code
