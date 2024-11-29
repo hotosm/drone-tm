@@ -216,6 +216,21 @@ export const contributionsInfo = [
     description: 'Detailed instructions or parameters for the drone operation.',
   },
   {
+    key: 'Deadline for Submission',
+    description: 'Date for specifying when the project should be submitted.',
+  },
+  {
+    key: 'Does this project require approval from the local regulatory committee?',
+    description:
+      'Indicate if the project requires approval from the local regulatory committee before proceeding.',
+  },
+  {
+    key: 'Local regulation committee Email Address',
+    description:
+      'The email addresses of local regulatory committee members. If one of them approves or rejects the project, it will be processed accordingly. This is required for areas where drone flights are restricted and require permission',
+  },
+
+  {
     key: 'Approval for task lock',
     description:
       'Approval required tasks should be approved from project creator to proceed the mapping.',
