@@ -39,7 +39,7 @@ from app.utils import (
 )
 from app.users import user_schemas
 from minio.deleteobjects import DeleteObject
-
+from drone_flightplan import waypoints
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -657,3 +657,57 @@ async def regulator_approval(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"An error occurred: {str(e)}",
         )
+
+
+@router.post("/waypoints", tags=["Projects"])
+async def get_project_waypoints_counts(
+    side_overlap: float,
+    front_overlap: float,
+    altitude_from_ground: float,
+    gsd_cm_px: float,
+    meters: float = 100,
+    project_geojson: UploadFile = File(...),
+    is_terrain_follow: bool = False,
+    user_data: AuthUser = Depends(login_required),
+):
+    """
+    Count waypoints within AOI.
+    """
+    # Validating for .geojson File.
+    file_name = os.path.splitext(project_geojson.filename)
+    file_ext = file_name[1]
+    allowed_extensions = [".geojson", ".json"]
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+
+    # read entire file
+    content = await project_geojson.read()
+    boundary = geojson.loads(content)
+    geometry = shape(boundary["features"][0]["geometry"])
+    centroid = geometry.centroid
+    center_lon = centroid.x
+    center_lat = centroid.y
+    square_geojson = project_logic.generate_square_geojson(
+        center_lat, center_lon, meters
+    )
+    generate_each_points = True if is_terrain_follow else False
+    generate_3d = (
+        False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
+    )
+    forward_overlap = front_overlap if front_overlap else 70
+    side_overlap = side_overlap if side_overlap else 70
+
+    points = waypoints.create_waypoint(
+        project_area=square_geojson,
+        agl=altitude_from_ground,
+        gsd=gsd_cm_px,
+        forward_overlap=forward_overlap,
+        side_overlap=side_overlap,
+        rotation_angle=0,
+        generate_each_points=generate_each_points,
+        generate_3d=generate_3d,
+        take_off_point=None,
+    )
+    return {
+        "avg_no_of_waypoints": len(json.loads(points)["features"]),
+    }
