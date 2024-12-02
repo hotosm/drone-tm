@@ -39,7 +39,8 @@ from app.utils import (
 )
 from app.users import user_schemas
 from minio.deleteobjects import DeleteObject
-
+from app.db.db_models import DbProject
+from drone_flightplan import waypoints
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -657,3 +658,54 @@ async def regulator_approval(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"An error occurred: {str(e)}",
         )
+
+
+@router.get("/{project_id}/waypoints", tags=["Projects"])
+async def get_project_waypoints_geojson(
+    project_id: uuid.UUID,
+    side_overlap: float,
+    front_overlap: float,
+    altitude_from_ground: float,
+    gsd_cm_px: float,
+    meters: float = 100,
+    is_terrain_follow: bool = False,
+    project: DbProject = Depends(project_deps.get_project_by_id),
+    # user_data: AuthUser = Depends(login_required),
+):
+    """
+    Get the square GeoJSON for a project's center and count waypoints within AOI.
+    """
+    if project.centroid and project.centroid.coordinates:
+        center_lon = project.centroid.coordinates.longitude
+        center_lat = project.centroid.coordinates.latitude
+    else:
+        raise Exception(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Centroid data is missing or malformed.",
+        )
+
+    square_geojson = project_logic.generate_square_geojson(
+        center_lat, center_lon, meters
+    )
+
+    generate_each_points = True if is_terrain_follow else False
+    generate_3d = (
+        False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
+    )
+    forward_overlap = front_overlap if front_overlap else 70
+    side_overlap = side_overlap if side_overlap else 70
+
+    points = waypoints.create_waypoint(
+        project_area=square_geojson,
+        agl=altitude_from_ground,
+        gsd=gsd_cm_px,
+        forward_overlap=forward_overlap,
+        side_overlap=side_overlap,
+        rotation_angle=0,
+        generate_each_points=generate_each_points,
+        generate_3d=generate_3d,
+        take_off_point=None,
+    )
+    return {
+        "avg_no_of_waypoints": len(json.loads(points)["features"]),
+    }

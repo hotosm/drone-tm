@@ -2,6 +2,7 @@ import json
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
+from pyproj import Transformer
 from app.tasks.task_splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
@@ -283,3 +284,33 @@ async def check_regulator_project(db: Connection, project_id: str, email: str):
         await cur.execute(sql, {"project_id": project_id, "email": email})
         project = await cur.fetchone()
         return bool(project)
+
+
+def generate_square_geojson(center_lat, center_lon, side_length_meters):
+    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    transformer_back = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+
+    center_x, center_y = transformer.transform(center_lon, center_lat)
+    half_side = side_length_meters / 2
+
+    corners_m = [
+        (center_x - half_side, center_y - half_side),
+        (center_x + half_side, center_y - half_side),
+        (center_x + half_side, center_y + half_side),
+        (center_x - half_side, center_y + half_side),
+        (center_x - half_side, center_y - half_side),
+    ]
+
+    corners_lat_lon = [transformer_back.transform(x, y) for x, y in corners_m]
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Polygon", "coordinates": [corners_lat_lon]},
+            }
+        ],
+    }
+    return geojson
