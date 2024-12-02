@@ -45,18 +45,37 @@ const MapSection = ({
   );
   const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
 
+  function filterDuplicateFeature(
+    array: any[],
+    newObject: Record<string, any>,
+  ) {
+    if (!newObject) return [];
+    if (!array) return [newObject];
+    return array.filter(item => item.id !== newObject.id);
+  }
+
   const handleDrawEnd = (geojson: GeojsonType | null) => {
     if (!geojson) return;
     if (drawProjectAreaEnable) {
       dispatch(setCreateProjectState({ drawnProjectArea: geojson }));
     } else {
+      // @ts-ignore
+      let combindFeatures = geojson?.features;
+      // @ts-ignore
+      if (drawnNoFlyZone?.features) {
+        combindFeatures = filterDuplicateFeature(
+          // @ts-ignore
+          drawnNoFlyZone?.features,
+          // @ts-ignore
+          geojson?.features[0],
+        );
+      }
       const collectiveGeojson: any = drawnNoFlyZone
         ? {
             // @ts-ignore
             ...drawnNoFlyZone,
             features: [
-              // @ts-ignore
-              ...(drawnNoFlyZone?.features || []),
+              ...(combindFeatures || []),
               // @ts-ignore
               ...(geojson?.features || []),
             ],
