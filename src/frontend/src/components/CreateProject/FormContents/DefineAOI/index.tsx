@@ -241,7 +241,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                             data={value}
                             onChange={handleProjectAreaFileChange}
                             fileAccept=".geojson, .kml"
-                            placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                            placeholder="Upload project area (zipped geojson files)"
                             isValid={validateAreaOfFileUpload}
                             {...formProps}
                           />

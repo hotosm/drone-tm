@@ -15,6 +15,7 @@ interface ToolTipProps {
   className?: string;
   iconClassName?: string;
   onClick?: () => void;
+  symbolType?: string;
 }
 
 export default function ToolTip({
@@ -24,6 +25,7 @@ export default function ToolTip({
   onClick,
   className,
   iconClassName,
+  symbolType = 'material-symbols-outlined',
 }: ToolTipProps) {
   return (
     <FlexColumn
@@ -35,6 +37,7 @@ export default function ToolTip({
           <TooltipTrigger onClick={onClick}>
             <Icon
               name={name}
+              iconSymbolType={symbolType}
               className={`hover:naxatw-text-primary-400 naxatw-text-grey-500 hover:naxatw-animate-pulse ${iconClassName}`}
             />
           </TooltipTrigger>

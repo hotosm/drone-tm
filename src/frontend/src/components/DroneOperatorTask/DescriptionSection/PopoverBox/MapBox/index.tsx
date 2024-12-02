@@ -23,7 +23,6 @@ import { getImageUploadLink } from '@Services/droneOperator';
 import { useMutation } from '@tanstack/react-query';
 import { postTaskStatus } from '@Services/project';
 import { postProcessImagery } from '@Services/tasks';
-import delay from '@Utils/createDelay';
 import widthCalulator from '@Utils/percentageCalculator';
 import FilesUploadingPopOver from '../LoadingBox';
 
@@ -168,11 +167,6 @@ const ImageMapBox = () => {
         uploadedFilesNumber.current += urlChunk.length;
         const width = widthCalulator(uploadedFilesNumber.current, files.length);
         setLoadingWidth(width);
-
-        // to call api in chunks of 4 with a delay of 500ms
-        if (index < chunkedUrls.length - 1) {
-          await delay(500);
-        }
       }
       startImageryProcess();
     },
