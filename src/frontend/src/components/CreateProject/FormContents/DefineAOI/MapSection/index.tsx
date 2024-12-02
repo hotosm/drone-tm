@@ -46,12 +46,14 @@ const MapSection = ({
   const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
 
   function filterDuplicateFeature(
-    array: any[],
-    newObject: Record<string, any>,
+    featuresData: any[],
+    geojsonFeatureObject: Record<string, any>,
   ) {
-    if (!newObject) return [];
-    if (!array) return [newObject];
-    return array.filter(item => item.id !== newObject.id);
+    if (!geojsonFeatureObject) return [];
+    if (!featuresData) return [geojsonFeatureObject];
+    return featuresData.filter(
+      feature => feature.id !== geojsonFeatureObject.id,
+    );
   }
 
   const handleDrawEnd = (geojson: GeojsonType | null) => {
