@@ -1,5 +1,5 @@
 /* eslint-disable react/no-array-index-key */
-import { useGetTaskWaypointQuery } from '@Api/tasks';
+import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from '@Api/tasks';
 import marker from '@Assets/images/marker.png';
 import right from '@Assets/images/rightArrow.png';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import ToolTip from '@Components/RadixComponents/ToolTip';
+import Skeleton from '@Components/RadixComponents/Skeleton';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import { toast } from 'react-toastify';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
@@ -224,6 +225,14 @@ const MapSection = ({ className }: { className?: string }) => {
     );
     setShowTakeOffPoint(!showTakeOffPoint);
   }
+  const {
+    data: taskAssetsInformation,
+    isFetching: taskAssetsInfoLoading,
+  }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
+  );
+
   return (
     <>
       <div
@@ -330,6 +339,7 @@ const MapSection = ({ className }: { className?: string }) => {
                 : 'Change Take off Point'}
             </Button>
           </div>
+
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
@@ -338,28 +348,35 @@ const MapSection = ({ className }: { className?: string }) => {
             >
               <ToolTip
                 name="flight_take_off"
-                message="Show Take Off Point"
+                message="Show Flight Plan"
                 symbolType="material-icons"
                 iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
                 className="naxatw-mt-[-4px]"
               />
             </Button>
           </div>
-          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit">
-            <Button
-              variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red' : 'naxatw-border-gray-400'}`}
-              onClick={() => handleOtrhophotoLayerView()}
-            >
-              <ToolTip
-                name="visibility"
-                message="Show Take Off Point"
-                symbolType="material-icons"
-                iconClassName="!naxatw-text-xl !naxatw-text-black"
-                className="naxatw-mt-[-4px]"
-              />
-            </Button>
-          </div>
+
+          {taskAssetsInfoLoading ? (
+            <Skeleton className="naxatw-h-[0.5rem] naxatw-w-[0.5rem] naxatw-rounded-sm" />
+          ) : (
+            taskAssetsInformation?.assets_url && (
+              <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit">
+                <Button
+                  variant="ghost"
+                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red' : 'naxatw-border-gray-400'}`}
+                  onClick={() => handleOtrhophotoLayerView()}
+                >
+                  <ToolTip
+                    name="visibility"
+                    message="Show Orthophoto"
+                    symbolType="material-icons"
+                    iconClassName="!naxatw-text-xl !naxatw-text-black"
+                    className="naxatw-mt-[-4px]"
+                  />
+                </Button>
+              </div>
+            )
+          )}
           <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
             <Button
               withLoader

@@ -7,8 +7,10 @@ import { Button } from '@Components/RadixComponents/Button';
 import { patchUserProfile } from '@Services/common';
 import { useMutation } from '@tanstack/react-query';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+import { useNavigate } from 'react-router-dom';
 
 const Password = () => {
+  const navigate = useNavigate();
   const initialState = {
     old_password: '',
     password: '',
@@ -30,6 +32,7 @@ const Password = () => {
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
     onSuccess: () => {
       toast.success('Password Updated Successfully');
+      navigate('/dashboard');
     },
     onError: err => {
       // eslint-disable-next-line no-console
@@ -74,6 +77,11 @@ const Password = () => {
                 value: 8,
                 message: 'Password must have at least 8 characters',
               },
+              validate: {
+                notSameAsOld: value =>
+                  value !== password ||
+                  'New password cannot be the same as the old password',
+              },
             })}
           />
           <ErrorMessage message={formState.errors?.password?.message} />
@@ -85,8 +93,13 @@ const Password = () => {
             className="naxatw-mt-1"
             placeholder="Enter confirm password"
             {...register('confirm_password', {
-              validate: (value: string) =>
-                value === password || 'The passwords do not match',
+              validate: {
+                matchPassword: (value: string) =>
+                  value === password || 'The passwords do not match',
+                notSameAsOld: value =>
+                  value !== password ||
+                  'New password cannot be the same as the old password',
+              },
               // required: 'Confirm Password is Required',
             })}
           />

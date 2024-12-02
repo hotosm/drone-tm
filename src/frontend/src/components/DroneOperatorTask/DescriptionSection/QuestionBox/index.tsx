@@ -120,7 +120,7 @@ const QuestionBox = ({
               variant="ghost"
               className="naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
               onClick={() => handleSubmit()}
-              disabled={flyable === 'no' && comment.length < 6}
+              disabled={flyable === 'yes'}
               isLoading={commentIsUpdating}
             >
               Save
