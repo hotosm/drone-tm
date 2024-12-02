@@ -39,7 +39,6 @@ from app.utils import (
 )
 from app.users import user_schemas
 from minio.deleteobjects import DeleteObject
-from app.db.db_models import DbProject
 from drone_flightplan import waypoints
 
 router = APIRouter(
@@ -660,34 +659,37 @@ async def regulator_approval(
         )
 
 
-@router.get("/{project_id}/waypoints", tags=["Projects"])
-async def get_project_waypoints_geojson(
-    project_id: uuid.UUID,
+@router.post("/waypoints", tags=["Projects"])
+async def get_project_waypoints_counts(
     side_overlap: float,
     front_overlap: float,
     altitude_from_ground: float,
     gsd_cm_px: float,
     meters: float = 100,
+    project_geojson: UploadFile = File(...),
     is_terrain_follow: bool = False,
-    project: DbProject = Depends(project_deps.get_project_by_id),
     user_data: AuthUser = Depends(login_required),
 ):
     """
-    Get the square GeoJSON for a project's center and count waypoints within AOI.
+    Count waypoints within AOI.
     """
-    if project.centroid and project.centroid.coordinates:
-        center_lon = project.centroid.coordinates.longitude
-        center_lat = project.centroid.coordinates.latitude
-    else:
-        raise Exception(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="Centroid data is missing or malformed.",
-        )
+    # Validating for .geojson File.
+    file_name = os.path.splitext(project_geojson.filename)
+    file_ext = file_name[1]
+    allowed_extensions = [".geojson", ".json"]
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
 
+    # read entire file
+    content = await project_geojson.read()
+    boundary = geojson.loads(content)
+    geometry = shape(boundary["features"][0]["geometry"])
+    centroid = geometry.centroid
+    center_lon = centroid.x
+    center_lat = centroid.y
     square_geojson = project_logic.generate_square_geojson(
         center_lat, center_lon, meters
     )
-
     generate_each_points = True if is_terrain_follow else False
     generate_3d = (
         False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
