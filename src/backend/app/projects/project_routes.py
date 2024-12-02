@@ -670,7 +670,7 @@ async def get_project_waypoints_geojson(
     meters: float = 100,
     is_terrain_follow: bool = False,
     project: DbProject = Depends(project_deps.get_project_by_id),
-    # user_data: AuthUser = Depends(login_required),
+    user_data: AuthUser = Depends(login_required),
 ):
     """
     Get the square GeoJSON for a project's center and count waypoints within AOI.
