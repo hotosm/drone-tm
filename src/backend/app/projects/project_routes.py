@@ -659,7 +659,7 @@ async def regulator_approval(
         )
 
 
-@router.post("/waypoints", tags=["Projects"])
+@router.post("/waypoints/", tags=["Projects"])
 async def get_project_waypoints_counts(
     side_overlap: float,
     front_overlap: float,
