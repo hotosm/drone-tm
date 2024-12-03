@@ -55,10 +55,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const taskClickedOnTable = useTypedSelector(
     state => state.project.taskClickedOnTable,
   );
-
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
   });
+  const signedInAs = localStorage.getItem('signedInAs');
 
   const { mutate: lockTask } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
@@ -267,8 +267,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             feature?.source?.includes('tasks-layer') &&
             !(
               (
-                userDetails?.role?.length === 1 &&
-                userDetails?.role?.includes('REGULATOR')
+                (userDetails?.role?.length === 1 &&
+                  userDetails?.role?.includes('REGULATOR')) ||
+                signedInAs === 'REGULATOR'
               ) // Don't show popup if user role is regulator any and no other roles
             )
           );
