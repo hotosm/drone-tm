@@ -39,6 +39,7 @@ from app.utils import (
     send_project_approval_email_to_regulator,
 )
 from app.users import user_schemas
+from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
 from drone_flightplan import waypoints, add_elevation_from_dem
 
@@ -227,6 +228,12 @@ async def create_project(
             project_id,
             user_data.name,
             project_info.name,
+        )
+
+    if project_info.is_terrain_follow and not dem:
+        geometry = project_info.outline["features"][0]["geometry"]
+        background_tasks.add_task(
+            upload_dem_file, db, geometry, project_id, background_tasks
         )
 
     return {"message": "Project successfully created", "project_id": project_id}
