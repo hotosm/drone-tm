@@ -335,7 +335,7 @@ const MapSection = ({ className }: { className?: string }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function getGeoJSONDataFromMap(sourceIds: any[]) {
+  function getGeoJSONDataFromMap(sourceIds: string[]) {
     const geojsonData: Record<string, any> = {};
 
     if (!mapRef.current) return geojsonData;
