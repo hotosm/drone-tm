@@ -177,13 +177,13 @@ class TaskSplitter(object):
                     # Merge the small polygon with the nearest large polygon
                     merged_polygon = unary_union([small_polygon, nearest_polygon])
 
-                    if merged_polygon.geom_type == "MultiPolygon":
-                        # Handle MultiPolygon by adding the original small polygon back
-                        log.warning(
-                            "Found MultiPolygon, adding original small polygon..."
-                        )
-                        polygons.append(small_polygon)
-                        break
+                    # if merged_polygon.geom_type == "MultiPolygon":
+                    #     # Handle MultiPolygon by adding the original small polygon back
+                    #     log.warning(
+                    #         "Found MultiPolygon, adding original small polygon..."
+                    #     )
+                    #     polygons.append(small_polygon)
+                    #     break
 
                     # Remove both the small polygon and the nearest large polygon
                     polygons.remove(nearest_polygon)
