@@ -232,9 +232,7 @@ async def create_project(
 
     if project_info.is_terrain_follow and not dem:
         geometry = project_info.outline["features"][0]["geometry"]
-        background_tasks.add_task(
-            upload_dem_file, db, geometry, project_id, background_tasks
-        )
+        background_tasks.add_task(upload_dem_file, geometry, project_id)
 
     return {"message": "Project successfully created", "project_id": project_id}
 
