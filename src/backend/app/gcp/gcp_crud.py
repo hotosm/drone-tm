@@ -18,7 +18,7 @@ async def calculate_bounding_box(
     altitude: float,
     sensor_width: float = 6.17,  # These are drone specific
     sensor_height: float = 4.55,  # These are drone specific
-):
+) -> List[float]:
     """
     Calculate the geographic bounding box of an image taken by a drone.
 
@@ -71,7 +71,7 @@ async def calculate_bounding_box(
     return [west, south, east, north]
 
 
-def fetch_json_from_presigned_url(url):
+def fetch_json_from_presigned_url(url: str):
     """
     Fetch a JSON file from an AWS presigned URL.
     """
@@ -103,7 +103,7 @@ async def find_matching_images_that_contains_point(bounding_boxes, gps_coordinat
     return matching_images
 
 
-async def calculate_bbox_from_images_file(images_json_url):
+async def calculate_bbox_from_images_file(images_json_url: str):
     """
     Create bounding boxes for all images from a presigned JSON file URL.
     """
@@ -131,7 +131,7 @@ async def calculate_bbox_from_images_file(images_json_url):
     return bounding_boxes
 
 
-def calculate_image_footprint(
+async def calculate_image_footprint(
     altitude: float, fov_deg: float, aspect_ratio: float
 ) -> tuple[float, float]:
     """
