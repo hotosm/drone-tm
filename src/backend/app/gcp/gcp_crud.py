@@ -1,6 +1,11 @@
 import math
+import requests
+import uuid
 from shapely.geometry import Point, Polygon
 from typing import List, Dict, Tuple
+from app.s3 import get_presigned_url
+from app.waypoints import waypoint_schemas
+from app.config import settings
 
 
 async def calculate_bounding_box(
@@ -63,7 +68,67 @@ async def calculate_bounding_box(
     east = long + delta_lon
     west = long - delta_lon
 
-    return {"north": north, "south": south, "east": east, "west": west}
+    return [west, south, east, north]
+
+
+def fetch_json_from_presigned_url(url):
+    """
+    Fetch a JSON file from an AWS presigned URL.
+    """
+    response = requests.get(url)
+    response.raise_for_status()  # Raise an exception for HTTP errors
+    return response.json()
+
+
+async def find_matching_images_that_contains_point(bounding_boxes, gps_coordinate):
+    """
+    Find images whose bounding boxes contain the specified GPS coordinate.
+    """
+    matching_images = []
+    point = Point(gps_coordinate)  # Longitude, Latitude format
+    for filename, bbox in bounding_boxes.items():
+        min_lon, min_lat, max_lon, max_lat = bbox
+        polygon = Polygon(
+            [
+                (min_lon, min_lat),
+                (min_lon, max_lat),
+                (max_lon, max_lat),
+                (max_lon, min_lat),
+                (min_lon, min_lat),
+            ]
+        )
+
+        if polygon.contains(point):
+            matching_images.append(filename)
+    return matching_images
+
+
+async def calculate_bbox_from_images_file(images_json_url):
+    """
+    Create bounding boxes for all images from a presigned JSON file URL.
+    """
+    # Fetch the JSON data from the presigned URL
+    images = fetch_json_from_presigned_url(images_json_url)
+
+    # Calculate bounding boxes
+    bounding_boxes = {}
+    for image in images:
+        filename = image["filename"]
+        lat = image["latitude"]
+        lon = image["longitude"]
+        altitude = image["altitude"]
+        width = image["width"]
+        height = image["height"]
+        focal_ratio = image["focal_ratio"]
+        fnumber = image["fnumber"]
+
+        # Calculate the bounding box
+        bbox = await calculate_bounding_box(
+            lat, lon, width, height, focal_ratio, fnumber, altitude
+        )
+        bounding_boxes[filename] = bbox
+
+    return bounding_boxes
 
 
 def calculate_image_footprint(
@@ -132,3 +197,47 @@ def find_images_with_coordinate(
             matching_images.append(filename)
 
     return matching_images
+
+
+async def process_images_for_point(
+    project_id: uuid.UUID, task_id: uuid.UUID, point: waypoint_schemas.PointField
+) -> List[str]:
+    """
+    Process images to find those containing a specific point and return their pre-signed URLs.
+
+    Args:
+        project_id (uuid.UUID): The ID of the project.
+        task_id (uuid.UUID): The ID of the task.
+        point (waypoint_schemas.PointField): The point to check.
+
+    Returns:
+        List[str]: A list of pre-signed URLs for matching images.
+    """
+
+    # S3 path for the `images.json` file provided by ODM
+    s3_images_json_path = f"dtm-data/projects/{project_id}/{task_id}/images.json"
+
+    # Generate pre-signed URL for the `images.json` file
+    s3_images_json_url = get_presigned_url(settings.S3_BUCKET_NAME, s3_images_json_path)
+
+    # Fetch bounding boxes from the `images.json` file
+    bbox_list = await calculate_bbox_from_images_file(s3_images_json_url)
+
+    # Extract the longitude and latitude of the point
+    point_tuple = (point.longitude, point.latitude)
+
+    # Find images whose bounding boxes contain the given point
+    matching_images = await find_matching_images_that_contains_point(
+        bbox_list, point_tuple
+    )
+
+    # Generate pre-signed URLs for the matching images
+    presigned_urls = [
+        get_presigned_url(
+            settings.S3_BUCKET_NAME,
+            f"dtm-data/projects/{project_id}/{task_id}/images/{image}",
+        )
+        for image in matching_images
+    ]
+
+    return presigned_urls
