@@ -26,6 +26,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
     altitude_from_ground,
     gsd_cm_px,
     outline,
+    task_split_dimension,
   } = watch();
 
   const dimension = watch('task_split_dimension');
@@ -46,15 +47,18 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
     ...(noFlyZone ? { no_fly_zones: noFlyZoneGeojsonFile } : {}), // add no fly zones it there are any
   });
 
-  const { mutate: mutateProjectWayPoints, data: projectWayPoints } =
-    useMutation({
-      mutationFn: (projectGeoJsonPayload: Record<string, any>) => {
-        const { project_geojson, ...params } = projectGeoJsonPayload;
-        return getProjectWayPoints(params, {
-          project_geojson,
-        });
-      },
-    });
+  const {
+    mutate: mutateProjectWayPoints,
+    data: projectWayPoints,
+    isLoading: projectWaypointCountIsLoading,
+  } = useMutation({
+    mutationFn: (projectGeoJsonPayload: Record<string, any>) => {
+      const { project_geojson, ...params } = projectGeoJsonPayload;
+      return getProjectWayPoints(params, {
+        project_geojson,
+      });
+    },
+  });
 
   const { mutate, isLoading } = useMutation<any, any, any, unknown>({
     mutationFn: postPreviewSplitBySquare,
@@ -109,6 +113,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
               side_overlap: side_overlap || 0,
               altitude_from_ground: altitude_from_ground || 0,
               gsd_cm_px: gsd_cm_px || 0,
+              meters: task_split_dimension,
               project_geojson: convertGeojsonToFile(outline),
             };
             mutateProjectWayPoints(projectWayPointsPayload);
@@ -117,12 +122,14 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
         >
           Generate Task
         </Button>
-        <p className="naxatw-mt-4 naxatw-text-sm naxatw-font-semibold">
-          The average number of way points is{' '}
-          <span className="naxatw-text-red">
-            {projectWayPoints?.data?.avg_no_of_waypoints}
-          </span>
-        </p>
+        {!projectWaypointCountIsLoading && projectWayPoints && (
+          <p className="naxatw-mt-4 naxatw-text-sm naxatw-font-semibold">
+            The average number of way points is{' '}
+            <span className="naxatw-text-red">
+              {projectWayPoints?.data?.avg_no_of_waypoints}
+            </span>
+          </p>
+        )}
       </div>
       <div className="naxatw-col-span-3 naxatw-h-[50vh] naxatw-bg-green-50 md:naxatw-col-span-2 md:naxatw-h-full">
         <MapSection />

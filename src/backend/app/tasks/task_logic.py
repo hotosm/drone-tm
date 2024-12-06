@@ -33,12 +33,17 @@ async def get_task_stats(db: Connection, user_data: AuthUser):
                         %(role)s = 'DRONE_PILOT'
                         AND te.user_id = %(user_id)s
                     )
-                        OR
-                        (%(role)s = 'PROJECT_CREATOR' AND te.project_id IN (
+                    OR
+                    (
+                    %(role)s = 'PROJECT_CREATOR'
+                    AND (
+                        te.project_id IN (
                             SELECT p.id
                             FROM projects p
                             WHERE p.author_id = %(user_id)s
-                        ))
+                        )
+                    OR te.user_id = %(user_id)s -- Grant permissions equivalent to DRONE_PILOT
+                    ))
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
             """
@@ -284,11 +289,12 @@ async def handle_event(
         case EventType.REQUESTS:
             # Determine the appropriate state and message
             is_author = project["author_id"] == user_id
-            if user_role != UserRole.DRONE_PILOT.name and not is_author:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only the project author or drone operators can request tasks for this project.",
-                )
+            # NOTE:
+            # if user_role != UserRole.DRONE_PILOT.name and not is_author:
+            #     raise HTTPException(
+            #         status_code=403,
+            #         detail="Only the project author or drone operators can request tasks for this project.",
+            #     )
 
             requires_approval = project["requires_approval_from_manager_for_locking"]
 

@@ -228,12 +228,15 @@ class UserTasksStatsOut(BaseModel):
                     )
                     OR
                     (
-                        %(role)s = 'PROJECT_CREATOR' AND task_events.project_id IN (
+                    %(role)s = 'PROJECT_CREATOR' AND (
+                        task_events.project_id IN (
                             SELECT p.id
                             FROM projects p
                             WHERE p.author_id = %(user_id)s
                         )
+                        OR task_events.user_id = %(user_id)s
                     )
+                )
                 ORDER BY
                     tasks.id, task_events.created_at DESC
                 OFFSET %(skip)s
@@ -256,13 +259,13 @@ class TaskDetailsOut(BaseModel):
     task_area: float
     outline: Outline
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
     state: State
     project_name: str
     project_task_index: int
-    front_overlap: float
-    side_overlap: float
-    gsd_cm_px: float
+    front_overlap: Optional[float] = None
+    side_overlap: Optional[float] = None
+    gsd_cm_px: Optional[float] = None
     gimble_angles_degrees: Optional[int] = None
 
     @field_validator("state", mode="after")
