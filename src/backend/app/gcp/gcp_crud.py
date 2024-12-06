@@ -1,5 +1,6 @@
 import math
 from shapely.geometry import Point, Polygon
+from typing import List, Dict, Tuple
 
 
 async def calculate_bounding_box(
@@ -65,14 +66,58 @@ async def calculate_bounding_box(
     return {"north": north, "south": south, "east": east, "west": west}
 
 
-def find_images_with_coordinate(bounding_boxes, gps_coordinate):
+def calculate_image_footprint(
+    altitude: float, fov_deg: float, aspect_ratio: float
+) -> tuple[float, float]:
+    """
+    Calculate the ground footprint of an image captured by a drone camera.
+
+    Parameters:
+        altitude (float): Altitude of the drone in meters.
+        fov_deg (float): Field of view (FoV) of the camera in degrees.
+        aspect_ratio (float): Aspect ratio of the camera's sensor (width/height).
+
+    Returns:
+        tuple[float, float]: Width and height of the image footprint on the ground in meters.
+    """
+    # Convert FoV from degrees to radians
+    fov_rad = math.radians(fov_deg)
+
+    # Calculate the diagonal footprint on the ground
+    diagonal_footprint = 2 * altitude * math.tan(fov_rad / 2)
+
+    # Calculate width and height of the footprint
+    width = diagonal_footprint / math.sqrt(1 + aspect_ratio**2)
+    height = aspect_ratio * width
+
+    return width, height
+
+
+def find_images_with_coordinate(
+    bounding_boxes: Dict[str, Tuple[float, float, float, float]],
+    gps_coordinate: Tuple[float, float],
+) -> List[str]:
     """
     Find images whose bounding boxes contain the specified GPS coordinate.
+
+    Parameters:
+        bounding_boxes (Dict[str, Tuple[float, float, float, float]]):
+            A dictionary where keys are image filenames, and values are bounding box coordinates
+            as (min_longitude, min_latitude, max_longitude, max_latitude).
+        gps_coordinate (Tuple[float, float]):
+            A GPS coordinate as a tuple (longitude, latitude).
+
+    Returns:
+        List[str]: A list of image filenames whose bounding boxes contain the GPS coordinate.
     """
-    matching_images = []
-    point = Point(gps_coordinate)  # Longitude, Latitude format
+    matching_images: List[str] = []
+    point = Point(
+        gps_coordinate
+    )  # Create a point for the GPS coordinate (longitude, latitude)
+
     for filename, bbox in bounding_boxes.items():
         min_lon, min_lat, max_lon, max_lat = bbox
+        # Create a polygon for the bounding box
         polygon = Polygon(
             [
                 (min_lon, min_lat),
@@ -82,6 +127,8 @@ def find_images_with_coordinate(bounding_boxes, gps_coordinate):
                 (min_lon, min_lat),
             ]
         )
+        # Check if the point is within the polygon
         if polygon.contains(point):
             matching_images.append(filename)
+
     return matching_images
