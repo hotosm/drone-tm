@@ -1,8 +1,9 @@
-from app.db import database
+import uuid
 from app.config import settings
-from fastapi import APIRouter, Depends
-from typing import Annotated
-from psycopg import Connection
+from fastapi import APIRouter
+from app.waypoints import waypoint_schemas
+from app.gcp import gcp_crud
+from typing import List
 
 
 router = APIRouter(
@@ -12,8 +13,11 @@ router = APIRouter(
 )
 
 
-@router.get("/find-images")
+@router.post("/find-images")
 async def find_images(
-    db: Annotated[Connection, Depends(database.get_db)],
-):
-    pass
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    point: waypoint_schemas.PointField = None,
+) -> List[str]:
+    """Find images that contain a specified point."""
+    return await gcp_crud.process_images_for_point(project_id, task_id, point)
