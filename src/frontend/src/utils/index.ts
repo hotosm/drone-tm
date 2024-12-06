@@ -174,7 +174,7 @@ export function calculateAngle(
 function RadtoDegrees(radians: number) {
   return radians * (180 / Math.PI);
 }
-export function calculateCentroid(bbox: any[]) {
+export function calculateCentroid(bbox: number[]) {
   const [minLon, minLat, maxLon, maxLat] = bbox;
 
   const centroidLat = (minLat + maxLat) / 2;
