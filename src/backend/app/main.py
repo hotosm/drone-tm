@@ -14,6 +14,7 @@ from app.drones import drone_routes
 from app.waypoints import waypoint_routes
 from app.users import user_routes
 from app.tasks import task_routes
+from app.gcp import gcp_routes
 
 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -99,6 +100,7 @@ def get_application() -> FastAPI:
     _app.include_router(waypoint_routes.router)
     _app.include_router(user_routes.router)
     _app.include_router(task_routes.router)
+    _app.include_router(gcp_routes.router)
 
     return _app
 
