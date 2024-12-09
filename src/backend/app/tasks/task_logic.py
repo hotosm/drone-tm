@@ -600,4 +600,40 @@ async def handle_event(
                 detail.updated_at,
             )
 
+        case EventType.IMAGE_PROCESSING_START:
+            current_task_state = await get_task_state(db, project_id, task_id)
+            if not current_task_state:
+                raise HTTPException(
+                    status_code=400, detail="Task is not ready for image upload."
+                )
+            state = current_task_state.get("state")
+            locked_user_id = current_task_state.get("user_id")
+
+            # Determine error conditions: Current State must be IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED.
+            if state not in (
+                State.IMAGE_UPLOADED.name,
+                State.IMAGE_PROCESSING_FAILED.name,
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Task state does not match expected state for image processing to start.",
+                )
+
+            if user_id != locked_user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You cannot upload an image for this task as it is locked by another user.",
+                )
+
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                f"Task image processing started by user {user_data.name}.",
+                State[state],
+                State.IMAGE_PROCESSING_STARTED,
+                detail.updated_at,
+            )
+
     return True

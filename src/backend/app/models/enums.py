@@ -179,6 +179,7 @@ class EventType(str, Enum):
     - ``comment`` -- Keep the state the same, but simply add a comment.
     - ``unlock`` -- Unlock a task state by unlocking it if it's locked.
     - ``image_upload`` -- Set the state to *image uploaded* when the task image is uploaded.
+    - ``image_processing_start`` -- Set the state to *image processing started* when the image processing is started by user.
 
     Note that ``task_id`` must be specified in the endpoint too.
     """
@@ -195,3 +196,4 @@ class EventType(str, Enum):
     COMMENT = "comment"
     UNLOCK = "unlock"
     IMAGE_UPLOAD = "image_upload"
+    IMAGE_PROCESSING_START = "image_processing_start"
