@@ -407,16 +407,16 @@ wheels = [
 
 [[package]]
 name = "drone-flightplan"
-version = "0.3.2"
+version = "0.3.3rc1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "geojson" },
     { name = "pyproj" },
     { name = "shapely" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/37/7cfa87b92633b147fab4d4bd1cb45d6c633e50f1db9e2e858f99229966bf/drone_flightplan-0.3.2.tar.gz", hash = "sha256:b06d0447e93646f845d2297ca783b452f980e4327284bf186d234177f933ce83", size = 34834 }
+sdist = { url = "https://files.pythonhosted.org/packages/19/8b/2b5274a701c90557c3a10d4658a2a08d648a39e2fd6183c33df213b690c7/drone_flightplan-0.3.3rc1.tar.gz", hash = "sha256:17eef5df46bb98cf27484361d361d4e640d410a63a6b39c701b65b16acb2f936", size = 35032 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/19/69/3efb72e976052a8c4f3907b3822813e4187fecce9560dccbc0b28cf2b16d/drone_flightplan-0.3.2-py3-none-any.whl", hash = "sha256:e264f65b3c26b2f835125fca3714d6188120c956355f1b0992efad162825cee1", size = 39284 },
+    { url = "https://files.pythonhosted.org/packages/20/a3/5f0e600a26a4e92e33ca7cf0e02fe25796bce07cd0d8cece704e4cc8c9ea/drone_flightplan-0.3.3rc1-py3-none-any.whl", hash = "sha256:874ad529808f8ffee2ff094619103ea4ef41e2bf52107f09df69dfeb3cd99ca2", size = 39514 },
 ]
 
 [[package]]
@@ -493,7 +493,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.13.1" },
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "bcrypt", specifier = ">=4.2.1" },
-    { name = "drone-flightplan", specifier = ">=0.3.2" },
+    { name = "drone-flightplan", specifier = ">=0.3.3rc1" },
     { name = "fastapi", specifier = "==0.112.0" },
     { name = "gdal", specifier = "==3.6.2" },
     { name = "geoalchemy2", specifier = "==0.14.2" },
