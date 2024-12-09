@@ -88,7 +88,7 @@ def upgrade():
             user_id,
             created_at + INTERVAL '10 seconds' AS created_at,
             comment,
-            updated_at + INTERVAL '10 seconds' AS updated_at,
+            created_at + INTERVAL '10 seconds' AS updated_at,
             'IMAGE_PROCESSING_STARTED'::state AS state
             FROM task_events WHERE state = 'IMAGE_UPLOADED'
         )
