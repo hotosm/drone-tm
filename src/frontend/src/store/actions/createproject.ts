@@ -5,4 +5,5 @@ export const {
   setCreateProjectState,
   resetUploadedAndDrawnAreas,
   saveProjectImageFile,
+  setDemType,
 } = createProjectSlice.actions;

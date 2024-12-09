@@ -101,6 +101,7 @@ const CreateprojectLayout = () => {
   const regulatorEmails = useTypedSelector(
     state => state.createproject.regulatorEmails,
   );
+  const demType = useTypedSelector(state => state.createproject.demType);
 
   const initialState: FieldValues = {
     name: '',
@@ -305,7 +306,7 @@ const CreateprojectLayout = () => {
     formData.append('project_info', JSON.stringify({ ...refactoredData }));
     formData.append('image', projectImage.projectMapImage);
 
-    if (isTerrainFollow) {
+    if (isTerrainFollow && demType === 'manual') {
       formData.append('dem', data?.dem?.[0]?.file);
     }
     createProject(formData);
