@@ -24,6 +24,7 @@ export default function VectorLayer({
   zoomToExtent = false,
   onDrag,
   onDragEnd,
+  needDragEvent = false,
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
@@ -179,7 +180,8 @@ export default function VectorLayer({
   }, [map, interactions, sourceId, onFeatureSelect]);
 
   useEffect(() => {
-    if (!map || !geojson || !onDrag || !onDragEnd) return () => {};
+    if (!map || !geojson || !onDrag || !onDragEnd || !needDragEvent)
+      return () => {};
 
     let isDragging = false;
     // let startCoordinates: [number, number] | null = null;
@@ -221,7 +223,7 @@ export default function VectorLayer({
       map.off('mousemove', onMouseMove);
       map.off('mouseup', onMouseUp);
     };
-  }, [map, geojson, sourceId, onDrag, onDragEnd]);
+  }, [map, geojson, sourceId, onDrag, onDragEnd, needDragEvent]);
 
   useEffect(
     () => () => {
