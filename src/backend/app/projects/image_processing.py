@@ -190,7 +190,7 @@ class DroneImageProcessor:
                     self.user_id,
                     "Task completed.",
                     State.IMAGE_UPLOADED,
-                    State.IMAGE_PROCESSED,
+                    State.IMAGE_PROCESSING_FINISHED,
                     timestamp(),
                 )
             return task
@@ -305,11 +305,11 @@ async def download_and_upload_assets_from_odm_to_s3(
                     user_id=user_id,
                     comment=comment,
                     initial_state=current_state,
-                    final_state=State.IMAGE_PROCESSED,
+                    final_state=State.IMAGE_PROCESSING_FINISHED,
                     updated_at=timestamp(),
                 )
                 log.info(
-                    f"Task {dtm_task_id} state updated to IMAGE_PROCESSED in the database."
+                    f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
                 )
 
     except Exception as e:
