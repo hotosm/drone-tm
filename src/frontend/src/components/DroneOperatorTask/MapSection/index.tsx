@@ -93,7 +93,17 @@ const MapSection = ({ className }: { className?: string }) => {
       const taskPolygon = projectRes.data.tasks.find(
         (task: Record<string, any>) => task.id === taskId,
       );
-      return taskPolygon.outline;
+      const { geometry } = taskPolygon.outline;
+      return {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry,
+            properties: {},
+          },
+        ],
+      };
     },
   });
   const { data: taskWayPointsData }: any = useGetTaskWaypointQuery(
@@ -386,6 +396,7 @@ const MapSection = ({ className }: { className?: string }) => {
     ],
     rotationDegree,
   );
+
   return (
     <>
       <div
@@ -427,6 +438,7 @@ const MapSection = ({ className }: { className?: string }) => {
                 iconAnchor="center"
                 onDrag={handleDrag}
                 onDragEnd={handleDragEnd}
+                needDragEvent={isRotationEnabled}
               />
               {/* render points */}
               <VectorLayer
@@ -460,6 +472,7 @@ const MapSection = ({ className }: { className?: string }) => {
                 }}
                 onDrag={handleDrag}
                 onDragEnd={handleDragEnd}
+                needDragEvent={isRotationEnabled}
               />
               {/* render image and only if index is 0 */}
               <VectorLayer
@@ -564,7 +577,7 @@ const MapSection = ({ className }: { className?: string }) => {
 
           <VectorLayer
             map={map as Map}
-            id="tasks-layer"
+            id="task-polygon"
             visibleOnMap={taskDataPolygon}
             geojson={taskDataPolygon as GeojsonType}
             interactions={['feature']}
@@ -690,12 +703,14 @@ const MapSection = ({ className }: { className?: string }) => {
             />
           )}
 
-          <COGOrthophotoViewer
-            id="task-orthophoto"
-            source={orthophotoSource}
-            visibleOnMap
-            zoomToLayer
-          />
+          {taskAssetsInformation?.assets_url && (
+            <COGOrthophotoViewer
+              id="task-orthophoto"
+              source={orthophotoSource}
+              visibleOnMap
+              zoomToLayer
+            />
+          )}
 
           {newTakeOffPoint === 'place_on_map' && (
             <GetCoordinatesOnClick
