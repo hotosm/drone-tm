@@ -289,6 +289,16 @@ async def download_and_upload_assets_from_odm_to_s3(
         log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
         add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
+        # Upload the images.json file from extracted zip file into the path 'images.json'
+        images_json_path = os.path.join(output_file_path, "images.json")
+        s3_images_json_path = (
+            f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/images.json"
+        )
+        log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
+        add_file_to_bucket(
+            settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
+        )
+
         log.info(
             f"Reprojected orthophoto for task {task_id} successfully uploaded to S3 at {s3_ortho_path}"
         )
