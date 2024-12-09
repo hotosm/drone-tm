@@ -1,5 +1,6 @@
 /* eslint-disable import/prefer-default-export */
 // import { radiansToDegrees } from '@turf/helpers';
+// import { radiansToDegrees } from '@turf/helpers';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -174,7 +175,7 @@ export function calculateAngle(
 function RadtoDegrees(radians: number) {
   return radians * (180 / Math.PI);
 }
-export function calculateCentroid(bbox: any[]) {
+export function calculateCentroid(bbox: number[]) {
   const [minLon, minLat, maxLon, maxLat] = bbox;
 
   const centroidLat = (minLat + maxLat) / 2;

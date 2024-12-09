@@ -63,6 +63,7 @@ export interface IVectorLayer extends ILayer {
   zoomToExtent?: boolean;
   onDrag?: (e: any) => void;
   onDragEnd?: () => void;
+  needDragEvent?: boolean;
 }
 
 type InteractionsType = 'hover' | 'select';
