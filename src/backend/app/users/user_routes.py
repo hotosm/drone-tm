@@ -294,7 +294,7 @@ async def reset_password(
     )
 
 
-@router.post("/regulator/", tags=["auto regulator account creation"])
+@router.post("/regulator/", tags=["regulator"])
 async def regulator_create(
     db: Annotated[Connection, Depends(database.get_db)], data: Base64Request
 ):
