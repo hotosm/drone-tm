@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import uuid
 from typing import Annotated, Optional
 from uuid import UUID
@@ -39,7 +40,7 @@ from app.utils import (
 )
 from app.users import user_schemas
 from minio.deleteobjects import DeleteObject
-from drone_flightplan import waypoints
+from drone_flightplan import waypoints, add_elevation_from_dem
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -668,6 +669,7 @@ async def get_project_waypoints_counts(
     meters: float = 100,
     project_geojson: UploadFile = File(...),
     is_terrain_follow: bool = False,
+    dem: UploadFile = File(None),
     user_data: AuthUser = Depends(login_required),
 ):
     """
@@ -708,6 +710,32 @@ async def get_project_waypoints_counts(
         generate_3d=generate_3d,
         take_off_point=None,
     )
+
+    # Handle terrain-following logic if a DEM is provided
+    points_with_elevation = points
+    if is_terrain_follow and dem:
+        temp_dir = f"/tmp/{uuid.uuid4()}"
+        try:
+            os.makedirs(temp_dir, exist_ok=True)
+            dem_path = os.path.join(temp_dir, "dem.tif")
+            outfile_with_elevation = os.path.join(
+                temp_dir, "output_file_with_elevation.geojson"
+            )
+
+            with open(dem_path, "wb") as dem_file:
+                dem_file.write(await dem.read())
+
+            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+
+            with open(outfile_with_elevation, "r") as inpointsfile:
+                points_with_elevation = inpointsfile.read()
+        except Exception as e:
+            log.error(f"Error processing DEM: {e}")
+
+        finally:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+
     return {
-        "avg_no_of_waypoints": len(json.loads(points)["features"]),
+        "avg_no_of_waypoints": len(json.loads(points_with_elevation)["features"]),
     }
