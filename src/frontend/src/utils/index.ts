@@ -214,39 +214,6 @@ export function calculateCentroidFromCoordinates(coordinates: any[]) {
   return [RadtoDegrees(lat), RadtoDegrees(lon)];
 }
 
-type Coordinate = [number, number];
-type GeoJSONFeature = {
-  type: 'Feature';
-  geometry: {
-    type: 'LineString' | 'Polygon';
-    coordinates: Coordinate[] | Coordinate[][];
-  };
-  properties: Record<string, any>;
-};
-
-export function swapFirstAndLastCoordinate(
-  geojson: GeoJSONFeature,
-): GeoJSONFeature {
-  // Clone the GeoJSON object to avoid mutation
-  const updatedGeoJSON: GeoJSONFeature = {
-    ...geojson,
-    geometry: { ...geojson.geometry },
-  };
-
-  if (geojson.geometry.type === 'LineString') {
-    const coordinates = [...(geojson.geometry.coordinates as Coordinate[])];
-
-    // Swap the first and last coordinates
-    [coordinates[0], coordinates[coordinates.length - 1]] = [
-      coordinates[coordinates.length - 1],
-      coordinates[0],
-    ];
-    updatedGeoJSON.geometry.coordinates = coordinates;
-  }
-
-  return updatedGeoJSON;
-}
-
 export function findNearestCoordinate(
   coord1: number[],
   coord2: number[],
