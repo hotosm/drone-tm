@@ -1,3 +1,7 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-param-reassign */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable prefer-destructuring */
 /* eslint-disable react/no-array-index-key */
 import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from '@Api/tasks';
 import marker from '@Assets/images/marker.png';
@@ -37,13 +41,11 @@ import ToolTip from '@Components/RadixComponents/ToolTip';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
-import {
-  calculateAngle,
-  calculateCentroid,
-  // calculateCentroidFromCoordinates,
-} from '@Utils/index';
 import { useGetProjectsDetailQuery } from '@Api/projects';
 import { toast } from 'react-toastify';
+import RotatingCircle from '@Components/common/RotationCue';
+import { mapLayerIDs } from '@Constants/droneOperator';
+import { getLastCoordinates } from '@Utils/index';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 
@@ -51,15 +53,12 @@ const { COG_URL } = process.env;
 
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
-  const [rotationDegree, setRotationDegree] = useState<number>(0);
   const bboxRef = useRef<number[]>();
   const mapRef = useRef<Map>();
-  const rotatedTaskWayPointsRef = useRef<Record<string, any>>();
   const [taskWayPoints, setTaskWayPoints] = useState<Record<
     string,
     any
   > | null>();
-  const draggingRef = useRef(false);
   const { projectId, taskId } = useParams();
   const centeroidRef = useRef<[number, number]>();
   const queryClient = useQueryClient();
@@ -67,6 +66,8 @@ const MapSection = ({ className }: { className?: string }) => {
   const [showOrthoPhotoLayer, setShowOrthoPhotoLayer] = useState(true);
   const [showTakeOffPoint, setShowTakeOffPoint] = useState(true);
   const [isRotationEnabled, setIsRotationEnabled] = useState(false);
+  const [rotationAngle, setRotationAngle] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -84,6 +85,12 @@ const MapSection = ({ className }: { className?: string }) => {
     if (!map || !isMapLoaded) return;
     mapRef.current = map;
   }, [map, isMapLoaded]);
+
+  function setVisibilityOfLayers(layerIds: string[], visibility: string) {
+    layerIds.forEach(layerId => {
+      map?.setLayoutProperty(layerId, 'visibility', visibility);
+    });
+  }
 
   const {
     data: taskDataPolygon,
@@ -253,49 +260,60 @@ const MapSection = ({ className }: { className?: string }) => {
 
   function handleTaskWayPoint() {
     if (!map || !isMapLoaded) return;
-    map.setLayoutProperty(
-      'waypoint-points-layer',
-      'visibility',
+    setVisibilityOfLayers(
+      mapLayerIDs,
       `${!showTakeOffPoint ? 'visible' : 'none'}`,
     );
-    map.setLayoutProperty(
-      'waypoint-points-image-layer',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
-    map.setLayoutProperty(
-      'waypoint-line-layer',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
-    map.setLayoutProperty(
-      'waypoint-points-image-image/logo',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
-    map.setLayoutProperty(
-      'waypoint-line-image/logo',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
+    // map.setLayoutProperty(
+    //   'waypoint-points-layer',
+    //   'visibility',
+    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    // );
+    // map.setLayoutProperty(
+    //   'waypoint-points-image-layer',
+    //   'visibility',
+    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    // );
+    // map.setLayoutProperty(
+    //   'waypoint-line-layer',
+    //   'visibility',
+    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    // );
+    // map.setLayoutProperty(
+    //   'waypoint-points-image-image/logo',
+    //   'visibility',
+    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    // );
+    // map.setLayoutProperty(
+    //   'waypoint-line-image/logo',
+    //   'visibility',
+    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
+    // );
     setShowTakeOffPoint(!showTakeOffPoint);
   }
 
   const rotateLayerGeoJSON = (
     layerIds: string[],
     rotationDegreeParam: number,
+    baseLayerIds: string[],
   ) => {
     if (!mapRef.current) return;
 
-    layerIds.forEach(layerId => {
-      const source = mapRef.current?.getSource(layerId);
+    baseLayerIds.forEach((baseLayerId, index) => {
+      const source = mapRef.current?.getSource(baseLayerId);
+      const sourceToRotate = mapRef.current?.getSource(layerIds[index]);
 
       if (source && source instanceof GeoJSONSource) {
-        // eslint-disable-next-line no-underscore-dangle
-        const geojsonData = source._data;
-        // @ts-ignore
-        const rotatedGeoJSON = rotateGeoJSON(geojsonData, rotationDegreeParam);
-        source.setData(rotatedGeoJSON);
+        const baseGeoData = source._data;
+        const rotatedGeoJSON = rotateGeoJSON(
+          // @ts-ignore
+          baseGeoData,
+          rotationDegreeParam,
+        );
+        if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
+          // @ts-ignore
+          sourceToRotate.setData(rotatedGeoJSON);
+        }
       }
     });
   };
@@ -321,81 +339,122 @@ const MapSection = ({ className }: { className?: string }) => {
     };
   }, [taskWayPointsData]);
 
-  useEffect(() => {
-    if (!rotatedTaskWayPoints) return;
-    rotatedTaskWayPointsRef.current = rotatedTaskWayPoints;
-  }, [rotatedTaskWayPoints]);
+  function findNearestCoordinate(
+    coord1: number[],
+    coord2: number[],
+    center: number[],
+  ) {
+    // Function to calculate distance between two points
+    const calculateDistance = (point1: number[], point2: number[]) => {
+      const xDiff = point2[0] - point1[0];
+      const yDiff = point2[1] - point1[1];
+      return Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+    };
 
-  // function that handles drag and calculates rotation
-  const handleDrag = useCallback((event: any) => {
-    if (!draggingRef.current) {
-      draggingRef.current = true;
-    }
-    const { originalCoordinates } = event;
-    const centroidCoordinates = calculateCentroid(bboxRef.current || []);
+    // Calculate the distance of the first and second coordinates from the center
+    const distance1 = calculateDistance(coord1, center);
+    const distance2 = calculateDistance(coord2, center);
 
-    const calculatedAngleFromCoordinates = calculateAngle(
-      [originalCoordinates[0], originalCoordinates[1]],
-      [event.lngLat?.lng, event.lngLat?.lat],
-      [centroidCoordinates.lng, centroidCoordinates.lat],
-    );
-    // Update rotation continuously while dragging
-    setRotationDegree(calculatedAngleFromCoordinates);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function getGeoJSONDataFromMap(sourceIds: string[]) {
-    const geojsonData: Record<string, any> = {};
-
-    if (!mapRef.current) return geojsonData;
-    sourceIds.forEach(sourceId => {
-      const source = mapRef.current?.getSource(sourceId);
-      if (source && source instanceof GeoJSONSource) {
-        // eslint-disable-next-line no-underscore-dangle
-        geojsonData[sourceId] = source._data;
-      }
-    });
-
-    return geojsonData;
+    // Return the nearest coordinate
+    return distance1 <= distance2 ? 'first' : 'second';
   }
 
-  // function to handle end of drag
-  const handleDragEnd = useCallback(() => {
-    const dataRetrieved = getGeoJSONDataFromMap([
-      'rotated-waypoint-line',
-      'rotated-waypoint-points',
-      'rotated-waypoint-points-image',
-    ]);
-    const newTaskGeoJson = {
-      geojsonAsLineString: dataRetrieved['rotated-waypoint-line'],
-      geojsonListOfPoint: dataRetrieved['rotated-waypoint-points'],
-    };
-    setTaskWayPoints(newTaskGeoJson);
-    if (draggingRef.current) {
-      draggingRef.current = false; // Reset dragging state
+  function updateLayerCoordinates(
+    layerIds: Record<string, any>[],
+    coordinate: [number, number],
+  ) {
+    // Iterate over the array of layer IDs
+    if (!map || !isMapLoaded) return;
+    layerIds.forEach(layerId => {
+      // Check if the layer is of type 'symbol' (or any other type)
+      const source = map.getSource(layerId.id); // Get the source of the layer
+
+      // Update the feature on the map
+
+      if (source && source instanceof GeoJSONSource) {
+        const geoJsonData = source._data;
+        // @ts-ignore
+        const { features, ...restGeoData } = geoJsonData;
+        const coordinates = features[0].geometry.coordinates;
+        if (layerId.type === 'MultiString') {
+          const nearestCoordinate = findNearestCoordinate(
+            coordinates[0],
+            coordinates[coordinates.length - 1],
+            centeroidRef.current || [0, 0],
+          );
+          let indexToReplace = 0;
+          if (nearestCoordinate === 'second') {
+            indexToReplace = coordinates.length - 1;
+          }
+          features[0].geometry.coordinates[indexToReplace] = coordinate;
+          source.setData({ features, ...restGeoData });
+        }
+        if (layerId.type === 'Points') {
+          const nearestPoint = findNearestCoordinate(
+            coordinates,
+            features[features.length - 1].geometry.coordinates,
+            centeroidRef.current || [0, 0],
+          );
+          let pointIndexToReplace = 0;
+          if (nearestPoint === 'second') {
+            pointIndexToReplace = features.length - 1;
+          }
+          features[pointIndexToReplace].geometry.coordinates = coordinate;
+          const updatedFeatures = features.map((featurex: any) => {
+            if (pointIndexToReplace === 0) return featurex;
+            return {
+              ...featurex,
+              properties: {
+                ...featurex.properties,
+                heading: -90,
+              },
+            };
+          });
+          source.setData({ features: updatedFeatures, ...restGeoData });
+        }
+        // console.log(modifiedGeoJson, 'modifiedGeoJson');
+      }
+    });
+  }
+
+  useEffect(() => {
+    if (!dragging) {
+      rotateLayerGeoJSON(['waypoint-line', 'waypoint-points'], rotationAngle, [
+        'waypoint-line',
+        'waypoint-points',
+      ]);
+      updateLayerCoordinates(
+        [
+          { id: 'waypoint-line', type: 'MultiString' },
+          { id: 'waypoint-points', type: 'Points' },
+        ],
+        centeroidRef.current || [0, 0],
+      );
+
+      return;
     }
-  }, []);
+    rotateLayerGeoJSON(
+      ['rotated-waypoint-line', 'rotated-waypoint-points'],
+      rotationAngle,
+      ['waypoint-line', 'waypoint-points'],
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rotationAngle, dragging]);
 
   function handleRotationToggle() {
     if (!map || !isMapLoaded) return;
     setIsRotationEnabled(!isRotationEnabled);
-    if (!isRotationEnabled) {
-      map.dragPan.disable();
-    } else {
-      map.dragPan.enable();
-    }
   }
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
 
-  // Call the function to update rotation for each layer
-  rotateLayerGeoJSON(
-    [
-      'rotated-waypoint-line',
-      'rotated-waypoint-points',
-      'rotated-waypoint-points-image',
-    ],
-    rotationDegree,
-  );
+    if (!dragging) {
+      setVisibilityOfLayers(mapLayerIDs, 'visible');
+      return;
+    }
+    setVisibilityOfLayers(mapLayerIDs, 'none');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging, isMapLoaded, map]);
 
   return (
     <>
@@ -436,9 +495,6 @@ const MapSection = ({ className }: { className?: string }) => {
                 image={right}
                 symbolPlacement="line"
                 iconAnchor="center"
-                onDrag={handleDrag}
-                onDragEnd={handleDragEnd}
-                needDragEvent={isRotationEnabled}
               />
               {/* render points */}
               <VectorLayer
@@ -470,9 +526,6 @@ const MapSection = ({ className }: { className?: string }) => {
                     ],
                   },
                 }}
-                onDrag={handleDrag}
-                onDragEnd={handleDragEnd}
-                needDragEvent={isRotationEnabled}
               />
               {/* render image and only if index is 0 */}
               <VectorLayer
@@ -488,12 +541,10 @@ const MapSection = ({ className }: { className?: string }) => {
                 imageLayerOptions={{
                   filter: ['==', 'index', 0],
                 }}
-                onDrag={handleDrag}
-                onDragEnd={handleDragEnd}
               />
             </>
           )}
-          {isRotationEnabled && draggingRef.current && (
+          {isRotationEnabled && dragging && (
             <>
               {/* render line */}
               <VectorLayer
@@ -550,8 +601,6 @@ const MapSection = ({ className }: { className?: string }) => {
                     ],
                   },
                 }}
-                onDrag={handleDrag}
-                onDragEnd={handleDragEnd}
               />
               {/* render image and only if index is 0 */}
               <VectorLayer
@@ -569,8 +618,6 @@ const MapSection = ({ className }: { className?: string }) => {
                 imageLayerOptions={{
                   filter: ['==', 'index', 0],
                 }}
-                onDrag={handleDrag}
-                onDragEnd={handleDragEnd}
               />
             </>
           )}
@@ -619,7 +666,7 @@ const MapSection = ({ className }: { className?: string }) => {
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${isRotationEnabled ? 'naxatw-border-red' : 'naxatw-border-gray-400'}`}
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${isRotationEnabled ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'}`}
               onClick={() => handleRotationToggle()}
             >
               <ToolTip
@@ -635,7 +682,7 @@ const MapSection = ({ className }: { className?: string }) => {
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
               onClick={() => handleTaskWayPoint()}
             >
               <ToolTip
@@ -655,7 +702,7 @@ const MapSection = ({ className }: { className?: string }) => {
               <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[10.75rem] naxatw-z-30 naxatw-h-fit">
                 <Button
                   variant="ghost"
-                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red' : 'naxatw-border-gray-400'}`}
+                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'}`}
                   onClick={() => handleOtrhophotoLayerView()}
                 >
                   <ToolTip
@@ -701,6 +748,16 @@ const MapSection = ({ className }: { className?: string }) => {
               image={marker}
               iconAnchor="bottom"
             />
+          )}
+          {isRotationEnabled && (
+            <div className="naxatw-absolute naxatw-right-2 naxatw-top-8 naxatw-z-50">
+              <RotatingCircle
+                setRotation={setRotationAngle}
+                rotation={rotationAngle}
+                dragging={dragging}
+                setDragging={setDragging}
+              />
+            </div>
           )}
 
           {taskAssetsInformation?.assets_url && (
