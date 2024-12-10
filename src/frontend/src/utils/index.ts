@@ -213,3 +213,88 @@ export function calculateCentroidFromCoordinates(coordinates: any[]) {
   // Convert the results to degrees
   return [RadtoDegrees(lat), RadtoDegrees(lon)];
 }
+
+type Coordinate = [number, number];
+type GeoJSONFeature = {
+  type: 'Feature';
+  geometry: {
+    type: 'LineString' | 'Polygon';
+    coordinates: Coordinate[] | Coordinate[][];
+  };
+  properties: Record<string, any>;
+};
+
+export function swapFirstAndLastCoordinate(
+  geojson: GeoJSONFeature,
+): GeoJSONFeature {
+  // Clone the GeoJSON object to avoid mutation
+  const updatedGeoJSON: GeoJSONFeature = {
+    ...geojson,
+    geometry: { ...geojson.geometry },
+  };
+
+  if (geojson.geometry.type === 'LineString') {
+    const coordinates = [...(geojson.geometry.coordinates as Coordinate[])];
+    if (coordinates.length < 2) {
+      throw new Error('LineString must have at least two coordinates to swap.');
+    }
+    // Swap the first and last coordinates
+    [coordinates[0], coordinates[coordinates.length - 1]] = [
+      coordinates[coordinates.length - 1],
+      coordinates[0],
+    ];
+    updatedGeoJSON.geometry.coordinates = coordinates;
+  } else if (geojson.geometry.type === 'Polygon') {
+    const coordinates = [...(geojson.geometry.coordinates as Coordinate[][])];
+    const firstRing = coordinates[0];
+    if (!firstRing || firstRing.length < 2) {
+      throw new Error(
+        'Polygon must have at least two coordinates in the first ring to swap.',
+      );
+    }
+    // Swap the first and last coordinates of the first ring
+    [firstRing[0], firstRing[firstRing.length - 1]] = [
+      firstRing[firstRing.length - 1],
+      firstRing[0],
+    ];
+    updatedGeoJSON.geometry.coordinates = coordinates;
+  } else {
+    throw new Error(
+      'Unsupported geometry type. Only LineString and Polygon are supported.',
+    );
+  }
+
+  return updatedGeoJSON;
+}
+
+export function findNearestCoordinate(
+  coord1: number[],
+  coord2: number[],
+  center: number[],
+) {
+  // Function to calculate distance between two points
+  const calculateDistance = (point1: number[], point2: number[]) => {
+    const xDiff = point2[0] - point1[0];
+    const yDiff = point2[1] - point1[1];
+    return Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+  };
+
+  // Calculate the distance of the first and second coordinates from the center
+  const distance1 = calculateDistance(coord1, center);
+  const distance2 = calculateDistance(coord2, center);
+
+  // Return the nearest coordinate
+  return distance1 <= distance2 ? 'first' : 'second';
+}
+
+export function swapFirstAndLast<T>(arr: T[]): T[] {
+  if (arr.length < 2) {
+    throw new Error('Array must have at least two elements to swap.');
+  }
+
+  // Swap the first and last elements using destructuring
+  // eslint-disable-next-line no-param-reassign
+  [arr[0], arr[arr.length - 1]] = [arr[arr.length - 1], arr[0]];
+
+  return arr;
+}
