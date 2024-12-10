@@ -8,13 +8,13 @@ import marker from '@Assets/images/marker.png';
 import right from '@Assets/images/rightArrow.png';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { Button } from '@Components/RadixComponents/Button';
 import { postTaskWaypoint } from '@Services/tasks';
+import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 import { toggleModal } from '@Store/actions/common';
 import {
   setSelectedTakeOffPoint,
@@ -45,7 +45,11 @@ import { useGetProjectsDetailQuery } from '@Api/projects';
 import { toast } from 'react-toastify';
 import RotatingCircle from '@Components/common/RotationCue';
 import { mapLayerIDs } from '@Constants/droneOperator';
-import { getLastCoordinates } from '@Utils/index';
+import {
+  findNearestCoordinate,
+  getLastCoordinates,
+  swapFirstAndLast,
+} from '@Utils/index';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 
@@ -54,13 +58,12 @@ const { COG_URL } = process.env;
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
   const bboxRef = useRef<number[]>();
-  const mapRef = useRef<Map>();
   const [taskWayPoints, setTaskWayPoints] = useState<Record<
     string,
     any
   > | null>();
   const { projectId, taskId } = useParams();
-  const centeroidRef = useRef<[number, number]>();
+  const takeOffPointRef = useRef<[number, number]>();
   const queryClient = useQueryClient();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const [showOrthoPhotoLayer, setShowOrthoPhotoLayer] = useState(true);
@@ -81,11 +84,6 @@ const MapSection = ({ className }: { className?: string }) => {
     state => state.droneOperatorTask.selectedTakeOffPoint,
   );
 
-  useEffect(() => {
-    if (!map || !isMapLoaded) return;
-    mapRef.current = map;
-  }, [map, isMapLoaded]);
-
   function setVisibilityOfLayers(layerIds: string[], visibility: string) {
     layerIds.forEach(layerId => {
       map?.setLayoutProperty(layerId, 'visibility', visibility);
@@ -94,7 +92,7 @@ const MapSection = ({ className }: { className?: string }) => {
 
   const {
     data: taskDataPolygon,
-    // isFetching: isProjectDataFetching,
+    isFetching: isProjectDataFetching,
   }: Record<string, any> = useGetProjectsDetailQuery(projectId as string, {
     select: (projectRes: any) => {
       const taskPolygon = projectRes.data.tasks.find(
@@ -135,7 +133,7 @@ const MapSection = ({ className }: { className?: string }) => {
             ],
           },
         };
-        centeroidRef.current =
+        takeOffPointRef.current =
           modifiedTaskWayPointsData?.geojsonListOfPoint?.features[0]?.geometry?.coordinates;
         return modifiedTaskWayPointsData;
       },
@@ -162,7 +160,6 @@ const MapSection = ({ className }: { className?: string }) => {
   // zoom to task (waypoint)
   useEffect(() => {
     if (!taskWayPoints?.geojsonAsLineString || !isMapLoaded || !map) return;
-    const { geojsonAsLineString } = taskWayPoints;
     let bbox = null;
     // calculate bbox with with updated take-off point
     if (newTakeOffPoint && newTakeOffPoint !== 'place_on_map') {
@@ -170,19 +167,26 @@ const MapSection = ({ className }: { className?: string }) => {
         type: 'FeatureCollection',
         features: [
           // @ts-ignore
-          ...geojsonAsLineString.features,
+          ...taskDataPolygon.features,
           newTakeOffPoint,
         ],
       };
       bbox = getBbox(combinedFeatures);
     } else {
-      bbox = getBbox(geojsonAsLineString as FeatureCollection);
+      bbox = getBbox(taskDataPolygon as FeatureCollection);
     }
     bboxRef.current = bbox;
     if (!isRotationEnabled) {
-      map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
+      map?.fitBounds(bbox as LngLatBoundsLike, { padding: 105, duration: 500 });
     }
-  }, [map, taskWayPoints, newTakeOffPoint, isMapLoaded, isRotationEnabled]);
+  }, [
+    map,
+    taskWayPoints,
+    taskDataPolygon,
+    newTakeOffPoint,
+    isMapLoaded,
+    isRotationEnabled,
+  ]);
 
   const getPopupUI = useCallback(() => {
     return (
@@ -264,31 +268,6 @@ const MapSection = ({ className }: { className?: string }) => {
       mapLayerIDs,
       `${!showTakeOffPoint ? 'visible' : 'none'}`,
     );
-    // map.setLayoutProperty(
-    //   'waypoint-points-layer',
-    //   'visibility',
-    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    // );
-    // map.setLayoutProperty(
-    //   'waypoint-points-image-layer',
-    //   'visibility',
-    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    // );
-    // map.setLayoutProperty(
-    //   'waypoint-line-layer',
-    //   'visibility',
-    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    // );
-    // map.setLayoutProperty(
-    //   'waypoint-points-image-image/logo',
-    //   'visibility',
-    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    // );
-    // map.setLayoutProperty(
-    //   'waypoint-line-image/logo',
-    //   'visibility',
-    //   `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    // );
     setShowTakeOffPoint(!showTakeOffPoint);
   }
 
@@ -297,11 +276,11 @@ const MapSection = ({ className }: { className?: string }) => {
     rotationDegreeParam: number,
     baseLayerIds: string[],
   ) => {
-    if (!mapRef.current) return;
+    if (!map || !isMapLoaded) return;
 
     baseLayerIds.forEach((baseLayerId, index) => {
-      const source = mapRef.current?.getSource(baseLayerId);
-      const sourceToRotate = mapRef.current?.getSource(layerIds[index]);
+      const source = map?.getSource(baseLayerId);
+      const sourceToRotate = map?.getSource(layerIds[index]);
 
       if (source && source instanceof GeoJSONSource) {
         const baseGeoData = source._data;
@@ -339,26 +318,6 @@ const MapSection = ({ className }: { className?: string }) => {
     };
   }, [taskWayPointsData]);
 
-  function findNearestCoordinate(
-    coord1: number[],
-    coord2: number[],
-    center: number[],
-  ) {
-    // Function to calculate distance between two points
-    const calculateDistance = (point1: number[], point2: number[]) => {
-      const xDiff = point2[0] - point1[0];
-      const yDiff = point2[1] - point1[1];
-      return Math.sqrt(xDiff * xDiff + yDiff * yDiff);
-    };
-
-    // Calculate the distance of the first and second coordinates from the center
-    const distance1 = calculateDistance(coord1, center);
-    const distance2 = calculateDistance(coord2, center);
-
-    // Return the nearest coordinate
-    return distance1 <= distance2 ? 'first' : 'second';
-  }
-
   function updateLayerCoordinates(
     layerIds: Record<string, any>[],
     coordinate: [number, number],
@@ -380,39 +339,47 @@ const MapSection = ({ className }: { className?: string }) => {
           const nearestCoordinate = findNearestCoordinate(
             coordinates[0],
             coordinates[coordinates.length - 1],
-            centeroidRef.current || [0, 0],
+            takeOffPointRef.current || [0, 0],
           );
           let indexToReplace = 0;
           if (nearestCoordinate === 'second') {
-            indexToReplace = coordinates.length - 1;
+            indexToReplace = coordinates.length;
           }
           features[0].geometry.coordinates[indexToReplace] = coordinate;
+          const updatedLineStringData = features[0].geometry.coordinates;
+          if (indexToReplace !== 0) {
+            updatedLineStringData.reverse().pop();
+          }
           source.setData({ features, ...restGeoData });
         }
         if (layerId.type === 'Points') {
           const nearestPoint = findNearestCoordinate(
             coordinates,
             features[features.length - 1].geometry.coordinates,
-            centeroidRef.current || [0, 0],
+            takeOffPointRef.current || [0, 0],
           );
           let pointIndexToReplace = 0;
           if (nearestPoint === 'second') {
-            pointIndexToReplace = features.length - 1;
+            pointIndexToReplace = features.length;
+          }
+          if (pointIndexToReplace !== 0) {
+            features.push({
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [],
+              },
+              properties: {},
+            });
           }
           features[pointIndexToReplace].geometry.coordinates = coordinate;
-          const updatedFeatures = features.map((featurex: any) => {
-            if (pointIndexToReplace === 0) return featurex;
-            return {
-              ...featurex,
-              properties: {
-                ...featurex.properties,
-                heading: -90,
-              },
-            };
-          });
-          source.setData({ features: updatedFeatures, ...restGeoData });
+          let rotatedFeatures = features;
+          if (pointIndexToReplace !== 0) {
+            rotatedFeatures = swapFirstAndLast(rotatedFeatures);
+            features.pop();
+          }
+          source.setData({ features, ...restGeoData });
         }
-        // console.log(modifiedGeoJson, 'modifiedGeoJson');
       }
     });
   }
@@ -428,7 +395,7 @@ const MapSection = ({ className }: { className?: string }) => {
           { id: 'waypoint-line', type: 'MultiString' },
           { id: 'waypoint-points', type: 'Points' },
         ],
-        centeroidRef.current || [0, 0],
+        takeOffPointRef.current || [0, 0],
       );
 
       return;
@@ -459,11 +426,10 @@ const MapSection = ({ className }: { className?: string }) => {
   return (
     <>
       <div
-        className={`naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
+        className={`naxatw-relative naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
       >
         <MapContainer
           map={map}
-          ref={mapRef}
           isMapLoaded={isMapLoaded}
           containerId="dashboard-map"
           style={{
@@ -474,7 +440,7 @@ const MapSection = ({ className }: { className?: string }) => {
           <BaseLayerSwitcherUI />
           <LocateUser isMapLoaded={isMapLoaded} />
 
-          {taskWayPoints && (
+          {taskWayPoints && !isProjectDataFetching && (
             <>
               {/* render line */}
               <VectorLayer
@@ -602,48 +568,9 @@ const MapSection = ({ className }: { className?: string }) => {
                   },
                 }}
               />
-              {/* render image and only if index is 0 */}
-              <VectorLayer
-                map={map as Map}
-                isMapLoaded={isMapLoaded}
-                id="rotated-waypoint-points-image"
-                geojson={
-                  rotatedTaskWayPoints?.geojsonListOfPoint as GeojsonType
-                }
-                visibleOnMap={!!taskWayPoints}
-                layerOptions={{}}
-                hasImage
-                image={marker}
-                iconAnchor="bottom"
-                imageLayerOptions={{
-                  filter: ['==', 'index', 0],
-                }}
-              />
             </>
           )}
 
-          <VectorLayer
-            map={map as Map}
-            id="task-polygon"
-            visibleOnMap={taskDataPolygon}
-            geojson={taskDataPolygon as GeojsonType}
-            interactions={['feature']}
-            layerOptions={{
-              type: 'fill',
-              paint: {
-                'fill-color': '#98BBC8',
-                'fill-outline-color': '#484848',
-                'fill-opacity': 0.6,
-              },
-            }}
-            // layerOptions={getLayerOptionsByStatus(
-            //   taskStatusObj?.[`${task?.id}`],
-            // )}
-            // hasImage={
-            //   taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
-            // }
-            // image={lock}
-          />
           <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
             <Button
               withLoader
@@ -679,7 +606,7 @@ const MapSection = ({ className }: { className?: string }) => {
             </Button>
           </div>
 
-          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit">
+          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit naxatw-overflow-hidden">
             <Button
               variant="ghost"
               className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
@@ -768,6 +695,29 @@ const MapSection = ({ className }: { className?: string }) => {
               zoomToLayer
             />
           )}
+
+          <VectorLayer
+            map={map as Map}
+            id="task-polygon"
+            visibleOnMap={taskDataPolygon}
+            geojson={taskDataPolygon as GeojsonType}
+            interactions={['feature']}
+            layerOptions={{
+              type: 'fill',
+              paint: {
+                'fill-color': '#98BBC8',
+                'fill-outline-color': '#484848',
+                'fill-opacity': 0.6,
+              },
+            }}
+            // layerOptions={getLayerOptionsByStatus(
+            //   taskStatusObj?.[`${task?.id}`],
+            // )}
+            // hasImage={
+            //   taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
+            // }
+            // image={lock}
+          />
 
           {newTakeOffPoint === 'place_on_map' && (
             <GetCoordinatesOnClick
