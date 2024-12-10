@@ -222,8 +222,11 @@ const MapSection = ({ className }: { className?: string }) => {
   }, [popupData]);
 
   const handleSaveStartingPoint = () => {
-    const { geometry } = newTakeOffPoint as Record<string, any>;
-    const [lng, lat] = geometry.coordinates;
+    const { geometry: startingPonyGeometry } = newTakeOffPoint as Record<
+      string,
+      any
+    >;
+    const [lng, lat] = startingPonyGeometry.coordinates;
     postWaypoint({
       projectId,
       taskId,
@@ -275,6 +278,7 @@ const MapSection = ({ className }: { className?: string }) => {
     layerIds: string[],
     rotationDegreeParam: number,
     baseLayerIds: string[],
+    excludeFirstFeature?: boolean,
   ) => {
     if (!map || !isMapLoaded) return;
 
@@ -284,14 +288,51 @@ const MapSection = ({ className }: { className?: string }) => {
 
       if (source && source instanceof GeoJSONSource) {
         const baseGeoData = source._data;
-        const rotatedGeoJSON = rotateGeoJSON(
-          // @ts-ignore
-          baseGeoData,
-          rotationDegreeParam,
-        );
-        if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
-          // @ts-ignore
-          sourceToRotate.setData(rotatedGeoJSON);
+        if (!baseGeoData) return;
+        const [firstFeature, ...restFeatures] = (
+          baseGeoData as Record<string, any>
+        ).features;
+        if (firstFeature.geometry.type === 'Point') {
+          const pointRotatedGeoJson = rotateGeoJSON(
+            // @ts-ignore
+            {
+              ...(baseGeoData as object),
+              features: excludeFirstFeature
+                ? restFeatures
+                : [firstFeature, ...restFeatures],
+            },
+            rotationDegreeParam,
+          );
+          if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
+            // @ts-ignore
+            sourceToRotate.setData(pointRotatedGeoJson);
+          }
+        }
+        if (firstFeature.geometry.type === 'LineString') {
+          const [firstCoordinate, ...restCoordinates] =
+            firstFeature.geometry.coordinates;
+          const rotatedGeoJson = rotateGeoJSON(
+            {
+              features: [
+                // @ts-ignore
+                {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: excludeFirstFeature
+                      ? restCoordinates
+                      : [firstCoordinate, ...restCoordinates],
+                  },
+                },
+              ],
+              type: 'FeatureCollection',
+            },
+            rotationDegreeParam,
+          );
+          if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
+            // @ts-ignore
+            sourceToRotate.setData(rotatedGeoJson);
+          }
         }
       }
     });
@@ -386,10 +427,12 @@ const MapSection = ({ className }: { className?: string }) => {
 
   useEffect(() => {
     if (!dragging) {
-      rotateLayerGeoJSON(['waypoint-line', 'waypoint-points'], rotationAngle, [
-        'waypoint-line',
-        'waypoint-points',
-      ]);
+      rotateLayerGeoJSON(
+        ['waypoint-line', 'waypoint-points'],
+        rotationAngle,
+        ['waypoint-line', 'waypoint-points'],
+        false,
+      );
       updateLayerCoordinates(
         [
           { id: 'waypoint-line', type: 'MultiString' },
@@ -404,6 +447,7 @@ const MapSection = ({ className }: { className?: string }) => {
       ['rotated-waypoint-line', 'rotated-waypoint-points'],
       rotationAngle,
       ['waypoint-line', 'waypoint-points'],
+      true,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rotationAngle, dragging]);
