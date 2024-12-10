@@ -716,7 +716,7 @@ const MapSection = ({ className }: { className?: string }) => {
             />
           )}
           {isRotationEnabled && (
-            <div className="naxatw-absolute naxatw-right-2 naxatw-top-8 naxatw-z-50">
+            <div className="naxatw-absolute naxatw-bottom-4 naxatw-right-[calc(50%-5.4rem)] naxatw-z-50 lg:naxatw-right-2 lg:naxatw-top-8">
               <RotatingCircle
                 setRotation={setRotationAngle}
                 rotation={rotationAngle}
