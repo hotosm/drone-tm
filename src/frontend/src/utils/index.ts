@@ -235,33 +235,13 @@ export function swapFirstAndLastCoordinate(
 
   if (geojson.geometry.type === 'LineString') {
     const coordinates = [...(geojson.geometry.coordinates as Coordinate[])];
-    if (coordinates.length < 2) {
-      throw new Error('LineString must have at least two coordinates to swap.');
-    }
+
     // Swap the first and last coordinates
     [coordinates[0], coordinates[coordinates.length - 1]] = [
       coordinates[coordinates.length - 1],
       coordinates[0],
     ];
     updatedGeoJSON.geometry.coordinates = coordinates;
-  } else if (geojson.geometry.type === 'Polygon') {
-    const coordinates = [...(geojson.geometry.coordinates as Coordinate[][])];
-    const firstRing = coordinates[0];
-    if (!firstRing || firstRing.length < 2) {
-      throw new Error(
-        'Polygon must have at least two coordinates in the first ring to swap.',
-      );
-    }
-    // Swap the first and last coordinates of the first ring
-    [firstRing[0], firstRing[firstRing.length - 1]] = [
-      firstRing[firstRing.length - 1],
-      firstRing[0],
-    ];
-    updatedGeoJSON.geometry.coordinates = coordinates;
-  } else {
-    throw new Error(
-      'Unsupported geometry type. Only LineString and Polygon are supported.',
-    );
   }
 
   return updatedGeoJSON;
