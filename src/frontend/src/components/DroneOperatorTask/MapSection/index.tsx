@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable prefer-destructuring */
@@ -45,11 +44,7 @@ import { useGetProjectsDetailQuery } from '@Api/projects';
 import { toast } from 'react-toastify';
 import RotatingCircle from '@Components/common/RotationCue';
 import { mapLayerIDs } from '@Constants/droneOperator';
-import {
-  findNearestCoordinate,
-  getLastCoordinates,
-  swapFirstAndLast,
-} from '@Utils/index';
+import { findNearestCoordinate, swapFirstAndLast } from '@Utils/index';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 
@@ -414,9 +409,9 @@ const MapSection = ({ className }: { className?: string }) => {
             });
           }
           features[pointIndexToReplace].geometry.coordinates = coordinate;
-          let rotatedFeatures = features;
+          const rotatedFeatures = features;
           if (pointIndexToReplace !== 0) {
-            rotatedFeatures = swapFirstAndLast(rotatedFeatures);
+            swapFirstAndLast(rotatedFeatures);
             features.pop();
           }
           source.setData({ features, ...restGeoData });
