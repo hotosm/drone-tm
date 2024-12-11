@@ -45,6 +45,7 @@ import Skeleton from '@Components/RadixComponents/Skeleton';
 import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import { toast } from 'react-toastify';
+import { FlexColumn } from '@Components/common/Layouts';
 import RotatingCircle from '@Components/common/RotationCue';
 import { mapLayerIDs } from '@Constants/droneOperator';
 import { findNearestCoordinate, swapFirstAndLast } from '@Utils/index';
@@ -623,25 +624,45 @@ const MapSection = ({ className }: { className?: string }) => {
             </>
           )}
 
-          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
-            <Button
-              withLoader
-              leftIcon="place"
-              className="naxatw-w-[11.8rem] naxatw-bg-red"
-              onClick={() => {
-                if (newTakeOffPoint) {
-                  handleSaveStartingPoint();
-                } else {
-                  dispatch(toggleModal('update-flight-take-off-point'));
-                }
-              }}
-              isLoading={isUpdatingTakeOffPoint}
-            >
-              {newTakeOffPoint
-                ? 'Save Take off Point'
-                : 'Change Take off Point'}
-            </Button>
-          </div>
+          {/* {!isRotationEnabled && (
+            <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
+              <Button
+                withLoader
+                leftIcon="place"
+                className="naxatw-w-[11.8rem] naxatw-bg-red"
+                onClick={() => {
+                  if (newTakeOffPoint) {
+                    handleSaveStartingPoint();
+                  } else {
+                    dispatch(toggleModal('update-flight-take-off-point'));
+                  }
+                }}
+                isLoading={isUpdatingTakeOffPoint}
+              >
+                {newTakeOffPoint
+                  ? 'Save Take off Point'
+                  : 'Change Take off Point'}
+              </Button>
+            </div>
+          )} */}
+          {isRotationEnabled && (
+            <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-50 naxatw-h-fit naxatw-cursor-pointer lg:naxatw-right-3 lg:naxatw-top-3">
+              <Button
+                withLoader
+                leftIcon="save"
+                className="naxatw-h-[3rem] naxatw-w-[10.8rem] naxatw-bg-red"
+              >
+                <FlexColumn className="naxatw-gap-1">
+                  <p className="naxatw-leading-3 naxatw-tracking-wide">
+                    Save Rotated Flight Plan
+                  </p>
+                  <p className="naxatw-font-normal naxatw-leading-3">
+                    Rotated: {rotationAngle.toFixed(2)}°
+                  </p>
+                </FlexColumn>
+              </Button>
+            </div>
+          )}
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
@@ -695,25 +716,27 @@ const MapSection = ({ className }: { className?: string }) => {
               </div>
             )
           )}
-          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
-            <Button
-              withLoader
-              leftIcon="place"
-              className="naxatw-w-[11.8rem] naxatw-bg-red"
-              onClick={() => {
-                if (newTakeOffPoint) {
-                  handleSaveStartingPoint();
-                } else {
-                  dispatch(toggleModal('update-flight-take-off-point'));
-                }
-              }}
-              isLoading={isUpdatingTakeOffPoint}
-            >
-              {newTakeOffPoint
-                ? 'Save Take off Point'
-                : 'Change Take off Point'}
-            </Button>
-          </div>
+          {!isRotationEnabled && (
+            <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
+              <Button
+                withLoader
+                leftIcon="place"
+                className="naxatw-w-[11.8rem] naxatw-bg-red"
+                onClick={() => {
+                  if (newTakeOffPoint) {
+                    handleSaveStartingPoint();
+                  } else {
+                    dispatch(toggleModal('update-flight-take-off-point'));
+                  }
+                }}
+                isLoading={isUpdatingTakeOffPoint}
+              >
+                {newTakeOffPoint
+                  ? 'Save Take off Point'
+                  : 'Change Take off Point'}
+              </Button>
+            </div>
+          )}
 
           {newTakeOffPoint && (
             <VectorLayer
@@ -729,7 +752,7 @@ const MapSection = ({ className }: { className?: string }) => {
             />
           )}
           {isRotationEnabled && (
-            <div className="naxatw-absolute naxatw-bottom-4 naxatw-right-[calc(50%-5.4rem)] naxatw-z-50 lg:naxatw-right-2 lg:naxatw-top-8">
+            <div className="naxatw-absolute naxatw-bottom-10 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 lg:naxatw-right-2 lg:naxatw-top-10">
               <RotatingCircle
                 setRotation={setRotationAngle}
                 rotation={rotationAngle}
