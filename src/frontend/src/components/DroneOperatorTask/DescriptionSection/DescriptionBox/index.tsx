@@ -86,6 +86,14 @@ const DescriptionBox = () => {
       },
     });
 
+  const { data: flightTimeData }: any = useGetTaskWaypointQuery(
+    projectId as string,
+    taskId as string,
+    {
+      select: ({ data }: any) => data.flight_data,
+    },
+  );
+
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
       enabled: !!taskWayPoints,
@@ -126,7 +134,11 @@ const DescriptionBox = () => {
               { name: 'Total points', value: taskWayPoints?.length },
               {
                 name: 'Est. flight time',
-                value: taskData?.flight_time || null,
+                value: flightTimeData?.total_flight_time || null,
+              },
+              {
+                name: 'Est. flight time in seconds',
+                value: flightTimeData?.total_flight_time_seconds || null,
               },
             ],
           },
