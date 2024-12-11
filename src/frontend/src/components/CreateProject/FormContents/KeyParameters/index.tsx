@@ -372,7 +372,6 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
             <FormControl className="naxatw-mt-2">
               <RadioButton
                 required
-                topic="Approval for task lock"
                 options={demFileOptions}
                 direction="column"
                 onChangeData={value => {
