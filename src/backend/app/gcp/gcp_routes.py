@@ -20,8 +20,10 @@ async def find_images(
     point: waypoint_schemas.PointField = None,
 ) -> List[str]:
     """Find images that contain a specified point."""
+
     fov_degree = 82.1  # For DJI Mini 4 Pro
     altitude = 100  # TODO: Get this from db
+
     return await gcp_crud.process_images_for_point(
         project_id, task_id, point, fov_degree, altitude
     )
