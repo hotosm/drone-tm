@@ -21,7 +21,7 @@ router = APIRouter(
 async def read_task(
     task_id: uuid.UUID,
     db: Annotated[Connection, Depends(database.get_db)],
-    # user_data: AuthUser = Depends(login_required),
+    user_data: AuthUser = Depends(login_required),
 ):
     "Retrieve details of a specific task by its ID."
     return await task_schemas.TaskDetailsOut.get_task_details(db, task_id)
