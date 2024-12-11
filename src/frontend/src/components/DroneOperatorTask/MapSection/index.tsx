@@ -70,6 +70,7 @@ const MapSection = ({ className }: { className?: string }) => {
   const [isRotationEnabled, setIsRotationEnabled] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const centroidRef = useRef();
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -94,8 +95,9 @@ const MapSection = ({ className }: { className?: string }) => {
     isFetching: taskDataPolygonIsFetching,
   }: Record<string, any> = useGetIndividualTaskQuery(taskId as string, {
     select: (projectRes: any) => {
-      const taskPolygon = projectRes.data.outline;
-      const { geometry } = taskPolygon;
+      const taskPolygon = projectRes.data;
+      centroidRef.current = taskPolygon.centroid.coordinates;
+      const { geometry } = taskPolygon.outline;
       return {
         type: 'FeatureCollection',
         features: [
@@ -311,6 +313,7 @@ const MapSection = ({ className }: { className?: string }) => {
                 : [firstFeature, ...restFeatures],
             },
             rotationDegreeParam,
+            centroidRef.current,
           );
           if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
             // @ts-ignore
@@ -337,6 +340,7 @@ const MapSection = ({ className }: { className?: string }) => {
               type: 'FeatureCollection',
             },
             rotationDegreeParam,
+            centroidRef.current,
           );
           if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
             // @ts-ignore
@@ -624,27 +628,6 @@ const MapSection = ({ className }: { className?: string }) => {
             </>
           )}
 
-          {/* {!isRotationEnabled && (
-            <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
-              <Button
-                withLoader
-                leftIcon="place"
-                className="naxatw-w-[11.8rem] naxatw-bg-red"
-                onClick={() => {
-                  if (newTakeOffPoint) {
-                    handleSaveStartingPoint();
-                  } else {
-                    dispatch(toggleModal('update-flight-take-off-point'));
-                  }
-                }}
-                isLoading={isUpdatingTakeOffPoint}
-              >
-                {newTakeOffPoint
-                  ? 'Save Take off Point'
-                  : 'Change Take off Point'}
-              </Button>
-            </div>
-          )} */}
           {isRotationEnabled && (
             <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-50 naxatw-h-fit naxatw-cursor-pointer lg:naxatw-right-3 lg:naxatw-top-3">
               <Button
