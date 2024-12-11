@@ -1,3 +1,4 @@
+import os
 import uuid
 import geojson
 import shutil
@@ -147,7 +148,9 @@ async def get_task_waypoint(
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
         kmz_file = wpml.create_wpml(placemarks, outfile)
         return FileResponse(
-            kmz_file, media_type="application/zip", filename="flight_plan.kmz"
+            kmz_file,
+            media_type="application/zip",
+            filename=f"{task_id}_flight_plan.kmz",
         )
     flight_data = calculate_flight_time_from_placemarks(placemarks)
     return {"results": placemarks, "flight_data": flight_data}
@@ -257,3 +260,23 @@ async def generate_kmz(
         return FileResponse(
             output_file, media_type="application/zip", filename="output.kmz"
         )
+
+
+@router.post("/{task_id}/generate-kmz/")
+async def generate_kmz_with_placemarks(
+    task_id: uuid.UUID, data: waypoint_schemas.PlacemarksFeature
+):
+    try:
+        outfile = f"/tmp/{task_id}_flight_plan.kmz"
+
+        kmz_file = wpml.create_wpml(data.model_dump(), outfile)
+        if not os.path.exists(kmz_file):
+            raise HTTPException(status_code=500, detail="Failed to generate KMZ file.")
+        return FileResponse(
+            kmz_file,
+            media_type="application/zip",
+            filename=f"{task_id}_flight_plan.kmz",
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating KMZ: {str(e)}")
