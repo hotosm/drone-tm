@@ -123,9 +123,9 @@ const MapSection = ({ className }: { className?: string }) => {
     projectId as string,
     taskId as string,
     {
-      select: (data: any) => {
+      select: ({ data }: any) => {
         const modifiedTaskWayPointsData = {
-          geojsonListOfPoint: data.data,
+          geojsonListOfPoint: data.results,
           geojsonAsLineString: {
             type: 'FeatureCollection',
             features: [
@@ -135,7 +135,7 @@ const MapSection = ({ className }: { className?: string }) => {
                 geometry: {
                   type: 'LineString',
                   // get all coordinates
-                  coordinates: coordAll(data.data),
+                  coordinates: coordAll(data.results),
                 },
               },
             ],
@@ -658,7 +658,7 @@ const MapSection = ({ className }: { className?: string }) => {
             </Button>
           </div>
 
-          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit naxatw-overflow-hidden">
+          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit naxatw-overflow-hidden naxatw-pb-1 naxatw-pr-1">
             <Button
               variant="ghost"
               className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
