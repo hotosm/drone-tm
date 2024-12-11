@@ -29,3 +29,11 @@ export const descriptionData = [
   ],
 ];
 export const descriptionTitle = ['Task Description', 'Flight Parameters'];
+
+export const mapLayerIDs = [
+  'waypoint-points-layer',
+  'waypoint-points-image-layer',
+  'waypoint-line-layer',
+  'waypoint-points-image-image/logo',
+  'waypoint-line-image/logo',
+];

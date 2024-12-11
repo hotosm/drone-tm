@@ -1,5 +1,6 @@
 /* eslint-disable import/prefer-default-export */
 // import { radiansToDegrees } from '@turf/helpers';
+// import { radiansToDegrees } from '@turf/helpers';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -174,7 +175,7 @@ export function calculateAngle(
 function RadtoDegrees(radians: number) {
   return radians * (180 / Math.PI);
 }
-export function calculateCentroid(bbox: any[]) {
+export function calculateCentroid(bbox: number[]) {
   const [minLon, minLat, maxLon, maxLat] = bbox;
 
   const centroidLat = (minLat + maxLat) / 2;
@@ -211,4 +212,36 @@ export function calculateCentroidFromCoordinates(coordinates: any[]) {
 
   // Convert the results to degrees
   return [RadtoDegrees(lat), RadtoDegrees(lon)];
+}
+
+export function findNearestCoordinate(
+  coord1: number[],
+  coord2: number[],
+  center: number[],
+) {
+  // Function to calculate distance between two points
+  const calculateDistance = (point1: number[], point2: number[]) => {
+    const xDiff = point2[0] - point1[0];
+    const yDiff = point2[1] - point1[1];
+    return Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+  };
+
+  // Calculate the distance of the first and second coordinates from the center
+  const distance1 = calculateDistance(coord1, center);
+  const distance2 = calculateDistance(coord2, center);
+
+  // Return the nearest coordinate
+  return distance1 <= distance2 ? 'first' : 'second';
+}
+
+export function swapFirstAndLast<T>(arr: T[]): T[] {
+  if (arr.length < 2) {
+    throw new Error('Array must have at least two elements to swap.');
+  }
+
+  // Swap the first and last elements using destructuring
+  // eslint-disable-next-line no-param-reassign
+  [arr[0], arr[arr.length - 1]] = [arr[arr.length - 1], arr[0]];
+
+  return arr;
 }

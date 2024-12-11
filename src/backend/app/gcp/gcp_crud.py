@@ -6,6 +6,7 @@ from typing import List, Dict, Tuple
 from app.s3 import get_presigned_url
 from app.waypoints import waypoint_schemas
 from app.config import settings
+from pyproj import Transformer
 
 
 async def calculate_bounding_box(
@@ -103,59 +104,133 @@ async def find_matching_images_that_contains_point(bounding_boxes, gps_coordinat
     return matching_images
 
 
-async def calculate_bbox_from_images_file(images_json_url: str):
+async def calculate_bbox_from_images_file(
+    images_json_url: str, fov_degree: float, altitude: float
+):
     """
     Create bounding boxes for all images from a presigned JSON file URL.
     """
     # Fetch the JSON data from the presigned URL
     images = fetch_json_from_presigned_url(images_json_url)
 
-    # Calculate bounding boxes
+    # Calculate bounding boxes for each image
     bounding_boxes = {}
     for image in images:
         filename = image["filename"]
         lat = image["latitude"]
         lon = image["longitude"]
-        altitude = image["altitude"]
         width = image["width"]
         height = image["height"]
-        focal_ratio = image["focal_ratio"]
-        fnumber = image["fnumber"]
 
-        # Calculate the bounding box
-        bbox = await calculate_bounding_box(
-            lat, lon, width, height, focal_ratio, fnumber, altitude
-        )
+        aspect_ratio = width / height
+
+        bbox = await calc_bbox(lat, lon, altitude, fov_degree, aspect_ratio)
         bounding_boxes[filename] = bbox
-
     return bounding_boxes
 
 
-async def calculate_image_footprint(
-    altitude: float, fov_deg: float, aspect_ratio: float
-) -> tuple[float, float]:
+async def calculate_footprints_of_image(altitude, fov_in_degree, aspect_ratio):
     """
-    Calculate the ground footprint of an image captured by a drone camera.
+    Calculate the width (A) and height (B) of an image given:
+    - altitude: Drone height
+    - fov_in_degree: Field of View (in degrees)
+    - aspect_ratio: Aspect Ratio (width/height)
 
-    Parameters:
-        altitude (float): Altitude of the drone in meters.
-        fov_deg (float): Field of view (FoV) of the camera in degrees.
-        aspect_ratio (float): Aspect ratio of the camera's sensor (width/height).
+    The calculations is done based on this blog post:
+    https://www.techforwildlife.com/blog/2019/1/29/calculating-a-drone-cameras-image-footprint
 
     Returns:
-        tuple[float, float]: Width and height of the image footprint on the ground in meters.
+    - Width of the image , Height of the image
     """
-    # Convert FoV from degrees to radians
-    fov_rad = math.radians(fov_deg)
+    # Convert theta from degrees to radians
+    fov_in_radian = math.radians(fov_in_degree)
 
-    # Calculate the diagonal footprint on the ground
-    diagonal_footprint = 2 * altitude * math.tan(fov_rad / 2)
+    # Calculate the diagonal of the image (D)
+    D = 2 * altitude * math.tan(fov_in_radian / 2)
 
-    # Calculate width and height of the footprint
-    width = diagonal_footprint / math.sqrt(1 + aspect_ratio**2)
-    height = aspect_ratio * width
+    # Calculate width of the image
+    width = D / math.sqrt(1 + aspect_ratio**2)
+
+    # Calculate height of the image
+    height = (aspect_ratio * D) / math.sqrt(1 + aspect_ratio**2)
 
     return width, height
+
+
+async def calc_bbox(lat, long, altitude, fov_degree, aspect_ratio):
+    # Define the bounding box coordinates in EPSG:3857
+    # Update offset function to work with EPSG:3857 coordinates
+    async def offset_coordinates_3857(x, y, dx, dy):
+        """
+        Calculate new coordinates in EPSG:3857 given distance offsets.
+        """
+        new_x = x + dx
+        new_y = y + dy
+        return new_x, new_y
+
+    # Initialize transformer for WGS84 to EPSG:3857 and vice versa
+    wgs84_to_3857 = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    epsg_3857_to_wgs84 = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+
+    # Convert centroid coordinates to EPSG:3857
+    centroid_3857 = wgs84_to_3857.transform(long, lat)
+
+    # Calculate the width and height of the image footprint
+    footprint_width, footprint_height = await calculate_footprints_of_image(
+        altitude, fov_degree, aspect_ratio
+    )
+
+    # Calculate half-width and half-height in meters (same as before)
+    half_width = footprint_width / 2
+    half_height = footprint_height / 2
+
+    # Calculate the four corners in EPSG:3857
+    top_left_3857 = await offset_coordinates_3857(
+        centroid_3857[0], centroid_3857[1], -half_width, half_height
+    )
+    top_right_3857 = await offset_coordinates_3857(
+        centroid_3857[0], centroid_3857[1], half_width, half_height
+    )
+    bottom_right_3857 = await offset_coordinates_3857(
+        centroid_3857[0], centroid_3857[1], half_width, -half_height
+    )
+    bottom_left_3857 = await offset_coordinates_3857(
+        centroid_3857[0], centroid_3857[1], -half_width, -half_height
+    )
+
+    # Convert corners back to WGS84
+    top_left_wgs84 = epsg_3857_to_wgs84.transform(top_left_3857[0], top_left_3857[1])
+    top_right_wgs84 = epsg_3857_to_wgs84.transform(top_right_3857[0], top_right_3857[1])
+    bottom_right_wgs84 = epsg_3857_to_wgs84.transform(
+        bottom_right_3857[0], bottom_right_3857[1]
+    )
+    bottom_left_wgs84 = epsg_3857_to_wgs84.transform(
+        bottom_left_3857[0], bottom_left_3857[1]
+    )
+
+    # Extract longitude and latitude values
+    longitudes = [
+        top_left_wgs84[0],
+        top_right_wgs84[0],
+        bottom_right_wgs84[0],
+        bottom_left_wgs84[0],
+    ]
+    latitudes = [
+        top_left_wgs84[1],
+        top_right_wgs84[1],
+        bottom_right_wgs84[1],
+        bottom_left_wgs84[1],
+    ]
+
+    # Calculate the bounding box: [min_longitude, min_latitude, max_longitude, max_latitude]
+    bbox = [
+        min(longitudes),  # min_longitude
+        min(latitudes),  # min_latitude
+        max(longitudes),  # max_longitude
+        max(latitudes),  # max_latitude
+    ]
+
+    return bbox
 
 
 def find_images_with_coordinate(
@@ -200,7 +275,11 @@ def find_images_with_coordinate(
 
 
 async def process_images_for_point(
-    project_id: uuid.UUID, task_id: uuid.UUID, point: waypoint_schemas.PointField
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    point: waypoint_schemas.PointField,
+    fov_degree: float,
+    altitude: float,
 ) -> List[str]:
     """
     Process images to find those containing a specific point and return their pre-signed URLs.
@@ -221,7 +300,9 @@ async def process_images_for_point(
     s3_images_json_url = get_presigned_url(settings.S3_BUCKET_NAME, s3_images_json_path)
 
     # Fetch bounding boxes from the `images.json` file
-    bbox_list = await calculate_bbox_from_images_file(s3_images_json_url)
+    bbox_list = await calculate_bbox_from_images_file(
+        s3_images_json_url, fov_degree, altitude
+    )
 
     # Extract the longitude and latitude of the point
     point_tuple = (point.longitude, point.latitude)
