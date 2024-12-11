@@ -6,7 +6,7 @@
 import '@Components/common/MapLibreComponents/map.css';
 import { Button } from '@Components/RadixComponents/Button';
 import Skeleton from '@Components/RadixComponents/Skeleton';
-import type { MapMouseEvent } from 'maplibre-gl';
+import type { LngLatLike, MapMouseEvent } from 'maplibre-gl';
 import { Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
@@ -89,7 +89,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     const [properties, setProperties] = useState<Record<string, any> | null>(
       null,
     );
-    const [coordinates, setCoordinates] = useState<any>(null);
+    const [coordinates, setCoordinates] = useState<number[]>();
     const [isPopupOpen, setIsPopupOpen] = useState(false);
 
     useEffect(() => {
@@ -116,7 +116,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
               },
         );
 
-        setCoordinates(e.lngLat);
+        setCoordinates(e.lngLat as unknown as number[]);
         // popup.setLngLat(e.lngLat);
       }
       map.on('click', displayPopup);
@@ -140,7 +140,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
         />,
       );
       popup.setHTML(htmlString).addTo(map);
-      popup.setLngLat(coordinates);
+      popup.setLngLat(coordinates as LngLatLike);
       setIsPopupOpen(true);
     }, [
       handleBtnClick,
