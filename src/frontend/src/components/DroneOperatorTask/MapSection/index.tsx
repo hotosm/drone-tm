@@ -633,15 +633,15 @@ const MapSection = ({ className }: { className?: string }) => {
               <Button
                 withLoader
                 leftIcon="save"
-                className="naxatw-h-[3rem] naxatw-w-[10.8rem] naxatw-bg-red"
+                className="naxatw-w-[10.8rem] naxatw-bg-red"
               >
                 <FlexColumn className="naxatw-gap-1">
                   <p className="naxatw-leading-3 naxatw-tracking-wide">
                     Save Rotated Flight Plan
                   </p>
-                  <p className="naxatw-font-normal naxatw-leading-3">
+                  {/* <p className="naxatw-font-normal naxatw-leading-3">
                     Rotated: {rotationAngle.toFixed(2)}°
-                  </p>
+                  </p> */}
                 </FlexColumn>
               </Button>
             </div>
