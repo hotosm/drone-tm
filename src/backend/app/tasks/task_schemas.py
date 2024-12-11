@@ -267,6 +267,7 @@ class TaskDetailsOut(BaseModel):
     side_overlap: Optional[float] = None
     gsd_cm_px: Optional[float] = None
     gimble_angles_degrees: Optional[int] = None
+    centroid: dict
 
     @field_validator("state", mode="after")
     @classmethod
@@ -312,7 +313,8 @@ class TaskDetailsOut(BaseModel):
                             ),
                             'id', tasks.id
                         ) AS outline,
-
+                        -- Calculate the centroid of the outline
+                        ST_AsGeoJSON(ST_Centroid(tasks.outline))::jsonb AS centroid,
                         te.created_at,
                         te.updated_at,
                         te.state,
