@@ -127,6 +127,9 @@ const RotationCue = ({
             top: `${handleY - 10}px`, // Offset by half of handle size to center
           }}
         />
+        <p className="naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] naxatw-select-none naxatw-text-sm">
+          {rotation.toFixed(2)}
+        </p>
       </div>
       {/* Rotation Display */}
     </div>
