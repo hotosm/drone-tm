@@ -15,9 +15,9 @@ const RotationCue = ({
 }: RotationCueProps) => {
   const [startAngle, setStartAngle] = useState(0);
 
-  const handleMouseDown = (event: any) => {
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = event;
-    const circle = event.target.getBoundingClientRect();
+    const circle = (event.target as HTMLElement).getBoundingClientRect();
     const centerX = circle.left + circle.width / 2;
     const centerY = circle.top + circle.height / 2;
 
@@ -27,11 +27,11 @@ const RotationCue = ({
     setDragging(true);
   };
 
-  const handleMouseMove = (event: any) => {
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!dragging) return;
 
     const { clientX, clientY } = event;
-    const circle = event.target.getBoundingClientRect();
+    const circle = (event.target as HTMLElement).getBoundingClientRect();
     const centerX = circle.left + circle.width / 2;
     const centerY = circle.top + circle.height / 2;
 
