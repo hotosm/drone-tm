@@ -113,7 +113,7 @@ async def calculate_bbox_from_images_file(
     # Fetch the JSON data from the presigned URL
     images = fetch_json_from_presigned_url(images_json_url)
 
-    # Calculate bounding boxes
+    # Calculate bounding boxes for each image
     bounding_boxes = {}
     for image in images:
         filename = image["filename"]
@@ -126,33 +126,33 @@ async def calculate_bbox_from_images_file(
 
         bbox = await calc_bbox(lat, lon, altitude, fov_degree, aspect_ratio)
         bounding_boxes[filename] = bbox
-
     return bounding_boxes
 
 
-async def calculate_image_footprint(
-    altitude: float, fov_deg: float, aspect_ratio: float
-) -> tuple[float, float]:
+async def calculate_footprints_of_image(altitude, fov_in_degree, aspect_ratio):
     """
-    Calculate the ground footprint of an image captured by a drone camera.
+    Calculate the width (A) and height (B) of an image given:
+    - altitude: Drone height
+    - fov_in_degree: Field of View (in degrees)
+    - aspect_ratio: Aspect Ratio (width/height)
 
-    Parameters:
-        altitude (float): Altitude of the drone in meters.
-        fov_deg (float): Field of view (FoV) of the camera in degrees.
-        aspect_ratio (float): Aspect ratio of the camera's sensor (width/height).
+    The calculations is done based on this blog post:
+    https://www.techforwildlife.com/blog/2019/1/29/calculating-a-drone-cameras-image-footprint
 
     Returns:
-        tuple[float, float]: Width and height of the image footprint on the ground in meters.
+    - Width of the image , Height of the image
     """
-    # Convert FoV from degrees to radians
-    fov_rad = math.radians(fov_deg)
+    # Convert theta from degrees to radians
+    fov_in_radian = math.radians(fov_in_degree)
 
-    # Calculate the diagonal footprint on the ground
-    diagonal_footprint = 2 * altitude * math.tan(fov_rad / 2)
+    # Calculate the diagonal of the image (D)
+    D = 2 * altitude * math.tan(fov_in_radian / 2)
 
-    # Calculate width and height of the footprint
-    width = diagonal_footprint / math.sqrt(1 + aspect_ratio**2)
-    height = aspect_ratio * width
+    # Calculate width of the image
+    width = D / math.sqrt(1 + aspect_ratio**2)
+
+    # Calculate height of the image
+    height = (aspect_ratio * D) / math.sqrt(1 + aspect_ratio**2)
 
     return width, height
 
@@ -176,7 +176,7 @@ async def calc_bbox(lat, long, altitude, fov_degree, aspect_ratio):
     centroid_3857 = wgs84_to_3857.transform(long, lat)
 
     # Calculate the width and height of the image footprint
-    footprint_height, footprint_width = await calculate_image_footprint(
+    footprint_width, footprint_height = await calculate_footprints_of_image(
         altitude, fov_degree, aspect_ratio
     )
 
