@@ -48,7 +48,7 @@ function PopupUIComponent({
           <p className="naxatw-btn-text naxatw-text-primary-400">{title}</p>
         )}
         <span
-          id="popup-close-button-new"
+          id="popup-close-button"
           onClick={closeFn}
           role="button"
           className="naxatw-absolute naxatw-right-3 naxatw-top-1 naxatw-cursor-pointer naxatw-rounded-full naxatw-text-grey-600 hover:naxatw-bg-green-100"
@@ -161,13 +161,14 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     }, [map, openPopupFor, popupCoordinate]);
 
     useEffect(() => {
-      const closeBtn = document.getElementById('popup-close-button-new');
+      const closeBtn = document.getElementById('popup-close-button');
       const popupBtn = document.getElementById('popup-button');
 
       const handleCloseBtnClick = () => {
         popup.remove();
         onClose?.();
         setProperties(null);
+        setIsPopupOpen(false);
       };
 
       const handlePopupBtnClick = () => {
