@@ -2,7 +2,11 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable prefer-destructuring */
 /* eslint-disable react/no-array-index-key */
-import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from '@Api/tasks';
+import {
+  useGetIndividualTaskQuery,
+  useGetTaskAssetsInfo,
+  useGetTaskWaypointQuery,
+} from '@Api/tasks';
 import marker from '@Assets/images/marker.png';
 import right from '@Assets/images/rightArrow.png';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
@@ -40,7 +44,6 @@ import ToolTip from '@Components/RadixComponents/ToolTip';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
-import { useGetProjectsDetailQuery } from '@Api/projects';
 import { toast } from 'react-toastify';
 import RotatingCircle from '@Components/common/RotationCue';
 import { mapLayerIDs } from '@Constants/droneOperator';
@@ -87,23 +90,33 @@ const MapSection = ({ className }: { className?: string }) => {
 
   const {
     data: taskDataPolygon,
-    isFetching: isProjectDataFetching,
-  }: Record<string, any> = useGetProjectsDetailQuery(projectId as string, {
+    isFetching: taskDataPolygonIsFetching,
+  }: Record<string, any> = useGetIndividualTaskQuery(taskId as string, {
     select: (projectRes: any) => {
-      const taskPolygon = projectRes.data.tasks.find(
-        (task: Record<string, any>) => task.id === taskId,
-      );
-      const { geometry } = taskPolygon.outline;
+      const taskPolygon = projectRes.data.outline;
+      const { geometry } = taskPolygon;
       return {
         type: 'FeatureCollection',
         features: [
           {
             type: 'Feature',
-            geometry,
+            geometry: {
+              type: 'Polygon',
+              coordinates: geometry.coordinates,
+            },
             properties: {},
           },
         ],
       };
+    },
+    onSuccess: () => {
+      if (map) {
+        const layers = map.getStyle().layers;
+        if (layers && layers.length > 0) {
+          const firstLayerId = layers[4].id; // Get the first layer
+          map.moveLayer('task-polygon-layer', firstLayerId); // Move the layer before the first layer
+        }
+      }
     },
   });
   const { data: taskWayPointsData }: any = useGetTaskWaypointQuery(
@@ -479,7 +492,7 @@ const MapSection = ({ className }: { className?: string }) => {
           <BaseLayerSwitcherUI />
           <LocateUser isMapLoaded={isMapLoaded} />
 
-          {taskWayPoints && !isProjectDataFetching && (
+          {taskWayPoints && !taskDataPolygonIsFetching && (
             <>
               {/* render line */}
               <VectorLayer
@@ -749,13 +762,6 @@ const MapSection = ({ className }: { className?: string }) => {
                 'fill-opacity': 0.6,
               },
             }}
-            // layerOptions={getLayerOptionsByStatus(
-            //   taskStatusObj?.[`${task?.id}`],
-            // )}
-            // hasImage={
-            //   taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
-            // }
-            // image={lock}
           />
 
           {newTakeOffPoint === 'place_on_map' && (
