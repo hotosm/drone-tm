@@ -12,6 +12,17 @@ from datetime import datetime
 from app.config import settings
 
 
+async def list_task_id_for_project(db: Connection, project_id: uuid.UUID):
+    query = """
+        SELECT id
+        FROM tasks
+        WHERE project_id = %(project_id)s;
+    """
+    async with db.cursor() as cur:
+        await cur.execute(query, {"project_id": str(project_id)})
+        return await cur.fetchall()
+
+
 async def get_task_stats(db: Connection, user_data: AuthUser):
     try:
         async with db.cursor(row_factory=class_row(TaskStats)) as cur:
