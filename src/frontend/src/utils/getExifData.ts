@@ -25,8 +25,17 @@ const getExifData = (file: File): Promise<any> => {
         const tags = EXIFReader.load(arrayBuffer) as EXIFTags;
 
         const dateTime = tags.DateTime?.description;
-        const gpsLatitude = tags.GPSLatitude?.description;
-        const gpsLongitude = tags.GPSLongitude?.description;
+        let gpsLatitude = tags.GPSLatitude?.description;
+        const gpsLatitudeRef = tags.GPSLatitudeRef?.value;
+        let gpsLongitude = tags.GPSLongitude?.description;
+        const gpsLongitudeRef = tags.GPSLongitudeRef?.value;
+
+        if (gpsLatitudeRef[0] === 'S' && gpsLatitude) {
+          gpsLatitude = -gpsLatitude;
+        }
+        if (gpsLongitudeRef[0] === 'W' && gpsLongitude) {
+          gpsLongitude = -gpsLongitude;
+        }
 
         if (gpsLatitude && gpsLongitude) {
           const latitude = gpsLatitude;

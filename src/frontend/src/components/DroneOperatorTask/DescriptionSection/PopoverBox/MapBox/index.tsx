@@ -215,18 +215,6 @@ const ImageMapBox = () => {
                   'circle-stroke-width': 4,
                   'circle-stroke-color': 'red',
                   'circle-stroke-opacity': 1,
-                  'circle-opacity': [
-                    'match',
-                    ['get', 'index'],
-                    0,
-                    0,
-                    Number(
-                      // eslint-disable-next-line no-unsafe-optional-chaining
-                      imageFilesGeoJsonData?.features?.length - 1,
-                    ),
-                    0,
-                    1,
-                  ],
                 },
               }}
               zoomToExtent
