@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 type RotationCueProps = {
   setRotation: (rotation: number) => void;
@@ -14,6 +14,7 @@ const RotationCue = ({
   setDragging,
   dragging,
 }: RotationCueProps) => {
+  const circleRef = useRef<HTMLDivElement>(null);
   const [startAngle, setStartAngle] = useState(0);
   const radius = 56; // Adjust to match circle size (half of `naxatw-h-28`)
 
@@ -52,7 +53,7 @@ const RotationCue = ({
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = event;
-    const circle = (event.target as HTMLElement).getBoundingClientRect();
+    const circle = (circleRef.current as HTMLElement).getBoundingClientRect();
     handleStart(clientX, clientY, circle);
   };
 
@@ -60,13 +61,13 @@ const RotationCue = ({
     if (!dragging) return;
 
     const { clientX, clientY } = event;
-    const circle = (event.target as HTMLElement).getBoundingClientRect();
+    const circle = (circleRef.current as HTMLElement).getBoundingClientRect();
     handleMove(clientX, clientY, circle);
   };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     const { clientX, clientY } = event.touches[0];
-    const circle = (event.target as HTMLElement).getBoundingClientRect();
+    const circle = (circleRef.current as HTMLElement).getBoundingClientRect();
     handleStart(clientX, clientY, circle);
   };
 
@@ -74,7 +75,7 @@ const RotationCue = ({
     if (!dragging) return;
 
     const { clientX, clientY } = event.touches[0];
-    const circle = (event.target as HTMLElement).getBoundingClientRect();
+    const circle = (circleRef.current as HTMLElement).getBoundingClientRect();
     handleMove(clientX, clientY, circle);
   };
 
@@ -85,18 +86,19 @@ const RotationCue = ({
     const preventDefault = (e: TouchEvent | WheelEvent) => {
       e.preventDefault();
     };
+    if (!dragging) return () => {};
 
     // Disable scroll on mobile devices
-    document.body.style.overflow = 'hidden'; // Disable page scroll
+    document.body.style.overflow = 'hidden';
     window.addEventListener('touchmove', preventDefault, { passive: false });
     window.addEventListener('wheel', preventDefault, { passive: false });
 
     return () => {
       window.removeEventListener('touchmove', preventDefault);
       window.removeEventListener('wheel', preventDefault);
-      document.body.style.overflow = ''; // Restore page scroll on cleanup
+      document.body.style.overflow = '';
     };
-  }, []);
+  }, [dragging]);
   // Calculate handle position
   const radians = (rotation * Math.PI) / 180;
   const handleX = radius + radius * Math.cos(radians);
@@ -104,30 +106,40 @@ const RotationCue = ({
 
   return (
     <div
-      className="naxatw-relative naxatw-flex naxatw-h-48 naxatw-w-48 naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-bg-transparent"
+      className="naxatw-relative naxatw-flex naxatw-h-48 naxatw-w-48 naxatw-flex-col naxatw-items-center naxatw-justify-center"
       onMouseMove={handleMouseMove}
       onMouseUp={handleEnd}
-      onMouseLeave={handleEnd}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleEnd}
       role="presentation"
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      onDoubleClick={e => e.preventDefault()}
+      onClick={e => e.preventDefault()}
+      ref={circleRef}
     >
       {/* Circle */}
       <div
         className="naxatw-relative naxatw-flex naxatw-h-28 naxatw-w-28 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border-4 naxatw-border-red naxatw-bg-white naxatw-outline naxatw-outline-4 naxatw-outline-white"
         role="presentation"
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
       >
         {/* Handle */}
         <div
           className="naxatw-absolute naxatw-h-5 naxatw-w-5 naxatw-cursor-grab naxatw-rounded-full naxatw-bg-red naxatw-outline naxatw-outline-white"
           style={{
-            left: `${handleX - 10}px`, // Offset by half of handle size to center
-            top: `${handleY - 10}px`, // Offset by half of handle size to center
+            left: `${handleX - 14.5}px`, // Offset by half of handle size to center
+            top: `${handleY - 14.5}px`, // Offset by half of handle size to center
           }}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleEnd}
+          role="presentation"
+          onMouseDown={handleMouseDown}
+          onClick={e => e.preventDefault()}
         />
-        <p className="naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] naxatw-select-none naxatw-text-sm">
+        <p
+          className="naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] naxatw-select-none naxatw-text-sm"
+          draggable="false"
+        >
           {rotation.toFixed(2)}
         </p>
       </div>
