@@ -3,7 +3,10 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
-import { setCreateProjectState } from '@Store/actions/createproject';
+import {
+  setCreateProjectState,
+  setDemType,
+} from '@Store/actions/createproject';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { useQuery } from '@tanstack/react-query';
 import { getDroneAltitude } from '@Services/createproject';
@@ -12,6 +15,7 @@ import { FlexRow } from '@Components/common/Layouts';
 import Switch from '@Components/RadixComponents/Switch';
 import FileUpload from '@Components/common/UploadArea';
 import {
+  demFileOptions,
   FinalOutputOptions,
   imageMergeTypeOptions,
   measurementTypeOptions,
@@ -27,6 +31,7 @@ import {
 } from '@Utils/index';
 import SwitchTab from '@Components/common/SwitchTab';
 import { Controller } from 'react-hook-form';
+import RadioButton from '@Components/common/RadioButton';
 
 import OutputOptions from './OutputOptions';
 
@@ -55,6 +60,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
     state => state.createproject.imageMergeType,
   );
   const projectCountry = useTypedSelector(state => state.common.projectCountry);
+  const demType = useTypedSelector(state => state.createproject.demType);
 
   const { data: droneAltitude } = useQuery({
     queryKey: ['drone-altitude', projectCountry],
@@ -363,6 +369,22 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
             </FlexRow>
           </FormControl>
           {isTerrainFollow && (
+            <FormControl className="naxatw-mt-2">
+              <RadioButton
+                required
+                options={demFileOptions}
+                direction="column"
+                onChangeData={value => {
+                  dispatch(setDemType(value));
+                }}
+                value={demType}
+                // name="requireApprovalFromManagerForLocking"
+              />
+              <ErrorMessage message={errors?.dem?.message as string} />
+            </FormControl>
+          )}
+
+          {demType === 'manual' && (
             <FormControl className="naxatw-mt-2">
               <Controller
                 control={control}
