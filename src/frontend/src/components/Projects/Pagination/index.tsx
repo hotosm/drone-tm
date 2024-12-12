@@ -55,7 +55,7 @@ export default function Pagination({
             valueKey="value"
             placeholder="Select"
             direction="top"
-            className="naxatw-h-9 !naxatw-w-[64px] naxatw-rounded-lg naxatw-border md:!naxatw-w-20"
+            className="naxatw-h-9 !naxatw-w-[64px] naxatw-rounded-lg naxatw-border md:!naxatw-w-16"
           />
         </FlexRow>
         <FlexRow gap={2}>
@@ -71,7 +71,7 @@ export default function Pagination({
                   page >= lastPage ? lastPage : page <= 1 ? 1 : page;
                 handlePaginationState({ activePage: validPage });
               }}
-              className="naxatw-w-12 naxatw-border-b-2 naxatw-px-1 naxatw-py-0"
+              className="no-spinner naxatw-w-8 naxatw-border-b-2 naxatw-px-1 naxatw-py-0 naxatw-text-center"
             />
           </FlexRow>
         </FlexRow>
