@@ -76,6 +76,16 @@ body {
   }
 }
 
+.no-spinner::-webkit-inner-spin-button, 
+.no-spinner::-webkit-outer-spin-button {
+    -webkit-appearance: none; /* Chrome, Safari, Edge, Opera */
+    margin: 0;
+}
+
+.no-spinner {
+    -moz-appearance: textfield; /* Firefox */
+}
+
 #pdf-page-wrapper
   > div.react-pdf__Page
   > div.react-pdf__Page__textContent.textLayer {
