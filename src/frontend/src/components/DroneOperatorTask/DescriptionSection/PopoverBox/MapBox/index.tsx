@@ -22,7 +22,6 @@ import chunkArray from '@Utils/createChunksOfArray';
 import { getImageUploadLink } from '@Services/droneOperator';
 import { useMutation } from '@tanstack/react-query';
 import { postTaskStatus } from '@Services/project';
-import { postProcessImagery } from '@Services/tasks';
 import widthCalulator from '@Utils/percentageCalculator';
 import FilesUploadingPopOver from '../LoadingBox';
 
@@ -132,18 +131,6 @@ const ImageMapBox = () => {
     },
   });
 
-  const { mutate: startImageryProcess } = useMutation({
-    mutationFn: () => postProcessImagery(projectId, taskId),
-    onSuccess: () => {
-      updateStatus({
-        projectId,
-        taskId,
-        data: { event: 'image_upload', updated_at: new Date().toISOString() },
-      });
-      toast.success('Image processing started');
-    },
-  });
-
   // function that gets the signed urls for the images and again puts them in chunks of 4
   const { mutate } = useMutation({
     mutationFn: async (data: any) => {
@@ -168,7 +155,11 @@ const ImageMapBox = () => {
         const width = widthCalulator(uploadedFilesNumber.current, files.length);
         setLoadingWidth(width);
       }
-      startImageryProcess();
+      updateStatus({
+        projectId,
+        taskId,
+        data: { event: 'image_upload', updated_at: new Date().toISOString() },
+      });
     },
     onSuccess: () => {
       resetFilesExifData();

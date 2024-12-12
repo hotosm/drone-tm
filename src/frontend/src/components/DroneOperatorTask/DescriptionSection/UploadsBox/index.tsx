@@ -1,5 +1,4 @@
 /* eslint-disable no-await-in-loop */
-import { Button } from '@Components/RadixComponents/Button';
 import { toggleModal } from '@Store/actions/common';
 import { setFilesExifData } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
@@ -83,15 +82,6 @@ const UploadsBox = ({
             className="naxatw-absolute naxatw-opacity-0"
           />
         </label>
-        {files.length > 0 && (
-          <Button
-            variant="ghost"
-            className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
-            onClick={() => dispatch(toggleModal('raw-image-map-preview'))}
-          >
-            Upload
-          </Button>
-        )}
       </div>
     </>
   );
