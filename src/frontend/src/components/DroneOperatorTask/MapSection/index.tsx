@@ -1,16 +1,23 @@
+/* eslint-disable no-param-reassign */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable prefer-destructuring */
 /* eslint-disable react/no-array-index-key */
-import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from '@Api/tasks';
+import {
+  useGetIndividualTaskQuery,
+  useGetTaskAssetsInfo,
+  useGetTaskWaypointQuery,
+} from '@Api/tasks';
 import marker from '@Assets/images/marker.png';
 import right from '@Assets/images/rightArrow.png';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { Button } from '@Components/RadixComponents/Button';
 import { postTaskWaypoint } from '@Services/tasks';
+import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 import { toggleModal } from '@Store/actions/common';
 import {
   setSelectedTakeOffPoint,
@@ -24,14 +31,23 @@ import { point } from '@turf/helpers';
 import { coordAll } from '@turf/meta';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { FeatureCollection } from 'geojson';
-import { LngLatBoundsLike, Map, RasterSourceSpecification } from 'maplibre-gl';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  GeoJSONSource,
+  LngLatBoundsLike,
+  Map,
+  RasterSourceSpecification,
+} from 'maplibre-gl';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import ToolTip from '@Components/RadixComponents/ToolTip';
 import Skeleton from '@Components/RadixComponents/Skeleton';
+import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import { toast } from 'react-toastify';
+import RotatingCircle from '@Components/common/RotationCue';
+import { mapLayerIDs } from '@Constants/droneOperator';
+import { findNearestCoordinate, swapFirstAndLast } from '@Utils/index';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 
@@ -39,11 +55,20 @@ const { COG_URL } = process.env;
 
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
+  const bboxRef = useRef<number[]>();
+  const [taskWayPoints, setTaskWayPoints] = useState<Record<
+    string,
+    any
+  > | null>();
   const { projectId, taskId } = useParams();
+  const takeOffPointRef = useRef<[number, number]>();
   const queryClient = useQueryClient();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const [showOrthoPhotoLayer, setShowOrthoPhotoLayer] = useState(true);
   const [showTakeOffPoint, setShowTakeOffPoint] = useState(true);
+  const [isRotationEnabled, setIsRotationEnabled] = useState(false);
+  const [rotationAngle, setRotationAngle] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -57,13 +82,50 @@ const MapSection = ({ className }: { className?: string }) => {
     state => state.droneOperatorTask.selectedTakeOffPoint,
   );
 
-  const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
+  function setVisibilityOfLayers(layerIds: string[], visibility: string) {
+    layerIds.forEach(layerId => {
+      map?.setLayoutProperty(layerId, 'visibility', visibility);
+    });
+  }
+
+  const {
+    data: taskDataPolygon,
+    isFetching: taskDataPolygonIsFetching,
+  }: Record<string, any> = useGetIndividualTaskQuery(taskId as string, {
+    select: (projectRes: any) => {
+      const taskPolygon = projectRes.data.outline;
+      const { geometry } = taskPolygon;
+      return {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: geometry.coordinates,
+            },
+            properties: {},
+          },
+        ],
+      };
+    },
+    onSuccess: () => {
+      if (map) {
+        const layers = map.getStyle().layers;
+        if (layers && layers.length > 0) {
+          const firstLayerId = layers[4].id; // Get the first layer
+          map.moveLayer('task-polygon-layer', firstLayerId); // Move the layer before the first layer
+        }
+      }
+    },
+  });
+  const { data: taskWayPointsData }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
     {
-      select: (data: any) => {
-        return {
-          geojsonListOfPoint: data.data,
+      select: ({ data }: any) => {
+        const modifiedTaskWayPointsData = {
+          geojsonListOfPoint: data.results,
           geojsonAsLineString: {
             type: 'FeatureCollection',
             features: [
@@ -73,12 +135,15 @@ const MapSection = ({ className }: { className?: string }) => {
                 geometry: {
                   type: 'LineString',
                   // get all coordinates
-                  coordinates: coordAll(data.data),
+                  coordinates: coordAll(data.results),
                 },
               },
             ],
           },
         };
+        takeOffPointRef.current =
+          modifiedTaskWayPointsData?.geojsonListOfPoint?.features[0]?.geometry?.coordinates;
+        return modifiedTaskWayPointsData;
       },
     },
   );
@@ -103,24 +168,33 @@ const MapSection = ({ className }: { className?: string }) => {
   // zoom to task (waypoint)
   useEffect(() => {
     if (!taskWayPoints?.geojsonAsLineString || !isMapLoaded || !map) return;
-    const { geojsonAsLineString } = taskWayPoints;
     let bbox = null;
     // calculate bbox with with updated take-off point
     if (newTakeOffPoint && newTakeOffPoint !== 'place_on_map') {
       const combinedFeatures: FeatureCollection = {
         type: 'FeatureCollection',
         features: [
-          ...geojsonAsLineString.features,
           // @ts-ignore
+          ...taskDataPolygon.features,
           newTakeOffPoint,
         ],
       };
       bbox = getBbox(combinedFeatures);
     } else {
-      bbox = getBbox(geojsonAsLineString as FeatureCollection);
+      bbox = getBbox(taskDataPolygon as FeatureCollection);
     }
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
-  }, [map, taskWayPoints, newTakeOffPoint, isMapLoaded]);
+    bboxRef.current = bbox;
+    if (!isRotationEnabled) {
+      map?.fitBounds(bbox as LngLatBoundsLike, { padding: 105, duration: 500 });
+    }
+  }, [
+    map,
+    taskWayPoints,
+    taskDataPolygon,
+    newTakeOffPoint,
+    isMapLoaded,
+    isRotationEnabled,
+  ]);
 
   const getPopupUI = useCallback(() => {
     return (
@@ -156,8 +230,11 @@ const MapSection = ({ className }: { className?: string }) => {
   }, [popupData]);
 
   const handleSaveStartingPoint = () => {
-    const { geometry } = newTakeOffPoint as Record<string, any>;
-    const [lng, lat] = geometry.coordinates;
+    const { geometry: startingPonyGeometry } = newTakeOffPoint as Record<
+      string,
+      any
+    >;
+    const [lng, lat] = startingPonyGeometry.coordinates;
     postWaypoint({
       projectId,
       taskId,
@@ -198,33 +275,77 @@ const MapSection = ({ className }: { className?: string }) => {
 
   function handleTaskWayPoint() {
     if (!map || !isMapLoaded) return;
-    map.setLayoutProperty(
-      'waypoint-points-layer',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
-    map.setLayoutProperty(
-      'waypoint-points-image-layer',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
-    map.setLayoutProperty(
-      'waypoint-line-layer',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
-    map.setLayoutProperty(
-      'waypoint-points-image-image/logo',
-      'visibility',
-      `${!showTakeOffPoint ? 'visible' : 'none'}`,
-    );
-    map.setLayoutProperty(
-      'waypoint-line-image/logo',
-      'visibility',
+    setVisibilityOfLayers(
+      mapLayerIDs,
       `${!showTakeOffPoint ? 'visible' : 'none'}`,
     );
     setShowTakeOffPoint(!showTakeOffPoint);
   }
+
+  const rotateLayerGeoJSON = (
+    layerIds: string[],
+    rotationDegreeParam: number,
+    baseLayerIds: string[],
+    excludeFirstFeature?: boolean,
+  ) => {
+    if (!map || !isMapLoaded) return;
+
+    baseLayerIds.forEach((baseLayerId, index) => {
+      const source = map?.getSource(baseLayerId);
+      const sourceToRotate = map?.getSource(layerIds[index]);
+
+      if (source && source instanceof GeoJSONSource) {
+        const baseGeoData = source._data;
+        if (!baseGeoData) return;
+        const [firstFeature, ...restFeatures] = (
+          baseGeoData as Record<string, any>
+        ).features;
+        if (firstFeature.geometry.type === 'Point') {
+          const pointRotatedGeoJson = rotateGeoJSON(
+            // @ts-ignore
+            {
+              ...(baseGeoData as object),
+              features: excludeFirstFeature
+                ? restFeatures
+                : [firstFeature, ...restFeatures],
+            },
+            rotationDegreeParam,
+          );
+          if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
+            // @ts-ignore
+            sourceToRotate.setData(pointRotatedGeoJson);
+          }
+        }
+        if (firstFeature.geometry.type === 'LineString') {
+          const [firstCoordinate, ...restCoordinates] =
+            firstFeature.geometry.coordinates;
+          const rotatedGeoJson = rotateGeoJSON(
+            {
+              features: [
+                // @ts-ignore
+                {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: excludeFirstFeature
+                      ? restCoordinates
+                      : [firstCoordinate, ...restCoordinates],
+                  },
+                },
+              ],
+              type: 'FeatureCollection',
+            },
+            rotationDegreeParam,
+          );
+          if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
+            // @ts-ignore
+            sourceToRotate.setData(rotatedGeoJson);
+          }
+        }
+      }
+    });
+  };
+
   const {
     data: taskAssetsInformation,
     isFetching: taskAssetsInfoLoading,
@@ -233,10 +354,131 @@ const MapSection = ({ className }: { className?: string }) => {
     taskId as string,
   );
 
+  useEffect(() => {
+    setTaskWayPoints(taskWayPointsData);
+  }, [taskWayPointsData]);
+
+  const rotatedTaskWayPoints = useMemo(() => {
+    if (!taskWayPointsData) return null;
+    return {
+      geojsonListOfPoint: taskWayPointsData.geojsonListOfPoint,
+
+      geojsonAsLineString: taskWayPointsData.geojsonAsLineString,
+    };
+  }, [taskWayPointsData]);
+
+  function updateLayerCoordinates(
+    layerIds: Record<string, any>[],
+    coordinate: [number, number],
+  ) {
+    // Iterate over the array of layer IDs
+    if (!map || !isMapLoaded) return;
+    layerIds.forEach(layerId => {
+      // Check if the layer is of type 'symbol' (or any other type)
+      const source = map.getSource(layerId.id); // Get the source of the layer
+
+      // Update the feature on the map
+
+      if (source && source instanceof GeoJSONSource) {
+        const geoJsonData = source._data;
+        // @ts-ignore
+        const { features, ...restGeoData } = geoJsonData;
+        const coordinates = features[0].geometry.coordinates;
+        if (layerId.type === 'MultiString') {
+          const nearestCoordinate = findNearestCoordinate(
+            coordinates[0],
+            coordinates[coordinates.length - 1],
+            takeOffPointRef.current || [0, 0],
+          );
+          let indexToReplace = 0;
+          if (nearestCoordinate === 'second') {
+            indexToReplace = coordinates.length;
+          }
+          features[0].geometry.coordinates[indexToReplace] = coordinate;
+          const updatedLineStringData = features[0].geometry.coordinates;
+          if (indexToReplace !== 0) {
+            updatedLineStringData.reverse().pop();
+          }
+          source.setData({ features, ...restGeoData });
+        }
+        if (layerId.type === 'Points') {
+          const nearestPoint = findNearestCoordinate(
+            coordinates,
+            features[features.length - 1].geometry.coordinates,
+            takeOffPointRef.current || [0, 0],
+          );
+          let pointIndexToReplace = 0;
+          if (nearestPoint === 'second') {
+            pointIndexToReplace = features.length;
+          }
+          if (pointIndexToReplace !== 0) {
+            features.push({
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [],
+              },
+              properties: {},
+            });
+          }
+          features[pointIndexToReplace].geometry.coordinates = coordinate;
+          const rotatedFeatures = features;
+          if (pointIndexToReplace !== 0) {
+            swapFirstAndLast(rotatedFeatures);
+            features.pop();
+          }
+          source.setData({ features, ...restGeoData });
+        }
+      }
+    });
+  }
+
+  useEffect(() => {
+    if (!dragging) {
+      rotateLayerGeoJSON(
+        ['waypoint-line', 'waypoint-points'],
+        rotationAngle,
+        ['waypoint-line', 'waypoint-points'],
+        false,
+      );
+      updateLayerCoordinates(
+        [
+          { id: 'waypoint-line', type: 'MultiString' },
+          { id: 'waypoint-points', type: 'Points' },
+        ],
+        takeOffPointRef.current || [0, 0],
+      );
+
+      return;
+    }
+    rotateLayerGeoJSON(
+      ['rotated-waypoint-line', 'rotated-waypoint-points'],
+      rotationAngle,
+      ['waypoint-line', 'waypoint-points'],
+      true,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rotationAngle, dragging]);
+
+  function handleRotationToggle() {
+    if (!map || !isMapLoaded) return;
+    setIsRotationEnabled(!isRotationEnabled);
+  }
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    if (!dragging) {
+      setVisibilityOfLayers(mapLayerIDs, 'visible');
+      return;
+    }
+    setVisibilityOfLayers(mapLayerIDs, 'none');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging, isMapLoaded, map]);
+
   return (
     <>
       <div
-        className={`naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
+        className={`naxatw-relative naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
       >
         <MapContainer
           map={map}
@@ -250,7 +492,7 @@ const MapSection = ({ className }: { className?: string }) => {
           <BaseLayerSwitcherUI />
           <LocateUser isMapLoaded={isMapLoaded} />
 
-          {taskWayPoints && (
+          {taskWayPoints && !taskDataPolygonIsFetching && (
             <>
               {/* render line */}
               <VectorLayer
@@ -293,6 +535,7 @@ const MapSection = ({ className }: { className?: string }) => {
                       0,
                       0,
                       Number(
+                        // @ts-ignore
                         // eslint-disable-next-line no-unsafe-optional-chaining
                         taskWayPoints?.geojsonListOfPoint?.features?.length - 1,
                       ),
@@ -319,6 +562,66 @@ const MapSection = ({ className }: { className?: string }) => {
               />
             </>
           )}
+          {isRotationEnabled && dragging && (
+            <>
+              {/* render line */}
+              <VectorLayer
+                map={map as Map}
+                isMapLoaded={isMapLoaded}
+                id="rotated-waypoint-line"
+                geojson={
+                  rotatedTaskWayPoints?.geojsonAsLineString as GeojsonType
+                }
+                visibleOnMap={!!taskWayPoints}
+                layerOptions={{
+                  type: 'line',
+                  paint: {
+                    'line-color': '#000000',
+                    'line-width': 1,
+                    'line-dasharray': [6, 3],
+                  },
+                }}
+                hasImage
+                image={right}
+                symbolPlacement="line"
+                iconAnchor="center"
+              />
+              {/* render points */}
+              <VectorLayer
+                map={map as Map}
+                isMapLoaded={isMapLoaded}
+                id="rotated-waypoint-points"
+                geojson={
+                  rotatedTaskWayPoints?.geojsonListOfPoint as GeojsonType
+                }
+                visibleOnMap={!!taskWayPoints}
+                interactions={['feature']}
+                layerOptions={{
+                  type: 'circle',
+                  paint: {
+                    'circle-color': '#176149',
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': 'red',
+                    'circle-stroke-opacity': 1,
+                    'circle-opacity': [
+                      'match',
+                      ['get', 'index'],
+                      0,
+                      0,
+                      Number(
+                        // @ts-ignore
+                        // eslint-disable-next-line no-unsafe-optional-chaining
+                        rotatedTaskWayPoints?.geojsonListOfPoint?.features
+                          ?.length - 1,
+                      ),
+                      0,
+                      1,
+                    ],
+                  },
+                }}
+              />
+            </>
+          )}
 
           <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
             <Button
@@ -339,11 +642,26 @@ const MapSection = ({ className }: { className?: string }) => {
                 : 'Change Take off Point'}
             </Button>
           </div>
-
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${isRotationEnabled ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'}`}
+              onClick={() => handleRotationToggle()}
+            >
+              <ToolTip
+                name="rotate_90_degrees_cw"
+                message="Enable Rotation"
+                symbolType="material-icons"
+                iconClassName="!naxatw-text-xl !naxatw-text-black"
+                className="naxatw-mt-[-4px]"
+              />
+            </Button>
+          </div>
+
+          <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit naxatw-overflow-hidden naxatw-pb-1 naxatw-pr-1">
+            <Button
+              variant="ghost"
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
               onClick={() => handleTaskWayPoint()}
             >
               <ToolTip
@@ -360,10 +678,10 @@ const MapSection = ({ className }: { className?: string }) => {
             <Skeleton className="naxatw-h-[0.5rem] naxatw-w-[0.5rem] naxatw-rounded-sm" />
           ) : (
             taskAssetsInformation?.assets_url && (
-              <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit">
+              <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[10.75rem] naxatw-z-30 naxatw-h-fit">
                 <Button
                   variant="ghost"
-                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red' : 'naxatw-border-gray-400'}`}
+                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'}`}
                   onClick={() => handleOtrhophotoLayerView()}
                 >
                   <ToolTip
@@ -410,12 +728,40 @@ const MapSection = ({ className }: { className?: string }) => {
               iconAnchor="bottom"
             />
           )}
+          {isRotationEnabled && (
+            <div className="naxatw-absolute naxatw-bottom-4 naxatw-right-[calc(50%-5.4rem)] naxatw-z-50 lg:naxatw-right-2 lg:naxatw-top-8">
+              <RotatingCircle
+                setRotation={setRotationAngle}
+                rotation={rotationAngle}
+                dragging={dragging}
+                setDragging={setDragging}
+              />
+            </div>
+          )}
 
-          <COGOrthophotoViewer
-            id="task-orthophoto"
-            source={orthophotoSource}
-            visibleOnMap
-            zoomToLayer
+          {taskAssetsInformation?.assets_url && (
+            <COGOrthophotoViewer
+              id="task-orthophoto"
+              source={orthophotoSource}
+              visibleOnMap
+              zoomToLayer
+            />
+          )}
+
+          <VectorLayer
+            map={map as Map}
+            id="task-polygon"
+            visibleOnMap={taskDataPolygon}
+            geojson={taskDataPolygon as GeojsonType}
+            interactions={['feature']}
+            layerOptions={{
+              type: 'fill',
+              paint: {
+                'fill-color': '#98BBC8',
+                'fill-outline-color': '#484848',
+                'fill-opacity': 0.6,
+              },
+            }}
           />
 
           {newTakeOffPoint === 'place_on_map' && (
