@@ -36,6 +36,14 @@ export const getLayerOptionsByStatus = (status: string) => {
     IMAGE_UPLOADED: {
       type: 'fill',
       paint: {
+        'fill-color': '#9ec7ff',
+        'fill-outline-color': '#484848',
+        'fill-opacity': 0.5,
+      },
+    },
+    IMAGE_PROCESSING_STARTED: {
+      type: 'fill',
+      paint: {
         'fill-color': '#9C77B2',
         'fill-outline-color': '#484848',
         'fill-opacity': 0.5,
