@@ -45,6 +45,7 @@ import Skeleton from '@Components/RadixComponents/Skeleton';
 import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import { toast } from 'react-toastify';
+import { FlexColumn } from '@Components/common/Layouts';
 import RotatingCircle from '@Components/common/RotationCue';
 import { mapLayerIDs } from '@Constants/droneOperator';
 import { findNearestCoordinate, swapFirstAndLast } from '@Utils/index';
@@ -69,6 +70,7 @@ const MapSection = ({ className }: { className?: string }) => {
   const [isRotationEnabled, setIsRotationEnabled] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const centroidRef = useRef();
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -93,8 +95,9 @@ const MapSection = ({ className }: { className?: string }) => {
     isFetching: taskDataPolygonIsFetching,
   }: Record<string, any> = useGetIndividualTaskQuery(taskId as string, {
     select: (projectRes: any) => {
-      const taskPolygon = projectRes.data.outline;
-      const { geometry } = taskPolygon;
+      const taskPolygon = projectRes.data;
+      centroidRef.current = taskPolygon.centroid.coordinates;
+      const { geometry } = taskPolygon.outline;
       return {
         type: 'FeatureCollection',
         features: [
@@ -310,6 +313,7 @@ const MapSection = ({ className }: { className?: string }) => {
                 : [firstFeature, ...restFeatures],
             },
             rotationDegreeParam,
+            centroidRef.current,
           );
           if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
             // @ts-ignore
@@ -336,6 +340,7 @@ const MapSection = ({ className }: { className?: string }) => {
               type: 'FeatureCollection',
             },
             rotationDegreeParam,
+            centroidRef.current,
           );
           if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
             // @ts-ignore
@@ -623,29 +628,28 @@ const MapSection = ({ className }: { className?: string }) => {
             </>
           )}
 
-          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
-            <Button
-              withLoader
-              leftIcon="place"
-              className="naxatw-w-[11.8rem] naxatw-bg-red"
-              onClick={() => {
-                if (newTakeOffPoint) {
-                  handleSaveStartingPoint();
-                } else {
-                  dispatch(toggleModal('update-flight-take-off-point'));
-                }
-              }}
-              isLoading={isUpdatingTakeOffPoint}
-            >
-              {newTakeOffPoint
-                ? 'Save Take off Point'
-                : 'Change Take off Point'}
-            </Button>
-          </div>
+          {isRotationEnabled && (
+            <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-50 naxatw-h-fit naxatw-cursor-pointer lg:naxatw-right-3 lg:naxatw-top-3">
+              <Button
+                withLoader
+                leftIcon="save"
+                className="naxatw-w-[10.8rem] naxatw-bg-red"
+              >
+                <FlexColumn className="naxatw-gap-1">
+                  <p className="naxatw-leading-3 naxatw-tracking-wide">
+                    Save Rotated Flight Plan
+                  </p>
+                  {/* <p className="naxatw-font-normal naxatw-leading-3">
+                    Rotated: {rotationAngle.toFixed(2)}°
+                  </p> */}
+                </FlexColumn>
+              </Button>
+            </div>
+          )}
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-h-fit">
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${isRotationEnabled ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'}`}
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${isRotationEnabled ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
               onClick={() => handleRotationToggle()}
             >
               <ToolTip
@@ -661,7 +665,7 @@ const MapSection = ({ className }: { className?: string }) => {
           <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[8.25rem] naxatw-z-30 naxatw-h-fit naxatw-overflow-hidden naxatw-pb-1 naxatw-pr-1">
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] ${showTakeOffPoint ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'} !naxatw-px-[0.315rem]`}
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showTakeOffPoint ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
               onClick={() => handleTaskWayPoint()}
             >
               <ToolTip
@@ -681,7 +685,7 @@ const MapSection = ({ className }: { className?: string }) => {
               <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[10.75rem] naxatw-z-30 naxatw-h-fit">
                 <Button
                   variant="ghost"
-                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'has-dropshadow naxatw-border-red' : 'naxatw-border-gray-400'}`}
+                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
                   onClick={() => handleOtrhophotoLayerView()}
                 >
                   <ToolTip
@@ -695,25 +699,27 @@ const MapSection = ({ className }: { className?: string }) => {
               </div>
             )
           )}
-          <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
-            <Button
-              withLoader
-              leftIcon="place"
-              className="naxatw-w-[11.8rem] naxatw-bg-red"
-              onClick={() => {
-                if (newTakeOffPoint) {
-                  handleSaveStartingPoint();
-                } else {
-                  dispatch(toggleModal('update-flight-take-off-point'));
-                }
-              }}
-              isLoading={isUpdatingTakeOffPoint}
-            >
-              {newTakeOffPoint
-                ? 'Save Take off Point'
-                : 'Change Take off Point'}
-            </Button>
-          </div>
+          {!isRotationEnabled && (
+            <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
+              <Button
+                withLoader
+                leftIcon="place"
+                className="naxatw-w-[11.8rem] naxatw-bg-red"
+                onClick={() => {
+                  if (newTakeOffPoint) {
+                    handleSaveStartingPoint();
+                  } else {
+                    dispatch(toggleModal('update-flight-take-off-point'));
+                  }
+                }}
+                isLoading={isUpdatingTakeOffPoint}
+              >
+                {newTakeOffPoint
+                  ? 'Save Take off Point'
+                  : 'Change Take off Point'}
+              </Button>
+            </div>
+          )}
 
           {newTakeOffPoint && (
             <VectorLayer
@@ -729,7 +735,7 @@ const MapSection = ({ className }: { className?: string }) => {
             />
           )}
           {isRotationEnabled && (
-            <div className="naxatw-absolute naxatw-bottom-4 naxatw-right-[calc(50%-5.4rem)] naxatw-z-50 lg:naxatw-right-2 lg:naxatw-top-8">
+            <div className="naxatw-absolute naxatw-bottom-10 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 lg:naxatw-right-2 lg:naxatw-top-10">
               <RotatingCircle
                 setRotation={setRotationAngle}
                 rotation={rotationAngle}
