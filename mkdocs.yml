@@ -76,6 +76,7 @@ nav:
       - The Team: about/team.md
   - User Manuals:
       - Flightplans: manuals/generate-flightplans.md
+      - Ground Control Points: manuals/ground-control-points.md
   - Developer Guide:
       - Setup: dev/setup.md
   - Timeline: timeline.md
