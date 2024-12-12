@@ -7,6 +7,7 @@ from app.s3 import get_presigned_url
 from app.waypoints import waypoint_schemas
 from app.config import settings
 from pyproj import Transformer
+from loguru import logger as log
 
 
 async def calculate_bounding_box(
@@ -76,9 +77,13 @@ def fetch_json_from_presigned_url(url: str):
     """
     Fetch a JSON file from an AWS presigned URL.
     """
-    response = requests.get(url)
-    response.raise_for_status()  # Raise an exception for HTTP errors
-    return response.json()
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response.json()
+    except Exception as e:
+        log.warning(f"Error fetching JSON file: {e}")
+        return None
 
 
 async def find_matching_images_that_contains_point(bounding_boxes, gps_coordinate):
@@ -115,7 +120,7 @@ async def calculate_bbox_from_images_file(
 
     # Calculate bounding boxes for each image
     bounding_boxes = {}
-    for image in images:
+    for image in images or []:
         filename = image["filename"]
         lat = image["latitude"]
         lon = image["longitude"]
@@ -274,7 +279,63 @@ def find_images_with_coordinate(
     return matching_images
 
 
-async def process_images_for_point(
+async def find_images_in_a_project_for_point(
+    project_id: uuid.UUID,
+    task_id_list: List[uuid.UUID],
+    point: waypoint_schemas.PointField,
+    fov_degree: float,
+    altitude: float,
+) -> List[str]:
+    """
+    Process images to find those containing a specific point and return their pre-signed URLs.
+
+    Args:
+        project_id (uuid.UUID): The ID of the project.
+        task_id (uuid.UUID): The ID of the task.
+        point (waypoint_schemas.PointField): The point to check.
+
+    Returns:
+        List[str]: A list of pre-signed URLs for matching images.
+    """
+
+    # Extract the longitude and latitude of the point
+    point_tuple = (point.longitude, point.latitude)
+
+    # Find the matching images from each task
+    images_list = []
+    for task_id in task_id_list:
+        task_id_str = str(task_id[0])
+        s3_images_json_path_for_task = (
+            f"dtm-data/projects/{project_id}/{task_id_str}/images.json"
+        )
+        s3_images_json_url = get_presigned_url(
+            settings.S3_BUCKET_NAME, s3_images_json_path_for_task
+        )
+
+        # Fetch bounding boxes from the `images.json` file
+        bbox_list = await calculate_bbox_from_images_file(
+            s3_images_json_url, fov_degree, altitude
+        )
+
+        # Find images whose bounding boxes contain the given point
+        matching_images = await find_matching_images_that_contains_point(
+            bbox_list, point_tuple
+        )
+        images_list += [f"{task_id_str}/images/{image}" for image in matching_images]
+
+    # Generate pre-signed URLs for the matching images
+    presigned_urls = [
+        get_presigned_url(
+            settings.S3_BUCKET_NAME,
+            f"dtm-data/projects/{project_id}/{image}",
+        )
+        for image in images_list
+    ]
+
+    return presigned_urls
+
+
+async def find_images_in_a_task_for_point(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     point: waypoint_schemas.PointField,
