@@ -30,7 +30,7 @@ const Legend = () => {
             </div>
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#9C77B2] naxatw-opacity-60" />
-              <p className="naxatw-text-sm">Image Processing</p>
+              <p className="naxatw-text-sm">Image Processing Started</p>
             </div>
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#D73F3F] naxatw-opacity-60" />

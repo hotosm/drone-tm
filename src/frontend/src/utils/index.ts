@@ -82,7 +82,7 @@ export const getFrontOverlap = (agl: number, forwardSpacing: number) => {
 // remove underscore and capitalize the word
 export const formatString = (value: string) => {
   if (!value) return '';
-  if (value === 'IMAGE_PROCESSED') return 'Completed';
+  if (value === 'IMAGE_PROCESSING_FINISHED') return 'Completed';
   return value
     .replace(/_/g, ' ')
     .toLowerCase()

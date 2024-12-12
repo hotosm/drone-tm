@@ -151,10 +151,12 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             return 'This task is not flyable';
           case 'IMAGE_UPLOADED':
             return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
-          case 'IMAGE_PROCESSED':
+          case 'IMAGE_PROCESSING_STARTED':
+              return `This task is started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+          case 'IMAGE_PROCESSING_FINISHED':
             return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_FAILED':
-            return `This task's image processing is failed started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `The image processing task started ${userDetails?.id === properties?.locked_user_id ? 'by you' : `by ${properties?.locked_user_name}`} has failed.`;
           default:
             return '';
         }

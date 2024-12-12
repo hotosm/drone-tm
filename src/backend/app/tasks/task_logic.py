@@ -29,7 +29,7 @@ async def get_task_stats(db: Connection, user_data: AuthUser):
             raw_sql = """
                 SELECT
                     COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED','IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
                     COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_tasks,
                     COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
 
@@ -642,7 +642,7 @@ async def handle_event(
                 task_id,
                 user_id,
                 f"Task image processing started by user {user_data.name}.",
-                State[state],
+                State.IMAGE_UPLOADED,
                 State.IMAGE_PROCESSING_STARTED,
                 detail.updated_at,
             )
