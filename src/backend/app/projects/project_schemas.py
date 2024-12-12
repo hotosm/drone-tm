@@ -110,7 +110,7 @@ class ProjectIn(BaseModel):
     )
     final_output: List[FinalOutput] = Field(
         ...,
-        example=[
+        json_schema_extra=[
             "ORTHOPHOTO_2D",
             "ORTHOPHOTO_3D",
             "DIGITAL_TERRAIN_MODEL",
@@ -538,7 +538,7 @@ class Pagination(BaseModel):
     per_page: int
     total: int
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def calculate_pagination(cls, values):
         page = values.get("page", 1)
         total = values.get("total", 1)
