@@ -525,7 +525,7 @@ async def odm_webhook(
         current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
         current_state_value = State[current_state.get("state")]
         match current_state_value:
-            case State.IMAGE_UPLOADED:
+            case State.IMAGE_PROCESSING_STARTED:
                 log.info(
                     f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
                 )
@@ -537,7 +537,7 @@ async def odm_webhook(
                     dtm_project_id,
                     dtm_task_id,
                     dtm_user_id,
-                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSING_STARTED,
                     "Task completed.",
                 )
 
@@ -553,7 +553,7 @@ async def odm_webhook(
                     dtm_project_id,
                     dtm_task_id,
                     dtm_user_id,
-                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSING_FAILED,
                     "Task completed.",
                 )
 
@@ -572,7 +572,7 @@ async def odm_webhook(
                 dtm_task_id,
                 dtm_user_id,
                 "Image processing failed.",
-                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_STARTED,
                 State.IMAGE_PROCESSING_FAILED,
                 timestamp(),
             )

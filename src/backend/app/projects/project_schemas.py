@@ -369,7 +369,7 @@ class DbProject(BaseModel):
                     COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
 
                     -- Count based on the latest state of tasks
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
 
                 FROM projects p
                 LEFT JOIN tasks t ON t.project_id = p.id
