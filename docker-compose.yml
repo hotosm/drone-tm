@@ -8,9 +8,6 @@ volumes:
   frontend-html:
     name: drone-tm-frontend-html
 
-  odm-media:
-  odm-db-data:
-
 services:
   backend:
     build:
@@ -84,26 +81,6 @@ services:
     networks:
       - dtm-network
     restart: unless-stopped
-
-  odm-api:
-    image: docker.io/opendronemap/nodeodm:3.5.3
-    # This is hardcoded by default
-    hostname: webodm-node-odm-1
-    container_name: odm-api
-    networks:
-      - dtm-network
-    ports:
-      - 3001:3000
-    restart: unless-stopped
-    oom_score_adj: 500
-
-  odm-broker:
-    image: docker.io/redis:7.0.10
-    container_name: odm-broker
-    networks:
-      - dtm-network
-    restart: unless-stopped
-    oom_score_adj: -500
 
   createbuckets:
     image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
