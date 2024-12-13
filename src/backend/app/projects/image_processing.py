@@ -380,6 +380,11 @@ async def process_assets_from_odm(
         log.info(f"Downloading results for task {dtm_project_id} to {output_file_path}")
 
         assets_path = task.download_zip(output_file_path)
+        s3_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/assets.zip".strip(
+            "/"
+        )
+
+        s3_path = f"dtm-data/projects/{dtm_project_id}/assets.zip"
 
         s3_path = f"dtm-data/projects/{dtm_project_id}/assets.zip"
         log.info(f"Uploading {assets_path} to S3 path: {s3_path}")
@@ -396,15 +401,18 @@ async def process_assets_from_odm(
             raise FileNotFoundError("Orthophoto file is missing")
 
         reproject_to_web_mercator(orthophoto_path, orthophoto_path)
-
-        s3_ortho_path = (
-            f"dtm-data/projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
+        s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/orthophoto/odm_orthophoto.tif".strip(
+            "/"
         )
+
         log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
         add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
         images_json_path = os.path.join(output_file_path, "images.json")
-        s3_images_json_path = f"dtm-data/projects/{dtm_project_id}/images.json"
+        s3_images_json_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/images.json".strip(
+            "/"
+        )
+
         log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
         add_file_to_bucket(
             settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
