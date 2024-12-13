@@ -383,10 +383,6 @@ async def process_assets_from_odm(
         s3_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/assets.zip".strip(
             "/"
         )
-
-        s3_path = f"dtm-data/projects/{dtm_project_id}/assets.zip"
-
-        s3_path = f"dtm-data/projects/{dtm_project_id}/assets.zip"
         log.info(f"Uploading {assets_path} to S3 path: {s3_path}")
         add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
