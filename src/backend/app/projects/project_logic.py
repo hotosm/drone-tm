@@ -223,11 +223,11 @@ async def process_drone_images(
 
 
 async def process_all_drone_images(
-    project_id: uuid.UUID, task_id: list, user_id: str, db: Connection
+    project_id: uuid.UUID, tasks: list, user_id: str, db: Connection
 ):
     # Initialize the processor
     processor = AllDroneImageProcessor(
-        settings.NODE_ODM_URL, project_id, task_id, user_id, db
+        settings.NODE_ODM_URL, project_id, tasks, user_id, db
     )
 
     # Define processing options

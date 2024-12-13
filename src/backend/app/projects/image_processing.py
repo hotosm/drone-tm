@@ -159,14 +159,16 @@ class BaseDroneImageProcessor:
         # Create a temporary directory to store downloaded images
         temp_dir = tempfile.mkdtemp()
         try:
+            images_list = []
+
             # Download images based on single or multiple task processing
             if single_task:  # and self.task_id:
                 self.download_images_from_s3(bucket_name, temp_dir, self.task_id)
+                images_list = self.list_images(temp_dir)
             else:
                 for task_id in self.task_ids:
                     self.download_images_from_s3(bucket_name, temp_dir, task_id)
-
-            images_list = self.list_images(temp_dir)
+                    images_list.extend(self.list_images(temp_dir))
 
             # Start a new processing task
             task = self.process_new_task(
