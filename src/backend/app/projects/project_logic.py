@@ -17,7 +17,7 @@ from app.s3 import (
     get_object_metadata,
 )
 from app.config import settings
-from app.projects.image_processing import DroneImageProcessor
+from app.projects.image_processing import AllDroneImageProcessor, DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
 from psycopg.rows import dict_row
@@ -200,7 +200,7 @@ async def preview_split_by_square(boundary: str, meters: int):
     )
 
 
-def process_drone_images(
+async def process_drone_images(
     project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, db: Connection
 ):
     # Initialize the processor
@@ -213,11 +213,34 @@ def process_drone_images(
         {"name": "dsm", "value": True},
         {"name": "orthophoto-resolution", "value": 5},
     ]
-
     webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
-    processor.process_images_from_s3(
+    await processor.process_images_from_s3(
         settings.S3_BUCKET_NAME,
         name=f"DTM-Task-{task_id}",
+        options=options,
+        webhook=webhook_url,
+    )
+
+
+async def process_all_drone_images(
+    project_id: uuid.UUID, task_id: list, user_id: str, db: Connection
+):
+    # Initialize the processor
+    processor = AllDroneImageProcessor(
+        settings.NODE_ODM_URL, project_id, task_id, user_id, db
+    )
+
+    # Define processing options
+    options = [
+        {"name": "dsm", "value": True},
+        {"name": "orthophoto-resolution", "value": 5},
+    ]
+    webhook_url = (
+        f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
+    )
+    await processor.process_images_for_all_tasks(
+        settings.S3_BUCKET_NAME,
+        name_prefix=f"DTM-Task-{project_id}",
         options=options,
         webhook=webhook_url,
     )
@@ -314,3 +337,18 @@ def generate_square_geojson(center_lat, center_lon, side_length_meters):
         ],
     }
     return geojson
+
+
+async def get_all_tasks_for_project(project_id, db):
+    "Get all tasks associated with the project ID that are in state IMAGE_UPLOADED."
+    async with db.cursor() as cur:
+        query = """
+        SELECT t.id
+        FROM tasks t
+        JOIN task_events te ON t.id = te.task_id
+        WHERE t.project_id = %s AND te.state = 'IMAGE_UPLOADED';
+        """
+        await cur.execute(query, (project_id,))
+        results = await cur.fetchall()
+        # Convert UUIDs to string
+        return [str(result[0]) for result in results]
