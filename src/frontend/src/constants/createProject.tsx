@@ -321,4 +321,3 @@ export const demFileOptions = [
   },
   { name: 'Upload DEM File', label: 'Upload DEM File', value: 'manual' },
 ];
-
