@@ -19,7 +19,7 @@ import zipfile
 from osgeo import gdal
 
 
-class BaseDroneImageProcessor:
+class DroneImageProcessor:
     def __init__(
         self,
         node_odm_url: str,
@@ -238,8 +238,6 @@ class BaseDroneImageProcessor:
         log.info("Task completed.")
         return task
 
-
-class DroneImageProcessor(BaseDroneImageProcessor):
     async def process_images_from_s3(
         self,
         bucket_name: str,
