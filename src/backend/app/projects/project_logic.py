@@ -17,7 +17,7 @@ from app.s3 import (
     get_object_metadata,
 )
 from app.config import settings
-from app.projects.image_processing import AllDroneImageProcessor, DroneImageProcessor
+from app.projects.image_processing import DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
 from psycopg.rows import dict_row
@@ -205,7 +205,12 @@ async def process_drone_images(
 ):
     # Initialize the processor
     processor = DroneImageProcessor(
-        settings.NODE_ODM_URL, project_id, task_id, user_id, db
+        node_odm_url=settings.NODE_ODM_URL,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=user_id,
+        task_ids=None,
+        db=db,
     )
 
     # Define processing options
@@ -226,8 +231,13 @@ async def process_all_drone_images(
     project_id: uuid.UUID, tasks: list, user_id: str, db: Connection
 ):
     # Initialize the processor
-    processor = AllDroneImageProcessor(
-        settings.NODE_ODM_URL, project_id, tasks, user_id, db
+    processor = DroneImageProcessor(
+        node_odm_url=settings.NODE_ODM_URL,
+        project_id=project_id,
+        task_id=None,
+        user_id=user_id,
+        task_ids=tasks,
+        db=db,
     )
 
     # Define processing options

@@ -160,7 +160,6 @@ class BaseDroneImageProcessor:
         temp_dir = tempfile.mkdtemp()
         try:
             images_list = []
-
             # Download images based on single or multiple task processing
             if single_task:  # and self.task_id:
                 self.download_images_from_s3(bucket_name, temp_dir, self.task_id)
@@ -228,21 +227,19 @@ class BaseDroneImageProcessor:
             bucket_name, name=name, options=options, webhook=webhook, single_task=False
         )
 
+    def monitor_task(self, task):
+        """
+        Monitors the task progress until completion.
+
+        :param task: The task object.
+        """
+        log.info(f"Monitoring task {task.uuid}...")
+        task.wait_for_completion(interval=5)
+        log.info("Task completed.")
+        return task
+
 
 class DroneImageProcessor(BaseDroneImageProcessor):
-    def __init__(
-        self,
-        node_odm_url: str,
-        project_id: uuid.UUID,
-        task_id: uuid.UUID,
-        user_id: str,
-        db: Connection,
-    ):
-        """
-        Initialize a single task processor.
-        """
-        super().__init__(node_odm_url, project_id, user_id, db, task_id=task_id)
-
     async def process_images_from_s3(
         self,
         bucket_name: str,
@@ -292,21 +289,6 @@ class DroneImageProcessor(BaseDroneImageProcessor):
             return task
 
         return task
-
-
-class AllDroneImageProcessor(BaseDroneImageProcessor):
-    def __init__(
-        self,
-        node_odm_url: str,
-        project_id: uuid.UUID,
-        task_ids: List[uuid.UUID],
-        user_id: str,
-        db: Any,
-    ):
-        """
-        Initialize a multi-task processor.
-        """
-        super().__init__(node_odm_url, project_id, user_id, db, task_ids=task_ids)
 
     async def process_images_for_all_tasks(
         self,
