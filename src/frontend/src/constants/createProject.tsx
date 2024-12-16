@@ -314,6 +314,11 @@ export const taskGenerationGuidelines = {
 };
 
 export const demFileOptions = [
-  { name: 'Auto DEM File', label: 'Auto DEM File', value: 'auto' },
+  {
+    name: 'Download DEM file from JAXA',
+    label: 'Download DEM file from JAXA',
+    value: 'auto',
+  },
   { name: 'Upload DEM File', label: 'Upload DEM File', value: 'manual' },
 ];
+
