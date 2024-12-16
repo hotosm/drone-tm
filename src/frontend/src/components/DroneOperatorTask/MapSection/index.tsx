@@ -481,7 +481,7 @@ const MapSection = ({ className }: { className?: string }) => {
   }, [dragging, isMapLoaded, map]);
 
   const { mutate: postRotatedFlightPlan, isLoading: flighplanIsUpdating } =
-    useMutation<any, any, any, unknown>({
+    useMutation({
       mutationFn: postRotatedTaskWayPoint,
       onSuccess: () => {
         toast.success('Flight plan rotated successfully');
