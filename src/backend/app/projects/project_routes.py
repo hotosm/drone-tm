@@ -39,6 +39,7 @@ from app.utils import (
     send_project_approval_email_to_regulator,
 )
 from app.users import user_schemas
+from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
 from drone_flightplan import waypoints, add_elevation_from_dem
 
@@ -228,6 +229,10 @@ async def create_project(
             user_data.name,
             project_info.name,
         )
+
+    if project_info.is_terrain_follow and not dem:
+        geometry = project_info.outline["features"][0]["geometry"]
+        background_tasks.add_task(upload_dem_file, geometry, project_id)
 
     return {"message": "Project successfully created", "project_id": project_id}
 
@@ -525,7 +530,7 @@ async def odm_webhook(
         current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
         current_state_value = State[current_state.get("state")]
         match current_state_value:
-            case State.IMAGE_UPLOADED:
+            case State.IMAGE_PROCESSING_STARTED:
                 log.info(
                     f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
                 )
@@ -537,7 +542,7 @@ async def odm_webhook(
                     dtm_project_id,
                     dtm_task_id,
                     dtm_user_id,
-                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSING_STARTED,
                     "Task completed.",
                 )
 
@@ -553,7 +558,7 @@ async def odm_webhook(
                     dtm_project_id,
                     dtm_task_id,
                     dtm_user_id,
-                    State.IMAGE_UPLOADED,
+                    State.IMAGE_PROCESSING_FAILED,
                     "Task completed.",
                 )
 
@@ -572,7 +577,7 @@ async def odm_webhook(
                 dtm_task_id,
                 dtm_user_id,
                 "Image processing failed.",
-                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_STARTED,
                 State.IMAGE_PROCESSING_FAILED,
                 timestamp(),
             )

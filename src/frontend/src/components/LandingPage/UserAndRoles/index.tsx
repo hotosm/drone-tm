@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { FlexRow } from '@Components/common/Layouts';
 // import Icon from '@Components/common/Icon';
 import { motion } from 'framer-motion';
@@ -9,24 +8,6 @@ import {
 } from '@Constants/animations';
 
 export default function UserAndRoles() {
-  const [itemsToShow, setItemsToShow] = useState(1);
-
-  useEffect(() => {
-    function handleResize() {
-      if (window.innerWidth < 768) {
-        setItemsToShow(1);
-      } else if (window.innerWidth < 1024) {
-        setItemsToShow(2);
-      } else {
-        setItemsToShow(3);
-      }
-    }
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   return (
     <section className="user-and-roles naxatw-bg-[#F9F3EA]">
       <div className="!naxatw-w-full naxatw-px-[1.25rem] naxatw-py-24 md:naxatw-px-[4.375rem]">
@@ -42,13 +23,6 @@ export default function UserAndRoles() {
           gap={5}
           className="naxatw-mt-20 naxatw-items-center naxatw-justify-between"
         >
-          {/* <button
-            type="button"
-            className="naxatw-flex naxatw-h-12 naxatw-w-12 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border naxatw-border-landing-blue naxatw-bg-white hover:naxatw-animate-loader"
-            onClick={() => {}}
-          >
-            <Icon name="west" />
-          </button> */}
           <motion.div
             variants={containerAnimationVariant}
             initial="hidden"
@@ -56,7 +30,7 @@ export default function UserAndRoles() {
             viewport={{ once: true }}
             className="naxatw-mx-auto naxatw-grid naxatw-w-[90%] naxatw-grid-cols-1 naxatw-gap-5 md:naxatw-grid-cols-2 lg:naxatw-grid-cols-3"
           >
-            {userAndRolesData.slice(0, itemsToShow).map(singleItem => (
+            {userAndRolesData.map(singleItem => (
               <motion.div
                 key={singleItem.id}
                 variants={fadeUpVariant}
