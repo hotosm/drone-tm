@@ -472,8 +472,8 @@ async def process_all_imagery(
     return {"message": f"Processing started for {len(tasks)} tasks."}
 
 
-@router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/")
-async def odm_webhook_for_all_imagery(
+@router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/", tags=["Image Processing"])
+async def odm_webhook_for_processing_whole_project(
     request: Request,
     dtm_project_id: uuid.UUID,
     dtm_user_id: str,
@@ -498,8 +498,11 @@ async def odm_webhook_for_all_imagery(
     return {"message": "Webhook received", "task_id": dtm_project_id}
 
 
-@router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/{dtm_task_id}/")
-async def odm_webhook(
+@router.post(
+    "/odm/webhook/{dtm_user_id}/{dtm_project_id}/{dtm_task_id}/",
+    tags=["Image Processing"],
+)
+async def odm_webhook_for_processing_a_single_task(
     request: Request,
     db: Annotated[Connection, Depends(database.get_db)],
     dtm_project_id: uuid.UUID,
