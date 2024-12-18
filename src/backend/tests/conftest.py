@@ -98,7 +98,6 @@ async def project_info(db, user):
     except Exception as e:
         pytest.fail(f"Fixture setup failed with exception: {str(e)}")
 
-
 @pytest_asyncio.fixture(autouse=True)
 async def app() -> AsyncGenerator[FastAPI, Any]:
     """Get the FastAPI test server."""
