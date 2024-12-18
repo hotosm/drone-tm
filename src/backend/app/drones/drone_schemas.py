@@ -2,7 +2,7 @@ from typing import Optional
 from pydantic import BaseModel
 from fastapi import HTTPException
 from app.models.enums import HTTPStatus
-from psycopg import Connection, AsyncConnection
+from psycopg import Connection
 from psycopg.rows import class_row
 from datetime import datetime
 

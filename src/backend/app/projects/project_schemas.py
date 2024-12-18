@@ -9,7 +9,6 @@ from pydantic import (
     computed_field,
     Field,
     model_validator,
-    root_validator,
     EmailStr,
 )
 from pydantic.functional_validators import AfterValidator
