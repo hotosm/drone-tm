@@ -10,6 +10,7 @@ from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from psycopg import AsyncConnection
 
+
 @pytest_asyncio.fixture(scope="function")
 def get_current_user_override():
     return AuthUser(
@@ -17,8 +18,9 @@ def get_current_user_override():
         email="admin@hotosm.org",
         name="admin",
         profile_img="",
-        role=None
+        role=None,
     )
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def app() -> AsyncGenerator[FastAPI, Any]:
