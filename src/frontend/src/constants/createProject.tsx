@@ -312,3 +312,12 @@ export const taskGenerationGuidelines = {
       sized based on the drone equipment and parameters being used. This will
       also reduce the chances of RC lagging while flying the drone.`,
 };
+
+export const demFileOptions = [
+  {
+    name: 'Download DEM file from JAXA',
+    label: 'Download DEM file from JAXA',
+    value: 'auto',
+  },
+  { name: 'Upload DEM File', label: 'Upload DEM File', value: 'manual' },
+];

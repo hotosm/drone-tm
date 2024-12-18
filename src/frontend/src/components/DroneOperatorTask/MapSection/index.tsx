@@ -16,7 +16,7 @@ import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { Button } from '@Components/RadixComponents/Button';
-import { postTaskWaypoint } from '@Services/tasks';
+import { postRotatedTaskWayPoint, postTaskWaypoint } from '@Services/tasks';
 import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 import { toggleModal } from '@Store/actions/common';
 import {
@@ -480,6 +480,31 @@ const MapSection = ({ className }: { className?: string }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging, isMapLoaded, map]);
 
+  const { mutate: postRotatedFlightPlan, isLoading: flighplanIsUpdating } =
+    useMutation({
+      mutationFn: postRotatedTaskWayPoint,
+      onSuccess: () => {
+        toast.success('Flight plan rotated successfully');
+        queryClient.invalidateQueries(['task-waypoints']);
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.detail || err.message);
+      },
+    });
+
+  function handeSaveRotatedFlightPlan() {
+    if (!map || !isMapLoaded) return;
+    const pointsSource = map.getSource('waypoint-points');
+
+    if (pointsSource && pointsSource instanceof GeoJSONSource) {
+      const pointsData = pointsSource?._data;
+      postRotatedFlightPlan({
+        taskId,
+        data: JSON.stringify(pointsData),
+      });
+    }
+  }
+
   return (
     <>
       <div
@@ -634,14 +659,17 @@ const MapSection = ({ className }: { className?: string }) => {
                 withLoader
                 leftIcon="save"
                 className="naxatw-w-[10.8rem] naxatw-bg-red"
+                isLoading={flighplanIsUpdating}
+                disabled={rotationAngle === 0}
+                onClick={() => handeSaveRotatedFlightPlan()}
               >
                 <FlexColumn className="naxatw-gap-1">
                   <p className="naxatw-leading-3 naxatw-tracking-wide">
                     Save Rotated Flight Plan
                   </p>
                   {/* <p className="naxatw-font-normal naxatw-leading-3">
-                    Rotated: {rotationAngle.toFixed(2)}°
-                  </p> */}
+                  Rotated: {rotationAngle.toFixed(2)}°
+                </p> */}
                 </FlexColumn>
               </Button>
             </div>

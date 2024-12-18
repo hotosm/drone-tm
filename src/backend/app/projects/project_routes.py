@@ -39,6 +39,7 @@ from app.utils import (
     send_project_approval_email_to_regulator,
 )
 from app.users import user_schemas
+from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
 from drone_flightplan import waypoints, add_elevation_from_dem
 
@@ -228,6 +229,10 @@ async def create_project(
             user_data.name,
             project_info.name,
         )
+
+    if project_info.is_terrain_follow and not dem:
+        geometry = project_info.outline["features"][0]["geometry"]
+        background_tasks.add_task(upload_dem_file, geometry, project_id)
 
     return {"message": "Project successfully created", "project_id": project_id}
 
@@ -450,48 +455,59 @@ async def process_imagery(
     return {"message": "Processing started"}
 
 
-@router.get(
-    "/assets/{project_id}/",
-    tags=["Image Processing"],
-)
-async def get_assets_info(
-    user_data: Annotated[AuthUser, Depends(login_required)],
-    db: Annotated[Connection, Depends(database.get_db)],
+@router.post("/process_all_imagery/{project_id}/", tags=["Image Processing"])
+async def process_all_imagery(
+    project_id: uuid.UUID,
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: Optional[uuid.UUID] = None,
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    background_tasks: BackgroundTasks,
+    db: Annotated[Connection, Depends(database.get_db)],
 ):
     """
-    Endpoint to get the number of images and the URL to download the assets
-    for a given project and task. If no task_id is provided, returns info
-    for all tasks associated with the project.
+    API endpoint to process all tasks associated with a project.
     """
-    if task_id is None:
-        # Fetch all tasks associated with the project
-        tasks = await project_deps.get_tasks_by_project_id(project.id, db)
+    user_id = user_data.id
 
-        results = []
+    tasks = await project_logic.get_all_tasks_for_project(project.id, db)
+    background_tasks.add_task(
+        project_logic.process_all_drone_images, project_id, tasks, user_id, db
+    )
+    return {"message": f"Processing started for {len(tasks)} tasks."}
 
-        for task in tasks:
-            task_info = project_logic.get_project_info_from_s3(
-                project.id, task.get("id")
-            )
-            results.append(task_info)
 
-        return results
-    else:
-        current_state = await task_logic.get_task_state(db, project.id, task_id)
-        project_info = project_logic.get_project_info_from_s3(project.id, task_id)
-        project_info.state = current_state.get("state")
-        return project_info
+@router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/", tags=["Image Processing"])
+async def odm_webhook_for_processing_whole_project(
+    request: Request,
+    dtm_project_id: uuid.UUID,
+    dtm_user_id: str,
+    background_tasks: BackgroundTasks,
+):
+    payload = await request.json()
+    odm_task_id = payload.get("uuid")
+    status = payload.get("status")
+
+    if not odm_task_id or not status:
+        raise HTTPException(status_code=400, detail="Invalid webhook payload")
+
+    if status["code"] in {30, 40}:
+        log.info(f"Project {dtm_project_id}: Processing status {status['code']}")
+        background_tasks.add_task(
+            image_processing.process_assets_from_odm,
+            node_odm_url=settings.NODE_ODM_URL,
+            dtm_project_id=dtm_project_id,
+            odm_task_id=odm_task_id,
+        )
+
+    return {"message": "Webhook received", "task_id": dtm_project_id}
 
 
 @router.post(
     "/odm/webhook/{dtm_user_id}/{dtm_project_id}/{dtm_task_id}/",
     tags=["Image Processing"],
 )
-async def odm_webhook(
+async def odm_webhook_for_processing_a_single_task(
     request: Request,
     db: Annotated[Connection, Depends(database.get_db)],
     dtm_project_id: uuid.UUID,
@@ -499,98 +515,51 @@ async def odm_webhook(
     dtm_user_id: str,
     background_tasks: BackgroundTasks,
 ):
-    """
-    Webhook to receive notifications from ODM processing tasks.
-    """
-    # Try to parse the JSON body
-    try:
-        payload = await request.json()
-    except Exception as e:
-        log.error(f"Error parsing JSON: {e}")
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
-
-    task_id = payload.get("uuid")
+    payload = await request.json()
+    odm_task_id = payload.get("uuid")
     status = payload.get("status")
 
-    if not task_id or not status:
+    if not odm_task_id or not status:
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
-    log.info(f"Task ID: {task_id}, Status: {status}")
+    current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
+    state_value = State[current_state.get("state")]
 
-    # If status is 'success', download and upload assets to S3.
-    # 40 is the status code for success in odm
     if status["code"] == 40:
-        log.info(f"Task ID: {task_id}, Status: going for download......")
+        background_tasks.add_task(
+            image_processing.process_assets_from_odm,
+            node_odm_url=settings.NODE_ODM_URL,
+            dtm_project_id=dtm_project_id,
+            odm_task_id=odm_task_id,
+            state=state_value,
+            message="Task completed.",
+            dtm_task_id=dtm_task_id,
+            dtm_user_id=dtm_user_id,
+        )
 
-        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
-        current_state_value = State[current_state.get("state")]
-        match current_state_value:
-            case State.IMAGE_UPLOADED:
-                log.info(
-                    f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
-                )
-                # Call function to download assets from ODM and upload to S3
-                background_tasks.add_task(
-                    image_processing.download_and_upload_assets_from_odm_to_s3,
-                    settings.NODE_ODM_URL,
-                    task_id,
-                    dtm_project_id,
-                    dtm_task_id,
-                    dtm_user_id,
-                    State.IMAGE_UPLOADED,
-                    "Task completed.",
-                )
+    elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
+        await task_logic.update_task_state(
+            db,
+            dtm_project_id,
+            dtm_task_id,
+            dtm_user_id,
+            "Image processing failed.",
+            state_value,
+            State.IMAGE_PROCESSING_FAILED,
+            timestamp(),
+        )
+        background_tasks.add_task(
+            image_processing.process_assets_from_odm,
+            node_odm_url=settings.NODE_ODM_URL,
+            dtm_project_id=dtm_project_id,
+            odm_task_id=odm_task_id,
+            state=state_value,
+            message="Image processing failed.",
+            dtm_task_id=dtm_task_id,
+            dtm_user_id=dtm_user_id,
+        )
 
-            case State.IMAGE_PROCESSING_FAILED:
-                log.warning(
-                    f"Task ID: {task_id}, Status: previously failed, updating to IMAGE_UPLOADED"
-                )
-                # Call function to download assets from ODM and upload to S3
-                background_tasks.add_task(
-                    image_processing.download_and_upload_assets_from_odm_to_s3,
-                    settings.NODE_ODM_URL,
-                    task_id,
-                    dtm_project_id,
-                    dtm_task_id,
-                    dtm_user_id,
-                    State.IMAGE_UPLOADED,
-                    "Task completed.",
-                )
-
-            case _:
-                log.info(
-                    f"Task ID: {task_id}, Status: updating to IMAGE_UPLOADED from {current_state}"
-                )
-
-    elif status["code"] == 30:
-        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
-        # If the current state is not already IMAGE_PROCESSING_FAILED, update it
-        if current_state != State.IMAGE_PROCESSING_FAILED:
-            await task_logic.update_task_state(
-                db,
-                dtm_project_id,
-                dtm_task_id,
-                dtm_user_id,
-                "Image processing failed.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSING_FAILED,
-                timestamp(),
-            )
-
-            background_tasks.add_task(
-                image_processing.download_and_upload_assets_from_odm_to_s3,
-                settings.NODE_ODM_URL,
-                task_id,
-                dtm_project_id,
-                dtm_task_id,
-                dtm_user_id,
-                State.IMAGE_PROCESSING_FAILED,
-                "Image processing failed.",
-            )
-
-    log.info(f"Task ID: {task_id}, Status: Webhook received")
-
-    return {"message": "Webhook received", "task_id": task_id}
+    return {"message": "Webhook received", "task_id": odm_task_id}
 
 
 @router.post("/regulator/comment/{project_id}/", tags=["regulator"])
@@ -739,3 +708,40 @@ async def get_project_waypoints_counts(
     return {
         "avg_no_of_waypoints": len(json.loads(points_with_elevation)["features"]),
     }
+
+
+@router.get(
+    "/assets/{project_id}/",
+    tags=["Image Processing"],
+)
+async def get_assets_info(
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: Optional[uuid.UUID] = None,
+):
+    """
+    Endpoint to get the number of images and the URL to download the assets
+    for a given project and task. If no task_id is provided, returns info
+    for all tasks associated with the project.
+    """
+    if task_id is None:
+        # Fetch all tasks associated with the project
+        tasks = await project_deps.get_tasks_by_project_id(project.id, db)
+
+        results = []
+
+        for task in tasks:
+            task_info = project_logic.get_project_info_from_s3(
+                project.id, task.get("id")
+            )
+            results.append(task_info)
+
+        return results
+    else:
+        current_state = await task_logic.get_task_state(db, project.id, task_id)
+        project_info = project_logic.get_project_info_from_s3(project.id, task_id)
+        project_info.state = current_state.get("state")
+        return project_info
