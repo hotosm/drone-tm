@@ -15,6 +15,7 @@ import pytest
 from app.projects.project_schemas import ProjectIn, DbProject
 
 
+
 @pytest_asyncio.fixture(scope="function")
 async def db() -> AsyncConnection:
     """The psycopg async database connection using psycopg3."""
@@ -97,6 +98,7 @@ async def project_info(db, user):
         return project_metadata
     except Exception as e:
         pytest.fail(f"Fixture setup failed with exception: {str(e)}")
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def app() -> AsyncGenerator[FastAPI, Any]:
