@@ -31,7 +31,7 @@ async def read_drones(
 async def create_drone(
     drone_info: drone_schemas.DroneIn,
     db: Annotated[Connection, Depends(database.get_db)],
-    # user_data: Annotated[AuthUser, Depends(login_required)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Create a new drone in database"""
     drone_id = await drone_schemas.DbDrone.create(db, drone_info)

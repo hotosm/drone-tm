@@ -1,5 +1,6 @@
 from typing import AsyncGenerator, Any
 from app.db.database import get_db
+from app.users.user_deps import login_required
 from fastapi import FastAPI
 from app.main import get_application
 from app.users.user_schemas import AuthUser
@@ -9,15 +10,15 @@ from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from psycopg import AsyncConnection
 
-
+@pytest_asyncio.fixture(scope="function")
 def get_current_user_override():
     return AuthUser(
         id="6da91a51-5efd-40c9-a9c4-b66465a75fbe",
         email="admin@hotosm.org",
         name="admin",
         profile_img="",
+        role=None
     )
-
 
 @pytest_asyncio.fixture(autouse=True)
 async def app() -> AsyncGenerator[FastAPI, Any]:
@@ -61,6 +62,7 @@ async def client(app: FastAPI, db: AsyncConnection):
     """The FastAPI test server."""
     # Override server db connection
     app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[login_required] = lambda: get_current_user_override
 
     async with LifespanManager(app) as manager:
         async with AsyncClient(
