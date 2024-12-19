@@ -1,6 +1,7 @@
 from typing import AsyncGenerator, Any
 from app.db.database import get_db
 from app.users.user_deps import login_required
+from app.models.enums import UserRole
 from fastapi import FastAPI
 from app.main import get_application
 from app.users.user_schemas import AuthUser
@@ -9,17 +10,93 @@ from app.config import settings
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from psycopg import AsyncConnection
+from app.users.user_schemas import DbUser
+import pytest
+from app.projects.project_schemas import ProjectIn, DbProject
 
 
 @pytest_asyncio.fixture(scope="function")
-def get_current_user_override():
-    return AuthUser(
-        id="6da91a51-5efd-40c9-a9c4-b66465a75fbe",
-        email="admin@hotosm.org",
-        name="admin",
-        profile_img="",
-        role=None,
+async def db() -> AsyncConnection:
+    """The psycopg async database connection using psycopg3."""
+    db_conn = await AsyncConnection.connect(
+        conninfo=settings.DTM_DB_URL.unicode_string(),
     )
+    try:
+        yield db_conn
+    finally:
+        await db_conn.close()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def user(db) -> AuthUser:
+    """Create a test user."""
+    db_user = await DbUser.get_or_create_user(
+        db,
+        AuthUser(
+            id="101039844375937810000",
+            email="admin@hotosm.org",
+            name="admin",
+            profile_img="",
+            role=UserRole.PROJECT_CREATOR,
+        ),
+    )
+    return db_user
+
+
+@pytest_asyncio.fixture(scope="function")
+async def project_info(db, user):
+    """
+    Fixture to create project metadata for testing.
+
+    """
+    print(
+        f"User passed to project_info fixture: {user}, ID: {getattr(user, 'id', 'No ID')}"
+    )
+
+    project_metadata = ProjectIn(
+        name="TEST 98982849249278787878778",
+        description="",
+        outline={
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "id": "d10fbd780ecd3ff7851cb222467616a0",
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [-69.49779538720068, 18.629654277305633],
+                                [-69.48497355306813, 18.616997544638636],
+                                [-69.54053483430786, 18.608390428368665],
+                                [-69.5410690773959, 18.614466085056165],
+                                [-69.49779538720068, 18.629654277305633],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                }
+            ],
+        },
+        no_fly_zones=None,
+        gsd_cm_px=1,
+        task_split_dimension=400,
+        is_terrain_follow=False,
+        per_task_instructions="",
+        deadline_at=None,
+        visibility=0,
+        requires_approval_from_manager_for_locking=False,
+        requires_approval_from_regulator=False,
+        front_overlap=1,
+        side_overlap=1,
+        final_output=["ORTHOPHOTO_2D"],
+    )
+
+    try:
+        await DbProject.create(db, project_metadata, getattr(user, "id", ""))
+        return project_metadata
+    except Exception as e:
+        pytest.fail(f"Fixture setup failed with exception: {str(e)}")
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -48,23 +125,11 @@ def drone_info():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db() -> AsyncConnection:
-    """The psycopg async database connection using psycopg3."""
-    db_conn = await AsyncConnection.connect(
-        conninfo=settings.DTM_DB_URL.unicode_string(),
-    )
-    try:
-        yield db_conn
-    finally:
-        await db_conn.close()
-
-
-@pytest_asyncio.fixture(scope="function")
 async def client(app: FastAPI, db: AsyncConnection):
     """The FastAPI test server."""
     # Override server db connection
     app.dependency_overrides[get_db] = lambda: db
-    app.dependency_overrides[login_required] = lambda: get_current_user_override
+    app.dependency_overrides[login_required] = lambda: user
 
     async with LifespanManager(app) as manager:
         async with AsyncClient(

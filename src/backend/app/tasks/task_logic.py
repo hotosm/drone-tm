@@ -42,19 +42,22 @@ async def get_task_stats(db: Connection, user_data: AuthUser):
                     WHERE
                         (
                         %(role)s = 'DRONE_PILOT'
-                        AND te.user_id = %(user_id)s
+                        AND te.user_id = %(user_id)s AND te.state NOT IN ('UNLOCKED_TO_MAP')
                     )
                     OR
                     (
-                    %(role)s = 'PROJECT_CREATOR'
-                    AND (
-                        te.project_id IN (
-                            SELECT p.id
-                            FROM projects p
-                            WHERE p.author_id = %(user_id)s
+                        %(role)s = 'PROJECT_CREATOR'
+                        AND (
+                            te.user_id = %(user_id)s AND te.state NOT IN ('REQUEST_FOR_MAPPING')
+                            OR
+                            te.project_id IN (
+                                SELECT p.id
+                                FROM projects p
+                                WHERE
+                                    p.author_id = %(user_id)s
+                            )
                         )
-                    OR te.user_id = %(user_id)s -- Grant permissions equivalent to DRONE_PILOT
-                    ))
+                    )
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
             """
