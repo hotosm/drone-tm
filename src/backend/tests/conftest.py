@@ -15,7 +15,6 @@ import pytest
 from app.projects.project_schemas import ProjectIn, DbProject
 
 
-
 @pytest_asyncio.fixture(scope="function")
 async def db() -> AsyncConnection:
     """The psycopg async database connection using psycopg3."""
