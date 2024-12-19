@@ -224,19 +224,26 @@ class UserTasksStatsOut(BaseModel):
                 WHERE
                     (
                         %(role)s = 'DRONE_PILOT'
-                        AND task_events.user_id = %(user_id)s
+                        AND task_events.user_id = %(user_id)s AND task_events.state NOT IN ('UNLOCKED_TO_MAP')
                     )
                     OR
                     (
-                    %(role)s = 'PROJECT_CREATOR' AND (
-                        task_events.project_id IN (
-                            SELECT p.id
-                            FROM projects p
-                            WHERE p.author_id = %(user_id)s
+                        %(role)s = 'PROJECT_CREATOR'
+                        AND (
+                            (
+                                task_events.user_id = %(user_id)s AND task_events.state NOT IN ('REQUEST_FOR_MAPPING')
+                            )
+                            OR
+                            (
+                             task_events.project_id IN (
+                                SELECT p.id
+                                FROM projects p
+                                WHERE
+                                    p.author_id = %(user_id)s
+                                )
+                            )
                         )
-                        OR task_events.user_id = %(user_id)s
                     )
-                )
                 ORDER BY
                     tasks.id, task_events.created_at DESC
                 OFFSET %(skip)s

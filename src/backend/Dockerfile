@@ -60,6 +60,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync
 
+# Install the test dependencies using uv
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --group test
+
 # Run stage (final stage)
 FROM python:$PYTHON_BASE AS service
 
