@@ -1,6 +1,9 @@
 /* eslint-disable no-param-reassign */
 import { useEffect, useMemo, useRef } from 'react';
-import { MapMouseEvent } from 'maplibre-gl';
+import { LngLatLike, MapMouseEvent } from 'maplibre-gl';
+import bbox from '@turf/bbox';
+import { toast } from 'react-toastify';
+import { Feature, FeatureCollection } from 'geojson';
 // import { v4 as uuidv4 } from 'uuid';
 import { IVectorLayer } from '../types';
 
@@ -18,9 +21,14 @@ export default function VectorLayer({
   symbolPlacement = 'point',
   iconAnchor = 'center',
   imageLayerOptions,
+  zoomToExtent = false,
+  onDrag,
+  onDragEnd,
+  needDragEvent = false,
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
+  const firstRender = useRef(true);
   const imageId = `${sourceId}-image/logo`;
 
   useEffect(() => {
@@ -108,6 +116,53 @@ export default function VectorLayer({
     };
   }, [map, sourceId]);
 
+  useEffect(() => {
+    if (!map || !geojson || !zoomToExtent) return;
+    if (!firstRender.current) return;
+    firstRender.current = false;
+
+    const handleZoom = () => {
+      if (!map || !geojson || !zoomToExtent) return;
+      let parsedGeojson: Feature | FeatureCollection;
+
+      // Parse GeoJSON if it's a string
+      if (typeof geojson === 'string') {
+        try {
+          parsedGeojson = JSON.parse(geojson) as Feature | FeatureCollection;
+        } catch (error) {
+          toast.error(
+            'Invalid GeoJSON string:',
+            (error as Record<string, any>)?.message,
+          );
+          return;
+        }
+      } else {
+        parsedGeojson = geojson as Feature | FeatureCollection;
+      }
+      const [minLng, minLat, maxLng, maxLat] = bbox(parsedGeojson);
+      const bounds: [LngLatLike, LngLatLike] = [
+        [minLng, minLat], // Southwest corner
+        [maxLng, maxLat], // Northeast corner
+      ];
+
+      // Zoom to the bounds
+      map.fitBounds(bounds, {
+        padding: 20,
+        maxZoom: 14,
+        zoom: 18,
+        // animate: false,
+        duration: 300,
+      });
+      map.off('idle', handleZoom);
+    };
+
+    map.on('idle', handleZoom);
+    // eslint-disable-next-line consistent-return
+    return () => {
+      map.off('idle', handleZoom);
+    };
+  }, [map, geojson, zoomToExtent]);
+
   // add select interaction & return properties on feature select
   useEffect(() => {
     if (!map || !interactions.includes('feature')) return () => {};
@@ -123,6 +178,52 @@ export default function VectorLayer({
     map.on('click', sourceId, handleSelectInteraction);
     return () => map.off('click', sourceId, handleSelectInteraction);
   }, [map, interactions, sourceId, onFeatureSelect]);
+
+  useEffect(() => {
+    if (!map || !geojson || !onDrag || !onDragEnd || !needDragEvent)
+      return () => {};
+
+    let isDragging = false;
+    // let startCoordinates: [number, number] | null = null;
+    let originalCoordinates: [number, number] | null = null;
+
+    const onMouseDown = (event: MapMouseEvent) => {
+      originalCoordinates = [event.lngLat.lng, event.lngLat.lat];
+      // const features = map.queryRenderedFeatures(event.point, {
+      //   layers: [`${sourceId}-layer`],
+      // });
+      // if (!features.length) return;
+
+      isDragging = true;
+      // startCoordinates = [event.lngLat.lng, event.lngLat.lat];
+      map.getCanvas().style.cursor = 'grab';
+    };
+
+    const onMouseMove = (event: MapMouseEvent) => {
+      if (!isDragging || !originalCoordinates) return;
+
+      // Call the provided onDrag function with the angle
+      onDrag({ originalCoordinates, ...event, isDragging });
+    };
+
+    const onMouseUp = () => {
+      if (isDragging) {
+        isDragging = false;
+        map.getCanvas().style.cursor = '';
+      }
+      onDragEnd();
+    };
+
+    map.on('mousedown', `${sourceId}-layer`, onMouseDown);
+    map.on('mousemove', onMouseMove);
+    map.on('mouseup', onMouseUp);
+
+    return () => {
+      map.off('mousedown', `${sourceId}-layer`, onMouseDown);
+      map.off('mousemove', onMouseMove);
+      map.off('mouseup', onMouseUp);
+    };
+  }, [map, geojson, sourceId, onDrag, onDragEnd, needDragEvent]);
 
   useEffect(
     () => () => {

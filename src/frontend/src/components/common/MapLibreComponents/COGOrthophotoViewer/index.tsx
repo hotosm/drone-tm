@@ -31,6 +31,7 @@ const COGOrthophotoViewer = ({
           duration: 1000,
           zoom: 18,
         });
+      map.off('idle', handleZoomToGeoTiff);
     };
 
     // Registers the 'cog' protocol with the mapLibre instance, enabling support for Cloud Optimized GeoTIFF (COG) files

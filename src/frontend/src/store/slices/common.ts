@@ -6,6 +6,11 @@ import {
 } from '@Constants/modalContents';
 import persist from '@Store/persist';
 
+export interface documentDetailType {
+  uri: string;
+  fileType: 'png' | 'jpeg' | 'pdf' | 'jpg';
+}
+
 export interface CommonState {
   showModal: boolean;
   modalContent: ModalContentsType;
@@ -16,6 +21,8 @@ export interface CommonState {
   userProfileActiveTab: number;
   isCertifiedDroneUser: 'yes' | 'no';
   projectSearchKey: string;
+  selectedDocumentDetails: documentDetailType | null;
+  projectCountry: string | null;
 }
 
 const initialState: CommonState = {
@@ -28,6 +35,8 @@ const initialState: CommonState = {
   userProfileActiveTab: 1,
   isCertifiedDroneUser: 'no',
   projectSearchKey: '',
+  selectedDocumentDetails: null,
+  projectCountry: null,
 };
 
 const setCommonState: CaseReducer<

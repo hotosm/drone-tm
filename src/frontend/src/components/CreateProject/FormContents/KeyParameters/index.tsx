@@ -3,13 +3,19 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { FormControl, Label, Input } from '@Components/common/FormUI';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
-import { setCreateProjectState } from '@Store/actions/createproject';
+import {
+  setCreateProjectState,
+  setDemType,
+} from '@Store/actions/createproject';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { useQuery } from '@tanstack/react-query';
+import { getDroneAltitude } from '@Services/createproject';
 // import { terrainOptions } from '@Constants/createProject';
 import { FlexRow } from '@Components/common/Layouts';
 import Switch from '@Components/RadixComponents/Switch';
 import FileUpload from '@Components/common/UploadArea';
 import {
+  demFileOptions,
   FinalOutputOptions,
   imageMergeTypeOptions,
   measurementTypeOptions,
@@ -25,6 +31,8 @@ import {
 } from '@Utils/index';
 import SwitchTab from '@Components/common/SwitchTab';
 import { Controller } from 'react-hook-form';
+import RadioButton from '@Components/common/RadioButton';
+
 import OutputOptions from './OutputOptions';
 
 const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
@@ -51,6 +59,15 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const imageMergeType = useTypedSelector(
     state => state.createproject.imageMergeType,
   );
+  const projectCountry = useTypedSelector(state => state.common.projectCountry);
+  const demType = useTypedSelector(state => state.createproject.demType);
+
+  const { data: droneAltitude } = useQuery({
+    queryKey: ['drone-altitude', projectCountry],
+    queryFn: () => getDroneAltitude(projectCountry || ''),
+    select: data => data.data,
+    enabled: !!projectCountry,
+  });
 
   // get altitude
   const agl =
@@ -115,7 +132,9 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
               ) : (
                 <></>
               )}
-              <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
+              {errors?.gsd_cm_px?.message && (
+                <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
+              )}
             </FormControl>
           ) : (
             <FormControl className="naxatw-mt-4 naxatw-gap-1">
@@ -146,11 +165,25 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 <></>
               )}
 
-              <ErrorMessage
-                message={errors?.altitude_from_ground?.message as string}
-              />
+              {errors?.altitude_from_ground?.message && (
+                <ErrorMessage
+                  message={errors?.altitude_from_ground?.message as string}
+                />
+              )}
             </FormControl>
           )}
+
+          {droneAltitude?.country &&
+            droneAltitude?.max_altitude_ft &&
+            (altitudeInputValue > droneAltitude?.max_altitude_m ||
+              gsdToAltitude(Number(gsdInputValue)) >
+                droneAltitude?.max_altitude_m) && (
+              <InfoMessage
+                className="naxatw-text-[#FFA500]"
+                message={`Since your project is in ${droneAltitude?.country}, the maximum allowable drone altitude is ${droneAltitude?.max_altitude_m} m. Please proceed further if you have permission to fly higher.`}
+              />
+            )}
+
           <FormControl className="naxatw-mt-5">
             <Label>Merge Type</Label>
 
@@ -180,10 +213,16 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   max={100}
                   min={0}
                   {...register('front_overlap', {
-                    required: 'Front Overlap is required',
+                    required: 'Front Overlap is Required',
                     valueAsNumber: true,
-                    max: 100,
-                    min: 0,
+                    max: {
+                      value: 100,
+                      message: 'Front Overlap too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Front Overlap cannot be negative',
+                    },
                   })}
                 />
                 {frontOverlapInputValue && agl ? (
@@ -208,8 +247,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   {...register('side_overlap', {
                     required: 'Side Overlap is required',
                     valueAsNumber: true,
-                    min: 0,
-                    max: 100,
+                    max: {
+                      value: 100,
+                      message: 'Side Overlap too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Side Overlap cannot be negative',
+                    },
                   })}
                 />
                 {sideOverlapInputValue && agl ? (
@@ -237,8 +282,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   {...register('forward_spacing', {
                     required: 'Forward Spacing is required',
                     valueAsNumber: true,
-                    max: 100,
-                    min: 0,
+                    max: {
+                      value: 100,
+                      message: 'Forward Spacing too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Forward Spacing cannot be negative',
+                    },
                   })}
                 />
                 {forwardSpacingInputValue && agl ? (
@@ -262,8 +313,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                   {...register('side_spacing', {
                     required: 'Side Spacing is required',
                     valueAsNumber: true,
-                    min: 0,
-                    max: 100,
+                    max: {
+                      value: 100,
+                      message: 'Side Spacing too high',
+                    },
+                    min: {
+                      value: 0,
+                      message: 'Side Spacing cannot be negative',
+                    },
                   })}
                 />
                 {sideSpacingInputValue && agl ? (
@@ -312,6 +369,22 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
             </FlexRow>
           </FormControl>
           {isTerrainFollow && (
+            <FormControl className="naxatw-mt-2">
+              <RadioButton
+                required
+                options={demFileOptions}
+                direction="column"
+                onChangeData={value => {
+                  dispatch(setDemType(value));
+                }}
+                value={demType}
+                // name="requireApprovalFromManagerForLocking"
+              />
+              <ErrorMessage message={errors?.dem?.message as string} />
+            </FormControl>
+          )}
+
+          {demType === 'manual' && (
             <FormControl className="naxatw-mt-2">
               <Controller
                 control={control}

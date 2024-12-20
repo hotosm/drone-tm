@@ -4,7 +4,13 @@ from typing import Annotated, Optional, List
 from datetime import datetime, date
 import geojson
 from loguru import logger as log
-from pydantic import BaseModel, computed_field, Field, model_validator, root_validator
+from pydantic import (
+    BaseModel,
+    computed_field,
+    Field,
+    model_validator,
+    EmailStr,
+)
 from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
 from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
@@ -13,11 +19,7 @@ from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
 from app.models.enums import FinalOutput, ProjectVisibility, UserRole
-from app.models.enums import (
-    IntEnum,
-    ProjectStatus,
-    HTTPStatus,
-)
+from app.models.enums import IntEnum, ProjectStatus, HTTPStatus, RegulatorApprovalStatus
 from app.utils import (
     merge_multipolygon,
 )
@@ -107,7 +109,7 @@ class ProjectIn(BaseModel):
     )
     final_output: List[FinalOutput] = Field(
         ...,
-        example=[
+        json_schema_extra=[
             "ORTHOPHOTO_2D",
             "ORTHOPHOTO_3D",
             "DIGITAL_TERRAIN_MODEL",
@@ -115,6 +117,8 @@ class ProjectIn(BaseModel):
         ],
     )
     requires_approval_from_manager_for_locking: Optional[bool] = False
+    requires_approval_from_regulator: Optional[bool] = False
+    regulator_emails: Optional[List[EmailStr]] = None
     front_overlap: Optional[float] = None
     side_overlap: Optional[float] = None
 
@@ -191,7 +195,14 @@ class DbProject(BaseModel):
     task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     requires_approval_from_manager_for_locking: Optional[bool] = None
+    requires_approval_from_regulator: Optional[bool] = False
+    regulator_emails: Optional[List[EmailStr]] = None
+    regulator_approval_status: Optional[str] = None
+    regulator_comment: Optional[str] = None
+    commenting_regulator_id: Optional[str] = None
     author_id: Optional[str] = None
+    author_name: Optional[str] = None
+    project_area: Optional[float] = None
     front_overlap: Optional[float] = None
     side_overlap: Optional[float] = None
     gsd_cm_px: Optional[float] = None
@@ -236,12 +247,20 @@ class DbProject(BaseModel):
                         ),
                         'id', projects.id
                     ) AS no_fly_zones,
-                    ST_AsGeoJSON(projects.centroid)::jsonb AS centroid
+                    ST_AsGeoJSON(projects.centroid)::jsonb AS centroid,
+                    users.name as author_name,
+                    COALESCE(SUM(ST_Area(tasks.outline::geography)) / 1000000, 0) AS project_area
 
                 FROM
                     projects
+                JOIN
+                    users ON projects.author_id = users.id
+                LEFT JOIN
+                    tasks ON projects.id = tasks.project_id
                 WHERE
                     projects.id = %(project_id)s
+                GROUP BY
+                    projects.id, users.name
                 LIMIT 1;
             """,
                 {"project_id": project_id},
@@ -349,7 +368,7 @@ class DbProject(BaseModel):
                     COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
 
                     -- Count based on the latest state of tasks
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
 
                 FROM projects p
                 LEFT JOIN tasks t ON t.project_id = p.id
@@ -365,6 +384,14 @@ class DbProject(BaseModel):
 
                 WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
                 AND p.name ILIKE %(search)s
+
+                -- Uncomment this if we want to restrict projects before local regulation accepts it
+                -- AND (
+                --    %(user_id)s IS NOT NULL
+                --    OR p.requires_approval_from_regulator = 'f'
+                --    OR p.regulator_approval_status = 'APPROVED'
+                -- )
+
                 GROUP BY p.id
                 ORDER BY p.created_at DESC
                 OFFSET %(skip)s
@@ -415,6 +442,11 @@ class DbProject(BaseModel):
         model_dump = project.model_dump(
             exclude_none=True, exclude=["outline", "centroid"]
         )
+        # NOTE to change the approach here to pass the value
+        if "regulator_emails" in model_dump.keys():
+            model_dump["regulator_approval_status"] = (
+                RegulatorApprovalStatus.PENDING.name
+            )
         columns = ", ".join(model_dump.keys())
         value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
         sql = f"""
@@ -505,7 +537,7 @@ class Pagination(BaseModel):
     per_page: int
     total: int
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def calculate_pagination(cls, values):
         page = values.get("page", 1)
         total = values.get("total", 1)
@@ -530,6 +562,13 @@ class ProjectInfo(BaseModel):
     outline: Optional[Polygon | Feature | FeatureCollection]
     no_fly_zones: Optional[Polygon | Feature | FeatureCollection | MultiPolygon] = None
     requires_approval_from_manager_for_locking: bool
+    requires_approval_from_regulator: Optional[bool] = False
+    regulator_emails: Optional[List[EmailStr]] = None
+    regulator_approval_status: Optional[str] = None
+    regulator_comment: Optional[str] = None
+    commenting_regulator_id: Optional[str] = None
+    author_name: Optional[str] = None
+    project_area: Optional[float] = None
     total_task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     image_url: Optional[str] = None

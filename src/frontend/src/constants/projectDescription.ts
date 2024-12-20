@@ -25,7 +25,7 @@ export const getLayerOptionsByStatus = (status: string) => {
         'fill-opacity': 0.5,
       },
     },
-    IMAGE_PROCESSED: {
+    IMAGE_PROCESSING_FINISHED: {
       type: 'fill',
       paint: {
         'fill-color': '#ACD2C4',
@@ -34,6 +34,14 @@ export const getLayerOptionsByStatus = (status: string) => {
       },
     },
     IMAGE_UPLOADED: {
+      type: 'fill',
+      paint: {
+        'fill-color': '#9ec7ff',
+        'fill-outline-color': '#484848',
+        'fill-opacity': 0.5,
+      },
+    },
+    IMAGE_PROCESSING_STARTED: {
       type: 'fill',
       paint: {
         'fill-color': '#9C77B2',
@@ -86,7 +94,10 @@ export const showPrimaryButton = (
     case 'IMAGE_UPLOADED':
       if (lockedUser === currentUser || author === currentUser) return true;
       return false;
-    case 'IMAGE_PROCESSED':
+    case 'IMAGE_PROCESSING_STARTED':
+      if (lockedUser === currentUser || author === currentUser) return true;
+      return false;
+    case 'IMAGE_PROCESSING_FINISHED':
       return true;
     case 'IMAGE_PROCESSING_FAILED':
       if (lockedUser === currentUser || author === currentUser) return true;

@@ -5,8 +5,9 @@ import { Button } from '@Components/RadixComponents/Button';
 import { setSecondPage } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch } from '@Store/hooks';
 import { postUnflyableComment } from '@Services/droneOperator';
+import { toast } from 'react-toastify';
 import { useMutation } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import UploadsBox from '../UploadsBox';
 
 interface IQuestionBoxProps {
@@ -21,6 +22,7 @@ const QuestionBox = ({
   haveNoImages,
 }: IQuestionBoxProps) => {
   const { projectId, taskId } = useParams();
+  const navigate = useNavigate();
 
   const dispatch = useTypedDispatch();
   const [comment, setComment] = useState('');
@@ -32,16 +34,17 @@ const QuestionBox = ({
     setFlyable(e.target.value);
   }
 
-  const mutation = useMutation(
+  const { mutate: mutateComment, isLoading: commentIsUpdating } = useMutation(
     (data: any) => postUnflyableComment({ projectId, taskId, data }),
     {
       onSuccess: () => {
         // Optionally, refetch queries or show a success message
-        console.log('User created successfully');
+        toast.success('Comment Added successfully');
+        navigate(`/projects/${projectId}`);
       },
-      onError: error => {
+      onError: (error: Record<string, any>) => {
         // Handle error
-        console.error('Error creating user:', error);
+        toast.error(error?.message);
       },
     },
   );
@@ -49,9 +52,9 @@ const QuestionBox = ({
     if (flyable === 'no') {
       const data = {
         event: 'comment',
-        newComment: comment,
+        comment,
       };
-      mutation.mutate(data);
+      mutateComment(data);
     } else {
       dispatch(setSecondPage(true));
     }
@@ -117,8 +120,8 @@ const QuestionBox = ({
               variant="ghost"
               className="naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
               onClick={() => handleSubmit()}
-              disabled={flyable === 'no' && comment.length < 6}
-              isLoading={mutation.isLoading}
+              disabled={flyable === 'yes'}
+              isLoading={commentIsUpdating}
             >
               Save
             </Button>

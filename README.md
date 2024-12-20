@@ -82,12 +82,20 @@ To get started with Drone TM:
 |✅| 🖥️ project area subdivision into smaller task areas for operators |
 |✅| 📱 flight plan generation in task areas for DJI drones |
 |✅| 🖥️ upload of drone imagery collected during flight |
-|⚙️| 📱 follow terrain during flight plan generation in hilly/mountainous regions |
+|✅| 📱 follow terrain during flight plan generation in hilly/mountainous regions |
+|✅| 🖥️ merging of drone imagery into a final combined image for the project |
+|⚙️| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) |
+|⚙️| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) |
 |⚙️| 📱 allow adjustments to the flight plan orientation based on field conditions |
-|⚙️| 🖥️ merging of drone imagery into a final combined image for the project |
+|⚙️| 🖥️ precise georeferencing of final imagery using Ground Control Points |
+| | 📱 capture of imagery at multiple (configurable) angles from the drone camera |
+| | 📱 support for more drone models (DJI first, other manufacturers next) |
+| | 📱 removing laptop requirement for flight plan upload to drone (via mobile instead) |
 | | 🖥️ user access management for each part of the UI |
-| | 📱 & 🖥️ real-time updates for drone flight progress |
-| | 📱 flight plan generation for other drone manufacturers |
+| | 📱 & 🖥️ real-time notifications for drone flight progress & task status |
+| | 📱 improved offline capabilities of Drone-TM, reducing reliance on stable internet in the field |
+|⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM |
+| | 🖥️ scaling of ODM imagery processing to hundreds of images in parallel |
 | | 🖥️ better usage of 3D model data collected by drones |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally |
 <!-- prettier-ignore-end -->

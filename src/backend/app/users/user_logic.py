@@ -1,4 +1,5 @@
 import time
+import bcrypt
 import jwt
 from app.config import settings
 from typing import Any
@@ -6,11 +7,7 @@ from psycopg import Connection
 from app.db import db_models
 from pydantic import EmailStr
 from fastapi import HTTPException
-from passlib.context import CryptContext
 from app.users import user_schemas
-
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 async def create_access_token(subject: str | Any):
@@ -53,11 +50,15 @@ def verify_token(token: str) -> dict[str, Any]:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed_password.decode("utf-8")
 
 
 async def authenticate(

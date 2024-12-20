@@ -80,3 +80,35 @@ async def read_drone(
         dict: The drone record if found.
     """
     return drone
+
+
+@router.get("/drone-altitude/")
+async def get_all_altitudes(
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """
+    Retrieves all drone altitude regulations.
+    """
+    altitudes = await drone_schemas.DroneFlightHeight.all(db)
+    if not altitudes:
+        return []
+    return altitudes
+
+
+@router.get("/drone-altitude/{country}/")
+async def get_drone_altitude_by_country(
+    country: str,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """
+    Get drone altitude details by country.
+
+    """
+    result = await drone_schemas.DroneFlightHeight.one(db, country)
+
+    if not result:
+        return []
+
+    return result

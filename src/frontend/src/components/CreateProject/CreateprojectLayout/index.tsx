@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { FieldValues, useForm } from 'react-hook-form';
 import {
   BasicInformationForm,
@@ -12,6 +12,7 @@ import {
 import { UseFormPropsType } from '@Components/common/FormUI/types';
 import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
+import centroid from '@turf/centroid';
 import {
   resetUploadedAndDrawnAreas,
   setCreateProjectState,
@@ -26,7 +27,9 @@ import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
 import prepareFormData from '@Utils/prepareFormData';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { getFrontOverlap, getSideOverlap, gsdToAltitude } from '@Utils/index';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { getCountry } from '@Services/common';
+import { setCommonState } from '@Store/actions/common';
 
 /**
  * This function looks up the provided map of components to find and return
@@ -65,6 +68,7 @@ const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
 const CreateprojectLayout = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
+  const [projectCentroid, setProjectCentroid] = useState<number[] | null>(null);
 
   const activeStep = useTypedSelector(state => state.createproject.activeStep);
   const splitGeojson = useTypedSelector(
@@ -91,6 +95,13 @@ const CreateprojectLayout = () => {
   const imageMergeType = useTypedSelector(
     state => state.createproject.imageMergeType,
   );
+  const requiresApprovalFromRegulator = useTypedSelector(
+    state => state.createproject.requiresApprovalFromRegulator,
+  );
+  const regulatorEmails = useTypedSelector(
+    state => state.createproject.regulatorEmails,
+  );
+  const demType = useTypedSelector(state => state.createproject.demType);
 
   const initialState: FieldValues = {
     name: '',
@@ -108,6 +119,8 @@ const CreateprojectLayout = () => {
     dem: null,
     requires_approval_from_manager_for_locking: false,
     altitude_from_ground: 0,
+    requires_approval_from_regulator: false,
+    regulator_emails: [],
   };
 
   const {
@@ -183,6 +196,24 @@ const CreateprojectLayout = () => {
     dispatch(setCreateProjectState({ activeStep: activeStep - 1 }));
   };
 
+  const { isFetching: isFetchingCountry } = useQuery({
+    queryFn: () =>
+      getCountry({
+        lon: projectCentroid?.[0] || 0,
+        lat: projectCentroid?.[1] || 0,
+        format: 'json',
+      }),
+    queryKey: ['country', projectCentroid?.[0], projectCentroid?.[1]],
+    enabled: !!projectCentroid,
+    select(data) {
+      dispatch(
+        setCommonState({
+          projectCountry: data?.data?.address?.country || null,
+        }),
+      );
+    },
+  });
+
   const onSubmit = (data: any) => {
     if (activeStep === 2) {
       if (
@@ -199,6 +230,8 @@ const CreateprojectLayout = () => {
         toast.error('Please upload or draw and save No Fly zone area');
         return;
       }
+      const newCentroid = centroid(data.outline)?.geometry?.coordinates;
+      setProjectCentroid(newCentroid);
     }
 
     if (activeStep === 3) {
@@ -213,6 +246,18 @@ const CreateprojectLayout = () => {
     }
 
     if (activeStep === 4 && !splitGeojson) return;
+
+    if (activeStep === 5) {
+      if (requiresApprovalFromRegulator === 'required') {
+        if (regulatorEmails?.length) {
+          setValue('requires_approval_from_regulator', true);
+          setValue('regulator_emails', regulatorEmails);
+        } else {
+          toast.error("Please provide regulator's email");
+          return;
+        }
+      }
+    }
 
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
@@ -239,6 +284,10 @@ const CreateprojectLayout = () => {
         imageMergeType === 'spacing'
           ? getSideOverlap(agl, data?.side_spacing)
           : data?.side_overlap,
+
+      requires_approval_from_regulator:
+        requiresApprovalFromRegulator === 'required',
+      regulator_emails: regulatorEmails,
     };
     delete refactoredData?.forward_spacing;
     delete refactoredData?.side_spacing;
@@ -249,13 +298,15 @@ const CreateprojectLayout = () => {
     delete refactoredData?.dem;
     if (measurementType === 'gsd') delete refactoredData?.altitude_from_ground;
     else delete refactoredData?.gsd_cm_px;
+    if (requiresApprovalFromRegulator !== 'required')
+      delete refactoredData?.regulator_emails;
 
     // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
     const formData = new FormData();
     formData.append('project_info', JSON.stringify({ ...refactoredData }));
     formData.append('image', projectImage.projectMapImage);
 
-    if (isTerrainFollow) {
+    if (isTerrainFollow && demType === 'manual') {
       formData.append('dem', data?.dem?.[0]?.file);
     }
     createProject(formData);
@@ -271,6 +322,7 @@ const CreateprojectLayout = () => {
           splitGeojson: null,
           uploadedProjectArea: null,
           uploadedNoFlyZone: null,
+          projectCountry: null,
         }),
       );
     };
@@ -310,7 +362,12 @@ const CreateprojectLayout = () => {
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
               withLoader
-              isLoading={isLoading || isCreatingProject || !capturedProjectMap}
+              isLoading={
+                isLoading ||
+                isCreatingProject ||
+                !capturedProjectMap ||
+                isFetchingCountry
+              }
               disabled={isLoading || isCreatingProject || !capturedProjectMap}
             >
               {activeStep === 5 ? 'Save' : 'Next'}

@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import uuid
 from typing import Annotated, Optional
 from uuid import UUID
@@ -32,10 +33,15 @@ from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.tasks import task_schemas
-from app.utils import geojson_to_kml, timestamp
+from app.utils import (
+    geojson_to_kml,
+    timestamp,
+    send_project_approval_email_to_regulator,
+)
 from app.users import user_schemas
+from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
-
+from drone_flightplan import waypoints, add_elevation_from_dem
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -53,16 +59,9 @@ async def read_project_centroids(
     """
     Get all project centroids.
     """
-    try:
-        centroids = await project_logic.get_centroids(
-            db,
-        )
-        if not centroids:
-            return []
-
-        return centroids
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return await project_logic.get_centroids(
+        db,
+    )
 
 
 @router.get("/{project_id}/download-boundaries", tags=["Projects"])
@@ -193,6 +192,7 @@ async def delete_project_by_id(
 async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Annotated[Connection, Depends(database.get_db)],
+    background_tasks: BackgroundTasks,
     user_data: Annotated[AuthUser, Depends(login_required)],
     dem: UploadFile = File(None),
     image: UploadFile = File(None),
@@ -219,6 +219,20 @@ async def create_project(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
         )
+
+    if project_info.requires_approval_from_regulator:
+        regulator_emails = project_info.regulator_emails
+        background_tasks.add_task(
+            send_project_approval_email_to_regulator,
+            regulator_emails,
+            project_id,
+            user_data.name,
+            project_info.name,
+        )
+
+    if project_info.is_terrain_follow and not dem:
+        geometry = project_info.outline["features"][0]["geometry"]
+        background_tasks.add_task(upload_dem_file, geometry, project_id)
 
     return {"message": "Project successfully created", "project_id": project_id}
 
@@ -441,6 +455,261 @@ async def process_imagery(
     return {"message": "Processing started"}
 
 
+@router.post("/process_all_imagery/{project_id}/", tags=["Image Processing"])
+async def process_all_imagery(
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    background_tasks: BackgroundTasks,
+    db: Annotated[Connection, Depends(database.get_db)],
+):
+    """
+    API endpoint to process all tasks associated with a project.
+    """
+    user_id = user_data.id
+
+    tasks = await project_logic.get_all_tasks_for_project(project.id, db)
+    background_tasks.add_task(
+        project_logic.process_all_drone_images, project_id, tasks, user_id, db
+    )
+    return {"message": f"Processing started for {len(tasks)} tasks."}
+
+
+@router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/", tags=["Image Processing"])
+async def odm_webhook_for_processing_whole_project(
+    request: Request,
+    dtm_project_id: uuid.UUID,
+    dtm_user_id: str,
+    background_tasks: BackgroundTasks,
+):
+    payload = await request.json()
+    odm_task_id = payload.get("uuid")
+    status = payload.get("status")
+
+    if not odm_task_id or not status:
+        raise HTTPException(status_code=400, detail="Invalid webhook payload")
+
+    if status["code"] in {30, 40}:
+        log.info(f"Project {dtm_project_id}: Processing status {status['code']}")
+        background_tasks.add_task(
+            image_processing.process_assets_from_odm,
+            node_odm_url=settings.NODE_ODM_URL,
+            dtm_project_id=dtm_project_id,
+            odm_task_id=odm_task_id,
+        )
+
+    return {"message": "Webhook received", "task_id": dtm_project_id}
+
+
+@router.post(
+    "/odm/webhook/{dtm_user_id}/{dtm_project_id}/{dtm_task_id}/",
+    tags=["Image Processing"],
+)
+async def odm_webhook_for_processing_a_single_task(
+    request: Request,
+    db: Annotated[Connection, Depends(database.get_db)],
+    dtm_project_id: uuid.UUID,
+    dtm_task_id: uuid.UUID,
+    dtm_user_id: str,
+    background_tasks: BackgroundTasks,
+):
+    payload = await request.json()
+    odm_task_id = payload.get("uuid")
+    status = payload.get("status")
+
+    if not odm_task_id or not status:
+        raise HTTPException(status_code=400, detail="Invalid webhook payload")
+
+    current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
+    state_value = State[current_state.get("state")]
+
+    if status["code"] == 40:
+        background_tasks.add_task(
+            image_processing.process_assets_from_odm,
+            node_odm_url=settings.NODE_ODM_URL,
+            dtm_project_id=dtm_project_id,
+            odm_task_id=odm_task_id,
+            state=state_value,
+            message="Task completed.",
+            dtm_task_id=dtm_task_id,
+            dtm_user_id=dtm_user_id,
+        )
+
+    elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
+        await task_logic.update_task_state(
+            db,
+            dtm_project_id,
+            dtm_task_id,
+            dtm_user_id,
+            "Image processing failed.",
+            state_value,
+            State.IMAGE_PROCESSING_FAILED,
+            timestamp(),
+        )
+        background_tasks.add_task(
+            image_processing.process_assets_from_odm,
+            node_odm_url=settings.NODE_ODM_URL,
+            dtm_project_id=dtm_project_id,
+            odm_task_id=odm_task_id,
+            state=state_value,
+            message="Image processing failed.",
+            dtm_task_id=dtm_task_id,
+            dtm_user_id=dtm_user_id,
+        )
+
+    return {"message": "Webhook received", "task_id": odm_task_id}
+
+
+@router.post("/regulator/comment/{project_id}/", tags=["regulator"])
+async def regulator_approval(
+    project_id: str,
+    data: dict,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    response: Response,
+):
+    """
+    Endpoint to allow a regulator to add comments and approve or reject to a project.
+
+    Args:
+        project_id (str): The unique identifier of the project.
+        data (dict): A dictionary containing the regulator's comment.
+        Expected key: 'regulator_comment' and 'regulator_approval_status.
+        db (Connection): Database connection instance, provided via dependency injection.
+        user_data (AuthUser): Authenticated user data, provided via dependency injection.
+        response (Response): FastAPI Response object to set custom status codes.
+
+    Returns:
+        dict: A response message indicating success or failure.
+
+    Raises:
+        HTTPException: Raised with status code 400 if any error occurs during execution.
+
+    Notes:
+        - Requires the user to be logged in and to have the "REGULATOR" role.
+        - Ensures that the user is authorized to comment on the specified project.
+    """
+
+    try:
+        if (
+            user_data.role != "REGULATOR"
+            or not await project_logic.check_regulator_project(
+                db, project_id, user_data.email
+            )
+        ):
+            response.status_code = 403
+            return {"details": "You are not authorized to perform the action"}
+
+        sql = """
+        UPDATE projects SET
+        regulator_comment = %(comment)s,
+        commenting_regulator_id = %(user_id)s,
+        regulator_approval_status = %(regulator_approval_status)s
+        WHERE id = %(project_id)s
+        """
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                sql,
+                {
+                    "comment": data["regulator_comment"],
+                    "regulator_approval_status": data["regulator_approval_status"],
+                    "user_id": user_data.id,
+                    "project_id": project_id,
+                },
+            )
+
+        return {"message": "Commend Added successfully !!!"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"An error occurred: {str(e)}",
+        )
+
+
+@router.post("/waypoints/", tags=["Projects"])
+async def get_project_waypoints_counts(
+    side_overlap: float,
+    front_overlap: float,
+    altitude_from_ground: float,
+    gsd_cm_px: float,
+    meters: float = 100,
+    project_geojson: UploadFile = File(...),
+    is_terrain_follow: bool = False,
+    dem: UploadFile = File(None),
+    user_data: AuthUser = Depends(login_required),
+):
+    """
+    Count waypoints within AOI.
+    """
+    # Validating for .geojson File.
+    file_name = os.path.splitext(project_geojson.filename)
+    file_ext = file_name[1]
+    allowed_extensions = [".geojson", ".json"]
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+
+    # read entire file
+    content = await project_geojson.read()
+    boundary = geojson.loads(content)
+    geometry = shape(boundary["features"][0]["geometry"])
+    centroid = geometry.centroid
+    center_lon = centroid.x
+    center_lat = centroid.y
+    square_geojson = project_logic.generate_square_geojson(
+        center_lat, center_lon, meters
+    )
+    generate_each_points = True if is_terrain_follow else False
+    generate_3d = (
+        False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
+    )
+    forward_overlap = front_overlap if front_overlap else 70
+    side_overlap = side_overlap if side_overlap else 70
+
+    points = waypoints.create_waypoint(
+        project_area=square_geojson,
+        agl=altitude_from_ground,
+        gsd=gsd_cm_px,
+        forward_overlap=forward_overlap,
+        side_overlap=side_overlap,
+        rotation_angle=0,
+        generate_each_points=generate_each_points,
+        generate_3d=generate_3d,
+        take_off_point=None,
+    )
+
+    # Handle terrain-following logic if a DEM is provided
+    points_with_elevation = points
+    if is_terrain_follow and dem:
+        temp_dir = f"/tmp/{uuid.uuid4()}"
+        try:
+            os.makedirs(temp_dir, exist_ok=True)
+            dem_path = os.path.join(temp_dir, "dem.tif")
+            outfile_with_elevation = os.path.join(
+                temp_dir, "output_file_with_elevation.geojson"
+            )
+
+            with open(dem_path, "wb") as dem_file:
+                dem_file.write(await dem.read())
+
+            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+
+            with open(outfile_with_elevation, "r") as inpointsfile:
+                points_with_elevation = inpointsfile.read()
+        except Exception as e:
+            log.error(f"Error processing DEM: {e}")
+
+        finally:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+
+    return {
+        "avg_no_of_waypoints": len(json.loads(points_with_elevation)["features"]),
+    }
+
+
 @router.get(
     "/assets/{project_id}/",
     tags=["Image Processing"],
@@ -476,109 +745,3 @@ async def get_assets_info(
         project_info = project_logic.get_project_info_from_s3(project.id, task_id)
         project_info.state = current_state.get("state")
         return project_info
-
-
-@router.post(
-    "/odm/webhook/{dtm_user_id}/{dtm_project_id}/{dtm_task_id}/",
-    tags=["Image Processing"],
-)
-async def odm_webhook(
-    request: Request,
-    db: Annotated[Connection, Depends(database.get_db)],
-    dtm_project_id: uuid.UUID,
-    dtm_task_id: uuid.UUID,
-    dtm_user_id: str,
-    background_tasks: BackgroundTasks,
-):
-    """
-    Webhook to receive notifications from ODM processing tasks.
-    """
-    # Try to parse the JSON body
-    try:
-        payload = await request.json()
-    except Exception as e:
-        log.error(f"Error parsing JSON: {e}")
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
-
-    task_id = payload.get("uuid")
-    status = payload.get("status")
-
-    if not task_id or not status:
-        raise HTTPException(status_code=400, detail="Invalid webhook payload")
-
-    log.info(f"Task ID: {task_id}, Status: {status}")
-
-    # If status is 'success', download and upload assets to S3.
-    # 40 is the status code for success in odm
-    if status["code"] == 40:
-        log.info(f"Task ID: {task_id}, Status: going for download......")
-
-        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
-        current_state_value = State[current_state.get("state")]
-        match current_state_value:
-            case State.IMAGE_UPLOADED:
-                log.info(
-                    f"Task ID: {task_id}, Status: already IMAGE_UPLOADED - no update needed."
-                )
-                # Call function to download assets from ODM and upload to S3
-                background_tasks.add_task(
-                    image_processing.download_and_upload_assets_from_odm_to_s3,
-                    settings.NODE_ODM_URL,
-                    task_id,
-                    dtm_project_id,
-                    dtm_task_id,
-                    dtm_user_id,
-                    State.IMAGE_UPLOADED,
-                    "Task completed.",
-                )
-
-            case State.IMAGE_PROCESSING_FAILED:
-                log.warning(
-                    f"Task ID: {task_id}, Status: previously failed, updating to IMAGE_UPLOADED"
-                )
-                # Call function to download assets from ODM and upload to S3
-                background_tasks.add_task(
-                    image_processing.download_and_upload_assets_from_odm_to_s3,
-                    settings.NODE_ODM_URL,
-                    task_id,
-                    dtm_project_id,
-                    dtm_task_id,
-                    dtm_user_id,
-                    State.IMAGE_UPLOADED,
-                    "Task completed.",
-                )
-
-            case _:
-                log.info(
-                    f"Task ID: {task_id}, Status: updating to IMAGE_UPLOADED from {current_state}"
-                )
-
-    elif status["code"] == 30:
-        current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
-        # If the current state is not already IMAGE_PROCESSING_FAILED, update it
-        if current_state != State.IMAGE_PROCESSING_FAILED:
-            await task_logic.update_task_state(
-                db,
-                dtm_project_id,
-                dtm_task_id,
-                dtm_user_id,
-                "Image processing failed.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSING_FAILED,
-                timestamp(),
-            )
-
-            background_tasks.add_task(
-                image_processing.download_and_upload_assets_from_odm_to_s3,
-                settings.NODE_ODM_URL,
-                task_id,
-                dtm_project_id,
-                dtm_task_id,
-                dtm_user_id,
-                State.IMAGE_PROCESSING_FAILED,
-                "Image processing failed.",
-            )
-
-    log.info(f"Task ID: {task_id}, Status: Webhook received")
-
-    return {"message": "Webhook received", "task_id": task_id}

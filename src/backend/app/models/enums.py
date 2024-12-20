@@ -15,7 +15,7 @@ class IntEnum(int, Enum):
     pass
 
 
-class FinalOutput(Enum):
+class FinalOutput(str, Enum):
     ORTHOPHOTO_2D = "ORTHOPHOTO_2D"
     ORTHOPHOTO_3D = "ORTHOPHOTO_3D"
     DIGITAL_TERRAIN_MODEL = "DIGITAL_TERRAIN_MODEL"
@@ -64,6 +64,14 @@ class ProjectStatus(IntEnum, Enum):
     ARCHIVED = 0
     PUBLISHED = 1
     DRAFT = 2
+
+
+class RegulatorApprovalStatus(IntEnum, Enum):
+    """Enum to describe all possible state of a Project from Regulator"""
+
+    PENDING = 0
+    APPROVED = 1
+    REJECTED = 2
 
 
 class ProjectVisibility(IntEnum, Enum):
@@ -120,6 +128,7 @@ class DroneType(IntEnum):
 class UserRole(IntEnum, Enum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
+    REGULATOR = 3
 
 
 class State(int, Enum):
@@ -146,8 +155,9 @@ class State(int, Enum):
     UNLOCKED_DONE = 4
     UNFLYABLE_TASK = 5
     IMAGE_UPLOADED = 6
-    IMAGE_PROCESSED = 7
-    IMAGE_PROCESSING_FAILED = 8
+    IMAGE_PROCESSING_FAILED = 7
+    IMAGE_PROCESSING_STARTED = 8
+    IMAGE_PROCESSING_FINISHED = 9
 
 
 class EventType(str, Enum):
@@ -169,6 +179,7 @@ class EventType(str, Enum):
     - ``comment`` -- Keep the state the same, but simply add a comment.
     - ``unlock`` -- Unlock a task state by unlocking it if it's locked.
     - ``image_upload`` -- Set the state to *image uploaded* when the task image is uploaded.
+    - ``image_processing_start`` -- Set the state to *image processing started* when the image processing is started by user.
 
     Note that ``task_id`` must be specified in the endpoint too.
     """
@@ -185,3 +196,4 @@ class EventType(str, Enum):
     COMMENT = "comment"
     UNLOCK = "unlock"
     IMAGE_UPLOAD = "image_upload"
+    IMAGE_PROCESSING_START = "image_processing_start"

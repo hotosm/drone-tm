@@ -1,10 +1,9 @@
 /* eslint-disable no-await-in-loop */
-/* eslint-disable no-console */
-/* eslint-disable no-unused-vars */
-import { Button } from '@Components/RadixComponents/Button';
 import { toggleModal } from '@Store/actions/common';
-import { setFiles } from '@Store/actions/droneOperatorTask';
+import { setFilesExifData } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import getExifData from '@Utils/getExifData';
+import { toast } from 'react-toastify';
 
 const UploadsBox = ({
   label = 'Upload Images, GCP, and align.laz',
@@ -12,13 +11,29 @@ const UploadsBox = ({
   label?: string;
 }) => {
   const dispatch = useTypedDispatch();
-  const files = useTypedSelector(state => state.droneOperatorTask.files);
-  const handleFileChange = (event: any) => {
+  const files = useTypedSelector(
+    state => state.droneOperatorTask.filesExifData,
+  );
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    event.preventDefault();
     const selectedFiles = event.target.files;
-    if (!selectedFiles) return;
-    const selectedFilesArray = Array.from(selectedFiles);
-    dispatch(setFiles(selectedFilesArray));
-    dispatch(toggleModal('raw-image-preview'));
+    if (!selectedFiles || selectedFiles?.length === 0) return;
+    const selectedFilesArray: File[] = Array.from(selectedFiles);
+    try {
+      const exifData = await Promise.all(
+        selectedFilesArray.map(async (file: File) => {
+          // Await the EXIF data for each file
+          const singleFileExif = await getExifData(file);
+          return singleFileExif;
+        }),
+      );
+      dispatch(setFilesExifData(exifData));
+    } catch (error) {
+      toast.error('Error Reading File');
+    }
+    dispatch(toggleModal('raw-image-map-preview'));
   };
 
   return (
@@ -32,7 +47,7 @@ const UploadsBox = ({
 
         <label
           htmlFor="file-input"
-          className="naxatw-relative naxatw-flex naxatw-h-20 naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700"
+          className="naxatw-relative naxatw-flex naxatw-h-fit naxatw-min-h-20 naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700 naxatw-py-3"
         >
           <div className="n naxatw-flex naxatw-flex-col naxatw-items-center">
             <span className="material-icons-outlined naxatw-text-red">
@@ -67,15 +82,6 @@ const UploadsBox = ({
             className="naxatw-absolute naxatw-opacity-0"
           />
         </label>
-        {files.length > 0 && (
-          <Button
-            variant="ghost"
-            className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
-            onClick={() => dispatch(toggleModal('raw-image-preview'))}
-          >
-            Upload
-          </Button>
-        )}
       </div>
     </>
   );

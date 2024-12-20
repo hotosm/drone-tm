@@ -20,3 +20,27 @@ export const postTaskBoundary = ({ id, data }: { id: number; data: any }) =>
 
 export const getProjectCentroid = () =>
   authenticated(api).get('/projects/centroids');
+
+export const regulatorUser = (data: Record<string, any>) =>
+  api.post(`/users/regulator/`, data, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+export const regulatorComment = (payload: Record<string, any>) => {
+  const { projectId, ...data } = payload;
+  return authenticated(api).post(
+    `/projects/regulator/comment/${projectId}/`,
+    data,
+    {
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
+};
+
+export const getDroneAltitude = (country: string) =>
+  authenticated(api).get(`/drones/drone-altitude/${country}/`);
+
+export const getProjectWayPoints = (
+  params: Record<string, any>,
+  geojsonData: any,
+) => authenticated(api).post(`/projects/waypoints/`, geojsonData, { params });

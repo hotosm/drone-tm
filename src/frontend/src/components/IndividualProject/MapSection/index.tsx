@@ -55,10 +55,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const taskClickedOnTable = useTypedSelector(
     state => state.project.taskClickedOnTable,
   );
-
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
   });
+  const signedInAs = localStorage.getItem('signedInAs');
 
   const { mutate: lockTask } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
@@ -66,11 +66,15 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       setTaskStatusObj({
         ...taskStatusObj,
         [res.data.task_id]:
-          projectData?.requires_approval_from_manager_for_locking
+          projectData?.requires_approval_from_manager_for_locking &&
+          userDetails?.id !== projectData?.author_id
             ? 'REQUEST_FOR_MAPPING'
             : 'LOCKED_FOR_MAPPING',
       });
-      if (projectData?.requires_approval_from_manager_for_locking) {
+      if (
+        projectData?.requires_approval_from_manager_for_locking &&
+        userDetails?.id !== projectData?.author_id
+      ) {
         toast.success('Task Requested for Mapping');
       } else {
         toast.success('Task Locked for Mapping');
@@ -132,6 +136,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     (properties: Record<string, any>) => {
       const status = taskStatusObj?.[properties?.id];
       const popupText = (taskStatus: string) => {
+        if (projectData?.regulator_approval_status === 'PENDING')
+          return `Unable to proceed, local regulator's approval is pending.`;
+        if (projectData?.regulator_approval_status === 'REJECTED')
+          return 'Unable to proceed, local regulators rejected the project';
         switch (taskStatus) {
           case 'UNLOCKED_TO_MAP':
             return 'This task is available for mapping';
@@ -143,17 +151,19 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             return 'This task is not flyable';
           case 'IMAGE_UPLOADED':
             return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
-          case 'IMAGE_PROCESSED':
+          case 'IMAGE_PROCESSING_STARTED':
+              return `This task is started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+          case 'IMAGE_PROCESSING_FINISHED':
             return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_FAILED':
-            return `This task's image processing is failed started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `The image processing task started ${userDetails?.id === properties?.locked_user_id ? 'by you' : `by ${properties?.locked_user_name}`} has failed.`;
           default:
             return '';
         }
       };
       return <h6>{popupText(status)}</h6>;
     },
-    [taskStatusObj, userDetails],
+    [taskStatusObj, userDetails, projectData],
   );
 
   const handleTaskLockClick = () => {
@@ -252,9 +262,20 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         map={map as Map}
         popupUI={getPopupUI}
         title={`Task #${selectedTaskId}`}
-        showPopup={(feature: Record<string, any>) =>
-          feature?.source?.includes('tasks-layer')
-        }
+        showPopup={(feature: Record<string, any>) => {
+          if (!userDetails) return false;
+
+          return (
+            feature?.source?.includes('tasks-layer') &&
+            !(
+              (
+                (userDetails?.role?.length === 1 &&
+                  userDetails?.role?.includes('REGULATOR')) ||
+                signedInAs === 'REGULATOR'
+              ) // Don't show popup if user role is regulator any and no other roles
+            )
+          );
+        }}
         fetchPopupData={(properties: Record<string, any>) => {
           dispatch(
             setProjectState({
@@ -273,7 +294,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             lockedUser?.id,
             userDetails?.id,
             projectData?.author_id,
-          )
+          ) ||
+          projectData?.regulator_approval_status === 'REJECTED' || // Don't task lock button if regulator rejected the approval
+          projectData?.regulator_approval_status === 'PENDING'
         }
         buttonText={
           taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
@@ -293,7 +316,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         secondaryButtonText="Unlock Task"
         handleSecondaryBtnClick={() => handleTaskUnLockClick()}
         // trigger from popup outside
-        openPopupFor={taskClickedOnTable}
+        openPopupFor={
+          projectData?.regulator_approval_status === 'REJECTED' // ignore click if the regulator rejected the approval
+            ? null
+            : taskClickedOnTable
+        }
         popupCoordinate={taskClickedOnTable?.centroidCoordinates}
         onClose={() =>
           dispatch(

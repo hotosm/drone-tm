@@ -25,6 +25,7 @@ from app.models.enums import (
     ProjectVisibility,
     UserRole,
     State,
+    RegulatorApprovalStatus,
 )
 from sqlalchemy.orm import (
     object_session,
@@ -137,11 +138,26 @@ class DbProject(Base):
     requires_approval_from_manager_for_locking = cast(
         bool, Column(Boolean, default=False)
     )
+    requires_approval_from_regulator = cast(bool, Column(Boolean, default=False))
+    regulator_emails = cast(list, Column(ARRAY(String), nullable=True))
     # PROJECT STATUS
     status = cast(
         ProjectStatus,
         Column(Enum(ProjectStatus), default=ProjectStatus.DRAFT, nullable=False),
     )
+    regulator_approval_status = cast(
+        RegulatorApprovalStatus, Column(Enum(RegulatorApprovalStatus), nullable=True)
+    )
+    regulator_comment = cast(str, Column(String, nullable=True))
+    commenting_regulator_id = cast(
+        str,
+        Column(
+            String,
+            ForeignKey("users.id", name="fk_projects_commenting_regulator_id"),
+            nullable=True,
+        ),
+    )
+    commenting_regulator = relationship(DbUser, uselist=False, backref="regulator")
     visibility = cast(
         ProjectVisibility,
         Column(
@@ -291,4 +307,22 @@ class DbUserProfile(Base):
     experience_years = cast(int, Column(SmallInteger, nullable=True))
     drone_you_own = cast(str, Column(String, nullable=True))
     certified_drone_operator = cast(bool, Column(Boolean, default=False))
-    certificate = cast(bytes, Column(LargeBinary, nullable=True))
+    certificate_url = cast(str, Column(String, nullable=True))
+    # drone registration certificate
+    registration_certificate_url = cast(str, Column(String, nullable=True))
+
+
+class DbDroneFlightHeight(Base):
+    """Describes drone altitude regulations by country."""
+
+    __tablename__ = "drone_flight_height"
+
+    id = cast(int, Column(Integer, primary_key=True, autoincrement=True))
+    country = cast(str, Column(String, nullable=False, unique=True))
+    country_code = cast(
+        str, Column(String(3), nullable=False)
+    )  # ISO 3166-1 alpha-3 country code
+    max_altitude_ft = cast(float, Column(Float, nullable=False))
+    max_altitude_m = cast(float, Column(Float, nullable=False))
+    created_at = cast(datetime, Column(DateTime, default=timestamp))
+    updated_at = cast(datetime, Column(DateTime, nullable=True))

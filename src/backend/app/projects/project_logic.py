@@ -2,6 +2,7 @@ import json
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
+from pyproj import Transformer
 from app.tasks.task_splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
@@ -33,7 +34,7 @@ async def get_centroids(db: Connection):
                     ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
                     COUNT(t.id) AS total_task_count,
                     COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_task_count
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
                 FROM
                     projects p
                 LEFT JOIN
@@ -46,10 +47,12 @@ async def get_centroids(db: Connection):
             centroids = await cur.fetchall()
 
             if not centroids:
-                raise HTTPException(status_code=404, detail="No centroids found.")
+                return []
 
             return centroids
+
     except Exception as e:
+        log.error(f"Error during reading centroids: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -197,12 +200,17 @@ async def preview_split_by_square(boundary: str, meters: int):
     )
 
 
-def process_drone_images(
+async def process_drone_images(
     project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, db: Connection
 ):
     # Initialize the processor
     processor = DroneImageProcessor(
-        settings.NODE_ODM_URL, project_id, task_id, user_id, db
+        node_odm_url=settings.NODE_ODM_URL,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=user_id,
+        task_ids=None,
+        db=db,
     )
 
     # Define processing options
@@ -210,11 +218,39 @@ def process_drone_images(
         {"name": "dsm", "value": True},
         {"name": "orthophoto-resolution", "value": 5},
     ]
-
     webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
-    processor.process_images_from_s3(
+    await processor.process_images_from_s3(
         settings.S3_BUCKET_NAME,
         name=f"DTM-Task-{task_id}",
+        options=options,
+        webhook=webhook_url,
+    )
+
+
+async def process_all_drone_images(
+    project_id: uuid.UUID, tasks: list, user_id: str, db: Connection
+):
+    # Initialize the processor
+    processor = DroneImageProcessor(
+        node_odm_url=settings.NODE_ODM_URL,
+        project_id=project_id,
+        task_id=None,
+        user_id=user_id,
+        task_ids=tasks,
+        db=db,
+    )
+
+    # Define processing options
+    options = [
+        {"name": "dsm", "value": True},
+        {"name": "orthophoto-resolution", "value": 5},
+    ]
+    webhook_url = (
+        f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
+    )
+    await processor.process_images_for_all_tasks(
+        settings.S3_BUCKET_NAME,
+        name_prefix=f"DTM-Task-{project_id}",
         options=options,
         webhook=webhook_url,
     )
@@ -268,3 +304,61 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     except Exception as e:
         log.exception(f"An error occurred while retrieving assets info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def check_regulator_project(db: Connection, project_id: str, email: str):
+    sql = """
+    SELECT id FROM projects WHERE
+    id = %(project_id)s
+    AND %(email)s = ANY(regulator_emails)
+    AND regulator_comment IS NULL
+    """
+    async with db.cursor() as cur:
+        await cur.execute(sql, {"project_id": project_id, "email": email})
+        project = await cur.fetchone()
+        return bool(project)
+
+
+def generate_square_geojson(center_lat, center_lon, side_length_meters):
+    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    transformer_back = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+
+    center_x, center_y = transformer.transform(center_lon, center_lat)
+    half_side = side_length_meters / 2
+
+    corners_m = [
+        (center_x - half_side, center_y - half_side),
+        (center_x + half_side, center_y - half_side),
+        (center_x + half_side, center_y + half_side),
+        (center_x - half_side, center_y + half_side),
+        (center_x - half_side, center_y - half_side),
+    ]
+
+    corners_lat_lon = [transformer_back.transform(x, y) for x, y in corners_m]
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Polygon", "coordinates": [corners_lat_lon]},
+            }
+        ],
+    }
+    return geojson
+
+
+async def get_all_tasks_for_project(project_id, db):
+    "Get all tasks associated with the project ID that are in state IMAGE_UPLOADED."
+    async with db.cursor() as cur:
+        query = """
+        SELECT t.id
+        FROM tasks t
+        JOIN task_events te ON t.id = te.task_id
+        WHERE t.project_id = %s AND te.state = 'IMAGE_UPLOADED';
+        """
+        await cur.execute(query, (project_id,))
+        results = await cur.fetchall()
+        # Convert UUIDs to string
+        return [str(result[0]) for result in results]

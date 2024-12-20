@@ -24,6 +24,9 @@ export interface CreateProjectState {
   projectMapImage: any;
   imageMergeType: string;
   ProjectsFilterByOwner: 'yes' | 'no';
+  requiresApprovalFromRegulator: 'required' | 'not_required';
+  regulatorEmails: string[] | [];
+  demType: string;
 }
 
 const initialState: CreateProjectState = {
@@ -47,6 +50,9 @@ const initialState: CreateProjectState = {
   projectMapImage: null,
   imageMergeType: 'overlap',
   ProjectsFilterByOwner: 'no',
+  requiresApprovalFromRegulator: 'not_required',
+  regulatorEmails: [],
+  demType: 'auto',
 };
 
 const setCreateProjectState: CaseReducer<
@@ -65,6 +71,13 @@ const saveProjectImageFile: CaseReducer<
   projectMapImage: action.payload,
 });
 
+const setDemType: CaseReducer<CreateProjectState, PayloadAction<string>> = (
+  state,
+  action,
+) => ({
+  ...state,
+  demType: action.payload,
+});
 const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = state => ({
   ...state,
   isNoflyzonePresent: initialState.isNoflyzonePresent,
@@ -84,6 +97,7 @@ const createProjectSlice = createSlice({
     setCreateProjectState,
     saveProjectImageFile,
     resetUploadedAndDrawnAreas,
+    setDemType,
   },
 });
 

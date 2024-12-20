@@ -23,3 +23,10 @@ export const getTaskAssetsInfo = (projectId: string, taskId: string) =>
 
 export const postProcessImagery = (projectId: string, taskId: string) =>
   authenticated(api).post(`/projects/process_imagery/${projectId}/${taskId}/`);
+
+export const postRotatedTaskWayPoint = (payload: Record<string, any>) => {
+  const { taskId, data } = payload;
+  return authenticated(api).post(`/waypoint/${taskId}/generate-kmz/`, data, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+};

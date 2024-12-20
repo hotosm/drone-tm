@@ -22,7 +22,6 @@ dependencies = [
     "loguru>=0.7.2",
     "minio>=7.2.7",
     "pyjwt>=2.8.0",
-    "passlib[bcrypt]==1.7.4",
     "alembic>=1.13.1",
     "itsdangerous>=2.2.0",
     "Jinja2>=3.1.4",
@@ -33,12 +32,15 @@ dependencies = [
     "psycopg2>=2.9.9",
     "pyodm>=1.5.11",
     "asgiref>=3.8.1",
-    "drone-flightplan>=0.3.1",
+    "bcrypt>=4.2.1",
+    "drone-flightplan>=0.3.2",
+    "Scrapy==2.12.0",
+    "asgi-lifespan>=2.1.0",
 ]
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-only"}
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pre-commit>=4.0.1",
     "commitizen>=3.30.0",
@@ -74,10 +76,4 @@ monitoring = [
     "opentelemetry-instrumentation-requests>=0.48b0",
 ]
 
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-
-[tool.pdm]
-distribution = true
+[tool.uv]

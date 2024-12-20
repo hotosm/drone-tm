@@ -12,14 +12,25 @@ from datetime import datetime
 from app.config import settings
 
 
+async def list_task_id_for_project(db: Connection, project_id: uuid.UUID):
+    query = """
+        SELECT id
+        FROM tasks
+        WHERE project_id = %(project_id)s;
+    """
+    async with db.cursor() as cur:
+        await cur.execute(query, {"project_id": str(project_id)})
+        return await cur.fetchall()
+
+
 async def get_task_stats(db: Connection, user_data: AuthUser):
     try:
         async with db.cursor(row_factory=class_row(TaskStats)) as cur:
             raw_sql = """
                 SELECT
                     COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSED' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED','IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_tasks,
                     COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
 
                 FROM (
@@ -31,19 +42,22 @@ async def get_task_stats(db: Connection, user_data: AuthUser):
                     WHERE
                         (
                         %(role)s = 'DRONE_PILOT'
-                        AND te.user_id = %(user_id)s
+                        AND te.user_id = %(user_id)s AND te.state NOT IN ('UNLOCKED_TO_MAP')
                     )
                     OR
                     (
-                    %(role)s = 'PROJECT_CREATOR'
-                    AND (
-                        te.project_id IN (
-                            SELECT p.id
-                            FROM projects p
-                            WHERE p.author_id = %(user_id)s
+                        %(role)s = 'PROJECT_CREATOR'
+                        AND (
+                            te.user_id = %(user_id)s AND te.state NOT IN ('REQUEST_FOR_MAPPING')
+                            OR
+                            te.project_id IN (
+                                SELECT p.id
+                                FROM projects p
+                                WHERE
+                                    p.author_id = %(user_id)s
+                            )
                         )
-                    OR te.user_id = %(user_id)s -- Grant permissions equivalent to DRONE_PILOT
-                    ))
+                    )
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
             """
@@ -353,7 +367,7 @@ async def handle_event(
                 )
 
             requested_user_id = await user_schemas.DbUser.get_requested_user_id(
-                db, project_id, task_id
+                db, project_id, task_id, State.REQUEST_FOR_MAPPING
             )
             drone_operator = await user_schemas.DbUser.get_user_by_id(
                 db, requested_user_id
@@ -401,7 +415,7 @@ async def handle_event(
                 )
 
             requested_user_id = await user_schemas.DbUser.get_requested_user_id(
-                db, project_id, task_id
+                db, project_id, task_id, State.REQUEST_FOR_MAPPING
             )
             drone_operator = await user_schemas.DbUser.get_user_by_id(
                 db, requested_user_id
@@ -485,6 +499,42 @@ async def handle_event(
                 detail.updated_at,
             )
         case EventType.COMMENT:
+            author = await user_schemas.DbUser.get_user_by_id(db, project["author_id"])
+
+            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
+                db, project_id, task_id, State.LOCKED_FOR_MAPPING
+            )
+            project_task_index = next(
+                (
+                    task["project_task_index"]
+                    for task in project["tasks"]
+                    if task["id"] == task_id and task["user_id"] == requested_user_id
+                ),
+                None,
+            )
+            drone_operator = await user_schemas.DbUser.get_user_by_id(db, user_data.id)
+            html_content = render_email_template(
+                folder_name="mapping",
+                template_name="task_marked_unflyable.html",
+                context={
+                    "email_subject": "Task Marked as Unflyable: Action Required",
+                    "task_status": "unflyable",
+                    "name": user_data.name,
+                    "drone_operator_name": drone_operator["name"],
+                    "task_id": task_id,
+                    "project_task_index": project_task_index,
+                    "project_name": project["name"],
+                    "description": project["description"],
+                },
+            )
+
+            background_tasks.add_task(
+                send_notification_email,
+                author["email_address"],
+                "Task Marked as Unflyable",
+                html_content,
+            )
+
             return await update_task_state(
                 db,
                 project_id,
@@ -561,6 +611,42 @@ async def handle_event(
                 f"Task image uploaded by user {user_data.name}.",
                 State[state],
                 State.IMAGE_UPLOADED,
+                detail.updated_at,
+            )
+
+        case EventType.IMAGE_PROCESSING_START:
+            current_task_state = await get_task_state(db, project_id, task_id)
+            if not current_task_state:
+                raise HTTPException(
+                    status_code=400, detail="Task is not ready for image upload."
+                )
+            state = current_task_state.get("state")
+            locked_user_id = current_task_state.get("user_id")
+
+            # Determine error conditions: Current State must be IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED.
+            if state not in (
+                State.IMAGE_UPLOADED.name,
+                State.IMAGE_PROCESSING_FAILED.name,
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Task state does not match expected state for image processing to start.",
+                )
+
+            if user_id != locked_user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You cannot upload an image for this task as it is locked by another user.",
+                )
+
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                f"Task image processing started by user {user_data.name}.",
+                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_STARTED,
                 detail.updated_at,
             )
 

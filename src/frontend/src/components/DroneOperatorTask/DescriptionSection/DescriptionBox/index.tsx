@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
@@ -14,11 +14,12 @@ import { Button } from '@Components/RadixComponents/Button';
 import { Label } from '@Components/common/FormUI';
 import SwitchTab from '@Components/common/SwitchTab';
 import {
+  resetFilesExifData,
   setSelectedTaskDetailToViewOrthophoto,
   setUploadedImagesType,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
-import { toggleModal } from '@Store/actions/common';
+// import { toggleModal } from '@Store/actions/common';
 import { postTaskStatus } from '@Services/project';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import DescriptionBoxComponent from './DescriptionComponent';
@@ -67,7 +68,11 @@ const DescriptionBox = () => {
     },
   });
 
-  const { mutate: reStartImageryProcess, isLoading: imageProcessingStarting } =
+  useEffect(() => {
+    dispatch(resetFilesExifData());
+  }, [dispatch]);
+
+  const { mutate: startImageryProcess, isLoading: imageProcessingStarting } =
     useMutation({
       mutationFn: () =>
         postProcessImagery(projectId as string, taskId as string),
@@ -75,11 +80,22 @@ const DescriptionBox = () => {
         updateStatus({
           projectId,
           taskId,
-          data: { event: 'image_upload', updated_at: new Date().toISOString() },
+          data: {
+            event: 'image_processing_start',
+            updated_at: new Date().toISOString(),
+          },
         });
-        toast.success('Image processing re-started');
+        toast.success('Image processing started');
       },
     });
+
+  const { data: flightTimeData }: any = useGetTaskWaypointQuery(
+    projectId as string,
+    taskId as string,
+    {
+      select: ({ data }: any) => data.flight_data,
+    },
+  );
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
@@ -121,7 +137,11 @@ const DescriptionBox = () => {
               { name: 'Total points', value: taskWayPoints?.length },
               {
                 name: 'Est. flight time',
-                value: taskData?.flight_time || null,
+                value: flightTimeData?.total_flight_time || null,
+              },
+              {
+                name: 'Est. flight time in seconds',
+                value: flightTimeData?.total_flight_time_seconds || null,
               },
             ],
           },
@@ -166,28 +186,6 @@ const DescriptionBox = () => {
 
   const handleDownloadResult = () => {
     if (!taskAssetsInformation?.assets_url) return;
-
-    // fetch(`${taskAssetsInformation?.assets_url}`, { method: 'GET' })
-    //   .then(response => {
-    //     if (!response.ok) {
-    //       throw new Error(`Network response was ${response.statusText}`);
-    //     }
-    //     return response.blob();
-    //   })
-    //   .then(blob => {
-    //     const url = window.URL.createObjectURL(blob);
-    //     const link = document.createElement('a');
-    //     link.href = url;
-    //     link.download = 'assets.zip';
-    //     document.body.appendChild(link);
-    //     link.click();
-    //     link.remove();
-    //     window.URL.revokeObjectURL(url);
-    //   })
-    //   .catch(error =>
-    //     toast.error(`There wan an error while downloading file
-    //       ${error}`),
-    //   );
 
     try {
       const link = document.createElement('a');
@@ -243,7 +241,7 @@ const DescriptionBox = () => {
 
           {taskAssetsInformation?.assets_url && (
             <div className="naxatw-flex naxatw-gap-1">
-              <Button
+              {/* <Button
                 variant="outline"
                 className="naxatw-border-red naxatw-text-red"
                 leftIcon="visibility"
@@ -253,7 +251,7 @@ const DescriptionBox = () => {
                 }
               >
                 View Orthophoto
-              </Button>
+              </Button> */}
               <Button
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
@@ -265,6 +263,20 @@ const DescriptionBox = () => {
               </Button>
             </div>
           )}
+          {taskAssetsInformation?.state === 'IMAGE_UPLOADED' && (
+            <div className="">
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
+                leftIcon="replay"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => startImageryProcess()}
+                disabled={imageProcessingStarting || statusUpdating}
+              >
+                Start Processing
+              </Button>
+            </div>
+          )}
           {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
             <div className="">
               <Button
@@ -272,49 +284,50 @@ const DescriptionBox = () => {
                 className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
                 leftIcon="replay"
                 iconClassname="naxatw-text-[1.125rem]"
-                onClick={() => reStartImageryProcess()}
+                onClick={() => startImageryProcess()}
                 disabled={imageProcessingStarting || statusUpdating}
               >
                 Re-run processing
               </Button>
             </div>
           )}
-          {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
-            <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pb-4">
-              <Label>
-                <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
-                  Upload Images
+          {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
+            (taskAssetsInformation?.state === 'IMAGE_UPLOADED' && (
+              <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pb-4">
+                <Label>
+                  <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
+                    Upload Images
+                  </p>
+                </Label>
+                <SwitchTab
+                  options={[
+                    {
+                      name: 'image-upload-for',
+                      value: 'add',
+                      label: 'Add to existing',
+                    },
+                    {
+                      name: 'image-upload-for',
+                      value: 'replace',
+                      label: 'Replace existing',
+                    },
+                  ]}
+                  valueKey="value"
+                  selectedValue={uploadedImageType}
+                  activeClassName="naxatw-bg-red naxatw-text-white"
+                  onChange={(selected: Record<string, any>) => {
+                    dispatch(setUploadedImagesType(selected.value));
+                  }}
+                />
+                <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
+                  Note:{' '}
+                  {uploadedImageType === 'add'
+                    ? 'Uploaded images will be added with the existing images.'
+                    : 'Uploaded images will be replaced with all the existing images and starts processing.'}
                 </p>
-              </Label>
-              <SwitchTab
-                options={[
-                  {
-                    name: 'image-upload-for',
-                    value: 'add',
-                    label: 'Add to existing',
-                  },
-                  {
-                    name: 'image-upload-for',
-                    value: 'replace',
-                    label: 'Replace existing',
-                  },
-                ]}
-                valueKey="value"
-                selectedValue={uploadedImageType}
-                activeClassName="naxatw-bg-red naxatw-text-white"
-                onChange={(selected: Record<string, any>) => {
-                  dispatch(setUploadedImagesType(selected.value));
-                }}
-              />
-              <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
-                Note:{' '}
-                {uploadedImageType === 'add'
-                  ? 'Uploaded images will be added with the existing images.'
-                  : 'Uploaded images will be replaced with all the existing images and starts processing.'}
-              </p>
-              <UploadsBox label="" />
-            </div>
-          )}
+                <UploadsBox label="" />
+              </div>
+            ))}
         </div>
       )}
     </>

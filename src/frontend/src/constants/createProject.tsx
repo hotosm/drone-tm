@@ -143,7 +143,7 @@ export const keyParamsDescriptions = [
     id: 3,
     title: 'Generate All Points',
     description:
-      'Generate every point as a waypoint. Sometimes crashes if you open the map in the DJI FLy App',
+      'Generate every point as a waypoint. Sometimes crashes if you open the map in the DJI FLy App.',
     icon: generateAllPoints,
   },
   {
@@ -158,6 +158,15 @@ export const keyParamsDescriptions = [
 export const lockApprovalOptions = [
   { name: 'Required', label: 'Required', value: 'required' },
   { name: 'Not Required', label: 'Not Required', value: 'not_required' },
+];
+
+export const regulatorApprovalOptions = [
+  { name: 'regulator approval Required', label: 'Required', value: 'required' },
+  {
+    name: 'regulator approval not Required',
+    label: 'Not Required',
+    value: 'not_required',
+  },
 ];
 
 export const FinalOutputOptions = [
@@ -207,6 +216,21 @@ export const contributionsInfo = [
     description: 'Detailed instructions or parameters for the drone operation.',
   },
   {
+    key: 'Deadline for Submission',
+    description: 'Date for specifying when the project should be submitted.',
+  },
+  {
+    key: 'Does this project require approval from the local regulatory committee?',
+    description:
+      'Indicate if the project requires approval from the local regulatory committee before proceeding.',
+  },
+  {
+    key: 'Local regulation committee Email Address',
+    description:
+      'The email addresses of local regulatory committee members. If one of them approves or rejects the project, it will be processed accordingly. This is required for areas where drone flights are restricted and require permission.',
+  },
+
+  {
     key: 'Approval for task lock',
     description:
       'Approval required tasks should be approved from project creator to proceed the mapping.',
@@ -216,11 +240,11 @@ export const contributionsInfo = [
 export const DefineAOIInfo = [
   {
     key: 'Project Area',
-    description: 'Boundary of a project',
+    description: 'Boundary of a project.',
   },
   {
     key: 'No-fly-zone',
-    description: 'GEO zones that prohibit flight',
+    description: 'GEO zones that prohibit flight.',
   },
 ];
 
@@ -244,7 +268,7 @@ export const keyParametersInfo = [
   {
     key: 'Side Overlap',
     description:
-      'The percentage of overlap between images captured on adjacent flight lines',
+      'The percentage of overlap between images captured on adjacent flight lines.',
   },
   {
     key: '2D Orthophoto/Orthophotograph',
@@ -254,17 +278,17 @@ export const keyParametersInfo = [
   {
     key: 'Digital Terrain Model (DTM)',
     description:
-      "DTM represents the bare earth surface, excluding objects and showing only the terrain's elevation",
+      "DTM represents the bare earth surface, excluding objects and showing only the terrain's elevation.",
   },
   {
     key: 'A Digital Surface Model (DSM)',
     description:
-      "DSM is a 3D representation of the Earth's surface including all features like buildings and vegetation",
+      "DSM is a 3D representation of the Earth's surface including all features like buildings and vegetation.",
   },
   {
     key: 'DEM',
     description:
-      'The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format',
+      'The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format.',
   },
 ];
 
@@ -288,3 +312,12 @@ export const taskGenerationGuidelines = {
       sized based on the drone equipment and parameters being used. This will
       also reduce the chances of RC lagging while flying the drone.`,
 };
+
+export const demFileOptions = [
+  {
+    name: 'Download DEM file from JAXA',
+    label: 'Download DEM file from JAXA',
+    value: 'auto',
+  },
+  { name: 'Upload DEM File', label: 'Upload DEM File', value: 'manual' },
+];
