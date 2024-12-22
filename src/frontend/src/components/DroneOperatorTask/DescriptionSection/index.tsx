@@ -26,7 +26,7 @@ const DroneOperatorDescriptionBox = () => {
     taskId as string,
     {
       select: (data: any) => {
-        return data.data.features;
+        return data.data?.results.features;
       },
     },
   );
