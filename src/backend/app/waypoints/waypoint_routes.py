@@ -10,10 +10,11 @@ from drone_flightplan import (
     create_placemarks,
     calculate_parameters,
     add_elevation_from_dem,
+    terrain_following_waylines,
     wpml,
     waypoints,
 )
-from app.models.enums import HTTPStatus
+from app.models.enums import HTTPStatus, FlightMode
 from app.tasks.task_logic import (
     get_task_geojson,
     get_take_off_point_from_db,
@@ -48,6 +49,7 @@ async def get_task_waypoint(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
+    mode: FlightMode = FlightMode.waylines,
     take_off_point: waypoint_schemas.PointField = None,
 ):
     """
@@ -103,18 +105,6 @@ async def get_task_waypoint(
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
 
-    points = waypoints.create_waypoint(
-        project_area=task_geojson,
-        agl=altitude,
-        gsd=gsd,
-        forward_overlap=forward_overlap,
-        side_overlap=side_overlap,
-        rotation_angle=0,
-        generate_each_points=generate_each_points,
-        generate_3d=generate_3d,
-        take_off_point=take_off_point,
-    )
-
     parameters = calculate_parameters(
         forward_overlap,
         side_overlap,
@@ -123,8 +113,26 @@ async def get_task_waypoint(
         2,  # Image Interval is set to 2
     )
 
+    # Common parameters for create_waypoint
+    waypoint_params = {
+        "project_area": task_geojson,
+        "agl": altitude,
+        "gsd": gsd,
+        "forward_overlap": forward_overlap,
+        "side_overlap": side_overlap,
+        "rotation_angle": 0,
+        "generate_each_points": generate_each_points,
+        "generate_3d": generate_3d,
+        "take_off_point": take_off_point,
+    }
+
     if project.is_terrain_follow:
         dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+
+        # Terrain follow uses waypoints mode, waylines are generated later
+        waypoint_params["mode"] = FlightMode.waypoints
+        points = waypoints.create_waypoint(**waypoint_params)
+
         try:
             get_file_from_bucket(
                 settings.S3_BUCKET_NAME,
@@ -142,8 +150,16 @@ async def get_task_waypoint(
             points_with_elevation = points
 
         placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
+
+        # Create a flight plan with terrain follow in waylines mode
+        if mode == FlightMode.waylines:
+            placemarks = terrain_following_waylines.waypoints2waylines(placemarks, 5)
+
     else:
+        waypoint_params["mode"] = mode
+        points = waypoints.create_waypoint(**waypoint_params)
         placemarks = create_placemarks(geojson.loads(points), parameters)
+
     if download:
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
         kmz_file = wpml.create_wpml(placemarks, outfile)
