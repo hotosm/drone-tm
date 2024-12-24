@@ -1,11 +1,12 @@
 /* eslint-disable no-nested-ternary */
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useTypedSelector } from '@Store/hooks';
+import { toast } from 'react-toastify';
 import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
 import { Button } from '@Components/RadixComponents/Button';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import MapSection from '../MapSection';
 import DescriptionBox from './DescriptionBox';
 
@@ -17,6 +18,9 @@ const DroneOperatorDescriptionBox = () => {
     useState<boolean>(false);
   const { width } = useWindowDimensions();
   const Token = localStorage.getItem('token');
+  const waypointMode = useTypedSelector(
+    state => state.droneOperatorTask.waypointMode,
+  );
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
@@ -24,6 +28,7 @@ const DroneOperatorDescriptionBox = () => {
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
+    waypointMode as string,
     {
       select: (data: any) => {
         return data.data?.results.features;
@@ -33,7 +38,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanKmz = () => {
     fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`,
+      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}`,
       { method: 'POST' },
     )
       .then(response => {
@@ -60,6 +65,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanGeojson = () => {
     if (!taskWayPoints) return;
+
     const waypointGeojson = {
       type: 'FeatureCollection',
       features: taskWayPoints,
@@ -70,7 +76,7 @@ const DroneOperatorDescriptionBox = () => {
     const url = window.URL.createObjectURL(fileBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'waypoint.geojson';
+    link.download = `${waypointMode}.geojson`;
     document.body.appendChild(link);
     link.click();
     link.remove();

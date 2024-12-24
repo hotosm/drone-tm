@@ -23,6 +23,7 @@ import {
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
   setSelectedTaskDetailToViewOrthophoto,
+  setWaypointMode,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -48,7 +49,9 @@ import { toast } from 'react-toastify';
 import { FlexColumn } from '@Components/common/Layouts';
 import RotatingCircle from '@Components/common/RotationCue';
 import { mapLayerIDs } from '@Constants/droneOperator';
+import SwitchTab from '@Components/common/SwitchTab';
 import { findNearestCoordinate, swapFirstAndLast } from '@Utils/index';
+import { waypointModeOptions } from '@Constants/taskDescription';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 
@@ -82,6 +85,9 @@ const MapSection = ({ className }: { className?: string }) => {
   });
   const newTakeOffPoint = useTypedSelector(
     state => state.droneOperatorTask.selectedTakeOffPoint,
+  );
+  const waypointMode = useTypedSelector(
+    state => state.droneOperatorTask.waypointMode,
   );
 
   function setVisibilityOfLayers(layerIds: string[], visibility: string) {
@@ -125,6 +131,7 @@ const MapSection = ({ className }: { className?: string }) => {
   const { data: taskWayPointsData }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
+    waypointMode as string,
     {
       select: ({ data }: any) => {
         const modifiedTaskWayPointsData = {
@@ -830,6 +837,19 @@ const MapSection = ({ className }: { className?: string }) => {
             hideButton
             getCoordOnProperties
           />
+
+          <div className="naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-40 lg:naxatw-right-64">
+            <SwitchTab
+              activeClassName="naxatw-bg-red naxatw-text-white"
+              options={waypointModeOptions}
+              labelKey="label"
+              valueKey="value"
+              selectedValue={waypointMode}
+              onChange={(value: Record<string, any>) => {
+                dispatch(setWaypointMode(value.value));
+              }}
+            />
+          </div>
         </MapContainer>
       </div>
     </>

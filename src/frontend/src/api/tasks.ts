@@ -9,12 +9,13 @@ import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 export const useGetTaskWaypointQuery = (
   projectId: string,
   taskId: string,
+  mode: string,
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['task-waypoints'],
+    queryKey: ['task-waypoints', mode],
     enabled: !!(projectId && taskId),
-    queryFn: () => getTaskWaypoint(projectId, taskId),
+    queryFn: () => getTaskWaypoint(projectId, taskId, mode),
     select: (res: any) => res.data,
     ...queryOptions,
   });

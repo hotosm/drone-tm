@@ -35,10 +35,14 @@ const DescriptionBox = () => {
   const uploadedImageType = useTypedSelector(
     state => state.droneOperatorTask.uploadedImagesType,
   );
+  const waypointMode = useTypedSelector(
+    state => state.droneOperatorTask.waypointMode,
+  );
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
+    waypointMode as string,
     {
       select: (data: any) => {
         return data.data.features;
@@ -92,6 +96,7 @@ const DescriptionBox = () => {
   const { data: flightTimeData }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
+    waypointMode as string,
     {
       select: ({ data }: any) => data.flight_data,
     },

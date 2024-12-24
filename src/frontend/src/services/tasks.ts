@@ -1,8 +1,12 @@
 import { api, authenticated } from '.';
 
-export const getTaskWaypoint = (projectId: string, taskId: string) =>
+export const getTaskWaypoint = (
+  projectId: string,
+  taskId: string,
+  mode: string,
+) =>
   authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false`,
+    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}`,
   );
 
 export const getIndividualTask = (taskId: string) =>

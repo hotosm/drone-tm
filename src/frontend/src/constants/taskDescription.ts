@@ -12,3 +12,8 @@ export const takeOffPointOptions = [
     name: 'take_off_point',
   },
 ];
+
+export const waypointModeOptions = [
+  { label: 'Waypoints', value: 'waypoints' },
+  { label: 'Waylines', value: 'waylines' },
+];
