@@ -31,14 +31,14 @@ const DroneOperatorDescriptionBox = () => {
     waypointMode as string,
     {
       select: (data: any) => {
-        return data.data.features;
+        return data.data.results;
       },
     },
   );
 
   const downloadFlightPlanKmz = () => {
     fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true`,
+      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}`,
       { method: 'POST' },
     )
       .then(response => {
@@ -65,6 +65,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanGeojson = () => {
     if (!taskWayPoints) return;
+
     const waypointGeojson = {
       type: 'FeatureCollection',
       features: taskWayPoints,
@@ -75,7 +76,7 @@ const DroneOperatorDescriptionBox = () => {
     const url = window.URL.createObjectURL(fileBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'waypoint.geojson';
+    link.download = `${waypointMode}.geojson`;
     document.body.appendChild(link);
     link.click();
     link.remove();
