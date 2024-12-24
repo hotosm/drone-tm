@@ -121,8 +121,9 @@ class HTTPStatus(IntEnum):
     NOT_IMPLEMENTED = 501
 
 
-class DroneType(IntEnum):
-    DJI_MINI_4_PRO = 1
+class DroneType(StrEnum):
+    DJI_MINI_4_PRO = "DJI_MINI_4_PRO"
+    DJI_AIR_3 = "DJI_AIR_3"
 
 
 class UserRole(IntEnum, Enum):
