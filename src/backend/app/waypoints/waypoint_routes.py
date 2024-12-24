@@ -248,7 +248,7 @@ async def generate_kmz(
             generate_each_points=generate_each_points,
             generate_3d=generate_3d,
             take_off_point=take_off_point,
-            drone_type=drone_type
+            drone_type=drone_type,
         )
         return geojson.loads(points)
     else:
@@ -262,7 +262,7 @@ async def generate_kmz(
             dem=dem_path if dem else None,
             outfile=f"/tmp/{uuid.uuid4()}",
             take_off_point=take_off_point,
-            drone_type=drone_type
+            drone_type=drone_type,
         )
 
         return FileResponse(
