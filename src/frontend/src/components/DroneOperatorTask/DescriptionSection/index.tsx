@@ -31,7 +31,7 @@ const DroneOperatorDescriptionBox = () => {
     waypointMode as string,
     {
       select: (data: any) => {
-        return data.data.results;
+        return data.data?.results.features;
       },
     },
   );
