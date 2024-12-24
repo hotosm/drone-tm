@@ -131,7 +131,8 @@ class HTTPStatus(IntEnum):
 
 
 class DroneType(IntEnum):
-    DJI_MINI_4_PRO = 1
+    DJI_MINI_4_PRO = "DJI_MINI_4_PRO"
+    DJI_AIR_3 = "DJI_MINI_4_PRO"
 
 
 class UserRole(int, Enum):
