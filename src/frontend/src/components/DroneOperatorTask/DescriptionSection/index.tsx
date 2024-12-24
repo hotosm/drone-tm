@@ -1,11 +1,12 @@
 /* eslint-disable no-nested-ternary */
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useTypedSelector } from '@Store/hooks';
+import { toast } from 'react-toastify';
 import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
 import { Button } from '@Components/RadixComponents/Button';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import MapSection from '../MapSection';
 import DescriptionBox from './DescriptionBox';
 
@@ -17,6 +18,9 @@ const DroneOperatorDescriptionBox = () => {
     useState<boolean>(false);
   const { width } = useWindowDimensions();
   const Token = localStorage.getItem('token');
+  const waypointMode = useTypedSelector(
+    state => state.droneOperatorTask.waypointMode,
+  );
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
@@ -24,6 +28,7 @@ const DroneOperatorDescriptionBox = () => {
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
+    waypointMode as string,
     {
       select: (data: any) => {
         return data.data.features;
