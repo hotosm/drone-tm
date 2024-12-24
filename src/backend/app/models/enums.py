@@ -14,7 +14,7 @@ class IntEnum(int, Enum):
 
     pass
 
-
+    
 class FinalOutput(str, Enum):
     ORTHOPHOTO_2D = "ORTHOPHOTO_2D"
     ORTHOPHOTO_3D = "ORTHOPHOTO_3D"
@@ -122,7 +122,8 @@ class HTTPStatus(IntEnum):
 
 
 class DroneType(IntEnum):
-    DJI_MINI_4_PRO = 1
+    DJI_MINI_4_PRO = 'DJI_MINI_4_PRO'
+    DJI_AIR_3 = 'DJI_MINI_4_PRO'
 
 
 class UserRole(IntEnum, Enum):

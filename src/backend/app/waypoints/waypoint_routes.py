@@ -30,7 +30,7 @@ from psycopg import Connection
 from app.projects import project_deps
 from shapely.geometry import shape
 from app.waypoints import waypoint_schemas
-
+from app.models.enums import DroneType
 
 # Constant to convert gsd to Altitude above ground level
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
@@ -48,6 +48,7 @@ async def get_task_waypoint(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     take_off_point: waypoint_schemas.PointField = None,
 ):
     """
@@ -113,6 +114,7 @@ async def get_task_waypoint(
         generate_each_points=generate_each_points,
         generate_3d=generate_3d,
         take_off_point=take_off_point,
+        drone_type=drone_type,
     )
 
     parameters = calculate_parameters(
@@ -121,6 +123,7 @@ async def get_task_waypoint(
         altitude,
         gsd,
         2,  # Image Interval is set to 2
+        drone_type,
     )
 
     if project.is_terrain_follow:
@@ -153,7 +156,9 @@ async def get_task_waypoint(
             filename=f"{task_id}_flight_plan.kmz",
         )
     flight_data = calculate_flight_time_from_placemarks(placemarks)
-    return {"results": placemarks, "flight_data": flight_data}
+
+    drones = list(DroneType.__members__.keys())
+    return {"results": placemarks, "flight_data": flight_data, "drones": drones}
 
 
 @router.post("/")
@@ -199,6 +204,7 @@ async def generate_kmz(
         description="The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format",
     ),
     take_off_point: waypoint_schemas.PointField = None,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ):
     if not (altitude or gsd):
         raise HTTPException(
@@ -242,6 +248,7 @@ async def generate_kmz(
             generate_each_points=generate_each_points,
             generate_3d=generate_3d,
             take_off_point=take_off_point,
+            drone_type=drone_type
         )
         return geojson.loads(points)
     else:
@@ -255,6 +262,7 @@ async def generate_kmz(
             dem=dem_path if dem else None,
             outfile=f"/tmp/{uuid.uuid4()}",
             take_off_point=take_off_point,
+            drone_type=drone_type
         )
 
         return FileResponse(
