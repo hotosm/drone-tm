@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from psycopg import AsyncConnection
 from app.users.user_schemas import DbUser
 import pytest
-from app.projects.project_schemas import ProjectIn
+from app.projects.project_schemas import DbProject, ProjectIn
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -44,7 +44,7 @@ async def auth_user(db) -> AuthUser:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def project_info(db, auth_user):
+async def project_info():
     """
     Fixture to create project metadata for testing.
 
@@ -89,10 +89,28 @@ async def project_info(db, auth_user):
     )
 
     try:
-        # await DbProject.create(db, project_metadata, getattr(user, "id", ""))
         return project_metadata
     except Exception as e:
         pytest.fail(f"Fixture setup failed with exception: {str(e)}")
+
+
+@pytest_asyncio.fixture(scope="function")
+async def create_test_project(db, auth_user, project_info):
+    """
+    Fixture to create a test project and return its project_id.
+    """
+    project_id = await DbProject.create(db, project_info, auth_user.id)
+    return str(project_id)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_get_project(db, create_test_project):
+    """
+    Fixture to create a test project and return its project_id.
+    """
+    project_id = create_test_project
+    project_info = await DbProject.one(db, project_id)
+    return project_info
 
 
 @pytest_asyncio.fixture(autouse=True)

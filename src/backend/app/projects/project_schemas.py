@@ -157,10 +157,8 @@ class ProjectIn(BaseModel):
             return slug_with_date
         except Exception as e:
             log.error(f"An error occurred while generating the slug: {e}")
-            return ""
-            return ""
 
-            return ""
+        return ""
 
     @model_validator(mode="before")
     @classmethod
