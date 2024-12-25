@@ -229,6 +229,7 @@ const MapSection = ({ className }: { className?: string }) => {
           <p className="naxatw-text-base">
             Gimble angle: {popupData?.gimbal_angle} degree
           </p>
+          <p className="naxatw-text-base">Heading: {popupData?.heading}</p>
           {popupData?.altitude && (
             <p className="naxatw-text-base">
               Altitude: {popupData?.altitude} meter
