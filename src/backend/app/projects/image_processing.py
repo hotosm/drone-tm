@@ -171,7 +171,7 @@ class DroneImageProcessor:
                 # Check and add the GCP file to the images list if it exists
                 if get_file_from_bucket(bucket_name, gcp_list_file, gcp_file_path):
                     images_list.append(gcp_file_path)
-                        
+
                 for task_id in self.task_ids:
                     self.download_images_from_s3(bucket_name, temp_dir, task_id)
                     images_list.extend(self.list_images(temp_dir))
