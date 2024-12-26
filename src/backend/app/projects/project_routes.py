@@ -661,7 +661,6 @@ async def get_project_waypoints_counts(
     square_geojson = project_logic.generate_square_geojson(
         center_lat, center_lon, meters
     )
-    generate_each_points = True if is_terrain_follow else False
     generate_3d = (
         False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
     )
@@ -675,7 +674,6 @@ async def get_project_waypoints_counts(
         forward_overlap=forward_overlap,
         side_overlap=side_overlap,
         rotation_angle=0,
-        generate_each_points=generate_each_points,
         generate_3d=generate_3d,
         take_off_point=None,
     )
