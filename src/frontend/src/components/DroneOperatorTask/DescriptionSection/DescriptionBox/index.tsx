@@ -45,7 +45,7 @@ const DescriptionBox = () => {
     waypointMode as string,
     {
       select: (data: any) => {
-        return data.data.features;
+        return data.data.results.features;
       },
     },
   );
@@ -139,14 +139,13 @@ const DescriptionBox = () => {
                   ? `${Number(taskData?.task_area)?.toFixed(3)} km²`
                   : null,
               },
-              { name: 'Total points', value: taskWayPoints?.length },
+              {
+                name: 'Total waypoints count',
+                value: taskWayPoints?.length,
+              },
               {
                 name: 'Est. flight time',
                 value: flightTimeData?.total_flight_time || null,
-              },
-              {
-                name: 'Est. flight time in seconds',
-                value: flightTimeData?.total_flight_time_seconds || null,
               },
             ],
           },
