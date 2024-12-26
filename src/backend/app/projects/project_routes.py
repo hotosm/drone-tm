@@ -467,12 +467,23 @@ async def process_all_imagery(
     user_data: Annotated[AuthUser, Depends(login_required)],
     background_tasks: BackgroundTasks,
     db: Annotated[Connection, Depends(database.get_db)],
+    gcp_file: UploadFile = File(None),
+    
 ):
     """
     API endpoint to process all tasks associated with a project.
     """
     user_id = user_data.id
-
+    if gcp_file:
+        gcp_file_path = f"/tmp/{uuid.uuid4()}"
+        with open(gcp_file_path, "wb") as f:
+            f.write(await gcp_file.read())
+        
+        s3_path = (
+            f"dtm-data/projects/{project_id}/gcp/gcp_list.txt"
+        )
+        add_file_to_bucket( settings.S3_BUCKET_NAME, gcp_file_path, s3_path)  
+                    
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
     background_tasks.add_task(
         project_logic.process_all_drone_images, project_id, tasks, user_id, db
