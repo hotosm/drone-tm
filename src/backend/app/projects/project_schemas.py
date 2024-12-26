@@ -173,10 +173,10 @@ class TaskOut(BaseModel):
     outline: Optional[Polygon | Feature | FeatureCollection] = None
     state: Optional[str] = None
     user_id: Optional[str] = None
-    task_area: Optional[float] = None
     name: Optional[str] = None
     image_count: Optional[int] = None
     assets_url: Optional[str] = None
+    total_area_sqkm: Optional[float] = None
 
 
 class DbProject(BaseModel):
@@ -210,7 +210,6 @@ class DbProject(BaseModel):
     is_terrain_follow: bool = False
     image_url: Optional[str] = None
     created_at: datetime
-    author_id: str
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""
@@ -291,6 +290,7 @@ class DbProject(BaseModel):
                         t.id,
                         t.project_task_index,
                         t.project_id,
+                        t.total_area_sqkm,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'coordinates' AS coordinates,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'type' AS type,
                         ST_XMin(ST_Envelope(t.outline)) AS xmin,
@@ -299,8 +299,7 @@ class DbProject(BaseModel):
                         ST_YMax(ST_Envelope(t.outline)) AS ymax,
                         tsc.state AS state,
                         tsc.user_id,
-                        u.name,
-                        ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
+                        u.name
                     FROM
                         tasks t
                     LEFT JOIN
@@ -316,8 +315,8 @@ class DbProject(BaseModel):
                     state,
                     user_id,
                     name,
-                    task_area,
                     project_id,
+                    total_area_sqkm,
                     jsonb_build_object(
                         'type', 'Feature',
                         'geometry', jsonb_build_object(

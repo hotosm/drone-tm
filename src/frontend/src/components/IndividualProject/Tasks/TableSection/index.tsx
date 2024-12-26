@@ -10,7 +10,7 @@ const tasksDataColumns = [
   {
     header: 'Task Area in km²',
     accessorKey: 'task_area',
-  },
+  }
 ];
 
 interface ITableSectionProps {
@@ -34,7 +34,7 @@ export default function TableSection({
         {
           id: `Task# ${curr?.project_task_index}`,
           flight_time: curr?.flight_time || '-',
-          task_area: Number(curr?.task_area)?.toFixed(3),
+          task_area: Number(curr?.total_area_sqkm)?.toFixed(3),
           task_id: curr?.id,
           // status: curr?.state,
         },
