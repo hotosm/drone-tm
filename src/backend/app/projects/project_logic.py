@@ -150,10 +150,11 @@ async def create_tasks_from_geojson(
                 async with db.cursor() as cur:
                     await cur.execute(
                         """
-                    INSERT INTO tasks (id, project_id, outline, project_task_index)
-                    VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s)
-                    RETURNING id;
-                    """,
+                        INSERT INTO tasks (id, project_id, outline, project_task_index, total_area_sqkm)
+                        VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s, 
+                                ST_Area(ST_Transform(ST_SetSRID(outline, 4326), 3857)) / 1000000)
+                        RETURNING id;
+                        """,
                         {
                             "id": task_id,
                             "project_id": project_id,
@@ -163,7 +164,28 @@ async def create_tasks_from_geojson(
                             "project_task_index": index + 1,
                         },
                     )
+
+                # async with db.cursor() as cur:
+                #     await cur.execute(
+                #         """
+                #     INSERT INTO tasks (id, project_id, outline, project_task_index)
+                #     VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s)
+                #     RETURNING id;
+                #     ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
+
+                #     """,
+                #         {
+                #             "id": task_id,
+                #             "project_id": project_id,
+                #             "outline": wkblib.dumps(
+                #                 shape(polygon["geometry"]), hex=True
+                #             ),
+                #             "project_task_index": index + 1,
+                #         },
+                #     )
+                    
                     result = await cur.fetchone()
+                    
                     if result:
                         log.debug(
                             "Created database task | "
