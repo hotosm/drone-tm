@@ -165,7 +165,7 @@ class Task(BaseModel):
 
 class UserTasksStatsOut(BaseModel):
     task_id: uuid.UUID
-    task_area: float
+    total_area_sqkm: Optional[float] = None
     created_at: datetime
     state: str
     project_id: uuid.UUID
@@ -207,7 +207,7 @@ class UserTasksStatsOut(BaseModel):
                     tasks.project_task_index AS project_task_index,
                     task_events.project_id AS project_id,
                     projects.name AS project_name,
-                    ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
+                    tasks.total_area_sqkm,
                     task_events.created_at,
                     task_events.updated_at,
                     task_events.state,
@@ -263,7 +263,7 @@ class UserTasksStatsOut(BaseModel):
 
 
 class TaskDetailsOut(BaseModel):
-    task_area: float
+    total_area_sqkm: float
     outline: Outline
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -300,7 +300,7 @@ class TaskDetailsOut(BaseModel):
                 await cur.execute(
                     """
                     SELECT
-                        ST_Area(ST_Transform(tasks.outline, 3857)) / 1000000 AS task_area,
+                        tasks.total_area_sqkm,
 
                         -- Construct the outline as a GeoJSON Feature
                         jsonb_build_object(

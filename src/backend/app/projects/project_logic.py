@@ -2,7 +2,6 @@ import json
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
-from pyproj import Transformer
 from app.tasks.task_splitter import split_by_square
 from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
@@ -21,6 +20,8 @@ from app.projects.image_processing import DroneImageProcessor
 from app.projects import project_schemas
 from minio import S3Error
 from psycopg.rows import dict_row
+from shapely.ops import transform
+import pyproj
 
 
 async def get_centroids(db: Connection):
@@ -127,12 +128,20 @@ async def create_tasks_from_geojson(
         if isinstance(boundaries, str):
             boundaries = json.loads(boundaries)
 
-        # Update the boundary polyon on the database.
         if boundaries["type"] == "Feature":
             polygons = [boundaries]
         else:
             polygons = boundaries["features"]
+
         log.debug(f"Processing {len(polygons)} task geometries")
+
+        # Set up the projection transform for EPSG:3857 (Web Mercator)
+        proj_wgs84 = pyproj.CRS("EPSG:4326")
+        proj_mercator = pyproj.CRS("EPSG:3857")
+        project_transformer = pyproj.Transformer.from_crs(
+            proj_wgs84, proj_mercator, always_xy=True
+        )
+
         for index, polygon in enumerate(polygons):
             try:
                 if not polygon["geometry"]:
@@ -141,18 +150,25 @@ async def create_tasks_from_geojson(
                 if polygon["geometry"]["type"] == "MultiPolygon":
                     log.debug("Converting MultiPolygon to Polygon")
                     polygon["geometry"]["type"] = "Polygon"
-
                     polygon["geometry"]["coordinates"] = polygon["geometry"][
                         "coordinates"
                     ][0]
+
+                geom = shape(polygon["geometry"])
+
+                # Transform the geometry to EPSG:3857 and calculate the area in square meters
+                transformed_geom = transform(project_transformer.transform, geom)
+                area_sq_m = transformed_geom.area  # Area in square meters
+
+                # Convert area to square kilometers
+                total_area_sqkm = area_sq_m / 1_000_000
 
                 task_id = str(uuid.uuid4())
                 async with db.cursor() as cur:
                     await cur.execute(
                         """
                         INSERT INTO tasks (id, project_id, outline, project_task_index, total_area_sqkm)
-                        VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s, 
-                                ST_Area(ST_Transform(ST_SetSRID(outline, 4326), 3857)) / 1000000)
+                        VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s, %(total_area_sqkm)s)
                         RETURNING id;
                         """,
                         {
@@ -162,30 +178,11 @@ async def create_tasks_from_geojson(
                                 shape(polygon["geometry"]), hex=True
                             ),
                             "project_task_index": index + 1,
+                            "total_area_sqkm": total_area_sqkm,
                         },
                     )
-
-                # async with db.cursor() as cur:
-                #     await cur.execute(
-                #         """
-                #     INSERT INTO tasks (id, project_id, outline, project_task_index)
-                #     VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s)
-                #     RETURNING id;
-                #     ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
-
-                #     """,
-                #         {
-                #             "id": task_id,
-                #             "project_id": project_id,
-                #             "outline": wkblib.dumps(
-                #                 shape(polygon["geometry"]), hex=True
-                #             ),
-                #             "project_task_index": index + 1,
-                #         },
-                #     )
-                    
                     result = await cur.fetchone()
-                    
+
                     if result:
                         log.debug(
                             "Created database task | "
@@ -342,8 +339,10 @@ async def check_regulator_project(db: Connection, project_id: str, email: str):
 
 
 def generate_square_geojson(center_lat, center_lon, side_length_meters):
-    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-    transformer_back = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+    transformer = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    transformer_back = pyproj.Transformer.from_crs(
+        "EPSG:3857", "EPSG:4326", always_xy=True
+    )
 
     center_x, center_y = transformer.transform(center_lon, center_lat)
     half_side = side_length_meters / 2
