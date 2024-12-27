@@ -72,11 +72,11 @@ async def get_task_waypoint(
     if take_off_point:
         take_off_point = [take_off_point.longitude, take_off_point.latitude]
 
-        # Validate that the take-off point is within a 350 buffer of the task boundary
-        if not check_point_within_buffer(take_off_point, task_geojson, 350):
+        # Validate that the take-off point is within a 1000 buffer of the task boundary
+        if not check_point_within_buffer(take_off_point, task_geojson, 1000):
             raise HTTPException(
                 status_code=400,
-                detail="Take off point should be within 350m of the boundary",
+                detail="Take off point should be within 1km of the boundary",
             )
 
         # Update take_off_point in tasks table
