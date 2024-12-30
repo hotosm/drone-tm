@@ -608,8 +608,8 @@ async def handle_event(
                 project_id, task_id
             ).image_count
 
-            await project_logic.update_total_image_uploaded(
-                db, project_id, task_id, toatl_image_count
+            await project_logic.update_task_field(
+                db, project_id, task_id, "total_image_uploaded", toatl_image_count
             )
 
             return await update_task_state(

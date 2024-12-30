@@ -8,6 +8,7 @@ from app.tasks import task_logic
 from app.models.enums import State
 from app.utils import timestamp
 from app.db import database
+from app.projects import project_logic
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
@@ -423,6 +424,13 @@ async def process_assets_from_odm(
                     )
                     log.info(
                         f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
+                    )
+                    s3_path_url = (
+                        f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+                    )
+                    # update the task table
+                    await project_logic.update_task_field(
+                        conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
                     )
 
     except Exception as e:

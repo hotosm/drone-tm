@@ -82,6 +82,9 @@ class DbTask(Base):
     flight_time_minutes = cast(int, Column(Float, nullable=True))
     flight_distance_km = cast(float, Column(Float, nullable=True))
     total_image_uploaded = cast(int, Column(SmallInteger, nullable=True))
+    assets_url = cast(
+        str, Column(String, nullable=True)
+    )  # download link for assets of images(orthophoto)
 
 
 class DbProject(Base):

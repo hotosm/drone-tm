@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from psycopg.rows import class_row, dict_row
 from typing import List, Literal, Optional
 from pydantic.functional_validators import field_validator
-from app.s3 import is_connection_secure
+from app.s3 import generate_static_url, is_connection_secure
 
 
 class Geometry(BaseModel):
@@ -270,6 +270,8 @@ class TaskDetailsOut(BaseModel):
     total_area_sqkm: Optional[float] = None
     flight_time_minutes: Optional[float] = None
     flight_distance_km: Optional[float] = None
+    total_image_uploaded: Optional[int] = None
+    assets_url: Optional[str] = None
     outline: Outline
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -281,6 +283,15 @@ class TaskDetailsOut(BaseModel):
     gsd_cm_px: Optional[float] = None
     gimble_angles_degrees: Optional[int] = None
     centroid: dict
+
+    @model_validator(mode="after")
+    def set_assets_url(cls, values):
+        """Set image_url before rendering the model."""
+        assets_url = values.assets_url
+        if assets_url:
+            values.assets_url = generate_static_url(settings.S3_BUCKET_NAME, assets_url)
+
+        return values
 
     @field_validator("state", mode="after")
     @classmethod
@@ -309,7 +320,8 @@ class TaskDetailsOut(BaseModel):
                         tasks.total_area_sqkm,
                         tasks.flight_time_minutes,
                         tasks.flight_distance_km,
-
+                        tasks.total_image_uploaded,
+                        tasks.assets_url,
                         -- Construct the outline as a GeoJSON Feature
                         jsonb_build_object(
                             'type', 'Feature',
