@@ -125,7 +125,7 @@ class DroneType(IntEnum):
     DJI_MINI_4_PRO = 1
 
 
-class UserRole(IntEnum, Enum):
+class UserRole(int, Enum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
     REGULATOR = 3

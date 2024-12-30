@@ -177,6 +177,8 @@ class TaskOut(BaseModel):
     image_count: Optional[int] = None
     assets_url: Optional[str] = None
     total_area_sqkm: Optional[float] = None
+    flight_time_minutes: Optional[float] = None
+    flight_distance_km: Optional[float] = None
 
 
 class DbProject(BaseModel):
@@ -291,6 +293,8 @@ class DbProject(BaseModel):
                         t.project_task_index,
                         t.project_id,
                         t.total_area_sqkm,
+                        t.flight_time_minutes,
+                        t.flight_distance_km,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'coordinates' AS coordinates,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'type' AS type,
                         ST_XMin(ST_Envelope(t.outline)) AS xmin,
@@ -317,6 +321,8 @@ class DbProject(BaseModel):
                     name,
                     project_id,
                     total_area_sqkm,
+                    flight_distance_km,
+                    flight_time_minutes,
                     jsonb_build_object(
                         'type', 'Feature',
                         'geometry', jsonb_build_object(
