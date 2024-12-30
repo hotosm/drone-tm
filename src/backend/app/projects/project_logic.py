@@ -459,13 +459,17 @@ def generate_square_geojson(center_lat, center_lon, side_length_meters):
 
 
 async def get_all_tasks_for_project(project_id, db):
-    "Get all tasks associated with the project ID that are in state IMAGE_UPLOADED."
+    """
+    Get all unique tasks associated with the project ID
+    that are in state IMAGE_UPLOADED.
+    """
     async with db.cursor() as cur:
         query = """
-        SELECT t.id
+        SELECT DISTINCT ON (t.id) t.id
         FROM tasks t
         JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id = %s AND te.state = 'IMAGE_UPLOADED';
+        WHERE t.project_id = %s AND te.state = 'IMAGE_UPLOADED'
+        ORDER BY t.id, te.created_at DESC;
         """
         await cur.execute(query, (project_id,))
         results = await cur.fetchall()
