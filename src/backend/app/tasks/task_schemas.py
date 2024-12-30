@@ -163,7 +163,7 @@ class Task(BaseModel):
             return combined_tasks
 
 
-class UserTasksStatsOut(BaseModel):
+class UserTasksOut(BaseModel):
     task_id: uuid.UUID
     total_area_sqkm: Optional[float] = None
     flight_time_minutes: Optional[float] = None
@@ -201,7 +201,7 @@ class UserTasksStatsOut(BaseModel):
     async def get_tasks_by_user(
         db: Connection, user_id: str, role: str, skip: int = 0, limit: int = 50
     ):
-        async with db.cursor(row_factory=class_row(UserTasksStatsOut)) as cur:
+        async with db.cursor(row_factory=class_row(UserTasksOut)) as cur:
             await cur.execute(
                 """
                 SELECT DISTINCT ON (tasks.id)

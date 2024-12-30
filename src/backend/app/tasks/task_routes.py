@@ -47,7 +47,7 @@ async def list_tasks(
     user_id = user_data.id
     role = user_data.role
     log.info(f"Fetching tasks for user {user_id} with role: {role}")
-    return await task_schemas.UserTasksStatsOut.get_tasks_by_user(
+    return await task_schemas.UserTasksOut.get_tasks_by_user(
         db, user_id, role, skip, limit
     )
 
