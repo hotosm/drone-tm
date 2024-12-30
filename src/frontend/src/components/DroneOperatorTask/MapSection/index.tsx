@@ -839,7 +839,7 @@ const MapSection = ({ className }: { className?: string }) => {
             getCoordOnProperties
           />
 
-          <div className="naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-40 lg:naxatw-right-64">
+          <div className="naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-10 lg:naxatw-right-64">
             <SwitchTab
               activeClassName="naxatw-bg-red naxatw-text-white"
               options={waypointModeOptions}
