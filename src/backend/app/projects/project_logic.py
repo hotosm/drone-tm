@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+from typing import Any
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
@@ -477,21 +478,21 @@ async def get_all_tasks_for_project(project_id, db):
         return [str(result[0]) for result in results]
 
 
-async def update_total_image_uploaded(
-    db: Connection, project_id: uuid.UUID, task_id: uuid.UUID, total_image_count: str
+async def update_task_field(
+    db: Connection, project_id: uuid.UUID, task_id: uuid.UUID, column: Any, value: str
 ):
     """
-    Update the total_image_uploaded field in the tasks table.
+    Generic function to update a field(assets_url and total_image_count) in the tasks table.
     """
     async with db.cursor() as cur:
         await cur.execute(
-            """
+            f"""
             UPDATE tasks
-            SET total_image_uploaded = %(total_image_uploaded)s
+            SET {column} = %(value)s
             WHERE project_id = %(project_id)s AND id = %(task_id)s;
             """,
             {
-                "total_image_uploaded": total_image_count,
+                "value": value,
                 "project_id": str(project_id),
                 "task_id": str(task_id),
             },

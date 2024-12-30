@@ -25,7 +25,7 @@ from app.utils import (
 )
 from psycopg.rows import dict_row
 from app.config import settings
-from app.s3 import get_presigned_url
+from app.s3 import generate_static_url, get_presigned_url
 
 
 class CentroidOut(BaseModel):
@@ -179,6 +179,16 @@ class TaskOut(BaseModel):
     total_area_sqkm: Optional[float] = None
     flight_time_minutes: Optional[float] = None
     flight_distance_km: Optional[float] = None
+    total_image_uploaded: Optional[int] = None
+
+    @model_validator(mode="after")
+    def set_assets_url(cls, values):
+        """Set image_url before rendering the model."""
+        assets_url = values.assets_url
+        if assets_url:
+            values.assets_url = generate_static_url(settings.S3_BUCKET_NAME, assets_url)
+
+        return values
 
 
 class DbProject(BaseModel):
@@ -295,6 +305,8 @@ class DbProject(BaseModel):
                         t.total_area_sqkm,
                         t.flight_time_minutes,
                         t.flight_distance_km,
+                        t.assets_url,
+                        t.total_image_uploaded,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'coordinates' AS coordinates,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'type' AS type,
                         ST_XMin(ST_Envelope(t.outline)) AS xmin,
@@ -323,6 +335,8 @@ class DbProject(BaseModel):
                     total_area_sqkm,
                     flight_distance_km,
                     flight_time_minutes,
+                    total_image_uploaded,
+                    assets_url,
                     jsonb_build_object(
                         'type', 'Feature',
                         'geometry', jsonb_build_object(
