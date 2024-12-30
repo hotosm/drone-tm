@@ -163,7 +163,7 @@ async def get_task_waypoint(
         kmz_file = wpml.create_wpml(placemarks, outfile)
         return FileResponse(
             kmz_file,
-            media_type="application/zip",
+            media_type="application/vnd.google-earth.kmz",
             filename=f"{task_id}_flight_plan.kmz",
         )
     flight_data = calculate_flight_time_from_placemarks(placemarks)
