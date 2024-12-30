@@ -28,7 +28,7 @@ from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.db import database
 from app.models.enums import HTTPStatus, State, FlightMode
-from app.s3 import s3_client
+from app.s3 import add_file_to_bucket, s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -309,7 +309,6 @@ async def generate_presigned_url(
     user: Annotated[AuthUser, Depends(login_required)],
     data: project_schemas.PresignedUrlRequest,
     replace_existing: bool = False,
-
 ):
     """
     Generate a pre-signed URL for uploading an image to S3 Bucket.
@@ -368,7 +367,7 @@ async def generate_presigned_url(
                         status_code=HTTPStatus.BAD_REQUEST,
                         detail=f"Failed to delete existing image. {e}",
                     )
-            
+
             # Generate a new pre-signed URL for the image upload
             url = client.get_presigned_url(
                 "PUT",
