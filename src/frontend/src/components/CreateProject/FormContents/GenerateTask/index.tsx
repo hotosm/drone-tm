@@ -124,10 +124,23 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
         </Button>
         {!projectWaypointCountIsLoading && projectWayPoints && (
           <p className="naxatw-mt-4 naxatw-text-sm naxatw-font-semibold">
-            The average number of way points is{' '}
-            <span className="naxatw-text-red">
-              {projectWayPoints?.data?.avg_no_of_waypoints}
-            </span>
+            The average number of waypoints is:
+            <ul className="naxatw-ml-4 naxatw-list-disc">
+              {projectWayPoints?.data?.waypoints && (
+                <li>
+                  <span className="naxatw-text-blue-500">
+                    In waypoints mode: {projectWayPoints?.data?.waypoints}
+                  </span>
+                </li>
+              )}
+              {projectWayPoints?.data?.waylines && (
+                <li>
+                  <span className="naxatw-text-green-500">
+                    In waylines mode: {projectWayPoints.data.waylines}
+                  </span>
+                </li>
+              )}
+            </ul>
           </p>
         )}
       </div>

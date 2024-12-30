@@ -27,7 +27,7 @@ from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.db import database
-from app.models.enums import HTTPStatus, State
+from app.models.enums import HTTPStatus, State, FlightMode
 from app.s3 import s3_client
 from app.config import settings
 from app.users.user_deps import login_required
@@ -41,7 +41,10 @@ from app.utils import (
 from app.users import user_schemas
 from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
-from drone_flightplan import waypoints, add_elevation_from_dem
+from drone_flightplan import (
+    waypoints,
+    add_elevation_from_dem,
+)
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -667,19 +670,23 @@ async def get_project_waypoints_counts(
     forward_overlap = front_overlap if front_overlap else 70
     side_overlap = side_overlap if side_overlap else 70
 
-    points = waypoints.create_waypoint(
-        project_area=square_geojson,
-        agl=altitude_from_ground,
-        gsd=gsd_cm_px,
-        forward_overlap=forward_overlap,
-        side_overlap=side_overlap,
-        rotation_angle=0,
-        generate_3d=generate_3d,
-        take_off_point=None,
-    )
+    # Common parameters for create_waypoint
+    waypoint_params = {
+        "project_area": square_geojson,
+        "agl": altitude_from_ground,
+        "gsd": gsd_cm_px,
+        "forward_overlap": forward_overlap,
+        "side_overlap": side_overlap,
+        "rotation_angle": 0,
+        "generate_3d": generate_3d,
+        "take_off_point": None,
+    }
+
+    waypoint_params["mode"] = FlightMode.waypoints
+    points = waypoints.create_waypoint(**waypoint_params)
+    count_data = {"waypoints": 0, "waylines": 0}
 
     # Handle terrain-following logic if a DEM is provided
-    points_with_elevation = points
     if is_terrain_follow and dem:
         temp_dir = f"/tmp/{uuid.uuid4()}"
         try:
@@ -692,10 +699,8 @@ async def get_project_waypoints_counts(
             with open(dem_path, "wb") as dem_file:
                 dem_file.write(await dem.read())
 
-            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+            add_elevation_from_dem(dem_path, waypoints, outfile_with_elevation)
 
-            with open(outfile_with_elevation, "r") as inpointsfile:
-                points_with_elevation = inpointsfile.read()
         except Exception as e:
             log.error(f"Error processing DEM: {e}")
 
@@ -703,9 +708,13 @@ async def get_project_waypoints_counts(
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
 
-    return {
-        "avg_no_of_waypoints": len(json.loads(points_with_elevation)["features"]),
-    }
+        count_data["waypoints"] = len(json.loads(points)["features"])
+    else:
+        waypoint_params["mode"] = FlightMode.waylines
+        lines = waypoints.create_waypoint(**waypoint_params)
+        count_data["waypoints"] = len(json.loads(points)["features"])
+        count_data["waylines"] = len(json.loads(lines)["features"])
+    return count_data
 
 
 @router.get(
