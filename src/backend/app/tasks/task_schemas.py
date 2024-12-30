@@ -168,7 +168,6 @@ class UserTasksStatsOut(BaseModel):
     total_area_sqkm: Optional[float] = None
     flight_time_minutes: Optional[float] = None
     flight_distance_km: Optional[float] = None
-    outline: Outline
     created_at: datetime
     state: str
     project_id: uuid.UUID
