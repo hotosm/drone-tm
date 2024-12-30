@@ -22,6 +22,19 @@ from minio import S3Error
 from psycopg.rows import dict_row
 from shapely.ops import transform
 import pyproj
+from geojson import Feature, FeatureCollection, Polygon
+from app.s3 import get_file_from_bucket
+from app.utils import (
+    calculate_flight_time_from_placemarks,
+)
+import geojson
+from drone_flightplan import (
+    waypoints,
+    add_elevation_from_dem,
+    calculate_parameters,
+    create_placemarks,
+)
+from app.models.enums import FlightMode
 
 
 async def get_centroids(db: Connection):
@@ -122,6 +135,7 @@ async def create_tasks_from_geojson(
     db: Connection,
     project_id: uuid.UUID,
     boundaries: str,
+    project: project_schemas.DbProject,
 ):
     """Create tasks for a project, from provided task boundaries."""
     try:
@@ -143,6 +157,77 @@ async def create_tasks_from_geojson(
         )
 
         for index, polygon in enumerate(polygons):
+            forward_overlap = project.front_overlap if project.front_overlap else 70
+            side_overlap = project.side_overlap if project.side_overlap else 70
+            generate_3d = False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
+
+            gsd = project.gsd_cm_px
+            altitude = project.altitude_from_ground
+
+            parameters = calculate_parameters(
+                forward_overlap,
+                side_overlap,
+                altitude,
+                gsd,
+                2,  # Image Interval is set to 2
+            )
+
+            # Wrap polygon into GeoJSON Feature
+            coordinates = polygon["geometry"]["coordinates"]
+            if polygon["geometry"]["type"] == "Polygon":
+                coordinates = polygon["geometry"]["coordinates"]
+            feature = Feature(geometry=Polygon(coordinates), properties={})
+            feature_collection = FeatureCollection([feature])
+
+            # Common parameters for create_waypoint
+            waypoint_params = {
+                "project_area": feature_collection,
+                "agl": altitude,
+                "gsd": gsd,
+                "forward_overlap": forward_overlap,
+                "side_overlap": side_overlap,
+                "rotation_angle": 0,
+                "generate_3d": generate_3d,
+            }
+            waypoint_params["mode"] = FlightMode.waypoints
+            if project.is_terrain_follow:
+                dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+
+                # Terrain follow uses waypoints mode, waylines are generated later
+                points = waypoints.create_waypoint(**waypoint_params)
+
+                try:
+                    get_file_from_bucket(
+                        settings.S3_BUCKET_NAME,
+                        f"dtm-data/projects/{project.id}/dem.tif",
+                        dem_path,
+                    )
+                    # TODO: Do this with inmemory data
+                    outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
+                    add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+
+                    inpointsfile = open(outfile_with_elevation, "r")
+                    points_with_elevation = inpointsfile.read()
+
+                except Exception:
+                    points_with_elevation = points
+
+                placemarks = create_placemarks(
+                    geojson.loads(points_with_elevation), parameters
+                )
+
+            else:
+                points = waypoints.create_waypoint(**waypoint_params)
+                placemarks = create_placemarks(geojson.loads(points), parameters)
+
+            flight_time_minutes = calculate_flight_time_from_placemarks(placemarks).get(
+                "total_flight_time"
+            )
+            flight_distance_km = calculate_flight_time_from_placemarks(placemarks).get(
+                "flight_distance_km"
+            )
+            print(f"Flight time: {flight_time_minutes} minutes")
+            print(f"Flight distance: {flight_distance_km} km")
             try:
                 if not polygon["geometry"]:
                     continue
@@ -167,8 +252,8 @@ async def create_tasks_from_geojson(
                 async with db.cursor() as cur:
                     await cur.execute(
                         """
-                        INSERT INTO tasks (id, project_id, outline, project_task_index, total_area_sqkm)
-                        VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s, %(total_area_sqkm)s)
+                        INSERT INTO tasks (id, project_id, outline, project_task_index, total_area_sqkm, flight_time_minutes, flight_distance_km)
+                        VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s, %(total_area_sqkm)s, %(flight_time_minutes)s, %(flight_distance_km)s)
                         RETURNING id;
                         """,
                         {
@@ -179,6 +264,8 @@ async def create_tasks_from_geojson(
                             ),
                             "project_task_index": index + 1,
                             "total_area_sqkm": total_area_sqkm,
+                            "flight_time_minutes": flight_time_minutes,
+                            "flight_distance_km": flight_distance_km,
                         },
                     )
                     result = await cur.fetchone()
@@ -383,3 +470,25 @@ async def get_all_tasks_for_project(project_id, db):
         results = await cur.fetchall()
         # Convert UUIDs to string
         return [str(result[0]) for result in results]
+
+
+async def update_total_image_uploaded(
+    db: Connection, project_id: uuid.UUID, task_id: uuid.UUID, total_image_count: str
+):
+    """
+    Update the total_image_uploaded field in the tasks table.
+    """
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE tasks
+            SET total_image_uploaded = %(total_image_uploaded)s
+            WHERE project_id = %(project_id)s AND id = %(task_id)s;
+            """,
+            {
+                "total_image_uploaded": total_image_count,
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+            },
+        )
+    return True

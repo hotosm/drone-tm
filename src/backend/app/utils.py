@@ -558,17 +558,19 @@ async def send_project_approval_email_to_regulator(
 
 def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
     """
-    Calculate the total and average flight time based on placemarks and dynamically format the output.
+    Calculate the total and average flight time and total flight distance based on placemarks.
 
     Args:
         placemarks (Dict): GeoJSON-like data structure with flight plan.
 
     Returns:
-        Dict: Contains formatted total flight time and segment times.
+        Dict: Contains formatted total flight time, segment times, and total distance.
     """
     total_time = 0
+    total_distance = 0
     features = placemarks["features"]
     transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
     for i in range(1, len(features)):
         # Extract current and previous coordinates
         prev_coords = features[i - 1]["geometry"]["coordinates"][:2]
@@ -581,22 +583,15 @@ def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
 
         # Calculate distance (meters) and time (seconds)
         distance = prev_point.distance(curr_point)
+        total_distance += distance  # Accumulate total distance
         segment_time = distance / speed
         total_time += segment_time
 
-    # Dynamically format the total flight time
-    hours = int(total_time // 3600)
-    minutes = int((total_time % 3600) // 60)
-    seconds = round(total_time % 60, 2)
-
-    if total_time < 60:
-        formatted_time = f"{seconds} seconds"
-    elif total_time < 3600:
-        formatted_time = f"{minutes} minutes {seconds:.2f} seconds"
-    else:
-        formatted_time = f"{hours} hours {minutes} minutes {seconds:.2f} seconds"
+    flight_distance_km = total_distance / 1000  # Convert to kilometers
+    flight_time_minutes = total_time / 60  # Convert to minutes
 
     return {
-        "total_flight_time": formatted_time,
+        "total_flight_time": f"{flight_time_minutes:.2f}",
         "total_flight_time_seconds": round(total_time, 2),
+        "flight_distance_km": round(flight_distance_km, 2),
     }

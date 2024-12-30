@@ -257,7 +257,7 @@ async def upload_project_task_boundaries(
         dict: JSON containing success message, project ID, and number of tasks.
     """
     log.debug("Creating tasks for each polygon in project")
-    await project_logic.create_tasks_from_geojson(db, project.id, task_featcol)
+    await project_logic.create_tasks_from_geojson(db, project.id, task_featcol, project)
     return {"message": "Project Boundary Uploaded", "project_id": f"{project.id}"}
 
 
@@ -305,9 +305,11 @@ async def preview_split_by_square(
 
 @router.post("/generate-presigned-url/", tags=["Image Upload"])
 async def generate_presigned_url(
+    db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
     data: project_schemas.PresignedUrlRequest,
     replace_existing: bool = False,
+
 ):
     """
     Generate a pre-signed URL for uploading an image to S3 Bucket.
@@ -366,7 +368,7 @@ async def generate_presigned_url(
                         status_code=HTTPStatus.BAD_REQUEST,
                         detail=f"Failed to delete existing image. {e}",
                     )
-
+            
             # Generate a new pre-signed URL for the image upload
             url = client.get_presigned_url(
                 "PUT",
@@ -745,7 +747,6 @@ async def get_assets_info(
     if task_id is None:
         # Fetch all tasks associated with the project
         tasks = await project_deps.get_tasks_by_project_id(project.id, db)
-
         results = []
 
         for task in tasks:

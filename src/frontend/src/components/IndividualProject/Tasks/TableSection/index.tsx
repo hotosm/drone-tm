@@ -10,6 +10,14 @@ const tasksDataColumns = [
   {
     header: 'Task Area in km²',
     accessorKey: 'task_area',
+  },
+  {
+    header: 'Flight Time in Minutes',
+    accessorKey: 'flight_time_minutes',
+  },
+  {
+    header: 'Flight Distance in km',
+    accessorKey: 'flight_distance_km',
   }
 ];
 
@@ -35,6 +43,8 @@ export default function TableSection({
           id: `Task# ${curr?.project_task_index}`,
           flight_time: curr?.flight_time || '-',
           task_area: Number(curr?.total_area_sqkm)?.toFixed(3),
+          flight_time_minutes: Number(curr?.flight_time_minutes)?.toFixed(3),
+          flight_distance_km: Number(curr?.flight_distance_km)?.toFixed(3),
           task_id: curr?.id,
           // status: curr?.state,
         },

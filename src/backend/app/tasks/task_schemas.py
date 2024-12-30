@@ -166,6 +166,9 @@ class Task(BaseModel):
 class UserTasksStatsOut(BaseModel):
     task_id: uuid.UUID
     total_area_sqkm: Optional[float] = None
+    flight_time_minutes: Optional[float] = None
+    flight_distance_km: Optional[float] = None
+    outline: Outline
     created_at: datetime
     state: str
     project_id: uuid.UUID
@@ -208,6 +211,8 @@ class UserTasksStatsOut(BaseModel):
                     task_events.project_id AS project_id,
                     projects.name AS project_name,
                     tasks.total_area_sqkm,
+                    tasks.flight_time_minutes,
+                    tasks.flight_distance_km,
                     task_events.created_at,
                     task_events.updated_at,
                     task_events.state,
@@ -263,7 +268,9 @@ class UserTasksStatsOut(BaseModel):
 
 
 class TaskDetailsOut(BaseModel):
-    total_area_sqkm: float
+    total_area_sqkm: Optional[float] = None
+    flight_time_minutes: Optional[float] = None
+    flight_distance_km: Optional[float] = None
     outline: Outline
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -301,6 +308,8 @@ class TaskDetailsOut(BaseModel):
                     """
                     SELECT
                         tasks.total_area_sqkm,
+                        tasks.flight_time_minutes,
+                        tasks.flight_distance_km,
 
                         -- Construct the outline as a GeoJSON Feature
                         jsonb_build_object(
