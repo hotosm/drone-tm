@@ -1,4 +1,6 @@
 import json
+import os
+import shutil
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
@@ -33,6 +35,7 @@ from drone_flightplan import (
     add_elevation_from_dem,
     calculate_parameters,
     create_placemarks,
+    terrain_following_waylines,
 )
 from app.models.enums import FlightMode
 
@@ -226,8 +229,6 @@ async def create_tasks_from_geojson(
             flight_distance_km = calculate_flight_time_from_placemarks(placemarks).get(
                 "flight_distance_km"
             )
-            print(f"Flight time: {flight_time_minutes} minutes")
-            print(f"Flight distance: {flight_distance_km} km")
             try:
                 if not polygon["geometry"]:
                     continue
@@ -492,3 +493,114 @@ async def update_total_image_uploaded(
             },
         )
     return True
+
+
+async def process_waypoints_and_waylines(
+    side_overlap: float,
+    front_overlap: float,
+    altitude_from_ground: float,
+    gsd_cm_px: float,
+    meters: float,
+    project_geojson: UploadFile,
+    is_terrain_follow: bool,
+    dem: UploadFile,
+):
+    """
+    Processes and returns counts of waypoints and waylines.
+    """
+    # Validate the input GeoJSON file
+    file_name = os.path.splitext(project_geojson.filename)
+    file_ext = file_name[1]
+    allowed_extensions = [".geojson", ".json"]
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+
+    # Generate square boundary GeoJSON
+    content = project_geojson.file.read()
+    boundary = geojson.loads(content)
+    geometry = shape(boundary["features"][0]["geometry"])
+    centroid = geometry.centroid
+    center_lon = centroid.x
+    center_lat = centroid.y
+    square_geojson = generate_square_geojson(center_lat, center_lon, meters)
+
+    # Prepare common parameters for waypoint creation
+    forward_overlap = front_overlap if front_overlap else 70
+    side_overlap = side_overlap if side_overlap else 70
+    parameters = calculate_parameters(
+        forward_overlap,
+        side_overlap,
+        altitude_from_ground,
+        gsd_cm_px,
+        2,
+    )
+    waypoint_params = {
+        "project_area": square_geojson,
+        "agl": altitude_from_ground,
+        "gsd": gsd_cm_px,
+        "forward_overlap": forward_overlap,
+        "side_overlap": side_overlap,
+        "rotation_angle": 0,
+        "generate_3d": False,  # TODO: For 3d imageries drone_flightplan package needs to be updated.
+        "take_off_point": None,
+    }
+    count_data = {"waypoints": 0, "waylines": 0}
+
+    if is_terrain_follow and dem:
+        temp_dir = f"/tmp/{uuid.uuid4()}"
+        dem_path = os.path.join(temp_dir, "dem.tif")
+
+        try:
+            os.makedirs(temp_dir, exist_ok=True)
+            # Read DEM content into memory and write to the file
+            file_content = await dem.read()
+            with open(dem_path, "wb") as file:
+                file.write(file_content)
+
+            # Process waypoints with terrain-follow elevation
+            waypoint_params["mode"] = FlightMode.waypoints
+            points = waypoints.create_waypoint(**waypoint_params)
+
+            # Add elevation data to waypoints
+            outfile_with_elevation = os.path.join(
+                temp_dir, "output_file_with_elevation.geojson"
+            )
+            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+
+            # Read the updated waypoints with elevation
+            with open(outfile_with_elevation, "r") as inpointsfile:
+                points_with_elevation = inpointsfile.read()
+                count_data["waypoints"] = len(
+                    json.loads(points_with_elevation)["features"]
+                )
+
+            # Generate waylines from waypoints with elevation
+            wayline_placemarks = create_placemarks(
+                geojson.loads(points_with_elevation), parameters
+            )
+
+            placemarks = terrain_following_waylines.waypoints2waylines(
+                wayline_placemarks, 5
+            )
+            count_data["waylines"] = len(placemarks["features"])
+
+        except Exception as e:
+            log.error(f"Error processing DEM: {e}")
+
+        finally:
+            # Cleanup temporary files and directory
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+        return count_data
+
+    else:
+        # Generate waypoints and waylines
+        waypoint_params["mode"] = FlightMode.waypoints
+        points = waypoints.create_waypoint(**waypoint_params)
+        count_data["waypoints"] = len(json.loads(points)["features"])
+
+        waypoint_params["mode"] = FlightMode.waylines
+        lines = waypoints.create_waypoint(**waypoint_params)
+        count_data["waylines"] = len(json.loads(lines)["features"])
+
+    return count_data
