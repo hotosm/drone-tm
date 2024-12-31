@@ -24,7 +24,7 @@ from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
 from app.db import database
-from app.utils import calculate_flight_time_from_placemarks, merge_multipolygon
+from app.utils import merge_multipolygon
 from app.s3 import get_file_from_bucket
 from typing import Annotated
 from psycopg import Connection
@@ -166,8 +166,7 @@ async def get_task_waypoint(
             media_type="application/vnd.google-earth.kmz",
             filename=f"{task_id}_flight_plan.kmz",
         )
-    flight_data = calculate_flight_time_from_placemarks(placemarks)
-    return {"results": placemarks, "flight_data": flight_data}
+    return {"results": placemarks}
 
 
 @router.post("/")
