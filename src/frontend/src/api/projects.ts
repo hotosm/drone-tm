@@ -5,7 +5,7 @@ import {
   getProjectDetail,
   getProjectCentroid,
 } from '@Services/createproject';
-import { getAllAssetsUrl, getTaskStates } from '@Services/project';
+import { getTaskStates } from '@Services/project';
 import { getUserProfileInfo } from '@Services/common';
 
 export const useGetProjectsListQuery = (
@@ -66,17 +66,17 @@ export const useGetUserDetailsQuery = (
   });
 };
 
-export const useGetAllAssetsUrlQuery = (
-  projectId: string,
-  queryOptions?: Partial<UseQueryOptions>,
-) => {
-  return useQuery({
-    queryKey: ['all-assets-url'],
-    queryFn: () => getAllAssetsUrl(projectId),
-    select: (data: any) => data.data,
-    ...queryOptions,
-  });
-};
+// export const useGetAllAssetsUrlQuery = (
+//   projectId: string,
+//   queryOptions?: Partial<UseQueryOptions>,
+// ) => {
+//   return useQuery({
+//     queryKey: ['all-assets-url'],
+//     queryFn: () => getAllAssetsUrl(projectId),
+//     select: (data: any) => data.data,
+//     ...queryOptions,
+//   });
+// };
 
 export const useGetProjectCentroidQuery = (
   queryOptions?: Partial<UseQueryOptions>,
