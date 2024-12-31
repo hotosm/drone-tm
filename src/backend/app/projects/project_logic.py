@@ -138,7 +138,7 @@ async def update_url(db: Connection, project_id: uuid.UUID, url: str):
 async def create_tasks_from_geojson(
     db: Connection,
     project_id: uuid.UUID,
-    boundaries: str,
+    boundaries: Any,
     project: project_schemas.DbProject,
 ):
     """Create tasks for a project, from provided task boundaries."""
@@ -177,6 +177,18 @@ async def create_tasks_from_geojson(
             )
 
             # Wrap polygon into GeoJSON Feature
+            if not polygon["geometry"]:
+                continue
+            # If the polygon is a MultiPolygon, convert it to a Polygon
+            if polygon["geometry"]["type"] == "MultiPolygon":
+                log.debug("Converting MultiPolygon to Polygon")
+                polygon["geometry"]["type"] = "Polygon"
+                polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
+                    0
+                ]
+
+            geom = shape(polygon["geometry"])
+
             coordinates = polygon["geometry"]["coordinates"]
             if polygon["geometry"]["type"] == "Polygon":
                 coordinates = polygon["geometry"]["coordinates"]
@@ -231,18 +243,6 @@ async def create_tasks_from_geojson(
                 "flight_distance_km"
             )
             try:
-                if not polygon["geometry"]:
-                    continue
-                # If the polygon is a MultiPolygon, convert it to a Polygon
-                if polygon["geometry"]["type"] == "MultiPolygon":
-                    log.debug("Converting MultiPolygon to Polygon")
-                    polygon["geometry"]["type"] = "Polygon"
-                    polygon["geometry"]["coordinates"] = polygon["geometry"][
-                        "coordinates"
-                    ][0]
-
-                geom = shape(polygon["geometry"])
-
                 # Transform the geometry to EPSG:3857 and calculate the area in square meters
                 transformed_geom = transform(project_transformer.transform, geom)
                 area_sq_m = transformed_geom.area  # Area in square meters
