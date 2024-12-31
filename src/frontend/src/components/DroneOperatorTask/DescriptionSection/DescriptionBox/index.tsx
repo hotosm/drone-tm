@@ -94,15 +94,6 @@ const DescriptionBox = () => {
           }),
         );
 
-        // dispatch(
-        //   setTaskAssetsInformation({
-        //     taskAssetsInformation: {
-        //       total_image_uploaded: taskData?.total_image_uploaded || 0,
-        //       assets_url: taskData?.assets_url,
-        //       state: taskData?.state,
-        //     },
-        //   }),
-
         return [
           {
             id: 1,
