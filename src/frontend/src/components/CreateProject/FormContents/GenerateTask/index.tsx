@@ -18,6 +18,10 @@ import MapSection from './MapSection';
 export default function GenerateTask({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
   const [error, setError] = useState('');
+  const isTerrainFollow = useTypedSelector(
+    state => state.createproject.isTerrainFollow,
+  );
+  const demType = useTypedSelector(state => state.createproject.demType);
 
   const { register, watch } = formProps;
   const {
@@ -27,6 +31,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
     gsd_cm_px,
     outline,
     task_split_dimension,
+    dem: demFile,
   } = watch();
 
   const dimension = watch('task_split_dimension');
@@ -53,9 +58,10 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
     isLoading: projectWaypointCountIsLoading,
   } = useMutation({
     mutationFn: (projectGeoJsonPayload: Record<string, any>) => {
-      const { project_geojson, ...params } = projectGeoJsonPayload;
+      const { project_geojson, dem, ...params } = projectGeoJsonPayload;
       return getProjectWayPoints(params, {
         project_geojson,
+        dem,
       });
     },
   });
@@ -70,6 +76,8 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
       toast.error(err.message);
     },
   });
+
+  // console.log(dem, isTerrainFollow, demType, 'types');
 
   return (
     <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-3 naxatw-gap-5">
@@ -115,6 +123,11 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
               gsd_cm_px: gsd_cm_px || 0,
               meters: task_split_dimension,
               project_geojson: convertGeojsonToFile(outline),
+              is_terrain_follow: isTerrainFollow,
+              dem:
+                isTerrainFollow && demType === 'manual'
+                  ? demFile[0]?.file
+                  : null,
             };
             mutateProjectWayPoints(projectWayPointsPayload);
             return mutate(payload);
