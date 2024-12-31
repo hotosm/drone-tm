@@ -384,7 +384,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
             </FormControl>
           )}
 
-          {demType === 'manual' && (
+          {demType === 'manual' && isTerrainFollow && (
             <FormControl className="naxatw-mt-2">
               <Controller
                 control={control}

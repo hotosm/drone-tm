@@ -17,4 +17,5 @@ export const {
   setFilesExifData,
   resetFilesExifData,
   setWaypointMode,
+  setTaskAssetsInformation,
 } = droneOperatorTaskSlice.actions;

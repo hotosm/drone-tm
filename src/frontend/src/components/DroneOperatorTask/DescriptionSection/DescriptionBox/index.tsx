@@ -1,12 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import {
-  useGetIndividualTaskQuery,
-  useGetTaskAssetsInfo,
-  useGetTaskWaypointQuery,
-} from '@Api/tasks';
+import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postProcessImagery } from '@Services/tasks';
 import { formatString } from '@Utils/index';
@@ -16,12 +12,12 @@ import SwitchTab from '@Components/common/SwitchTab';
 import {
   resetFilesExifData,
   setSelectedTaskDetailToViewOrthophoto,
+  setTaskAssetsInformation,
   setUploadedImagesType,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
 // import { toggleModal } from '@Store/actions/common';
 import { postTaskStatus } from '@Services/project';
-import Skeleton from '@Components/RadixComponents/Skeleton';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
@@ -48,13 +44,6 @@ const DescriptionBox = () => {
         return data.data.results.features;
       },
     },
-  );
-  const {
-    data: taskAssetsInformation,
-    isFetching: taskAssetsInfoLoading,
-  }: Record<string, any> = useGetTaskAssetsInfo(
-    projectId as string,
-    taskId as string,
   );
 
   const { mutate: updateStatus, isLoading: statusUpdating } = useMutation<
@@ -93,27 +82,16 @@ const DescriptionBox = () => {
       },
     });
 
-  const { data: flightTimeData }: any = useGetTaskWaypointQuery(
-    projectId as string,
-    taskId as string,
-    waypointMode as string,
-    {
-      select: ({ data }: any) => data.flight_data,
-    },
-  );
-
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
-      enabled: !!taskWayPoints,
+      // enabled: !!taskWayPoints,
       select: (data: any) => {
         const { data: taskData } = data;
 
         dispatch(
-          dispatch(
-            setSelectedTaskDetailToViewOrthophoto({
-              outline: taskData?.outline,
-            }),
-          ),
+          setSelectedTaskDetailToViewOrthophoto({
+            outline: taskData?.outline,
+          }),
         );
 
         return [
@@ -145,7 +123,9 @@ const DescriptionBox = () => {
               },
               {
                 name: 'Est. flight time',
-                value: flightTimeData?.total_flight_time || null,
+                value: taskData?.flight_time_minutes
+                  ? `${Number(taskData?.flight_time_minutes)?.toFixed(3)} minutes`
+                  : null,
               },
             ],
           },
@@ -184,17 +164,27 @@ const DescriptionBox = () => {
               },
             ],
           },
+          {
+            total_image_uploaded: taskData?.total_image_uploaded || 0,
+            assets_url: taskData?.assets_url,
+            state: taskData?.state,
+          },
         ];
       },
     });
 
+  const taskAssetsInformation = useMemo(() => {
+    if (!taskDescription) return {};
+    dispatch(setTaskAssetsInformation(taskDescription?.[2]));
+    return taskDescription?.[2];
+  }, [taskDescription, dispatch]);
+
   const handleDownloadResult = () => {
     if (!taskAssetsInformation?.assets_url) return;
-
     try {
       const link = document.createElement('a');
       link.href = taskAssetsInformation?.assets_url;
-      link.download = 'assets.zip';
+      link.download = `${projectId}-${taskId}.tif`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -214,21 +204,21 @@ const DescriptionBox = () => {
           />
         ))}
       </div>
-      {taskAssetsInformation?.image_count === 0 && (
+
+      {taskAssetsInformation?.total_image_uploaded === 0 && (
         <QuestionBox
           setFlyable={setFlyable}
           flyable={flyable}
-          haveNoImages={taskAssetsInformation?.image_count === 0}
+          haveNoImages={taskAssetsInformation?.total_image_uploaded === 0}
         />
       )}
-
-      {taskAssetsInformation?.image_count > 0 && (
+      {taskAssetsInformation?.total_image_uploaded > 0 && (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
           <UploadsInformation
             data={[
               {
                 name: 'Image count',
-                value: taskAssetsInformation?.image_count,
+                value: taskAssetsInformation?.total_image_uploaded,
               },
               {
                 name: 'Orthophoto available',
@@ -236,12 +226,15 @@ const DescriptionBox = () => {
               },
               {
                 name: 'Image Status',
-                value: formatString(taskAssetsInformation?.state),
+                value:
+                  // if the state is LOCKED_FOR_MAPPING and has a image count it means the images are not fully uploaded
+                  taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
+                  taskAssetsInformation?.image_count > 0
+                    ? 'Image Uploading Failed'
+                    : formatString(taskAssetsInformation?.state),
               },
             ]}
           />
-
-          {taskAssetsInfoLoading && <Skeleton className="naxatw-h-48" />}
 
           {taskAssetsInformation?.assets_url && (
             <div className="naxatw-flex naxatw-gap-1">
@@ -295,43 +288,45 @@ const DescriptionBox = () => {
               </Button>
             </div>
           )}
-          {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
-            (taskAssetsInformation?.state === 'IMAGE_UPLOADED' && (
-              <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pb-4">
-                <Label>
-                  <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
-                    Upload Images
-                  </p>
-                </Label>
-                <SwitchTab
-                  options={[
-                    {
-                      name: 'image-upload-for',
-                      value: 'add',
-                      label: 'Add to existing',
-                    },
-                    {
-                      name: 'image-upload-for',
-                      value: 'replace',
-                      label: 'Replace existing',
-                    },
-                  ]}
-                  valueKey="value"
-                  selectedValue={uploadedImageType}
-                  activeClassName="naxatw-bg-red naxatw-text-white"
-                  onChange={(selected: Record<string, any>) => {
-                    dispatch(setUploadedImagesType(selected.value));
-                  }}
-                />
-                <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
-                  Note:{' '}
-                  {uploadedImageType === 'add'
-                    ? 'Uploaded images will be added with the existing images.'
-                    : 'Uploaded images will be replaced with all the existing images and starts processing.'}
+          {(taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
+            // if the state is LOCKED_FOR_MAPPING and has a image count it means all selected images are not uploaded and the status updating api call is interrupted so need to give user to upload the remaining images
+            taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' ||
+            taskAssetsInformation?.state === 'IMAGE_UPLOADED') && (
+            <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pb-4">
+              <Label>
+                <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
+                  Upload Images
                 </p>
-                <UploadsBox label="" />
-              </div>
-            ))}
+              </Label>
+              <SwitchTab
+                options={[
+                  {
+                    name: 'image-upload-for',
+                    value: 'add',
+                    label: 'Add to existing',
+                  },
+                  {
+                    name: 'image-upload-for',
+                    value: 'replace',
+                    label: 'Replace existing',
+                  },
+                ]}
+                valueKey="value"
+                selectedValue={uploadedImageType}
+                activeClassName="naxatw-bg-red naxatw-text-white"
+                onChange={(selected: Record<string, any>) => {
+                  dispatch(setUploadedImagesType(selected.value));
+                }}
+              />
+              <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
+                Note:{' '}
+                {uploadedImageType === 'add'
+                  ? 'Uploaded images will be added with the existing images.'
+                  : 'Uploaded images will be replaced with all the existing images and starts processing.'}
+              </p>
+              <UploadsBox label="" />
+            </div>
+          )}
         </div>
       )}
     </>

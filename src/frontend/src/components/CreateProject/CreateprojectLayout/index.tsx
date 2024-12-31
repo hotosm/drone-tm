@@ -293,8 +293,7 @@ const CreateprojectLayout = () => {
     delete refactoredData?.side_spacing;
 
     // remove key
-    if (isNoflyzonePresent === 'no')
-      delete refactoredData?.outline_no_fly_zones;
+    if (isNoflyzonePresent === 'no') delete refactoredData?.no_fly_zones;
     delete refactoredData?.dem;
     if (measurementType === 'gsd') delete refactoredData?.altitude_from_ground;
     else delete refactoredData?.gsd_cm_px;

@@ -1,4 +1,3 @@
-import { useGetAllAssetsUrlQuery } from '@Api/projects';
 import DataTable from '@Components/common/DataTable';
 import Icon from '@Components/common/Icon';
 import { toggleModal } from '@Store/actions/common';
@@ -7,7 +6,6 @@ import { useTypedSelector } from '@Store/hooks';
 import { formatString } from '@Utils/index';
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
-import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 const contributionsDataColumns = [
@@ -93,37 +91,27 @@ export default function TableSection({
   isFetching,
   handleTableRowClick,
 }: ITableSectionProps) {
-  const { id } = useParams();
   const tasksData = useTypedSelector(state => state.project.tasksData);
 
-  const { data: allUrls, isFetching: isUrlFetching } = useGetAllAssetsUrlQuery(
-    id as string,
-  );
-
-  const getTasksAssets = (taskID: string, assetsList: any[]) => {
-    if (!assetsList || !taskID) return null;
-    return assetsList.find((assets: any) => assets?.task_id === taskID);
-  };
-
   const taskDataForTable = useMemo(() => {
-    if (!tasksData || isUrlFetching) return [];
+    if (!tasksData) return [];
     return tasksData?.reduce((acc: any, curr: any) => {
       if (!curr?.state || curr?.state === 'UNLOCKED_TO_MAP') return acc;
-      const selectedAssetsDetails = getTasksAssets(curr?.id, allUrls as any[]);
+
       return [
         ...acc,
         {
           user: curr?.name || '-',
           task_mapped: `Task# ${curr?.project_task_index}`,
           task_state: formatString(curr?.state),
-          assets_url: selectedAssetsDetails?.assets_url,
-          image_count: selectedAssetsDetails?.image_count,
+          assets_url: curr?.assets_url,
+          image_count: curr?.total_image_uploaded,
           task_id: curr?.id,
           outline: curr?.outline,
         },
       ];
     }, []);
-  }, [tasksData, allUrls, isUrlFetching]);
+  }, [tasksData]);
 
   return (
     <DataTable
@@ -133,7 +121,7 @@ export default function TableSection({
       }}
       data={taskDataForTable as Record<string, any>[]}
       withPagination={false}
-      loading={isFetching || isUrlFetching}
+      loading={isFetching}
       handleTableRowClick={handleTableRowClick}
     />
   );
