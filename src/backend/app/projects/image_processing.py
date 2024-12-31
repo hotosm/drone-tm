@@ -363,13 +363,19 @@ async def process_assets_from_odm(
     """
     log.info(f"Starting processing for project {dtm_project_id}")
     node = Node.from_url(node_odm_url)
-    output_file_path = f"/tmp/{dtm_project_id}"
+    output_file_path = f"/tmp/{uuid.uuid4()}"
 
     try:
+        os.makedirs(output_file_path, exist_ok=True)
         task = node.get_task(odm_task_id)
-        log.info(f"Downloading results for task {dtm_project_id} to {output_file_path}")
+        log.info(f"Downloading results for task {odm_task_id} to {output_file_path}")
 
         assets_path = task.download_zip(output_file_path)
+        if not os.path.exists(assets_path):
+            log.error(f"Downloaded file not found: {assets_path}")
+            raise
+        log.info(f"Successfully downloaded ZIP to {assets_path}")
+
         s3_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/assets.zip".strip(
             "/"
         )
@@ -395,14 +401,16 @@ async def process_assets_from_odm(
         add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
         images_json_path = os.path.join(output_file_path, "images.json")
-        s3_images_json_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/images.json".strip(
-            "/"
-        )
-
-        log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
-        add_file_to_bucket(
-            settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
-        )
+        if os.path.exists(images_json_path):
+            s3_images_json_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/images.json".strip(
+                "/"
+            )
+            log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
+            add_file_to_bucket(
+                settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
+            )
+        else:
+            log.warning(f"images.json not found in {output_file_path}")
 
         log.info(f"Processing complete for project {dtm_project_id}")
 
@@ -425,6 +433,7 @@ async def process_assets_from_odm(
                     log.info(
                         f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
                     )
+
                     s3_path_url = (
                         f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
                     )
