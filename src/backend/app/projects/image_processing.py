@@ -8,6 +8,7 @@ from app.tasks import task_logic
 from app.models.enums import State
 from app.utils import timestamp
 from app.db import database
+from app.projects import project_logic
 from pyodm import Node
 from app.s3 import get_file_from_bucket, list_objects_from_bucket, add_file_to_bucket
 from loguru import logger as log
@@ -165,6 +166,13 @@ class DroneImageProcessor:
                 self.download_images_from_s3(bucket_name, temp_dir, self.task_id)
                 images_list = self.list_images(temp_dir)
             else:
+                gcp_list_file = f"dtm-data/projects/{self.project_id}/gcp/gcp_list.txt"
+                gcp_file_path = os.path.join(temp_dir, "gcp_list.txt")
+
+                # Check and add the GCP file to the images list if it exists
+                if get_file_from_bucket(bucket_name, gcp_list_file, gcp_file_path):
+                    images_list.append(gcp_file_path)
+
                 for task_id in self.task_ids:
                     self.download_images_from_s3(bucket_name, temp_dir, task_id)
                     images_list.extend(self.list_images(temp_dir))
@@ -355,13 +363,19 @@ async def process_assets_from_odm(
     """
     log.info(f"Starting processing for project {dtm_project_id}")
     node = Node.from_url(node_odm_url)
-    output_file_path = f"/tmp/{dtm_project_id}"
+    output_file_path = f"/tmp/{uuid.uuid4()}"
 
     try:
+        os.makedirs(output_file_path, exist_ok=True)
         task = node.get_task(odm_task_id)
-        log.info(f"Downloading results for task {dtm_project_id} to {output_file_path}")
+        log.info(f"Downloading results for task {odm_task_id} to {output_file_path}")
 
         assets_path = task.download_zip(output_file_path)
+        if not os.path.exists(assets_path):
+            log.error(f"Downloaded file not found: {assets_path}")
+            raise
+        log.info(f"Successfully downloaded ZIP to {assets_path}")
+
         s3_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/assets.zip".strip(
             "/"
         )
@@ -387,14 +401,16 @@ async def process_assets_from_odm(
         add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
         images_json_path = os.path.join(output_file_path, "images.json")
-        s3_images_json_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/images.json".strip(
-            "/"
-        )
-
-        log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
-        add_file_to_bucket(
-            settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
-        )
+        if os.path.exists(images_json_path):
+            s3_images_json_path = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id if dtm_task_id else ''}/images.json".strip(
+                "/"
+            )
+            log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
+            add_file_to_bucket(
+                settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
+            )
+        else:
+            log.warning(f"images.json not found in {output_file_path}")
 
         log.info(f"Processing complete for project {dtm_project_id}")
 
@@ -416,6 +432,14 @@ async def process_assets_from_odm(
                     )
                     log.info(
                         f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
+                    )
+
+                    s3_path_url = (
+                        f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+                    )
+                    # update the task table
+                    await project_logic.update_task_field(
+                        conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
                     )
 
     except Exception as e:

@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import uuid
 from typing import Annotated, Optional
 from uuid import UUID
@@ -27,8 +26,8 @@ from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.db import database
-from app.models.enums import HTTPStatus, State, FlightMode
-from app.s3 import s3_client
+from app.models.enums import HTTPStatus, State
+from app.s3 import add_file_to_bucket, s3_client
 from app.config import settings
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -41,10 +40,6 @@ from app.utils import (
 from app.users import user_schemas
 from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
-from drone_flightplan import (
-    waypoints,
-    add_elevation_from_dem,
-)
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -257,7 +252,7 @@ async def upload_project_task_boundaries(
         dict: JSON containing success message, project ID, and number of tasks.
     """
     log.debug("Creating tasks for each polygon in project")
-    await project_logic.create_tasks_from_geojson(db, project.id, task_featcol)
+    await project_logic.create_tasks_from_geojson(db, project.id, task_featcol, project)
     return {"message": "Project Boundary Uploaded", "project_id": f"{project.id}"}
 
 
@@ -305,6 +300,7 @@ async def preview_split_by_square(
 
 @router.post("/generate-presigned-url/", tags=["Image Upload"])
 async def generate_presigned_url(
+    db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
     data: project_schemas.PresignedUrlRequest,
     replace_existing: bool = False,
@@ -467,11 +463,19 @@ async def process_all_imagery(
     user_data: Annotated[AuthUser, Depends(login_required)],
     background_tasks: BackgroundTasks,
     db: Annotated[Connection, Depends(database.get_db)],
+    gcp_file: UploadFile = File(None),
 ):
     """
     API endpoint to process all tasks associated with a project.
     """
     user_id = user_data.id
+    if gcp_file:
+        gcp_file_path = f"/tmp/{uuid.uuid4()}"
+        with open(gcp_file_path, "wb") as f:
+            f.write(await gcp_file.read())
+
+        s3_path = f"dtm-data/projects/{project_id}/gcp/gcp_list.txt"
+        add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
 
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
     background_tasks.add_task(
@@ -645,76 +649,18 @@ async def get_project_waypoints_counts(
     user_data: AuthUser = Depends(login_required),
 ):
     """
-    Count waypoints within AOI.
+    Count waypoints and waylines within AOI.
     """
-    # Validating for .geojson File.
-    file_name = os.path.splitext(project_geojson.filename)
-    file_ext = file_name[1]
-    allowed_extensions = [".geojson", ".json"]
-    if file_ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
-
-    # read entire file
-    content = await project_geojson.read()
-    boundary = geojson.loads(content)
-    geometry = shape(boundary["features"][0]["geometry"])
-    centroid = geometry.centroid
-    center_lon = centroid.x
-    center_lat = centroid.y
-    square_geojson = project_logic.generate_square_geojson(
-        center_lat, center_lon, meters
+    return await project_logic.process_waypoints_and_waylines(
+        side_overlap,
+        front_overlap,
+        altitude_from_ground,
+        gsd_cm_px,
+        meters,
+        project_geojson,
+        is_terrain_follow,
+        dem,
     )
-    generate_3d = (
-        False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
-    )
-    forward_overlap = front_overlap if front_overlap else 70
-    side_overlap = side_overlap if side_overlap else 70
-
-    # Common parameters for create_waypoint
-    waypoint_params = {
-        "project_area": square_geojson,
-        "agl": altitude_from_ground,
-        "gsd": gsd_cm_px,
-        "forward_overlap": forward_overlap,
-        "side_overlap": side_overlap,
-        "rotation_angle": 0,
-        "generate_3d": generate_3d,
-        "take_off_point": None,
-    }
-
-    waypoint_params["mode"] = FlightMode.waypoints
-    points = waypoints.create_waypoint(**waypoint_params)
-    count_data = {"waypoints": 0, "waylines": 0}
-
-    # Handle terrain-following logic if a DEM is provided
-    if is_terrain_follow and dem:
-        temp_dir = f"/tmp/{uuid.uuid4()}"
-        try:
-            os.makedirs(temp_dir, exist_ok=True)
-            dem_path = os.path.join(temp_dir, "dem.tif")
-            outfile_with_elevation = os.path.join(
-                temp_dir, "output_file_with_elevation.geojson"
-            )
-
-            with open(dem_path, "wb") as dem_file:
-                dem_file.write(await dem.read())
-
-            add_elevation_from_dem(dem_path, waypoints, outfile_with_elevation)
-
-        except Exception as e:
-            log.error(f"Error processing DEM: {e}")
-
-        finally:
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-
-        count_data["waypoints"] = len(json.loads(points)["features"])
-    else:
-        waypoint_params["mode"] = FlightMode.waylines
-        lines = waypoints.create_waypoint(**waypoint_params)
-        count_data["waypoints"] = len(json.loads(points)["features"])
-        count_data["waylines"] = len(json.loads(lines)["features"])
-    return count_data
 
 
 @router.get(
@@ -737,7 +683,6 @@ async def get_assets_info(
     if task_id is None:
         # Fetch all tasks associated with the project
         tasks = await project_deps.get_tasks_by_project_id(project.id, db)
-
         results = []
 
         for task in tasks:

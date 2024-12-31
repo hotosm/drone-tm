@@ -19,6 +19,7 @@ export interface IDroneOperatorTaskState {
   selectedTaskDetailToViewOrthophoto: any;
   filesExifData: IFilesExifData[];
   waypointMode: 'waypoints' | 'waylines';
+  taskAssetsInformation: Record<string, any>;
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -34,6 +35,11 @@ const initialState: IDroneOperatorTaskState = {
   selectedTaskDetailToViewOrthophoto: null,
   filesExifData: [],
   waypointMode: 'waypoints',
+  taskAssetsInformation: {
+    total_image_uploaded: 0,
+    assets_url: '',
+    state: '',
+  },
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -94,6 +100,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setWaypointMode: (state, action) => {
       state.waypointMode = action.payload;
+    },
+    setTaskAssetsInformation: (state, action) => {
+      state.taskAssetsInformation = action.payload;
     },
   },
 });

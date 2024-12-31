@@ -42,7 +42,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
               </td>
               <td className="naxatw-px-2 naxatw-py-1">{task?.project_name}</td>
               <td className="naxatw-px-2 naxatw-py-1">
-                {Number(task?.task_area)?.toFixed(3)}
+                {Number(task?.total_area_sqkm)?.toFixed(3)}
               </td>
               {/* <td className="naxatw-px-2 naxatw-py-1">-</td> */}
               <td className="naxatw-px-2 naxatw-py-1">

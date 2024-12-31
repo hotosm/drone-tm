@@ -4,7 +4,7 @@
 /* eslint-disable react/no-array-index-key */
 import {
   useGetIndividualTaskQuery,
-  useGetTaskAssetsInfo,
+  // useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
 import marker from '@Assets/images/marker.png';
@@ -23,6 +23,7 @@ import {
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
   setSelectedTaskDetailToViewOrthophoto,
+  setTaskAssetsInformation,
   setWaypointMode,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
@@ -42,7 +43,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import ToolTip from '@Components/RadixComponents/ToolTip';
-import Skeleton from '@Components/RadixComponents/Skeleton';
+// import Skeleton from '@Components/RadixComponents/Skeleton';
 import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import { toast } from 'react-toastify';
@@ -88,6 +89,9 @@ const MapSection = ({ className }: { className?: string }) => {
   );
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
+  );
+  const taskAssetsInformation = useTypedSelector(
+    state => state.droneOperatorTask.taskAssetsInformation,
   );
 
   function setVisibilityOfLayers(layerIds: string[], visibility: string) {
@@ -270,6 +274,13 @@ const MapSection = ({ className }: { className?: string }) => {
       dispatch(setSelectedTaskDetailToViewOrthophoto(null));
       dispatch(setSelectedTakeOffPoint(null));
       dispatch(setSelectedTakeOffPointOption('current_location'));
+      dispatch(
+        setTaskAssetsInformation({
+          total_image_uploaded: 0,
+          assets_url: '',
+          state: '',
+        }),
+      );
     },
     [dispatch],
   );
@@ -359,13 +370,13 @@ const MapSection = ({ className }: { className?: string }) => {
     });
   };
 
-  const {
-    data: taskAssetsInformation,
-    isFetching: taskAssetsInfoLoading,
-  }: Record<string, any> = useGetTaskAssetsInfo(
-    projectId as string,
-    taskId as string,
-  );
+  // const {
+  //   data: taskAssetsInformation,
+  //   isFetching: taskAssetsInfoLoading,
+  // }: Record<string, any> = useGetTaskAssetsInfo(
+  //   projectId as string,
+  //   taskId as string,
+  // );
 
   useEffect(() => {
     setTaskWayPoints(taskWayPointsData);
@@ -714,26 +725,22 @@ const MapSection = ({ className }: { className?: string }) => {
             </Button>
           </div>
 
-          {taskAssetsInfoLoading ? (
-            <Skeleton className="naxatw-h-[0.5rem] naxatw-w-[0.5rem] naxatw-rounded-sm" />
-          ) : (
-            taskAssetsInformation?.assets_url && (
-              <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[10.75rem] naxatw-z-30 naxatw-h-fit">
-                <Button
-                  variant="ghost"
-                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-                  onClick={() => handleOtrhophotoLayerView()}
-                >
-                  <ToolTip
-                    name="visibility"
-                    message="Show Orthophoto"
-                    symbolType="material-icons"
-                    iconClassName="!naxatw-text-xl !naxatw-text-black"
-                    className="naxatw-mt-[-4px]"
-                  />
-                </Button>
-              </div>
-            )
+          {taskAssetsInformation?.assets_url && (
+            <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[10.75rem] naxatw-z-30 naxatw-h-fit">
+              <Button
+                variant="ghost"
+                className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOrthoPhotoLayer ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+                onClick={() => handleOtrhophotoLayerView()}
+              >
+                <ToolTip
+                  name="visibility"
+                  message="Show Orthophoto"
+                  symbolType="material-icons"
+                  iconClassName="!naxatw-text-xl !naxatw-text-black"
+                  className="naxatw-mt-[-4px]"
+                />
+              </Button>
+            </div>
           )}
           {!isRotationEnabled && (
             <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
