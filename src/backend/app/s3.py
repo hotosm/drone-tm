@@ -5,6 +5,7 @@ from io import BytesIO
 from typing import Any
 from datetime import timedelta
 from urllib.parse import urljoin
+from minio.error import S3Error
 
 
 def s3_client():
@@ -104,9 +105,15 @@ def get_file_from_bucket(bucket_name: str, s3_path: str, file_path: str):
     # Ensure s3_path starts with a forward slash
     # if not s3_path.startswith("/"):
     #     s3_path = f"/{s3_path}"
-
-    client = s3_client()
-    client.fget_object(bucket_name, s3_path, file_path)
+    try:
+        client = s3_client()
+        client.fget_object(bucket_name, s3_path, file_path)
+    except S3Error as e:
+        if e.code == "NoSuchKey":
+            log.warning(f"File not found in bucket: {s3_path}")
+        else:
+            log.error(f"Error occurred while downloading file: {e}")
+        return False
 
 
 def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
