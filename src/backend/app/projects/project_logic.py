@@ -51,7 +51,7 @@ async def get_centroids(db: Connection):
                     p.name,
                     ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
                     COUNT(t.id) AS total_task_count,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
+                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK', 'IMAGE_PROCESSING_STARTED') THEN 1 END) AS ongoing_task_count,
                     COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
                 FROM
                     projects p
