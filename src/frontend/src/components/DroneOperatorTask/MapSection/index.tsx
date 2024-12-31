@@ -23,6 +23,7 @@ import {
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
   setSelectedTaskDetailToViewOrthophoto,
+  setTaskAssetsInformation,
   setWaypointMode,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
@@ -273,6 +274,13 @@ const MapSection = ({ className }: { className?: string }) => {
       dispatch(setSelectedTaskDetailToViewOrthophoto(null));
       dispatch(setSelectedTakeOffPoint(null));
       dispatch(setSelectedTakeOffPointOption('current_location'));
+      dispatch(
+        setTaskAssetsInformation({
+          total_image_uploaded: 0,
+          assets_url: '',
+          state: '',
+        }),
+      );
     },
     [dispatch],
   );
