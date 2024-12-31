@@ -191,9 +191,9 @@ async def update_task_table(
                             "total_image_uploaded",
                             toatl_image_count,
                         )
-
+                    # If both is None
                     if (
-                        task["flight_time_minutes"]
+                        task["flight_time_minutes"] is None
                         and task["flight_distance_km"] is None
                     ):
                         import geojson
