@@ -54,7 +54,7 @@ const DescriptionBox = () => {
   >({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      queryClient.invalidateQueries(['task-assets-info']);
+      queryClient.invalidateQueries(['task-description']);
     },
     onError: (err: any) => {
       toast.error(err.message);
