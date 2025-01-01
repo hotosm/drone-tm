@@ -7,12 +7,12 @@ from loguru import logger as log
 
 
 @pytest_asyncio.fixture(scope="function")
-def token(user):
+def token(auth_user):
     """
     Create a reset password token for a given user.
     """
     payload = {
-        "sub": user.email_address,
+        "sub": auth_user.email_address,
         "exp": datetime.utcnow()
         + timedelta(minutes=settings.RESET_PASSWORD_TOKEN_EXPIRE_MINUTES),
     }

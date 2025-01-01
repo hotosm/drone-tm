@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from psycopg import AsyncConnection
 from app.users.user_schemas import DbUser
 import pytest
-from app.projects.project_schemas import ProjectIn, DbProject
+from app.projects.project_schemas import DbProject, ProjectIn
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -28,7 +28,7 @@ async def db() -> AsyncConnection:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def user(db) -> AuthUser:
+async def auth_user(db) -> AuthUser:
     """Create a test user."""
     db_user = await DbUser.get_or_create_user(
         db,
@@ -44,15 +44,11 @@ async def user(db) -> AuthUser:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def project_info(db, user):
+async def project_info():
     """
     Fixture to create project metadata for testing.
 
     """
-    print(
-        f"User passed to project_info fixture: {user}, ID: {getattr(user, 'id', 'No ID')}"
-    )
-
     project_metadata = ProjectIn(
         name="TEST 98982849249278787878778",
         description="",
@@ -93,10 +89,28 @@ async def project_info(db, user):
     )
 
     try:
-        await DbProject.create(db, project_metadata, getattr(user, "id", ""))
         return project_metadata
     except Exception as e:
         pytest.fail(f"Fixture setup failed with exception: {str(e)}")
+
+
+@pytest_asyncio.fixture(scope="function")
+async def create_test_project(db, auth_user, project_info):
+    """
+    Fixture to create a test project and return its project_id.
+    """
+    project_id = await DbProject.create(db, project_info, auth_user.id)
+    return str(project_id)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_get_project(db, create_test_project):
+    """
+    Fixture to create a test project and return its project_id.
+    """
+    project_id = create_test_project
+    project_info = await DbProject.one(db, project_id)
+    return project_info
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -125,12 +139,11 @@ def drone_info():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(app: FastAPI, db: AsyncConnection):
+async def client(app: FastAPI, db: AsyncConnection, auth_user: AuthUser):
     """The FastAPI test server."""
     # Override server db connection
     app.dependency_overrides[get_db] = lambda: db
-    app.dependency_overrides[login_required] = lambda: user
-
+    app.dependency_overrides[login_required] = lambda: auth_user
     async with LifespanManager(app) as manager:
         async with AsyncClient(
             transport=ASGITransport(app=manager.app),
