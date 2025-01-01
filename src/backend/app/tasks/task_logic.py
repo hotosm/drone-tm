@@ -4,6 +4,7 @@ from app.users.user_schemas import AuthUser
 from app.tasks.task_schemas import NewEvent, TaskStats
 from app.users import user_schemas
 from app.utils import render_email_template, send_notification_email
+from app.projects import project_logic
 from psycopg import Connection
 from app.models.enums import EventType, HTTPStatus, State, UserRole
 from fastapi import HTTPException, BackgroundTasks
@@ -602,6 +603,14 @@ async def handle_event(
                     status_code=403,
                     detail="You cannot upload an image for this task as it is locked by another user.",
                 )
+            # update the count of the task to image uploaded.
+            toatl_image_count = project_logic.get_project_info_from_s3(
+                project_id, task_id
+            ).image_count
+
+            await project_logic.update_task_field(
+                db, project_id, task_id, "total_image_uploaded", toatl_image_count
+            )
 
             return await update_task_state(
                 db,

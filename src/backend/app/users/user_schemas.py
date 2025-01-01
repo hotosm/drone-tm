@@ -251,6 +251,18 @@ class DbUserProfile(BaseUserProfile):
         async with db.cursor() as cur:
             await cur.execute(sql, model_data)
 
+            if profile_create.password:
+                password_update_query = """
+                    UPDATE users
+                    SET password = %(password)s
+                    WHERE id = %(user_id)s;
+                """
+                hashed_password = user_logic.get_password_hash(profile_create.password)
+                await cur.execute(
+                    password_update_query,
+                    {"password": hashed_password, "user_id": user_id},
+                )
+
         for file_type, url_key in field_mapping.items():
             if results.get(file_type):
                 model_data[url_key] = results[file_type].get("presigned_url")

@@ -1,8 +1,12 @@
 import { api, authenticated } from '.';
 
-export const getTaskWaypoint = (projectId: string, taskId: string) =>
+export const getTaskWaypoint = (
+  projectId: string,
+  taskId: string,
+  mode: string,
+) =>
   authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false`,
+    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}`,
   );
 
 export const getIndividualTask = (taskId: string) =>
@@ -18,8 +22,8 @@ export const postTaskWaypoint = (payload: Record<string, any>) => {
     },
   );
 };
-export const getTaskAssetsInfo = (projectId: string, taskId: string) =>
-  authenticated(api).get(`/projects/assets/${projectId}/?task_id=${taskId}`);
+// export const getTaskAssetsInfo = (projectId: string, taskId: string) =>
+//   authenticated(api).get(`/projects/assets/${projectId}/?task_id=${taskId}`);
 
 export const postProcessImagery = (projectId: string, taskId: string) =>
   authenticated(api).post(`/projects/process_imagery/${projectId}/${taskId}/`);

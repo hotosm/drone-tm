@@ -16,4 +16,6 @@ export const {
   setSelectedTaskDetailToViewOrthophoto,
   setFilesExifData,
   resetFilesExifData,
+  setWaypointMode,
+  setTaskAssetsInformation,
 } = droneOperatorTaskSlice.actions;

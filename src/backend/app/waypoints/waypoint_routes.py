@@ -10,10 +10,11 @@ from drone_flightplan import (
     create_placemarks,
     calculate_parameters,
     add_elevation_from_dem,
+    terrain_following_waylines,
     wpml,
     waypoints,
 )
-from app.models.enums import HTTPStatus
+from app.models.enums import HTTPStatus, FlightMode
 from app.tasks.task_logic import (
     get_task_geojson,
     get_take_off_point_from_db,
@@ -23,7 +24,7 @@ from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
 from app.db import database
-from app.utils import calculate_flight_time_from_placemarks, merge_multipolygon
+from app.utils import merge_multipolygon
 from app.s3 import get_file_from_bucket
 from typing import Annotated
 from psycopg import Connection
@@ -48,6 +49,7 @@ async def get_task_waypoint(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
+    mode: FlightMode = FlightMode.waylines,
     take_off_point: waypoint_schemas.PointField = None,
 ):
     """
@@ -70,11 +72,11 @@ async def get_task_waypoint(
     if take_off_point:
         take_off_point = [take_off_point.longitude, take_off_point.latitude]
 
-        # Validate that the take-off point is within a 350 buffer of the task boundary
-        if not check_point_within_buffer(take_off_point, task_geojson, 350):
+        # Validate that the take-off point is within a 1000 buffer of the task boundary
+        if not check_point_within_buffer(take_off_point, task_geojson, 1000):
             raise HTTPException(
                 status_code=400,
-                detail="Take off point should be within 350m of the boundary",
+                detail="Take off point should be within 1km of the boundary",
             )
 
         # Update take_off_point in tasks table
@@ -95,25 +97,12 @@ async def get_task_waypoint(
 
     forward_overlap = project.front_overlap if project.front_overlap else 70
     side_overlap = project.side_overlap if project.side_overlap else 70
-    generate_each_points = True if project.is_terrain_follow else False
     generate_3d = (
         False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
     )
 
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
-
-    points = waypoints.create_waypoint(
-        project_area=task_geojson,
-        agl=altitude,
-        gsd=gsd,
-        forward_overlap=forward_overlap,
-        side_overlap=side_overlap,
-        rotation_angle=0,
-        generate_each_points=generate_each_points,
-        generate_3d=generate_3d,
-        take_off_point=take_off_point,
-    )
 
     parameters = calculate_parameters(
         forward_overlap,
@@ -123,8 +112,25 @@ async def get_task_waypoint(
         2,  # Image Interval is set to 2
     )
 
+    # Common parameters for create_waypoint
+    waypoint_params = {
+        "project_area": task_geojson,
+        "agl": altitude,
+        "gsd": gsd,
+        "forward_overlap": forward_overlap,
+        "side_overlap": side_overlap,
+        "rotation_angle": 0,
+        "generate_3d": generate_3d,
+        "take_off_point": take_off_point,
+    }
+
     if project.is_terrain_follow:
         dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+
+        # Terrain follow uses waypoints mode, waylines are generated later
+        waypoint_params["mode"] = FlightMode.waypoints
+        points = waypoints.create_waypoint(**waypoint_params)
+
         try:
             get_file_from_bucket(
                 settings.S3_BUCKET_NAME,
@@ -142,18 +148,25 @@ async def get_task_waypoint(
             points_with_elevation = points
 
         placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
+
+        # Create a flight plan with terrain follow in waylines mode
+        if mode == FlightMode.waylines:
+            placemarks = terrain_following_waylines.waypoints2waylines(placemarks, 5)
+
     else:
+        waypoint_params["mode"] = mode
+        points = waypoints.create_waypoint(**waypoint_params)
         placemarks = create_placemarks(geojson.loads(points), parameters)
+
     if download:
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
         kmz_file = wpml.create_wpml(placemarks, outfile)
         return FileResponse(
             kmz_file,
-            media_type="application/zip",
+            media_type="application/vnd.google-earth.kmz",
             filename=f"{task_id}_flight_plan.kmz",
         )
-    flight_data = calculate_flight_time_from_placemarks(placemarks)
-    return {"results": placemarks, "flight_data": flight_data}
+    return {"results": placemarks}
 
 
 @router.post("/")

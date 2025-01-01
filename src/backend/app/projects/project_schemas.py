@@ -25,7 +25,7 @@ from app.utils import (
 )
 from psycopg.rows import dict_row
 from app.config import settings
-from app.s3 import get_presigned_url
+from app.s3 import generate_static_url, get_presigned_url
 
 
 class CentroidOut(BaseModel):
@@ -173,10 +173,22 @@ class TaskOut(BaseModel):
     outline: Optional[Polygon | Feature | FeatureCollection] = None
     state: Optional[str] = None
     user_id: Optional[str] = None
-    task_area: Optional[float] = None
     name: Optional[str] = None
     image_count: Optional[int] = None
     assets_url: Optional[str] = None
+    total_area_sqkm: Optional[float] = None
+    flight_time_minutes: Optional[float] = None
+    flight_distance_km: Optional[float] = None
+    total_image_uploaded: Optional[int] = None
+
+    @model_validator(mode="after")
+    def set_assets_url(cls, values):
+        """Set image_url before rendering the model."""
+        assets_url = values.assets_url
+        if assets_url:
+            values.assets_url = generate_static_url(settings.S3_BUCKET_NAME, assets_url)
+
+        return values
 
 
 class DbProject(BaseModel):
@@ -210,7 +222,6 @@ class DbProject(BaseModel):
     is_terrain_follow: bool = False
     image_url: Optional[str] = None
     created_at: datetime
-    author_id: str
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""
@@ -291,6 +302,11 @@ class DbProject(BaseModel):
                         t.id,
                         t.project_task_index,
                         t.project_id,
+                        t.total_area_sqkm,
+                        t.flight_time_minutes,
+                        t.flight_distance_km,
+                        t.assets_url,
+                        t.total_image_uploaded,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'coordinates' AS coordinates,
                         ST_AsGeoJSON(t.outline)::jsonb -> 'type' AS type,
                         ST_XMin(ST_Envelope(t.outline)) AS xmin,
@@ -299,8 +315,7 @@ class DbProject(BaseModel):
                         ST_YMax(ST_Envelope(t.outline)) AS ymax,
                         tsc.state AS state,
                         tsc.user_id,
-                        u.name,
-                        ST_Area(ST_Transform(t.outline, 3857)) / 1000000 AS task_area
+                        u.name
                     FROM
                         tasks t
                     LEFT JOIN
@@ -316,8 +331,12 @@ class DbProject(BaseModel):
                     state,
                     user_id,
                     name,
-                    task_area,
                     project_id,
+                    total_area_sqkm,
+                    flight_distance_km,
+                    flight_time_minutes,
+                    total_image_uploaded,
+                    assets_url,
                     jsonb_build_object(
                         'type', 'Feature',
                         'geometry', jsonb_build_object(

@@ -1,7 +1,7 @@
 /* eslint-disable import/prefer-default-export */
 import {
   getIndividualTask,
-  getTaskAssetsInfo,
+  // getTaskAssetsInfo,
   getTaskWaypoint,
 } from '@Services/tasks';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
@@ -9,12 +9,13 @@ import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 export const useGetTaskWaypointQuery = (
   projectId: string,
   taskId: string,
+  mode: string,
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['task-waypoints'],
+    queryKey: ['task-waypoints', mode],
     enabled: !!(projectId && taskId),
-    queryFn: () => getTaskWaypoint(projectId, taskId),
+    queryFn: () => getTaskWaypoint(projectId, taskId, mode),
     select: (res: any) => res.data,
     ...queryOptions,
   });
@@ -33,16 +34,16 @@ export const useGetIndividualTaskQuery = (
   });
 };
 
-export const useGetTaskAssetsInfo = (
-  projectId: string,
-  taskId: string,
-  queryOptions?: Partial<UseQueryOptions>,
-) => {
-  return useQuery({
-    queryKey: ['task-assets-info'],
-    enabled: !!taskId,
-    queryFn: () => getTaskAssetsInfo(projectId, taskId),
-    select: (res: any) => res.data,
-    ...queryOptions,
-  });
-};
+// export const useGetTaskAssetsInfo = (
+//   projectId: string,
+//   taskId: string,
+//   queryOptions?: Partial<UseQueryOptions>,
+// ) => {
+//   return useQuery({
+//     queryKey: ['task-assets-info'],
+//     enabled: !!taskId,
+//     queryFn: () => getTaskAssetsInfo(projectId, taskId),
+//     select: (res: any) => res.data,
+//     ...queryOptions,
+//   });
+// };

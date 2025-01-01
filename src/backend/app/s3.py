@@ -4,6 +4,8 @@ from minio import Minio
 from io import BytesIO
 from typing import Any
 from datetime import timedelta
+from urllib.parse import urljoin
+from minio.error import S3Error
 
 
 def s3_client():
@@ -103,9 +105,15 @@ def get_file_from_bucket(bucket_name: str, s3_path: str, file_path: str):
     # Ensure s3_path starts with a forward slash
     # if not s3_path.startswith("/"):
     #     s3_path = f"/{s3_path}"
-
-    client = s3_client()
-    client.fget_object(bucket_name, s3_path, file_path)
+    try:
+        client = s3_client()
+        client.fget_object(bucket_name, s3_path, file_path)
+    except S3Error as e:
+        if e.code == "NoSuchKey":
+            log.warning(f"File not found in bucket: {s3_path}")
+        else:
+            log.error(f"Error occurred while downloading file: {e}")
+        return False
 
 
 def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
@@ -215,19 +223,9 @@ def get_object_metadata(bucket_name: str, object_name: str):
     return client.stat_object(bucket_name, object_name)
 
 
-def get_cog_path(bucket_name: str, project_id: str, task_id: str):
-    """Generate the presigned URL for a COG file in an S3 bucket.
-
-    Args:
-        bucket_name (str): The name of the S3 bucket.
-        project_id (str): The unique project identifier.
-        orthophoto_name (str): The name of the COG file.
-
-    Returns:
-        str: The presigned URL to access the COG file.
-    """
-    # Construct the S3 path for the COG file
-    s3_path = f"dtm-data/projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
-
-    # Get the presigned URL
-    return get_presigned_url(bucket_name, s3_path)
+def generate_static_url(bucket_name: str, s3_path: str):
+    """Generate a static URL for an S3 object."""
+    minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
+    protocol = "https" if is_secure else "http"
+    base_url = f"{protocol}://{minio_url}/{bucket_name}/"
+    return urljoin(base_url, s3_path)

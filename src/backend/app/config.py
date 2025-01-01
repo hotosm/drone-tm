@@ -11,7 +11,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings
 from typing import Annotated, Optional, Union, Any
 from pydantic.networks import HttpUrl, PostgresDsn
-
+from loguru import logger as log
 
 HttpUrlStr = Annotated[
     str,
@@ -122,7 +122,7 @@ def get_settings():
     """Cache settings when accessed throughout app."""
     _settings = Settings()
     if _settings.DEBUG:
-        print(f"Loaded settings: {_settings.model_dump()}")
+        log.info(f"Loaded settings: {_settings.model_dump()}")
     return _settings
 
 

@@ -125,7 +125,7 @@ class DroneType(IntEnum):
     DJI_MINI_4_PRO = 1
 
 
-class UserRole(IntEnum, Enum):
+class UserRole(int, Enum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
     REGULATOR = 3
@@ -197,3 +197,15 @@ class EventType(str, Enum):
     UNLOCK = "unlock"
     IMAGE_UPLOAD = "image_upload"
     IMAGE_PROCESSING_START = "image_processing_start"
+
+
+class FlightMode(str, Enum):
+    """The flight mode of the drone.
+
+    The flight mode can be:
+    - ``waylines``
+    - ``waypoints``
+    """
+
+    waylines = "waylines"
+    waypoints = "waypoints"
