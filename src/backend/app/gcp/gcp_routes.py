@@ -30,7 +30,7 @@ async def find_images(
     fov_degree = 82.1  # For DJI Mini 4 Pro
     result = await project_schemas.DbProject.one(db, project_id)
     return await gcp_crud.find_images_in_a_task_for_point(
-        project_id, task_id, point, fov_degree, result.altitude
+        project_id, task_id, point, fov_degree, result.altitude_from_ground
     )
 
 
@@ -48,5 +48,5 @@ async def find_images_for_a_project(
     task_id_list = await list_task_id_for_project(db, project_id)
 
     return await gcp_crud.find_images_in_a_project_for_point(
-        project_id, task_id_list, point, fov_degree, result.altitude
+        project_id, task_id_list, point, fov_degree, result.altitude_from_ground
     )
