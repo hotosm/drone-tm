@@ -1,3 +1,1 @@
-# Drone Tasking Manager
-
-Welcome to the docs!
+../README.md
