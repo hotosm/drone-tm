@@ -78,8 +78,8 @@ drones, and create custom flight plans as per the specifications provided by the
 
       We have two angles to increase the number of supported drones:
 
-      1. Support for interfacing with flight plan software such as DroneDeploy
-      and Litchi, meaning any drone supported there is supported by
+      1. Support for interfacing with flight plan software such as DroneDeploy,
+      Litchi, DroneLink, meaning any drone supported there is supported by
       DroneTM.
 
       2. Support for Open-Source flight plan software such as ArduPilot and iNAV,
