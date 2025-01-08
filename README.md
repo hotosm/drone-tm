@@ -65,6 +65,11 @@ Our vision is to create a platform that is not only accessible and user-friendly
 4. **Seamless Pipeline**: Ensure smooth processing and dissemination of imagery data.
 5. **User-Friendly Application**: Designed for ease of use, allowing even non-professional pilots to contribute.
 
+### Supported Drones
+
+To see a list of supported and unsupported drones, please visit
+the [FAQ](https://hotosm.github.io/drone-tm/about/faq) page.
+
 ## Getting Started
 
 To get started with Drone TM:

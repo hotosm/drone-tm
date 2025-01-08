@@ -1,7 +1,5 @@
 # ❓ Frequently Asked Questions ❓
 
-# Frequently Asked Questions (FAQ)
-
 ## Q. What problem do we solve with DroneTM?
 
 **Enhancing Emergency Response**
@@ -39,9 +37,8 @@ You can contribute to DroneTM in multiple ways:
 
 Currently, only processed data is available for download. The final outputs include:
 
-- **2D Orthophoto**
-- **Digital Terrain Model (DTM)**
-- **Digital Surface Model (DSM)**
+- **2D Orthophoto**: a birdseye view of your area (like a high resolution satellite image).
+- **3D Point Cloud**: this can be used to generate Digital Terrain / Surface Models.
 
 ---
 
@@ -65,7 +62,7 @@ no-fly zones. There is a feature to draw these zones on the project map, and the
 
 ---
 
-## Q. Can I use any drones to contribute to DroneTM or are there any specifications of drones?
+## Q. What Drones Are Supported?
 
 Currently, DroneTM is tested on **DJI Mini 4 Pro**, and flight plans are optimized for its camera specifications.
 However, the system is compatible with any DJI drones that support waypoint features, such as:
@@ -76,3 +73,25 @@ However, the system is compatible with any DJI drones that support waypoint feat
 
 Users can also download the **GeoJSON** of the task area, load it into their
 drones, and create custom flight plans as per the specifications provided by the project creator.
+
+!!! note
+
+      We have two angles to increase the number of supported drones:
+
+      1. Support for interfacing with flight plan software such as DroneDeploy
+      and Litchi, meaning any drone supported there is supported by
+      DroneTM.
+
+      2. Support for Open-Source flight plan software such as ArduPilot and iNAV,
+      widening our support signficantly to cheap custom-made drones, and in future
+      the HOT mapping drone.
+
+## Q. What Drones Are Not Supported?
+
+We don't have an exhaustive list of all unsupported drones, but in general, if
+the drone is not listed as supported, then DroneTM will probably not work with
+it.
+
+Our goal is to support affordable community mapping drones that ideally cost
+less than 1000 USD, so support for expensive commercial drones will not be
+a priority for now.
