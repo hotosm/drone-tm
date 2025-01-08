@@ -68,7 +68,7 @@ Our vision is to create a platform that is not only accessible and user-friendly
 ### Supported Drones
 
 To see a list of supported and unsupported drones, please visit
-the [FAQ](https://hotosm.github.io/drone-tm/about/faq) page.
+the [FAQ](https://hotosm.github.io/drone-tm/about/faq/#q-what-drones-are-supported) page.
 
 ## Getting Started
 
