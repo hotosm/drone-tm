@@ -2,7 +2,7 @@
   "dependencies": {
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
-    "@hotosm/gcp-editor": "^0.0.6",
+    "@hotosm/gcp-editor": "^0.0.8",
     "@mapbox/mapbox-gl-draw": "^1.4.2",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",
     "@radix-ui/react-popover": "^1.0.6",

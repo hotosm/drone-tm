@@ -145,10 +145,10 @@ const IndividualProject = () => {
             close
           </button>
           <GcpEditor
-            finalButtonText="Final Processing"
+            finalButtonText="Start Final Processing"
             // handleProcessingStart={handleStartProcessingClick}
             // eslint-disable-next-line camelcase
-            rawImageUrl={`${BASE_URL}/gcp/find-project-images/?project_id=${id}`}
+            // rawImageUrl={`${BASE_URL}/gcp/find-project-images/?project_id=${id}`}
           />
         </div>
       ) : (
