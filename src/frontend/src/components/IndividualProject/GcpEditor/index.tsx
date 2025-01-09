@@ -32,12 +32,15 @@ const GcpEditor = ({
   };
 
   useEffect(() => {
-    document.addEventListener(CUSTOM_EVENT, data => {
-      startProcessing(data);
-    });
-    return document.removeEventListener(CUSTOM_EVENT, data => {
-      startProcessing(data);
-    });
+    document.addEventListener(
+      CUSTOM_EVENT,
+      data => {
+        startProcessing(data);
+      },
+      // When we use the {once: true} option when adding an event listener, the listener will be invoked at most once and immediately removed as soon as the event is invoked.
+      { once: true },
+    );
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [CUSTOM_EVENT, dispatch]);
 
