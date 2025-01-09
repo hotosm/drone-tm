@@ -456,7 +456,6 @@ async def process_imagery(
 
 @router.post("/process_all_imagery/{project_id}/", tags=["Image Processing"])
 async def process_all_imagery(
-    project_id: uuid.UUID,
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
@@ -474,12 +473,12 @@ async def process_all_imagery(
         with open(gcp_file_path, "wb") as f:
             f.write(await gcp_file.read())
 
-        s3_path = f"dtm-data/projects/{project_id}/gcp/gcp_list.txt"
+        s3_path = f"dtm-data/projects/{project.id}/gcp/gcp_list.txt"
         add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
 
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
     background_tasks.add_task(
-        project_logic.process_all_drone_images, project_id, tasks, user_id, db
+        project_logic.process_all_drone_images, project.id, tasks, user_id, db
     )
     return {"message": f"Processing started for {len(tasks)} tasks."}
 
