@@ -303,7 +303,7 @@ class DbUserProfile(BaseUserProfile):
             )
             ON CONFLICT (user_id)
             DO UPDATE SET
-                {', '.join(f"{key} = EXCLUDED.{key}" for key in model_data.keys())};
+                {", ".join(f"{key} = EXCLUDED.{key}" for key in model_data.keys())};
         """
 
         # Prepare password update query if a new password is provided
