@@ -183,7 +183,7 @@ class DroneImageProcessor:
 
             # Start a new processing task
             task = self.process_new_task(
-                images_list,
+                list(set(images_list)),
                 name=name
                 or (
                     f"DTM-Task-{self.task_id}"
