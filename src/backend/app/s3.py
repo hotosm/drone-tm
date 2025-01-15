@@ -33,8 +33,7 @@ def is_connection_secure(minio_url: str):
 
     else:
         err = (
-            "The S3_ENDPOINT is set incorrectly. "
-            "It must start with http:// or https://"
+            "The S3_ENDPOINT is set incorrectly. It must start with http:// or https://"
         )
         log.error(err)
         raise ValueError(err)
