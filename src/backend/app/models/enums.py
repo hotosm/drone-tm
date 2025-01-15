@@ -218,19 +218,3 @@ class FlightMode(str, Enum):
 
     waylines = "waylines"
     waypoints = "waypoints"
-
-
-class ImageProcessingStatus(IntEnum, Enum):
-    """
-    The status of the image processing.
-        The status can be:
-        - ``not_started``
-        - ``processing``
-        - ``completed``
-        - ``failed``
-    """
-
-    NOT_STARTED = 0
-    PROCESSING = 1
-    COMPLETED = 2
-    FAILED = 3
