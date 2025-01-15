@@ -26,6 +26,7 @@ from app.models.enums import (
     UserRole,
     State,
     RegulatorApprovalStatus,
+    ImageProcessingStatus,
 )
 from sqlalchemy.orm import (
     object_session,
@@ -331,5 +332,22 @@ class DbDroneFlightHeight(Base):
     )  # ISO 3166-1 alpha-3 country code
     max_altitude_ft = cast(float, Column(Float, nullable=False))
     max_altitude_m = cast(float, Column(Float, nullable=False))
+    created_at = cast(datetime, Column(DateTime, default=timestamp))
+    updated_at = cast(datetime, Column(DateTime, nullable=True))
+
+
+class DbProcessingStatus(Base):
+    """Describes the status of a image processing for a project."""
+
+    __tablename__ = "processing_status"
+
+    id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
+    project_id = cast(
+        str, Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    )
+    status = cast(
+        ImageProcessingStatus, Column(Enum(ImageProcessingStatus), nullable=True)
+    )
+    created_by = cast(str, Column(String, ForeignKey("users.id"), nullable=False))
     created_at = cast(datetime, Column(DateTime, default=timestamp))
     updated_at = cast(datetime, Column(DateTime, nullable=True))
