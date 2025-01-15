@@ -74,6 +74,15 @@ class RegulatorApprovalStatus(IntEnum, Enum):
     REJECTED = 2
 
 
+class ImageProcessingStatus(IntEnum, Enum):
+    """Enum to describe all possible statys of a Image Processing for a Project"""
+
+    NOT_STARTED = 0
+    PROCESSING = 1
+    SUCCESS = 2
+    FAILED = 3
+
+
 class ProjectVisibility(IntEnum, Enum):
     """Enum describing task splitting type."""
 
@@ -200,11 +209,11 @@ class EventType(str, Enum):
 
 
 class FlightMode(str, Enum):
-    """The flight mode of the drone.
-
-    The flight mode can be:
-    - ``waylines``
-    - ``waypoints``
+    """
+    The flight mode of the drone.
+        The flight mode can be:
+        - ``waylines``
+        - ``waypoints``
     """
 
     waylines = "waylines"

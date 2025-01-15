@@ -218,6 +218,7 @@ class DbProject(BaseModel):
     requires_approval_from_regulator: Optional[bool] = False
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
+    image_processing_status: Optional[str] = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_id: Optional[str] = None
@@ -592,6 +593,7 @@ class ProjectInfo(BaseModel):
     requires_approval_from_regulator: Optional[bool] = False
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
+    image_processing_status: Optional[str] = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_name: Optional[str] = None
