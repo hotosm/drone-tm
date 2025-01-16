@@ -456,7 +456,6 @@ async def process_imagery(
 
 @router.post("/process_all_imagery/{project_id}/", tags=["Image Processing"])
 async def process_all_imagery(
-    project_id: uuid.UUID,
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
@@ -474,12 +473,12 @@ async def process_all_imagery(
         with open(gcp_file_path, "wb") as f:
             f.write(await gcp_file.read())
 
-        s3_path = f"dtm-data/projects/{project_id}/gcp/gcp_list.txt"
+        s3_path = f"dtm-data/projects/{project.id}/gcp/gcp_list.txt"
         add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
 
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
     background_tasks.add_task(
-        project_logic.process_all_drone_images, project_id, tasks, user_id, db
+        project_logic.process_all_drone_images, project.id, tasks, user_id, db
     )
     return {"message": f"Processing started for {len(tasks)} tasks."}
 
@@ -505,6 +504,7 @@ async def odm_webhook_for_processing_whole_project(
             node_odm_url=settings.NODE_ODM_URL,
             dtm_project_id=dtm_project_id,
             odm_task_id=odm_task_id,
+            odm_status=status["code"],
         )
 
     return {"message": "Webhook received", "task_id": dtm_project_id}
@@ -542,6 +542,7 @@ async def odm_webhook_for_processing_a_single_task(
             message="Task completed.",
             dtm_task_id=dtm_task_id,
             dtm_user_id=dtm_user_id,
+            odm_status=40,
         )
 
     elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
@@ -564,6 +565,7 @@ async def odm_webhook_for_processing_a_single_task(
             message="Image processing failed.",
             dtm_task_id=dtm_task_id,
             dtm_user_id=dtm_user_id,
+            odm_status_code=30,
         )
 
     return {"message": "Webhook received", "task_id": odm_task_id}

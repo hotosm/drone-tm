@@ -5,7 +5,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from app.tasks import task_logic
-from app.models.enums import State
+from app.models.enums import State, ImageProcessingStatus
 from app.utils import timestamp
 from app.db import database
 from app.projects import project_logic
@@ -183,7 +183,7 @@ class DroneImageProcessor:
 
             # Start a new processing task
             task = self.process_new_task(
-                images_list,
+                list(set(images_list)),
                 name=name
                 or (
                     f"DTM-Task-{self.task_id}"
@@ -352,6 +352,7 @@ async def process_assets_from_odm(
     message=None,
     dtm_task_id=None,
     dtm_user_id=None,
+    odm_status_code: Optional[int] = None,
 ):
     """
     Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
@@ -441,6 +442,21 @@ async def process_assets_from_odm(
                     # update the task table
                     await project_logic.update_task_field(
                         conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
+                    )
+
+        if not dtm_task_id:
+            # Update the image processing status
+            pool = await database.get_db_connection_pool()
+            async with pool as pool_instance:
+                async with pool_instance.connection() as conn:
+                    await project_logic.update_processing_status(
+                        conn,
+                        dtm_project_id,
+                        (
+                            ImageProcessingStatus.SUCCESS
+                            if odm_status_code == 40
+                            else ImageProcessingStatus.FAILED
+                        ),
                     )
 
     except Exception as e:

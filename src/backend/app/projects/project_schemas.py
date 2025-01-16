@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Annotated, Optional, List
+from typing import Annotated, Optional, List, Union
 from datetime import datetime, date
 import geojson
 from loguru import logger as log
@@ -73,9 +73,16 @@ def validate_geojson(
         return None
 
 
-def enum_to_str(value: IntEnum) -> str:
-    """Get the string value of the enum for db insert."""
-    return value.name
+def enum_to_str(value: Union[IntEnum, str]) -> str:
+    """
+    Get the string value of the enum for db insert.
+    Handles both IntEnum objects and string values.
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, IntEnum):
+        return value.name
+    return value
 
 
 class ProjectIn(BaseModel):
@@ -150,7 +157,8 @@ class ProjectIn(BaseModel):
             return slug_with_date
         except Exception as e:
             log.error(f"An error occurred while generating the slug: {e}")
-            return ""
+
+        return ""
 
     @model_validator(mode="before")
     @classmethod
@@ -210,6 +218,7 @@ class DbProject(BaseModel):
     requires_approval_from_regulator: Optional[bool] = False
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
+    image_processing_status: Optional[str] = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_id: Optional[str] = None
@@ -584,6 +593,7 @@ class ProjectInfo(BaseModel):
     requires_approval_from_regulator: Optional[bool] = False
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
+    image_processing_status: Optional[str] = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_name: Optional[str] = None

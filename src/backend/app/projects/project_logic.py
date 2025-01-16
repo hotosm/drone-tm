@@ -38,13 +38,14 @@ from drone_flightplan import (
     create_placemarks,
     terrain_following_waylines,
 )
-from app.models.enums import FlightMode
+from app.models.enums import FlightMode, ImageProcessingStatus
 
 
 async def get_centroids(db: Connection):
     try:
         async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute("""
+            await cur.execute(
+                """
                 SELECT
                     p.id,
                     p.slug,
@@ -61,7 +62,8 @@ async def get_centroids(db: Connection):
                     task_events te ON t.id = te.task_id
                 GROUP BY
                     p.id, p.slug, p.name, p.centroid;
-            """)
+            """
+            )
             centroids = await cur.fetchall()
 
             if not centroids:
@@ -335,6 +337,25 @@ async def process_drone_images(
     )
 
 
+async def update_processing_status(
+    db: Connection, project_id: uuid.UUID, status: ImageProcessingStatus
+):
+    print("status = ", status.name)
+    """
+    Update the processing status to the specified status in the database.
+    """
+    await db.execute(
+        """
+        UPDATE projects
+        SET image_processing_status = %(status)s
+        WHERE id = %(project_id)s;
+        """,
+        {"status": status.name, "project_id": project_id},
+    )
+    await db.commit()
+    return
+
+
 async def process_all_drone_images(
     project_id: uuid.UUID, tasks: list, user_id: str, db: Connection
 ):
@@ -362,6 +383,10 @@ async def process_all_drone_images(
         options=options,
         webhook=webhook_url,
     )
+
+    # Update the processing status to 'IMAGE_PROCESSING_STARTED' in the database.
+    await update_processing_status(db, project_id, ImageProcessingStatus.PROCESSING)
+    return
 
 
 def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):

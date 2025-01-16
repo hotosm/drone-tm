@@ -8,6 +8,8 @@ export interface ProjectState {
   projectArea: Record<string, any> | null;
   selectedTaskId: string;
   taskClickedOnTable: Record<string, any> | null;
+  showGcpEditor: boolean;
+  gcpData: any;
 }
 
 const initialState: ProjectState = {
@@ -16,6 +18,8 @@ const initialState: ProjectState = {
   projectArea: null,
   selectedTaskId: '',
   taskClickedOnTable: null,
+  showGcpEditor: false,
+  gcpData: null,
 };
 
 const setProjectState: CaseReducer<

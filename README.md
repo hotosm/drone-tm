@@ -65,6 +65,11 @@ Our vision is to create a platform that is not only accessible and user-friendly
 4. **Seamless Pipeline**: Ensure smooth processing and dissemination of imagery data.
 5. **User-Friendly Application**: Designed for ease of use, allowing even non-professional pilots to contribute.
 
+### Supported Drones
+
+To see a list of supported and unsupported drones, please visit
+the [FAQ](https://hotosm.github.io/drone-tm/about/faq/#q-what-drones-are-supported) page.
+
 ## Getting Started
 
 To get started with Drone TM:
@@ -84,17 +89,18 @@ To get started with Drone TM:
 |✅| 🖥️ upload of drone imagery collected during flight |
 |✅| 📱 follow terrain during flight plan generation in hilly/mountainous regions |
 |✅| 🖥️ merging of drone imagery into a final combined image for the project |
+|✅| 📱 flight plans working on DJI Mini 4 Pro, Air 3, and Mavic 3 |
+|✅| 📱 upload flight plan to drone via mobile app (no laptop required) |
+|✅| 🖥️ precise georeferencing of final imagery using Ground Control Points |
 |⚙️| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) |
 |⚙️| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) |
 |⚙️| 📱 allow adjustments to the flight plan orientation based on field conditions |
-|⚙️| 🖥️ precise georeferencing of final imagery using Ground Control Points |
+|⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM |
 | | 📱 capture of imagery at multiple (configurable) angles from the drone camera |
-| | 📱 support for more drone models (DJI first, other manufacturers next) |
-| | 📱 removing laptop requirement for flight plan upload to drone (via mobile instead) |
+| | 📱 continue to add support for additional drone models |
 | | 🖥️ user access management for each part of the UI |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status |
 | | 📱 improved offline capabilities of Drone-TM, reducing reliance on stable internet in the field |
-|⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM |
 | | 🖥️ scaling of ODM imagery processing to hundreds of images in parallel |
 | | 🖥️ better usage of 3D model data collected by drones |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally |
