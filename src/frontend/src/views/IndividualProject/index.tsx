@@ -17,6 +17,7 @@ import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import centroid from '@turf/centroid';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 // eslint-disable-next-line camelcase
@@ -111,19 +112,11 @@ const IndividualProject = () => {
     return {};
   };
 
-  // const { mutate: startImageProcessing } = useMutation({
-  //   mutationFn: processAllImagery,
-  //   onSuccess: () => {
-  //     dispatch(setProjectState({ showGcpEditor: false }));
-  //   },
-  // });
-
-  // useEffect(() => {
-  //   if (!gcpData || !showGcpEditor) return;
-  //   const blob = new Blob([gcpData], { type: 'text/plain;charset=utf-8;' });
-  //   const gcpFile = new File([blob], 'gcp.txt');
-  //   startImageProcessing({ projectId: id, gcp_file: gcpFile });
-  // }, [gcpData, id]);
+  useEffect(() => {
+    return () => {
+      dispatch(setProjectState({ showGcpEditor: false }));
+    };
+  }, [dispatch]);
 
   return (
     <section className="individual project naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
