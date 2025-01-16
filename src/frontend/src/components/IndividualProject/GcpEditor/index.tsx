@@ -3,7 +3,7 @@ import '@hotosm/gcp-editor';
 import '@hotosm/gcp-editor/style.css';
 import { useDispatch } from 'react-redux';
 import { setProjectState } from '@Store/actions/project';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { processAllImagery } from '@Services/project';
 import { useParams } from 'react-router-dom';
 
@@ -16,10 +16,12 @@ const GcpEditor = ({
   const { id } = useParams();
   const dispatch = useDispatch();
   const CUSTOM_EVENT: any = 'start-processing-click';
+  const queryClient = useQueryClient();
 
   const { mutate: startImageProcessing } = useMutation({
     mutationFn: processAllImagery,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-detail'] });
       dispatch(setProjectState({ showGcpEditor: false }));
     },
   });
