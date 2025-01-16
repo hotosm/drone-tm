@@ -11,6 +11,7 @@ const DescriptionSection = ({
   page?: 'project-description' | 'project-approval';
 }) => {
   const dispatch = useDispatch();
+
   return (
     <div className="naxatw-mt-4 naxatw-flex naxatw-flex-col naxatw-gap-3">
       {page === 'project-approval' && (
@@ -66,18 +67,19 @@ const DescriptionSection = ({
           )}
         </div>
       </div>
-      {page !== 'project-approval' && (
-        <div>
-          <Button
-            className="naxatw-bg-red"
-            onClick={() => {
-              dispatch(setProjectState({ showGcpEditor: true }));
-            }}
-          >
-            Start Processing
-          </Button>
-        </div>
-      )}
+      {page !== 'project-approval' &&
+        projectData?.image_processing_status !== 1 && (
+          <div>
+            <Button
+              className="naxatw-bg-red"
+              onClick={() => {
+                dispatch(setProjectState({ showGcpEditor: true }));
+              }}
+            >
+              Start Processing
+            </Button>
+          </div>
+        )}
       {page === 'project-approval' &&
         projectData?.regulator_approval_status === 'PENDING' && (
           <ApprovalSection />
