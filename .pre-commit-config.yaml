@@ -79,7 +79,7 @@ repos:
 
   # Deps: ensure Python uv lockfile is up to date
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.5.18
+    rev: 0.5.13
     hooks:
       - id: uv-lock
         files: src/backend/pyproject.toml
