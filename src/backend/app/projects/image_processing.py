@@ -46,6 +46,7 @@ class DroneImageProcessor:
         self.db = db
         self.task_id = task_id
         self.task_ids = task_ids or ([] if task_id is None else [task_id])
+        self.max_concurrent_downloads = 4
 
     def options_list_to_dict(
         self, options: List[Dict[str, Any]] = None
@@ -109,7 +110,8 @@ class DroneImageProcessor:
         )
         objects = list_objects_from_bucket(bucket_name, prefix)
 
-        with ThreadPoolExecutor() as executor:
+        # Limit the number of images to download concurrently
+        with ThreadPoolExecutor(max_workers=self.max_concurrent_downloads) as executor:
             executor.map(
                 lambda obj: self.download_object(bucket_name, obj, local_dir),
                 objects,
