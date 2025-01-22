@@ -50,6 +50,7 @@ async def get_task_waypoint(
     task_id: uuid.UUID,
     download: bool = True,
     mode: FlightMode = FlightMode.waylines,
+    rotation_angle: float = 0,
     take_off_point: waypoint_schemas.PointField = None,
 ):
     """
@@ -119,7 +120,7 @@ async def get_task_waypoint(
         "gsd": gsd,
         "forward_overlap": forward_overlap,
         "side_overlap": side_overlap,
-        "rotation_angle": 0,
+        "rotation_angle": rotation_angle,
         "generate_3d": generate_3d,
         "take_off_point": take_off_point,
     }
