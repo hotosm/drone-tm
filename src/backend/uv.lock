@@ -507,16 +507,16 @@ wheels = [
 
 [[package]]
 name = "drone-flightplan"
-version = "0.3.4rc2"
+version = "0.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "geojson" },
     { name = "pyproj" },
     { name = "shapely" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/ab/a2803a255f51014f25104e5ca2430e3e78a8a1ab8cc6acdf862378518bc7/drone_flightplan-0.3.4rc2.tar.gz", hash = "sha256:f1137e1217d2d62abd5e2a77d379fa550e8058d566426b66b482bf9fbd0a1f16", size = 35073 }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/84/977917ce508c5b350d46417659362158532c641f2c71f4b0a3aec5be5d07/drone_flightplan-0.3.4.tar.gz", hash = "sha256:c4152fd4f8565c8498a3d8264103728827919c40460a903cf5e1504af85d1189", size = 35774 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/3e/db5251247d0f5303a325025b523a8d14dee19d473596ae13ee8d71e06f5c/drone_flightplan-0.3.4rc2-py3-none-any.whl", hash = "sha256:f3d80da9f86437313a6a3f2acb3f156ced4c3cef78fb9cf9a3100de55402f1a0", size = 39615 },
+    { url = "https://files.pythonhosted.org/packages/ea/ba/27776eafb3b431151efb6ea31274fd5cdc50341cf54948ccd65136bcdd4a/drone_flightplan-0.3.4-py3-none-any.whl", hash = "sha256:ec2ca0ed5664cbe2156664b83f3e2ae0ca64a5c814ba494c3cc242e659f377af", size = 40263 },
 ]
 
 [[package]]
@@ -596,7 +596,7 @@ requires-dist = [
     { name = "asgi-lifespan", specifier = ">=2.1.0" },
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "bcrypt", specifier = ">=4.2.1" },
-    { name = "drone-flightplan", specifier = ">=0.3.4rc2" },
+    { name = "drone-flightplan", specifier = ">=0.3.4" },
     { name = "fastapi", specifier = "==0.112.0" },
     { name = "gdal", specifier = "==3.6.2" },
     { name = "geoalchemy2", specifier = "==0.14.2" },
@@ -1639,6 +1639,7 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/33/39/5a9a229bb5414abeb86e33b8fc8143ab0aecce5a7f698a53e31367d30caa/psycopg2-2.9.10-cp311-cp311-win_amd64.whl", hash = "sha256:0435034157049f6846e95103bd8f5a668788dd913a7c30162ca9503fdf542cb4", size = 1163736 },
     { url = "https://files.pythonhosted.org/packages/3d/16/4623fad6076448df21c1a870c93a9774ad8a7b4dd1660223b59082dd8fec/psycopg2-2.9.10-cp312-cp312-win32.whl", hash = "sha256:65a63d7ab0e067e2cdb3cf266de39663203d38d6a8ed97f5ca0cb315c73fe067", size = 1025113 },
     { url = "https://files.pythonhosted.org/packages/66/de/baed128ae0fc07460d9399d82e631ea31a1f171c0c4ae18f9808ac6759e3/psycopg2-2.9.10-cp312-cp312-win_amd64.whl", hash = "sha256:4a579d6243da40a7b3182e0430493dbd55950c493d8c68f4eec0b302f6bbf20e", size = 1163951 },
+    { url = "https://files.pythonhosted.org/packages/ae/49/a6cfc94a9c483b1fa401fbcb23aca7892f60c7269c5ffa2ac408364f80dc/psycopg2-2.9.10-cp313-cp313-win_amd64.whl", hash = "sha256:91fd603a2155da8d0cfcdbf8ab24a2d54bca72795b90d2a3ed2b6da8d979dee2", size = 2569060 },
 ]
 
 [[package]]
