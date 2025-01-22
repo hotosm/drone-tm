@@ -504,7 +504,7 @@ async def odm_webhook_for_processing_whole_project(
             node_odm_url=settings.NODE_ODM_URL,
             dtm_project_id=dtm_project_id,
             odm_task_id=odm_task_id,
-            odm_status=status["code"],
+            odm_status_code=status["code"],
         )
 
     return {"message": "Webhook received", "task_id": dtm_project_id}
@@ -542,7 +542,7 @@ async def odm_webhook_for_processing_a_single_task(
             message="Task completed.",
             dtm_task_id=dtm_task_id,
             dtm_user_id=dtm_user_id,
-            odm_status=40,
+            odm_status_code=40,
         )
 
     elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
