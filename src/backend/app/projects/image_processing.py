@@ -19,7 +19,6 @@ from app.s3 import (
     get_presigned_url,
 )
 from loguru import logger as log
-from concurrent.futures import ThreadPoolExecutor
 from psycopg import Connection
 from asgiref.sync import async_to_sync
 from app.config import settings
@@ -135,7 +134,7 @@ class DroneImageProcessor:
 
                 tasks = [
                     self.download_image(
-                        session, url, os.path.join(local_dir, f"file_{i+1}.jpg")
+                        session, url, os.path.join(local_dir, f"file_{i + 1}.jpg")
                     )
                     for i, url in enumerate(batch)
                 ]
