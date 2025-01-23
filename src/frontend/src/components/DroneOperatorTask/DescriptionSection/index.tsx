@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTypedSelector } from '@Store/hooks';
 import { toast } from 'react-toastify';
-import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
+import { useGetIndividualTaskQuery } from '@Api/tasks';
 import { Button } from '@Components/RadixComponents/Button';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
@@ -21,19 +21,10 @@ const DroneOperatorDescriptionBox = () => {
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
   );
-
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
-
-  const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
-    projectId as string,
-    taskId as string,
-    waypointMode as string,
-    {
-      select: (data: any) => {
-        return data.data?.results.features;
-      },
-    },
+  const rotatedFlightPlanData = useTypedSelector(
+    state => state.droneOperatorTask.rotatedFlightPlan,
   );
 
   const downloadFlightPlanKmz = () => {
@@ -64,12 +55,9 @@ const DroneOperatorDescriptionBox = () => {
   };
 
   const downloadFlightPlanGeojson = () => {
-    if (!taskWayPoints) return;
+    if (!rotatedFlightPlanData?.geojsonListOfPoint) return;
 
-    const waypointGeojson = {
-      type: 'FeatureCollection',
-      features: taskWayPoints,
-    };
+    const waypointGeojson = rotatedFlightPlanData?.geojsonListOfPoint;
     const fileBlob = new Blob([JSON.stringify(waypointGeojson)], {
       type: 'application/json',
     });
