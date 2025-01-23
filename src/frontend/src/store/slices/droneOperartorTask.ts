@@ -20,6 +20,7 @@ export interface IDroneOperatorTaskState {
   filesExifData: IFilesExifData[];
   waypointMode: 'waypoints' | 'waylines';
   taskAssetsInformation: Record<string, any>;
+  rotatedFlightPlan: Record<string, any>;
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -39,6 +40,10 @@ const initialState: IDroneOperatorTaskState = {
     total_image_uploaded: 0,
     assets_url: '',
     state: '',
+  },
+  rotatedFlightPlan: {
+    geojsonListOfPoint: {},
+    geojsonAsLineString: {},
   },
 };
 
@@ -103,6 +108,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setTaskAssetsInformation: (state, action) => {
       state.taskAssetsInformation = action.payload;
+    },
+    setRotatedFlightPlan: (state, action) => {
+      state.rotatedFlightPlan = action.payload;
     },
   },
 });

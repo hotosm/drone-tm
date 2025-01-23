@@ -66,6 +66,7 @@ async def get_task_waypoint(
                                 If `download` is True, returns a KMZ file as a download response.
     """
 
+    rotation_angle = 360 - rotation_angle
     task_geojson = await get_task_geojson(db, task_id)
     project = await project_deps.get_project_by_id(project_id, db)
 

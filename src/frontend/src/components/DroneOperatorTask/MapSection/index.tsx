@@ -136,6 +136,7 @@ const MapSection = ({ className }: { className?: string }) => {
     projectId as string,
     taskId as string,
     waypointMode as string,
+    rotationAngle,
     {
       select: ({ data }: any) => {
         const modifiedTaskWayPointsData = {
@@ -157,6 +158,17 @@ const MapSection = ({ className }: { className?: string }) => {
         };
         takeOffPointRef.current =
           modifiedTaskWayPointsData?.geojsonListOfPoint?.features[0]?.geometry?.coordinates;
+        // setTimeout(() => {
+        //   if (map && isMapLoaded) {
+        //     const bbox = getBbox(
+        //       modifiedTaskWayPointsData.geojsonAsLineString as FeatureCollection,
+        //     );
+        //     map?.fitBounds(bbox as LngLatBoundsLike, {
+        //       padding: 105,
+        //       duration: 500,
+        //     });
+        //   }
+        // }, 100);
         return modifiedTaskWayPointsData;
       },
     },
