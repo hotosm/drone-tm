@@ -1,8 +1,9 @@
 import DroneOperatorDescriptionBox from '@Components/DroneOperatorTask/DescriptionSection';
 import DroneOperatorTaskHeader from '@Components/DroneOperatorTask/Header';
-import MapSection from '@Components/DroneOperatorTask/MapSection';
+// import MapSection from '@Components/DroneOperatorTask/MapSection';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import MapSection from '@Components/DroneOperatorTask/MapSection/MapSection';
 
 const TaskDescription = () => {
   const { width } = useWindowDimensions();
