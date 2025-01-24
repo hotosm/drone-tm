@@ -21,6 +21,10 @@ const DroneOperatorDescriptionBox = () => {
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
   );
+  const rotationAngle = useTypedSelector(
+    state => state.droneOperatorTask.rotationAngle,
+  );
+
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
   const rotatedFlightPlanData = useTypedSelector(
@@ -29,7 +33,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanKmz = () => {
     fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}`,
+      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&rotation_angle=${rotationAngle}`,
       { method: 'POST' },
     )
       .then(response => {
