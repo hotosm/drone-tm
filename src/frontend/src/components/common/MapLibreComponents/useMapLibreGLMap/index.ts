@@ -23,6 +23,7 @@ export default function useMapLibreGLMap({
         [-179, -89],
         [179, 89],
       ],
+      preserveDrawingBuffer: true,
       ...mapOptions,
     });
     setMap(mapInstance);
