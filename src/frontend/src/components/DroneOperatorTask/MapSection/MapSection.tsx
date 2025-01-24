@@ -22,6 +22,7 @@ import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { waypointModeOptions } from '@Constants/taskDescription';
 import {
+  setRotationAngle as setFinalRotationAngle,
   setRotatedFlightPlan,
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
@@ -61,7 +62,6 @@ const MapSection = ({ className }: { className?: string }) => {
   const [dragging, setDragging] = useState(false);
   const [isRotationEnabled, setIsRotationEnabled] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
-  const [finalRotationAngle, setFinalRotationAngle] = useState(0);
   const [initialWaypointData, setInitialWaypointData] = useState<Record<
     string,
     any
@@ -81,6 +81,9 @@ const MapSection = ({ className }: { className?: string }) => {
   );
   const rotatedFlightPlanData = useTypedSelector(
     state => state.droneOperatorTask.rotatedFlightPlan,
+  );
+  const finalRotationAngle = useTypedSelector(
+    state => state.droneOperatorTask.rotationAngle,
   );
 
   const { map, isMapLoaded }: any = useMapLibreGLMap({
@@ -388,7 +391,7 @@ const MapSection = ({ className }: { className?: string }) => {
     if (!dragging) {
       setVisibilityOfLayers(mapLayerIDs, 'visible');
       if (rotationAngle !== finalRotationAngle)
-        setFinalRotationAngle(rotationAngle);
+        dispatch(setFinalRotationAngle(rotationAngle));
       return;
     }
     setVisibilityOfLayers(mapLayerIDs, 'none');
@@ -497,6 +500,7 @@ const MapSection = ({ className }: { className?: string }) => {
     () => () => {
       dispatch(setSelectedTakeOffPoint(null));
       dispatch(setSelectedTakeOffPointOption('current_location'));
+      dispatch(setFinalRotationAngle(0));
       dispatch(
         setTaskAssetsInformation({
           total_image_uploaded: 0,
