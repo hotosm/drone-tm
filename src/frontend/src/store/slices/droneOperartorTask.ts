@@ -21,6 +21,7 @@ export interface IDroneOperatorTaskState {
   waypointMode: 'waypoints' | 'waylines';
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
+  rotationAngle: number;
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -45,6 +46,7 @@ const initialState: IDroneOperatorTaskState = {
     geojsonListOfPoint: {},
     geojsonAsLineString: {},
   },
+  rotationAngle: 0,
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -111,6 +113,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setRotatedFlightPlan: (state, action) => {
       state.rotatedFlightPlan = action.payload;
+    },
+    setRotationAngle: (state, action) => {
+      state.rotationAngle = action.payload;
     },
   },
 });

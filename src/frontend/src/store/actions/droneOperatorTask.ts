@@ -19,4 +19,5 @@ export const {
   setWaypointMode,
   setTaskAssetsInformation,
   setRotatedFlightPlan,
+  setRotationAngle,
 } = droneOperatorTaskSlice.actions;
