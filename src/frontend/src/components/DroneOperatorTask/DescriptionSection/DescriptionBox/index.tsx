@@ -39,6 +39,7 @@ const DescriptionBox = () => {
     projectId as string,
     taskId as string,
     waypointMode as string,
+    0,
     {
       select: (data: any) => {
         return data.data.results.features;

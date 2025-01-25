@@ -18,4 +18,5 @@ export const {
   resetFilesExifData,
   setWaypointMode,
   setTaskAssetsInformation,
+  setRotatedFlightPlan,
 } = droneOperatorTaskSlice.actions;

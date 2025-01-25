@@ -20,6 +20,7 @@ export default function LandingPage() {
   return (
     <main className="landing-page naxatw-font-secondary">
       <Navbar />
+      {/* @ts-ignore */}
       <AnimatePresence>{openSignInMenu && <SignInOverlay />}</AnimatePresence>
       <Home />
       <AboutTM />

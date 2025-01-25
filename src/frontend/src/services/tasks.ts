@@ -4,9 +4,10 @@ export const getTaskWaypoint = (
   projectId: string,
   taskId: string,
   mode: string,
+  rotationAngle: number,
 ) =>
   authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}`,
+    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&rotation_angle=${rotationAngle}`,
   );
 
 export const getIndividualTask = (taskId: string) =>

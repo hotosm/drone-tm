@@ -50,6 +50,7 @@ async def get_task_waypoint(
     task_id: uuid.UUID,
     download: bool = True,
     mode: FlightMode = FlightMode.waylines,
+    rotation_angle: float = 0,
     take_off_point: waypoint_schemas.PointField = None,
 ):
     """
@@ -65,6 +66,7 @@ async def get_task_waypoint(
                                 If `download` is True, returns a KMZ file as a download response.
     """
 
+    rotation_angle = 360 - rotation_angle
     task_geojson = await get_task_geojson(db, task_id)
     project = await project_deps.get_project_by_id(project_id, db)
 
@@ -119,7 +121,7 @@ async def get_task_waypoint(
         "gsd": gsd,
         "forward_overlap": forward_overlap,
         "side_overlap": side_overlap,
-        "rotation_angle": 0,
+        "rotation_angle": rotation_angle,
         "generate_3d": generate_3d,
         "take_off_point": take_off_point,
     }
