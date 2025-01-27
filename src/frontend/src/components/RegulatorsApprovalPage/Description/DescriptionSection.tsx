@@ -68,7 +68,7 @@ const DescriptionSection = ({
         </div>
       </div>
       {page !== 'project-approval' &&
-        projectData?.image_processing_status !== 1 && (
+        projectData?.image_processing_status !== 'SUCCESS' && (
           <div>
             <Button
               className="naxatw-bg-red"
