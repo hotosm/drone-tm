@@ -4,6 +4,7 @@ import ImageBoxPopOver from '@Components/DroneOperatorTask/DescriptionSection/Po
 import ImageMapBox from '@Components/DroneOperatorTask/DescriptionSection/PopoverBox/MapBox';
 import ChooseTakeOffPointOptions from '@Components/DroneOperatorTask/ModalContent/ChooseTakeOffPointOptions';
 import TaskOrthophotoPreview from '@Components/DroneOperatorTask/ModalContent/TaskOrthophotoPreview';
+import ChooseProcessingParameter from '@Components/IndividualProject/ModalContent/ChooseProcessingParameter';
 import { ReactElement } from 'react';
 
 export type ModalContentsType =
@@ -14,6 +15,7 @@ export type ModalContentsType =
   | 'update-flight-take-off-point'
   | 'task-ortho-photo-preview'
   | 'document-preview'
+  | 'choose-processing-parameter'
   | null;
 export type PromptDialogContentsType = 'delete-layer' | null;
 
@@ -35,6 +37,12 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
       return {
         title: 'Unsaved Changes!',
         content: <ExitCreateProjectModal />,
+      };
+    case 'choose-processing-parameter':
+      return {
+        className: 'naxatw-w-[92vw] naxatw-max-w-[25rem]',
+        title: 'Start Processing',
+        content: <ChooseProcessingParameter />,
       };
 
     case 'raw-image-preview':
