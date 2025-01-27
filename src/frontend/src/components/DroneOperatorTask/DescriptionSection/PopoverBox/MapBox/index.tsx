@@ -10,6 +10,7 @@ import { Button } from '@Components/RadixComponents/Button';
 import {
   resetFilesExifData,
   setFilesExifData,
+  setUploadProgress,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import convertExifDataToGeoJson from '@Utils/exifDataToGeoJson';
@@ -47,6 +48,9 @@ const ImageMapBox = () => {
   );
   const filesExifData = useTypedSelector(
     state => state.droneOperatorTask.filesExifData,
+  );
+  const uploadProgress = useTypedSelector(
+    state => state.droneOperatorTask.uploadProgress,
   );
   const modalState = useTypedSelector(state => state.common.showModal);
 
@@ -154,12 +158,27 @@ const ImageMapBox = () => {
         uploadedFilesNumber.current += urlChunk.length;
         const width = widthCalulator(uploadedFilesNumber.current, files.length);
         setLoadingWidth(width);
+        // maintain progress state for individual task
+        dispatch(
+          setUploadProgress({
+            ...uploadProgress,
+            [taskId]: {
+              totalFiles: files.length,
+              uploadedFiles: uploadedFilesNumber.current,
+            },
+          }),
+        );
       }
       updateStatus({
         projectId,
         taskId,
         data: { event: 'image_upload', updated_at: new Date().toISOString() },
       });
+
+      // clear progress state on success
+      const currentUploadProgress = { ...uploadProgress };
+      delete currentUploadProgress?.[taskId];
+      dispatch(setUploadProgress(currentUploadProgress));
     },
     onSuccess: () => {
       resetFilesExifData();
