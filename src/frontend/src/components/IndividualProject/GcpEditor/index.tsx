@@ -6,6 +6,7 @@ import { setProjectState } from '@Store/actions/project';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { processAllImagery } from '@Services/project';
 import { useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const GcpEditor = ({
   cogUrl,
@@ -24,6 +25,7 @@ const GcpEditor = ({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-detail'] });
       dispatch(setProjectState({ showGcpEditor: false }));
+      toast.success('Processing started');
     },
   });
 
