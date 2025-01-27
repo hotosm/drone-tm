@@ -1,4 +1,4 @@
-import { useEffect, createElement } from 'react';
+import { useEffect, createElement, useRef } from 'react';
 import '@hotosm/gcp-editor';
 import '@hotosm/gcp-editor/style.css';
 import { useDispatch } from 'react-redux';
@@ -13,6 +13,7 @@ const GcpEditor = ({
   //   handleProcessingStart,
   rawImageUrl,
 }: any) => {
+  const triggeredEvent = useRef(false);
   const { id } = useParams();
   const dispatch = useDispatch();
   const CUSTOM_EVENT: any = 'start-processing-click';
@@ -33,15 +34,23 @@ const GcpEditor = ({
     startImageProcessing({ projectId: id, gcp_file: gcpFile });
   };
 
+  const handleProcessingStart = (data: any) => {
+    if (triggeredEvent.current) return;
+    startProcessing(data);
+    triggeredEvent.current = true;
+  };
+
   useEffect(() => {
     document.addEventListener(
       CUSTOM_EVENT,
-      data => {
-        startProcessing(data);
-      },
+      handleProcessingStart,
       // When we use the {once: true} option when adding an event listener, the listener will be invoked at most once and immediately removed as soon as the event is invoked.
       { once: true },
     );
+
+    return () => {
+      document.removeEventListener(CUSTOM_EVENT, handleProcessingStart);
+    };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [CUSTOM_EVENT, dispatch]);
