@@ -7,6 +7,7 @@ import { setProjectState } from '@Store/actions/project';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { toast } from 'react-toastify';
 
 const ChooseProcessingParameter = () => {
   const dispatch = useDispatch();
@@ -19,7 +20,7 @@ const ChooseProcessingParameter = () => {
     mutationFn: processAllImagery,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-detail'] });
-      dispatch(setProjectState({ showGcpEditor: false }));
+      toast.success('Processing started');
     },
   });
 
