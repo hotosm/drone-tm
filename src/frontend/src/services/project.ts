@@ -15,12 +15,12 @@ export const getRequestedTasks = () =>
   authenticated(api).get('/tasks/requested_tasks/pending');
 
 export const processAllImagery = (data: Record<string, any>) => {
-  const { projectId, gcp_file } = data;
-  return authenticated(api).post(
-    `/projects/process_all_imagery/${projectId}/`,
-    { gcp_file },
-  );
+  const { projectId } = data;
+  if (data?.gcp_file) {
+    return authenticated(api).post(
+      `/projects/process_all_imagery/${projectId}/`,
+      { gcp_file: data.gcp_file },
+    );
+  }
+  return authenticated(api).post(`/projects/process_all_imagery/${projectId}/`);
 };
-
-// export const getAllAssetsUrl = (projectId: string) =>
-//   authenticated(api).get(`/projects/assets/${projectId}/`);
