@@ -15,8 +15,10 @@ export const {
   setUploadedImagesType,
   setSelectedTaskDetailToViewOrthophoto,
   setFilesExifData,
+  setUploadProgress,
   resetFilesExifData,
   setWaypointMode,
   setTaskAssetsInformation,
   setRotatedFlightPlan,
+  setRotationAngle,
 } = droneOperatorTaskSlice.actions;

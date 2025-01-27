@@ -152,7 +152,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           case 'IMAGE_UPLOADED':
             return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_STARTED':
-              return `This task is started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_FINISHED':
             return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_FAILED':

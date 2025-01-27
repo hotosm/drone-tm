@@ -21,6 +21,10 @@ const DroneOperatorDescriptionBox = () => {
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
   );
+  const rotationAngle = useTypedSelector(
+    state => state.droneOperatorTask.rotationAngle,
+  );
+
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
   const rotatedFlightPlanData = useTypedSelector(
@@ -29,7 +33,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanKmz = () => {
     fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}`,
+      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&rotation_angle=${rotationAngle}`,
       { method: 'POST' },
     )
       .then(response => {
@@ -42,7 +46,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'flight_plan.kmz';
+        link.download = `flight_plan-${projectId}-${taskId}-${waypointMode}.kmz`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -64,7 +68,7 @@ const DroneOperatorDescriptionBox = () => {
     const url = window.URL.createObjectURL(fileBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${waypointMode}.geojson`;
+    link.download = `flight_plan-${projectId}-${taskId}-${waypointMode}.geojson`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -86,7 +90,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'task_area.kml';
+        link.download = `task_area-${projectId}-${taskId}.kml`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -113,7 +117,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'task_area.geojson';
+        link.download = `task_area-${projectId}-${taskId}.geojson`;
         document.body.appendChild(link);
         link.click();
         link.remove();
