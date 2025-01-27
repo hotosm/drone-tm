@@ -18,6 +18,7 @@ export interface IDroneOperatorTaskState {
   uploadedImagesType: 'add' | 'replace';
   selectedTaskDetailToViewOrthophoto: any;
   filesExifData: IFilesExifData[];
+  uploadProgress: Record<string, any>;
   waypointMode: 'waypoints' | 'waylines';
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
@@ -36,6 +37,7 @@ const initialState: IDroneOperatorTaskState = {
   uploadedImagesType: 'add',
   selectedTaskDetailToViewOrthophoto: null,
   filesExifData: [],
+  uploadProgress: {},
   waypointMode: 'waypoints',
   taskAssetsInformation: {
     total_image_uploaded: 0,
@@ -101,6 +103,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setFilesExifData: (state, action) => {
       state.filesExifData = action.payload;
+    },
+    setUploadProgress: (state, action) => {
+      state.uploadProgress = action.payload;
     },
     resetFilesExifData: state => {
       state.filesExifData = [];

@@ -15,6 +15,7 @@ export const {
   setUploadedImagesType,
   setSelectedTaskDetailToViewOrthophoto,
   setFilesExifData,
+  setUploadProgress,
   resetFilesExifData,
   setWaypointMode,
   setTaskAssetsInformation,
