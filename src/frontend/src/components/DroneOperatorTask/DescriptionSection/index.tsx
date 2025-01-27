@@ -46,7 +46,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'flight_plan.kmz';
+        link.download = `flight_plan-${projectId}-${taskId}-${waypointMode}.kmz`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -68,7 +68,7 @@ const DroneOperatorDescriptionBox = () => {
     const url = window.URL.createObjectURL(fileBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${waypointMode}.geojson`;
+    link.download = `flight_plan-${projectId}-${taskId}-${waypointMode}.geojson`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -90,7 +90,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'task_area.kml';
+        link.download = `task_area-${projectId}-${taskId}.kml`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -117,7 +117,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'task_area.geojson';
+        link.download = `task_area-${projectId}-${taskId}.geojson`;
         document.body.appendChild(link);
         link.click();
         link.remove();
