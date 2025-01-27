@@ -106,3 +106,16 @@ export const showPrimaryButton = (
       return false;
   }
 };
+
+export const startProcessingOptions = [
+  {
+    label: 'Start Processing with GCP',
+    value: 'with_gcp',
+    name: 'start_processing',
+  },
+  {
+    label: 'Start Processing without GCP',
+    value: 'without_gcp',
+    name: 'start_processing',
+  },
+];
