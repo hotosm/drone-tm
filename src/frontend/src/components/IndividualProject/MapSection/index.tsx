@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { LngLatBoundsLike, Map, RasterSourceSpecification } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
 import { toast } from 'react-toastify';
 import { useGetTaskStatesQuery, useGetUserDetailsQuery } from '@Api/projects';
@@ -40,7 +40,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     null,
   );
 
-  // eslint-disable-next-line no-unused-vars
   const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
@@ -176,6 +175,15 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     [taskStatusObj, userDetails, projectData],
   );
 
+  const projectOrthophotoSource: RasterSourceSpecification = useMemo(
+    () => ({
+      type: 'raster',
+      url: `cog://${projectData?.orthophoto_url}`,
+      tileSize: 256,
+    }),
+    [projectData?.orthophoto_url],
+  );
+
   const handleTaskLockClick = () => {
     lockTask({
       projectId: id,
@@ -192,14 +200,14 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     });
   };
 
-  // const handleToggleOverallOrthophoto = () => {
-  //   map?.setLayoutProperty(
-  //     'task-orthophoto',
-  //     'visibility',
-  //     showOverallOrthophoto ? 'none' : 'visible',
-  //   );
-  //   setShowOverallOrthophoto(!showOverallOrthophoto);
-  // };
+  const handleToggleOverallOrthophoto = () => {
+    map?.setLayoutProperty(
+      'project-orthophoto',
+      'visibility',
+      showOverallOrthophoto ? 'none' : 'visible',
+    );
+    setShowOverallOrthophoto(!showOverallOrthophoto);
+  };
 
   return (
     <MapContainer
@@ -289,32 +297,34 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       {/* visualize tasks orthophoto end */}
 
       {/* visualize overall project orthophoto */}
-      {/* {visibleTaskOrthophoto?.map(orthophotoDetails => (
+      {projectData?.orthophoto_url && (
         <COGOrthophotoViewer
-          key={orthophotoDetails.taskId}
-          id={orthophotoDetails.taskId}
-          source={orthophotoDetails.source}
+          id="project-orthophoto"
+          source={projectOrthophotoSource}
           visibleOnMap
         />
-      ))} */}
+      )}
       {/* visualize tasks orthophoto end */}
 
       {/* additional controls */}
       <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
-        <Button
-          variant="ghost"
-          className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-          onClick={() => {}}
-        >
-          <ToolTip
-            name="visibility"
-            message="Show Orthophoto"
-            symbolType="material-icons"
-            iconClassName="!naxatw-text-xl !naxatw-text-black"
-            className="naxatw-mt-[-4px]"
-          />
-        </Button>
+        {projectData?.orthophoto_url && (
+          <Button
+            variant="ghost"
+            className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+            onClick={() => handleToggleOverallOrthophoto()}
+          >
+            <ToolTip
+              name="visibility"
+              message="Show Orthophoto"
+              symbolType="material-icons"
+              iconClassName="!naxatw-text-xl !naxatw-text-black"
+              className="naxatw-mt-[-4px]"
+            />
+          </Button>
+        )}
       </div>
+      {/*  additional controls */}
 
       <AsyncPopup
         map={map as Map}
