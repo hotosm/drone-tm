@@ -232,7 +232,7 @@ def generate_static_url(bucket_name: str, s3_path: str):
 
 def get_assets_url_for_project(project_id: str):
     """Get the assets URL for a project."""
-    project_assets_path = f"dtm_data/projects/{project_id}/assets.zip"
+    project_assets_path = f"dtm-data/projects/{project_id}/assets.zip"
     s3_download_root = settings.S3_DOWNLOAD_ROOT
     if s3_download_root:
         return urljoin(s3_download_root, project_assets_path)
@@ -241,7 +241,7 @@ def get_assets_url_for_project(project_id: str):
 
 def get_orthophoto_url_for_project(project_id: str):
     """Get the orthophoto URL for a project."""
-    project_orthophoto_path = f"dtm_data/projects/{project_id}/orthophoto/odm_orthophoto.tif"
+    project_orthophoto_path = f"dtm-data/projects/{project_id}/orthophoto/odm_orthophoto.tif"
     s3_download_root = settings.S3_DOWNLOAD_ROOT
     if s3_download_root:
         return urljoin(s3_download_root, project_orthophoto_path)
