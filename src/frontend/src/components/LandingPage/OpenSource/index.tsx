@@ -1,7 +1,7 @@
 import { FlexColumn } from '@Components/common/Layouts';
-import Image from '@Components/RadixComponents/Image';
-import { motion } from 'framer-motion';
-import forestImage from '@Assets/images/LandingPage/ForestImage.png';
+// import Image from '@Components/RadixComponents/Image';
+// import { motion } from 'framer-motion';
+// import forestImage from '@Assets/images/LandingPage/ForestImage.png';
 
 export default function OpenSource() {
   return (
@@ -23,14 +23,14 @@ export default function OpenSource() {
             for imagery acquisition, and a seamless pipeline for processing and
             dissemination.
           </p>
-          <motion.div
+          {/* <motion.div
             initial={{ translateX: -200, opacity: 0 }}
             whileInView={{ translateX: 0, opacity: 1 }}
             transition={{ duration: 0.7 }}
             viewport={{ once: true }}
           >
             <Image src={forestImage} />
-          </motion.div>
+          </motion.div> */}
         </FlexColumn>
       </div>
     </section>
