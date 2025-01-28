@@ -19,10 +19,13 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation } from '@tanstack/react-query';
 import getBbox from '@turf/bbox';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import {
   getLayerOptionsByStatus,
   showPrimaryButton,
 } from '@Constants/projectDescription';
+import { Button } from '@Components/RadixComponents/Button';
+import ToolTip from '@Components/RadixComponents/ToolTip';
 import Legend from './Legend';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
@@ -36,6 +39,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const [lockedUser, setLockedUser] = useState<Record<string, any> | null>(
     null,
   );
+
+  // eslint-disable-next-line no-unused-vars
+  const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
   const { map, isMapLoaded } = useMapLibreGLMap({
@@ -55,6 +61,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const taskClickedOnTable = useTypedSelector(
     state => state.project.taskClickedOnTable,
   );
+  const visibleTaskOrthophoto = useTypedSelector(
+    state => state.project.visibleOrthophotoList,
+  );
+
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
   });
@@ -182,6 +192,15 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     });
   };
 
+  // const handleToggleOverallOrthophoto = () => {
+  //   map?.setLayoutProperty(
+  //     'task-orthophoto',
+  //     'visibility',
+  //     showOverallOrthophoto ? 'none' : 'visible',
+  //   );
+  //   setShowOverallOrthophoto(!showOverallOrthophoto);
+  // };
+
   return (
     <MapContainer
       map={map}
@@ -257,6 +276,45 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             />
           );
         })}
+
+      {/* visualize tasks orthophoto */}
+      {visibleTaskOrthophoto?.map(orthophotoDetails => (
+        <COGOrthophotoViewer
+          key={orthophotoDetails.taskId}
+          id={orthophotoDetails.taskId}
+          source={orthophotoDetails.source}
+          visibleOnMap
+        />
+      ))}
+      {/* visualize tasks orthophoto end */}
+
+      {/* visualize overall project orthophoto */}
+      {/* {visibleTaskOrthophoto?.map(orthophotoDetails => (
+        <COGOrthophotoViewer
+          key={orthophotoDetails.taskId}
+          id={orthophotoDetails.taskId}
+          source={orthophotoDetails.source}
+          visibleOnMap
+        />
+      ))} */}
+      {/* visualize tasks orthophoto end */}
+
+      {/* additional controls */}
+      <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
+        <Button
+          variant="ghost"
+          className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+          onClick={() => {}}
+        >
+          <ToolTip
+            name="visibility"
+            message="Show Orthophoto"
+            symbolType="material-icons"
+            iconClassName="!naxatw-text-xl !naxatw-text-black"
+            className="naxatw-mt-[-4px]"
+          />
+        </Button>
+      </div>
 
       <AsyncPopup
         map={map as Map}
