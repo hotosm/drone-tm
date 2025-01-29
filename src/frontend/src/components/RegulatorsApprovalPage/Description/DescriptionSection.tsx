@@ -60,46 +60,51 @@ const DescriptionSection = ({
         </div>
       </div>
       {page !== 'project-approval' &&
-      projectData?.image_processing_status === 'NOT_STARTED' ? (
-        <div>
-          <Button
-            className="naxatw-bg-red"
-            withLoader
-            leftIcon="play_arrow"
-            onClick={() => {
-              dispatch(toggleModal('choose-processing-parameter'));
-            }}
-          >
-            Start Processing
-          </Button>
-        </div>
-      ) : projectData?.image_processing_status === 'SUCCESS' ? (
-        <></>
-      ) : projectData?.image_processing_status === 'PROCESSING' ? (
-        <div>
-          <Button
-            className="naxatw-bg-gray-500"
-            withLoader
-            isLoading
-            onClick={() => {}}
-          >
-            Processing
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <Button
-            className="naxatw-bg-red"
-            withLoader
-            leftIcon="replay"
-            onClick={() => {
-              dispatch(toggleModal('choose-processing-parameter'));
-            }}
-          >
-            Re-start Processing
-          </Button>
-        </div>
-      )}
+        (!projectData?.requires_approval_from_regulator ||
+          projectData?.regulator_approval_status === 'APPROVED') && (
+          <>
+            {projectData?.image_processing_status === 'NOT_STARTED' ? (
+              <div>
+                <Button
+                  className="naxatw-bg-red"
+                  withLoader
+                  leftIcon="play_arrow"
+                  onClick={() => {
+                    dispatch(toggleModal('choose-processing-parameter'));
+                  }}
+                >
+                  Start Processing
+                </Button>
+              </div>
+            ) : projectData?.image_processing_status === 'SUCCESS' ? (
+              <></>
+            ) : projectData?.image_processing_status === 'PROCESSING' ? (
+              <div>
+                <Button
+                  className="naxatw-bg-gray-500"
+                  withLoader
+                  isLoading
+                  onClick={() => {}}
+                >
+                  Processing
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <Button
+                  className="naxatw-bg-red"
+                  withLoader
+                  leftIcon="replay"
+                  onClick={() => {
+                    dispatch(toggleModal('choose-processing-parameter'));
+                  }}
+                >
+                  Re-start Processing
+                </Button>
+              </div>
+            )}
+          </>
+        )}
 
       {page === 'project-approval' &&
         projectData?.regulator_approval_status === 'PENDING' && (
