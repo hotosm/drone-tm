@@ -228,3 +228,23 @@ def generate_static_url(bucket_name: str, s3_path: str):
     protocol = "https" if is_secure else "http"
     base_url = f"{protocol}://{minio_url}/{bucket_name}/"
     return urljoin(base_url, s3_path)
+
+
+def get_assets_url_for_project(project_id: str):
+    """Get the assets URL for a project."""
+    project_assets_path = f"dtm-data/projects/{project_id}/assets.zip"
+    s3_download_root = settings.S3_DOWNLOAD_ROOT
+    if s3_download_root:
+        return urljoin(s3_download_root, project_assets_path)
+    return get_presigned_url(settings.S3_BUCKET_NAME, project_assets_path, 3)
+
+
+def get_orthophoto_url_for_project(project_id: str):
+    """Get the orthophoto URL for a project."""
+    project_orthophoto_path = (
+        f"dtm-data/projects/{project_id}/orthophoto/odm_orthophoto.tif"
+    )
+    s3_download_root = settings.S3_DOWNLOAD_ROOT
+    if s3_download_root:
+        return urljoin(s3_download_root, project_orthophoto_path)
+    return get_presigned_url(settings.S3_BUCKET_NAME, project_orthophoto_path, 3)

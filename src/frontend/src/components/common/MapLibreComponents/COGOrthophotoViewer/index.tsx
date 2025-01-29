@@ -52,8 +52,8 @@ const COGOrthophotoViewer = ({
     // eslint-disable-next-line consistent-return
     return () => {
       if (map?.getSource(id)) {
-        map?.removeSource(id);
         if (map?.getLayer(id)) map?.removeLayer(id);
+        map?.removeSource(id);
         map.off('idle', handleZoomToGeoTiff);
       }
     };

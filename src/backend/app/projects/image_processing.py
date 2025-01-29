@@ -404,88 +404,84 @@ async def process_assets_from_odm(
         task = node.get_task(odm_task_id)
         log.info(f"Downloading results for task {odm_task_id} to {output_file_path}")
 
-        assets_path = task.download_zip(output_file_path)
-        if not os.path.exists(assets_path):
-            log.error(f"Downloaded file not found: {assets_path}")
-            raise
-        log.info(f"Successfully downloaded ZIP to {assets_path}")
+        if str(odm_status_code) == "30":
+            status = ImageProcessingStatus.FAILED
+        elif str(odm_status_code) == "40":
+            assets_path = task.download_zip(output_file_path)
+            if not os.path.exists(assets_path):
+                log.error(f"Downloaded file not found: {assets_path}")
+                raise
+            log.info(f"Successfully downloaded ZIP to {assets_path}")
 
-        # Construct the S3 path dynamically to avoid empty segments
-        task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-        s3_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}assets.zip"
-        log.info(f"Uploading {assets_path} to S3 path: {s3_path}")
-        add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
+            # Construct the S3 path dynamically to avoid empty segments
+            task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
+            s3_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}assets.zip"
+            log.info(f"Uploading {assets_path} to S3 path: {s3_path}")
+            add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
-        with zipfile.ZipFile(assets_path, "r") as zip_ref:
-            zip_ref.extractall(output_file_path)
+            with zipfile.ZipFile(assets_path, "r") as zip_ref:
+                zip_ref.extractall(output_file_path)
 
-        orthophoto_path = os.path.join(
-            output_file_path, "odm_orthophoto", "odm_orthophoto.tif"
-        )
-        if not os.path.exists(orthophoto_path):
-            log.error(f"Orthophoto not found at {orthophoto_path}")
-            raise FileNotFoundError("Orthophoto file is missing")
-
-        reproject_to_web_mercator(orthophoto_path, orthophoto_path)
-        s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
-        log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
-        add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
-
-        images_json_path = os.path.join(output_file_path, "images.json")
-        if os.path.exists(images_json_path):
-            s3_images_json_path = (
-                f"dtm-data/projects/{dtm_project_id}/{task_segment}images.json"
+            orthophoto_path = os.path.join(
+                output_file_path, "odm_orthophoto", "odm_orthophoto.tif"
             )
-            log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
-            add_file_to_bucket(
-                settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
-            )
-        else:
-            log.warning(f"images.json not found in {output_file_path}")
+            if not os.path.exists(orthophoto_path):
+                log.error(f"Orthophoto not found at {orthophoto_path}")
+                raise FileNotFoundError("Orthophoto file is missing")
 
-        log.info(f"Processing complete for project {dtm_project_id}")
+            reproject_to_web_mercator(orthophoto_path, orthophoto_path)
+            s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
+            log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
+            add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
-        if state and dtm_task_id and dtm_user_id:
-            # NOTE: This function uses a separate database connection pool because it is called by an internal server
-            # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
-            pool = await database.get_db_connection_pool()
-            async with pool as pool_instance:
-                async with pool_instance.connection() as conn:
-                    await task_logic.update_task_state(
-                        db=conn,
-                        project_id=dtm_project_id,
-                        task_id=dtm_task_id,
-                        user_id=dtm_user_id,
-                        comment=message,
-                        initial_state=state,
-                        final_state=State.IMAGE_PROCESSING_FINISHED,
-                        updated_at=timestamp(),
-                    )
-                    log.info(
-                        f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
-                    )
+            images_json_path = os.path.join(output_file_path, "images.json")
+            if os.path.exists(images_json_path):
+                s3_images_json_path = (
+                    f"dtm-data/projects/{dtm_project_id}/{task_segment}images.json"
+                )
+                log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
+                add_file_to_bucket(
+                    settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
+                )
+            else:
+                log.warning(f"images.json not found in {output_file_path}")
 
-                    s3_path_url = (
-                        f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
-                    )
-                    # update the task table
-                    await project_logic.update_task_field(
-                        conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
-                    )
+            log.info(f"Processing complete for project {dtm_project_id}")
 
+            if state and dtm_task_id and dtm_user_id:
+                # NOTE: This function uses a separate database connection pool because it is called by an internal server
+                # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
+                pool = await database.get_db_connection_pool()
+                async with pool as pool_instance:
+                    async with pool_instance.connection() as conn:
+                        await task_logic.update_task_state(
+                            db=conn,
+                            project_id=dtm_project_id,
+                            task_id=dtm_task_id,
+                            user_id=dtm_user_id,
+                            comment=message,
+                            initial_state=state,
+                            final_state=State.IMAGE_PROCESSING_FINISHED,
+                            updated_at=timestamp(),
+                        )
+                        log.info(
+                            f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
+                        )
+
+                        s3_path_url = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+                        # update the task table
+                        await project_logic.update_task_field(
+                            conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
+                        )
+
+            status = ImageProcessingStatus.SUCCESS
         if not dtm_task_id:
             # Update the image processing status
             pool = await database.get_db_connection_pool()
             async with pool as pool_instance:
                 async with pool_instance.connection() as conn:
                     await project_logic.update_processing_status(
-                        conn,
-                        dtm_project_id,
-                        (
-                            ImageProcessingStatus.SUCCESS
-                            if odm_status_code == 40
-                            else ImageProcessingStatus.FAILED
-                        ),
+                        conn, dtm_project_id, status
                     )
 
     except Exception as e:

@@ -18,9 +18,11 @@ export interface IDroneOperatorTaskState {
   uploadedImagesType: 'add' | 'replace';
   selectedTaskDetailToViewOrthophoto: any;
   filesExifData: IFilesExifData[];
+  uploadProgress: Record<string, any>;
   waypointMode: 'waypoints' | 'waylines';
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
+  rotationAngle: number;
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -35,6 +37,7 @@ const initialState: IDroneOperatorTaskState = {
   uploadedImagesType: 'add',
   selectedTaskDetailToViewOrthophoto: null,
   filesExifData: [],
+  uploadProgress: {},
   waypointMode: 'waypoints',
   taskAssetsInformation: {
     total_image_uploaded: 0,
@@ -45,6 +48,7 @@ const initialState: IDroneOperatorTaskState = {
     geojsonListOfPoint: {},
     geojsonAsLineString: {},
   },
+  rotationAngle: 0,
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -100,6 +104,9 @@ export const droneOperatorTaskSlice = createSlice({
     setFilesExifData: (state, action) => {
       state.filesExifData = action.payload;
     },
+    setUploadProgress: (state, action) => {
+      state.uploadProgress = action.payload;
+    },
     resetFilesExifData: state => {
       state.filesExifData = [];
     },
@@ -111,6 +118,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setRotatedFlightPlan: (state, action) => {
       state.rotatedFlightPlan = action.payload;
+    },
+    setRotationAngle: (state, action) => {
+      state.rotationAngle = action.payload;
     },
   },
 });

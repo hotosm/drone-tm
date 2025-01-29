@@ -25,7 +25,12 @@ from app.utils import (
 )
 from psycopg.rows import dict_row
 from app.config import settings
-from app.s3 import generate_static_url, get_presigned_url
+from app.s3 import (
+    generate_static_url,
+    get_presigned_url,
+    get_assets_url_for_project,
+    get_orthophoto_url_for_project,
+)
 
 
 class CentroidOut(BaseModel):
@@ -219,6 +224,8 @@ class DbProject(BaseModel):
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
     image_processing_status: Optional[str] = None
+    assets_url: Optional[str] = None
+    orthophoto_url: Optional[str] = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_id: Optional[str] = None
@@ -594,6 +601,8 @@ class ProjectInfo(BaseModel):
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
     image_processing_status: Optional[str] = None
+    assets_url: Optional[str] = None
+    orthophoto_url: Optional[str] = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_name: Optional[str] = None
@@ -614,6 +623,30 @@ class ProjectInfo(BaseModel):
         if project_id:
             image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
             values.image_url = get_presigned_url(settings.S3_BUCKET_NAME, image_dir, 5)
+        return values
+
+    @model_validator(mode="after")
+    def set_assets_url(cls, values):
+        """Set assets_url before rendering the model."""
+        project_id = values.id
+        if project_id:
+            values.assets_url = (
+                get_assets_url_for_project(project_id)
+                if values.image_processing_status == "SUCCESS"
+                else None
+            )
+        return values
+
+    @model_validator(mode="after")
+    def set_orthophoto_url(cls, values):
+        """Set orthophoto_url before rendering the model."""
+        project_id = values.id
+        if project_id:
+            values.orthophoto_url = (
+                get_orthophoto_url_for_project(project_id)
+                if values.image_processing_status == "SUCCESS"
+                else None
+            )
         return values
 
     @model_validator(mode="after")

@@ -16,6 +16,7 @@ const BreadCrumb = ({ data }: IBreadCrumbProps) => {
       {data.map((breadCrumbItem, index) => (
         <>
           <div
+            key={breadCrumbItem.name}
             onClick={() =>
               index < data.length - 1
                 ? navigate(breadCrumbItem.navLink)

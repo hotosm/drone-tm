@@ -10,6 +10,7 @@ export interface ProjectState {
   taskClickedOnTable: Record<string, any> | null;
   showGcpEditor: boolean;
   gcpData: any;
+  visibleOrthophotoList: Record<string, any>[];
 }
 
 const initialState: ProjectState = {
@@ -20,6 +21,7 @@ const initialState: ProjectState = {
   taskClickedOnTable: null,
   showGcpEditor: false,
   gcpData: null,
+  visibleOrthophotoList: [],
 };
 
 const setProjectState: CaseReducer<

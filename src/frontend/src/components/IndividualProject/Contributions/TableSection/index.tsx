@@ -1,12 +1,14 @@
 import DataTable from '@Components/common/DataTable';
 import Icon from '@Components/common/Icon';
-import { toggleModal } from '@Store/actions/common';
-import { setSelectedTaskDetailToViewOrthophoto } from '@Store/actions/droneOperatorTask';
+import { setProjectState } from '@Store/actions/project';
 import { useTypedSelector } from '@Store/hooks';
 import { formatString } from '@Utils/index';
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+
+const { COG_URL } = process.env;
 
 const contributionsDataColumns = [
   {
@@ -29,6 +31,11 @@ const contributionsDataColumns = [
     cell: function CellComponent({ row }: any) {
       const { original: rowData } = row;
       const dispatch = useDispatch();
+      const { id } = useParams();
+      const visibleOrthophotoList = useTypedSelector(
+        state => state.project.visibleOrthophotoList,
+      );
+
       const handleDownloadResult = () => {
         if (!rowData?.assets_url) return;
         try {
@@ -43,14 +50,32 @@ const contributionsDataColumns = [
         }
       };
 
+      const currentOrthophoto = visibleOrthophotoList?.find(
+        (orthophoto: Record<string, any>) =>
+          orthophoto?.taskId === rowData.task_id,
+      );
+
       const handleViewResult = () => {
-        dispatch(
-          setSelectedTaskDetailToViewOrthophoto({
-            outline: rowData?.outline,
-            taskId: rowData?.task_id,
-          }),
-        );
-        dispatch(toggleModal('task-ortho-photo-preview'));
+        let newVisibleList: Record<string, any>[] = [];
+        if (currentOrthophoto) {
+          newVisibleList = visibleOrthophotoList.filter(
+            (orthophoto: Record<string, any>) =>
+              orthophoto?.taskId !== rowData?.task_id,
+          );
+        } else {
+          newVisibleList = [
+            ...visibleOrthophotoList,
+            {
+              taskId: rowData.task_id,
+              source: {
+                type: 'raster',
+                url: `cog://${COG_URL}/dtm-data/projects/${id}/${rowData?.task_id}/orthophoto/odm_orthophoto.tif`,
+                tileSize: 256,
+              },
+            },
+          ];
+        }
+        dispatch(setProjectState({ visibleOrthophotoList: newVisibleList }));
       };
 
       return (
@@ -63,7 +88,10 @@ const contributionsDataColumns = [
               onKeyDown={() => {}}
               onClick={() => handleViewResult()}
             >
-              <Icon className="!naxatw-text-icon-sm" name="visibility" />
+              <Icon
+                className="!naxatw-text-icon-sm"
+                name={currentOrthophoto ? 'visibility' : 'visibility_off'}
+              />
             </div>
           </div>
           <div

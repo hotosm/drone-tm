@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
+import { LngLatBoundsLike, Map, RasterSourceSpecification } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
 import { toast } from 'react-toastify';
 import { useGetTaskStatesQuery, useGetUserDetailsQuery } from '@Api/projects';
@@ -19,10 +19,13 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation } from '@tanstack/react-query';
 import getBbox from '@turf/bbox';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import {
   getLayerOptionsByStatus,
   showPrimaryButton,
 } from '@Constants/projectDescription';
+import { Button } from '@Components/RadixComponents/Button';
+import ToolTip from '@Components/RadixComponents/ToolTip';
 import Legend from './Legend';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
@@ -36,6 +39,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const [lockedUser, setLockedUser] = useState<Record<string, any> | null>(
     null,
   );
+
+  const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
   const { map, isMapLoaded } = useMapLibreGLMap({
@@ -55,6 +60,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const taskClickedOnTable = useTypedSelector(
     state => state.project.taskClickedOnTable,
   );
+  const visibleTaskOrthophoto = useTypedSelector(
+    state => state.project.visibleOrthophotoList,
+  );
+
   const { data: taskStates } = useGetTaskStatesQuery(id as string, {
     enabled: !!tasksData,
   });
@@ -152,7 +161,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           case 'IMAGE_UPLOADED':
             return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_STARTED':
-              return `This task is started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_FINISHED':
             return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'IMAGE_PROCESSING_FAILED':
@@ -164,6 +173,15 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       return <h6>{popupText(status)}</h6>;
     },
     [taskStatusObj, userDetails, projectData],
+  );
+
+  const projectOrthophotoSource: RasterSourceSpecification = useMemo(
+    () => ({
+      type: 'raster',
+      url: `cog://${projectData?.orthophoto_url}`,
+      tileSize: 256,
+    }),
+    [projectData?.orthophoto_url],
   );
 
   const handleTaskLockClick = () => {
@@ -180,6 +198,15 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       taskId: selectedTaskId,
       data: { event: 'unlock', updated_at: new Date().toISOString() },
     });
+  };
+
+  const handleToggleOverallOrthophoto = () => {
+    map?.setLayoutProperty(
+      'project-orthophoto',
+      'visibility',
+      showOverallOrthophoto ? 'none' : 'visible',
+    );
+    setShowOverallOrthophoto(!showOverallOrthophoto);
   };
 
   return (
@@ -257,6 +284,48 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             />
           );
         })}
+
+      {/* visualize tasks orthophoto */}
+      {visibleTaskOrthophoto?.map(orthophotoDetails => (
+        <COGOrthophotoViewer
+          key={orthophotoDetails.taskId}
+          id={orthophotoDetails.taskId}
+          source={orthophotoDetails.source}
+          visibleOnMap
+        />
+      ))}
+      {/* visualize tasks orthophoto end */}
+
+      {/* visualize overall project orthophoto */}
+      {projectData?.orthophoto_url && (
+        <COGOrthophotoViewer
+          id="project-orthophoto"
+          source={projectOrthophotoSource}
+          visibleOnMap
+          zoomToLayer
+        />
+      )}
+      {/* visualize tasks orthophoto end */}
+
+      {/* additional controls */}
+      <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
+        {projectData?.orthophoto_url && (
+          <Button
+            variant="ghost"
+            className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+            onClick={() => handleToggleOverallOrthophoto()}
+          >
+            <ToolTip
+              name="visibility"
+              message="Show Orthophoto"
+              symbolType="material-icons"
+              iconClassName="!naxatw-text-xl !naxatw-text-black"
+              className="naxatw-mt-[-4px]"
+            />
+          </Button>
+        )}
+      </div>
+      {/*  additional controls */}
 
       <AsyncPopup
         map={map as Map}

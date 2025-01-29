@@ -22,6 +22,7 @@ import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
 import UploadsBox from '../UploadsBox';
+import ProgressBar from './ProgessBar';
 
 const DescriptionBox = () => {
   const dispatch = useDispatch();
@@ -33,6 +34,9 @@ const DescriptionBox = () => {
   );
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
+  );
+  const uploadProgress = useTypedSelector(
+    state => state.droneOperatorTask.uploadProgress,
   );
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
@@ -194,6 +198,11 @@ const DescriptionBox = () => {
     }
   };
 
+  const progressDetails = useMemo(
+    () => uploadProgress?.[taskId || ''],
+    [taskId, uploadProgress],
+  );
+
   return (
     <>
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
@@ -261,72 +270,83 @@ const DescriptionBox = () => {
               </Button>
             </div>
           )}
-          {taskAssetsInformation?.state === 'IMAGE_UPLOADED' && (
-            <div className="">
-              <Button
-                variant="ghost"
-                className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-                leftIcon="replay"
-                iconClassname="naxatw-text-[1.125rem]"
-                onClick={() => startImageryProcess()}
-                disabled={imageProcessingStarting || statusUpdating}
-              >
-                Start Processing
-              </Button>
-            </div>
-          )}
-          {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
-            <div className="">
-              <Button
-                variant="ghost"
-                className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-                leftIcon="replay"
-                iconClassname="naxatw-text-[1.125rem]"
-                onClick={() => startImageryProcess()}
-                disabled={imageProcessingStarting || statusUpdating}
-              >
-                Re-run processing
-              </Button>
-            </div>
-          )}
-          {(taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
-            // if the state is LOCKED_FOR_MAPPING and has a image count it means all selected images are not uploaded and the status updating api call is interrupted so need to give user to upload the remaining images
-            taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' ||
-            taskAssetsInformation?.state === 'IMAGE_UPLOADED') && (
-            <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pb-4">
-              <Label>
-                <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
-                  Upload Images
-                </p>
-              </Label>
-              <SwitchTab
-                options={[
-                  {
-                    name: 'image-upload-for',
-                    value: 'add',
-                    label: 'Add to existing',
-                  },
-                  {
-                    name: 'image-upload-for',
-                    value: 'replace',
-                    label: 'Replace existing',
-                  },
-                ]}
-                valueKey="value"
-                selectedValue={uploadedImageType}
-                activeClassName="naxatw-bg-red naxatw-text-white"
-                onChange={(selected: Record<string, any>) => {
-                  dispatch(setUploadedImagesType(selected.value));
-                }}
-              />
-              <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
-                Note:{' '}
-                {uploadedImageType === 'add'
-                  ? 'Uploaded images will be added with the existing images.'
-                  : 'Uploaded images will be replaced with all the existing images and starts processing.'}
-              </p>
-              <UploadsBox label="" />
-            </div>
+
+          {progressDetails?.uploadedFiles ? (
+            <ProgressBar
+              heading="Uploading Images"
+              successCount={progressDetails?.uploadedFiles}
+              totalCount={progressDetails.totalFiles}
+            />
+          ) : (
+            <>
+              {taskAssetsInformation?.state === 'IMAGE_UPLOADED' && (
+                <div className="">
+                  <Button
+                    variant="ghost"
+                    className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
+                    leftIcon="play_arrow"
+                    iconClassname="naxatw-text-[1.125rem]"
+                    onClick={() => startImageryProcess()}
+                    disabled={imageProcessingStarting || statusUpdating}
+                  >
+                    Start Processing
+                  </Button>
+                </div>
+              )}
+              {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
+                <div className="">
+                  <Button
+                    variant="ghost"
+                    className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
+                    leftIcon="replay"
+                    iconClassname="naxatw-text-[1.125rem]"
+                    onClick={() => startImageryProcess()}
+                    disabled={imageProcessingStarting || statusUpdating}
+                  >
+                    Re-run processing
+                  </Button>
+                </div>
+              )}
+              {(taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
+                // if the state is LOCKED_FOR_MAPPING and has a image count it means all selected images are not uploaded and the status updating api call is interrupted so need to give user to upload the remaining images
+                taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' ||
+                taskAssetsInformation?.state === 'IMAGE_UPLOADED') && (
+                <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pb-4">
+                  <Label>
+                    <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
+                      Upload Images
+                    </p>
+                  </Label>
+                  <SwitchTab
+                    options={[
+                      {
+                        name: 'image-upload-for',
+                        value: 'add',
+                        label: 'Add to existing',
+                      },
+                      {
+                        name: 'image-upload-for',
+                        value: 'replace',
+                        label: 'Replace existing',
+                      },
+                    ]}
+                    valueKey="value"
+                    selectedValue={uploadedImageType}
+                    activeClassName="naxatw-bg-red naxatw-text-white"
+                    onChange={(selected: Record<string, any>) => {
+                      dispatch(setUploadedImagesType(selected.value));
+                    }}
+                  />
+                  <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
+                    Note:{' '}
+                    {uploadedImageType === 'add'
+                      ? 'Uploaded images will be added with the existing images.'
+                      : 'Uploaded images will be replaced with all the existing images and starts processing.'}
+                  </p>
+                  <UploadsBox label="" />
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
