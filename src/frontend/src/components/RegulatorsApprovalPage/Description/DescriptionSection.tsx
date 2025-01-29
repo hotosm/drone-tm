@@ -1,6 +1,7 @@
 /* eslint-disable no-nested-ternary */
 import { useDispatch } from 'react-redux';
 import { Button } from '@Components/RadixComponents/Button';
+import { descriptionItems } from '@Constants/projectDescription';
 import { toggleModal } from '@Store/actions/common';
 import ApprovalSection from './ApprovalSection';
 
@@ -23,49 +24,39 @@ const DescriptionSection = ({
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-text-sm">
         <p>{projectData?.description || ''}</p>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
-          <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-[146px]">Total Project Area </p>
-            <p>:</p>
-            <p className="naxatw-font-semibold">
-              {projectData?.project_area?.toFixed(3)?.replace(/\.00$/, '') ||
-                ''}{' '}
-              km²
-            </p>
-          </div>
-          <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-[146px]">Project Created By </p>
-            <p>:</p>{' '}
-            <p className="naxatw-font-semibold">
-              {projectData?.author_name || ''}
-            </p>
-          </div>
-          <div className="naxatw-flex naxatw-gap-2">
-            <p className="naxatw-w-[146px]"> Total Tasks </p>
-            <p>:</p>{' '}
-            <p className="naxatw-font-semibold">
-              {projectData?.tasks?.length || ''}
-            </p>
-          </div>
-          {projectData?.regulator_comment && (
-            <div className="naxatw-flex naxatw-gap-2">
-              <p className="naxatw-w-[146px]">Local Regulator Comment </p>
-              <p>:</p>{' '}
-              <p className="naxatw-font-semibold">
-                {projectData?.regulator_comment || ''}
-              </p>
-            </div>
-          )}
-          {projectData?.regulator_approval_status && (
-            <div className="naxatw-flex naxatw-gap-2">
-              <p className="naxatw-w-[146px]">
-                Local Regulator Approval Status
-              </p>
-              <p>:</p>{' '}
-              <p className="naxatw-font-semibold">
-                {projectData?.regulator_approval_status || ''}
-              </p>
-            </div>
-          )}
+          {descriptionItems.map(descriptionItem => {
+            if (
+              projectData?.[descriptionItem.key] ||
+              descriptionItem.expectedDataType === 'boolean'
+            ) {
+              const dataType = descriptionItem.expectedDataType;
+              const value = projectData?.[descriptionItem.key];
+              const unite = descriptionItem?.unite || '';
+              return (
+                <div
+                  className="naxatw-flex naxatw-gap-2"
+                  key={descriptionItem.key}
+                >
+                  <p className="naxatw-w-[146px]">{descriptionItem.label}</p>
+                  <p>:</p>
+                  <p className="naxatw-font-semibold">
+                    {dataType === 'boolean'
+                      ? value
+                        ? 'Yes'
+                        : 'No'
+                      : dataType === 'double'
+                        ? value.toFixed(3)?.replace(/\.00$/, '') || ''
+                        : dataType === 'array'
+                          ? value?.length
+                          : value}{' '}
+                    {unite}
+                    {}
+                  </p>
+                </div>
+              );
+            }
+            return <></>;
+          })}
         </div>
       </div>
       {page !== 'project-approval' &&
