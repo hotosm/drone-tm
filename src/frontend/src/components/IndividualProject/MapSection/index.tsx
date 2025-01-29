@@ -381,7 +381,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         }
         hasSecondaryButton={
           taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
-          lockedUser?.id === userDetails?.id
+          (lockedUser?.id === userDetails?.id ||
+            projectData?.author_id === userDetails?.id) // enable task unlock to the project author
         }
         secondaryButtonText="Unlock Task"
         handleSecondaryBtnClick={() => handleTaskUnLockClick()}
