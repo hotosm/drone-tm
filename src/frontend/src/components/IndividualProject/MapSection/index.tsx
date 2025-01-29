@@ -302,6 +302,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           id="project-orthophoto"
           source={projectOrthophotoSource}
           visibleOnMap
+          zoomToLayer
         />
       )}
       {/* visualize tasks orthophoto end */}

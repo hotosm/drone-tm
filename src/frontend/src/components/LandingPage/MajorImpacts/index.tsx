@@ -12,7 +12,7 @@ import {
 export default function MajorImpacts() {
   return (
     <section className="major-impacts naxatw-overflow-hidden">
-      <div className="naxatw-bg-landing-white naxatw-px-8 naxatw-py-4 md:naxatw-px-20 lg:naxatw-py-40">
+      <div className="naxatw-bg-landing-white naxatw-px-8 naxatw-py-4 md:naxatw-px-20 lg:naxatw-pt-40">
         <Grid
           gap={10}
           className="naxatw-grid naxatw-grid-cols-1 lg:naxatw-grid-cols-2"

@@ -8,6 +8,8 @@ interface ITaskLogsTableProps {
 
 const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
   const navigate = useNavigate();
+
+  if (!taskList?.length) return <div>No data available</div>;
   return (
     <div className="flex scrollbar naxatw-max-h-[calc(100vh-22rem)] naxatw-overflow-y-auto">
       <table className="naxatw-relative naxatw-w-full naxatw-rounded-lg">

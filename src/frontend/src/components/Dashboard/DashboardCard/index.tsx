@@ -28,8 +28,12 @@ const DashboardCard = ({ title, count, active }: IDashboardCardProps) => {
     >
       <Image src={graphImage} />
       <FlexColumn>
-        <h2>{count}</h2>
-        <p>{title}</p>
+        <h2 className="naxatw-text-4xl naxatw-font-semibold naxatw-text-red">
+          {count}
+        </h2>
+        <p className="naxatw-text-xs naxatw-font-medium naxatw-text-gray-600">
+          {title}
+        </p>
       </FlexColumn>
     </FlexRow>
   );

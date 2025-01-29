@@ -14,6 +14,7 @@ import {
   SignInOverlay,
 } from '@Components/LandingPage';
 import { AnimatePresence } from 'framer-motion';
+import MobileAppDownload from '@Components/LandingPage/MobileAppDownload';
 
 export default function LandingPage() {
   const openSignInMenu = useTypedSelector(state => state.common.openSignInMenu);
@@ -27,6 +28,7 @@ export default function LandingPage() {
       <OurRationale />
       <OpenSource />
       <Features />
+      <MobileAppDownload />
       <UserAndRoles />
       <MajorImpacts />
       {/* <CaseStudies /> */}
