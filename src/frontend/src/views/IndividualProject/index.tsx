@@ -1,5 +1,10 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import centroid from '@turf/centroid';
+import html2canvas from 'html2canvas';
 import { useGetProjectsDetailQuery } from '@Api/projects';
 import BreadCrumb from '@Components/common/Breadcrumb';
 import Tab from '@Components/common/Tabs';
@@ -11,17 +16,17 @@ import {
 } from '@Components/IndividualProject';
 import ExportSection from '@Components/IndividualProject/ExportSection';
 import GcpEditor from '@Components/IndividualProject/GcpEditor';
+import ProjectPromptDialog from '@Components/IndividualProject/ModalContent';
+import DeleteProjectPromptDialog from '@Components/IndividualProject/ModalContent/DeleteProjectConfirmation';
 import { Button } from '@Components/RadixComponents/Button';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import DescriptionSection from '@Components/RegulatorsApprovalPage/Description/DescriptionSection';
 import { projectOptions } from '@Constants/index';
+import { deleteProject } from '@Services/project';
 import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import centroid from '@turf/centroid';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import html2canvas from 'html2canvas';
-import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
 
 // eslint-disable-next-line camelcase
 const { BASE_URL } = process.env;
@@ -62,9 +67,12 @@ const getActiveTabContent = (
 
 const IndividualProject = () => {
   const { id } = useParams();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const dispatch = useTypedDispatch();
   const exportRef = useRef<any>(null);
   const [exportingContent, setExportingContent] = useState(false);
+  const [showProjectDeletePrompt, setShowProjectDeletePrompt] = useState(false);
 
   const individualProjectActiveTab = useTypedSelector(
     state => state.project.individualProjectActiveTab,
@@ -97,6 +105,15 @@ const IndividualProject = () => {
     },
   });
 
+  const { mutate, isLoading } = useMutation({
+    mutationFn: (projectId: string) => deleteProject(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['projects-list']);
+      toast.error('Project Deleted Successfully');
+      navigate('/projects');
+    },
+  });
+
   const handleTableRowClick = (taskData: any) => {
     const clickedTask = tasksList?.find(
       (task: Record<string, any>) => taskData?.task_id === task?.id,
@@ -123,6 +140,10 @@ const IndividualProject = () => {
     };
   }, [dispatch]);
 
+  const handleDeleteProject = () => {
+    mutate(id as string);
+  };
+
   return (
     <>
       <section className="individual project naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
@@ -133,26 +154,30 @@ const IndividualProject = () => {
               { name: projectData?.name || '--', navLink: '' },
             ]}
           />
-          <Button
-            leftIcon="download"
-            size="sm"
-            className="naxatw-bg-red naxatw-pr-1"
-            title="Download Project Details"
-            withLoader
-            isLoading={exportingContent}
-            onClick={() => {
-              setExportingContent(true);
-              setTimeout(() => {
-                html2canvas(exportRef?.current).then((canvas: any) => {
-                  const link = document.createElement('a');
-                  link.download = `${projectData?.name}.png`;
-                  link.href = canvas.toDataURL();
-                  link.click();
-                });
-                setExportingContent(false);
-              }, 1000);
-            }}
-          />
+          <div className="naxatw-flex naxatw-gap-5">
+            <Button
+              leftIcon="download"
+              size="sm"
+              className="naxatw-border naxatw-bg-redlight !naxatw-text-red hover:naxatw-border-red"
+              title="Download Project Details"
+              withLoader
+              isLoading={exportingContent}
+              onClick={() => {
+                setExportingContent(true);
+                setTimeout(() => {
+                  html2canvas(exportRef?.current).then((canvas: any) => {
+                    const link = document.createElement('a');
+                    link.download = `${projectData?.name}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                  });
+                  setExportingContent(false);
+                }, 1000);
+              }}
+            >
+              Export
+            </Button>
+          </div>
         </div>
         {showGcpEditor ? (
           <div className="naxatw-relative naxatw-h-full naxatw-bg-slate-300">
@@ -174,7 +199,7 @@ const IndividualProject = () => {
           </div>
         ) : (
           <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">
-            <div className="naxatw-order-2 naxatw-w-full naxatw-max-w-[30rem]">
+            <div className="naxatw-relative naxatw-order-2 naxatw-w-full naxatw-max-w-[30rem] naxatw-pb-20">
               <Tab
                 orientation="row"
                 className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
@@ -190,13 +215,28 @@ const IndividualProject = () => {
                 activeTab={individualProjectActiveTab}
                 clickable
               />
-              <div className="naxatw-h-fit naxatw-max-h-[calc(200px)] naxatw-border-t">
+              <div className="naxatw-h-fit naxatw-max-h-[calc(100vh-280px)] naxatw-overflow-y-auto naxatw-border-t">
                 {getActiveTabContent(
                   individualProjectActiveTab,
                   projectData as Record<string, any>,
                   isProjectDataFetching,
                   handleTableRowClick,
                 )}
+              </div>
+              <div className="naxatw-absolute naxatw-bottom-0 naxatw-flex naxatw-w-full naxatw-justify-center">
+                <Button
+                  leftIcon="delete"
+                  size="default"
+                  className="naxatw-border naxatw-bg-gray-500 naxatw-px-2"
+                  title="Delete Project"
+                  withLoader
+                  isLoading={exportingContent}
+                  onClick={() => {
+                    setShowProjectDeletePrompt(true);
+                  }}
+                >
+                  Delete Project
+                </Button>
               </div>
             </div>
             <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full md:naxatw-order-2">
@@ -219,6 +259,19 @@ const IndividualProject = () => {
           <ExportSection projectData={projectData} />
         </div>
       </div>
+
+      <ProjectPromptDialog
+        title="Delete Project"
+        show={showProjectDeletePrompt}
+        onClose={() => setShowProjectDeletePrompt(false)}
+      >
+        <DeleteProjectPromptDialog
+          projectName={projectData?.name || ''}
+          isLoading={isLoading}
+          handleDeleteProject={handleDeleteProject}
+          setShowUnlockDialog={setShowProjectDeletePrompt}
+        />
+      </ProjectPromptDialog>
     </>
   );
 };

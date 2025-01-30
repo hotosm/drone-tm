@@ -24,3 +24,6 @@ export const processAllImagery = (data: Record<string, any>) => {
   }
   return authenticated(api).post(`/projects/process_all_imagery/${projectId}/`);
 };
+
+export const deleteProject = (projectId: string) =>
+  authenticated(api).delete(`/projects/${projectId}`);
