@@ -132,17 +132,23 @@ class DroneImageProcessor:
                 get_presigned_url(bucket_name, obj.object_name, 12) for obj in objects
             ]
 
+        total_files = len(object_urls)
         async with aiohttp.ClientSession() as session:
-            for i in range(0, len(object_urls), batch_size):
+            for i in range(0, total_files, batch_size):
                 batch = object_urls[i : i + batch_size]
+                batch_number = i // batch_size + 1
+                total_batches = (total_files + batch_size - 1) // batch_size
 
+                log.info(f"Processing batch {batch_number}/{total_batches}")
                 tasks = [
                     self.download_image(
-                        session, url, os.path.join(local_dir, f"file_{i + 1}.jpg")
+                        session, url, os.path.join(local_dir, f"file_{i + j + 1}.jpg")
                     )
-                    for i, url in enumerate(batch)
+                    for j, url in enumerate(batch)
                 ]
                 await asyncio.gather(*tasks)
+
+        log.info(f"Completed downloading {total_files} images")
 
     def process_new_task(
         self,
