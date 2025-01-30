@@ -27,6 +27,8 @@ import {
 import { Button } from '@Components/RadixComponents/Button';
 import ToolTip from '@Components/RadixComponents/ToolTip';
 import Legend from './Legend';
+import ProjectPromptDialog from '../ModalContent';
+import UnlockTaskPromptDialog from '../ModalContent/UnlockTaskPromptDialog';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const { id } = useParams();
@@ -39,6 +41,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const [lockedUser, setLockedUser] = useState<Record<string, any> | null>(
     null,
   );
+  const [showUnlockDialog, setShowUnlockDialog] = useState(false);
 
   const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
@@ -210,199 +213,213 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   };
 
   return (
-    <MapContainer
-      map={map}
-      isMapLoaded={isMapLoaded}
-      style={{
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
-      <LocateUser isMapLoaded={isMapLoaded} />
-      {projectArea && (
-        <VectorLayer
-          map={map as Map}
-          id="project-area"
-          visibleOnMap
-          geojson={
-            {
-              type: 'FeatureCollection',
-              features: [projectArea],
-            } as GeojsonType
-          }
-          layerOptions={{
-            type: 'line',
-            paint: {
-              'line-color': '#D73F3F',
-              'line-width': 2,
-            },
-          }}
-        />
-      )}
-
-      {projectData?.no_fly_zones_geojson && (
-        <VectorLayer
-          map={map as Map}
-          id="no-fly-zone-area"
-          visibleOnMap
-          geojson={
-            {
-              type: 'FeatureCollection',
-              features: [projectData?.no_fly_zones_geojson],
-            } as GeojsonType
-          }
-          layerOptions={{
-            type: 'fill',
-            paint: {
-              'fill-color': '#9EA5AD',
-              'fill-outline-color': '#484848',
-              'fill-opacity': 0.8,
-            },
-          }}
-        />
-      )}
-
-      {taskStatusObj &&
-        tasksData &&
-        tasksData?.map((task: Record<string, any>) => {
-          return (
-            <VectorLayer
-              key={task?.id}
-              map={map as Map}
-              id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
-              visibleOnMap={task?.id && taskStatusObj}
-              geojson={task.outline as GeojsonType}
-              interactions={['feature']}
-              layerOptions={getLayerOptionsByStatus(
-                taskStatusObj?.[`${task?.id}`],
-              )}
-              hasImage={
-                taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' || false
-              }
-              image={lock}
-            />
-          );
-        })}
-
-      {/* visualize tasks orthophoto */}
-      {visibleTaskOrthophoto?.map(orthophotoDetails => (
-        <COGOrthophotoViewer
-          key={orthophotoDetails.taskId}
-          id={orthophotoDetails.taskId}
-          source={orthophotoDetails.source}
-          visibleOnMap
-          zoomToLayer
-        />
-      ))}
-      {/* visualize tasks orthophoto end */}
-
-      {/* visualize overall project orthophoto */}
-      {projectData?.orthophoto_url && (
-        <COGOrthophotoViewer
-          id="project-orthophoto"
-          source={projectOrthophotoSource}
-          visibleOnMap
-          zoomToLayer
-        />
-      )}
-      {/* visualize tasks orthophoto end */}
-
-      {/* additional controls */}
-      <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
-        {projectData?.orthophoto_url && (
-          <Button
-            variant="ghost"
-            className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-            onClick={() => handleToggleOverallOrthophoto()}
-          >
-            <ToolTip
-              name="visibility"
-              message="Show Orthophoto"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
+    <>
+      <MapContainer
+        map={map}
+        isMapLoaded={isMapLoaded}
+        style={{
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
+        <LocateUser isMapLoaded={isMapLoaded} />
+        {projectArea && (
+          <VectorLayer
+            map={map as Map}
+            id="project-area"
+            visibleOnMap
+            geojson={
+              {
+                type: 'FeatureCollection',
+                features: [projectArea],
+              } as GeojsonType
+            }
+            layerOptions={{
+              type: 'line',
+              paint: {
+                'line-color': '#D73F3F',
+                'line-width': 2,
+              },
+            }}
+          />
         )}
-      </div>
-      {/*  additional controls */}
 
-      <AsyncPopup
-        map={map as Map}
-        popupUI={getPopupUI}
-        title={`Task #${selectedTaskId}`}
-        showPopup={(feature: Record<string, any>) => {
-          if (!userDetails) return false;
+        {projectData?.no_fly_zones_geojson && (
+          <VectorLayer
+            map={map as Map}
+            id="no-fly-zone-area"
+            visibleOnMap
+            geojson={
+              {
+                type: 'FeatureCollection',
+                features: [projectData?.no_fly_zones_geojson],
+              } as GeojsonType
+            }
+            layerOptions={{
+              type: 'fill',
+              paint: {
+                'fill-color': '#9EA5AD',
+                'fill-outline-color': '#484848',
+                'fill-opacity': 0.8,
+              },
+            }}
+          />
+        )}
 
-          return (
-            feature?.source?.includes('tasks-layer') &&
-            !(
-              (
-                (userDetails?.role?.length === 1 &&
-                  userDetails?.role?.includes('REGULATOR')) ||
-                signedInAs === 'REGULATOR'
-              ) // Don't show popup if user role is regulator any and no other roles
+        {taskStatusObj &&
+          tasksData &&
+          tasksData?.map((task: Record<string, any>) => {
+            return (
+              <VectorLayer
+                key={task?.id}
+                map={map as Map}
+                id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
+                visibleOnMap={task?.id && taskStatusObj}
+                geojson={task.outline as GeojsonType}
+                interactions={['feature']}
+                layerOptions={getLayerOptionsByStatus(
+                  taskStatusObj?.[`${task?.id}`],
+                )}
+                hasImage={
+                  taskStatusObj?.[`${task?.id}`] === 'LOCKED_FOR_MAPPING' ||
+                  false
+                }
+                image={lock}
+              />
+            );
+          })}
+
+        {/* visualize tasks orthophoto */}
+        {visibleTaskOrthophoto?.map(orthophotoDetails => (
+          <COGOrthophotoViewer
+            key={orthophotoDetails.taskId}
+            id={orthophotoDetails.taskId}
+            source={orthophotoDetails.source}
+            visibleOnMap
+            zoomToLayer
+          />
+        ))}
+        {/* visualize tasks orthophoto end */}
+
+        {/* visualize overall project orthophoto */}
+        {projectData?.orthophoto_url && (
+          <COGOrthophotoViewer
+            id="project-orthophoto"
+            source={projectOrthophotoSource}
+            visibleOnMap
+            zoomToLayer
+          />
+        )}
+        {/* visualize tasks orthophoto end */}
+
+        {/* additional controls */}
+        <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
+          {projectData?.orthophoto_url && (
+            <Button
+              variant="ghost"
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+              onClick={() => handleToggleOverallOrthophoto()}
+            >
+              <ToolTip
+                name="visibility"
+                message="Show Orthophoto"
+                symbolType="material-icons"
+                iconClassName="!naxatw-text-xl !naxatw-text-black"
+                className="naxatw-mt-[-4px]"
+              />
+            </Button>
+          )}
+        </div>
+        {/*  additional controls */}
+
+        <AsyncPopup
+          map={map as Map}
+          popupUI={getPopupUI}
+          title={`Task #${selectedTaskId}`}
+          showPopup={(feature: Record<string, any>) => {
+            if (!userDetails) return false;
+
+            return (
+              feature?.source?.includes('tasks-layer') &&
+              !(
+                (
+                  (userDetails?.role?.length === 1 &&
+                    userDetails?.role?.includes('REGULATOR')) ||
+                  signedInAs === 'REGULATOR'
+                ) // Don't show popup if user role is regulator any and no other roles
+              )
+            );
+          }}
+          fetchPopupData={(properties: Record<string, any>) => {
+            dispatch(
+              setProjectState({
+                taskClickedOnTable: null,
+              }),
+            );
+            dispatch(setProjectState({ selectedTaskId: properties.id }));
+            setLockedUser({
+              id: properties?.locked_user_id || userDetails?.id || '',
+              name: properties?.locked_user_name || userDetails?.name || '',
+            });
+          }}
+          hideButton={
+            !showPrimaryButton(
+              taskStatusObj?.[selectedTaskId],
+              lockedUser?.id,
+              userDetails?.id,
+              projectData?.author_id,
+            ) ||
+            projectData?.regulator_approval_status === 'REJECTED' || // Don't task lock button if regulator rejected the approval
+            projectData?.regulator_approval_status === 'PENDING'
+          }
+          buttonText={
+            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
+            !taskStatusObj?.[selectedTaskId]
+              ? 'Lock Task'
+              : 'Go To Task'
+          }
+          handleBtnClick={() =>
+            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP'
+              ? handleTaskLockClick()
+              : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
+          }
+          hasSecondaryButton={
+            taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
+            (lockedUser?.id === userDetails?.id ||
+              projectData?.author_id === userDetails?.id) // enable task unlock to the project author
+          }
+          secondaryButtonText="Unlock Task"
+          handleSecondaryBtnClick={() => setShowUnlockDialog(true)}
+          // trigger from popup outside
+          openPopupFor={
+            projectData?.regulator_approval_status === 'REJECTED' // ignore click if the regulator rejected the approval
+              ? null
+              : taskClickedOnTable
+          }
+          popupCoordinate={taskClickedOnTable?.centroidCoordinates}
+          onClose={() =>
+            dispatch(
+              setProjectState({
+                taskClickedOnTable: null,
+              }),
             )
-          );
-        }}
-        fetchPopupData={(properties: Record<string, any>) => {
-          dispatch(
-            setProjectState({
-              taskClickedOnTable: null,
-            }),
-          );
-          dispatch(setProjectState({ selectedTaskId: properties.id }));
-          setLockedUser({
-            id: properties?.locked_user_id || userDetails?.id || '',
-            name: properties?.locked_user_name || userDetails?.name || '',
-          });
-        }}
-        hideButton={
-          !showPrimaryButton(
-            taskStatusObj?.[selectedTaskId],
-            lockedUser?.id,
-            userDetails?.id,
-            projectData?.author_id,
-          ) ||
-          projectData?.regulator_approval_status === 'REJECTED' || // Don't task lock button if regulator rejected the approval
-          projectData?.regulator_approval_status === 'PENDING'
-        }
-        buttonText={
-          taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
-          !taskStatusObj?.[selectedTaskId]
-            ? 'Lock Task'
-            : 'Go To Task'
-        }
-        handleBtnClick={() =>
-          taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP'
-            ? handleTaskLockClick()
-            : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
-        }
-        hasSecondaryButton={
-          taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
-          (lockedUser?.id === userDetails?.id ||
-            projectData?.author_id === userDetails?.id) // enable task unlock to the project author
-        }
-        secondaryButtonText="Unlock Task"
-        handleSecondaryBtnClick={() => handleTaskUnLockClick()}
-        // trigger from popup outside
-        openPopupFor={
-          projectData?.regulator_approval_status === 'REJECTED' // ignore click if the regulator rejected the approval
-            ? null
-            : taskClickedOnTable
-        }
-        popupCoordinate={taskClickedOnTable?.centroidCoordinates}
-        onClose={() =>
-          dispatch(
-            setProjectState({
-              taskClickedOnTable: null,
-            }),
-          )
-        }
-      />
-      <Legend />
-    </MapContainer>
+          }
+        />
+        <Legend />
+      </MapContainer>
+
+      <ProjectPromptDialog
+        title="Task Unlock"
+        show={showUnlockDialog}
+        onClose={() => setShowUnlockDialog(false)}
+      >
+        <UnlockTaskPromptDialog
+          handleUnlockTask={handleTaskUnLockClick}
+          setShowUnlockDialog={setShowUnlockDialog}
+        />
+      </ProjectPromptDialog>
+    </>
   );
 };
 
