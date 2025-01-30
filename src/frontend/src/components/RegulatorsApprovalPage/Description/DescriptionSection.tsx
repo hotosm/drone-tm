@@ -1,4 +1,5 @@
 /* eslint-disable no-nested-ternary */
+import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { Button } from '@Components/RadixComponents/Button';
 import { descriptionItems } from '@Constants/projectDescription';
@@ -13,6 +14,13 @@ const DescriptionSection = ({
   page?: 'project-description' | 'project-approval';
 }) => {
   const dispatch = useDispatch();
+
+  // know if any of the task is completed (assets_url) is the key that provides the final results of a task
+  const isAbleToStartProcessing = useMemo(
+    () =>
+      projectData?.tasks?.some((task: Record<string, any>) => task?.assets_url),
+    [projectData?.tasks],
+  );
 
   return (
     <div className="naxatw-mt-4 naxatw-flex naxatw-flex-col naxatw-gap-3">
@@ -50,7 +58,6 @@ const DescriptionSection = ({
                           ? value?.length
                           : value}{' '}
                     {unite}
-                    {}
                   </p>
                 </div>
               );
@@ -61,7 +68,8 @@ const DescriptionSection = ({
       </div>
       {page !== 'project-approval' &&
         (!projectData?.requires_approval_from_regulator ||
-          projectData?.regulator_approval_status === 'APPROVED') && (
+          projectData?.regulator_approval_status === 'APPROVED') &&
+        isAbleToStartProcessing && (
           <>
             {projectData?.image_processing_status === 'NOT_STARTED' ? (
               <div>
