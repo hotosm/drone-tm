@@ -1,7 +1,7 @@
 /* eslint-disable import/prefer-default-export */
 import {
   getIndividualTask,
-  // getTaskAssetsInfo,
+  getTaskAssetsInfo,
   getTaskWaypoint,
 } from '@Services/tasks';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
@@ -35,16 +35,16 @@ export const useGetIndividualTaskQuery = (
   });
 };
 
-// export const useGetTaskAssetsInfo = (
-//   projectId: string,
-//   taskId: string,
-//   queryOptions?: Partial<UseQueryOptions>,
-// ) => {
-//   return useQuery({
-//     queryKey: ['task-assets-info'],
-//     enabled: !!taskId,
-//     queryFn: () => getTaskAssetsInfo(projectId, taskId),
-//     select: (res: any) => res.data,
-//     ...queryOptions,
-//   });
-// };
+export const useGetTaskAssetsInfo = (
+  projectId: string,
+  taskId: string,
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['task-assets-info'],
+    enabled: !!taskId,
+    queryFn: () => getTaskAssetsInfo(projectId, taskId),
+    select: (res: any) => res.data,
+    ...queryOptions,
+  });
+};
