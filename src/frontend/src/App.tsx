@@ -50,6 +50,7 @@ export default function App() {
   // add routes where you dont want navigation bar
   const routesWithoutNavbar = [
     '/',
+    '/tutorials',
     '/login',
     '/forgot-password',
     '/complete-profile',
