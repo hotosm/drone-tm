@@ -201,7 +201,7 @@ const DescriptionBox = () => {
     try {
       const link = document.createElement('a');
       link.href = taskAssetsInformation?.assets_url;
-      link.download = `${projectId}-${taskId}.tif`;
+      link.setAttribute('download', '');
       document.body.appendChild(link);
       link.click();
       link.remove();

@@ -1,5 +1,6 @@
 /* eslint-disable no-nested-ternary */
 import { useMemo } from 'react';
+import { toast } from 'react-toastify';
 import { useDispatch } from 'react-redux';
 import { Button } from '@Components/RadixComponents/Button';
 import { descriptionItems } from '@Constants/projectDescription';
@@ -21,6 +22,20 @@ const DescriptionSection = ({
       projectData?.tasks?.some((task: Record<string, any>) => task?.assets_url),
     [projectData?.tasks],
   );
+
+  const handleDownloadResult = () => {
+    if (!projectData?.assets_url) return;
+    try {
+      const link = document.createElement('a');
+      link.href = projectData?.assets_url;
+      link.setAttribute('download', '');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(`There wan an error while downloading file ${error}`);
+    }
+  };
 
   return (
     <div className="naxatw-mt-4 naxatw-flex naxatw-flex-col naxatw-gap-3">
@@ -85,7 +100,14 @@ const DescriptionSection = ({
                 </Button>
               </div>
             ) : projectData?.image_processing_status === 'SUCCESS' ? (
-              <></>
+              <Button
+                className="naxatw-bg-gray-500"
+                withLoader
+                isLoading
+                onClick={() => handleDownloadResult()}
+              >
+                Download Results
+              </Button>
             ) : projectData?.image_processing_status === 'PROCESSING' ? (
               <div>
                 <Button
