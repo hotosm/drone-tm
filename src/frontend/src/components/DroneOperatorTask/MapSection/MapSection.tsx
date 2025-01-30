@@ -15,7 +15,11 @@ import getBbox from '@turf/bbox';
 import { point } from '@turf/helpers';
 import { coordAll } from '@turf/meta';
 import { useTypedSelector } from '@Store/hooks';
-import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
+import {
+  useGetIndividualTaskQuery,
+  useGetTaskAssetsInfo,
+  useGetTaskWaypointQuery,
+} from '@Api/tasks';
 import { postTaskWaypoint } from '@Services/tasks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
@@ -76,9 +80,9 @@ const MapSection = ({ className }: { className?: string }) => {
   const newTakeOffPoint = useTypedSelector(
     state => state.droneOperatorTask.selectedTakeOffPoint,
   );
-  const taskAssetsInformation = useTypedSelector(
-    state => state.droneOperatorTask.taskAssetsInformation,
-  );
+  // const taskAssetsInformation = useTypedSelector(
+  //   state => state.droneOperatorTask.taskAssetsInformation,
+  // );
   const rotatedFlightPlanData = useTypedSelector(
     state => state.droneOperatorTask.rotatedFlightPlan,
   );
@@ -136,6 +140,14 @@ const MapSection = ({ className }: { className?: string }) => {
         },
       },
     );
+
+  const {
+    data: taskAssetsInformation,
+    // isFetching: taskAssetsInfoLoading,
+  }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
+  );
 
   const { mutate: postWaypoint, isLoading: isUpdatingTakeOffPoint } =
     useMutation<any, any, any, unknown>({

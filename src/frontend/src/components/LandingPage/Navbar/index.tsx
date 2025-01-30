@@ -1,4 +1,5 @@
 import { FlexRow } from '@Components/common/Layouts';
+import { Link } from 'react-router-dom';
 
 export default function Navbar() {
   return (
@@ -13,8 +14,15 @@ export default function Navbar() {
         >
           {/* <p className="naxatw-border-r naxatw-pr-3">About</p>
           <p className="naxatw-border-r naxatw-pr-3">FAQs</p> */}
+          <Link
+            className="naxatw-border-r naxatw-pr-3 hover:naxatw-underline"
+            to="/tutorials"
+          >
+            Tutorials
+          </Link>
+
           <a href="https://hotosm.github.io/drone-tm/ ">
-            <p className="naxatw-pr-3">Documentations</p>
+            <p className="naxatw-pr-3 hover:naxatw-underline">Documentations</p>
           </a>
         </FlexRow>
       </FlexRow>

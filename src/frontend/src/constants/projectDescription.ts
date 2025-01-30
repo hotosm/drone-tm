@@ -119,3 +119,60 @@ export const startProcessingOptions = [
     name: 'start_processing',
   },
 ];
+
+export const descriptionItems = [
+  {
+    label: 'Total Project Area',
+    key: 'project_area',
+    expectedDataType: 'double',
+    unite: 'km²',
+  },
+  {
+    label: 'Total Tasks',
+    key: 'tasks',
+    expectedDataType: 'array',
+  },
+  {
+    label: 'Project Created By',
+    key: 'author_name',
+    expectedDataType: 'string',
+  },
+  {
+    label: 'Flight Altitude',
+    key: 'flight_altitude',
+    expectedDataType: 'number',
+    unite: 'm',
+  },
+  {
+    label: 'Front Overlap',
+    key: 'front_overlap',
+    expectedDataType: 'double',
+    unit: '%',
+  },
+  {
+    label: 'Side Overlap',
+    key: 'side_overlap',
+    expectedDataType: 'double',
+    unit: '%',
+  },
+  {
+    label: 'Terrain Following',
+    key: 'has_terrain_flow',
+    expectedDataType: 'boolean',
+  },
+  {
+    label: 'Require Approval to Lock Task',
+    key: 'requires_approval_from_manager_for_locking',
+    expectedDataType: 'boolean',
+  },
+  {
+    label: 'Local Regulator Approval Status',
+    key: 'regulator_approval_status',
+    expectedDataType: 'string',
+  },
+  {
+    label: 'Local Regulator Comment',
+    key: 'regulator_comment',
+    expectedDataType: 'string',
+  },
+];

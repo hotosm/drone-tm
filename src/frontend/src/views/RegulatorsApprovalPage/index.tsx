@@ -72,6 +72,7 @@ const RegulatorsApprovalPage = () => {
   useEffect(() => {
     return () => {
       localStorage.clear();
+      window.location.reload();
     };
   }, []);
 
