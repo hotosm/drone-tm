@@ -5,7 +5,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import centroid from '@turf/centroid';
 import html2canvas from 'html2canvas';
-import { useGetProjectsDetailQuery } from '@Api/projects';
+import {
+  useGetProjectsDetailQuery,
+  useGetUserDetailsQuery,
+} from '@Api/projects';
 import BreadCrumb from '@Components/common/Breadcrumb';
 import Tab from '@Components/common/Tabs';
 import {
@@ -79,6 +82,8 @@ const IndividualProject = () => {
   );
   const tasksList = useTypedSelector(state => state.project.tasksData);
   const showGcpEditor = useTypedSelector(state => state.project.showGcpEditor);
+
+  const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
   const {
     data: projectData,
@@ -224,19 +229,21 @@ const IndividualProject = () => {
                 )}
               </div>
               <div className="naxatw-absolute naxatw-bottom-0 naxatw-flex naxatw-w-full naxatw-justify-center">
-                <Button
-                  leftIcon="delete"
-                  size="default"
-                  className="naxatw-border naxatw-bg-gray-500 naxatw-px-2"
-                  title="Delete Project"
-                  withLoader
-                  isLoading={exportingContent}
-                  onClick={() => {
-                    setShowProjectDeletePrompt(true);
-                  }}
-                >
-                  Delete Project
-                </Button>
+                {projectData?.author_id === userDetails?.id && (
+                  <Button
+                    leftIcon="delete"
+                    size="default"
+                    className="naxatw-border naxatw-bg-gray-500 naxatw-px-2"
+                    title="Delete Project"
+                    withLoader
+                    isLoading={exportingContent}
+                    onClick={() => {
+                      setShowProjectDeletePrompt(true);
+                    }}
+                  >
+                    Delete Project
+                  </Button>
+                )}
               </div>
             </div>
             <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full md:naxatw-order-2">
