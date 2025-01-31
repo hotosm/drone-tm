@@ -70,9 +70,18 @@ const RegulatorsApprovalPage = () => {
 
   // logout and clear all localstorage value on component unmount
   useEffect(() => {
-    return () => {
+    const handleRedirection = () => {
       localStorage.clear();
       window.location.reload();
+    };
+
+    // trigger when the redirect using the url
+    window.addEventListener('beforeunload', handleRedirection);
+    return () => {
+      // trigger when the redirect using the url
+      window.removeEventListener('beforeunload', handleRedirection);
+      // trigger when the redirect using navigate function
+      handleRedirection();
     };
   }, []);
 
