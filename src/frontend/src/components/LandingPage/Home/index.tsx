@@ -9,13 +9,14 @@ import arrowSouth from '@Assets/images/LandingPage/arrow_south.svg';
 import { setCommonState } from '@Store/actions/common';
 import useAuth from '@Hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
+// import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 export default function Home() {
   const dispatch = useTypedDispatch();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const userProfile = getLocalStorageValue('userprofile');
+  // const userProfile = getLocalStorageValue('userprofile');
+  const role = localStorage.getItem('signedInAs');
 
   const bounceTransition: {
     y: {
@@ -54,7 +55,7 @@ export default function Home() {
       <div className="naxatw-container naxatw-h-full !naxatw-max-w-full naxatw-py-12">
         <div className="naxatw-flex naxatw-animate-fade-up naxatw-flex-row naxatw-justify-between">
           <Image src={droneTaskingManagerLogo} />
-          {isAuthenticated() && !userProfile?.role?.includes('REGULATOR') ? (
+          {isAuthenticated() && role !== 'REGULATOR' ? (
             <Button
               onClick={() => navigate('/projects')}
               className="naxatw-cursor-pointer !naxatw-rounded-[3.125rem] naxatw-border naxatw-px-5 naxatw-py-3 naxatw-text-body-md naxatw-font-normal naxatw-text-landing-white"

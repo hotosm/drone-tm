@@ -7,7 +7,7 @@ const MobileAppDownload = () => {
   return (
     <div className="naxatw-bg-landing-white">
       <div className="naxatw-container !naxatw-max-w-full naxatw-pb-40">
-        <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-10 naxatw-rounded-[40px] naxatw-bg-white naxatw-px-10 naxatw-py-10 sm:naxatw-flex-row lg:naxatw-gap-[120px]">
+        <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-10 naxatw-rounded-[40px] naxatw-bg-white naxatw-px-10 naxatw-py-10 sm:naxatw-flex-row lg:naxatw-gap-[120px] xl:naxatw-gap-[300px]">
           <Image
             src={mobileView}
             alt="DTM-logo"

@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import { useGetIndividualTaskQuery, useGetTaskWaypointQuery } from '@Api/tasks';
+import {
+  useGetIndividualTaskQuery,
+  useGetTaskAssetsInfo,
+  useGetTaskWaypointQuery,
+} from '@Api/tasks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postProcessImagery } from '@Services/tasks';
 import { formatString } from '@Utils/index';
@@ -12,7 +16,7 @@ import SwitchTab from '@Components/common/SwitchTab';
 import {
   resetFilesExifData,
   setSelectedTaskDetailToViewOrthophoto,
-  setTaskAssetsInformation,
+  // setTaskAssetsInformation,
   setUploadedImagesType,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
@@ -49,6 +53,14 @@ const DescriptionBox = () => {
         return data.data.results.features;
       },
     },
+  );
+
+  const {
+    data: taskAssetsInformation,
+    // isFetching: taskAssetsInfoLoading,
+  }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
   );
 
   const { mutate: updateStatus, isLoading: statusUpdating } = useMutation<
@@ -169,27 +181,27 @@ const DescriptionBox = () => {
               },
             ],
           },
-          {
-            total_image_uploaded: taskData?.total_image_uploaded || 0,
-            assets_url: taskData?.assets_url,
-            state: taskData?.state,
-          },
+          // {
+          //   total_image_uploaded: taskData?.total_image_uploaded || 0,
+          //   assets_url: taskData?.assets_url,
+          //   state: taskData?.state,
+          // },
         ];
       },
     });
 
-  const taskAssetsInformation = useMemo(() => {
-    if (!taskDescription) return {};
-    dispatch(setTaskAssetsInformation(taskDescription?.[2]));
-    return taskDescription?.[2];
-  }, [taskDescription, dispatch]);
+  // const taskAssetsInformation = useMemo(() => {
+  //   if (!taskDescription) return {};
+  //   dispatch(setTaskAssetsInformation(taskDescription?.[2]));
+  //   return taskDescription?.[2];
+  // }, [taskDescription, dispatch]);
 
   const handleDownloadResult = () => {
     if (!taskAssetsInformation?.assets_url) return;
     try {
       const link = document.createElement('a');
       link.href = taskAssetsInformation?.assets_url;
-      link.download = `${projectId}-${taskId}.tif`;
+      link.setAttribute('download', '');
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -215,20 +227,20 @@ const DescriptionBox = () => {
         ))}
       </div>
 
-      {taskAssetsInformation?.total_image_uploaded === 0 && (
+      {taskAssetsInformation?.image_count === 0 && (
         <QuestionBox
           setFlyable={setFlyable}
           flyable={flyable}
-          haveNoImages={taskAssetsInformation?.total_image_uploaded === 0}
+          haveNoImages={taskAssetsInformation?.image_count === 0}
         />
       )}
-      {taskAssetsInformation?.total_image_uploaded > 0 && (
+      {taskAssetsInformation?.image_count > 0 && (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
           <UploadsInformation
             data={[
               {
                 name: 'Image count',
-                value: taskAssetsInformation?.total_image_uploaded,
+                value: taskAssetsInformation?.image_count,
               },
               {
                 name: 'Orthophoto available',

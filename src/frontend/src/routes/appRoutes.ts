@@ -9,6 +9,7 @@ import IndividualProject from '@Views/IndividualProject';
 import TaskDescription from '@Views/TaskDescription';
 import UpdateUserProfile from '@Views/UpdateUserProfile';
 import RegulatorsApprovalPage from '@Views/RegulatorsApprovalPage';
+import Tutorials from '@Views/Tutorial';
 import { IRoute } from './types';
 
 const appRoutes: IRoute[] = [
@@ -18,6 +19,11 @@ const appRoutes: IRoute[] = [
     name: 'Landing Page',
     component: LandingPage,
     authenticated: false,
+  },
+  {
+    path: 'tutorials',
+    name: 'tutorials',
+    component: Tutorials,
   },
   {
     path: '/projects',
