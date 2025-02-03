@@ -54,6 +54,11 @@ export default function VectorLayer({
 
   useEffect(() => {
     if (!map || !isMapLoaded) return;
+
+    if (map.getLayer(`${sourceId}-layer`)) {
+      map.removeLayer(`${sourceId}-layer`);
+    }
+
     if (visibleOnMap) {
       map.addLayer({
         id: `${sourceId}-layer`,
@@ -91,10 +96,10 @@ export default function VectorLayer({
           ...imageLayerOptions,
         });
       }
-    } else if (map.getLayer(sourceId)) {
-      map.removeLayer(sourceId);
+    } else if (map.getLayer(`${sourceId}-layer`)) {
+      map.removeLayer(`${sourceId}-layer`);
     }
-  }, [map, isMapLoaded, visibleOnMap, sourceId, geojson]); // eslint-disable-line
+  }, [map, isMapLoaded, visibleOnMap, sourceId, geojson, layerOptions]); // eslint-disable-line
 
   // change cursor to pointer on feature hover
   useEffect(() => {
@@ -166,6 +171,7 @@ export default function VectorLayer({
   // add select interaction & return properties on feature select
   useEffect(() => {
     if (!map || !interactions.includes('feature')) return () => {};
+
     function handleSelectInteraction(event: MapMouseEvent) {
       if (!map) return;
       map.getCanvas().style.cursor = 'pointer';
@@ -173,10 +179,14 @@ export default function VectorLayer({
       const { features } = event;
       if (!features?.length) return;
       const { properties, layer } = features[0];
+
       onFeatureSelect?.({ ...properties, layer: layer?.id });
     }
-    map.on('click', sourceId, handleSelectInteraction);
-    return () => map.off('click', sourceId, handleSelectInteraction);
+
+    map.on('click', `${sourceId}-layer`, handleSelectInteraction);
+    return () => {
+      map.off('click', `${sourceId}-layer`, handleSelectInteraction);
+    };
   }, [map, interactions, sourceId, onFeatureSelect]);
 
   useEffect(() => {
