@@ -18,8 +18,8 @@ importers:
         specifier: ^0.0.9
         version: 0.0.9(@floating-ui/utils@0.2.9)(@shoelace-style/shoelace@2.19.1(@floating-ui/utils@0.2.9)(@types/react@18.3.18))(@types/react@18.3.18)(ol@7.5.2)
       '@hotosm/ui':
-        specifier: 0.2.0-b4
-        version: 0.2.0-b4
+        specifier: 0.2.0-b6
+        version: 0.2.0-b6(@floating-ui/utils@0.2.9)(@types/react@18.3.18)
       '@mapbox/mapbox-gl-draw':
         specifier: ^1.4.2
         version: 1.5.0
@@ -1044,10 +1044,6 @@ packages:
     peerDependencies:
       '@shoelace-style/shoelace': ^2.17.1
       ol: ^7.5.0
-
-  '@hotosm/ui@0.2.0-b4':
-    resolution: {integrity: sha512-dSZSg8I7YgCx01LJKDy7xEt7Frdju0P16hZiXMnhC9YxBZbCq0BFEs075gl1HioemMpdPrZ/cU7RNqs4RzR/kQ==}
-    engines: {node: '>=14.17'}
 
   '@hotosm/ui@0.2.0-b6':
     resolution: {integrity: sha512-ac7Hr2YD/3mNvxL9WFVAe0ELcqk9NV1QHF/jZJQwfxg/1H1czF9E1ghM8TgDI2cjHjqA6/5+hHXbW3lCstIBDg==}
@@ -5236,8 +5232,6 @@ snapshots:
     transitivePeerDependencies:
       - '@floating-ui/utils'
       - '@types/react'
-
-  '@hotosm/ui@0.2.0-b4': {}
 
   '@hotosm/ui@0.2.0-b6(@floating-ui/utils@0.2.9)(@types/react@18.3.18)':
     dependencies:
