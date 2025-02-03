@@ -100,14 +100,15 @@ const DescriptionSection = ({
                 </Button>
               </div>
             ) : projectData?.image_processing_status === 'SUCCESS' ? (
-              <Button
-                className="naxatw-bg-gray-500"
-                withLoader
-                isLoading
-                onClick={() => handleDownloadResult()}
-              >
-                Download Results
-              </Button>
+              <div>
+                <Button
+                  className="naxatw-bg-red"
+                  leftIcon="download"
+                  onClick={() => handleDownloadResult()}
+                >
+                  Download Results
+                </Button>
+              </div>
             ) : projectData?.image_processing_status === 'PROCESSING' ? (
               <div>
                 <Button
