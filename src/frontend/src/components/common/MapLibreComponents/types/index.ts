@@ -92,6 +92,7 @@ export interface IAsyncPopup {
   handleSecondaryBtnClick?: (properties: Record<string, any>) => void;
   openPopupFor?: Record<string, any> | null;
   popupCoordinate?: number[];
+  closePopupOnButtonClick?: boolean;
 }
 
 export type DrawModeTypes = DrawMode | null | undefined;
