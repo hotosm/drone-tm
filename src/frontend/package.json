@@ -3,7 +3,7 @@
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
     "@hotosm/gcp-editor": "^0.0.9",
-    "@hotosm/ui": "0.2.0-b6",
+    "@hotosm/ui": "0.2.0-b4",
     "@mapbox/mapbox-gl-draw": "^1.4.2",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",
     "@radix-ui/react-popover": "^1.0.6",
@@ -58,6 +58,9 @@
     "wkt": "^0.1.1"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.26.7",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.26.0",
     "@tanstack/eslint-plugin-query": "^4.29.4",
     "@types/file-saver": "^2.0.5",
     "@types/geojson": "^7946.0.10",
@@ -107,5 +110,5 @@
   },
   "type": "module",
   "version": "0.0.0",
-	"packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }
