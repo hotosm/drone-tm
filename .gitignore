@@ -52,8 +52,6 @@ temp_webmaps/Naivasha
 **/**/node_modules
 **/**/package-lock.json
 **/**/package.json
-**/**/yarn.lock
-**/**/pnpm-lock.yaml
 **/**/.pnpm-store
 
 # pdm
