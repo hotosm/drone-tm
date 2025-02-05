@@ -8,6 +8,7 @@ import { useTypedSelector } from '@Store/hooks';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useEffect } from 'react';
 import { FeatureCollection } from 'geojson';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 interface IMapSectionProps {
   projectData: Record<string, any>;
@@ -126,4 +127,4 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
   );
 };
 
-export default MapSection;
+export default hasErrorBoundary(MapSection);
