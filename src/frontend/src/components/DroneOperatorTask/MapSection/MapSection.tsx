@@ -482,6 +482,16 @@ const MapSection = ({ className }: { className?: string }) => {
       showTaskArea ? 'none' : 'visible',
     );
     setShowTaskArea(!showTaskArea);
+
+    if (taskDataPolygon && !showTaskArea && map) {
+      const bbox = getBbox(
+        taskDataPolygon as FeatureCollection,
+      ) as LngLatBoundsLike;
+      map?.fitBounds(bbox as LngLatBoundsLike, {
+        padding: 105,
+        duration: 500,
+      });
+    }
   };
 
   const handleToggleOrthophoto = () => {
