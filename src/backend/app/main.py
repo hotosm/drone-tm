@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse, JSONResponse, Response
 from psycopg_pool import AsyncConnectionPool
+from psycopg import Connection
+
+from app.__version__ import __version__
 from app.config import settings
 from app.projects import project_routes
 from app.drones import drone_routes
@@ -17,7 +20,6 @@ from app.tasks import task_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
 from typing import Annotated
-from psycopg import Connection
 from app.db.database import get_db
 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -76,6 +78,7 @@ def get_application() -> FastAPI:
     _app = FastAPI(
         title=settings.APP_NAME,
         description="HOTOSM Drone Tasking Manager",
+        version=__version__,
         license_info={
             "name": "GPL-3.0-only",
             "url": "https://raw.githubusercontent.com/hotosm/drone-tm/main/LICENSE.md",
