@@ -1,6 +1,6 @@
 [project]
 name = "drone-tm"
-version = "0.1.0"
+version = "2025.2.0"
 description = "Community-driven drone imagery generation"
 authors = [
     {name = "HOTOSM", email = "sysadmin@hotosm.org"},

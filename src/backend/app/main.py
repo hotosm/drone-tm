@@ -3,10 +3,10 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 from loguru import logger as log
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, Response
 from psycopg_pool import AsyncConnectionPool
 from app.config import settings
 from app.projects import project_routes
@@ -15,7 +15,10 @@ from app.waypoints import waypoint_routes
 from app.users import user_routes
 from app.tasks import task_routes
 from app.gcp import gcp_routes
-
+from app.models.enums import HTTPStatus
+from typing import Annotated
+from psycopg import Connection
+from app.db.database import get_db
 
 root = os.path.dirname(os.path.abspath(__file__))
 frontend_html = Jinja2Templates(directory="frontend_html")
@@ -136,8 +139,22 @@ async def home(request: Request):
         return RedirectResponse(f"{settings.API_PREFIX}/docs")
 
 
-known_browsers = ["Mozilla", "Chrome", "Safari", "Opera", "Edge", "Firefox"]
+@api.get("/__heartbeat__")
+async def heartbeat_plus_db(db: Annotated[Connection, Depends(get_db)]):
+    """Heartbeat that checks that API and DB are both up and running."""
+    try:
+        async with db.cursor() as cur:
+            await cur.execute("SELECT 1")
+        return Response(status_code=HTTPStatus.OK)
+    except Exception as e:
+        log.warning(e)
+        log.warning("Server failed __heartbeat__ database connection check")
+        return JSONResponse(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, content={"error": str(e)}
+        )
 
+
+known_browsers = ["Mozilla", "Chrome", "Safari", "Opera", "Edge", "Firefox"]
 
 @api.exception_handler(404)
 async def custom_404_handler(request: Request, _):
