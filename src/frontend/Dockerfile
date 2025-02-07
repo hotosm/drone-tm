@@ -1,5 +1,5 @@
 # ARG for the base image
-ARG NODE_BASE=18.16.0-bullseye-slim
+ARG NODE_BASE=22.13.0-bullseye-slim
 ARG MINIO_TAG=RELEASE.2024-08-03T04-33-23Z
 ARG BASE64_ARGS_TO_ENV=ENV_VARS_BASE64_ENCODED_FOR_LIVE
 
@@ -10,17 +10,21 @@ WORKDIR /app
 
 # Run development environment
 FROM base AS development
-ENTRYPOINT ["/bin/sh", "-c", "yarn; yarn start --host 0.0.0.0;"]
+ENTRYPOINT ["/bin/sh", "-c", "pnpm install; pnpm run start --host 0.0.0.0;"]
 
 # Generate frontend build files
 FROM base AS build
 ARG BASE64_ARGS_TO_ENV
 
-COPY ./package.json .
-RUN yarn
+COPY ./package.json pnpm-lock.yaml .
+# FIXME this npm install is a workaround due to https://github.com/nodejs/corepack/issues/627
+RUN npm install -g corepack@0.31.0
+# FIXME delete this line after fixed upstream
+RUN corepack prepare pnpm@9.15.5 --activate && corepack enable && corepack install
+RUN pnpm install
 COPY . /app
 RUN ( echo ${BASE64_ARGS_TO_ENV} | base64 -di ) > .env
-RUN yarn build
+RUN pnpm run build
 
 # Copy static files to minio and generated index.html to volume
 FROM docker.io/minio/minio:${MINIO_TAG} AS live
