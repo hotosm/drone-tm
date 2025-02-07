@@ -16,7 +16,7 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import convertExifDataToGeoJson from '@Utils/exifDataToGeoJson';
 import sortByDatetime from '@Utils/sortArrayUsingDate';
 import { NavigationControl, AttributionControl, Map } from 'maplibre-gl';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
 import chunkArray from '@Utils/createChunksOfArray';
@@ -24,6 +24,8 @@ import { getImageUploadLink } from '@Services/droneOperator';
 import { useMutation } from '@tanstack/react-query';
 import { postTaskStatus } from '@Services/project';
 import widthCalulator from '@Utils/percentageCalculator';
+import { point } from '@turf/helpers';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import FilesUploadingPopOver from '../LoadingBox';
 
 const ImageMapBox = () => {
@@ -55,6 +57,9 @@ const ImageMapBox = () => {
     state => state.droneOperatorTask.uploadProgress,
   );
   const modalState = useTypedSelector(state => state.common.showModal);
+  const taskAreaPolygon = useTypedSelector(
+    state => state.droneOperatorTask.taskAreaPolygon,
+  );
 
   useEffect(() => {
     if (!modalState) {
@@ -198,6 +203,21 @@ const ImageMapBox = () => {
     mutate(filesData);
   }
 
+  const pointsInsideTaskArea = useMemo(() => {
+    let numberOfPointsInsideTaskArea = 0;
+    filesExifData?.forEach((element: any) => {
+      const imagePoint = point([
+        element.coordinates.longitude,
+        element.coordinates.latitude,
+      ]);
+
+      if (booleanPointInPolygon(imagePoint, taskAreaPolygon?.features[0])) {
+        numberOfPointsInsideTaskArea++;
+      }
+    });
+    return numberOfPointsInsideTaskArea;
+  }, [filesExifData, taskAreaPolygon]);
+
   return (
     <>
       <FlexColumn className="naxatw-h-[calc(100vh-220px)] naxatw-gap-5">
@@ -312,9 +332,27 @@ const ImageMapBox = () => {
                 closePopupOnButtonClick
               />
             )}
+
+            <VectorLayer
+              map={map as Map}
+              id="task-polygon-image-selection"
+              geojson={taskAreaPolygon as GeojsonType}
+              layerOptions={{
+                type: 'fill',
+                paint: {
+                  'fill-color': '#98BBC8',
+                  'fill-outline-color': '#484848',
+                  'fill-opacity': 0.6,
+                },
+              }}
+            />
           </MapContainer>
           <p className="naxatw-text-lg naxatw-font-medium">
             {filesExifData.length} Images Selected
+          </p>
+          <p className="naxatw-text-lg naxatw-font-medium naxatw-text-yellow-400">
+            {(pointsInsideTaskArea / filesExifData.length) * 100 || 0} % of the
+            uploaded images are from within the project area.
           </p>
         </div>
         <div className="naxatw-mx-auto naxatw-w-fit">
