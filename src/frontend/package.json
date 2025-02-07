@@ -17,6 +17,7 @@
     "@tanstack/react-table": "^8.9.3",
     "@turf/area": "^7.0.0",
     "@turf/bbox": "^7.0.0",
+    "@turf/boolean-point-in-polygon": "^7.2.0",
     "@turf/centroid": "^7.0.0",
     "@turf/flatten": "^7.0.0",
     "@turf/helpers": "^7.0.0",
