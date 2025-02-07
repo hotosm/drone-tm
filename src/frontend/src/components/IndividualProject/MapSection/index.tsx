@@ -126,8 +126,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   }, [map, taskStates]);
 
   // zoom to layer in the project area
-  useEffect(() => {
-    if (!tasksData) return;
+  const bbox = useMemo(() => {
+    if (!tasksData) return null;
     const tasksCollectiveGeojson = tasksData?.reduce(
       (acc, curr) => {
         return {
@@ -140,9 +140,15 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         features: [],
       },
     );
-    const bbox = getBbox(tasksCollectiveGeojson as FeatureCollection);
+    return getBbox(tasksCollectiveGeojson as FeatureCollection);
+  }, [tasksData]);
+
+  useEffect(() => {
+    if (!bbox) return;
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
-  }, [map, tasksData]);
+  }, [map, bbox]);
+
+  // end zoom to layer
 
   const getPopupUI = useCallback(
     (properties: Record<string, any>) => {
@@ -210,6 +216,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       showOverallOrthophoto ? 'none' : 'visible',
     );
     setShowOverallOrthophoto(!showOverallOrthophoto);
+  };
+
+  const handleZoomToExtent = () => {
+    if (!bbox) return;
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
   };
 
   return (
@@ -406,6 +417,23 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             )
           }
         />
+
+        {/* additional controls */}
+        <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
+          <Button
+            variant="ghost"
+            className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
+            onClick={() => handleZoomToExtent()}
+          >
+            <ToolTip
+              name="zoom_out_map"
+              message="Zoom to project area"
+              symbolType="material-icons"
+              iconClassName="!naxatw-text-xl !naxatw-text-black"
+              className="naxatw-mt-[-4px]"
+            />
+          </Button>
+        </div>
         <Legend />
       </MapContainer>
 
