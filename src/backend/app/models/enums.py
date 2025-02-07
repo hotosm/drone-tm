@@ -218,3 +218,11 @@ class FlightMode(str, Enum):
 
     waylines = "waylines"
     waypoints = "waypoints"
+
+
+class ProjectCompletionStatus(str, Enum):
+    """Enum to describe all possible project completion status."""
+
+    NOT_STARTED = "not-started"
+    ON_GOING = "ongoing"
+    COMPLETED = "completed"

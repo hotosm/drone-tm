@@ -19,7 +19,13 @@ from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
 from app.models.enums import FinalOutput, ProjectVisibility, UserRole
-from app.models.enums import IntEnum, ProjectStatus, HTTPStatus, RegulatorApprovalStatus
+from app.models.enums import (
+    IntEnum,
+    ProjectStatus,
+    HTTPStatus,
+    RegulatorApprovalStatus,
+    ProjectCompletionStatus,
+)
 from app.utils import (
     merge_multipolygon,
 )
@@ -657,11 +663,11 @@ class ProjectInfo(BaseModel):
         total_task_count = values.total_task_count
 
         if completed_task_count == 0 and ongoing_task_count == 0:
-            values.status = "not-started"
+            values.status = ProjectCompletionStatus.NOT_STARTED
         elif completed_task_count == total_task_count:
-            values.status = "completed"
+            values.status = ProjectCompletionStatus.COMPLETED
         else:
-            values.status = "ongoing"
+            values.status = ProjectCompletionStatus.ON_GOING
 
         return values
 
