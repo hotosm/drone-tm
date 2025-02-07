@@ -23,6 +23,7 @@ export interface IDroneOperatorTaskState {
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
   rotationAngle: number;
+  taskAreaPolygon: Record<string, any>;
 }
 
 const initialState: IDroneOperatorTaskState = {
@@ -49,6 +50,7 @@ const initialState: IDroneOperatorTaskState = {
     geojsonAsLineString: {},
   },
   rotationAngle: 0,
+  taskAreaPolygon: {},
 };
 
 export const droneOperatorTaskSlice = createSlice({
@@ -121,6 +123,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setRotationAngle: (state, action) => {
       state.rotationAngle = action.payload;
+    },
+    setTaskAreaPolygon: (state, action) => {
+      state.taskAreaPolygon = action.payload;
     },
   },
 });

@@ -30,6 +30,7 @@ import {
   setRotatedFlightPlan,
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
+  setTaskAreaPolygon,
   setTaskAssetsInformation,
   setWaypointMode,
 } from '@Store/actions/droneOperatorTask';
@@ -170,7 +171,7 @@ const MapSection = ({ className }: { className?: string }) => {
     select: (projectRes: any) => {
       const taskPolygon = projectRes.data;
       const { geometry } = taskPolygon.outline;
-      return {
+      const taskAreaPolygon = {
         type: 'FeatureCollection',
         features: [
           {
@@ -183,6 +184,8 @@ const MapSection = ({ className }: { className?: string }) => {
           },
         ],
       };
+      dispatch(setTaskAreaPolygon(taskAreaPolygon));
+      return taskAreaPolygon;
     },
     onSuccess: () => {
       if (map) {

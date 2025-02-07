@@ -21,4 +21,5 @@ export const {
   setTaskAssetsInformation,
   setRotatedFlightPlan,
   setRotationAngle,
+  setTaskAreaPolygon,
 } = droneOperatorTaskSlice.actions;
