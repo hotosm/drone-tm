@@ -55,10 +55,6 @@ export default function VectorLayer({
   useEffect(() => {
     if (!map || !isMapLoaded) return;
 
-    if (map.getLayer(`${sourceId}-layer`)) {
-      map.removeLayer(`${sourceId}-layer`);
-    }
-
     if (visibleOnMap) {
       map.addLayer({
         id: `${sourceId}-layer`,
@@ -99,6 +95,8 @@ export default function VectorLayer({
     } else if (map.getLayer(`${sourceId}-layer`)) {
       map.removeLayer(`${sourceId}-layer`);
     }
+
+    // eslint-disable-next-line consistent-return
   }, [map, isMapLoaded, visibleOnMap, sourceId, geojson, layerOptions]); // eslint-disable-line
 
   // change cursor to pointer on feature hover
@@ -242,6 +240,8 @@ export default function VectorLayer({
         if (map?.getLayer(imageId)) map?.removeLayer(imageId);
         if (map?.getLayer(`${sourceId}-layer`))
           map?.removeLayer(`${sourceId}-layer`);
+        if (map?.getLayer(`${sourceId}-image/logo`))
+          map?.removeLayer(`${sourceId}-image/logo`);
         map?.removeSource(sourceId);
       }
     },
