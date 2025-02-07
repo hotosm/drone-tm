@@ -884,7 +884,7 @@ const MapSection = ({ className }: { className?: string }) => {
           >
             <ToolTip
               name="zoom_out_map"
-              message="Zoom to project area"
+              message="Zoom to task area"
               symbolType="material-icons"
               iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
               className="naxatw-mt-[-4px]"
