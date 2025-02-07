@@ -177,6 +177,15 @@ importers:
         specifier: ^0.1.1
         version: 0.1.1
     devDependencies:
+      '@babel/preset-env':
+        specifier: ^7.26.7
+        version: 7.26.7(@babel/core@7.26.7)
+      '@babel/preset-react':
+        specifier: ^7.26.3
+        version: 7.26.3(@babel/core@7.26.7)
+      '@babel/preset-typescript':
+        specifier: ^7.26.0
+        version: 7.26.0(@babel/core@7.26.7)
       '@tanstack/eslint-plugin-query':
         specifier: ^4.29.4
         version: 4.38.0(eslint@8.2.0)
