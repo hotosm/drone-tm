@@ -382,7 +382,6 @@ class DbProject(BaseModel):
             project_record.task_count = len(task_records)
             return project_record
 
-
     async def all(
         db: Connection,
         user_id: Optional[str] = None,
@@ -401,7 +400,7 @@ class DbProject(BaseModel):
         async with db.cursor(row_factory=dict_row) as cur:
             query = """
                 WITH project_stats AS (
-                    SELECT 
+                    SELECT
                         p.id,
                         p.slug,
                         p.name,
@@ -414,9 +413,9 @@ class DbProject(BaseModel):
                         COUNT(t.id) AS total_task_count,
                         COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
                         COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
-                        CASE 
+                        CASE
                             WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0 
+                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
                                 AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
                             ELSE 'ongoing'
                         END AS calculated_status
@@ -436,7 +435,7 @@ class DbProject(BaseModel):
                 )
                 SELECT *
                 FROM project_stats
-                WHERE CAST(%(status)s AS text) IS NULL 
+                WHERE CAST(%(status)s AS text) IS NULL
                     OR calculated_status = CAST(%(status)s AS text)
                 ORDER BY created_at DESC
                 OFFSET %(skip)s
@@ -458,11 +457,11 @@ class DbProject(BaseModel):
         async with db.cursor() as cur:
             count_query = """
                 WITH project_stats AS (
-                    SELECT 
+                    SELECT
                         p.id,
-                        CASE 
+                        CASE
                             WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0 
+                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
                                 AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
                             ELSE 'ongoing'
                         END AS calculated_status
@@ -482,7 +481,7 @@ class DbProject(BaseModel):
                 )
                 SELECT COUNT(*)
                 FROM project_stats
-                WHERE CAST(%(status)s AS text) IS NULL 
+                WHERE CAST(%(status)s AS text) IS NULL
                     OR calculated_status = CAST(%(status)s AS text)
             """
             await cur.execute(

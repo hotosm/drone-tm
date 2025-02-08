@@ -1,7 +1,6 @@
 import uuid
 from typing import Annotated
 from app.projects import project_deps, project_schemas
-from app.projects import project_logic
 from fastapi import APIRouter, BackgroundTasks, Depends
 from app.config import settings
 from app.tasks import task_schemas, task_logic
@@ -10,7 +9,6 @@ from app.users.user_schemas import AuthUser
 from psycopg import Connection
 from app.db import database
 from loguru import logger as log
-from psycopg.rows import dict_row
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",

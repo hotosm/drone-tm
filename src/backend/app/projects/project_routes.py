@@ -403,7 +403,12 @@ async def read_projects(
         user_id = user_data.id if filter_by_owner else None
         skip = (page - 1) * results_per_page
         projects, total_count = await project_schemas.DbProject.all(
-            db, user_id=user_id, search=search, status=status, skip=skip, limit=results_per_page
+            db,
+            user_id=user_id,
+            search=search,
+            status=status,
+            skip=skip,
+            limit=results_per_page,
         )
         if not projects:
             return {
