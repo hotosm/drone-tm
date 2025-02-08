@@ -159,6 +159,7 @@ async def heartbeat_plus_db(db: Annotated[Connection, Depends(get_db)]):
 
 known_browsers = ["Mozilla", "Chrome", "Safari", "Opera", "Edge", "Firefox"]
 
+
 @api.exception_handler(404)
 async def custom_404_handler(request: Request, _):
     """Return Frontend HTML or throw 404 Response on 404 requests."""
