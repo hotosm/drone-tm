@@ -26,7 +26,7 @@ from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.db import database
-from app.models.enums import HTTPStatus, State
+from app.models.enums import HTTPStatus, State, ProjectCompletionStatus
 from app.s3 import add_file_to_bucket, s3_client
 from app.config import settings
 from app.users.user_deps import login_required
@@ -388,6 +388,9 @@ async def read_projects(
     filter_by_owner: Optional[bool] = Query(
         False, description="Filter projects by authenticated user (creator)"
     ),
+    status: Optional[ProjectCompletionStatus] = Query(
+        None, description="Filter projects by status"
+    ),
     search: Optional[str] = Query(None, description="Search projects by name"),
     page: int = Query(1, ge=1, description="Page number"),
     results_per_page: int = Query(
@@ -400,7 +403,7 @@ async def read_projects(
         user_id = user_data.id if filter_by_owner else None
         skip = (page - 1) * results_per_page
         projects, total_count = await project_schemas.DbProject.all(
-            db, user_id=user_id, search=search, skip=skip, limit=results_per_page
+            db, user_id=user_id, search=search, status=status, skip=skip, limit=results_per_page
         )
         if not projects:
             return {
