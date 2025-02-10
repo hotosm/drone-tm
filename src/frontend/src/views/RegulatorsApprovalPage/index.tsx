@@ -46,11 +46,14 @@ const RegulatorsApprovalPage = () => {
     data: projectData,
     isFetching: isProjectDataFetching,
   }: Record<string, any> = useGetProjectsDetailQuery(id as string, {
-    onSuccess: (res: any) => {
+    enabled: isAuthenticated(), // call only if the user is created and saved token on local storage
+  });
+  useEffect(() => {
+    if (projectData) {
       dispatch(
         setProjectState({
           // modify each task geojson and set locked user id and name to properties and save to redux state called taskData
-          tasksData: res.tasks?.map((task: Record<string, any>) => ({
+          tasksData: projectData.tasks?.map((task: Record<string, any>) => ({
             ...task,
             outline: {
               ...task.outline,
@@ -61,12 +64,11 @@ const RegulatorsApprovalPage = () => {
               },
             },
           })),
-          projectArea: res.outline,
+          projectArea: projectData.outline,
         }),
       );
-    },
-    enabled: isAuthenticated(), // call only if the user is created and saved token on local storage
-  });
+    }
+  }, [projectData, dispatch]);
 
   // logout and clear all localstorage value on component unmount
   useEffect(() => {
