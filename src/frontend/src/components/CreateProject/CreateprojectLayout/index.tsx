@@ -38,12 +38,12 @@ import { setCommonState } from '@Store/actions/common';
  *
  * @param {StepComponentMap} componentsMap - An object mapping step numbers to React functional components.
  * @param {number} activeStep - The current active step number.
- * @returns {React.JSX.Element} - The React component for the active step, or an empty fragment if not found.
+ * @returns {JSX.Element} - The React component for the active step, or an empty fragment if not found.
  */
 const getActiveStepDescription = (
   componentsMap: StepComponentMap,
   activeStep: number,
-): React.JSX.Element => {
+): JSX.Element => {
   const Component = componentsMap[activeStep];
   return Component ? <Component /> : <></>;
 };
@@ -136,7 +136,7 @@ const CreateprojectLayout = () => {
     defaultValues: initialState,
   });
 
-  const { mutate: uploadTaskBoundary, isLoading } = useMutation<
+  const { mutate: uploadTaskBoundary, isPending } = useMutation<
     any,
     any,
     any,
@@ -161,7 +161,7 @@ const CreateprojectLayout = () => {
     },
   });
 
-  const { mutate: createProject, isLoading: isCreatingProject } = useMutation<
+  const { mutate: createProject, isPending: isCreatingProject } = useMutation<
     any,
     any,
     any,
@@ -362,12 +362,12 @@ const CreateprojectLayout = () => {
               rightIcon="chevron_right"
               withLoader
               isLoading={
-                isLoading ||
+                isPending ||
                 isCreatingProject ||
                 !capturedProjectMap ||
                 isFetchingCountry
               }
-              disabled={isLoading || isCreatingProject || !capturedProjectMap}
+              disabled={isPending || isCreatingProject || !capturedProjectMap}
             >
               {activeStep === 5 ? 'Save' : 'Next'}
             </Button>

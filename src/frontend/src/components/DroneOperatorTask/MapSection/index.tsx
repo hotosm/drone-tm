@@ -174,7 +174,7 @@ const MapSection = ({ className }: { className?: string }) => {
     },
   );
 
-  const { mutate: postWaypoint, isLoading: isUpdatingTakeOffPoint } =
+  const { mutate: postWaypoint, isPending: isUpdatingTakeOffPoint } =
     useMutation<any, any, any, unknown>({
       mutationFn: postTaskWaypoint,
       onSuccess: async data => {
@@ -511,7 +511,7 @@ const MapSection = ({ className }: { className?: string }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging, isMapLoaded, map]);
 
-  const { mutate: postRotatedFlightPlan, isLoading: flighplanIsUpdating } =
+  const { mutate: postRotatedFlightPlan, isPending: flighplanIsUpdating } =
     useMutation({
       mutationFn: postRotatedTaskWayPoint,
       onSuccess: () => {

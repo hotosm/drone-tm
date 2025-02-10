@@ -34,7 +34,7 @@ const QuestionBox = ({
     setFlyable(e.target.value);
   }
 
-  const { mutate: mutateComment, isLoading: commentIsUpdating } = useMutation(
+  const { mutate: mutateComment, isPending: commentIsUpdating } = useMutation(
     (data: any) => postUnflyableComment({ projectId, taskId, data }),
     {
       onSuccess: () => {

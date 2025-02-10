@@ -22,7 +22,7 @@ const OrganizationDetails = () => {
     defaultValues: initialState,
   });
 
-  const { mutate: updateOrganizationDetails, isLoading } = useMutation<
+  const { mutate: updateOrganizationDetails, isPending } = useMutation<
     any,
     any,
     any,
@@ -101,7 +101,7 @@ const OrganizationDetails = () => {
             handleSubmit(onSubmit)();
           }}
           withLoader
-          isLoading={isLoading}
+          isLoading={isPending}
         >
           Save
         </Button>

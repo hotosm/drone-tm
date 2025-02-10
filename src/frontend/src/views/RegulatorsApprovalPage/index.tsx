@@ -25,7 +25,7 @@ const RegulatorsApprovalPage = () => {
     localStorage.setItem('token', token);
   }, [token]);
 
-  const { mutate: userToken, isLoading } = useMutation({
+  const { mutate: userToken, isPending } = useMutation({
     mutationFn: (payload: Record<string, any>) => regulatorUser(payload),
     onSuccess(response) {
       const { data } = response;
@@ -86,7 +86,7 @@ const RegulatorsApprovalPage = () => {
   }, []);
 
   // render this if user is creating
-  if (isLoading)
+  if (isPending)
     return (
       <BindContentContainer className="main-content naxatw-flex naxatw-items-center naxatw-justify-center">
         <h1 className="naxatw-text-3xlxl">Verifying...</h1>

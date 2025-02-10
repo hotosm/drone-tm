@@ -23,7 +23,7 @@ const BasicDetails = () => {
     defaultValues: initialState,
   });
 
-  const { mutate: updateBasicInfo, isLoading } = useMutation<
+  const { mutate: updateBasicInfo, isPending } = useMutation<
     any,
     any,
     any,
@@ -145,7 +145,7 @@ const BasicDetails = () => {
             handleSubmit(onSubmit)();
           }}
           withLoader
-          isLoading={isLoading}
+          isLoading={isPending}
         >
           Save
         </Button>

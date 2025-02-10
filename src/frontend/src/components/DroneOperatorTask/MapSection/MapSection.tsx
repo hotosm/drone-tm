@@ -150,7 +150,7 @@ const MapSection = ({ className }: { className?: string }) => {
     taskId as string,
   );
 
-  const { mutate: postWaypoint, isLoading: isUpdatingTakeOffPoint } =
+  const { mutate: postWaypoint, isPending: isUpdatingTakeOffPoint } =
     useMutation<any, any, any, unknown>({
       mutationFn: postTaskWaypoint,
       onSuccess: async () => {

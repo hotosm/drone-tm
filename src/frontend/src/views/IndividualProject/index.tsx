@@ -116,7 +116,7 @@ const IndividualProject = () => {
     },
   });
 
-  const { mutate, isLoading } = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: (projectId: string) => deleteProject(projectId),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['projects-list']});
@@ -281,7 +281,7 @@ const IndividualProject = () => {
       >
         <DeleteProjectPromptDialog
           projectName={projectData?.name || ''}
-          isLoading={isLoading}
+          isLoading={isPending}
           handleDeleteProject={handleDeleteProject}
           setShowUnlockDialog={setShowProjectDeletePrompt}
         />

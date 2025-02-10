@@ -37,7 +37,7 @@ export default function Login() {
 
   const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
 
-  const { mutate, isLoading } = useMutation<any, any, any, unknown>({
+  const { mutate, isPending } = useMutation<any, any, any, unknown>({
     mutationFn: signInUser,
     onSuccess: async (res: any) => {
       dispatch(setUserState({ user: res.data }));
@@ -171,7 +171,7 @@ export default function Login() {
           <Button
             className="!naxatw-bg-red naxatw-py-5"
             type="submit"
-            isLoading={isLoading}
+            isLoading={isPending}
             withLoader
           >
             Log In
