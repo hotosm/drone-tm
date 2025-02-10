@@ -19,7 +19,7 @@ jobs:
   #     output_path: docs/openapi.json
 
   publish_docs:
-    uses: hotosm/gh-workflows/.github/workflows/mkdocs_build.yml@1.6.0
+    uses: hotosm/gh-workflows/.github/workflows/mkdocs_build.yml@2.0.9
     # needs:
     #   - build_openapi_json
     # with:
