@@ -30,6 +30,7 @@ import {
   setRotatedFlightPlan,
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
+  setTaskAreaPolygon,
   setTaskAssetsInformation,
   setWaypointMode,
 } from '@Store/actions/droneOperatorTask';
@@ -170,7 +171,7 @@ const MapSection = ({ className }: { className?: string }) => {
     select: (projectRes: any) => {
       const taskPolygon = projectRes.data;
       const { geometry } = taskPolygon.outline;
-      return {
+      const taskAreaPolygon = {
         type: 'FeatureCollection',
         features: [
           {
@@ -183,6 +184,8 @@ const MapSection = ({ className }: { className?: string }) => {
           },
         ],
       };
+      dispatch(setTaskAreaPolygon(taskAreaPolygon));
+      return taskAreaPolygon;
     },
     onSuccess: () => {
       if (map) {
@@ -479,6 +482,16 @@ const MapSection = ({ className }: { className?: string }) => {
       showTaskArea ? 'none' : 'visible',
     );
     setShowTaskArea(!showTaskArea);
+
+    if (taskDataPolygon && !showTaskArea && map) {
+      const bbox = getBbox(
+        taskDataPolygon as FeatureCollection,
+      ) as LngLatBoundsLike;
+      map?.fitBounds(bbox as LngLatBoundsLike, {
+        padding: 105,
+        duration: 500,
+      });
+    }
   };
 
   const handleToggleOrthophoto = () => {
@@ -490,6 +503,18 @@ const MapSection = ({ className }: { className?: string }) => {
     setShowOrthophoto(!showOrthophoto);
   };
   // end toggle layers
+
+  const zoomToExtent = () => {
+    if (taskWayPointsData) {
+      const bbox = getBbox(
+        taskWayPointsData.geojsonAsLineString as FeatureCollection,
+      ) as LngLatBoundsLike;
+      map?.fitBounds(bbox as LngLatBoundsLike, {
+        padding: 105,
+        duration: 500,
+      });
+    }
+  };
 
   const handleSaveStartingPoint = () => {
     const { geometry: startingPonyGeometry } = newTakeOffPoint as Record<
@@ -850,6 +875,20 @@ const MapSection = ({ className }: { className?: string }) => {
             <div className="naxatw-h-4 naxatw-w-4">
               <img src={areaIcon} alt="area-icon" />
             </div>
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
+            onClick={() => zoomToExtent()}
+          >
+            <ToolTip
+              name="zoom_out_map"
+              message="Zoom to task area"
+              symbolType="material-icons"
+              iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
+              className="naxatw-mt-[-4px]"
+            />
           </Button>
 
           {taskAssetsInformation?.assets_url && (

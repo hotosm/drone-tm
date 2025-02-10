@@ -5,14 +5,17 @@ import { useDispatch } from 'react-redux';
 import { Button } from '@Components/RadixComponents/Button';
 import { descriptionItems } from '@Constants/projectDescription';
 import { toggleModal } from '@Store/actions/common';
+import Skeleton from '@Components/RadixComponents/Skeleton';
 import ApprovalSection from './ApprovalSection';
 
 const DescriptionSection = ({
   page = 'project-approval',
   projectData,
+  isProjectDataLoading = false,
 }: {
   projectData: Record<string, any>;
   page?: 'project-description' | 'project-approval';
+  isProjectDataLoading?: boolean;
 }) => {
   const dispatch = useDispatch();
 
@@ -36,6 +39,13 @@ const DescriptionSection = ({
       toast.error(`There wan an error while downloading file ${error}`);
     }
   };
+
+  if (isProjectDataLoading)
+    return (
+      <div className="naxatw-py-4">
+        <Skeleton className="naxatw-h-64 naxatw-bg-gray-100" />
+      </div>
+    );
 
   return (
     <div className="naxatw-mt-4 naxatw-flex naxatw-flex-col naxatw-gap-3">
