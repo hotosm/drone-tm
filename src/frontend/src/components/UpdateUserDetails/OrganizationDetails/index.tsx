@@ -30,7 +30,7 @@ const OrganizationDetails = () => {
   >({
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-profile']);
+      queryClient.invalidateQueries({queryKey: ['user-profile']});
 
       toast.success('Details Updated successfully');
     },

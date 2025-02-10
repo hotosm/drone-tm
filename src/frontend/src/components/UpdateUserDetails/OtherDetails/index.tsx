@@ -67,7 +67,7 @@ const OtherDetails = () => {
         await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
       }
 
-      queryClient.invalidateQueries(['user-profile']);
+      queryClient.invalidateQueries({queryKey: ['user-profile']});
 
       toast.success('Details Updated Successfully');
     },

@@ -119,7 +119,7 @@ const IndividualProject = () => {
   const { mutate, isLoading } = useMutation({
     mutationFn: (projectId: string) => deleteProject(projectId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['projects-list']);
+      queryClient.invalidateQueries({queryKey: ['projects-list']});
       toast.error('Project Deleted Successfully');
       navigate('/projects');
     },
