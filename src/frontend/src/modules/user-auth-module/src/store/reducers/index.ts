@@ -1,11 +1,12 @@
+import type { Reducer } from '@reduxjs/toolkit';
 import { combineReducers } from '@reduxjs/toolkit';
 import user, { UserState } from '../slices/user';
 
-export interface IRootReducer {
+export interface RootState {
   user: UserState;
 }
 
-const rootReducer = combineReducers<IRootReducer>({
+const rootReducer: Reducer<RootState> = combineReducers<RootState>({
   user,
 });
 
