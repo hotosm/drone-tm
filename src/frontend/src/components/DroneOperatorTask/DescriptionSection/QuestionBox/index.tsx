@@ -34,9 +34,8 @@ const QuestionBox = ({
     setFlyable(e.target.value);
   }
 
-  const { mutate: mutateComment, isPending: commentIsUpdating } = useMutation(
-    (data: any) => postUnflyableComment({ projectId, taskId, data }),
-    {
+  const { mutate: mutateComment, isPending: commentIsUpdating } = useMutation({
+      mutationFn: (data: any) => postUnflyableComment({ projectId, taskId, data }),
       onSuccess: () => {
         // Optionally, refetch queries or show a success message
         toast.success('Comment Added successfully');
