@@ -1,10 +1,5 @@
-import '@hotosm/ui/dist/style.css';
-
 // Workaround required, as @hotosm/gcp-editor already imports all components
-if (!customElements.get('hot-tracking')) {
-  import('@hotosm/ui/components/tracking/tracking');
-}
-
+import '@hotosm/ui/dist/style.css';
 import { useLocation } from 'react-router-dom';
 import { initDomToCode } from 'dom-to-code';
 import { ToastContainer } from 'react-toastify';
@@ -28,6 +23,11 @@ import {
   getPromptDialogContent,
 } from '@Constants/modalContents';
 import ScrollToTop from '@Components/common/ScrollToTop';
+import HotTracker from '@Components/common/HotTracking';
+
+if (!customElements.get('hot-tracking')) {
+  import('@hotosm/ui/components/tracking/tracking');
+}
 
 export default function App() {
   const dispatch = useTypedDispatch();
@@ -107,11 +107,7 @@ export default function App() {
         </div>
         <ScrollToTop />
       </div>
-      <hot-tracking
-        style={{position: 'fixed', bottom: '0%'}}
-        site-id={'35'} domain={'dronetm.org'}
-        force={true}>
-      </hot-tracking>
+      <HotTracker />
     </>
   );
 }
