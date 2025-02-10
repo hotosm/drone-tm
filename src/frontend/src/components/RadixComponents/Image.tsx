@@ -1,3 +1,5 @@
+import React from 'react';
+
 interface IProps {
   aspectRation?: string;
   alt?: string;
@@ -14,7 +16,7 @@ export default function Image({
   alt,
   width,
   className,
-}: IProps): JSX.Element {
+}: IProps): React.JSX.Element {
   return (
     <div
       className={`image-cover naxatw-aspect-${aspectRation} ${styleClass}} `}

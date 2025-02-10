@@ -1,3 +1,5 @@
+import React from 'react';
+
 interface IIconProps extends React.HTMLAttributes<HTMLElement> {
   name: string;
   className?: string;
@@ -10,7 +12,7 @@ export default function Icon({
   className,
   iconSymbolType = 'material-symbols-outlined',
   onClick,
-}: IIconProps): JSX.Element {
+}: IIconProps): React.JSX.Element {
   return (
     <i
       role="button"

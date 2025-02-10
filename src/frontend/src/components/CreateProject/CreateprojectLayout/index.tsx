@@ -38,12 +38,12 @@ import { setCommonState } from '@Store/actions/common';
  *
  * @param {StepComponentMap} componentsMap - An object mapping step numbers to React functional components.
  * @param {number} activeStep - The current active step number.
- * @returns {JSX.Element} - The React component for the active step, or an empty fragment if not found.
+ * @returns {React.JSX.Element} - The React component for the active step, or an empty fragment if not found.
  */
 const getActiveStepDescription = (
   componentsMap: StepComponentMap,
   activeStep: number,
-): JSX.Element => {
+): React.JSX.Element => {
   const Component = componentsMap[activeStep];
   return Component ? <Component /> : <></>;
 };
