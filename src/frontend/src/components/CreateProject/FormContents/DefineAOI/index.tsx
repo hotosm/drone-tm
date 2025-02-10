@@ -17,12 +17,17 @@ import {
 } from '@Store/actions/createproject';
 import flatten from '@turf/flatten';
 import area from '@turf/area';
-import { FeatureCollection } from 'geojson';
+import type { AllGeoJSON } from '@turf/helpers';
+import type { FeatureCollection } from 'geojson';
 import { uploadAreaOptions } from '@Constants/createProject';
 import { validateGeoJSON } from '@Utils/convertLayerUtils';
 import Icon from '@Components/common/Icon';
 import { toast } from 'react-toastify';
 import MapSection from './MapSection';
+
+function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
+  return typeof obj === 'object' && obj !== null && 'type' in obj;
+}
 
 const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
@@ -128,7 +133,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
 
     try {
       geojson.then((z: any) => {
-        if (typeof z === 'object' && !Array.isArray(z) && z !== null) {
+        if (isAllGeoJSON(z) && !Array.isArray(z)) {
           const convertedGeojson = flatten(z);
           dispatch(setCreateProjectState({ projectArea: convertedGeojson }));
           setValue('outline', convertedGeojson);
@@ -145,11 +150,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
     try {
       if (!file) return;
       const geojson: any = await validateGeoJSON(file[0]?.file);
-      if (
-        typeof geojson === 'object' &&
-        !Array.isArray(geojson) &&
-        geojson !== null
-      ) {
+      if (isAllGeoJSON(geojson) && !Array.isArray(geojson)) {
         const convertedGeojson = flatten(geojson);
         const uploadedArea: any =
           convertedGeojson && area(convertedGeojson as FeatureCollection);
@@ -172,7 +173,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
     const geojson = validateGeoJSON(file[0]?.file);
     try {
       geojson.then(z => {
-        if (typeof z === 'object' && !Array.isArray(z) && z !== null) {
+        if (isAllGeoJSON(z) && !Array.isArray(z)) {
           const convertedGeojson = flatten(z);
           dispatch(setCreateProjectState({ noFlyZone: convertedGeojson }));
           setValue('no_fly_zones', convertedGeojson);
