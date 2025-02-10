@@ -1,9 +1,4 @@
-import {
-  AnyAction,
-  CombinedState,
-  combineReducers,
-  Reducer,
-} from '@reduxjs/toolkit';
+import { combineReducers } from '@reduxjs/toolkit';
 import createproject, { CreateProjectState } from '@Store/slices/createproject';
 import droneOperatorTask, {
   IDroneOperatorTaskState,
@@ -20,10 +15,7 @@ export interface IRootReducer {
   droneOperatorTask: IDroneOperatorTaskState;
 }
 
-const rootReducer: Reducer<
-  CombinedState<IRootReducer>,
-  AnyAction
-> = combineReducers({
+const rootReducer = combineReducers<IRootReducer>({
   common,
   loader,
   createproject,
