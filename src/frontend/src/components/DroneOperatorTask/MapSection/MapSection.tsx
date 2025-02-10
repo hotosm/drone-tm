@@ -72,8 +72,8 @@ const MapSection = ({ className }: { className?: string }) => {
     any
   > | null>();
 
-  const centroidRef = useRef();
-  const takeOffPointRef = useRef<[number, number]>();
+  const centroidRef = useRef<[number, number]>(null);
+  const takeOffPointRef = useRef<[number, number]>(null);
 
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
@@ -187,17 +187,19 @@ const MapSection = ({ className }: { className?: string }) => {
       dispatch(setTaskAreaPolygon(taskAreaPolygon));
       return taskAreaPolygon;
     },
-    onSuccess: () => {
-      if (map) {
-        // eslint-disable-next-line prefer-destructuring
-        const layers = map.getStyle().layers;
-        if (layers && layers.length > 0) {
-          const firstLayerId = layers[4].id; // Get the first layer
+  });
+
+  useEffect(() => {
+    if (taskDataPolygon && map) {
+      const layers = map.getStyle().layers;
+      if (layers && layers.length > 0) {
+        const firstLayerId = layers[4]?.id; // Get the first layer
+        if (firstLayerId) {
           map.moveLayer('task-polygon-layer', firstLayerId); // Move the layer before the first layer
         }
       }
-    },
-  });
+    }
+  }, [taskDataPolygon, map]);
 
   useEffect(() => {
     if (!map || !isMapLoaded || (!taskWayPointsData && !taskDataPolygon))

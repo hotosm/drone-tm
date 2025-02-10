@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -68,15 +68,18 @@ export default function Login() {
     },
   });
 
-  useQuery({
+  const googleLoginQuery = useQuery({
     queryKey: ['google-login'],
     queryFn: signInGoogle,
     select: (res: any) => res.data,
-    onSuccess: (res: any) => {
-      window.location.href = res.login_url;
-    },
     enabled: !!onSignUpBtnClick,
   });
+
+  useEffect(() => {
+    if (googleLoginQuery.data) {
+      window.location.href = googleLoginQuery.data.login_url;
+    }
+  }, [googleLoginQuery.data]);
 
   const { register, handleSubmit } = useForm({
     defaultValues: initialState,
