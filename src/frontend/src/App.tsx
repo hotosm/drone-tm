@@ -23,11 +23,11 @@ import {
   getPromptDialogContent,
 } from '@Constants/modalContents';
 import ScrollToTop from '@Components/common/ScrollToTop';
-import HotTracker from '@Components/common/HotTracking';
+// import HotTracker from '@Components/common/HotTracking';
 
-if (!customElements.get('hot-tracking')) {
-  import('@hotosm/ui/components/tracking/tracking');
-}
+// if (!customElements.get('hot-tracking')) {
+//   import('@hotosm/ui/components/tracking/tracking');
+// }
 
 export default function App() {
   const dispatch = useTypedDispatch();
@@ -107,7 +107,7 @@ export default function App() {
         </div>
         <ScrollToTop />
       </div>
-      <HotTracker />
+      {/* <HotTracker /> */}
     </>
   );
 }
