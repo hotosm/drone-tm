@@ -1,6 +1,7 @@
 import MapSection from '@Components/IndividualProject/ExportSection/MapSection';
 import dtmLogo from '@Assets/images/DTM-logo-black.svg';
 import Image from '@Components/RadixComponents/Image';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 
 interface IExportSectionProps {
   projectData: Record<string, any>;
@@ -71,4 +72,4 @@ const ExportSection = ({ projectData }: IExportSectionProps) => {
   );
 };
 
-export default ExportSection;
+export default hasErrorBoundary(ExportSection);

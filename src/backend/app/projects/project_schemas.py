@@ -19,7 +19,13 @@ from psycopg import Connection
 from psycopg.rows import class_row
 from slugify import slugify
 from app.models.enums import FinalOutput, ProjectVisibility, UserRole
-from app.models.enums import IntEnum, ProjectStatus, HTTPStatus, RegulatorApprovalStatus
+from app.models.enums import (
+    IntEnum,
+    ProjectStatus,
+    HTTPStatus,
+    RegulatorApprovalStatus,
+    ProjectCompletionStatus,
+)
 from app.utils import (
     merge_multipolygon,
 )
@@ -380,76 +386,108 @@ class DbProject(BaseModel):
         db: Connection,
         user_id: Optional[str] = None,
         search: Optional[str] = None,
+        status: Optional[ProjectCompletionStatus] = None,
         skip: int = 0,
         limit: int = 100,
     ):
         """
         Get all projects, count total tasks and task states (ongoing, completed, etc.).
-        Optionally filter by the project creator (user) and search by project name.
+        Optionally filter by the project creator (user), search by project name, and status.
         """
         search_term = f"%{search}%" if search else "%"
+        status_value = status.value if status else None
+
         async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT
-                    p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at, p.author_id,
-                    ST_AsGeoJSON(p.outline)::jsonb AS outline,
-                    p.requires_approval_from_manager_for_locking,
-
-                    -- Count total tasks for each project
-                    COUNT(t.id) AS total_task_count,
-
-                    -- Count based on the latest state of tasks
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
-
-                    -- Count based on the latest state of tasks
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
-
-                FROM projects p
-                LEFT JOIN tasks t ON t.project_id = p.id
-                LEFT JOIN (
-                    -- Get the latest event per task
-                    SELECT DISTINCT ON (te.task_id)
-                        te.task_id,
-                        te.state,
-                        te.created_at
-                    FROM task_events te
-                    ORDER BY te.task_id, te.created_at DESC
-                ) AS te ON te.task_id = t.id
-
-                WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
-                AND p.name ILIKE %(search)s
-
-                -- Uncomment this if we want to restrict projects before local regulation accepts it
-                -- AND (
-                --    %(user_id)s IS NOT NULL
-                --    OR p.requires_approval_from_regulator = 'f'
-                --    OR p.regulator_approval_status = 'APPROVED'
-                -- )
-
-                GROUP BY p.id
-                ORDER BY p.created_at DESC
+            query = """
+                WITH project_stats AS (
+                    SELECT
+                        p.id,
+                        p.slug,
+                        p.name,
+                        p.description,
+                        p.per_task_instructions,
+                        p.created_at,
+                        p.author_id,
+                        ST_AsGeoJSON(p.outline)::jsonb AS outline,
+                        p.requires_approval_from_manager_for_locking,
+                        COUNT(t.id) AS total_task_count,
+                        COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
+                        COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
+                        CASE
+                            WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
+                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
+                                AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
+                            ELSE 'ongoing'
+                        END AS calculated_status
+                    FROM projects p
+                    LEFT JOIN tasks t ON t.project_id = p.id
+                    LEFT JOIN (
+                        SELECT DISTINCT ON (te.task_id)
+                            te.task_id,
+                            te.state,
+                            te.created_at
+                        FROM task_events te
+                        ORDER BY te.task_id, te.created_at DESC
+                    ) AS te ON te.task_id = t.id
+                    WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+                    AND p.name ILIKE %(search)s
+                    GROUP BY p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at, p.author_id, p.outline, p.requires_approval_from_manager_for_locking
+                )
+                SELECT *
+                FROM project_stats
+                WHERE CAST(%(status)s AS text) IS NULL
+                    OR calculated_status = CAST(%(status)s AS text)
+                ORDER BY created_at DESC
                 OFFSET %(skip)s
                 LIMIT %(limit)s
-                """,
+            """
+
+            await cur.execute(
+                query,
                 {
                     "skip": skip,
                     "limit": limit,
                     "user_id": user_id,
                     "search": search_term,
+                    "status": status_value,
                 },
             )
             db_projects = await cur.fetchall()
 
         async with db.cursor() as cur:
+            count_query = """
+                WITH project_stats AS (
+                    SELECT
+                        p.id,
+                        CASE
+                            WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
+                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
+                                AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
+                            ELSE 'ongoing'
+                        END AS calculated_status
+                    FROM projects p
+                    LEFT JOIN tasks t ON t.project_id = p.id
+                    LEFT JOIN (
+                        SELECT DISTINCT ON (te.task_id)
+                            te.task_id,
+                            te.state,
+                            te.created_at
+                        FROM task_events te
+                        ORDER BY te.task_id, te.created_at DESC
+                    ) AS te ON te.task_id = t.id
+                    WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+                    AND p.name ILIKE %(search)s
+                    GROUP BY p.id
+                )
+                SELECT COUNT(*)
+                FROM project_stats
+                WHERE CAST(%(status)s AS text) IS NULL
+                    OR calculated_status = CAST(%(status)s AS text)
+            """
             await cur.execute(
-                """
-                SELECT COUNT(*) FROM projects p
-                WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
-                AND p.name ILIKE %(search)s""",
-                {"user_id": user_id, "search": search_term},
+                count_query,
+                {"user_id": user_id, "search": search_term, "status": status_value},
             )
-
             total_count = await cur.fetchone()
 
         return db_projects, total_count[0]
@@ -657,11 +695,11 @@ class ProjectInfo(BaseModel):
         total_task_count = values.total_task_count
 
         if completed_task_count == 0 and ongoing_task_count == 0:
-            values.status = "not-started"
+            values.status = ProjectCompletionStatus.NOT_STARTED
         elif completed_task_count == total_task_count:
-            values.status = "completed"
+            values.status = ProjectCompletionStatus.COMPLETED
         else:
-            values.status = "ongoing"
+            values.status = ProjectCompletionStatus.ON_GOING
 
         return values
 

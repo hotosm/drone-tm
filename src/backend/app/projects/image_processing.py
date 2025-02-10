@@ -139,10 +139,14 @@ class DroneImageProcessor:
                 batch_number = i // batch_size + 1
                 total_batches = (total_files + batch_size - 1) // batch_size
 
-                log.info(f"Processing batch {batch_number}/{total_batches}")
+                log.info(f"Downloading batch {batch_number}/{total_batches}")
                 tasks = [
                     self.download_image(
-                        session, url, os.path.join(local_dir, f"file_{i + j + 1}.jpg")
+                        session,
+                        url,
+                        os.path.join(
+                            local_dir, f"{uuid.uuid4()}_file_{i + j + 1}.jpg"
+                        ),  # unique image name are maintained with uuid
                     )
                     for j, url in enumerate(batch)
                 ]

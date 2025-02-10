@@ -24,6 +24,7 @@ interface IPopupUIComponent {
   properties: Record<string, any>;
   title: string;
   hideButton: boolean;
+  buttonText?: string;
   closeFn: () => void;
 }
 
@@ -33,6 +34,7 @@ function PopupUIComponent({
   properties,
   title,
   hideButton,
+  buttonText = 'View More',
   closeFn,
 }: IPopupUIComponent) {
   const popupHTML = useMemo(
@@ -45,7 +47,9 @@ function PopupUIComponent({
         {isLoading ? (
           <Skeleton className="naxatw-my-3 naxatw-h-4 naxatw-w-1/2 naxatw-rounded-md naxatw-bg-grey-100 naxatw-shadow-sm" />
         ) : (
-          <p className="naxatw-btn-text naxatw-text-primary-400">{title}</p>
+          <p className="naxatw-btn-text naxatw-text-primary-400 naxatw-text-red">
+            {title}
+          </p>
         )}
         <span
           id="popup-close-button"
@@ -57,13 +61,18 @@ function PopupUIComponent({
         </span>
       </div>
       <div dangerouslySetInnerHTML={{ __html: popupHTML }} />
-      {!isLoading && !hideButton && (
-        <div className="naxatw-p-3">
-          <Button variant="link" size="sm" id="popup-button">
-            View More
+      <div className="naxatw-flex naxatw-w-full naxatw-justify-center naxatw-py-2">
+        {!isLoading && !hideButton && (
+          <Button
+            variant="link"
+            size="sm"
+            id="popup-button"
+            className="naxatw-bg-red naxatw-text-white naxatw-no-underline hover:naxatw-underline"
+          >
+            {buttonText}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -76,6 +85,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
       popupUI,
       title,
       handleBtnClick,
+      buttonText,
       isLoading = false,
       onClose,
       hideButton = false,
@@ -83,6 +93,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
       showPopup = (_clickedFeature: Record<string, any>) => true,
       openPopupFor,
       popupCoordinate,
+      closePopupOnButtonClick,
     }: IAsyncPopup,
     ref,
   ) => {
@@ -137,6 +148,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
           title={title as string}
           hideButton={hideButton as boolean}
           closeFn={onClose as () => void}
+          buttonText={buttonText}
         />,
       );
       popup.setHTML(htmlString).addTo(map);
@@ -152,6 +164,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
       properties,
       title,
       coordinates,
+      buttonText,
     ]);
 
     useEffect(() => {
@@ -174,6 +187,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
       const handlePopupBtnClick = () => {
         if (!properties) return;
         handleBtnClick?.(properties);
+        if (closePopupOnButtonClick) handleCloseBtnClick();
       };
 
       closeBtn?.addEventListener('click', handleCloseBtnClick);
@@ -183,7 +197,13 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
         closeBtn?.removeEventListener('click', handleCloseBtnClick);
         popupBtn?.removeEventListener('click', handlePopupBtnClick);
       };
-    }, [onClose, isPopupOpen, properties, handleBtnClick]);
+    }, [
+      onClose,
+      isPopupOpen,
+      properties,
+      handleBtnClick,
+      closePopupOnButtonClick,
+    ]);
 
     if (!properties) return <div />;
     return null;

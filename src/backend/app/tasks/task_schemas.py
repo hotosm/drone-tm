@@ -273,7 +273,7 @@ class TaskDetailsOut(BaseModel):
     total_image_uploaded: Optional[int] = None
     assets_url: Optional[str] = None
     outline: Outline
-    created_at: datetime
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     state: State
     project_name: str

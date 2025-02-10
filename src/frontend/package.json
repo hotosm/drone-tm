@@ -17,6 +17,7 @@
     "@tanstack/react-table": "^8.9.3",
     "@turf/area": "^7.0.0",
     "@turf/bbox": "^7.0.0",
+    "@turf/boolean-point-in-polygon": "^7.2.0",
     "@turf/centroid": "^7.0.0",
     "@turf/flatten": "^7.0.0",
     "@turf/helpers": "^7.0.0",
@@ -57,6 +58,9 @@
     "wkt": "^0.1.1"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.26.7",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.26.0",
     "@tanstack/eslint-plugin-query": "^4.29.4",
     "@types/file-saver": "^2.0.5",
     "@types/geojson": "^7946.0.10",
@@ -89,13 +93,16 @@
     "typescript": "^4.9.3",
     "vite": "^4.2.0"
   },
+  "peerDependencies": {
+    "@hotosm/ui": "0.2.0-b6"
+  },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix",
       "prettier --cache --write"
     ]
   },
-  "name": "starterkit-v2",
+  "name": "drone-tm",
   "private": true,
   "scripts": {
     "build": "tsc && vite build",
@@ -105,5 +112,6 @@
     "start": "vite"
   },
   "type": "module",
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }

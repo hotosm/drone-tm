@@ -2,7 +2,7 @@
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { FlexColumn } from '@Components/common/Layouts';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
+import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
@@ -16,7 +16,7 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import convertExifDataToGeoJson from '@Utils/exifDataToGeoJson';
 import sortByDatetime from '@Utils/sortArrayUsingDate';
 import { NavigationControl, AttributionControl, Map } from 'maplibre-gl';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
 import chunkArray from '@Utils/createChunksOfArray';
@@ -24,17 +24,21 @@ import { getImageUploadLink } from '@Services/droneOperator';
 import { useMutation } from '@tanstack/react-query';
 import { postTaskStatus } from '@Services/project';
 import widthCalulator from '@Utils/percentageCalculator';
+import { point } from '@turf/helpers';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import FilesUploadingPopOver from '../LoadingBox';
 
 const ImageMapBox = () => {
   const dispatch = useTypedDispatch();
-  const popupRef = useRef<HTMLDivElement | null>(null);
-
   const uploadedFilesNumber = useRef(0);
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
   const taskId = pathname?.[4];
 
+  const [activeSelection, setActiveSelection] = useState(false);
+  const [selectedPointImageName, setSelectedPointImageName] = useState<
+    string[]
+  >([]);
   const [progressBar, setProgressBar] = useState(false);
   const [loadingWidth, setLoadingWidth] = useState(0);
   const [imageFilesGeoJsonData, setImageFilesGeoJsonData] =
@@ -47,12 +51,15 @@ const ImageMapBox = () => {
     state => state.droneOperatorTask.uploadedImagesType,
   );
   const filesExifData = useTypedSelector(
-    state => state.droneOperatorTask.filesExifData,
+    (state: any) => state.droneOperatorTask.filesExifData,
   );
   const uploadProgress = useTypedSelector(
     state => state.droneOperatorTask.uploadProgress,
   );
   const modalState = useTypedSelector(state => state.common.showModal);
+  const taskAreaPolygon = useTypedSelector(
+    state => state.droneOperatorTask.taskAreaPolygon,
+  );
 
   useEffect(() => {
     if (!modalState) {
@@ -113,8 +120,8 @@ const ImageMapBox = () => {
 
   const getPopupUI = useCallback(() => {
     return (
-      <FlexColumn className="naxatw-items-start naxatw-gap-2">
-        <FlexColumn className="naxatw-gap-1">
+      <div className="naxatw-flex naxatw-flex-col naxatw-items-start naxatw-gap-2">
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
           <p className="naxatw-text-base naxatw-font-medium naxatw-text-black">
             {popupData?.name}
           </p>
@@ -122,9 +129,9 @@ const ImageMapBox = () => {
             {popupData?.coordinates?.lat?.toFixed(8)},&nbsp;
             {popupData?.coordinates?.lng?.toFixed(8)}{' '}
           </p>
-        </FlexColumn>
+        </div>
         <img src={popupData?.fileBob} alt="Uploaded" />
-      </FlexColumn>
+      </div>
     );
   }, [popupData]);
 
@@ -146,7 +153,7 @@ const ImageMapBox = () => {
       // urls fromm array of objects is retrieved and stored in value
       const urls = urlsData.data.map(({ url }: { url: string }) => url);
       const chunkedUrls = chunkArray(urls, 4);
-      const files = filesExifData.map(file => file.file);
+      const files = filesExifData.map((file: any) => file.file);
       const chunkedFiles = chunkArray(files, 4);
 
       // this calls api simultaneously for each chunk of files
@@ -190,11 +197,26 @@ const ImageMapBox = () => {
     const filesData = {
       expiry: 5,
       task_id: taskId,
-      image_name: filesExifData.map(file => file.file.name),
+      image_name: filesExifData.map((file: any) => file.file.name),
       project_id: projectId,
     };
     mutate(filesData);
   }
+
+  const pointsInsideTaskArea = useMemo(() => {
+    let numberOfPointsInsideTaskArea = 0;
+    filesExifData?.forEach((element: any) => {
+      const imagePoint = point([
+        element.coordinates.longitude,
+        element.coordinates.latitude,
+      ]);
+
+      if (booleanPointInPolygon(imagePoint, taskAreaPolygon?.features[0])) {
+        numberOfPointsInsideTaskArea++;
+      }
+    });
+    return numberOfPointsInsideTaskArea;
+  }, [filesExifData, taskAreaPolygon]);
 
   return (
     <>
@@ -216,16 +238,31 @@ const ImageMapBox = () => {
               id="image-points-map"
               geojson={imageFilesGeoJsonData as GeojsonType}
               visibleOnMap={!!imageFilesGeoJsonData}
-              interactions={['feature']}
+              interactions={activeSelection ? ['feature'] : []}
               layerOptions={{
                 type: 'circle',
                 paint: {
                   'circle-color': '#176149',
                   'circle-radius': 6,
                   'circle-stroke-width': 4,
-                  'circle-stroke-color': 'red',
+                  // 'circle-stroke-color': 'red',
+                  'circle-stroke-color': [
+                    'case',
+                    [
+                      'in',
+                      ['get', 'name'],
+                      ['literal', selectedPointImageName],
+                    ],
+                    '#3f704d',
+                    '#FF0000 ',
+                  ],
                   'circle-stroke-opacity': 1,
                 },
+              }}
+              onFeatureSelect={data => {
+                setSelectedPointImageName(prev => [
+                  ...new Set([...prev, String(data.name)]),
+                ]);
               }}
               zoomToExtent
             />
@@ -235,49 +272,87 @@ const ImageMapBox = () => {
               id="image-lines"
               geojson={imageFilesLineStringData as GeojsonType}
               visibleOnMap={!!imageFilesLineStringData}
-              interactions={['feature']}
               layerOptions={{
                 type: 'line',
                 paint: {
                   'line-color': '#000000',
                   'line-width': 2,
-                  // 'line-dasharray': [6, 3],
                 },
               }}
               symbolPlacement="line"
               iconAnchor="center"
             />
-            <AsyncPopup
-              map={map as Map}
-              showPopup={(feature: Record<string, any>) => {
-                return feature?.source === 'image-points-map';
-              }}
-              popupUI={getPopupUI}
-              fetchPopupData={(properties: Record<string, any>) => {
-                setPopupData(properties);
-              }}
-              hideButton={false}
-              getCoordOnProperties
-              buttonText="Remove"
-              handleBtnClick={fileData => {
-                const newFilesData = filesExifData.filter(
-                  filex => filex.file.name !== fileData.name,
-                );
-                dispatch(setFilesExifData(newFilesData));
-                // dispatch(setIma)
-                if (popupRef.current) {
-                  const closeButton = popupRef.current?.querySelector(
-                    '#close-popup',
-                  ) as HTMLElement;
-                  closeButton?.click();
+
+            <div className="naxatw-absolute naxatw-left-[calc(50%-9rem)] naxatw-top-2 naxatw-z-30 naxatw-flex naxatw-w-72 naxatw-justify-center naxatw-gap-2">
+              <Button
+                className="naxatw-bg-gray-500 naxatw-px-3 naxatw-text-[#FFFFFF]"
+                onClick={() => {
+                  setActiveSelection(prev => !prev);
+                }}
+                size="sm"
+              >
+                {activeSelection ? 'Inactive Selection' : 'Active Selection'}
+              </Button>
+              {selectedPointImageName?.length ? (
+                <Button
+                  className="naxatw-bg-red naxatw-px-3 naxatw-text-[#FFFFFF]"
+                  onClick={() => {
+                    const newFilesData = filesExifData.filter(
+                      (filex: any) =>
+                        !selectedPointImageName.includes(filex.file.name),
+                    );
+                    dispatch(setFilesExifData(newFilesData));
+                  }}
+                  size="sm"
+                >
+                  Delete Selected
+                </Button>
+              ) : (
+                <></>
+              )}
+            </div>
+            {!activeSelection && (
+              <AsyncPopup
+                map={map as Map}
+                showPopup={(feature: Record<string, any>) =>
+                  feature?.source === 'image-points-map'
                 }
+                popupUI={getPopupUI}
+                fetchPopupData={(properties: Record<string, any>) => {
+                  setPopupData(properties);
+                }}
+                title="Image Preview"
+                buttonText="Delete"
+                handleBtnClick={fileData => {
+                  const newFilesData = filesExifData.filter(
+                    (filex: any) => filex.file.name !== fileData.name,
+                  );
+                  dispatch(setFilesExifData(newFilesData));
+                }}
+                closePopupOnButtonClick
+              />
+            )}
+
+            <VectorLayer
+              map={map as Map}
+              id="task-polygon-image-selection"
+              geojson={taskAreaPolygon as GeojsonType}
+              layerOptions={{
+                type: 'fill',
+                paint: {
+                  'fill-color': '#98BBC8',
+                  'fill-outline-color': '#484848',
+                  'fill-opacity': 0.6,
+                },
               }}
-              ref={popupRef}
-              title="Image Preview"
             />
           </MapContainer>
           <p className="naxatw-text-lg naxatw-font-medium">
             {filesExifData.length} Images Selected
+          </p>
+          <p className="naxatw-text-lg naxatw-font-medium naxatw-text-yellow-400">
+            {(pointsInsideTaskArea / filesExifData.length) * 100 || 0} % of the
+            uploaded images are from within the project area.
           </p>
         </div>
         <div className="naxatw-mx-auto naxatw-w-fit">

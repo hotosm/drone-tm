@@ -43,7 +43,13 @@ const getActiveTabContent = (
   handleTableRowClick: (rowData: any) => {},
 ) => {
   if (activeTab === 'about')
-    return <DescriptionSection projectData={data} page="project-description" />;
+    return (
+      <DescriptionSection
+        projectData={data}
+        isProjectDataLoading={isProjectDataLoading}
+        page="project-description"
+      />
+    );
   if (activeTab === 'tasks')
     return (
       <Tasks
@@ -141,6 +147,7 @@ const IndividualProject = () => {
 
   useEffect(() => {
     return () => {
+      dispatch(setProjectState({}));
       dispatch(setProjectState({ showGcpEditor: false }));
     };
   }, [dispatch]);
