@@ -191,7 +191,7 @@ const MapSection = ({ className }: { className?: string }) => {
 
   useEffect(() => {
     if (taskDataPolygon && map) {
-      const { layers } = map.getStyle();
+      const layers = map.getStyle()?.layers;
       if (layers && layers.length > 0) {
         const firstLayerId = layers[4]?.id; // Get the first layer
         if (firstLayerId) {
