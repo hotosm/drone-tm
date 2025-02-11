@@ -26,6 +26,7 @@ import { postTaskStatus } from '@Services/project';
 import widthCalulator from '@Utils/percentageCalculator';
 import { point } from '@turf/helpers';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import FilesUploadingPopOver from '../LoadingBox';
 
 const ImageMapBox = () => {
@@ -379,4 +380,4 @@ const ImageMapBox = () => {
   );
 };
 
-export default ImageMapBox;
+export default hasErrorBoundary(ImageMapBox);
