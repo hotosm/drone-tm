@@ -55,7 +55,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
   const {
     mutate: mutateProjectWayPoints,
     data: projectWayPoints,
-    isLoading: projectWaypointCountIsLoading,
+    isPending: projectWaypointCountIsLoading,
   } = useMutation({
     mutationFn: (projectGeoJsonPayload: Record<string, any>) => {
       const { project_geojson, dem, ...params } = projectGeoJsonPayload;
@@ -66,7 +66,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
     },
   });
 
-  const { mutate, isLoading } = useMutation<any, any, any, unknown>({
+  const { mutate, isPending } = useMutation<any, any, any, unknown>({
     mutationFn: postPreviewSplitBySquare,
     onSuccess: (res: any) => {
       dispatch(setCreateProjectState({ splitGeojson: res.data }));
@@ -102,7 +102,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
         </FormControl>
         <Button
           withLoader
-          isLoading={isLoading}
+          isLoading={isPending}
           rightIcon="settings"
           disabled={!dimension}
           className="naxatw-mt-4 naxatw-bg-red"

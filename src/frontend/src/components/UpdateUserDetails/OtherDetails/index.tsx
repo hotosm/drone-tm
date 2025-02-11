@@ -43,7 +43,7 @@ const OtherDetails = () => {
       defaultValues: initialState,
     });
 
-  const { mutate: updateOtherDetails, isLoading } = useMutation<
+  const { mutate: updateOtherDetails, isPending } = useMutation<
     any,
     any,
     any,
@@ -67,7 +67,7 @@ const OtherDetails = () => {
         await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
       }
 
-      queryClient.invalidateQueries(['user-profile']);
+      queryClient.invalidateQueries({queryKey: ['user-profile']});
 
       toast.success('Details Updated Successfully');
     },
@@ -230,7 +230,7 @@ const OtherDetails = () => {
             handleSubmit(onSubmit)();
           }}
           withLoader
-          isLoading={isLoading}
+          isLoading={isPending}
         >
           Save
         </Button>

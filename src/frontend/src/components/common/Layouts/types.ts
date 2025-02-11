@@ -1,6 +1,7 @@
+import React from 'react';
 import type { MouseEventHandler, ReactNode } from 'react';
 
-type divPropsType = JSX.IntrinsicElements['div'];
+type divPropsType = React.JSX.IntrinsicElements['div'];
 
 export interface IFlexContainerProps extends divPropsType {
   className?: string;

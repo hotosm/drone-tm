@@ -10,7 +10,7 @@ const ApprovalSection = () => {
   const [comment, setComment] = useState('');
   const queryClient = useQueryClient();
 
-  const { mutate: commentToProject, isLoading } = useMutation<
+  const { mutate: commentToProject, isPending } = useMutation<
     any,
     any,
     any,
@@ -57,8 +57,8 @@ const ApprovalSection = () => {
           variant="outline"
           onClick={() => handleApprovalStatus('REJECTED')}
           className="naxatw-border-red naxatw-font-primary naxatw-text-red"
-          isLoading={isLoading}
-          disabled={isLoading}
+          isLoading={isPending}
+          disabled={isPending}
         >
           Reject
         </Button>
@@ -66,8 +66,8 @@ const ApprovalSection = () => {
           variant="ghost"
           onClick={() => handleApprovalStatus('APPROVED')}
           className="naxatw-bg-red naxatw-font-primary naxatw-text-white"
-          isLoading={isLoading}
-          disabled={isLoading}
+          isLoading={isPending}
+          disabled={isPending}
         >
           Accept
         </Button>

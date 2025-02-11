@@ -23,7 +23,7 @@ const BasicDetails = () => {
     defaultValues: initialState,
   });
 
-  const { mutate: updateBasicInfo, isLoading } = useMutation<
+  const { mutate: updateBasicInfo, isPending } = useMutation<
     any,
     any,
     any,
@@ -31,7 +31,7 @@ const BasicDetails = () => {
   >({
     mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-profile']);
+      queryClient.invalidateQueries({queryKey: ['user-profile']});
       toast.success('Details Updated Successfully');
     },
     onError: err => {
@@ -145,7 +145,7 @@ const BasicDetails = () => {
             handleSubmit(onSubmit)();
           }}
           withLoader
-          isLoading={isLoading}
+          isLoading={isPending}
         >
           Save
         </Button>

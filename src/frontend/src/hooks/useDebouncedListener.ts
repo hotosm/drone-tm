@@ -4,7 +4,7 @@ type ValueType = string | number | null;
 
 export default function useDebounceListner(value: ValueType, delay = 500) {
   const [debouncedValue, setDebouncedValue] = useState<ValueType>(value);
-  const timerRef = useRef<null | ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<null | ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     timerRef.current = setTimeout(() => setDebouncedValue(value), delay);

@@ -23,7 +23,7 @@ const Password = () => {
   });
   const password = watch('password');
 
-  const { mutate: updatePassword, isLoading } = useMutation<
+  const { mutate: updatePassword, isPending } = useMutation<
     any,
     any,
     any,
@@ -107,7 +107,7 @@ const Password = () => {
             handleSubmit(onSubmit)();
           }}
           withLoader
-          isLoading={isLoading}
+          isLoading={isPending}
         >
           Save
         </Button>

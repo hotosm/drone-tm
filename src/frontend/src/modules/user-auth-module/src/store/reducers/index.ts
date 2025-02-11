@@ -1,19 +1,7 @@
-import {
-  AnyAction,
-  CombinedState,
-  combineReducers,
-  Reducer,
-} from '@reduxjs/toolkit';
-import user, { UserState } from '../slices/user';
+import { combineReducers } from '@reduxjs/toolkit';
+import user from '../slices/user';
 
-export interface IRootReducer {
-  user: UserState;
-}
-
-const rootReducer: Reducer<
-  CombinedState<IRootReducer>,
-  AnyAction
-> = combineReducers({
+const rootReducer = combineReducers({
   user,
 });
 
