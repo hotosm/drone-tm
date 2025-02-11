@@ -119,13 +119,21 @@ class DroneImageProcessor:
 
         log.info(f"Downloading images from S3 for task {task_id}...")
 
+        accepted_file_extensions = (".jpg", ".jpeg", ".png", ".txt", ".laz")
+
         s3_download_url = settings.S3_DOWNLOAD_ROOT
         if s3_download_url:
-            object_urls = [f"{s3_download_url}/{obj.object_name}" for obj in objects]
+            object_urls = [
+                f"{s3_download_url}/{obj.object_name}"
+                for obj in objects
+                if obj.object_name.lower().endswith(accepted_file_extensions)
+            ]
         else:
             # generate pre-signed URL for each object
             object_urls = [
-                get_presigned_url(bucket_name, obj.object_name, 12) for obj in objects
+                get_presigned_url(bucket_name, obj.object_name, 12)
+                for obj in objects
+                if obj.object_name.lower().endswith(accepted_file_extensions)
             ]
 
         total_files = len(object_urls)
