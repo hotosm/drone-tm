@@ -301,40 +301,33 @@ class DroneImageProcessor:
             bucket_name, name=name, options=options, webhook=webhook
         )
 
+        #   If webhook is passed, webhook does this job.
         if not webhook:
-            #   If webhook is passed, webhook does this job.
-            if not webhook:
-                # Monitor task progress
-                self.monitor_task(task)
+            # Monitor task progress
+            self.monitor_task(task)
 
-                # Optionally, download results
-                output_file_path = f"/tmp/{self.project_id}"
-                path_to_download = self.download_results(
-                    task, output_path=output_file_path
-                )
+            # Optionally, download results
+            output_file_path = f"/tmp/{self.project_id}"
+            path_to_download = self.download_results(task, output_path=output_file_path)
 
-                # Upload the results into s3
-                s3_path = (
-                    f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
-                )
-                add_file_to_bucket(bucket_name, path_to_download, s3_path)
-                # now update the task as completed in Db.
-                # Call the async function using asyncio
+            # Upload the results into s3
+            s3_path = f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
+            add_file_to_bucket(bucket_name, path_to_download, s3_path)
+            # now update the task as completed in Db.
+            # Call the async function using asyncio
 
-                # Update background task status to COMPLETED
-                update_task_status_sync = async_to_sync(task_logic.update_task_state)
-                update_task_status_sync(
-                    self.db,
-                    self.project_id,
-                    self.task_id,
-                    self.user_id,
-                    "Task completed.",
-                    State.IMAGE_UPLOADED,
-                    State.IMAGE_PROCESSING_FINISHED,
-                    timestamp(),
-                )
-            return task
-
+            # Update background task status to COMPLETED
+            update_task_status_sync = async_to_sync(task_logic.update_task_state)
+            update_task_status_sync(
+                self.db,
+                self.project_id,
+                self.task_id,
+                self.user_id,
+                "Task completed.",
+                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_FINISHED,
+                timestamp(),
+            )
         return task
 
     async def process_images_for_all_tasks(
