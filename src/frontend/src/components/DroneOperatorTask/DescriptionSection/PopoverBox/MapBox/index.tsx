@@ -350,9 +350,11 @@ const ImageMapBox = () => {
           <p className="naxatw-text-lg naxatw-font-medium">
             {filesExifData.length} Images Selected
           </p>
-          <p className="naxatw-text-lg naxatw-font-medium naxatw-text-yellow-400">
-            {(pointsInsideTaskArea / filesExifData.length) * 100 || 0} % of the
-            uploaded images are from within the project area.
+          <p className="naxatw-text-lg naxatw-font-medium naxatw-text-yellow-600">
+            {Number(
+              100 - ((pointsInsideTaskArea / filesExifData.length) * 100 || 0),
+            ).toFixed(0)}
+            % of the uploaded images are from outside the project area.
           </p>
         </div>
         <div className="naxatw-mx-auto naxatw-w-fit">
