@@ -13,7 +13,7 @@ export const useGetProjectsListQuery = (
 ) => {
   return useQuery({
     queryKey: queryOptions?.queryKey
-      ? ['projects-list', ...Object.values(queryOptions?.queryKey || {})]
+      ? ['projects-list', ...Object.values(queryOptions?.queryKey?.[0] || {})]
       : ['projects-list'],
     queryFn: () =>
       getProjectsList(

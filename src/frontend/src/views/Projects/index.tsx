@@ -38,13 +38,15 @@ const Projects = () => {
   // fetch api for projectsList
   const { data: projectListData, isFetching: isLoading }: Record<string, any> =
     useGetProjectsListQuery({
-      queryKey: {
-        // @ts-ignore
-        filter_by_owner: projectsFilterByOwner === 'yes',
-        page: paginationState?.activePage,
-        results_per_page: paginationState?.selectedNumberOfRows,
-        search: projectSearchKey,
-      },
+      queryKey: [
+        {
+          // @ts-ignore
+          filter_by_owner: projectsFilterByOwner === 'yes',
+          page: paginationState?.activePage,
+          results_per_page: paginationState?.selectedNumberOfRows,
+          search: projectSearchKey,
+        },
+      ],
     });
 
   // fetch project centroid
