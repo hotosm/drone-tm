@@ -1,7 +1,6 @@
 import os
 import base64
 import requests
-import json
 from typing import List, Dict
 from fastapi import HTTPException
 
@@ -106,7 +105,11 @@ async def upload_to_oam(db: Connection, project, user_data, tags: Dict[str, List
     combined_tags = list(set(default_tags + user_tags))
 
     orthophoto_url = get_orthophoto_url_for_project(project.id)
-
+    if not orthophoto_url:
+        return HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Orthophoto not found this project",
+        )
     oam_params = {
         "acquisition_end": datetime.now().isoformat(),
         "acquisition_start": datetime.now().isoformat(),
@@ -132,7 +135,7 @@ async def upload_to_oam(db: Connection, project, user_data, tags: Dict[str, List
         oam_upload_id = res["results"]["upload"]
         log.info(f"Orthophoto successfully uploaded to OAM with ID: {oam_upload_id}")
     else:
-        err_msg = f"Failed to upload orthophoto. Response: {json.dumps(res)}"
+        err_msg = res["message"] if "message" in res else "Failed to upload to OAM"
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=err_msg
         )
