@@ -41,6 +41,25 @@ def is_connection_secure(minio_url: str):
     return stripped_url, secure
 
 
+def check_file_exists(bucket_name: str, object_name: str) -> bool:
+    """
+    Check if a file exists in the S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket
+        object_name (str): The path to the object in the bucket
+
+    Returns:
+        bool: True if file exists, False otherwise
+    """
+    client = s3_client()
+    try:
+        client.stat_object(bucket_name, object_name)
+        return True
+    except S3Error:
+        return False
+
+
 def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
     """Upload a file from the filesystem to an S3 bucket.
 
@@ -244,6 +263,11 @@ def get_orthophoto_url_for_project(project_id: str):
     project_orthophoto_path = (
         f"dtm-data/projects/{project_id}/orthophoto/odm_orthophoto.tif"
     )
+
+    if not check_file_exists(settings.S3_BUCKET_NAME, project_orthophoto_path):
+        log.warning("Orthophoto not found in S3 bucket")
+        return None
+
     s3_download_root = settings.S3_DOWNLOAD_ROOT
     if s3_download_root:
         return urljoin(s3_download_root, project_orthophoto_path)
