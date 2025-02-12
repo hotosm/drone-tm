@@ -1,6 +1,6 @@
 import os
 import base64
-import requests
+import aiohttp
 from typing import List, Dict
 from fastapi import HTTPException
 
@@ -125,20 +125,28 @@ async def upload_to_oam(db: Connection, project, user_data, tags: Dict[str, List
         f"https://api.openaerialmap.org/dronedeploy?{urlencode(oam_params)}"
     )
 
-    response = requests.post(
-        oam_upload_url,
-        json={"download_path": orthophoto_url},
-    )
-
-    res = response.json()
-    if response.status_code == 200 and "results" in res and "upload" in res["results"]:
-        oam_upload_id = res["results"]["upload"]
-        log.info(f"Orthophoto successfully uploaded to OAM with ID: {oam_upload_id}")
-    else:
-        err_msg = res["message"] if "message" in res else "Failed to upload to OAM"
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=err_msg
-        )
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            oam_upload_url,
+            json={"download_path": orthophoto_url},
+        ) as response:
+            res = await response.json()
+            if (
+                response.status == 200
+                and "results" in res
+                and "upload" in res["results"]
+            ):
+                oam_upload_id = res["results"]["upload"]
+                log.info(
+                    f"Orthophoto successfully uploaded to OAM with ID: {oam_upload_id}"
+                )
+            else:
+                err_msg = (
+                    res["message"] if "message" in res else "Failed to upload to OAM"
+                )
+                raise HTTPException(
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=err_msg
+                )
 
     return {
         "message": "Upload initiated",
