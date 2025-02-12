@@ -255,7 +255,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             }}
           />
         )}
-
         {projectData?.no_fly_zones_geojson && (
           <VectorLayer
             map={map as Map}
@@ -277,7 +276,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             }}
           />
         )}
-
         {taskStatusObj &&
           tasksData &&
           tasksData?.map((task: Record<string, any>) => {
@@ -300,7 +298,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
               />
             );
           })}
-
         {/* visualize tasks orthophoto */}
         {visibleTaskOrthophoto?.map(orthophotoDetails => (
           <COGOrthophotoViewer
@@ -312,7 +309,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           />
         ))}
         {/* visualize tasks orthophoto end */}
-
         {/* visualize overall project orthophoto */}
         {projectData?.orthophoto_url && (
           <COGOrthophotoViewer
@@ -323,27 +319,40 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           />
         )}
         {/* visualize tasks orthophoto end */}
-
         {/* additional controls */}
         <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
-          {projectData?.orthophoto_url && (
+          <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
+            {projectData?.orthophoto_url && (
+              <Button
+                variant="ghost"
+                className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+                onClick={() => handleToggleOverallOrthophoto()}
+              >
+                <ToolTip
+                  name="visibility"
+                  message="Show Orthophoto"
+                  symbolType="material-icons"
+                  iconClassName="!naxatw-text-xl !naxatw-text-black"
+                  className="naxatw-mt-[-4px]"
+                />
+              </Button>
+            )}
             <Button
               variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-              onClick={() => handleToggleOverallOrthophoto()}
+              className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
+              onClick={() => handleZoomToExtent()}
             >
               <ToolTip
-                name="visibility"
-                message="Show Orthophoto"
+                name="zoom_out_map"
+                message="Zoom to project area"
                 symbolType="material-icons"
                 iconClassName="!naxatw-text-xl !naxatw-text-black"
                 className="naxatw-mt-[-4px]"
               />
             </Button>
-          )}
+          </div>
         </div>
         {/*  additional controls */}
-
         <AsyncPopup
           map={map as Map}
           popupUI={getPopupUI}
@@ -417,23 +426,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             )
           }
         />
-
-        {/* additional controls */}
-        <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
-          <Button
-            variant="ghost"
-            className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
-            onClick={() => handleZoomToExtent()}
-          >
-            <ToolTip
-              name="zoom_out_map"
-              message="Zoom to project area"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
-        </div>
         <Legend />
       </MapContainer>
 

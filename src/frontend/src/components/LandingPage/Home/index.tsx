@@ -86,7 +86,7 @@ export default function Home() {
               Manager (Drone TM)
             </p>
             <p className="naxatw-animate-fade-up naxatw-text-[1.5rem] naxatw-leading-8 md:naxatw-mt-8 md:naxatw-text-2xl">
-              Together, WeMap - Open.Accurate. Accessible
+              Together, We Map - Open.Accurate. Accessible
             </p>
           </motion.div>
           {/* <div className="naxatw-mt-12 naxatw-flex naxatw-animate-fade-up naxatw-flex-col naxatw-items-center naxatw-gap-3 md:naxatw-flex-row">

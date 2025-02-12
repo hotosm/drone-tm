@@ -519,7 +519,7 @@ const MapSection = ({ className }: { className?: string }) => {
       mutationFn: postRotatedTaskWayPoint,
       onSuccess: () => {
         toast.success('Flight plan rotated successfully');
-        queryClient.invalidateQueries({queryKey: ['task-waypoints']});
+        queryClient.invalidateQueries({ queryKey: ['task-waypoints'] });
       },
       onError: (err: any) => {
         toast.error(err?.response?.data?.detail || err.message);
