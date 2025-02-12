@@ -1,7 +1,7 @@
 import json
 import os
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List, Dict
 from uuid import UUID
 from app.tasks import task_logic
 import geojson
@@ -18,6 +18,7 @@ from fastapi import (
     Response,
     BackgroundTasks,
     Request,
+    Body,
 )
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
@@ -25,6 +26,7 @@ from psycopg import Connection
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
+from app.projects.oam import upload_to_oam
 from app.db import database
 from app.models.enums import HTTPStatus, State, ProjectCompletionStatus
 from app.s3 import add_file_to_bucket, s3_client
@@ -40,6 +42,7 @@ from app.utils import (
 from app.users import user_schemas
 from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
+
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -707,3 +710,24 @@ async def get_assets_info(
         project_info = project_logic.get_project_info_from_s3(project.id, task_id)
         project_info.state = current_state.get("state")
         return project_info
+
+
+@router.post("/{project_id}/upload-to-oam", tags=["OAM"])
+async def upload_imagery_to_oam(
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    tags: Dict[str, List[str]] = Body(default={"tags": []}),
+):
+    """
+    Upload project orthophoto to OpenAerialMap.
+    """
+    if project.author_id != user_data.id:
+        return HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="User not authorized to do this action",
+        )
+
+    return await upload_to_oam(db, project, user_data, tags)
