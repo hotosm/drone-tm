@@ -12,14 +12,14 @@ As of 2025 there are 3 basic options for drones:
    Enterprise, Autel Evo, or DJI Matrice.
 3. ~$1,000 micro-quadcopter like a DJI Mini 4 Pro.
 
-#### Option 1: Learning Curve / Consultant
+#### Option 1: Expensive Route (Consultant)
 
 If you have an expensive operator and want to go big (thousands of km² or more)
 and don't mind a lot more administrative hassles, permissions, and are willing
 to climb a learning curve, get a Sensefly Ebee or Wingtra One, which come with
 dedicated laptop-based planning suites to generate mapping flight missions.
 
-#### Option 2:
+#### Option 2: Mid-Level Cost (DIY Paid Software)
 
 If you have a moderately expensive operator, but still not looking to get into
 industrial-scale mapping, you get something like a Mavic Enterprise, and use it
@@ -29,7 +29,7 @@ This works pretty well (you still might want to use our Drone Tasking Manager to
 coordinate flight plans if you have more than one, but at least you can generate
 good mapping flight plans with commercial software).
 
-#### Option 3:
+#### Option 3: Low-Cost Community-Driven (Drone-TM)
 
 We usually recommend the DJI Mini 4 Pro for local communities; it's by a
 substantial margin the best value for money in terms of image quality per dollar
