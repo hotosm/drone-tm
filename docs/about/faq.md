@@ -1,6 +1,86 @@
 # ❓ Frequently Asked Questions ❓
 
-## Q. What problem do we solve with DroneTM?
+## General
+
+### Q. Why should I consider DroneTM over other options?
+
+As of 2025 there are 3 basic options for drones:
+
+1. ~$20,000 and up professional fixed-wing mapping platform
+   like a Sensefly Ebee or Wingtra One.
+2. ~$4,000-$10,000 enterprise quadcopter Like a DJI Mavic
+   Enterprise, Autel Evo, or DJI Matrice.
+3. ~$1,000 micro-quadcopter like a DJI Mini 4 Pro.
+
+#### Option 1: Learning Curve / Consultant
+
+If you have an expensive operator and want to go big (thousands of km² or more)
+and don't mind a lot more administrative hassles, permissions, and are willing
+to climb a learning curve, get a Sensefly Ebee or Wingtra One, which come with
+dedicated laptop-based planning suites to generate mapping flight missions.
+
+#### Option 2:
+
+If you have a moderately expensive operator, but still not looking to get into
+industrial-scale mapping, you get something like a Mavic Enterprise, and use it
+with a commercial flight planning software like DroneDeploy.
+
+This works pretty well (you still might want to use our Drone Tasking Manager to
+coordinate flight plans if you have more than one, but at least you can generate
+good mapping flight plans with commercial software).
+
+#### Option 3:
+
+We usually recommend the DJI Mini 4 Pro for local communities; it's by a
+substantial margin the best value for money in terms of image quality per dollar
+(from currently available drones). The "Fly More Combo" retails for USD$1050
+and comes with 3 batteries and a controller, so you can fly fairly consistently
+throughout the day straight after unboxing.
+
+It has some major advantages:
+
+- It's less than 250 grams, so it's very lightly regulated in many countries;
+  in many places you don't need an operators licence, and often things like
+  flight ceilings don't apply to micro-drones.
+- It has a remarkably good camera, creating imagery that rivals much more
+  expensive drones.
+- It's surprisingly stable in the wind despite its small size.
+- It's really cheap (USD$1050 for the Fly More Combo, ~$750 for the drone with
+  only 1 battery and basic controller) and widely available.
+- It's easy to get serviced because it's a very popular consumer drone.
+
+However, the Mini 4 Pro has 2 main drawbacks:
+
+1. It doesn't work with most mapping mission planning software suites (because
+   DJI has still not released an SDK for it, despite claiming they intended to do so).
+2. It's not the fastest flyer, so it can't cover the amount of area that a more
+   expensive drone can do in a day.
+
+For the former drawback, we specifically developed our
+[Drone Tasking Manager](dronetm.org) to work well with the Mini 4 Pro because it's
+such an effective, accessible, and affordable option for communities. As far as we
+know our DroneTM is the only way to use the Mini 4 Pro for serious professional
+mapping, but it does work, and it actually works pretty well.
+
+But be warned; you'd still be investing in a drone for which only our solution
+really permits professional mapping. Our solution is open source and free to
+use: no "freemium" licensing whereby you only get a limited functionality.
+
+It's a Digital Public Good and we're not trying to make money off it, we're
+trying to empower communities with it.
+
+For the latter drawback, it's really a question of who is flying. If it's a
+highly-paid person who travels away from home to cover a given area, you want
+a larger, faster drone to cover more area per day (you can cover 1-4 km² per
+day at 5cm GSD with good enough overlap for decent 3D using a Mini 4 Pro, whereas
+you can cover >20km²/day with a Sensefly Ebee or Wingtra One—but those are $20,000
+instead of $1050).
+
+If it's local community members flying relatively close to home, it can be much more
+cost effective using a small fleet of cheaper drones like the Mini 4 Pro (plus it
+helps the local economy and people).
+
+### Q. What problem do we solve with DroneTM?
 
 **Enhancing Emergency Response**
 We address the need for faster and more precise deployment of drones during
@@ -22,7 +102,7 @@ platform, ensuring critical information is easily available to stakeholders for 
 
 ---
 
-## Q. How do I get started with DroneTM?
+### Q. How do I get started with DroneTM?
 
 You can contribute to DroneTM in multiple ways:
 
@@ -33,7 +113,7 @@ You can contribute to DroneTM in multiple ways:
 
 ---
 
-## Q. What are the outputs I get from DroneTM? Are they raw drone imagery or the processed data like orthophotos and surface models?
+### Q. What are the outputs I get from DroneTM? Are they raw drone imagery or the processed data like orthophotos and surface models?
 
 Currently, only processed data is available for download. The final outputs include:
 
@@ -42,27 +122,27 @@ Currently, only processed data is available for download. The final outputs incl
 
 ---
 
-## Q. Do I need an OSM account or need to create a new account to contribute to DroneTM?
+### Q. Do I need an OSM account or need to create a new account to contribute to DroneTM?
 
 No, you don’t need an OSM account. You can simply sign up using your Google account.
 
 ---
 
-## Q. What if the project area of my project is large and needs multiple flight operations?
+### Q. What if the project area of my project is large and needs multiple flight operations?
 
 DroneTM divides large project areas into multiple tasks, allowing you to adjust the area per task.
 **Note:** The maximum project area allowed is 100 sq. km.
 
 ---
 
-## Q. What if my project creation contains no-fly zones?
+### Q. What if my project creation contains no-fly zones?
 
 During project creation, you can specify that the project area includes
 no-fly zones. There is a feature to draw these zones on the project map, and the flight plan will exclude any specified no-fly zones.
 
 ---
 
-## Q. What Drones Are Supported?
+### Q. What Drones Are Supported?
 
 Currently, DroneTM is tested on **DJI Mini 4 Pro**, and flight plans are optimized for its camera specifications.
 However, the system is compatible with any DJI drones that support waypoint features, such as:
@@ -86,7 +166,7 @@ drones, and create custom flight plans as per the specifications provided by the
       widening our support signficantly to cheap custom-made drones, and in future
       the HOT mapping drone.
 
-## Q. What Drones Are Not Supported?
+### Q. What Drones Are Not Supported?
 
 We don't have an exhaustive list of all unsupported drones, but in general, if
 the drone is not listed as supported, then DroneTM will probably not work with
