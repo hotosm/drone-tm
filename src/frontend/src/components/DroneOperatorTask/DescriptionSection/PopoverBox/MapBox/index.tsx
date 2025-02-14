@@ -21,15 +21,17 @@ import { toast } from 'react-toastify';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
 import chunkArray from '@Utils/createChunksOfArray';
 import { getImageUploadLink } from '@Services/droneOperator';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postTaskStatus } from '@Services/project';
 import widthCalulator from '@Utils/percentageCalculator';
 import { point } from '@turf/helpers';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import FilesUploadingPopOver from '../LoadingBox';
 
 const ImageMapBox = () => {
   const dispatch = useTypedDispatch();
+  const queryClient = useQueryClient();
   const uploadedFilesNumber = useRef(0);
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
@@ -137,6 +139,11 @@ const ImageMapBox = () => {
 
   const { mutate: updateStatus } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['task-assets-info'],
+      });
+    },
     onError: (err: any) => {
       toast.error(err.message);
     },
@@ -350,9 +357,11 @@ const ImageMapBox = () => {
           <p className="naxatw-text-lg naxatw-font-medium">
             {filesExifData.length} Images Selected
           </p>
-          <p className="naxatw-text-lg naxatw-font-medium naxatw-text-yellow-400">
-            {(pointsInsideTaskArea / filesExifData.length) * 100 || 0} % of the
-            uploaded images are from within the project area.
+          <p className="naxatw-text-lg naxatw-font-medium naxatw-text-yellow-600">
+            {Number(
+              100 - ((pointsInsideTaskArea / filesExifData.length) * 100 || 0),
+            ).toFixed(0)}
+            % of the uploaded images are from outside the project area.
           </p>
         </div>
         <div className="naxatw-mx-auto naxatw-w-fit">
@@ -377,4 +386,4 @@ const ImageMapBox = () => {
   );
 };
 
-export default ImageMapBox;
+export default hasErrorBoundary(ImageMapBox);
