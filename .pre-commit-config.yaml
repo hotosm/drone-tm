@@ -79,7 +79,7 @@ repos:
 
   # Deps: ensure Python uv lockfile is up to date
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.5.29
+    rev: 0.6.0
     hooks:
       - id: uv-lock
         files: src/backend/pyproject.toml
@@ -107,7 +107,7 @@ repos:
 
   # Autoformat: YAML, JSON, Markdown, etc.
   - repo: https://github.com/pycontribs/mirrors-prettier
-    rev: v3.5.0
+    rev: v3.5.1
     hooks:
       - id: prettier
         args:
