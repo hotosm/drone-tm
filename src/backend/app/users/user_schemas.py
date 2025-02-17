@@ -167,6 +167,7 @@ class DbUserProfile(BaseUserProfile):
     """UserProfile model for interacting with the user_profile table."""
 
     user_id: int
+    has_oam_token: bool = False
 
     @staticmethod
     async def _handle_file_upload(profile: UserProfileCreate, user_id: int):
@@ -354,8 +355,21 @@ class DbUserProfile(BaseUserProfile):
         async with db.cursor(row_factory=class_row(DbUserProfile)) as cur:
             await cur.execute(query, {"user_id": user_id})
             result = await cur.fetchone()
+
             if result:
-                delattr(result, "oam_api_token")
+                # Check if 'oam_token' exists and set 'has_oam_token' accordingly
+                has_oam_token = (
+                    hasattr(result, "oam_api_token")
+                    and getattr(result, "oam_api_token") is not None
+                )
+
+                # Add 'has_oam_token' attribute
+                setattr(result, "has_oam_token", has_oam_token)
+
+                # Remove 'oam_token' from the object
+                if hasattr(result, "oam_api_token"):
+                    delattr(result, "oam_api_token")
+
                 log.info(f"Fetched user profile data: {result}")
                 return result
 
