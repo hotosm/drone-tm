@@ -1,11 +1,11 @@
-import { LazyExoticComponent } from 'react';
+import React, { LazyExoticComponent } from 'react';
 import AuthenticationPage from '../components/Authentication';
 
 interface IRoute {
   id?: number;
   path: string;
   name: string;
-  component: LazyExoticComponent<() => JSX.Element> | (() => JSX.Element);
+  component: LazyExoticComponent<() => React.JSX.Element> | (() => React.JSX.Element);
   authenticated?: boolean;
   children?: IRoute[];
 }

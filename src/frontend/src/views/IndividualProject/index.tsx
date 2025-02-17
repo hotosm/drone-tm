@@ -94,12 +94,13 @@ const IndividualProject = () => {
   const {
     data: projectData,
     isFetching: isProjectDataFetching,
-  }: Record<string, any> = useGetProjectsDetailQuery(id as string, {
-    onSuccess: (res: any) => {
+  }: Record<string, any> = useGetProjectsDetailQuery(id as string);
+  useEffect(() => {
+    if (projectData) {
       dispatch(
         setProjectState({
           // modify each task geojson and set locked user id and name to properties and save to redux state called taskData
-          tasksData: res.tasks?.map((task: Record<string, any>) => ({
+          tasksData: projectData.tasks?.map((task: Record<string, any>) => ({
             ...task,
             outline: {
               ...task.outline,
@@ -110,16 +111,16 @@ const IndividualProject = () => {
               },
             },
           })),
-          projectArea: res.outline,
+          projectArea: projectData.outline,
         }),
       );
-    },
-  });
+    }
+  }, [projectData, dispatch]);
 
-  const { mutate, isLoading } = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: (projectId: string) => deleteProject(projectId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['projects-list']);
+      queryClient.invalidateQueries({queryKey: ['projects-list']});
       toast.error('Project Deleted Successfully');
       navigate('/projects');
     },
@@ -281,7 +282,7 @@ const IndividualProject = () => {
       >
         <DeleteProjectPromptDialog
           projectName={projectData?.name || ''}
-          isLoading={isLoading}
+          isLoading={isPending}
           handleDeleteProject={handleDeleteProject}
           setShowUnlockDialog={setShowProjectDeletePrompt}
         />

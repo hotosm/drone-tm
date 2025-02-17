@@ -1,3 +1,4 @@
+declare module '@hotosm/ui/dist/hotosm-ui';
 declare module '*.png';
 declare module '*.svg';
 declare module '*.jpeg';

@@ -10,6 +10,7 @@ import CaseStudies from './CaseStudies';
 import ClientAndPartners from './ClientsAndPartners';
 import Footer from './Footer';
 import SignInOverlay from './SignInOverlay';
+import TalkToUs from './TalkToUs';
 
 export {
   Navbar,
@@ -24,4 +25,5 @@ export {
   ClientAndPartners,
   Footer,
   SignInOverlay,
+  TalkToUs,
 };

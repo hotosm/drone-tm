@@ -1,3 +1,5 @@
+// @ts-nocheck
+// NOTE we disable type checking for now, until we can upgrade @react-spring/web to React v19
 /* eslint-disable no-nested-ternary */
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { motion } from 'framer-motion';

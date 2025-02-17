@@ -21,7 +21,7 @@ const FilesUploadingPopOver = ({
 
   // function to close modal and refetch task assets to update the UI
   function closeModal() {
-    queryClient.invalidateQueries(['task-description']);
+    queryClient.invalidateQueries({ queryKey: ['task-description'] });
     setTimeout(() => {
       dispatch(toggleModal());
     }, 2000);

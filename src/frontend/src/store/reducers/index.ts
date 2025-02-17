@@ -1,29 +1,12 @@
-import {
-  AnyAction,
-  CombinedState,
-  combineReducers,
-  Reducer,
-} from '@reduxjs/toolkit';
-import createproject, { CreateProjectState } from '@Store/slices/createproject';
-import droneOperatorTask, {
-  IDroneOperatorTaskState,
-} from '@Store/slices/droneOperartorTask';
-import common, { CommonState } from '../slices/common';
-import loader, { LoaderState } from '../slices/loader';
-import project, { ProjectState } from '../slices/project';
+import { combineReducers } from '@reduxjs/toolkit';
+import createproject from '@Store/slices/createproject';
+import droneOperatorTask from '@Store/slices/droneOperartorTask';
+import common from '../slices/common';
+import loader from '../slices/loader';
+import project from '../slices/project';
 
-export interface IRootReducer {
-  common: CommonState;
-  loader: LoaderState;
-  createproject: CreateProjectState;
-  project: ProjectState;
-  droneOperatorTask: IDroneOperatorTaskState;
-}
 
-const rootReducer: Reducer<
-  CombinedState<IRootReducer>,
-  AnyAction
-> = combineReducers({
+const rootReducer = combineReducers({
   common,
   loader,
   createproject,

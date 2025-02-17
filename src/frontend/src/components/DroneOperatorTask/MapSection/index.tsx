@@ -60,13 +60,13 @@ const { COG_URL } = process.env;
 
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
-  const bboxRef = useRef<number[]>();
+  const bboxRef = useRef<number[]>(null);
   const [taskWayPoints, setTaskWayPoints] = useState<Record<
     string,
     any
   > | null>();
   const { projectId, taskId } = useParams();
-  const takeOffPointRef = useRef<[number, number]>();
+  const takeOffPointRef = useRef<[number, number]>(null);
   const queryClient = useQueryClient();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const [showOrthoPhotoLayer, setShowOrthoPhotoLayer] = useState(true);
@@ -74,7 +74,7 @@ const MapSection = ({ className }: { className?: string }) => {
   const [isRotationEnabled, setIsRotationEnabled] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const centroidRef = useRef();
+  const centroidRef = useRef(null);
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'dashboard-map',
     mapOptions: {
@@ -122,16 +122,19 @@ const MapSection = ({ className }: { className?: string }) => {
         ],
       };
     },
-    onSuccess: () => {
-      if (map) {
-        const layers = map.getStyle().layers;
-        if (layers && layers.length > 0) {
-          const firstLayerId = layers[4].id; // Get the first layer
+  });
+  useEffect(() => {
+    if (taskDataPolygon && map) {
+      const layers = map.getStyle().layers;
+      if (layers && layers.length > 0) {
+        const firstLayerId = layers[4]?.id; // Get the first layer
+        if (firstLayerId) {
           map.moveLayer('task-polygon-layer', firstLayerId); // Move the layer before the first layer
         }
       }
-    },
-  });
+    }
+  }, [taskDataPolygon, map]);
+
   const { data: taskWayPointsData }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
@@ -174,7 +177,7 @@ const MapSection = ({ className }: { className?: string }) => {
     },
   );
 
-  const { mutate: postWaypoint, isLoading: isUpdatingTakeOffPoint } =
+  const { mutate: postWaypoint, isPending: isUpdatingTakeOffPoint } =
     useMutation<any, any, any, unknown>({
       mutationFn: postTaskWaypoint,
       onSuccess: async data => {
@@ -511,12 +514,12 @@ const MapSection = ({ className }: { className?: string }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging, isMapLoaded, map]);
 
-  const { mutate: postRotatedFlightPlan, isLoading: flighplanIsUpdating } =
+  const { mutate: postRotatedFlightPlan, isPending: flighplanIsUpdating } =
     useMutation({
       mutationFn: postRotatedTaskWayPoint,
       onSuccess: () => {
         toast.success('Flight plan rotated successfully');
-        queryClient.invalidateQueries(['task-waypoints']);
+        queryClient.invalidateQueries({ queryKey: ['task-waypoints'] });
       },
       onError: (err: any) => {
         toast.error(err?.response?.data?.detail || err.message);

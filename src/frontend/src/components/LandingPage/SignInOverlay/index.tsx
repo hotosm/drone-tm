@@ -4,7 +4,7 @@ import useAuth from '@Hooks/useAuth';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import Image from '@Components/RadixComponents/Image';
-import droneTMLogo from '@Assets/images/LandingPage/DTM-logo-red.svg';
+import droneTMLogo from '@Assets/images/DTM-logo-black.svg';
 import projectCreator from '@Assets/images/LandingPage/project-creator.svg';
 import droneOperator from '@Assets/images/LandingPage/drone-operator.svg';
 import Icon from '@Components/common/Icon';

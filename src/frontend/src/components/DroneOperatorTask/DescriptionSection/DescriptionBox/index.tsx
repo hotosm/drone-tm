@@ -63,7 +63,7 @@ const DescriptionBox = () => {
     taskId as string,
   );
 
-  const { mutate: updateStatus, isLoading: statusUpdating } = useMutation<
+  const { mutate: updateStatus, isPending: statusUpdating } = useMutation<
     any,
     any,
     any,
@@ -71,7 +71,7 @@ const DescriptionBox = () => {
   >({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      queryClient.invalidateQueries(['task-description']);
+      queryClient.invalidateQueries({ queryKey: ['task-description'] });
     },
     onError: (err: any) => {
       toast.error(err.message);
@@ -82,7 +82,7 @@ const DescriptionBox = () => {
     dispatch(resetFilesExifData());
   }, [dispatch]);
 
-  const { mutate: startImageryProcess, isLoading: imageProcessingStarting } =
+  const { mutate: startImageryProcess, isPending: imageProcessingStarting } =
     useMutation({
       mutationFn: () =>
         postProcessImagery(projectId as string, taskId as string),

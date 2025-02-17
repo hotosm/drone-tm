@@ -12,6 +12,7 @@ import {
   ClientAndPartners,
   Footer,
   SignInOverlay,
+  TalkToUs,
 } from '@Components/LandingPage';
 import { AnimatePresence } from 'framer-motion';
 import MobileAppDownload from '@Components/LandingPage/MobileAppDownload';
@@ -33,6 +34,7 @@ export default function LandingPage() {
       <MajorImpacts />
       {/* <CaseStudies /> */}
       <ClientAndPartners />
+      <TalkToUs />
       <Footer />
     </main>
   );

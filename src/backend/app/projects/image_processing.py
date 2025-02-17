@@ -99,7 +99,7 @@ class DroneImageProcessor:
         self,
         bucket_name: str,
         local_dir: str,
-        task_id: Optional[uuid.UUID] = None,
+        task_id: uuid.UUID,
         batch_size: int = 20,
     ):
         """
@@ -110,11 +110,7 @@ class DroneImageProcessor:
         :param task_id: Optional specific task ID
         :param batch_size: Number of images to download concurrently
         """
-        prefix = (
-            f"dtm-data/projects/{self.project_id}/{task_id}"
-            if task_id
-            else f"dtm-data/projects/{self.project_id}"
-        )
+        prefix = f"dtm-data/projects/{self.project_id}/{task_id}"
         objects = list_objects_from_bucket(bucket_name, prefix)
 
         if not objects:
@@ -123,16 +119,26 @@ class DroneImageProcessor:
 
         log.info(f"Downloading images from S3 for task {task_id}...")
 
+        accepted_file_extensions = (".jpg", ".jpeg", ".png", ".txt", ".laz")
+
         s3_download_url = settings.S3_DOWNLOAD_ROOT
         if s3_download_url:
-            object_urls = [f"{s3_download_url}/{obj.object_name}" for obj in objects]
+            object_urls = [
+                f"{s3_download_url}/{obj.object_name}"
+                for obj in objects
+                if obj.object_name.lower().endswith(accepted_file_extensions)
+            ]
         else:
             # generate pre-signed URL for each object
             object_urls = [
-                get_presigned_url(bucket_name, obj.object_name, 12) for obj in objects
+                get_presigned_url(bucket_name, obj.object_name, 12)
+                for obj in objects
+                if obj.object_name.lower().endswith(accepted_file_extensions)
             ]
 
         total_files = len(object_urls)
+        log.info(f"{total_files} images found in S3 for task {task_id}")
+
         async with aiohttp.ClientSession() as session:
             for i in range(0, total_files, batch_size):
                 batch = object_urls[i : i + batch_size]
@@ -145,7 +151,7 @@ class DroneImageProcessor:
                         session,
                         url,
                         os.path.join(
-                            local_dir, f"{uuid.uuid4()}_file_{i + j + 1}.jpg"
+                            local_dir, f"{task_id}_file_{i + j + 1}.jpg"
                         ),  # unique image name are maintained with uuid
                     )
                     for j, url in enumerate(batch)
@@ -303,40 +309,33 @@ class DroneImageProcessor:
             bucket_name, name=name, options=options, webhook=webhook
         )
 
+        #   If webhook is passed, webhook does this job.
         if not webhook:
-            #   If webhook is passed, webhook does this job.
-            if not webhook:
-                # Monitor task progress
-                self.monitor_task(task)
+            # Monitor task progress
+            self.monitor_task(task)
 
-                # Optionally, download results
-                output_file_path = f"/tmp/{self.project_id}"
-                path_to_download = self.download_results(
-                    task, output_path=output_file_path
-                )
+            # Optionally, download results
+            output_file_path = f"/tmp/{self.project_id}"
+            path_to_download = self.download_results(task, output_path=output_file_path)
 
-                # Upload the results into s3
-                s3_path = (
-                    f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
-                )
-                add_file_to_bucket(bucket_name, path_to_download, s3_path)
-                # now update the task as completed in Db.
-                # Call the async function using asyncio
+            # Upload the results into s3
+            s3_path = f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
+            add_file_to_bucket(bucket_name, path_to_download, s3_path)
+            # now update the task as completed in Db.
+            # Call the async function using asyncio
 
-                # Update background task status to COMPLETED
-                update_task_status_sync = async_to_sync(task_logic.update_task_state)
-                update_task_status_sync(
-                    self.db,
-                    self.project_id,
-                    self.task_id,
-                    self.user_id,
-                    "Task completed.",
-                    State.IMAGE_UPLOADED,
-                    State.IMAGE_PROCESSING_FINISHED,
-                    timestamp(),
-                )
-            return task
-
+            # Update background task status to COMPLETED
+            update_task_status_sync = async_to_sync(task_logic.update_task_state)
+            update_task_status_sync(
+                self.db,
+                self.project_id,
+                self.task_id,
+                self.user_id,
+                "Task completed.",
+                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_FINISHED,
+                timestamp(),
+            )
         return task
 
     async def process_images_for_all_tasks(
