@@ -14,6 +14,7 @@ from app.users import user_logic
 from psycopg.rows import dict_row
 from app.s3 import is_connection_secure, s3_client
 from app.config import settings
+from app.projects.oam import encrypt_oam_api_token
 
 
 class AuthUser(BaseModel):
@@ -105,6 +106,7 @@ class BaseUserProfile(BaseModel):
     registration_file: Optional[str] = None
     certificate_url: Optional[str] = None
     registration_certificate_url: Optional[str] = None
+    oam_api_token: Optional[str] = None
 
     @model_validator(mode="after")
     def set_urls(cls, values):
@@ -165,6 +167,7 @@ class DbUserProfile(BaseUserProfile):
     """UserProfile model for interacting with the user_profile table."""
 
     user_id: int
+    has_oam_token: bool = False
 
     @staticmethod
     async def _handle_file_upload(profile: UserProfileCreate, user_id: int):
@@ -280,6 +283,13 @@ class DbUserProfile(BaseUserProfile):
         model_data = profile_update.model_dump(
             exclude_none=True, exclude={"password", "old_password", "certificate_file"}
         )
+
+        # Encrypt OAM API token if present
+        if "oam_api_token" in model_data:
+            model_data["oam_api_token"] = encrypt_oam_api_token(
+                str(user_id), model_data["oam_api_token"]
+            )
+
         results = await DbUserProfile._handle_file_upload(profile_update, user_id)
         for file_type, file_data in results.items():
             if file_data.get("s3_path"):
@@ -345,8 +355,25 @@ class DbUserProfile(BaseUserProfile):
         async with db.cursor(row_factory=class_row(DbUserProfile)) as cur:
             await cur.execute(query, {"user_id": user_id})
             result = await cur.fetchone()
-            log.info(f"Fetched user profile data: {result}")
-            return result
+
+            if result:
+                # Check if 'oam_token' exists and set 'has_oam_token' accordingly
+                has_oam_token = (
+                    hasattr(result, "oam_api_token")
+                    and getattr(result, "oam_api_token") is not None
+                )
+
+                # Add 'has_oam_token' attribute
+                setattr(result, "has_oam_token", has_oam_token)
+
+                # Remove 'oam_token' from the object
+                if hasattr(result, "oam_api_token"):
+                    delattr(result, "oam_api_token")
+
+                log.info(f"Fetched user profile data: {result}")
+                return result
+
+        return None
 
 
 class DbUser(BaseModel):
