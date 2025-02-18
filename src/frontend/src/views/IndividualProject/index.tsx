@@ -150,7 +150,7 @@ const IndividualProject = () => {
     return () => {
       dispatch(setProjectState({}));
       dispatch(setProjectState({ showGcpEditor: false }));
-      queryClient.removeQueries({ queryKey: ['project-detail', id] });
+      dispatch(setProjectState({ visibleOrthophotoList: [] }));
     };
   }, [dispatch, queryClient, id]);
 
