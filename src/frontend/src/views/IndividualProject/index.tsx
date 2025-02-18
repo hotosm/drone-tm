@@ -150,8 +150,9 @@ const IndividualProject = () => {
     return () => {
       dispatch(setProjectState({}));
       dispatch(setProjectState({ showGcpEditor: false }));
+      queryClient.removeQueries({ queryKey: ['project-detail', id] });
     };
-  }, [dispatch]);
+  }, [dispatch, queryClient, id]);
 
   const handleDeleteProject = () => {
     mutate(id as string);
