@@ -291,7 +291,9 @@ const DescriptionBox = () => {
             />
           ) : (
             <>
-              {taskAssetsInformation?.state === 'IMAGE_UPLOADED' && (
+              {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
+                (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
+                  taskAssetsInformation?.image_count > 0)) && (
                 <div className="">
                   <Button
                     variant="ghost"
@@ -303,6 +305,15 @@ const DescriptionBox = () => {
                   >
                     Start Processing
                   </Button>
+                  {taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
+                    taskAssetsInformation?.image_count > 0 && (
+                      <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs naxatw-text-yellow-600">
+                        Note: Some images may not have been uploaded due to an
+                        issue during the upload process. However, you can
+                        proceed with processing for the successfully uploaded
+                        images.
+                      </p>
+                    )}
                 </div>
               )}
               {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (

@@ -12,15 +12,15 @@ export const useGetProjectsListQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: queryOptions?.queryKey
-      ? ['projects-list', ...Object.values(queryOptions?.queryKey?.[0] || {})]
-      : ['projects-list'],
     queryFn: () =>
       getProjectsList(
         queryOptions?.queryKey ? { ...queryOptions.queryKey } : {},
       ),
     select: (res: any) => res.data,
     ...queryOptions,
+    queryKey: queryOptions?.queryKey
+      ? ['projects-list', ...Object.values(queryOptions?.queryKey || {})]
+      : ['projects-list'],
   });
 };
 
