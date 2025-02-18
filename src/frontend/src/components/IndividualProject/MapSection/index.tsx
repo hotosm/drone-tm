@@ -190,7 +190,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       url: `cog://${projectData?.orthophoto_url}`,
       tileSize: 256,
     }),
-    [projectData?.orthophoto_url],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projectData?.orthophoto_url, id],
   );
 
   const handleTaskLockClick = () => {
