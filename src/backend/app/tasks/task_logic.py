@@ -605,7 +605,8 @@ async def handle_event(
                     detail="Task state does not match expected state for image upload.",
                 )
 
-            if user_id != locked_user_id:
+            is_author = project["author_id"] == user_id
+            if not is_author and user_id != locked_user_id:
                 raise HTTPException(
                     status_code=403,
                     detail="You cannot upload an image for this task as it is locked by another user.",
