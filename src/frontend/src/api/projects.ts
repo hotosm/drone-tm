@@ -29,7 +29,7 @@ export const useGetProjectsDetailQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['project-detail'],
+    queryKey: ['project-detail', id],
     queryFn: () => getProjectDetail(id),
     select: (res: any) => res.data,
     enabled: !!id,

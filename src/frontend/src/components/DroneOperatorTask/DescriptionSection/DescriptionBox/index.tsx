@@ -72,6 +72,7 @@ const DescriptionBox = () => {
     mutationFn: postTaskStatus,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-description'] });
+      queryClient.invalidateQueries({ queryKey: ['task-assets-info'] });
     },
     onError: (err: any) => {
       toast.error(err.message);
@@ -227,13 +228,21 @@ const DescriptionBox = () => {
         ))}
       </div>
 
-      {taskAssetsInformation?.image_count === 0 && (
-        <QuestionBox
-          setFlyable={setFlyable}
-          flyable={flyable}
-          haveNoImages={taskAssetsInformation?.image_count === 0}
-        />
-      )}
+      {taskAssetsInformation?.image_count === 0 &&
+        (progressDetails?.totalFiles ? (
+          <ProgressBar
+            heading="Uploading Images"
+            successCount={progressDetails?.uploadedFiles}
+            totalCount={progressDetails.totalFiles}
+          />
+        ) : (
+          <QuestionBox
+            setFlyable={setFlyable}
+            flyable={flyable}
+            haveNoImages={taskAssetsInformation?.image_count === 0}
+          />
+        ))}
+
       {taskAssetsInformation?.image_count > 0 && (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
           <UploadsInformation
@@ -283,7 +292,7 @@ const DescriptionBox = () => {
             </div>
           )}
 
-          {progressDetails?.uploadedFiles ? (
+          {progressDetails?.totalFiles ? (
             <ProgressBar
               heading="Uploading Images"
               successCount={progressDetails?.uploadedFiles}

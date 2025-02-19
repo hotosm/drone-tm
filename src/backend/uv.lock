@@ -372,7 +372,7 @@ name = "click"
 version = "8.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de", size = 336121 }
 wheels = [
@@ -590,16 +590,16 @@ wheels = [
 
 [[package]]
 name = "drone-flightplan"
-version = "0.3.4"
+version = "0.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "geojson" },
     { name = "pyproj" },
     { name = "shapely" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/84/977917ce508c5b350d46417659362158532c641f2c71f4b0a3aec5be5d07/drone_flightplan-0.3.4.tar.gz", hash = "sha256:c4152fd4f8565c8498a3d8264103728827919c40460a903cf5e1504af85d1189", size = 35774 }
+sdist = { url = "https://files.pythonhosted.org/packages/29/7d/4dbfab74ae55135a8c2e52341a4f7fce1a53bd9301f8e16b9a3807de40f6/drone_flightplan-0.3.5.tar.gz", hash = "sha256:aaa4d4c5c2c70ebddf7be6e0832a3455509973ce01401c14ff98cdbbf644780e", size = 36176 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/ba/27776eafb3b431151efb6ea31274fd5cdc50341cf54948ccd65136bcdd4a/drone_flightplan-0.3.4-py3-none-any.whl", hash = "sha256:ec2ca0ed5664cbe2156664b83f3e2ae0ca64a5c814ba494c3cc242e659f377af", size = 40263 },
+    { url = "https://files.pythonhosted.org/packages/b8/02/b1fe2dee80d561ec95e3904dcc371657814657a85f1aa5567cc9e70e33e6/drone_flightplan-0.3.5-py3-none-any.whl", hash = "sha256:9bf516209d31eb3b6dee12b0841834a52caa6046f285b73b29f09a556d867adb", size = 40662 },
 ]
 
 [[package]]
@@ -681,7 +681,7 @@ requires-dist = [
     { name = "asgi-lifespan", specifier = ">=2.1.0" },
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "bcrypt", specifier = ">=4.2.1" },
-    { name = "drone-flightplan", specifier = ">=0.3.4" },
+    { name = "drone-flightplan", specifier = ">=0.3.5" },
     { name = "fastapi", specifier = "==0.112.0" },
     { name = "gdal", specifier = "==3.6.2" },
     { name = "geoalchemy2", specifier = "==0.14.2" },
@@ -1297,7 +1297,7 @@ version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
     { name = "ghp-import" },
     { name = "jinja2" },
     { name = "markdown" },
@@ -1938,6 +1938,8 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/39/1b/d0b013bf7d1af7cf0a6a4fce13f5fe5813ab225313755367b36e714a63f8/pycryptodome-3.21.0-cp36-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:18caa8cfbc676eaaf28613637a89980ad2fd96e00c564135bf90bc3f0b34dd93", size = 2254397 },
     { url = "https://files.pythonhosted.org/packages/14/71/4cbd3870d3e926c34706f705d6793159ac49d9a213e3ababcdade5864663/pycryptodome-3.21.0-cp36-abi3-win32.whl", hash = "sha256:280b67d20e33bb63171d55b1067f61fbd932e0b1ad976b3a184303a3dad22764", size = 1775641 },
     { url = "https://files.pythonhosted.org/packages/43/1d/81d59d228381576b92ecede5cd7239762c14001a828bdba30d64896e9778/pycryptodome-3.21.0-cp36-abi3-win_amd64.whl", hash = "sha256:b7aa25fc0baa5b1d95b7633af4f5f1838467f1815442b22487426f94e0d66c53", size = 1812863 },
+    { url = "https://files.pythonhosted.org/packages/25/b3/09ff7072e6d96c9939c24cf51d3c389d7c345bf675420355c22402f71b68/pycryptodome-3.21.0-pp27-pypy_73-manylinux2010_x86_64.whl", hash = "sha256:2cb635b67011bc147c257e61ce864879ffe6d03342dc74b6045059dfbdedafca", size = 1691593 },
+    { url = "https://files.pythonhosted.org/packages/a8/91/38e43628148f68ba9b68dedbc323cf409e537fd11264031961fd7c744034/pycryptodome-3.21.0-pp27-pypy_73-win32.whl", hash = "sha256:4c26a2f0dc15f81ea3afa3b0c87b87e501f235d332b7f27e2225ecb80c0b1cdd", size = 1765997 },
 ]
 
 [[package]]

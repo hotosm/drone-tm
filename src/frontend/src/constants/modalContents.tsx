@@ -5,6 +5,7 @@ import ImageMapBox from '@Components/DroneOperatorTask/DescriptionSection/Popove
 import ChooseTakeOffPointOptions from '@Components/DroneOperatorTask/ModalContent/ChooseTakeOffPointOptions';
 import TaskOrthophotoPreview from '@Components/DroneOperatorTask/ModalContent/TaskOrthophotoPreview';
 import ChooseProcessingParameter from '@Components/IndividualProject/ModalContent/ChooseProcessingParameter';
+import UploadToOAM from '@Components/IndividualProject/ModalContent/UploadToOAM';
 import { ReactElement } from 'react';
 
 export type ModalContentsType =
@@ -16,6 +17,7 @@ export type ModalContentsType =
   | 'task-ortho-photo-preview'
   | 'document-preview'
   | 'choose-processing-parameter'
+  | 'upload-to-oam'
   | null;
 export type PromptDialogContentsType = 'delete-layer' | null;
 
@@ -76,6 +78,12 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
         className: '!naxatw-w-[95vw] naxatw-h-[95vh] md:!naxatw-w-[60vw]',
         title: 'Document Preview',
         content: <DocumentPreviewModal />,
+      };
+    case 'upload-to-oam':
+      return {
+        className: 'naxatw-w-[92vw] naxatw-max-w-[34rem]',
+        title: 'Upload To OAM (Open Aerial Map)',
+        content: <UploadToOAM />,
       };
 
     default:

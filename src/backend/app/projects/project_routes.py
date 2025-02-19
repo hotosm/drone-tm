@@ -39,9 +39,13 @@ from app.utils import (
     timestamp,
     send_project_approval_email_to_regulator,
 )
-from app.users import user_schemas
 from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
+from app.users.permissions import (
+    IsProjectCreator,
+    IsSuperUser,
+    check_permissions,
+)
 
 
 router = APIRouter(
@@ -158,33 +162,17 @@ async def download_boundaries(
 
 @router.delete("/{project_id}", tags=["Projects"])
 async def delete_project_by_id(
-    project: Annotated[
-        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
-    ],
     db: Annotated[Connection, Depends(database.get_db)],
-    user_data: Annotated[AuthUser, Depends(login_required)],
+    project: Annotated[
+        project_schemas.DbProject,
+        Depends(
+            check_permissions(
+                IsSuperUser() | IsProjectCreator(),
+                get_obj=project_deps.get_project_by_id,
+            )
+        ),
+    ],
 ):
-    """
-    Delete a project by its ID, along with all associated tasks.
-
-    Args:
-        project_id (uuid.UUID): The ID of the project to delete.
-        db (Database): The database session dependency.
-
-    Returns:
-        dict: A confirmation message.
-
-    Raises:
-        HTTPException: If the project is not found.
-    """
-    user_id = user_data.id
-    user = await user_schemas.DbUser.get_user_by_id(db, user_id)
-    # Allow deletion if the user is the project creator or a superuser
-    if project.author_id != user_id and not user.get("is_superuser"):
-        raise HTTPException(
-            status_code=HTTPStatus.FORBIDDEN,
-            detail="User not authorized to delete this project.",
-        )
     project_id = await project_schemas.DbProject.delete(db, project.id)
     return {"message": f"Project successfully deleted {project_id}"}
 
