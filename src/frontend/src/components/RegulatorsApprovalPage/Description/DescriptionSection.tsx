@@ -110,13 +110,23 @@ const DescriptionSection = ({
                 </Button>
               </div>
             ) : projectData?.image_processing_status === 'SUCCESS' ? (
-              <div>
+              <div className="naxatw-flex naxatw-gap-2">
                 <Button
                   className="naxatw-bg-red"
                   leftIcon="download"
                   onClick={() => handleDownloadResult()}
                 >
                   Download Results
+                </Button>
+                <Button
+                  className="naxatw-bg-red"
+                  withLoader
+                  leftIcon="upload"
+                  onClick={() => {
+                    dispatch(toggleModal('upload-to-oam'));
+                  }}
+                >
+                  Upload to OAM
                 </Button>
               </div>
             ) : projectData?.image_processing_status === 'PROCESSING' ? (
