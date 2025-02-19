@@ -7,7 +7,7 @@ import { useGetIndividualTaskQuery } from '@Api/tasks';
 import { Button } from '@Components/RadixComponents/Button';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import MapSection from '../MapSection';
+import MapSection from '../MapSection/MapSection';
 import DescriptionBox from './DescriptionBox';
 
 const { BASE_URL } = process.env;
