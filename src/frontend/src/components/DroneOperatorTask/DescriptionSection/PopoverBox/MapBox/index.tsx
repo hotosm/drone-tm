@@ -253,23 +253,28 @@ const ImageMapBox = () => {
                   'circle-radius': 6,
                   'circle-stroke-width': 4,
                   // 'circle-stroke-color': 'red',
-                  'circle-stroke-color': [
-                    'case',
-                    [
-                      'in',
-                      ['get', 'name'],
-                      ['literal', selectedPointImageName],
-                    ],
-                    '#3f704d',
-                    '#FF0000 ',
-                  ],
+                  'circle-stroke-color': '#FF0000 ',
                   'circle-stroke-opacity': 1,
                 },
               }}
               onFeatureSelect={data => {
-                setSelectedPointImageName(prev => [
-                  ...new Set([...prev, String(data.name)]),
-                ]);
+                setSelectedPointImageName(prev => {
+                  let newSelectionList: string[] = [];
+                  newSelectionList = [...new Set([...prev, String(data.name)])];
+
+                  map?.setPaintProperty(
+                    'image-points-map-layer',
+                    'circle-stroke-color',
+                    [
+                      'case',
+                      ['in', ['get', 'name'], ['literal', newSelectionList]],
+                      '#3f704d',
+                      '#FF0000 ',
+                    ],
+                  );
+
+                  return newSelectionList;
+                });
               }}
               zoomToExtent
             />
