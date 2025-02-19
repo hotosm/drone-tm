@@ -6,6 +6,7 @@ import { FeatureCollection } from 'geojson';
 import { toast } from 'react-toastify';
 import { useGetTaskStatesQuery, useGetUserDetailsQuery } from '@Api/projects';
 import lock from '@Assets/images/lock.png';
+import areaIcon from '@Assets/images/area-icon.png';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import AsyncPopup from '@Components/common/MapLibreComponents/AsyncPopup';
@@ -42,8 +43,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     null,
   );
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
-
   const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
+  const [showTaskArea, setShowTaskArea] = useState(true);
+
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
   const { map, isMapLoaded } = useMapLibreGLMap({
@@ -223,6 +225,21 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
   };
 
+  const handleToggleTaskArea = () => {
+    const taskLayerIds = map
+      ?.getStyle()
+      .layers?.filter(layer => layer.id.includes('tasks-layer'));
+
+    taskLayerIds?.forEach(layerId => {
+      map?.setLayoutProperty(
+        `${layerId.id}`,
+        'visibility',
+        showTaskArea ? 'none' : 'visible',
+      );
+    });
+    setShowTaskArea(prev => !prev);
+  };
+
   return (
     <>
       <MapContainer
@@ -235,7 +252,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       >
         <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
         <LocateUser isMapLoaded={isMapLoaded} />
-        {projectArea && (
+        {projectArea && showTaskArea && (
           <VectorLayer
             map={map as Map}
             id="project-area"
@@ -255,7 +272,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             }}
           />
         )}
-        {projectData?.no_fly_zones_geojson && (
+        {projectData?.no_fly_zones_geojson && showTaskArea && (
           <VectorLayer
             map={map as Map}
             id="no-fly-zone-area"
@@ -337,6 +354,16 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                 />
               </Button>
             )}
+            <Button
+              variant="ghost"
+              className={`naxatw-flex naxatw-h-[1.85rem] naxatw-w-[] naxatw-items-center naxatw-justify-center naxatw-border !naxatw-px-[0.315rem] ${showTaskArea ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+              onClick={() => handleToggleTaskArea()}
+              title="Task area"
+            >
+              <div className="naxatw-h-4 naxatw-w-4">
+                <img src={areaIcon} alt="area-icon" />
+              </div>
+            </Button>
             <Button
               variant="ghost"
               className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"

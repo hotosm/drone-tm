@@ -172,6 +172,7 @@ const ImageMapBox = () => {
         uploadedFilesNumber.current += urlChunk.length;
         const width = widthCalulator(uploadedFilesNumber.current, files.length);
         setLoadingWidth(width);
+
         // maintain progress state for individual task
         dispatch(
           setUploadProgress({
@@ -183,6 +184,7 @@ const ImageMapBox = () => {
           }),
         );
       }
+
       updateStatus({
         projectId,
         taskId,
@@ -201,6 +203,18 @@ const ImageMapBox = () => {
 
   function handleSubmit() {
     setProgressBar(true);
+
+    // maintain progress state for individual task
+    dispatch(
+      setUploadProgress({
+        ...uploadProgress,
+        [taskId]: {
+          totalFiles: filesExifData.length,
+          uploadedFiles: uploadedFilesNumber.current,
+        },
+      }),
+    );
+
     const filesData = {
       expiry: 5,
       task_id: taskId,
@@ -253,23 +267,28 @@ const ImageMapBox = () => {
                   'circle-radius': 6,
                   'circle-stroke-width': 4,
                   // 'circle-stroke-color': 'red',
-                  'circle-stroke-color': [
-                    'case',
-                    [
-                      'in',
-                      ['get', 'name'],
-                      ['literal', selectedPointImageName],
-                    ],
-                    '#3f704d',
-                    '#FF0000 ',
-                  ],
+                  'circle-stroke-color': '#FF0000 ',
                   'circle-stroke-opacity': 1,
                 },
               }}
               onFeatureSelect={data => {
-                setSelectedPointImageName(prev => [
-                  ...new Set([...prev, String(data.name)]),
-                ]);
+                setSelectedPointImageName(prev => {
+                  let newSelectionList: string[] = [];
+                  newSelectionList = [...new Set([...prev, String(data.name)])];
+
+                  map?.setPaintProperty(
+                    'image-points-map-layer',
+                    'circle-stroke-color',
+                    [
+                      'case',
+                      ['in', ['get', 'name'], ['literal', newSelectionList]],
+                      '#3f704d',
+                      '#FF0000 ',
+                    ],
+                  );
+
+                  return newSelectionList;
+                });
               }}
               zoomToExtent
             />
@@ -369,7 +388,7 @@ const ImageMapBox = () => {
             variant="ghost"
             className="naxatw-mx-auto naxatw-w-fit naxatw-bg-[#D73F3F] naxatw-text-[#FFFFFF]"
             onClick={() => handleSubmit()}
-            disabled={filesExifData.length === 0}
+            disabled={filesExifData.length === 0 || progressBar}
           >
             Upload
           </Button>

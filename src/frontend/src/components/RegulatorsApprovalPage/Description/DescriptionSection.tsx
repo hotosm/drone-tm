@@ -8,6 +8,13 @@ import { toggleModal } from '@Store/actions/common';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import ApprovalSection from './ApprovalSection';
 
+const statusAfterImageUploaded = [
+  'IMAGE_UPLOADED',
+  'IMAGE_PROCESSING_FAILED',
+  'IMAGE_PROCESSING_STARTED',
+  'IMAGE_PROCESSING_FINISHED',
+];
+
 const DescriptionSection = ({
   page = 'project-approval',
   projectData,
@@ -19,10 +26,13 @@ const DescriptionSection = ({
 }) => {
   const dispatch = useDispatch();
 
-  // know if any of the task is completed (assets_url) is the key that provides the final results of a task
+  // know if any of the task is completed (assets_url) is the key that provides the final results of a task OR any of the task's status is the image uploaded or next step
   const isAbleToStartProcessing = useMemo(
     () =>
-      projectData?.tasks?.some((task: Record<string, any>) => task?.assets_url),
+      projectData?.tasks?.some(
+        (task: Record<string, any>) =>
+          task?.assets_url || statusAfterImageUploaded.includes(task?.state),
+      ),
     [projectData?.tasks],
   );
 
@@ -110,13 +120,23 @@ const DescriptionSection = ({
                 </Button>
               </div>
             ) : projectData?.image_processing_status === 'SUCCESS' ? (
-              <div>
+              <div className="naxatw-flex naxatw-gap-2">
                 <Button
                   className="naxatw-bg-red"
                   leftIcon="download"
                   onClick={() => handleDownloadResult()}
                 >
                   Download Results
+                </Button>
+                <Button
+                  className="naxatw-bg-red"
+                  withLoader
+                  leftIcon="upload"
+                  onClick={() => {
+                    dispatch(toggleModal('upload-to-oam'));
+                  }}
+                >
+                  Upload to OAM
                 </Button>
               </div>
             ) : projectData?.image_processing_status === 'PROCESSING' ? (

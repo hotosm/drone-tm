@@ -27,3 +27,14 @@ export const processAllImagery = (data: Record<string, any>) => {
 
 export const deleteProject = (projectId: string) =>
   authenticated(api).delete(`/projects/${projectId}`);
+
+export const uploadToOAM = (payload: Record<string, any>) => {
+  const { projectId, tags } = payload;
+  return authenticated(api).post(
+    `/projects/${projectId}/upload-to-oam`,
+    {
+      tags,
+    },
+    { headers: { 'Content-Type': 'application/json' } },
+  );
+};
