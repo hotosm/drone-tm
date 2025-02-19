@@ -18,7 +18,11 @@ const UploadToOAM = () => {
   const userProfile = getLocalStorageValue('userprofile');
   const [inputTag, setInputTag] = useState('');
   const [error, setError] = useState('');
-  const [tagList, setTagList] = useState<string[]>([]);
+  const [tagList, setTagList] = useState<string[]>([
+    'dronetm',
+    'hotosm',
+    'naxa',
+  ]);
 
   const addInputTagOnList = () => {
     if (!inputTag) return setError('Required');
