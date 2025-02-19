@@ -165,21 +165,22 @@ async def update_task_state(
         await cur.execute(
             """
             WITH last AS (
-                SELECT *
-                FROM task_events
-                WHERE project_id = %(project_id)s AND task_id = %(task_id)s
-                ORDER BY created_at DESC
+                SELECT te.*, p.author_id
+                FROM task_events te
+                JOIN projects p ON te.project_id = p.id
+                WHERE te.project_id = %(project_id)s AND te.task_id = %(task_id)s
+                ORDER BY te.created_at DESC
                 LIMIT 1
             ),
-            locked AS (
+            can_modify AS (
                 SELECT *
                 FROM last
-                WHERE user_id = %(user_id)s AND state = %(initial_state)s
+                WHERE state = %(initial_state)s
+                AND (user_id = %(user_id)s OR author_id = %(user_id)s)
             )
             INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
-            SELECT gen_random_uuid(), project_id, task_id, user_id, %(final_state)s, %(comment)s, %(updated_at)s, now()
-            FROM last
-            WHERE user_id = %(user_id)s
+            SELECT gen_random_uuid(), project_id, task_id, %(user_id)s, %(final_state)s, %(comment)s, %(updated_at)s, now()
+            FROM can_modify
             RETURNING project_id, task_id, comment;
             """,
             {
@@ -193,6 +194,11 @@ async def update_task_state(
             },
         )
         result = await cur.fetchone()
+        if result is None:
+            raise ValueError(
+                f"Failed to update task state. Task {task_id} might not be in state {initial_state} "
+                f"or you might not have permission to modify it."
+            )
         return result
 
 
@@ -553,6 +559,7 @@ async def handle_event(
 
             state = current_task_state.get("state")
             locked_user_id = current_task_state.get("user_id")
+            is_author = project["author_id"] == user_id
 
             # Determine error conditions
             if state != State.LOCKED_FOR_MAPPING.name:
@@ -560,7 +567,7 @@ async def handle_event(
                     status_code=400,
                     detail="Task state does not match expected state for unlock operation.",
                 )
-            if user_id != locked_user_id:
+            if not is_author and user_id != locked_user_id:
                 raise HTTPException(
                     status_code=403,
                     detail="You cannot unlock this task as it is locked by another user.",
