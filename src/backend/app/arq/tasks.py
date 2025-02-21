@@ -24,7 +24,7 @@ async def shutdown(ctx: Dict[Any, Any]) -> None:
 
 
 async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
-    """Enhanced sleep task with proper context and logging"""
+    """Test task to sleep for 1 minute"""
 
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting sleep_task (Job ID: {job_id})")

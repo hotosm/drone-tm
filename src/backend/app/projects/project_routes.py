@@ -724,7 +724,7 @@ async def upload_imagery_to_oam(
     return {"message": "Uploading to OAM Started"}
 
 
-@router.post("/test")
+@router.post("/test/arq_task")
 async def test(redis_pool: ArqRedis = Depends(get_redis_pool)):
     try:
         job = await redis_pool.enqueue_job(
