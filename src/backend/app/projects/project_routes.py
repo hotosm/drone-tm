@@ -46,7 +46,8 @@ from app.users.permissions import (
     IsSuperUser,
     check_permissions,
 )
-
+from arq import ArqRedis
+from app.arq.tasks import get_redis_pool
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -721,3 +722,26 @@ async def upload_imagery_to_oam(
 
     background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
     return {"message": "Uploading to OAM Started"}
+
+
+@router.post("/test")
+async def test(redis_pool: ArqRedis = Depends(get_redis_pool)):
+    try:
+        job = await redis_pool.enqueue_job(
+            "sleep_task",
+            _queue_name="default_queue",
+        )
+
+        log.info(f"Successfully enqueued sleep_task with job ID: {job.job_id}")
+        return {
+            "status": "success",
+            "job_id": job.job_id,
+            "message": "Task enqueued successfully",
+        }
+
+    except Exception as e:
+        log.error(f"Error enqueueing sleep_task: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to enqueue task: {str(e)}",
+        )
