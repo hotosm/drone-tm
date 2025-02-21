@@ -110,6 +110,7 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
 
     NODE_ODM_URL: Optional[str] = "http://odm-api:3000"
+    REDIS_DSN: str = "redis://redis:6379/0"
 
     @computed_field
     @property
