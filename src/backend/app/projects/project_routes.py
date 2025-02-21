@@ -707,6 +707,7 @@ async def upload_imagery_to_oam(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
+    background_tasks: BackgroundTasks,
     tags: Dict[str, List[str]] = Body(default={"tags": []}),
 ):
     """
@@ -718,4 +719,5 @@ async def upload_imagery_to_oam(
             detail="User not authorized to do this action",
         )
 
-    return await upload_to_oam(db, project, user_data, tags)
+    background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
+    return {"message": "Uploading to OAM Started"}
