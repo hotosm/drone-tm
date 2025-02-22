@@ -53,11 +53,32 @@ async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
         raise
 
 
+async def count_project_tasks(ctx: Dict[Any, Any], project_id: str) -> Dict[str, Any]:
+    """Example task that counts tasks for a given project"""
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting count_project_tasks (Job ID: {job_id})")
+
+    try:
+        pool = ctx["db_pool"]
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT COUNT(*) FROM tasks WHERE project_id = %s", (project_id,)
+                )
+                count = (await cur.fetchone())[0]
+                log.info(f"count = {count}")
+                return {"count": count}
+
+    except Exception as e:
+        log.error(f"Error in count_project_tasks (Job ID: {job_id}): {str(e)}")
+        raise
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
     redis_settings = RedisSettings.from_dsn(settings.REDIS_DSN)
-    functions = [sleep_task]
+    functions = [sleep_task, count_project_tasks]
     queue_name = "default_queue"
     max_jobs = 20
     job_timeout = 86400  # 24 hours
