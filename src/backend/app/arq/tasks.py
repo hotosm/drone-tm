@@ -6,21 +6,36 @@ from loguru import logger as log
 from arq import create_pool, ArqRedis
 from fastapi import HTTPException
 from app.models.enums import HTTPStatus
+from app.db.database import get_db_connection_pool
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
-    """Initialize ARQ resources"""
+    """Initialize ARQ resources including database pool"""
+
     log.info("Starting ARQ worker")
+
+    # Initialize Redis
     ctx["redis"] = await create_pool(RedisSettings.from_dsn(settings.REDIS_DSN))
     await log_redis_info(ctx["redis"], log.info)
+
+    # Initialize Database pool
+    ctx["db_pool"] = await get_db_connection_pool()
+    log.info("Database pool initialized")
 
 
 async def shutdown(ctx: Dict[Any, Any]) -> None:
     """Cleanup ARQ resources"""
     log.info("Shutting down ARQ worker")
-    if redis := ctx.get("redis"):  # Get redis if it exists
+
+    # Close Redis
+    if redis := ctx.get("redis"):
         await redis.close()
         log.info("Redis connection closed")
+
+    # Close database pool
+    if db_pool := ctx.get("db_pool"):
+        await db_pool.close()
+        log.info("Database connection pool closed")
 
 
 async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
