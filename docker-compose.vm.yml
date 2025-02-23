@@ -102,3 +102,30 @@ services:
       - dtm-network
     entrypoint: ["uv", "run", "alembic", "upgrade", "head"]
     restart: "no"
+
+  arq-worker:
+    build:
+      context: src/backend
+      dockerfile: Dockerfile
+    command: arq app.arq.tasks.WorkerSettings
+    depends_on:
+      - redis
+    env_file: .env
+    networks:
+      - dtm-network
+    volumes:
+      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - frontend-html:/project/src/backend/frontend_html
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - dtm-network
+    restart: unless-stopped
