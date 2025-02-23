@@ -1,7 +1,7 @@
 import json
 import os
 import shutil
-from typing import Any
+from typing import Any, Dict
 import uuid
 from loguru import logger as log
 from fastapi import HTTPException, UploadFile
@@ -311,30 +311,54 @@ async def preview_split_by_square(boundary: str, meters: int):
 
 
 async def process_drone_images(
-    project_id: uuid.UUID, task_id: uuid.UUID, user_id: str, db: Connection
-):
-    # Initialize the processor
-    processor = DroneImageProcessor(
-        node_odm_url=settings.NODE_ODM_URL,
-        project_id=project_id,
-        task_id=task_id,
-        user_id=user_id,
-        task_ids=None,
-        db=db,
-    )
+    ctx: Dict[Any, Any],
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    user_id: str,
+) -> Dict[str, Any]:
+    """Process drone images using ODM"""
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting process_drone_images (Job ID: {job_id})")
 
-    # Define processing options
-    options = [
-        {"name": "dsm", "value": True},
-        {"name": "orthophoto-resolution", "value": 5},
-    ]
-    webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
-    await processor.process_images_from_s3(
-        settings.S3_BUCKET_NAME,
-        name=f"DTM-Task-{task_id}",
-        options=options,
-        webhook=webhook_url,
-    )
+    try:
+        pool = ctx["db_pool"]
+        async with pool.connection() as conn:
+            # Initialize the processor with the database connection
+            processor = DroneImageProcessor(
+                node_odm_url=settings.NODE_ODM_URL,
+                project_id=project_id,
+                task_id=task_id,
+                user_id=user_id,
+                db=conn,
+                task_ids=None,
+            )
+
+            # Define processing options
+            options = [
+                {"name": "dsm", "value": True},
+                {"name": "orthophoto-resolution", "value": 5},
+            ]
+
+            webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
+
+            result = await processor.process_images_from_s3(
+                settings.S3_BUCKET_NAME,
+                name=f"DTM-Task-{task_id}",
+                options=options,
+                webhook=webhook_url,
+            )
+
+            return {
+                "job_id": job_id,
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+                "status": "processing_started",
+                "result": result,
+            }
+
+    except Exception as e:
+        log.error(f"Error in process_drone_images (Job ID: {job_id}): {str(e)}")
+        raise
 
 
 async def update_processing_status(

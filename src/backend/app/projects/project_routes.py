@@ -444,14 +444,19 @@ async def process_imagery(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    background_tasks: BackgroundTasks,
-    db: Annotated[Connection, Depends(database.get_db)],
+    redis_pool: ArqRedis = Depends(get_redis_pool),
 ):
+    """Start an queue task to process drone imagery."""
     user_id = user_data.id
-    background_tasks.add_task(
-        project_logic.process_drone_images, project.id, task_id, user_id, db
+    job = await redis_pool.enqueue_job(
+        "process_drone_images",
+        project.id,
+        task_id,
+        user_id,
+        _queue_name="default_queue",
     )
-    return {"message": "Processing started"}
+
+    return {"message": "Processing started", "job_id": job.job_id}
 
 
 @router.post("/process_all_imagery/{project_id}/", tags=["Image Processing"])

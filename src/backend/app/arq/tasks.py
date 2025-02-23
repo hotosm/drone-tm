@@ -7,6 +7,7 @@ from arq import create_pool, ArqRedis
 from fastapi import HTTPException
 from app.models.enums import HTTPStatus
 from app.db.database import get_db_connection_pool
+from app.projects.project_logic import process_drone_images
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
@@ -78,7 +79,7 @@ class WorkerSettings:
     """ARQ worker configuration"""
 
     redis_settings = RedisSettings.from_dsn(settings.REDIS_DSN)
-    functions = [sleep_task, count_project_tasks]
+    functions = [sleep_task, count_project_tasks, process_drone_images]
     queue_name = "default_queue"
     max_jobs = 20
     job_timeout = 86400  # 24 hours
