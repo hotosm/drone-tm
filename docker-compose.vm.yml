@@ -112,7 +112,6 @@ services:
     networks:
       - dtm-network
     volumes:
-      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
       - frontend-html:/project/src/backend/frontend_html
     restart: unless-stopped
     healthcheck:
