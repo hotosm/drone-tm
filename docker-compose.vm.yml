@@ -104,9 +104,7 @@ services:
     restart: "no"
 
   arq-worker:
-    build:
-      context: src/backend
-      dockerfile: Dockerfile
+    image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     command: arq app.arq.tasks.WorkerSettings
     depends_on:
       - redis
