@@ -82,6 +82,8 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = "http://localhost:3040"
     BACKEND_URL: str = "http://localhost:8000"
+    NODE_ODM_URL: Optional[str] = "http://odm-api:3000"
+    REDIS_DSN: str = "redis://redis:6379/0"
 
     S3_ENDPOINT: str = "http://s3:9000"
     S3_ACCESS_KEY: Optional[str] = ""
@@ -108,8 +110,6 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     EMAILS_FROM_EMAIL: Optional[EmailStr] = None
     EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
-
-    NODE_ODM_URL: Optional[str] = "http://odm-api:3000"
 
     @computed_field
     @property

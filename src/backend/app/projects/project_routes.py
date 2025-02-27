@@ -46,7 +46,8 @@ from app.users.permissions import (
     IsSuperUser,
     check_permissions,
 )
-
+from arq import ArqRedis
+from app.arq.tasks import get_redis_pool
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -443,14 +444,19 @@ async def process_imagery(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    background_tasks: BackgroundTasks,
-    db: Annotated[Connection, Depends(database.get_db)],
+    redis_pool: ArqRedis = Depends(get_redis_pool),
 ):
+    """Start an queue task to process drone imagery."""
     user_id = user_data.id
-    background_tasks.add_task(
-        project_logic.process_drone_images, project.id, task_id, user_id, db
+    job = await redis_pool.enqueue_job(
+        "process_drone_images",
+        project.id,
+        task_id,
+        user_id,
+        _queue_name="default_queue",
     )
-    return {"message": "Processing started"}
+
+    return {"message": "Processing started", "job_id": job.job_id}
 
 
 @router.post("/process_all_imagery/{project_id}/", tags=["Image Processing"])
@@ -707,6 +713,7 @@ async def upload_imagery_to_oam(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
+    background_tasks: BackgroundTasks,
     tags: Dict[str, List[str]] = Body(default={"tags": []}),
 ):
     """
@@ -718,4 +725,41 @@ async def upload_imagery_to_oam(
             detail="User not authorized to do this action",
         )
 
-    return await upload_to_oam(db, project, user_data, tags)
+    background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
+    return {"message": "Uploading to OAM Started"}
+
+
+@router.post("/test/arq_task")
+async def test(redis_pool: ArqRedis = Depends(get_redis_pool)):
+    try:
+        job = await redis_pool.enqueue_job(
+            "sleep_task",
+            _queue_name="default_queue",
+        )
+
+        log.info(f"Successfully enqueued sleep_task with job ID: {job.job_id}")
+        return {
+            "status": "success",
+            "job_id": job.job_id,
+            "message": "Task enqueued successfully",
+        }
+
+    except Exception as e:
+        log.error(f"Error enqueueing sleep_task: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to enqueue task: {str(e)}",
+        )
+
+
+@router.post("/projects/{project_id}/count-tasks")
+async def start_task_count(
+    project_id: uuid.UUID, redis: ArqRedis = Depends(get_redis_pool)
+):
+    """Start an async task to count project tasks"""
+    job = await redis.enqueue_job(
+        "count_project_tasks",
+        str(project_id),
+        _queue_name="default_queue",
+    )
+    return {"job_id": job.job_id}

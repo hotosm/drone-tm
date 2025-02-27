@@ -92,16 +92,16 @@ To get started with Drone TM:
 |✅| 📱 flight plans working on DJI Mini 4 Pro, Air 3, and Mavic 3 |
 |✅| 📱 upload flight plan to drone via mobile app (no laptop required) |
 |✅| 🖥️ precise georeferencing of final imagery using Ground Control Points |
-|⚙️| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) |
-|⚙️| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) |
-|⚙️| 📱 allow adjustments to the flight plan orientation based on field conditions |
+|✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) |
+|✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) |
+|✅| 📱 allow adjustments to the flight plan orientation based on field conditions |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM |
 | | 📱 capture of imagery at multiple (configurable) angles from the drone camera |
-| | 📱 continue to add support for additional drone models |
+|⚙️| 📱 continue to add support for additional drone models |
 | | 🖥️ user access management for each part of the UI |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status |
 | | 📱 improved offline capabilities of Drone-TM, reducing reliance on stable internet in the field |
-| | 🖥️ scaling of ODM imagery processing to hundreds of images in parallel |
+|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel |
 | | 🖥️ better usage of 3D model data collected by drones |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally |
 <!-- prettier-ignore-end -->

@@ -5,6 +5,7 @@ import { useDispatch } from 'react-redux';
 import { Button } from '@Components/RadixComponents/Button';
 import { descriptionItems } from '@Constants/projectDescription';
 import { toggleModal } from '@Store/actions/common';
+import { useGetUserDetailsQuery } from '@Api/projects';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import ApprovalSection from './ApprovalSection';
 
@@ -25,6 +26,8 @@ const DescriptionSection = ({
   isProjectDataLoading?: boolean;
 }) => {
   const dispatch = useDispatch();
+
+  const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
   // know if any of the task is completed (assets_url) is the key that provides the final results of a task OR any of the task's status is the image uploaded or next step
   const isAbleToStartProcessing = useMemo(
@@ -128,16 +131,19 @@ const DescriptionSection = ({
                 >
                   Download Results
                 </Button>
-                <Button
-                  className="naxatw-bg-red"
-                  withLoader
-                  leftIcon="upload"
-                  onClick={() => {
-                    dispatch(toggleModal('upload-to-oam'));
-                  }}
-                >
-                  Upload to OAM
-                </Button>
+                {/* show button only if same logged-in user created the project  */}
+                {projectData?.author_id === userDetails?.id && (
+                  <Button
+                    className="naxatw-bg-red"
+                    withLoader
+                    leftIcon="upload"
+                    onClick={() => {
+                      dispatch(toggleModal('upload-to-oam'));
+                    }}
+                  >
+                    Upload to OAM
+                  </Button>
+                )}
               </div>
             ) : projectData?.image_processing_status === 'PROCESSING' ? (
               <div>
