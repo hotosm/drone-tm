@@ -230,6 +230,7 @@ class DbProject(BaseModel):
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
     image_processing_status: Optional[str] = None
+    oam_upload_status: Optional[str] = None
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
     regulator_comment: Optional[str] = None
@@ -639,6 +640,7 @@ class ProjectInfo(BaseModel):
     regulator_emails: Optional[List[EmailStr]] = None
     regulator_approval_status: Optional[str] = None
     image_processing_status: Optional[str] = None
+    oam_upload_status: Optional[str] = None
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
     regulator_comment: Optional[str] = None
