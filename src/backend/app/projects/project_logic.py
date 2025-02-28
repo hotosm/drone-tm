@@ -123,10 +123,10 @@ async def update_project_oam_status(
         await cur.execute(
             """
             UPDATE projects
-            SET oam_status = %s
+            SET oam_upload_status = %s
             WHERE id = %s
             """,
-            (status.value, project_id),
+            (status.name, project_id),
         )
     await db.commit()
     return True
