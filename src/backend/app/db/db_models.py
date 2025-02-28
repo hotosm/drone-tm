@@ -27,6 +27,7 @@ from app.models.enums import (
     State,
     RegulatorApprovalStatus,
     ImageProcessingStatus,
+    OAMUploadStatus,
 )
 from sqlalchemy.orm import (
     object_session,
@@ -160,6 +161,10 @@ class DbProject(Base):
         ImageProcessingStatus,
         Column(Enum(ImageProcessingStatus), default=ImageProcessingStatus.NOT_STARTED),
     )  # status of image processing
+    oam_upload_status = cast(
+        OAMUploadStatus,
+        Column(Enum(OAMUploadStatus), default=OAMUploadStatus.NOT_STARTED),
+    )  # status of oam upload
 
     regulator_comment = cast(str, Column(String, nullable=True))
     commenting_regulator_id = cast(
