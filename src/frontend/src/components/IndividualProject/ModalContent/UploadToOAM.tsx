@@ -4,7 +4,7 @@ import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { uploadToOAM } from '@Services/project';
 import { toggleModal } from '@Store/actions/common';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 import { useState, KeyboardEvent } from 'react';
 import { useDispatch } from 'react-redux';
@@ -13,6 +13,7 @@ import { toast } from 'react-toastify';
 
 const UploadToOAM = () => {
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const pathname = window.location.pathname?.split('/');
   const projectId = pathname?.[2];
   const userProfile = getLocalStorageValue('userprofile');
@@ -49,9 +50,16 @@ const UploadToOAM = () => {
 
   const { mutate } = useMutation({
     mutationFn: uploadToOAM,
-    onSuccess: () => {
+    onSuccess: data => {
       dispatch(toggleModal());
-      toast.success('Started Uploading to OAM');
+      queryClient.invalidateQueries({
+        queryKey: ['project-detail', projectId],
+      });
+      if (data?.data?.detail) {
+        toast.success(data?.data?.detail);
+      } else {
+        toast.success('Started Uploading to OAM');
+      }
     },
   });
 
