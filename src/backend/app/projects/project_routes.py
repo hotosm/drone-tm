@@ -28,7 +28,7 @@ from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.projects.oam import upload_to_oam
 from app.db import database
-from app.models.enums import HTTPStatus, State, ProjectCompletionStatus
+from app.models.enums import HTTPStatus, State, ProjectCompletionStatus, OAMUploadStatus
 from app.s3 import add_file_to_bucket, s3_client
 from app.config import settings
 from app.users.user_deps import login_required
@@ -725,8 +725,23 @@ async def upload_imagery_to_oam(
             detail="User not authorized to do this action",
         )
 
+    # Check if upload is already in progress or already uploaded.
+    if (
+        project.oam_upload_status == OAMUploadStatus.UPLOADING
+        or project.oam_upload_status == OAMUploadStatus.UPLOADED
+    ):
+        return HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="Upload to OAM already in progress or already done",
+        )
+
+    # Update project status to UPLOADING
+    await project_logic.update_project_oam_status(
+        db, project.id, OAMUploadStatus.UPLOADING
+    )
+
     background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
-    return {"message": "Uploading to OAM Started"}
+    return {"message": "Uploading to OAM Started", "status": OAMUploadStatus.UPLOADING}
 
 
 @router.post("/test/arq_task")

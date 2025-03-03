@@ -81,6 +81,8 @@ export const getFrontOverlap = (agl: number, forwardSpacing: number) => {
 export const formatString = (value: string) => {
   if (!value) return '';
   if (value === 'IMAGE_PROCESSING_FINISHED') return 'Completed';
+  if (value === 'UPLOADED') return 'Completed';
+
   return value
     .replace(/_/g, ' ')
     .toLowerCase()

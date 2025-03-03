@@ -38,7 +38,7 @@ from drone_flightplan import (
     create_placemarks,
     terrain_following_waylines,
 )
-from app.models.enums import FlightMode, ImageProcessingStatus
+from app.models.enums import FlightMode, ImageProcessingStatus, OAMUploadStatus
 
 
 async def get_centroids(db: Connection):
@@ -110,6 +110,26 @@ async def upload_file_to_s3(
     file_url = f"{settings.S3_DOWNLOAD_ROOT}/{settings.S3_BUCKET_NAME}{file_path}"
 
     return file_url
+
+
+async def update_project_oam_status(
+    db: Connection, project_id: uuid.UUID, status: OAMUploadStatus
+):
+    """
+    Update the OAM status for a project.
+    """
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE projects
+            SET oam_upload_status = %s
+            WHERE id = %s
+            """,
+            (status.name, project_id),
+        )
+    await db.commit()
+    return True
 
 
 async def update_url(db: Connection, project_id: uuid.UUID, url: str):
