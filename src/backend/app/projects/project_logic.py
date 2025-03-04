@@ -401,36 +401,46 @@ async def update_processing_status(
 
 
 async def process_all_drone_images(
-    project_id: uuid.UUID, tasks: list, user_id: str, db: Connection
+    ctx: Dict[Any, Any], project_id: uuid.UUID, tasks: list, user_id: str
 ):
-    # Initialize the processor
-    processor = DroneImageProcessor(
-        node_odm_url=settings.NODE_ODM_URL,
-        project_id=project_id,
-        task_id=None,
-        user_id=user_id,
-        task_ids=tasks,
-        db=db,
-    )
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting process_drone_images_for_a_project (Job ID: {job_id})")
 
-    # Define processing options
-    options = [
-        {"name": "dsm", "value": True},
-        {"name": "orthophoto-resolution", "value": 5},
-    ]
-    webhook_url = (
-        f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
-    )
-    await processor.process_images_for_all_tasks(
-        settings.S3_BUCKET_NAME,
-        name_prefix=f"DTM-Task-{project_id}",
-        options=options,
-        webhook=webhook_url,
-    )
+    try:
+        pool = ctx["db_pool"]
+        async with pool.connection() as conn:
+            # Initialize the processor
+            processor = DroneImageProcessor(
+                node_odm_url=settings.NODE_ODM_URL,
+                project_id=project_id,
+                task_id=None,
+                user_id=user_id,
+                task_ids=tasks,
+                db=conn,
+            )
 
-    # Update the processing status to 'IMAGE_PROCESSING_STARTED' in the database.
-    await update_processing_status(db, project_id, ImageProcessingStatus.PROCESSING)
-    return
+            # Define processing options
+            options = [
+                {"name": "dsm", "value": True},
+                {"name": "orthophoto-resolution", "value": 5},
+            ]
+            webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
+            await processor.process_images_for_all_tasks(
+                settings.S3_BUCKET_NAME,
+                name_prefix=f"DTM-Task-{project_id}",
+                options=options,
+                webhook=webhook_url,
+            )
+
+            # Update the processing status to 'IMAGE_PROCESSING_STARTED' in the database.
+            await update_processing_status(
+                conn, project_id, ImageProcessingStatus.PROCESSING
+            )
+            return
+
+    except Exception as e:
+        log.error(f"Error in process_drone_images (Job ID: {job_id}): {str(e)}")
+        raise
 
 
 def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
