@@ -25,6 +25,7 @@ export interface CreateProjectState {
   imageMergeType: string;
   ProjectsFilterByOwner: 'yes' | 'no';
   requiresApprovalFromRegulator: 'required' | 'not_required';
+  selectedProjectStatus: string;
   regulatorEmails: string[] | [];
   demType: string;
 }
@@ -53,6 +54,7 @@ const initialState: CreateProjectState = {
   requiresApprovalFromRegulator: 'not_required',
   regulatorEmails: [],
   demType: 'auto',
+  selectedProjectStatus: ''
 };
 
 const setCreateProjectState: CaseReducer<
