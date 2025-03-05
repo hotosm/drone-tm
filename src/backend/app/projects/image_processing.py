@@ -484,36 +484,40 @@ async def process_assets_from_odm(
                             conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
                         )
 
-                        # If the project has only one task, copy the s3_ortho path to the project level
-                        # And mark the project processing status as completed, no need to process again
-                        total_tasks = await project_logic.get_all_tasks_for_project(
+                        # If the project has only one task, copy the orthophoto and assets to the project level
+                        # Mark the project processing status as completed to avoid redundant processing
+                        tasks = await project_logic.get_all_tasks_for_project(
                             dtm_project_id, conn
                         )
-                        if len(total_tasks) == 1:
-                            s3_ortho_project_path = f"dtm-data/projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
+
+                        if len(tasks) == 1:
+                            project_ortho_path = f"dtm-data/projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
                             log.info(
-                                f"Copying orthophoto to project level: {s3_ortho_project_path}"
-                            )
-                            copy_file_within_bucket(
-                                settings.S3_BUCKET_NAME,
-                                s3_ortho_path,
-                                s3_ortho_project_path,
+                                f"Copying orthophoto to project level: {project_ortho_path}"
                             )
 
-                            # copy the assets.zip to the project level
-                            s3_assets_project_path = (
+                            ortho_copy_status = copy_file_within_bucket(
+                                settings.S3_BUCKET_NAME,
+                                s3_ortho_path,
+                                project_ortho_path,
+                            )
+
+                            project_assets_path = (
                                 f"dtm-data/projects/{dtm_project_id}/assets.zip"
                             )
                             log.info(
-                                f"Copying assets to project level: {s3_assets_project_path}"
+                                f"Copying assets to project level: {project_assets_path}"
                             )
-                            copy_file_within_bucket(
-                                settings.S3_BUCKET_NAME, s3_path, s3_assets_project_path
+
+                            assets_copy_status = copy_file_within_bucket(
+                                settings.S3_BUCKET_NAME, s3_path, project_assets_path
                             )
-                            # update the image processing status
-                            await project_logic.update_processing_status(
-                                conn, dtm_project_id, ImageProcessingStatus.SUCCESS
-                            )
+
+                            # Update project processing status if both copies were successful
+                            if ortho_copy_status and assets_copy_status:
+                                await project_logic.update_processing_status(
+                                    conn, dtm_project_id, ImageProcessingStatus.SUCCESS
+                                )
 
             status = ImageProcessingStatus.SUCCESS
         if not dtm_task_id:

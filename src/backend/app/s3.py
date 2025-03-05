@@ -6,6 +6,7 @@ from typing import Any
 from datetime import timedelta
 from urllib.parse import urljoin
 from minio.error import S3Error
+from minio.commonconfig import CopySource
 
 
 def s3_client():
@@ -302,14 +303,16 @@ def copy_file_within_bucket(
             log.warning(f"Source file not found: {source_path} in bucket {bucket_name}")
             return False
 
+        # Create CopySource object
+        copy_source = CopySource(bucket_name, source_path)
+
         # Copy the object within the same bucket
-        client.copy_object(
-            bucket_name, destination_path, f"{bucket_name}/{source_path}"
-        )
+        result = client.copy_object(bucket_name, destination_path, copy_source)
 
         log.debug(
             f"Successfully copied object within {bucket_name} "
-            f"from {source_path} to {destination_path}"
+            f"from {source_path} to {destination_path}. "
+            f"Object name: {result.object_name}, Version ID: {result.version_id}"
         )
         return True
 
