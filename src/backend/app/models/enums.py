@@ -226,3 +226,12 @@ class ProjectCompletionStatus(str, Enum):
     NOT_STARTED = "not-started"
     ON_GOING = "ongoing"
     COMPLETED = "completed"
+
+
+class OAMUploadStatus(str, Enum):
+    """Enum to describe all possible OAM upload status."""
+
+    NOT_STARTED = "not-started"
+    UPLOADING = "uploading"
+    UPLOADED = "uploaded"
+    FAILED = "failed"

@@ -28,7 +28,7 @@ from shapely.ops import unary_union
 from app.projects import project_schemas, project_deps, project_logic, image_processing
 from app.projects.oam import upload_to_oam
 from app.db import database
-from app.models.enums import HTTPStatus, State, ProjectCompletionStatus
+from app.models.enums import HTTPStatus, State, ProjectCompletionStatus, OAMUploadStatus
 from app.s3 import add_file_to_bucket, s3_client
 from app.config import settings
 from app.users.user_deps import login_required
@@ -465,8 +465,8 @@ async def process_all_imagery(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    background_tasks: BackgroundTasks,
     db: Annotated[Connection, Depends(database.get_db)],
+    redis_pool: ArqRedis = Depends(get_redis_pool),
     gcp_file: UploadFile = File(None),
 ):
     """
@@ -482,10 +482,18 @@ async def process_all_imagery(
         add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
 
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
-    background_tasks.add_task(
-        project_logic.process_all_drone_images, project.id, tasks, user_id, db
+    job = await redis_pool.enqueue_job(
+        "process_all_drone_images",
+        project.id,
+        tasks,
+        user_id,
+        _queue_name="default_queue",
     )
-    return {"message": f"Processing started for {len(tasks)} tasks."}
+
+    return {
+        "message": f"Processing started for {len(tasks)} tasks.",
+        "job_id": job.job_id,
+    }
 
 
 @router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/", tags=["Image Processing"])
@@ -725,8 +733,23 @@ async def upload_imagery_to_oam(
             detail="User not authorized to do this action",
         )
 
+    # Check if upload is already in progress or already uploaded.
+    if (
+        project.oam_upload_status == OAMUploadStatus.UPLOADING
+        or project.oam_upload_status == OAMUploadStatus.UPLOADED
+    ):
+        return HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="Upload to OAM already in progress or already done",
+        )
+
+    # Update project status to UPLOADING
+    await project_logic.update_project_oam_status(
+        db, project.id, OAMUploadStatus.UPLOADING
+    )
+
     background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
-    return {"message": "Uploading to OAM Started"}
+    return {"message": "Uploading to OAM Started", "status": OAMUploadStatus.UPLOADING}
 
 
 @router.post("/test/arq_task")

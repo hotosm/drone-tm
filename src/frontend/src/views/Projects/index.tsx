@@ -23,6 +23,9 @@ const Projects = () => {
   const projectsFilterByOwner = useTypedSelector(
     state => state.createproject.ProjectsFilterByOwner,
   );
+  const projectFilterByStatus = useTypedSelector(
+    state => state.createproject.selectedProjectStatus,
+  );
   const projectSearchKey = useTypedSelector(
     state => state.common.projectSearchKey,
   );
@@ -35,16 +38,26 @@ const Projects = () => {
     setSetPaginationState(prev => ({ ...prev, ...value }));
   };
 
-  // fetch api for projectsList
-  const { data: projectListData, isFetching: isLoading }: Record<string, any> =
-    useGetProjectsListQuery({
-      queryKey: {
-        // @ts-ignore
+  const filterParams = projectFilterByStatus
+    ? {
+        filter_by_owner: projectsFilterByOwner === 'yes',
+        status: projectFilterByStatus,
+        page: paginationState?.activePage,
+        results_per_page: paginationState?.selectedNumberOfRows,
+        search: projectSearchKey,
+      }
+    : {
         filter_by_owner: projectsFilterByOwner === 'yes',
         page: paginationState?.activePage,
         results_per_page: paginationState?.selectedNumberOfRows,
         search: projectSearchKey,
-      },
+      };
+
+  // fetch api for projectsList
+  const { data: projectListData, isFetching: isLoading }: Record<string, any> =
+    useGetProjectsListQuery({
+      // @ts-ignore
+      queryKey: { ...filterParams },
     });
 
   // fetch project centroid
@@ -65,6 +78,7 @@ const Projects = () => {
   return (
     <section className="naxatw-px-3 naxatw-pt-2 lg:naxatw-px-16">
       <ProjectsHeader />
+
       <div className="naxatw-grid naxatw-gap-2 naxatw-pb-10 md:naxatw-flex md:naxatw-h-[calc(100vh-11rem)] md:naxatw-pb-0">
         <div
           className={`scrollbar naxatw-grid naxatw-grid-rows-[19rem] naxatw-gap-3 naxatw-overflow-y-auto naxatw-py-2 ${showMap ? 'naxatw-w-full naxatw-grid-cols-1 md:naxatw-w-1/2 md:naxatw-grid-cols-1 lg:naxatw-grid-cols-2 xl:naxatw-grid-cols-3' : 'naxatw-w-full naxatw-grid-cols-1 sm:naxatw-grid-cols-2 md:naxatw-grid-cols-3 lg:naxatw-grid-cols-6'}`}

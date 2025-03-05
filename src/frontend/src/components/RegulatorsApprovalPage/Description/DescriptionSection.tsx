@@ -7,6 +7,7 @@ import { descriptionItems } from '@Constants/projectDescription';
 import { toggleModal } from '@Store/actions/common';
 import { useGetUserDetailsQuery } from '@Api/projects';
 import Skeleton from '@Components/RadixComponents/Skeleton';
+import { formatString } from '@Utils/index';
 import ApprovalSection from './ApprovalSection';
 
 const statusAfterImageUploaded = [
@@ -102,6 +103,18 @@ const DescriptionSection = ({
             }
             return <></>;
           })}
+
+          {(projectData?.oam_upload_status === 'UPLOADING' ||
+            projectData?.oam_upload_status === 'FAILED' ||
+            projectData?.oam_upload_status === 'UPLOADED') && (
+            <div className="naxatw-flex naxatw-gap-2">
+              <p className="naxatw-w-[146px]">Uploaded to OAM</p>
+              <p>:</p>
+              <p className="naxatw-font-semibold">
+                {formatString(projectData?.oam_upload_status)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
       {page !== 'project-approval' &&
@@ -133,16 +146,33 @@ const DescriptionSection = ({
                 </Button>
                 {/* show button only if same logged-in user created the project  */}
                 {projectData?.author_id === userDetails?.id && (
-                  <Button
-                    className="naxatw-bg-red"
-                    withLoader
-                    leftIcon="upload"
-                    onClick={() => {
-                      dispatch(toggleModal('upload-to-oam'));
-                    }}
-                  >
-                    Upload to OAM
-                  </Button>
+                  <>
+                    {projectData?.oam_upload_status === 'NOT_STARTED' ? (
+                      <Button
+                        className="naxatw-bg-red"
+                        withLoader
+                        leftIcon="upload"
+                        onClick={() => {
+                          dispatch(toggleModal('upload-to-oam'));
+                        }}
+                      >
+                        Upload to OAM
+                      </Button>
+                    ) : projectData?.oam_upload_status === 'FAILED' ? (
+                      <Button
+                        className="naxatw-bg-red"
+                        withLoader
+                        leftIcon="upload"
+                        onClick={() => {
+                          dispatch(toggleModal('upload-to-oam'));
+                        }}
+                      >
+                        Re-upload Upload to OAM
+                      </Button>
+                    ) : (
+                      <></>
+                    )}
+                  </>
                 )}
               </div>
             ) : projectData?.image_processing_status === 'PROCESSING' ? (
