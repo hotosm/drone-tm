@@ -55,17 +55,17 @@ def upgrade():
     # Step 2: Add a new column with the new enum type
     op.add_column("task_events", sa.Column("new_state", new_state_enum, nullable=True))
 
-    # Step 3: Populate the new state column with the transformed data
-    op.execute(
-        """
-        UPDATE task_events
-        SET new_state =
-            CASE
-                WHEN state = 'IMAGE_PROCESSED' THEN 'IMAGE_PROCESSING_FINISHED'
-                ELSE state::text
-            END::state_new
-        """
-    )
+    # # Step 3: Populate the new state column with the transformed data
+    # op.execute(
+    #     """
+    #     UPDATE task_events
+    #     SET new_state =
+    #         CASE
+    #             WHEN state = 'IMAGE_PROCESSED' THEN 'IMAGE_PROCESSING_FINISHED'
+    #             ELSE state::text
+    #         END::state_new
+    #     """
+    # )
 
     # Step 4: Drop the old state column
     op.drop_column("task_events", "state")
@@ -110,17 +110,17 @@ def downgrade():
     # Step 3: Add the old state column with the old enum type
     op.add_column("task_events", sa.Column("state_old", old_state_enum, nullable=True))
 
-    # Step 4: Populate the old state column with the transformed data
-    op.execute(
-        """
-        UPDATE task_events
-        SET state_old =
-            CASE
-                WHEN state = 'IMAGE_PROCESSING_FINISHED' THEN 'IMAGE_PROCESSED'
-                ELSE state::text
-            END::state
-        """
-    )
+    # # Step 4: Populate the old state column with the transformed data
+    # op.execute(
+    #     """
+    #     UPDATE task_events
+    #     SET state_old =
+    #         CASE
+    #             WHEN state = 'IMAGE_PROCESSING_FINISHED' THEN 'IMAGE_PROCESSED'
+    #             ELSE state::text
+    #         END::state
+    #     """
+    # )
 
     # Step 5: Drop the new_state column
     op.drop_column("task_events", "state")
