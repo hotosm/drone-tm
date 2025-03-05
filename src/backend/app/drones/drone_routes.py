@@ -7,7 +7,10 @@ from app.db import database
 from app.config import settings
 from app.drones import drone_schemas, drone_deps
 from psycopg import Connection
-
+from app.users.permissions import (
+    IsSuperUser,
+    check_permissions,
+)
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/drones",
@@ -31,7 +34,7 @@ async def read_drones(
 async def create_drone(
     drone_info: drone_schemas.DroneIn,
     db: Annotated[Connection, Depends(database.get_db)],
-    user_data: Annotated[AuthUser, Depends(login_required)],
+    user_data: Annotated[AuthUser, Depends(check_permissions(IsSuperUser()))],
 ):
     """Create a new drone in database"""
     drone_id = await drone_schemas.DbDrone.create(db, drone_info)
@@ -42,7 +45,7 @@ async def create_drone(
 async def delete_drone(
     drone: Annotated[drone_schemas.DbDrone, Depends(drone_deps.get_drone_by_id)],
     db: Annotated[Connection, Depends(database.get_db)],
-    user_data: Annotated[AuthUser, Depends(login_required)],
+    user_data: Annotated[AuthUser, Depends(check_permissions(IsSuperUser()))],
 ):
     """
     Deletes a drone record from the database.
@@ -56,8 +59,6 @@ async def delete_drone(
         dict: A success message if the drone was deleted.
     """
 
-    # TODO: Check user role, Admin can only do this.
-    # After user roles introduction
     drone_id = await drone_schemas.DbDrone.delete(db, drone.id)
     return {"message": f"Drone successfully deleted {drone_id}"}
 
