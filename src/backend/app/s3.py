@@ -272,3 +272,50 @@ def get_orthophoto_url_for_project(project_id: str):
     if s3_download_root:
         return urljoin(s3_download_root, project_orthophoto_path)
     return get_presigned_url(settings.S3_BUCKET_NAME, project_orthophoto_path, 3)
+
+
+def copy_file_within_bucket(
+    bucket_name: str, source_path: str, destination_path: str
+) -> bool:
+    """
+    Copy a file from one path to another within the same bucket.
+
+    Args:
+        bucket_name (str): The name of the bucket.
+        source_path (str): The current path of the object.
+        destination_path (str): The new path where the object will be copied.
+
+    Returns:
+        bool: True if the copy was successful, False otherwise.
+    """
+    try:
+        # Remove leading slash if present
+        source_path = source_path.lstrip("/")
+        destination_path = destination_path.lstrip("/")
+
+        client = s3_client()
+
+        # Check if source file exists
+        try:
+            client.stat_object(bucket_name, source_path)
+        except S3Error:
+            log.warning(f"Source file not found: {source_path} in bucket {bucket_name}")
+            return False
+
+        # Copy the object within the same bucket
+        client.copy_object(
+            bucket_name, destination_path, f"{bucket_name}/{source_path}"
+        )
+
+        log.debug(
+            f"Successfully copied object within {bucket_name} "
+            f"from {source_path} to {destination_path}"
+        )
+        return True
+
+    except S3Error as e:
+        log.error(f"Error copying object: {e}")
+        return False
+    except Exception as e:
+        log.error(f"Unexpected error during object copy: {e}")
+        return False

@@ -7,7 +7,7 @@ from app.config import settings
 from app.s3 import get_orthophoto_url_for_project
 from app.models.enums import OAMUploadStatus
 from app.users.user_logic import get_oam_token_for_user
-from app.projects.project_logic import update_project_oam_status
+from app.projects import project_logic
 
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
@@ -93,7 +93,9 @@ async def upload_to_oam(db: Connection, project, user_data, tags: Dict[str, List
 
     async def handle_upload_failure(message: str):
         """Helper function to handle OAM upload failures"""
-        await update_project_oam_status(db, project.id, OAMUploadStatus.FAILED)
+        await project_logic.update_project_oam_status(
+            db, project.id, OAMUploadStatus.FAILED
+        )
         log.error(message)
         return None
 
@@ -149,7 +151,7 @@ async def upload_to_oam(db: Connection, project, user_data, tags: Dict[str, List
                     oam_upload_id = res["results"]["upload"]
 
                     # Update status to UPLOADED
-                    await update_project_oam_status(
+                    await project_logic.update_project_oam_status(
                         db, project.id, OAMUploadStatus.UPLOADED
                     )
                     log.info(

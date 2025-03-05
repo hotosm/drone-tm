@@ -465,8 +465,8 @@ async def process_all_imagery(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    background_tasks: BackgroundTasks,
     db: Annotated[Connection, Depends(database.get_db)],
+    redis_pool: ArqRedis = Depends(get_redis_pool),
     gcp_file: UploadFile = File(None),
 ):
     """
@@ -482,10 +482,18 @@ async def process_all_imagery(
         add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
 
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
-    background_tasks.add_task(
-        project_logic.process_all_drone_images, project.id, tasks, user_id, db
+    job = await redis_pool.enqueue_job(
+        "process_all_drone_images",
+        project.id,
+        tasks,
+        user_id,
+        _queue_name="default_queue",
     )
-    return {"message": f"Processing started for {len(tasks)} tasks."}
+
+    return {
+        "message": f"Processing started for {len(tasks)} tasks.",
+        "job_id": job.job_id,
+    }
 
 
 @router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/", tags=["Image Processing"])
