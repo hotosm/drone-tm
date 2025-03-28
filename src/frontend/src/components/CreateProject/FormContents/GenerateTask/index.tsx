@@ -90,7 +90,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
             className="naxatw-mt-1"
             value={dimension}
             min={50}
-            max={700}
+            max={1000}
             {...register('task_split_dimension', {
               required: 'Required',
               valueAsNumber: true,
@@ -98,7 +98,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
             onFocus={() => setError('')}
           />
           {error && <ErrorMessage message={error} />}
-          <p className="naxatw-text-[#68707F]">Recommended : 50-700</p>
+          <p className="naxatw-text-[#68707F]">Recommended : 50-1000</p>
         </FormControl>
         <Button
           withLoader
@@ -108,8 +108,8 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
           className="naxatw-mt-4 naxatw-bg-red"
           onClick={() => {
             if (!projectArea) return () => {};
-            if (dimension < 50 || dimension > 700)
-              return setError('Dimension must in between 50-700');
+            if (dimension < 50 || dimension > 1000)
+              return setError('Dimension must in between 50-1000');
             dispatch(
               setCreateProjectState({
                 splitGeojson: null,

@@ -306,7 +306,7 @@ export const taskGenerationGuidelines = {
     covering approximately 0.3 km².`,
     `If the drone operators are using the RC-N2 controller without the
       terrain following parameter, the recommended square dimensions are up to
-      700 meters, covering approximately 0.5 km².`,
+      1000 meters, covering approximately 1 km².`,
   ],
   conclusion: `These guidelines will help ensure that your task area is appropriately
       sized based on the drone equipment and parameters being used. This will
