@@ -200,7 +200,9 @@ class TaskSplitter(object):
 
         # Transform all polygons back to WGS84 for final output
         polygons_wgs84 = [
-            shapely_transform(transformer_to_wgs84.transform, p) for p in polygons
+            shapely_transform(transformer_to_wgs84.transform, p)
+            for p in polygons
+            if p.area > 0
         ]
 
         # Convert polygons to GeoJSON FeatureCollection
