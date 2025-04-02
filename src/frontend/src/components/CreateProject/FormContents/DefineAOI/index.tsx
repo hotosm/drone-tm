@@ -1,29 +1,23 @@
 /* eslint-disable consistent-return */
-import { useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { Controller } from 'react-hook-form';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
 import { UseFormPropsType } from '@Components/common/FormUI/types';
-import { FormControl } from '@Components/common/FormUI';
-import { Button } from '@Components/RadixComponents/Button';
-import RadioButton from '@Components/common/RadioButton';
-import { FlexRow } from '@Components/common/Layouts';
+import { FormControl, Label } from '@Components/common/FormUI';
 import FileUpload from '@Components/common/UploadArea';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { m2ToKm2 } from '@Utils/index';
-import {
-  setCreateProjectState,
-  resetUploadedAndDrawnAreas,
-} from '@Store/actions/createproject';
+import { setCreateProjectState } from '@Store/actions/createproject';
 import flatten from '@turf/flatten';
 import area from '@turf/area';
 import type { AllGeoJSON } from '@turf/helpers';
 import type { FeatureCollection } from 'geojson';
-import { uploadAreaOptions } from '@Constants/createProject';
 import { validateGeoJSON } from '@Utils/convertLayerUtils';
-import Icon from '@Components/common/Icon';
 import { toast } from 'react-toastify';
 import MapSection from './MapSection';
+import SwitchTab from '@Components/common/SwitchTab';
+import { uploadOrDrawAreaOptions } from '@Constants/createProject';
 
 function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
   return typeof obj === 'object' && obj !== null && 'type' in obj;
@@ -31,101 +25,15 @@ function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
 
 const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
-
-  const { setValue, control, errors } = formProps;
-
-  const [resetDrawTool, setResetDrawTool] = useState<null | (() => void)>(null);
-
+  const [selectedTab, setSelectedTab] = useState<string>('project');
   const projectArea = useTypedSelector(
     state => state.createproject.projectArea,
   );
-  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
-  const isNoflyzonePresent = useTypedSelector(
-    state => state.createproject.isNoflyzonePresent,
-  );
-  const drawProjectAreaEnable = useTypedSelector(
-    state => state.createproject.drawProjectAreaEnable,
-  );
-  const drawNoFlyZoneEnable = useTypedSelector(
-    state => state.createproject.drawNoFlyZoneEnable,
-  );
-  const drawnProjectArea = useTypedSelector(
-    state => state.createproject.drawnProjectArea,
-  );
-  const drawnNoFlyZone = useTypedSelector(
-    state => state.createproject.drawnNoFlyZone,
+  const totalProjectArea = useTypedSelector(
+    state => state.createproject.totalProjectArea,
   );
 
-  const handleResetButtonClick = useCallback((resetFunction: any) => {
-    setResetDrawTool(() => resetFunction);
-  }, []);
-
-  const handleDrawProjectAreaClick = () => {
-    if (!drawProjectAreaEnable) {
-      dispatch(setCreateProjectState({ drawProjectAreaEnable: true }));
-      return;
-    }
-    const drawnArea =
-      drawnProjectArea && area(drawnProjectArea as FeatureCollection);
-    if (drawnArea && drawnArea > 100000000) {
-      toast.error('Drawn Area should not exceed 100km²');
-      dispatch(
-        setCreateProjectState({
-          drawProjectAreaEnable: false,
-          drawnProjectArea: null,
-        }),
-      );
-      // @ts-ignore
-      resetDrawTool();
-      return;
-    }
-    dispatch(
-      setCreateProjectState({
-        projectArea: drawnProjectArea,
-        drawProjectAreaEnable: false,
-      }),
-    );
-    setValue('outline', drawnProjectArea);
-    if (resetDrawTool) {
-      resetDrawTool();
-    }
-  };
-
-  const handleDrawNoFlyZoneClick = () => {
-    if (!drawNoFlyZoneEnable) {
-      dispatch(setCreateProjectState({ drawNoFlyZoneEnable: true }));
-      return;
-    }
-    if (!drawnNoFlyZone) return;
-    const drawnNoFlyZoneArea =
-      drawnProjectArea && area(drawnNoFlyZone as FeatureCollection);
-    if (drawnNoFlyZoneArea && drawnNoFlyZoneArea > 100000000) {
-      toast.error('Drawn Area should not exceed 100km²');
-      dispatch(
-        setCreateProjectState({
-          drawNoFlyZoneEnable: false,
-          drawnNoFlyZone: null,
-        }),
-      );
-      // @ts-ignore
-      resetDrawTool();
-      return;
-    }
-    dispatch(
-      setCreateProjectState({
-        noFlyZone: drawnNoFlyZone,
-        drawNoFlyZoneEnable: false,
-      }),
-    );
-    setValue('no_fly_zones', drawnNoFlyZone);
-    if (resetDrawTool) {
-      resetDrawTool();
-    }
-  };
-
-  const totalProjectArea =
-    projectArea && area(projectArea as FeatureCollection);
-  const noFlyZoneArea = noFlyZone && area(noFlyZone as FeatureCollection);
+  const { setValue, control, errors } = formProps;
 
   const handleProjectAreaFileChange = (file: Record<string, any>[]) => {
     if (!file) return;
@@ -185,10 +93,189 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
     }
   };
 
+  useEffect(() => {
+    const totalProjectArea =
+      projectArea && area(projectArea as FeatureCollection);
+    if (totalProjectArea) {
+      dispatch(setCreateProjectState({ totalProjectArea: totalProjectArea }));
+    }
+    setValue('outline', projectArea);
+  }, [projectArea]);
+
   return (
     <div className="naxatw-h-full naxatw-bg-white">
       <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-3 naxatw-gap-5">
         <div className="naxatw-col-span-3 naxatw-overflow-y-auto naxatw-py-5 md:naxatw-col-span-1">
+          <FormControl className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+            <Label>Draw/Upload Area</Label>
+            <SwitchTab
+              options={uploadOrDrawAreaOptions}
+              valueKey="value"
+              selectedValue={selectedTab}
+              activeClassName="naxatw-bg-red naxatw-text-white"
+              onChange={(selected: any) => {
+                setSelectedTab(selected.value);
+              }}
+            />
+          </FormControl>
+
+          {selectedTab === 'project' ? (
+            <>
+              {totalProjectArea > 0 && (
+                <p className="naxatw-mt-2 naxatw-text-body-md">
+                  Total Project Area:{' '}
+                  {m2ToKm2(Math.trunc(totalProjectArea as number))}
+                </p>
+              )}
+              {!projectArea && (
+                <FormControl className="naxatw-mt-4">
+                  <Controller
+                    control={control}
+                    name="outline"
+                    rules={{
+                      required: 'Project Area is Required',
+                    }}
+                    render={({ field: { value } }) => {
+                      console.log(value, 'value');
+
+                      return (
+                        <FileUpload
+                          name="outline"
+                          data={value}
+                          onChange={handleProjectAreaFileChange}
+                          fileAccept=".geojson"
+                          placeholder="Upload project area (.geojson file)"
+                          isValid={validateAreaOfFileUpload}
+                          {...formProps}
+                        />
+                      );
+                    }}
+                  />
+                  <ErrorMessage message={errors?.outline?.message as string} />
+                </FormControl>
+              )}
+            </>
+          ) : (
+            <FormControl className="naxatw-mt-4">
+              <Controller
+                control={control}
+                name="no_fly_zones"
+                render={({ field: { value } }) => (
+                  <FileUpload
+                    name="no_fly_zones"
+                    data={value}
+                    onChange={handleNoFlyZoneFileChange}
+                    isValid={validateAreaOfFileUpload}
+                    fileAccept=".geojson, .kml"
+                    placeholder="Upload no fly zone area (.geojson)"
+                    {...formProps}
+                  />
+                )}
+              />
+            </FormControl>
+          )}
+        </div>
+
+        <div className="naxatw-col-span-3 naxatw-h-[50vh] naxatw-overflow-hidden md:naxatw-col-span-2 md:naxatw-h-full">
+          <MapSection selectedTab={selectedTab} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default hasErrorBoundary(DefineAOI);
+
+// const [resetDrawTool, setResetDrawTool] = useState<null | (() => void)>(null);
+
+// const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
+// const isNoflyzonePresent = useTypedSelector(
+//   state => state.createproject.isNoflyzonePresent,
+// );
+// const drawProjectAreaEnable = useTypedSelector(
+//   state => state.createproject.drawProjectAreaEnable,
+// );
+// const drawNoFlyZoneEnable = useTypedSelector(
+//   state => state.createproject.drawNoFlyZoneEnable,
+// );
+// const drawnProjectArea = useTypedSelector(
+//   state => state.createproject.drawnProjectArea,
+// );
+// const drawnNoFlyZone = useTypedSelector(
+//   state => state.createproject.drawnNoFlyZone,
+// );
+
+// const handleResetButtonClick = useCallback((resetFunction: any) => {
+//   setResetDrawTool(() => resetFunction);
+// }, []);
+
+// const handleDrawNoFlyZoneClick = () => {
+//   if (!drawNoFlyZoneEnable) {
+//     dispatch(setCreateProjectState({ drawNoFlyZoneEnable: true }));
+//     return;
+//   }
+//   if (!drawnNoFlyZone) return;
+//   const drawnNoFlyZoneArea =
+//     drawnProjectArea && area(drawnNoFlyZone as FeatureCollection);
+//   if (drawnNoFlyZoneArea && drawnNoFlyZoneArea > 100000000) {
+//     toast.error('Drawn Area should not exceed 100km²');
+//     dispatch(
+//       setCreateProjectState({
+//         drawNoFlyZoneEnable: false,
+//         drawnNoFlyZone: null,
+//       }),
+//     );
+//     // @ts-ignore
+//     resetDrawTool();
+//     return;
+//   }
+//   dispatch(
+//     setCreateProjectState({
+//       noFlyZone: drawnNoFlyZone,
+//       drawNoFlyZoneEnable: false,
+//     }),
+//   );
+//   setValue('no_fly_zones', drawnNoFlyZone);
+//   if (resetDrawTool) {
+//     resetDrawTool();
+//   }
+// };
+
+// const noFlyZoneArea = noFlyZone && area(noFlyZone as FeatureCollection);
+
+// const handleDrawProjectAreaClick = () => {
+//   if (!drawProjectAreaEnable) {
+//     dispatch(setCreateProjectState({ drawProjectAreaEnable: true }));
+//     return;
+//   }
+//   const drawnArea =
+//     drawnProjectArea && area(drawnProjectArea as FeatureCollection);
+//   if (drawnArea && drawnArea > 100000000) {
+//     toast.error('Drawn Area should not exceed 100km²');
+//     dispatch(
+//       setCreateProjectState({
+//         drawProjectAreaEnable: false,
+//         drawnProjectArea: null,
+//       }),
+//     );
+//     // @ts-ignore
+//     resetDrawTool();
+//     return;
+//   }
+//   dispatch(
+//     setCreateProjectState({
+//       projectArea: drawnProjectArea,
+//       drawProjectAreaEnable: false,
+//     }),
+//   );
+//   setValue('outline', drawnProjectArea);
+//   if (resetDrawTool) {
+//     resetDrawTool();
+//   }
+// };
+
+{
+  /* <div className="naxatw-col-span-3 naxatw-overflow-y-auto naxatw-py-5 md:naxatw-col-span-1">
           <p className="naxatw-text-body-btn">
             Project Area <span className="naxatw-text-red">*</span>
           </p>
@@ -241,8 +328,8 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                             name="outline"
                             data={value}
                             onChange={handleProjectAreaFileChange}
-                            fileAccept=".geojson, .kml"
-                            placeholder="Upload project area (zipped geojson files)"
+                            fileAccept=".geojson"
+                            placeholder="Upload project area (.geojson file)"
                             isValid={validateAreaOfFileUpload}
                             {...formProps}
                           />
@@ -359,7 +446,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                                   onChange={handleNoFlyZoneFileChange}
                                   isValid={validateAreaOfFileUpload}
                                   fileAccept=".geojson, .kml"
-                                  placeholder="Upload project area (zipped shapefile, geojson or kml files)"
+                                  placeholder="Upload no fly zone area (.geojson)"
                                   {...formProps}
                                 />
                               )}
@@ -373,16 +460,5 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
               )}
             </>
           )}
-        </div>
-        <div className="naxatw-col-span-3 naxatw-h-[50vh] naxatw-overflow-hidden md:naxatw-col-span-2 md:naxatw-h-full">
-          <MapSection
-            onResetButtonClick={handleResetButtonClick}
-            handleDrawProjectAreaClick={handleDrawProjectAreaClick}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default hasErrorBoundary(DefineAOI);
+        </div> */
+}
