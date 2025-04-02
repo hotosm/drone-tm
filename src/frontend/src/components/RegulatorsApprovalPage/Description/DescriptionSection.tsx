@@ -145,7 +145,7 @@ const DescriptionSection = ({
                   Download Results
                 </Button>
                 {/* show button only if same logged-in user created the project  */}
-                {projectData?.author_id === userDetails?.id && (
+                {String(projectData?.author_id || '') === String(userDetails?.id || '') && (
                   <>
                     {projectData?.oam_upload_status === 'NOT_STARTED' ? (
                       <Button
