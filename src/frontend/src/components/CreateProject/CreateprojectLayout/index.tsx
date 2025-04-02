@@ -71,6 +71,9 @@ const CreateprojectLayout = () => {
   const [projectCentroid, setProjectCentroid] = useState<number[] | null>(null);
 
   const activeStep = useTypedSelector(state => state.createproject.activeStep);
+  const totalProjectArea = useTypedSelector(
+    state => state.createproject.totalProjectArea,
+  );
   const splitGeojson = useTypedSelector(
     state => state.createproject.splitGeojson,
   );
@@ -221,6 +224,10 @@ const CreateprojectLayout = () => {
         (Array.isArray(data?.outline) && data?.outline?.length === 0)
       ) {
         toast.error('Please upload or draw and save project area');
+        return;
+      }
+      if (totalProjectArea > 100000000) {
+        toast.error('Drawn Area should not exceed 100km²');
         return;
       }
       if (
