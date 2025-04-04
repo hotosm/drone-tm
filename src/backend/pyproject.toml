@@ -41,7 +41,7 @@ dependencies = [
     "redis>=5.2.1",
 ]
 requires-python = ">=3.11"
-license = {text = "GPL-3.0-only"}
+license = {text = "AGPL-3.0-only"}
 
 [dependency-groups]
 dev = [

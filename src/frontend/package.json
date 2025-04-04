@@ -103,6 +103,7 @@
   },
   "name": "drone-tm",
   "private": true,
+	"license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "scripts": {
     "build": "tsc && vite build",
     "dev": "vite",
