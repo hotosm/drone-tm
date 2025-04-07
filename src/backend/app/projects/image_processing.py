@@ -1,30 +1,32 @@
-import os
-from typing import Any, Dict, List, Optional
-import uuid
-import tempfile
-import shutil
 import asyncio
-import aiohttp
-from pathlib import Path
-from app.tasks import task_logic
-from app.models.enums import State, ImageProcessingStatus
-from app.utils import timestamp
-from app.db import database
-from app.projects import project_logic
-from pyodm import Node
-from app.s3 import (
-    get_file_from_bucket,
-    list_objects_from_bucket,
-    add_file_to_bucket,
-    get_presigned_url,
-    copy_file_within_bucket,
-)
-from loguru import logger as log
-from psycopg import Connection
-from asgiref.sync import async_to_sync
-from app.config import settings
+import os
+import shutil
+import tempfile
+import uuid
 import zipfile
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import aiohttp
+from asgiref.sync import async_to_sync
+from loguru import logger as log
 from osgeo import gdal
+from psycopg import Connection
+from pyodm import Node
+
+from app.config import settings
+from app.db import database
+from app.models.enums import ImageProcessingStatus, State
+from app.projects import project_logic
+from app.s3 import (
+    add_file_to_bucket,
+    copy_file_within_bucket,
+    get_file_from_bucket,
+    get_presigned_url,
+    list_objects_from_bucket,
+)
+from app.tasks import task_logic
+from app.utils import timestamp
 
 
 class DroneImageProcessor:
@@ -37,8 +39,7 @@ class DroneImageProcessor:
         task_id: Optional[uuid.UUID] = None,
         task_ids: Optional[List[uuid.UUID]] = None,
     ):
-        """
-        Base initialization for drone image processing.
+        """Base initialization for drone image processing.
 
         :param node_odm_url: URL of the ODM node
         :param project_id: Project UUID
@@ -58,8 +59,7 @@ class DroneImageProcessor:
     def options_list_to_dict(
         self, options: List[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Convert options list to a dictionary.
+        """Convert options list to a dictionary.
 
         :param options: List of option dictionaries
         :return: Dictionary of options
@@ -71,8 +71,7 @@ class DroneImageProcessor:
         return opts
 
     def list_images(self, directory: str) -> List[str]:
-        """
-        List all image files in a directory.
+        """List all image files in a directory.
 
         :param directory: Directory path
         :return: List of image file paths
@@ -103,8 +102,7 @@ class DroneImageProcessor:
         task_id: uuid.UUID,
         batch_size: int = 20,
     ):
-        """
-        Asynchronously download images from S3 in batches.
+        """Asynchronously download images from S3 in batches.
 
         :param bucket_name: Bucket name
         :param local_dir: Local directory to save images
@@ -169,8 +167,7 @@ class DroneImageProcessor:
         progress_callback: Optional[Any] = None,
         webhook: Optional[str] = None,
     ):
-        """
-        Create a new processing task.
+        """Create a new processing task.
 
         :param images: List of image file paths
         :param name: Task name
@@ -193,8 +190,7 @@ class DroneImageProcessor:
         webhook: Optional[str] = None,
         single_task: bool = True,
     ):
-        """
-        Internal method to process images for a single task or multiple tasks.
+        """Internal method to process images for a single task or multiple tasks.
 
         :param bucket_name: Bucket name
         :param name: Task name
@@ -252,8 +248,7 @@ class DroneImageProcessor:
         options: Optional[List[Dict[str, Any]]] = None,
         webhook: Optional[str] = None,
     ):
-        """
-        Process images for a single task.
+        """Process images for a single task.
 
         :param bucket_name: Bucket name
         :param name: Task name
@@ -272,8 +267,7 @@ class DroneImageProcessor:
         options: Optional[List[Dict[str, Any]]] = None,
         webhook: Optional[str] = None,
     ):
-        """
-        Process images for multiple tasks.
+        """Process images for multiple tasks.
 
         :param bucket_name: Bucket name
         :param name: Task name
@@ -286,8 +280,7 @@ class DroneImageProcessor:
         )
 
     def monitor_task(self, task):
-        """
-        Monitors the task progress until completion.
+        """Monitors the task progress until completion.
 
         :param task: The task object.
         """
@@ -303,9 +296,7 @@ class DroneImageProcessor:
         options: Optional[List[Dict[str, Any]]] = None,
         webhook: Optional[str] = None,
     ):
-        """
-        Process images from S3 for a single task.
-        """
+        """Process images from S3 for a single task."""
         task = await self.process_single_task(
             bucket_name, name=name, options=options, webhook=webhook
         )
@@ -346,9 +337,7 @@ class DroneImageProcessor:
         options: Optional[List[Dict[str, Any]]] = None,
         webhook: Optional[str] = None,
     ):
-        """
-        Process images for all tasks in a project.
-        """
+        """Process images for all tasks in a project."""
         task = await self.process_multiple_tasks(
             bucket_name, name=name_prefix, options=options, webhook=webhook
         )
@@ -357,8 +346,7 @@ class DroneImageProcessor:
 
 
 def reproject_to_web_mercator(input_file, output_file):
-    """
-    Reprojects a COG file to Web Mercator (EPSG:3857) using GDAL.
+    """Reprojects a COG file to Web Mercator (EPSG:3857) using GDAL.
 
     Args:
         input_file (str): Path to the input COG file.
@@ -393,8 +381,7 @@ async def process_assets_from_odm(
     dtm_user_id=None,
     odm_status_code: Optional[int] = None,
 ):
-    """
-    Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
+    """Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
     Updates task state if required.
 
     :param node_odm_url: URL of the ODM node.

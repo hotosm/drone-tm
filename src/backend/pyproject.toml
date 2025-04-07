@@ -34,11 +34,11 @@ dependencies = [
     "pyodm>=1.5.11",
     "asgiref>=3.8.1",
     "bcrypt>=4.2.1",
-    "drone-flightplan>=0.3.6",
     "Scrapy==2.12.0",
     "asgi-lifespan>=2.1.0",
     "arq>=0.26.3",
     "redis>=5.2.1",
+    "drone-flightplan",
 ]
 requires-python = ">=3.11"
 license = {text = "AGPL-3.0-only"}
@@ -79,4 +79,22 @@ monitoring = [
     "opentelemetry-instrumentation-requests>=0.48b0",
 ]
 
-[tool.uv]
+[tool.uv.sources]
+drone-flightplan = { workspace = true }
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+#[tool.ruff]
+#fix = true
+#line-length = 88
+#target-version = "py311"
+#exclude = [
+#    ".ruff_cache",
+#    "app/__version__.py",
+#    "app/migrations",
+#]
+#[tool.ruff.lint]
+#select = ["I", "E", "W", "D", "B", "F", "N", "Q"]
+#[tool.ruff.lint.pydocstyle]
+#convention = "google"

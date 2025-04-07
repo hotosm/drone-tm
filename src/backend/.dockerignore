@@ -1,0 +1,13 @@
+# Ignore everything
+**
+
+# Allow files and directories
+!**/*.py
+!app
+!packages
+!templates
+!tests
+!docker-entrypoint.sh
+!pyproject.toml
+!uv.lock
+!alembic.ini

@@ -1,14 +1,16 @@
-from app.config import settings
-from pydantic import BaseModel, model_validator
-from app.models.enums import EventType, HTTPStatus, State
 import uuid
 from datetime import datetime
-from psycopg import Connection
-from loguru import logger as log
-from fastapi import HTTPException
-from psycopg.rows import class_row, dict_row
 from typing import List, Literal, Optional
+
+from fastapi import HTTPException
+from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import class_row, dict_row
+from pydantic import BaseModel, model_validator
 from pydantic.functional_validators import field_validator
+
+from app.config import settings
+from app.models.enums import EventType, HTTPStatus, State
 from app.s3 import generate_static_url, is_connection_secure
 
 

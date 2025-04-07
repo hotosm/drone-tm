@@ -1,53 +1,54 @@
 import json
 import os
 import uuid
-from typing import Annotated, Optional, List, Dict
-from uuid import UUID
-from app.tasks import task_logic
-import geojson
 from datetime import timedelta
+from typing import Annotated, Dict, List, Optional
+from uuid import UUID
+
+import geojson
+from arq import ArqRedis
 from fastapi import (
     APIRouter,
-    HTTPException,
+    BackgroundTasks,
+    Body,
     Depends,
-    Path,
-    Query,
-    UploadFile,
     File,
     Form,
-    Response,
-    BackgroundTasks,
+    HTTPException,
+    Path,
+    Query,
     Request,
-    Body,
+    Response,
+    UploadFile,
 )
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
-from psycopg import Connection
-from shapely.geometry import shape, mapping
-from shapely.ops import unary_union
-from app.projects import project_schemas, project_deps, project_logic, image_processing
-from app.projects.oam import upload_to_oam
-from app.db import database
-from app.models.enums import HTTPStatus, State, ProjectCompletionStatus, OAMUploadStatus
-from app.s3 import add_file_to_bucket, s3_client
-from app.config import settings
-from app.users.user_deps import login_required
-from app.users.user_schemas import AuthUser
-from app.tasks import task_schemas
-from app.utils import (
-    geojson_to_kml,
-    timestamp,
-    send_project_approval_email_to_regulator,
-)
-from app.jaxa.upload_dem import upload_dem_file
 from minio.deleteobjects import DeleteObject
+from psycopg import Connection
+from shapely.geometry import mapping, shape
+from shapely.ops import unary_union
+
+from app.arq.tasks import get_redis_pool
+from app.config import settings
+from app.db import database
+from app.jaxa.upload_dem import upload_dem_file
+from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
+from app.projects import image_processing, project_deps, project_logic, project_schemas
+from app.projects.oam import upload_to_oam
+from app.s3 import add_file_to_bucket, s3_client
+from app.tasks import task_logic, task_schemas
 from app.users.permissions import (
     IsProjectCreator,
     IsSuperUser,
     check_permissions,
 )
-from arq import ArqRedis
-from app.arq.tasks import get_redis_pool
+from app.users.user_deps import login_required
+from app.users.user_schemas import AuthUser
+from app.utils import (
+    geojson_to_kml,
+    send_project_approval_email_to_regulator,
+    timestamp,
+)
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/projects",
@@ -62,9 +63,7 @@ async def read_project_centroids(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
-    """
-    Get all project centroids.
-    """
+    """Get all project centroids."""
     return await project_logic.get_centroids(
         db,
     )
@@ -263,7 +262,6 @@ async def preview_split_by_square(
     dimension: int = Form(100),
 ):
     """Preview splitting by square."""
-
     # Validating for .geojson File.
     file_name = os.path.splitext(project_geojson.filename)
     file_ext = file_name[1]
@@ -304,8 +302,7 @@ async def generate_presigned_url(
     data: project_schemas.PresignedUrlRequest,
     replace_existing: bool = False,
 ):
-    """
-    Generate a pre-signed URL for uploading an image to S3 Bucket.
+    """Generate a pre-signed URL for uploading an image to S3 Bucket.
 
     This endpoint generates a pre-signed URL that allows users to upload an image to
     an S3 bucket. The URL expires after a specified duration.
@@ -396,8 +393,7 @@ async def read_projects(
         20, gt=0, le=100, description="Number of results per page"
     ),
 ):
-    "Get all projects with task count."
-
+    """Get all projects with task count."""
     try:
         user_id = user_data.id if filter_by_owner else None
         skip = (page - 1) * results_per_page
@@ -476,9 +472,7 @@ async def process_all_imagery(
     redis_pool: ArqRedis = Depends(get_redis_pool),
     gcp_file: UploadFile = File(None),
 ):
-    """
-    API endpoint to process all tasks associated with a project.
-    """
+    """API endpoint to process all tasks associated with a project."""
     user_id = user_data.id
     if gcp_file:
         gcp_file_path = f"/tmp/{uuid.uuid4()}"
@@ -599,8 +593,7 @@ async def regulator_approval(
     user_data: Annotated[AuthUser, Depends(login_required)],
     response: Response,
 ):
-    """
-    Endpoint to allow a regulator to add comments and approve or reject to a project.
+    """Endpoint to allow a regulator to add comments and approve or reject to a project.
 
     Args:
         project_id (str): The unique identifier of the project.
@@ -620,7 +613,6 @@ async def regulator_approval(
         - Requires the user to be logged in and to have the "REGULATOR" role.
         - Ensures that the user is authorized to comment on the specified project.
     """
-
     try:
         if (
             user_data.role != "REGULATOR"
@@ -670,9 +662,7 @@ async def get_project_waypoints_counts(
     dem: UploadFile = File(None),
     user_data: AuthUser = Depends(login_required),
 ):
-    """
-    Count waypoints and waylines within AOI.
-    """
+    """Count waypoints and waylines within AOI."""
     return await project_logic.process_waypoints_and_waylines(
         side_overlap,
         front_overlap,
@@ -697,8 +687,7 @@ async def get_assets_info(
     ],
     task_id: Optional[uuid.UUID] = None,
 ):
-    """
-    Endpoint to get the number of images and the URL to download the assets
+    """Endpoint to get the number of images and the URL to download the assets
     for a given project and task. If no task_id is provided, returns info
     for all tasks associated with the project.
     """
@@ -731,9 +720,7 @@ async def upload_imagery_to_oam(
     background_tasks: BackgroundTasks,
     tags: Dict[str, List[str]] = Body(default={"tags": []}),
 ):
-    """
-    Upload project orthophoto to OpenAerialMap.
-    """
+    """Upload project orthophoto to OpenAerialMap."""
     if project.author_id != user_data.id:
         return HTTPException(
             status_code=HTTPStatus.FORBIDDEN,

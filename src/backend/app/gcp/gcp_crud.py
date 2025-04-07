@@ -1,13 +1,15 @@
 import math
-import requests
 import uuid
+from typing import Dict, List, Tuple
+
+import requests
+from loguru import logger as log
+from pyproj import Transformer
 from shapely.geometry import Point, Polygon
-from typing import List, Dict, Tuple
+
+from app.config import settings
 from app.s3 import get_presigned_url
 from app.waypoints import waypoint_schemas
-from app.config import settings
-from pyproj import Transformer
-from loguru import logger as log
 
 
 async def calculate_bounding_box(
@@ -21,8 +23,7 @@ async def calculate_bounding_box(
     sensor_width: float = 6.17,  # These are drone specific
     sensor_height: float = 4.55,  # These are drone specific
 ) -> List[float]:
-    """
-    Calculate the geographic bounding box of an image taken by a drone.
+    """Calculate the geographic bounding box of an image taken by a drone.
 
     Args:
         lat (float): Latitude of the image center.
@@ -74,9 +75,7 @@ async def calculate_bounding_box(
 
 
 def fetch_json_from_presigned_url(url: str):
-    """
-    Fetch a JSON file from an AWS presigned URL.
-    """
+    """Fetch a JSON file from an AWS presigned URL."""
     try:
         response = requests.get(url)
         response.raise_for_status()  # Raise an exception for HTTP errors
@@ -87,9 +86,7 @@ def fetch_json_from_presigned_url(url: str):
 
 
 async def find_matching_images_that_contains_point(bounding_boxes, gps_coordinate):
-    """
-    Find images whose bounding boxes contain the specified GPS coordinate.
-    """
+    """Find images whose bounding boxes contain the specified GPS coordinate."""
     matching_images = []
     point = Point(gps_coordinate)  # Longitude, Latitude format
     for filename, bbox in bounding_boxes.items():
@@ -112,9 +109,7 @@ async def find_matching_images_that_contains_point(bounding_boxes, gps_coordinat
 async def calculate_bbox_from_images_file(
     images_json_url: str, fov_degree: float, altitude: float
 ):
-    """
-    Create bounding boxes for all images from a presigned JSON file URL.
-    """
+    """Create bounding boxes for all images from a presigned JSON file URL."""
     # Fetch the JSON data from the presigned URL
     images = fetch_json_from_presigned_url(images_json_url)
 
@@ -135,8 +130,7 @@ async def calculate_bbox_from_images_file(
 
 
 async def calculate_footprints_of_image(altitude, fov_in_degree, aspect_ratio):
-    """
-    Calculate the width (A) and height (B) of an image given:
+    """Calculate the width (A) and height (B) of an image given:
     - altitude: Drone height
     - fov_in_degree: Field of View (in degrees)
     - aspect_ratio: Aspect Ratio (width/height)
@@ -166,9 +160,7 @@ async def calc_bbox(lat, long, altitude, fov_degree, aspect_ratio):
     # Define the bounding box coordinates in EPSG:3857
     # Update offset function to work with EPSG:3857 coordinates
     async def offset_coordinates_3857(x, y, dx, dy):
-        """
-        Calculate new coordinates in EPSG:3857 given distance offsets.
-        """
+        """Calculate new coordinates in EPSG:3857 given distance offsets."""
         new_x = x + dx
         new_y = y + dy
         return new_x, new_y
@@ -242,8 +234,7 @@ def find_images_with_coordinate(
     bounding_boxes: Dict[str, Tuple[float, float, float, float]],
     gps_coordinate: Tuple[float, float],
 ) -> List[str]:
-    """
-    Find images whose bounding boxes contain the specified GPS coordinate.
+    """Find images whose bounding boxes contain the specified GPS coordinate.
 
     Parameters:
         bounding_boxes (Dict[str, Tuple[float, float, float, float]]):
@@ -286,8 +277,7 @@ async def find_images_in_a_project_for_point(
     fov_degree: float,
     altitude: float,
 ) -> List[str]:
-    """
-    Process images to find those containing a specific point and return their pre-signed URLs.
+    """Process images to find those containing a specific point and return their pre-signed URLs.
 
     Args:
         project_id (uuid.UUID): The ID of the project.
@@ -297,7 +287,6 @@ async def find_images_in_a_project_for_point(
     Returns:
         List[str]: A list of pre-signed URLs for matching images.
     """
-
     # Extract the longitude and latitude of the point
     point_tuple = (point.longitude, point.latitude)
 
@@ -342,8 +331,7 @@ async def find_images_in_a_task_for_point(
     fov_degree: float,
     altitude: float,
 ) -> List[str]:
-    """
-    Process images to find those containing a specific point and return their pre-signed URLs.
+    """Process images to find those containing a specific point and return their pre-signed URLs.
 
     Args:
         project_id (uuid.UUID): The ID of the project.
@@ -353,7 +341,6 @@ async def find_images_in_a_task_for_point(
     Returns:
         List[str]: A list of pre-signed URLs for matching images.
     """
-
     # S3 path for the `images.json` file provided by ODM
     s3_images_json_path = f"dtm-data/projects/{project_id}/{task_id}/images.json"
 

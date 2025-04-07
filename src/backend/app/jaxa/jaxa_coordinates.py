@@ -1,25 +1,21 @@
 import math
+
 from shapely.geometry import Polygon, box
 
 
 def parse_polygon(coordinates):
-    """
-    Parses the input coordinates into a Shapely Polygon object.
-    """
+    """Parses the input coordinates into a Shapely Polygon object."""
     return Polygon(coordinates)
 
 
 def get_bounding_box(polygon):
-    """
-    Returns the bounding box of the polygon as (min_lon, min_lat, max_lon, max_lat).
-    """
+    """Returns the bounding box of the polygon as (min_lon, min_lat, max_lon, max_lat)."""
     min_lon, min_lat, max_lon, max_lat = polygon.bounds
     return min_lon, min_lat, max_lon, max_lat
 
 
 def get_5x5_tiles(min_lon, min_lat, max_lon, max_lat):
-    """
-    Calculates all 5°×5° tiles that intersect with the bounding box.
+    """Calculates all 5°×5° tiles that intersect with the bounding box.
     Returns a list of tuples representing the lower-left corner of each tile.
     """
     tiles = []
@@ -44,8 +40,7 @@ def get_5x5_tiles(min_lon, min_lat, max_lon, max_lat):
 
 
 def get_1x1_tiles_within_5x5(tile_lon, tile_lat, polygon):
-    """
-    For a given 5°×5° tile, calculates all 1°×1° tiles that intersect with the polygon.
+    """For a given 5°×5° tile, calculates all 1°×1° tiles that intersect with the polygon.
     Returns a list of tuples representing the lower-left corner of each 1x1 tile.
     """
     tiles = []
@@ -60,8 +55,7 @@ def get_1x1_tiles_within_5x5(tile_lon, tile_lat, polygon):
 
 
 def format_tile_name(tile5_lon, tile5_lat, tile1_lon, tile1_lat):
-    """
-    Formats the tile name based on the naming convention:
+    """Formats the tile name based on the naming convention:
     N015W075_N019W071
     """
     # Format 5x5 tile part
@@ -82,9 +76,7 @@ def format_tile_name(tile5_lon, tile5_lat, tile1_lon, tile1_lat):
 
 
 def get_covering_tiles(polygon_geojson):
-    """
-    Main function to get the list of tile names covering the polygon.
-    """
+    """Main function to get the list of tile names covering the polygon."""
     # Parse the GeoJSON polygon
     polygon = parse_polygon(polygon_geojson["coordinates"][0])
 

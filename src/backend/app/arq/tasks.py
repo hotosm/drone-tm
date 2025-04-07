@@ -1,18 +1,19 @@
 import asyncio
 from typing import Any, Dict
+
+from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings, log_redis_info
-from app.config import settings
-from loguru import logger as log
-from arq import create_pool, ArqRedis
 from fastapi import HTTPException
-from app.models.enums import HTTPStatus
+from loguru import logger as log
+
+from app.config import settings
 from app.db.database import get_db_connection_pool
-from app.projects.project_logic import process_drone_images, process_all_drone_images
+from app.models.enums import HTTPStatus
+from app.projects.project_logic import process_all_drone_images, process_drone_images
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
     """Initialize ARQ resources including database pool"""
-
     log.info("Starting ARQ worker")
 
     # Initialize Redis
@@ -41,7 +42,6 @@ async def shutdown(ctx: Dict[Any, Any]) -> None:
 
 async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
     """Test task to sleep for 1 minute"""
-
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting sleep_task (Job ID: {job_id})")
 

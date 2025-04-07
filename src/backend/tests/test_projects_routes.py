@@ -1,6 +1,7 @@
-import pytest
 import json
 from io import BytesIO
+
+import pytest
 from loguru import logger as log
 
 
@@ -9,9 +10,7 @@ async def test_create_project_with_files(
     client,
     project_info,
 ):
-    """
-    Test to verify the project creation API with file upload (image as binary data).
-    """
+    """Test to verify the project creation API with file upload (image as binary data)."""
     project_info_json = json.dumps(project_info.model_dump())
     files = {
         "project_info": (None, project_info_json, "application/json"),
@@ -27,9 +26,7 @@ async def test_create_project_with_files(
 
 @pytest.mark.asyncio
 async def test_upload_project_task_boundaries(client, test_get_project):
-    """
-    Test to verify the upload of task boundaries.
-    """
+    """Test to verify the upload of task boundaries."""
     project_id = str(test_get_project.id)
     log.debug(f"Testing project ID: {project_id}")
     task_geojson = json.dumps(

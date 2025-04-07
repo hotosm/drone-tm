@@ -209,11 +209,10 @@ class EventType(str, Enum):
 
 
 class FlightMode(str, Enum):
-    """
-    The flight mode of the drone.
-        The flight mode can be:
-        - ``waylines``
-        - ``waypoints``
+    """The flight mode of the drone.
+    The flight mode can be:
+    - ``waylines``
+    - ``waypoints``
     """
 
     waylines = "waylines"

@@ -1,14 +1,13 @@
+from geojson_pydantic import Point, Polygon
 from pyproj import Transformer
-from shapely.ops import transform
 from shapely.geometry import shape
-from geojson_pydantic import Polygon, Point
+from shapely.ops import transform
 
 
 def check_point_within_buffer(
     point: Point, polygon_geojson: Polygon, buffer_distance: float
 ):
-    """
-    Check if a point is within the buffer of a polygon.
+    """Check if a point is within the buffer of a polygon.
 
     Parameters:
     - point_coords: tuple (lon, lat) for the point's coordinates
@@ -18,7 +17,6 @@ def check_point_within_buffer(
     Returns:
     - True if the point is within the buffer, False otherwise
     """
-
     # Create a shapely polygon and point using the input coordinates
     polygon = shape(polygon_geojson["features"][0]["geometry"])
     from shapely.geometry import Point

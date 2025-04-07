@@ -1,26 +1,27 @@
-import os
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
-from loguru import logger as log
-from fastapi import FastAPI, Request, Depends
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse, JSONResponse, Response
-from psycopg_pool import AsyncConnectionPool
+from loguru import logger as log
 from psycopg import Connection
+from psycopg_pool import AsyncConnectionPool
 
 from app.__version__ import __version__
 from app.config import settings
-from app.projects import project_routes
+from app.db.database import get_db
 from app.drones import drone_routes
-from app.waypoints import waypoint_routes
-from app.users import user_routes
-from app.tasks import task_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
-from typing import Annotated
-from app.db.database import get_db
+from app.projects import project_routes
+from app.tasks import task_routes
+from app.users import user_routes
+from app.waypoints import waypoint_routes
 
 root = os.path.dirname(os.path.abspath(__file__))
 frontend_html = Jinja2Templates(directory="frontend_html")

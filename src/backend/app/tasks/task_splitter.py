@@ -4,15 +4,15 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional, Union
+
 import geojson
 import numpy as np
 from geojson import Feature, FeatureCollection, GeoJSON
+from pyproj import Transformer
 from shapely.geometry import Polygon, shape
 from shapely.geometry.geo import mapping
-from shapely.ops import unary_union
-from pyproj import Transformer
 from shapely.ops import transform as shapely_transform
-
+from shapely.ops import unary_union
 
 # Instantiate logger
 log = logging.getLogger(__name__)

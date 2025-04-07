@@ -1,12 +1,14 @@
 import time
+from typing import Any
+
 import bcrypt
 import jwt
-from app.config import settings
-from typing import Any
-from psycopg import Connection
-from app.db import db_models
-from pydantic import EmailStr
 from fastapi import HTTPException
+from psycopg import Connection
+from pydantic import EmailStr
+
+from app.config import settings
+from app.db import db_models
 from app.users import user_schemas
 
 
