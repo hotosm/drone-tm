@@ -1,0 +1,38 @@
+
+[project]
+name = "drone-flightplan"
+version = "0.3.7"
+description = "Generate an optimized flight plan for aerial mapping with drones."
+authors = [
+    {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
+]
+dependencies = [
+    "geojson>=3.0.0",
+    "shapely>=2.0.0",
+    "pyproj>=3.0.0",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "AGPL-3.0-only"}
+
+[project.urls]
+homepage = "https://github.com/hotosm/drone-flightplan"
+documentation = "https://hotosm.github.io/drone-flightplan"
+repository = "https://github.com/hotosm/drone-flightplan"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["drone_flightplan"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.3.7"
+version_files = [
+    "pyproject.toml:version",
+    "drone_flightplan/__version__.py",
+]
+changelog_file = "CHANGELOG.md"
+update_changelog_on_bump = true
