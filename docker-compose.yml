@@ -20,7 +20,10 @@ services:
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
     volumes:
-      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - ${PROJECT_DIR:-.}/src/backend/pyproject.toml:/project/src/backend/pyproject.toml:ro
+      - ${PROJECT_DIR:-.}/src/backend/app:/project/src/backend/app:ro
+      - ${PROJECT_DIR:-.}/src/backend/tests:/project/src/backend/tests:ro
+      - ${PROJECT_DIR:-.}/src/backend/packages/drone-flightplan/drone_flightplan:/opt/python/lib/python3.11/site-packages/drone_flightplan:ro
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
     networks:
