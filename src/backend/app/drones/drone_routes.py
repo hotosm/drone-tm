@@ -1,16 +1,18 @@
 from typing import Annotated
-from app.users.user_deps import login_required
-from app.users.user_schemas import AuthUser
-from app.models.enums import HTTPStatus
+
 from fastapi import APIRouter, Depends, HTTPException
-from app.db import database
-from app.config import settings
-from app.drones import drone_schemas, drone_deps
 from psycopg import Connection
+
+from app.config import settings
+from app.db import database
+from app.drones import drone_deps, drone_schemas
+from app.models.enums import HTTPStatus
 from app.users.permissions import (
     IsSuperUser,
     check_permissions,
 )
+from app.users.user_deps import login_required
+from app.users.user_schemas import AuthUser
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/drones",
@@ -47,8 +49,7 @@ async def delete_drone(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(check_permissions(IsSuperUser()))],
 ):
-    """
-    Deletes a drone record from the database.
+    """Deletes a drone record from the database.
 
     Args:
         drone_id (int): The ID of the drone to be deleted.
@@ -58,7 +59,6 @@ async def delete_drone(
     Returns:
         dict: A success message if the drone was deleted.
     """
-
     drone_id = await drone_schemas.DbDrone.delete(db, drone.id)
     return {"message": f"Drone successfully deleted {drone_id}"}
 
@@ -69,8 +69,7 @@ async def read_drone(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
-    """
-    Retrieves a drone record from the database.
+    """Retrieves a drone record from the database.
 
     Args:
         drone_id (int): The ID of the drone to be retrieved.
@@ -88,9 +87,7 @@ async def get_all_altitudes(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
-    """
-    Retrieves all drone altitude regulations.
-    """
+    """Retrieves all drone altitude regulations."""
     altitudes = await drone_schemas.DroneFlightHeight.all(db)
     if not altitudes:
         return []
@@ -103,10 +100,7 @@ async def get_drone_altitude_by_country(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
-    """
-    Get drone altitude details by country.
-
-    """
+    """Get drone altitude details by country."""
     result = await drone_schemas.DroneFlightHeight.one(db, country)
 
     if not result:

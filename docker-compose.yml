@@ -10,6 +10,7 @@ volumes:
 
 services:
   backend:
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     build:
       context: src/backend
       dockerfile: Dockerfile
@@ -19,7 +20,10 @@ services:
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
     volumes:
-      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - ${PROJECT_DIR:-.}/src/backend/pyproject.toml:/project/src/backend/pyproject.toml:ro
+      - ${PROJECT_DIR:-.}/src/backend/app:/project/src/backend/app:ro
+      - ${PROJECT_DIR:-.}/src/backend/tests:/project/src/backend/tests:ro
+      - ${PROJECT_DIR:-.}/src/backend/packages/drone-flightplan/drone_flightplan:/opt/python/lib/python3.11/site-packages/drone_flightplan:ro
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
     networks:
@@ -27,6 +31,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ghcr.io/hotosm/drone-tm/frontend:debug
     build:
       context: src/frontend
       dockerfile: Dockerfile
@@ -95,9 +100,7 @@ services:
     restart: "no"
 
   migrations:
-    build:
-      context: src/backend
-      dockerfile: Dockerfile
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:
@@ -111,9 +114,7 @@ services:
     restart: "no"
 
   arq-worker:
-    build:
-      context: src/backend
-      dockerfile: Dockerfile
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     command: arq app.arq.tasks.WorkerSettings
     depends_on:
       - redis

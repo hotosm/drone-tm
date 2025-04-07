@@ -1,14 +1,16 @@
 import uuid
 from typing import Annotated
-from app.projects import project_deps, project_schemas
+
 from fastapi import APIRouter, BackgroundTasks, Depends
+from loguru import logger as log
+from psycopg import Connection
+
 from app.config import settings
-from app.tasks import task_schemas, task_logic
+from app.db import database
+from app.projects import project_deps, project_schemas
+from app.tasks import task_logic, task_schemas
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
-from psycopg import Connection
-from app.db import database
-from loguru import logger as log
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/tasks",
@@ -23,7 +25,7 @@ async def read_task(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: AuthUser = Depends(login_required),
 ):
-    "Retrieve details of a specific task by its ID."
+    """Retrieve details of a specific task by its ID."""
     return await task_schemas.TaskDetailsOut.get_task_details(db, task_id)
 
 
@@ -32,7 +34,7 @@ async def get_task_stats(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: AuthUser = Depends(login_required),
 ):
-    "Retrieve statistics related to tasks for the authenticated user."
+    """Retrieve statistics related to tasks for the authenticated user."""
     return await task_logic.get_task_stats(db, user_data)
 
 

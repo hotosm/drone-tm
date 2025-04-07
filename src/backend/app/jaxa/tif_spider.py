@@ -1,10 +1,11 @@
+import io
 import os
 import zipfile
-import io
-import scrapy
-
-from osgeo import gdal
 from pathlib import Path
+
+import scrapy
+from osgeo import gdal
+
 from app.config import settings
 
 base_dir = Path(__file__).resolve().parent

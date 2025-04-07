@@ -1,17 +1,18 @@
 import secrets
 from functools import lru_cache
+from typing import Annotated, Any, Optional, Union
+
+from loguru import logger as log
 from pydantic import (
     BeforeValidator,
+    EmailStr,
     TypeAdapter,
     ValidationInfo,
-    field_validator,
     computed_field,
-    EmailStr,
+    field_validator,
 )
-from pydantic_settings import BaseSettings
-from typing import Annotated, Optional, Union, Any
 from pydantic.networks import HttpUrl, PostgresDsn
-from loguru import logger as log
+from pydantic_settings import BaseSettings
 
 HttpUrlStr = Annotated[
     str,

@@ -6,9 +6,8 @@ import logging
 
 from itsdangerous import BadSignature, SignatureExpired
 from itsdangerous.url_safe import URLSafeSerializer
-from requests_oauthlib import OAuth2Session
 from pydantic import BaseModel
-
+from requests_oauthlib import OAuth2Session
 
 log = logging.getLogger(__name__)
 

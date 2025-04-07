@@ -1,10 +1,12 @@
+from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+
 from fastapi import HTTPException
-from app.models.enums import HTTPStatus
 from psycopg import Connection
 from psycopg.rows import class_row
-from datetime import datetime
+from pydantic import BaseModel
+
+from app.models.enums import HTTPStatus
 
 
 class BaseDrone(BaseModel):

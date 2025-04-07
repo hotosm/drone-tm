@@ -1,33 +1,32 @@
-import os
 import base64
+import os
 import uuid
-import jwt
-from app.users import user_schemas
-from app.users import user_deps
-from app.users import user_logic
-from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, Form
 from typing import Annotated
+
+import jwt
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import class_row
+from pydantic import EmailStr
+
+from app.config import settings
+from app.db import database
+from app.models.enums import HTTPStatus
+from app.users import user_deps, user_logic, user_schemas
+from app.users.user_deps import init_google_auth, login_required
 from app.users.user_schemas import (
+    AuthUser,
+    Base64Request,
     DbUser,
     DbUserProfile,
     Token,
     UserProfileCreate,
-    AuthUser,
     UserProfileUpdate,
-    Base64Request,
 )
-from app.users.user_deps import login_required, init_google_auth
-from app.config import settings
-from app.db import database
-from app.models.enums import HTTPStatus
-from psycopg import Connection
-from psycopg.rows import class_row
-from fastapi.responses import JSONResponse
-from loguru import logger as log
-from pydantic import EmailStr
 from app.utils import send_reset_password_email
-
 
 if settings.DEBUG:
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -46,9 +45,7 @@ async def login_access_token(
     db: Annotated[Connection, Depends(database.get_db)],
     role: str = Form(...),
 ) -> Token:
-    """
-    OAuth2 compatible token login, get an access token for future requests
-    """
+    """OAuth2 compatible token login, get an access token for future requests"""
     user = await user_logic.authenticate(db, form_data.username, form_data.password)
 
     if not user:
@@ -84,13 +81,15 @@ async def create_user_profile(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
-    """
-    Create user profile based on provided user_id and profile_update data.
+    """Create user profile based on provided user_id and profile_update data.
+
     Args:
         user_id (int): The ID of the user whose profile is being updated.
         profile_update (UserProfileUpdate): Updated profile data to apply.
+
     Returns:
         dict: Updated user profile information.
+
     Raises:
         HTTPException: If user with given user_id is not found in the database.
     """
@@ -115,13 +114,15 @@ async def update_user_profile(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
-    """
-    Update user profile based on provided user_id and profile_update data.
+    """Update user profile based on provided user_id and profile_update data.
+
     Args:
         user_id (int): The ID of the user whose profile is being updated.
         profile_update (UserProfileUpdate): Updated profile data to apply.
+
     Returns:
         dict: Updated user profile information.
+
     Raises:
         HTTPException: If user with given user_id is not found in the database.
     """
@@ -174,7 +175,6 @@ async def callback(
     google_auth=Depends(init_google_auth),
 ):
     """Performs token exchange between Google and DTM API"""
-
     # Enforce https callback url
     callback_url = str(request.url).replace("http://", "https://")
     access_token = google_auth.callback(callback_url, role).get("access_token")
@@ -193,7 +193,6 @@ async def callback(
 @router.get("/refresh-token", response_model=Token)
 async def update_token(user_data: Annotated[AuthUser, Depends(login_required)]):
     """Refresh access token"""
-
     access_token, refresh_token = await user_logic.create_access_token(
         user_data.model_dump()
     )
@@ -298,8 +297,7 @@ async def reset_password(
 async def regulator_create(
     db: Annotated[Connection, Depends(database.get_db)], data: Base64Request
 ):
-    """
-    Automatically create or update a regulator account.
+    """Automatically create or update a regulator account.
     If the email exists in the database, update the role and related fields.
     Otherwise, create a new user with default dummy data.
     """

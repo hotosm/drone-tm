@@ -1,7 +1,8 @@
 import json
 from typing import List, Optional
+
+from geojson_pydantic import Feature, FeatureCollection, Point
 from pydantic import BaseModel, model_validator
-from geojson_pydantic import FeatureCollection, Feature, Point
 
 
 class PointField(BaseModel):

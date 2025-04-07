@@ -1,15 +1,15 @@
 import uuid
-from app.config import settings
-from app.projects import project_schemas
-from fastapi import APIRouter, Depends
-from app.waypoints import waypoint_schemas
-from app.gcp import gcp_crud
-from typing import List
-from psycopg import Connection
-from app.db import database
-from typing import Annotated
-from app.tasks.task_logic import list_task_id_for_project
+from typing import Annotated, List
 
+from fastapi import APIRouter, Depends
+from psycopg import Connection
+
+from app.config import settings
+from app.db import database
+from app.gcp import gcp_crud
+from app.projects import project_schemas
+from app.tasks.task_logic import list_task_id_for_project
+from app.waypoints import waypoint_schemas
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/gcp",
@@ -26,7 +26,6 @@ async def find_images(
     point: waypoint_schemas.PointField = None,
 ) -> List[str]:
     """Find images that contain a specified point."""
-
     fov_degree = 82.1  # For DJI Mini 4 Pro
     result = await project_schemas.DbProject.one(db, project_id)
     return await gcp_crud.find_images_in_a_task_for_point(
@@ -41,7 +40,6 @@ async def find_images_for_a_project(
     point: waypoint_schemas.PointField = None,
 ) -> List[str]:
     """Find images that contain a specified point in a project."""
-
     fov_degree = 82.1  # For DJI Mini 4 Pro
     result = await project_schemas.DbProject.one(db, project_id)
     # Get all task IDs for the project from database

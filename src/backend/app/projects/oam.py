@@ -1,21 +1,21 @@
-import os
 import base64
+import os
+from datetime import datetime
+from typing import Dict, List
+from urllib.parse import urlencode
+
 import aiohttp
-from typing import List, Dict
-
-from app.config import settings
-from app.s3 import get_orthophoto_url_for_project
-from app.models.enums import OAMUploadStatus
-from app.users.user_logic import get_oam_token_for_user
-from app.projects import project_logic
-
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from psycopg import Connection
-from urllib.parse import urlencode
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from loguru import logger as log
-from datetime import datetime
+from psycopg import Connection
+
+from app.config import settings
+from app.models.enums import OAMUploadStatus
+from app.projects import project_logic
+from app.s3 import get_orthophoto_url_for_project
+from app.users.user_logic import get_oam_token_for_user
 
 
 def derive_encryption_key(user_id: str):
@@ -34,8 +34,7 @@ def derive_encryption_key(user_id: str):
 
 
 def encrypt_oam_api_token(user_id: str, oam_api_token: str):
-    """
-    Encrypts an API token using AES-GCM encryption with a user-specific key.
+    """Encrypts an API token using AES-GCM encryption with a user-specific key.
 
     The function generates a random 12-byte IV (Initialization Vector) and encrypts
     the token.
@@ -48,7 +47,6 @@ def encrypt_oam_api_token(user_id: str, oam_api_token: str):
     Returns:
         str: The encrypted API token, base64-encoded.
     """
-
     key = derive_encryption_key(user_id)  # Ensure key is raw bytes
     iv = os.urandom(12)  # AES-GCM requires a 12-byte IV
     cipher = Cipher(algorithms.AES(key), modes.GCM(iv))
@@ -61,8 +59,7 @@ def encrypt_oam_api_token(user_id: str, oam_api_token: str):
 
 
 def decrypt_oam_api_token(user_id: str, encrypted_token: str):
-    """
-    Decrypts an API token encrypted with AES-GCM using the user-specific key.
+    """Decrypts an API token encrypted with AES-GCM using the user-specific key.
 
     The function decodes the base64-encoded encrypted data, extracts the IV,
     authentication tag, and ciphertext, then decrypts the data to retrieve
@@ -75,7 +72,6 @@ def decrypt_oam_api_token(user_id: str, encrypted_token: str):
     Returns:
         str: The decrypted API token in plaintext.
     """
-
     key = derive_encryption_key(user_id)
     data = base64.b64decode(encrypted_token)
 

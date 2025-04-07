@@ -1,37 +1,38 @@
 import os
-import uuid
-import geojson
 import shutil
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
-from fastapi.responses import FileResponse
-from app.config import settings
+import uuid
+from typing import Annotated
+
+import geojson
 from drone_flightplan import (
+    add_elevation_from_dem,
+    calculate_parameters,
     create_flightplan,
     create_placemarks,
-    calculate_parameters,
-    add_elevation_from_dem,
     terrain_following_waylines,
-    wpml,
     waypoints,
+    wpml,
 )
-from app.models.enums import HTTPStatus, FlightMode
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from psycopg import Connection
+from shapely.geometry import shape
+
+from app.config import settings
+from app.db import database
+from app.models.enums import FlightMode, HTTPStatus
+from app.projects import project_deps
+from app.s3 import get_file_from_bucket
 from app.tasks.task_logic import (
-    get_task_geojson,
     get_take_off_point_from_db,
+    get_task_geojson,
     update_take_off_point_in_db,
 )
+from app.utils import merge_multipolygon
+from app.waypoints import waypoint_schemas
 from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
-from app.db import database
-from app.utils import merge_multipolygon
-from app.s3 import get_file_from_bucket
-from typing import Annotated
-from psycopg import Connection
-from app.projects import project_deps
-from shapely.geometry import shape
-from app.waypoints import waypoint_schemas
-
 
 # Constant to convert gsd to Altitude above ground level
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
@@ -53,8 +54,7 @@ async def get_task_waypoint(
     rotation_angle: float = 0,
     take_off_point: waypoint_schemas.PointField = None,
 ):
-    """
-    Retrieve task waypoints and download a flight plan.
+    """Retrieve task waypoints and download a flight plan.
 
     Args:
         project_id (uuid.UUID): The UUID of the project.
@@ -65,7 +65,6 @@ async def get_task_waypoint(
         geojson or FileResponse: If `download` is False, returns waypoints as a GeoJSON object.
                                 If `download` is True, returns a KMZ file as a download response.
     """
-
     rotation_angle = 360 - rotation_angle
     task_geojson = await get_task_geojson(db, task_id)
     project = await project_deps.get_project_by_id(project_id, db)

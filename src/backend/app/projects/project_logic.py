@@ -1,44 +1,46 @@
 import json
 import os
 import shutil
-from typing import Any, Dict
 import uuid
-from loguru import logger as log
-from fastapi import HTTPException, UploadFile
-from app.tasks.task_splitter import split_by_square
-from fastapi.concurrency import run_in_threadpool
-from psycopg import Connection
-from app.utils import merge_multipolygon
-import shapely.wkb as wkblib
-from shapely.geometry import shape
 from io import BytesIO
-from app.s3 import (
-    add_obj_to_bucket,
-    list_objects_from_bucket,
-    get_presigned_url,
-    get_object_metadata,
-)
-from app.config import settings
-from app.projects.image_processing import DroneImageProcessor
-from app.projects import project_schemas
-from minio import S3Error
-from psycopg.rows import dict_row
-from shapely.ops import transform
-import pyproj
-from geojson import Feature, FeatureCollection, Polygon
-from app.s3 import get_file_from_bucket
-from app.utils import (
-    calculate_flight_time_from_placemarks,
-)
+from typing import Any, Dict
+
 import geojson
+import pyproj
+import shapely.wkb as wkblib
 from drone_flightplan import (
-    waypoints,
     add_elevation_from_dem,
     calculate_parameters,
     create_placemarks,
     terrain_following_waylines,
+    waypoints,
 )
+from fastapi import HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from geojson import Feature, FeatureCollection, Polygon
+from loguru import logger as log
+from minio import S3Error
+from psycopg import Connection
+from psycopg.rows import dict_row
+from shapely.geometry import shape
+from shapely.ops import transform
+
+from app.config import settings
 from app.models.enums import FlightMode, ImageProcessingStatus, OAMUploadStatus
+from app.projects import project_schemas
+from app.projects.image_processing import DroneImageProcessor
+from app.s3 import (
+    add_obj_to_bucket,
+    get_file_from_bucket,
+    get_object_metadata,
+    get_presigned_url,
+    list_objects_from_bucket,
+)
+from app.tasks.task_splitter import split_by_square
+from app.utils import (
+    calculate_flight_time_from_placemarks,
+    merge_multipolygon,
+)
 
 
 async def get_centroids(db: Connection):
@@ -79,8 +81,7 @@ async def get_centroids(db: Connection):
 async def upload_file_to_s3(
     project_id: uuid.UUID, file: UploadFile, file_name: str
 ) -> str:
-    """
-    Upload a file (image or DEM) to S3.
+    """Upload a file (image or DEM) to S3.
 
     Args:
         project_id (uuid.UUID): The project ID in the database.
@@ -115,10 +116,7 @@ async def upload_file_to_s3(
 async def update_project_oam_status(
     db: Connection, project_id: uuid.UUID, status: OAMUploadStatus
 ):
-    """
-    Update the OAM status for a project.
-    """
-
+    """Update the OAM status for a project."""
     async with db.cursor() as cur:
         await cur.execute(
             """
@@ -133,8 +131,7 @@ async def update_project_oam_status(
 
 
 async def update_url(db: Connection, project_id: uuid.UUID, url: str):
-    """
-    Update the URL (DEM or image) for a project in the database.
+    """Update the URL (DEM or image) for a project in the database.
 
     Args:
         db (Connection): The database connection.
@@ -444,9 +441,7 @@ async def process_all_drone_images(
 
 
 def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
-    """
-    Helper function to get the number of images and the URL to download the assets.
-    """
+    """Helper function to get the number of images and the URL to download the assets."""
     try:
         # Prefix for the images
         images_prefix = f"dtm-data/projects/{project_id}/{task_id}/images/"
@@ -539,8 +534,7 @@ def generate_square_geojson(center_lat, center_lon, side_length_meters):
 
 
 async def get_all_tasks_for_project(project_id, db):
-    """
-    Get all unique tasks associated with the project ID
+    """Get all unique tasks associated with the project ID
     that are in state IMAGE_UPLOADED.
     """
     async with db.cursor() as cur:
@@ -560,9 +554,7 @@ async def get_all_tasks_for_project(project_id, db):
 async def update_task_field(
     db: Connection, project_id: uuid.UUID, task_id: uuid.UUID, column: Any, value: str
 ):
-    """
-    Generic function to update a field(assets_url and total_image_count) in the tasks table.
-    """
+    """Generic function to update a field(assets_url and total_image_count) in the tasks table."""
     async with db.cursor() as cur:
         await cur.execute(
             f"""
@@ -589,9 +581,7 @@ async def process_waypoints_and_waylines(
     is_terrain_follow: bool,
     dem: UploadFile,
 ):
-    """
-    Processes and returns counts of waypoints and waylines.
-    """
+    """Processes and returns counts of waypoints and waylines."""
     # Validate the input GeoJSON file
     file_name = os.path.splitext(project_geojson.filename)
     file_ext = file_name[1]

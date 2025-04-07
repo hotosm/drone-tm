@@ -1,21 +1,21 @@
-import jwt
-from app.users.user_logic import verify_token
-from fastapi import HTTPException, Request, Security
-from fastapi.security.api_key import APIKeyHeader
-from app.config import settings
-from app.users.auth import Auth
-from app.users.user_schemas import AuthUser, DbUser
-from loguru import logger as log
 from datetime import datetime, timedelta
 from typing import Annotated
+
+import jwt
+from fastapi import Depends, HTTPException, Request, Security
+from fastapi.security.api_key import APIKeyHeader
+from loguru import logger as log
 from psycopg import Connection
-from fastapi import Depends
+
+from app.config import settings
 from app.db import database
+from app.users.auth import Auth
+from app.users.user_logic import verify_token
+from app.users.user_schemas import AuthUser, DbUser
 
 
 async def init_google_auth():
     """Initialise Auth object for google login"""
-
     return Auth(
         authorization_url="https://accounts.google.com/o/oauth2/v2/auth",
         token_url="https://www.googleapis.com/oauth2/v4/token",

@@ -28,3 +28,7 @@ docs:
           - docs/**
           - mkdocs.yml
           - README.md
+dependency:drone-flightplan:
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/backend/packages/drone-flightplan/**

@@ -1,41 +1,44 @@
 import json
 import uuid
-from typing import Annotated, Optional, List, Union
-from datetime import datetime, date
+from datetime import date, datetime
+from typing import Annotated, List, Optional, Union
+
 import geojson
+from fastapi import HTTPException
+from geojson_pydantic import Feature, FeatureCollection, MultiPolygon, Point, Polygon
 from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import class_row, dict_row
 from pydantic import (
     BaseModel,
-    computed_field,
-    Field,
-    model_validator,
     EmailStr,
+    Field,
+    computed_field,
+    model_validator,
 )
-from pydantic.functional_validators import AfterValidator
 from pydantic.functional_serializers import PlainSerializer
-from geojson_pydantic import Feature, FeatureCollection, Polygon, Point, MultiPolygon
-from fastapi import HTTPException
-from psycopg import Connection
-from psycopg.rows import class_row
+from pydantic.functional_validators import AfterValidator
 from slugify import slugify
-from app.models.enums import FinalOutput, ProjectVisibility, UserRole
+
+from app.config import settings
 from app.models.enums import (
-    IntEnum,
-    ProjectStatus,
+    FinalOutput,
     HTTPStatus,
-    RegulatorApprovalStatus,
+    IntEnum,
     ProjectCompletionStatus,
+    ProjectStatus,
+    ProjectVisibility,
+    RegulatorApprovalStatus,
+    UserRole,
+)
+from app.s3 import (
+    generate_static_url,
+    get_assets_url_for_project,
+    get_orthophoto_url_for_project,
+    get_presigned_url,
 )
 from app.utils import (
     merge_multipolygon,
-)
-from psycopg.rows import dict_row
-from app.config import settings
-from app.s3 import (
-    generate_static_url,
-    get_presigned_url,
-    get_assets_url_for_project,
-    get_orthophoto_url_for_project,
 )
 
 
@@ -85,8 +88,7 @@ def validate_geojson(
 
 
 def enum_to_str(value: Union[IntEnum, str]) -> str:
-    """
-    Get the string value of the enum for db insert.
+    """Get the string value of the enum for db insert.
     Handles both IntEnum objects and string values.
     """
     if isinstance(value, str):
@@ -143,8 +145,7 @@ class ProjectIn(BaseModel):
     @computed_field
     @property
     def slug(self) -> str:
-        """
-        Generate a unique slug based on the provided name.
+        """Generate a unique slug based on the provided name.
 
         The slug is created by converting the given name into a URL-friendly format and appending
         the current date and time to ensure uniqueness. The date and time are formatted as
@@ -391,8 +392,7 @@ class DbProject(BaseModel):
         skip: int = 0,
         limit: int = 100,
     ):
-        """
-        Get all projects, count total tasks and task states (ongoing, completed, etc.).
+        """Get all projects, count total tasks and task states (ongoing, completed, etc.).
         Optionally filter by the project creator (user), search by project name, and status.
         """
         search_term = f"%{search}%" if search else "%"
