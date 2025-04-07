@@ -10,11 +10,10 @@ from psycopg.rows import class_row, dict_row
 from pydantic import BaseModel, EmailStr, Field, ValidationInfo, model_validator
 from pydantic.functional_validators import field_validator
 
-from app.config import settings
+from app.config import settings, get_password_hash
 from app.models.enums import HTTPStatus, State, UserRole
-from app.projects.oam import encrypt_oam_api_token
+from app.config import encrypt_token
 from app.s3 import is_connection_secure, s3_client
-from app.users import user_logic
 
 
 class AuthUser(BaseModel):
@@ -259,7 +258,7 @@ class DbUserProfile(BaseUserProfile):
                     SET password = %(password)s
                     WHERE id = %(user_id)s;
                 """
-                hashed_password = user_logic.get_password_hash(profile_create.password)
+                hashed_password = get_password_hash(profile_create.password)
                 await cur.execute(
                     password_update_query,
                     {"password": hashed_password, "user_id": user_id},
@@ -285,7 +284,7 @@ class DbUserProfile(BaseUserProfile):
 
         # Encrypt OAM API token if present
         if "oam_api_token" in model_data:
-            model_data["oam_api_token"] = encrypt_oam_api_token(
+            model_data["oam_api_token"] = encrypt_token(
                 str(user_id), model_data["oam_api_token"]
             )
 
@@ -332,9 +331,7 @@ class DbUserProfile(BaseUserProfile):
                 await cur.execute(
                     password_update_query,
                     {
-                        "password": user_logic.get_password_hash(
-                            profile_update.password
-                        ),
+                        "password": get_password_hash(profile_update.password),
                         "user_id": user_id,
                     },
                 )

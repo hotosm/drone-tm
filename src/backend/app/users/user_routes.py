@@ -12,7 +12,7 @@ from psycopg import Connection
 from psycopg.rows import class_row
 from pydantic import EmailStr
 
-from app.config import settings
+from app.config import settings, get_password_hash, verify_password
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.users import user_deps, user_logic, user_schemas
@@ -134,9 +134,7 @@ async def update_user_profile(
         )
 
     if profile_update.old_password and profile_update.password:
-        if not user_logic.verify_password(
-            profile_update.old_password, user.get("password")
-        ):
+        if not verify_password(profile_update.old_password, user.get("password")):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Old password is incorrect",
@@ -272,7 +270,7 @@ async def reset_password(
                         WHERE id = %(user_id)s;
                     """,
                     {
-                        "password": user_logic.get_password_hash(new_password),
+                        "password": get_password_hash(new_password),
                         "user_id": user.get("id"),
                     },
                 )
@@ -332,7 +330,7 @@ async def regulator_create(
                         "user_id": uuid.uuid4().int,
                         "name": email,
                         "email_address": email,
-                        "password": user_logic.get_password_hash(email),
+                        "password": get_password_hash(email),
                         "profile_img": None,
                     },
                 )

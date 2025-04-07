@@ -10,8 +10,7 @@ from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.projects import project_logic
 from app.tasks.task_schemas import NewEvent, TaskStats
-from app.users import user_schemas
-from app.users.user_schemas import AuthUser
+from app.users.user_schemas import DbUser, AuthUser
 from app.utils import render_email_template, send_notification_email
 
 
@@ -340,9 +339,7 @@ async def handle_event(
             )
             # Send email notification if approval is required
             if state_after == State.REQUEST_FOR_MAPPING:
-                author = await user_schemas.DbUser.get_user_by_id(
-                    db, project["author_id"]
-                )
+                author = await DbUser.get_user_by_id(db, project["author_id"])
                 html_content = render_email_template(
                     folder_name="mapping",
                     template_name="requests.html",
@@ -372,12 +369,10 @@ async def handle_event(
                     detail="Only the project creator can approve the mapping.",
                 )
 
-            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
+            requested_user_id = await DbUser.get_requested_user_id(
                 db, project_id, task_id, State.REQUEST_FOR_MAPPING
             )
-            drone_operator = await user_schemas.DbUser.get_user_by_id(
-                db, requested_user_id
-            )
+            drone_operator = await DbUser.get_user_by_id(db, requested_user_id)
             html_content = render_email_template(
                 folder_name="mapping",
                 template_name="approved_or_rejected.html",
@@ -420,12 +415,10 @@ async def handle_event(
                     detail="Only the project creator can approve the mapping.",
                 )
 
-            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
+            requested_user_id = await DbUser.get_requested_user_id(
                 db, project_id, task_id, State.REQUEST_FOR_MAPPING
             )
-            drone_operator = await user_schemas.DbUser.get_user_by_id(
-                db, requested_user_id
-            )
+            drone_operator = await DbUser.get_user_by_id(db, requested_user_id)
             html_content = render_email_template(
                 folder_name="mapping",
                 template_name="approved_or_rejected.html",
@@ -505,9 +498,9 @@ async def handle_event(
                 detail.updated_at,
             )
         case EventType.COMMENT:
-            author = await user_schemas.DbUser.get_user_by_id(db, project["author_id"])
+            author = await DbUser.get_user_by_id(db, project["author_id"])
 
-            requested_user_id = await user_schemas.DbUser.get_requested_user_id(
+            requested_user_id = await DbUser.get_requested_user_id(
                 db, project_id, task_id, State.LOCKED_FOR_MAPPING
             )
             project_task_index = next(
@@ -518,7 +511,7 @@ async def handle_event(
                 ),
                 None,
             )
-            drone_operator = await user_schemas.DbUser.get_user_by_id(db, user_data.id)
+            drone_operator = await DbUser.get_user_by_id(db, user_data.id)
             html_content = render_email_template(
                 folder_name="mapping",
                 template_name="task_marked_unflyable.html",
