@@ -227,7 +227,7 @@ const CreateprojectLayout = () => {
         return;
       }
       if (totalProjectArea > 100000000) {
-        toast.error('Drawn Area should not exceed 100km²');
+        toast.error('Project area should not exceed 100km²');
         return;
       }
       if (
@@ -329,6 +329,7 @@ const CreateprojectLayout = () => {
           uploadedProjectArea: null,
           uploadedNoFlyZone: null,
           projectCountry: null,
+          totalProjectArea: 0,
         }),
       );
     };
