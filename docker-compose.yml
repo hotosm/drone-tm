@@ -10,6 +10,7 @@ volumes:
 
 services:
   backend:
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     build:
       context: src/backend
       dockerfile: Dockerfile
@@ -27,6 +28,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ghcr.io/hotosm/drone-tm/frontend:debug
     build:
       context: src/frontend
       dockerfile: Dockerfile
@@ -95,9 +97,7 @@ services:
     restart: "no"
 
   migrations:
-    build:
-      context: src/backend
-      dockerfile: Dockerfile
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:
@@ -111,9 +111,7 @@ services:
     restart: "no"
 
   arq-worker:
-    build:
-      context: src/backend
-      dockerfile: Dockerfile
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     command: arq app.arq.tasks.WorkerSettings
     depends_on:
       - redis
