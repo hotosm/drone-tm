@@ -4,8 +4,8 @@ requires-python = ">=3.11"
 
 [manifest]
 members = [
-    "drone-tm",
     "drone-flightplan",
+    "drone-tm",
 ]
 
 [[package]]
@@ -636,7 +636,7 @@ requires-dist = [
 
 [[package]]
 name = "drone-tm"
-version = "2025.3.1"
+version = "2025.3.2"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
