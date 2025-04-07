@@ -1,30 +1,30 @@
+import base64
+import json
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.mime.text import MIMEText
+from email.utils import formataddr
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+
 import geojson
 import requests
 import shapely
-import json
-import base64
-from datetime import datetime, timezone
-from typing import Dict, Optional, Union, Any
-from geojson_pydantic import Feature, MultiPolygon, Polygon
-from geojson_pydantic import FeatureCollection as FeatCol
+from aiosmtplib import send as send_email
+from fastapi import HTTPException
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape, to_shape
-from shapely.geometry import mapping, shape, MultiPolygon as ShapelyMultiPolygon
-from shapely.ops import unary_union
-from fastapi import HTTPException
-from app.config import settings
-from shapely import wkb
+from geojson_pydantic import Feature, MultiPolygon, Polygon
+from geojson_pydantic import FeatureCollection as FeatCol
 from jinja2 import Template
-from pathlib import Path
-from dataclasses import dataclass
-from email.mime.text import MIMEText
-from email.utils import formataddr
-from aiosmtplib import send as send_email
-from shapely.geometry import Point
-from shapely.ops import transform
 from pyproj import Transformer
+from shapely import wkb
+from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
+from shapely.geometry import Point, mapping, shape
+from shapely.ops import transform, unary_union
 
+from app.config import settings
 
 log = logging.getLogger(__name__)
 
@@ -374,8 +374,7 @@ class EmailData:
 def render_email_template(
     folder_name: str, template_name: str, context: dict[str, Any]
 ) -> str:
-    """
-    Render an email template with the given context from the specified folder.
+    """Render an email template with the given context from the specified folder.
 
     Args:
         folder_name (str): The folder containing the template file.
@@ -394,8 +393,7 @@ def render_email_template(
 
 
 async def send_notification_email(email_to, subject, html_content):
-    """
-    Send an email with the given subject and HTML content to the specified recipient.
+    """Send an email with the given subject and HTML content to the specified recipient.
 
     Args:
         email_to (str): The recipient's email address.
@@ -477,8 +475,7 @@ async def send_reset_password_email(email: str, token: str):
 
 
 def geojson_to_kml(geojson_data: dict) -> str:
-    """
-    Converts GeoJSON data to KML format.
+    """Converts GeoJSON data to KML format.
 
     Args:
         geojson_data (dict): GeoJSON data as a dictionary.
@@ -557,8 +554,7 @@ async def send_project_approval_email_to_regulator(
 
 
 def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
-    """
-    Calculate the total and average flight time and total flight distance based on placemarks.
+    """Calculate the total and average flight time and total flight distance based on placemarks.
 
     Args:
         placemarks (Dict): GeoJSON-like data structure with flight plan.

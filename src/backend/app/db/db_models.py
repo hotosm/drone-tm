@@ -1,40 +1,41 @@
 from datetime import datetime
 from typing import cast
-from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    ForeignKey,
-    DateTime,
-    SmallInteger,
-    Boolean,
-    Float,
-    Enum,
-    Index,
-    ARRAY,
-    LargeBinary,
-)
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.dialects.postgresql import UUID
+
 from geoalchemy2 import Geometry, WKBElement
-from app.models.enums import (
-    FinalOutput,
-    TaskStatus,
-    TaskSplitType,
-    ProjectStatus,
-    ProjectVisibility,
-    UserRole,
-    State,
-    RegulatorApprovalStatus,
-    ImageProcessingStatus,
-    OAMUploadStatus,
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    SmallInteger,
+    String,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import (
+    declarative_base,
     object_session,
     relationship,
 )
-from app.utils import timestamp
 
+from app.models.enums import (
+    FinalOutput,
+    ImageProcessingStatus,
+    OAMUploadStatus,
+    ProjectStatus,
+    ProjectVisibility,
+    RegulatorApprovalStatus,
+    State,
+    TaskSplitType,
+    TaskStatus,
+    UserRole,
+)
+from app.utils import timestamp
 
 Base = declarative_base()
 

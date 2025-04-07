@@ -1,16 +1,18 @@
-import uuid
 import json
-from app.users.user_schemas import AuthUser
+import uuid
+from datetime import datetime
+
+from fastapi import BackgroundTasks, HTTPException
+from psycopg import Connection
+from psycopg.rows import class_row, dict_row
+
+from app.config import settings
+from app.models.enums import EventType, HTTPStatus, State, UserRole
+from app.projects import project_logic
 from app.tasks.task_schemas import NewEvent, TaskStats
 from app.users import user_schemas
+from app.users.user_schemas import AuthUser
 from app.utils import render_email_template, send_notification_email
-from app.projects import project_logic
-from psycopg import Connection
-from app.models.enums import EventType, HTTPStatus, State, UserRole
-from fastapi import HTTPException, BackgroundTasks
-from psycopg.rows import dict_row, class_row
-from datetime import datetime
-from app.config import settings
 
 
 async def list_task_id_for_project(db: Connection, project_id: uuid.UUID):
@@ -81,7 +83,6 @@ async def update_take_off_point_in_db(
     db: Connection, task_id: uuid.UUID, take_off_point: str
 ):
     """Update take_off_point in the task table"""
-
     async with db.cursor() as cur:
         await cur.execute(
             """
@@ -98,7 +99,6 @@ async def update_take_off_point_in_db(
 
 async def get_take_off_point_from_db(db: Connection, task_id: uuid.UUID):
     """Get take_off_point from task table"""
-
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """
@@ -260,8 +260,7 @@ async def request_mapping(
 async def get_task_state(
     db: Connection, project_id: uuid.UUID, task_id: uuid.UUID
 ) -> dict:
-    """
-    Retrieve the latest state of a task by querying the task_events table.
+    """Retrieve the latest state of a task by querying the task_events table.
 
     Args:
         db (Connection): The database connection.

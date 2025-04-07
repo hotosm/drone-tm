@@ -1,14 +1,15 @@
-from app.models.enums import HTTPStatus
-from loguru import logger as log
-from fastapi import HTTPException
-from psycopg import Connection
 from typing import List
+
+from fastapi import HTTPException
+from loguru import logger as log
+from psycopg import Connection
+
 from app.drones.drone_schemas import DroneOut
+from app.models.enums import HTTPStatus
 
 
 async def read_all_drones(db: Connection) -> List[DroneOut]:
-    """
-    Retrieves all drone records from the database.
+    """Retrieves all drone records from the database.
 
     Args:
         db (Database): The database connection object.
@@ -31,8 +32,7 @@ async def read_all_drones(db: Connection) -> List[DroneOut]:
 
 
 async def delete_drone(db: Connection, drone_id: int) -> bool:
-    """
-    Deletes a drone record from the database, along with associated drone flights.
+    """Deletes a drone record from the database, along with associated drone flights.
 
     Args:
         db (Database): The database connection object.
@@ -62,8 +62,7 @@ async def delete_drone(db: Connection, drone_id: int) -> bool:
 
 
 async def get_drone(db: Connection, drone_id: int):
-    """
-    Retrieves a drone record from the database.
+    """Retrieves a drone record from the database.
 
     Args:
         db (Database): The database connection object.

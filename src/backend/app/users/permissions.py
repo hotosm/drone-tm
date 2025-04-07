@@ -1,10 +1,12 @@
 from enum import Enum
-from typing import Optional, Union, List, Callable, Any
-from fastapi import HTTPException, Depends, status
+from typing import Any, Callable, List, Optional, Union
+
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
-from app.users.user_schemas import DbUser
+
 from app.projects import project_schemas
 from app.users.user_deps import login_dependency
+from app.users.user_schemas import DbUser
 
 
 class PermissionType(str, Enum):

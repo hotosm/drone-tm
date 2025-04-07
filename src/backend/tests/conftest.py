@@ -1,18 +1,19 @@
-from typing import AsyncGenerator, Any
-from app.db.database import get_db
-from app.users.user_deps import login_required
-from app.models.enums import UserRole
-from fastapi import FastAPI
-from app.main import get_application
-from app.users.user_schemas import AuthUser
+from typing import Any, AsyncGenerator
+
+import pytest
 import pytest_asyncio
-from app.config import settings
 from asgi_lifespan import LifespanManager
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from psycopg import AsyncConnection
-from app.users.user_schemas import DbUser
-import pytest
+
+from app.config import settings
+from app.db.database import get_db
+from app.main import get_application
+from app.models.enums import UserRole
 from app.projects.project_schemas import DbProject, ProjectIn
+from app.users.user_deps import login_required
+from app.users.user_schemas import AuthUser, DbUser
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -45,10 +46,7 @@ async def auth_user(db) -> AuthUser:
 
 @pytest_asyncio.fixture(scope="function")
 async def project_info():
-    """
-    Fixture to create project metadata for testing.
-
-    """
+    """Fixture to create project metadata for testing."""
     project_metadata = ProjectIn(
         name="TEST 98982849249278787878778",
         description="",
@@ -96,18 +94,14 @@ async def project_info():
 
 @pytest_asyncio.fixture(scope="function")
 async def create_test_project(db, auth_user, project_info):
-    """
-    Fixture to create a test project and return its project_id.
-    """
+    """Fixture to create a test project and return its project_id."""
     project_id = await DbProject.create(db, project_info, auth_user.id)
     return str(project_id)
 
 
 @pytest_asyncio.fixture(scope="function")
 async def test_get_project(db, create_test_project):
-    """
-    Fixture to create a test project and return its project_id.
-    """
+    """Fixture to create a test project and return its project_id."""
     project_id = create_test_project
     project_info = await DbProject.one(db, project_id)
     return project_info

@@ -1,13 +1,15 @@
 """Dependencies for Project endpoints."""
 
 import json
-from uuid import UUID
 from typing import Annotated
-from loguru import logger as log
-from fastapi import Depends, HTTPException, Path, File, UploadFile
-from psycopg import Connection
+from uuid import UUID
+
+from fastapi import Depends, File, HTTPException, Path, UploadFile
 from geojson import FeatureCollection
+from loguru import logger as log
+from psycopg import Connection
 from psycopg.rows import dict_row
+
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.projects.project_schemas import DbProject
@@ -60,8 +62,7 @@ async def geojson_upload(
         ),
     ],
 ) -> FeatureCollection:
-    """
-    Normalise a geojson upload to a FeatureCollection.
+    """Normalise a geojson upload to a FeatureCollection.
 
     MultiPolygons will be exploded into Polygon features.
     """

@@ -1,20 +1,20 @@
-import uuid
 import base64
-from app.models.enums import HTTPStatus, State, UserRole
-from pydantic import BaseModel, EmailStr, ValidationInfo, Field, model_validator
-from pydantic.functional_validators import field_validator
-from typing import List, Optional
-from psycopg import Connection
-from psycopg.rows import class_row
+import uuid
+from typing import Any, List, Optional
+
 import psycopg
 from fastapi import HTTPException
-from typing import Any
 from loguru import logger as log
-from app.users import user_logic
-from psycopg.rows import dict_row
-from app.s3 import is_connection_secure, s3_client
+from psycopg import Connection
+from psycopg.rows import class_row, dict_row
+from pydantic import BaseModel, EmailStr, Field, ValidationInfo, model_validator
+from pydantic.functional_validators import field_validator
+
 from app.config import settings
+from app.models.enums import HTTPStatus, State, UserRole
 from app.projects.oam import encrypt_oam_api_token
+from app.s3 import is_connection_secure, s3_client
+from app.users import user_logic
 
 
 class AuthUser(BaseModel):
@@ -171,8 +171,7 @@ class DbUserProfile(BaseUserProfile):
 
     @staticmethod
     async def _handle_file_upload(profile: UserProfileCreate, user_id: int):
-        """
-        Handle file uploads (certificate and registration) and return presigned URLs and S3 paths.
+        """Handle file uploads (certificate and registration) and return presigned URLs and S3 paths.
 
         Args:
             profile (UserProfileCreate): The user profile containing file fields.
@@ -360,11 +359,11 @@ class DbUserProfile(BaseUserProfile):
                 # Check if 'oam_token' exists and set 'has_oam_token' accordingly
                 has_oam_token = (
                     hasattr(result, "oam_api_token")
-                    and getattr(result, "oam_api_token") is not None
+                    and result.oam_api_token is not None
                 )
 
                 # Add 'has_oam_token' attribute
-                setattr(result, "has_oam_token", has_oam_token)
+                result.has_oam_token = has_oam_token
 
                 # Remove 'oam_token' from the object
                 if hasattr(result, "oam_api_token"):
@@ -386,7 +385,7 @@ class DbUser(BaseModel):
 
     @staticmethod
     async def all(db: Connection):
-        "Fetch  all users."
+        """Fetch  all users."""
         async with db.cursor(row_factory=class_row(DbUser)) as cur:
             await cur.execute(
                 """

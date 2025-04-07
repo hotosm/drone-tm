@@ -85,6 +85,15 @@ drone-flightplan = { workspace = true }
 [tool.uv.workspace]
 members = ["packages/*"]
 
+[tool.ruff]
+fix = true
+line-length = 88
+target-version = "py311"
+exclude = [
+    ".ruff_cache",
+    "app/__version__.py",
+    "app/migrations",
+]
 [tool.ruff.lint]
 select = ["I", "E", "W", "D", "B", "F", "N", "Q"]
 [tool.ruff.lint.pydocstyle]

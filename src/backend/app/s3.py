@@ -1,12 +1,14 @@
-from app.config import settings
-from loguru import logger as log
-from minio import Minio
+from datetime import timedelta
 from io import BytesIO
 from typing import Any
-from datetime import timedelta
 from urllib.parse import urljoin
-from minio.error import S3Error
+
+from loguru import logger as log
+from minio import Minio
 from minio.commonconfig import CopySource
+from minio.error import S3Error
+
+from app.config import settings
 
 
 def s3_client():
@@ -43,8 +45,7 @@ def is_connection_secure(minio_url: str):
 
 
 def check_file_exists(bucket_name: str, object_name: str) -> bool:
-    """
-    Check if a file exists in the S3 bucket.
+    """Check if a file exists in the S3 bucket.
 
     Args:
         bucket_name (str): The name of the S3 bucket
@@ -199,9 +200,11 @@ def get_image_dir_url(bucket_name: str, image_dir: str):
 
 def list_objects_from_bucket(bucket_name: str, prefix: str):
     """List all objects in a bucket with a specified prefix.
+
     Args:
         bucket_name (str): The name of the S3 bucket.
         prefix (str): The prefix to filter objects by.
+
     Returns:
         list: A list of objects in the bucket with the specified prefix.
     """
@@ -278,8 +281,7 @@ def get_orthophoto_url_for_project(project_id: str):
 def copy_file_within_bucket(
     bucket_name: str, source_path: str, destination_path: str
 ) -> bool:
-    """
-    Copy a file from one path to another within the same bucket.
+    """Copy a file from one path to another within the same bucket.
 
     Args:
         bucket_name (str): The name of the bucket.
