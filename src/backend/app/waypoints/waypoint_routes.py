@@ -159,7 +159,9 @@ async def get_task_waypoint(
     else:
         waypoint_params["mode"] = mode
         points = waypoints.create_waypoint(**waypoint_params)
-        placemarks = create_placemarks(geojson.loads(points), parameters)
+        placemarks = create_placemarks.create_placemarks(
+            geojson.loads(points), parameters
+        )
 
     if download:
         outfile = outfile = f"/tmp/{uuid.uuid4()}"

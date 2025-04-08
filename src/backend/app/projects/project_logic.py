@@ -188,7 +188,7 @@ async def process_task_metrics(db, tasks_data, project):
         gsd = project.gsd_cm_px
         altitude = project.altitude_from_ground
 
-        parameters = calculate_parameters(
+        parameters = calculate_parameters.calculate_parameters(
             forward_overlap, side_overlap, altitude, gsd, 2
         )
         waypoint_params = {
@@ -218,12 +218,14 @@ async def process_task_metrics(db, tasks_data, project):
             except Exception:
                 points_with_elevation = points
 
-            placemarks = create_placemarks(
+            placemarks = create_placemarks.create_placemarks(
                 geojson.loads(points_with_elevation), parameters
             )
         else:
             points = waypoints.create_waypoint(**waypoint_params)
-            placemarks = create_placemarks(geojson.loads(points), parameters)
+            placemarks = create_placemarks.create_placemarks(
+                geojson.loads(points), parameters
+            )
 
         flight_metrics = calculate_flight_time_from_placemarks(placemarks)
         flight_time_minutes = flight_metrics.get("total_flight_time")
@@ -731,7 +733,7 @@ async def process_waypoints_and_waylines(
     # Prepare common parameters for waypoint creation
     forward_overlap = front_overlap if front_overlap else 70
     side_overlap = side_overlap if side_overlap else 70
-    parameters = calculate_parameters(
+    parameters = calculate_parameters.calculate_parameters(
         forward_overlap,
         side_overlap,
         altitude_from_ground,
@@ -779,7 +781,7 @@ async def process_waypoints_and_waylines(
                 )
 
             # Generate waylines from waypoints with elevation
-            wayline_placemarks = create_placemarks(
+            wayline_placemarks = create_placemarks.create_placemarks(
                 geojson.loads(points_with_elevation), parameters
             )
 
