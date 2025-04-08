@@ -1,3 +1,4 @@
+import NoDataComponent from '@Components/common/DataTable/NoDataFound';
 import { formatString } from '@Utils/index';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +10,7 @@ interface ITaskLogsTableProps {
 const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
   const navigate = useNavigate();
 
-  if (!taskList?.length) return <div>No data available</div>;
+  if (!taskList?.length) return <NoDataComponent />;
   return (
     <div className="flex scrollbar naxatw-max-h-[calc(100vh-22rem)] naxatw-overflow-y-auto">
       <table className="naxatw-relative naxatw-w-full naxatw-rounded-lg">
