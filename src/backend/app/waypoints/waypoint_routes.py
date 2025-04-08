@@ -105,7 +105,7 @@ async def get_task_waypoint(
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
 
-    parameters = calculate_parameters(
+    parameters = calculate_parameters.calculate_parameters(
         forward_overlap,
         side_overlap,
         altitude,
@@ -148,7 +148,9 @@ async def get_task_waypoint(
         except Exception:
             points_with_elevation = points
 
-        placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
+        placemarks = create_placemarks.create_placemarks(
+            geojson.loads(points_with_elevation), parameters
+        )
 
         # Create a flight plan with terrain follow in waylines mode
         if mode == FlightMode.waylines:
