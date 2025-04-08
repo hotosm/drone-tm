@@ -29,6 +29,7 @@ export interface CreateProjectState {
   regulatorEmails: string[] | [];
   demType: string;
   totalProjectArea: number;
+  totalNoFlyZoneArea: number;
 }
 
 const initialState: CreateProjectState = {
@@ -57,6 +58,7 @@ const initialState: CreateProjectState = {
   demType: 'auto',
   selectedProjectStatus: '',
   totalProjectArea: 0,
+  totalNoFlyZoneArea: 0,
 };
 
 const setCreateProjectState: CaseReducer<
