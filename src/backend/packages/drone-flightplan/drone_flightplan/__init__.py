@@ -4,9 +4,7 @@ import os
 
 __all__ = [
     "add_elevation_from_dem",
-    "calculate_parameters",
     "create_flightplan",
-    "create_placemarks",
     "create_waypoint",
     "create_wpml",
     "calculate_parameters",
