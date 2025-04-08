@@ -62,7 +62,8 @@ const Projects = () => {
 
   // fetch project centroid
   const { data: projectCentroids, isFetching: isCentroidFetching } =
-    useGetProjectCentroidQuery();
+    // @ts-ignore
+    useGetProjectCentroidQuery({ queryKey: { ...filterParams } });
 
   useEffect(() => {
     handlePaginationState({ activePage: 1 });
