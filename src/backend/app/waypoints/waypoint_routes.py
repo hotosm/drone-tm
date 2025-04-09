@@ -1,6 +1,7 @@
 import os
 import shutil
 import uuid
+import logging
 from typing import Annotated
 
 import geojson
@@ -33,6 +34,8 @@ from app.waypoints import waypoint_schemas
 from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
+
+log = logging.getLogger(__name__)
 
 # Constant to convert gsd to Altitude above ground level
 GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
@@ -145,7 +148,10 @@ async def get_task_waypoint(
             inpointsfile = open(outfile_with_elevation, "r")
             points_with_elevation = inpointsfile.read()
 
-        except Exception:
+        except Exception as e:
+            log.warning(e)
+            log.warning("Error adding elevation to waypoints from DEM file!")
+            log.warning("Continuing, but the flightplan will not follow terrain.")
             points_with_elevation = points
 
         placemarks = create_placemarks.create_placemarks(
