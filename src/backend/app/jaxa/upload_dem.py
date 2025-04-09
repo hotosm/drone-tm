@@ -2,6 +2,7 @@ import asyncio
 import io
 import multiprocessing
 import os
+import logging
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -14,6 +15,7 @@ from app.jaxa.tif_spider import TifSpider
 from app.projects import project_logic
 
 base_dir = Path(__file__).resolve().parent
+log = logging.getLogger(__name__)
 
 
 def run_crawler_and_upload(coordinates_str: str, tif_file_path: str, project_id):
@@ -26,8 +28,12 @@ def run_crawler_and_upload(coordinates_str: str, tif_file_path: str, project_id)
 
         asyncio.run(upload_dem_file_s3_sync(tif_file_path, project_id))
 
-    except Exception:
-        pass
+    except Exception as e:
+        log.error(e)
+        log.error(
+            f"Failed web crawl for DEM on project ({project_id}), "
+            f"coords: {coordinates_str}"
+        )
 
 
 async def upload_dem_file_s3_sync(tif_file_path: str, project_id):
@@ -38,6 +44,7 @@ async def upload_dem_file_s3_sync(tif_file_path: str, project_id):
             file_obj = io.BytesIO(file_bytes)
             dem = UploadFile(file=file_obj, filename="dem.tif")
 
+        log.info(f"Uploading downloaded DEM for project ({project_id}) to S3")
         dem_url = await project_logic.upload_file_to_s3(project_id, dem, "dem.tif")
 
         pool = await database.get_db_connection_pool()
@@ -46,8 +53,12 @@ async def upload_dem_file_s3_sync(tif_file_path: str, project_id):
                 await project_logic.update_url(conn, project_id, dem_url)
 
         os.remove(tif_file_path)
-    except Exception:
-        pass
+    except Exception as e:
+        log.error(e)
+        log.error(
+            f"Failed to upload DEM for project ({project_id}), "
+            f"from path: {tif_file_path}"
+        )
 
 
 async def upload_dem_file(geometry, project_id):
@@ -57,6 +68,7 @@ async def upload_dem_file(geometry, project_id):
     coordinates_str = ",".join(tiles)
 
     try:
+        log.info(f"Attempting creation of DEM file for project ({project_id})")
         p = multiprocessing.Process(
             target=run_crawler_and_upload,
             args=(coordinates_str, tif_file_path, project_id),
@@ -64,4 +76,4 @@ async def upload_dem_file(geometry, project_id):
         p.start()
 
     except Exception:
-        pass
+        log.error(f"DEM download and upload process failed for project ({project_id})")
