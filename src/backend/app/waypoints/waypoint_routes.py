@@ -2,6 +2,7 @@ import os
 import shutil
 import uuid
 import logging
+import traceback
 from typing import Annotated
 
 import geojson
@@ -149,7 +150,8 @@ async def get_task_waypoint(
             points_with_elevation = inpointsfile.read()
 
         except Exception as e:
-            log.warning(e)
+            log.warning(traceback.format_exc())
+            log.warning(f"Exception: {e}")
             log.warning("Error adding elevation to waypoints from DEM file!")
             log.warning("Continuing, but the flightplan will not follow terrain.")
             points_with_elevation = points

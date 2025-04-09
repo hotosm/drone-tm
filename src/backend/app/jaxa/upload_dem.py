@@ -46,12 +46,17 @@ async def upload_dem_file_s3_sync(tif_file_path: str, project_id):
 
         log.info(f"Uploading downloaded DEM for project ({project_id}) to S3")
         dem_url = await project_logic.upload_file_to_s3(project_id, dem, "dem.tif")
+        log.info(f"Successfully generated and uploaded DEM file to: {dem_url}")
 
         pool = await database.get_db_connection_pool()
         async with pool as pool_instance:
             async with pool_instance.connection() as conn:
                 await project_logic.update_url(conn, project_id, dem_url)
 
+        log.debug(
+            f"DEM URL written to DB for project ({project_id}). "
+            "Removing file from disk..."
+        )
         os.remove(tif_file_path)
     except Exception as e:
         log.error(e)
