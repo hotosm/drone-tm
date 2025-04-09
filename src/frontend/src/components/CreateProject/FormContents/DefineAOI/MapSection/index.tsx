@@ -1,8 +1,7 @@
 /* eslint-disable no-unused-vars */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
@@ -17,104 +16,125 @@ import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 
 const MapSection = ({
-  onResetButtonClick,
-  handleDrawProjectAreaClick,
+  selectedTab,
+  setValue,
 }: {
-  onResetButtonClick: (reset: any) => void;
-  handleDrawProjectAreaClick: any;
+  selectedTab: string;
+  setValue: any;
 }) => {
   const dispatch = useTypedDispatch();
+  const [bufferGeojson, setBufferGeojson] = useState<GeojsonType | null>(null);
+  const [drawMode, setDrawMode] = useState<
+    'static' | 'draw_polygon' | 'simple_select'
+  >('static');
+
+  const projectArea = useTypedSelector(
+    state => state.createproject.projectArea,
+  );
+  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
+  const activeDraw = drawMode === 'draw_polygon';
+  const activeDrawEdit = drawMode === 'simple_select';
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
-      zoom: 5,
-      center: [289.927139, 18.542117],
+      zoom: 0,
+      center: [0, 0],
       maxZoom: 19,
     },
     disableRotation: true,
   });
 
-  const drawProjectAreaEnable = useTypedSelector(
-    state => state.createproject.drawProjectAreaEnable,
-  );
-  const drawNoFlyZoneEnable = useTypedSelector(
-    state => state.createproject.drawNoFlyZoneEnable,
-  );
-  const drawnNoFlyZone = useTypedSelector(
-    state => state.createproject.drawnNoFlyZone,
-  );
-  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
-
-  function filterDuplicateFeature(
-    featuresData: any[],
-    geojsonFeatureObject: Record<string, any>,
-  ) {
-    if (!geojsonFeatureObject) return [];
-    if (!featuresData) return [geojsonFeatureObject];
-    return featuresData.filter(
-      feature => feature.id !== geojsonFeatureObject.id,
-    );
-  }
-
   const handleDrawEnd = (geojson: GeojsonType | null) => {
     if (!geojson) return;
-    if (drawProjectAreaEnable) {
-      dispatch(setCreateProjectState({ drawnProjectArea: geojson }));
-    } else {
-      // @ts-ignore
-      let combindFeatures = geojson?.features;
-      // @ts-ignore
-      if (drawnNoFlyZone?.features) {
-        combindFeatures = filterDuplicateFeature(
-          // @ts-ignore
-          drawnNoFlyZone?.features,
-          // @ts-ignore
-          geojson?.features[0],
-        );
+    if (selectedTab === 'project') {
+      if (projectArea && drawMode === 'simple_select') {
+        setBufferGeojson(geojson);
+      } else {
+        dispatch(setCreateProjectState({ projectArea: geojson }));
+        setDrawMode('static');
+        setValue('outline', geojson);
       }
-      const collectiveGeojson: any = drawnNoFlyZone
-        ? {
-            // @ts-ignore
-            ...drawnNoFlyZone,
-            features: [
-              ...(combindFeatures || []),
-              // @ts-ignore
-              ...(geojson?.features || []),
-            ],
-          }
-        : geojson;
-      dispatch(setCreateProjectState({ drawnNoFlyZone: collectiveGeojson }));
+    } else {
+      if (noFlyZone && projectArea && drawMode === 'simple_select') {
+        setBufferGeojson(geojson);
+      } else {
+        dispatch(setCreateProjectState({ noFlyZone: geojson }));
+        setDrawMode('static');
+        setValue('outline', geojson);
+      }
     }
   };
 
-  const { resetDraw } = useDrawTool({
+  const { resetDraw, draw } = useDrawTool({
     map,
-    enable: drawProjectAreaEnable || drawNoFlyZoneEnable,
-    drawMode: 'draw_polygon',
+    enable: drawMode === 'draw_polygon' || drawMode === 'simple_select',
     styles: drawStyles,
+    drawMode: drawMode,
     onDrawEnd: handleDrawEnd,
+    geojson:
+      selectedTab === 'project' ? projectArea || null : noFlyZone || null,
   });
 
   useEffect(() => {
-    onResetButtonClick(resetDraw);
-  }, [onResetButtonClick, resetDraw]);
-
-  const projectArea = useTypedSelector(
-    state => state.createproject.projectArea,
-  );
-
-  useEffect(() => {
-    if (!projectArea) return;
+    if (!projectArea || !map || !isMapLoaded) return;
     const bbox = getBbox(projectArea as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
-  }, [map, projectArea]);
+    map.fitBounds(bbox as LngLatBoundsLike, { padding: 150, duration: 500 });
+  }, [map, projectArea, isMapLoaded]);
 
-  const drawSaveFromMap = () => {
-    if (drawProjectAreaEnable) {
-      handleDrawProjectAreaClick();
-    } else {
-      resetDraw();
+  const showDrawButton = () => {
+    if (selectedTab === 'project') {
+      if (!projectArea) return true;
+      return false;
     }
+    return true;
+  };
+
+  const showEditButton = () => {
+    if (selectedTab === 'project' && projectArea) return true;
+    if (selectedTab === 'no_fly_zone' && noFlyZone) return true;
+    return false;
+  };
+
+  const handleEditCancel = () => {
+    setBufferGeojson(null);
+    setDrawMode('static');
+    resetDraw();
+  };
+  const handleEditSave = () => {
+    if (selectedTab === 'project') {
+      dispatch(setCreateProjectState({ projectArea: bufferGeojson }));
+      setValue('outline', bufferGeojson);
+    } else {
+      dispatch(setCreateProjectState({ noFlyZone: bufferGeojson }));
+      setValue('no_fly_zone', bufferGeojson);
+    }
+    setDrawMode('static');
+    setBufferGeojson(null);
+  };
+
+  const handleDelete = () => {
+    const selectedFeatureIds = draw.getSelectedIds();
+    let finalFeatureList = [];
+    if (selectedTab === 'project') {
+      // @ts-ignore
+      finalFeatureList = projectArea?.features?.filter(
+        (feature: any) => !selectedFeatureIds.includes(feature?.id),
+      );
+    } else {
+      // @ts-ignore
+      finalFeatureList = noFlyZone?.features?.filter(
+        (feature: any) => !selectedFeatureIds.includes(feature?.id),
+      );
+    }
+    if (finalFeatureList?.length) {
+      setBufferGeojson({
+        type: 'FeatureCollection',
+        features: finalFeatureList,
+      });
+    } else {
+      setBufferGeojson(null);
+    }
+    draw.delete(draw.getSelectedIds());
   };
 
   return (
@@ -129,76 +149,129 @@ const MapSection = ({
     >
       <BaseLayerSwitcherUI />
       <LocateUser isMapLoaded={isMapLoaded} />
-
-      {(drawNoFlyZoneEnable || drawProjectAreaEnable) && (
-        <div className="naxatw-absolute naxatw-right-[calc(50%_-_75px)] naxatw-top-2 naxatw-z-50 naxatw-flex naxatw-h-9 naxatw-w-[150px] naxatw-rounded-lg naxatw-bg-white">
-          <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-evenly">
+      <div className="naxatw-absolute naxatw-left-2 naxatw-top-24 naxatw-z-50 naxatw-flex naxatw-h-fit naxatw-w-9 naxatw-flex-col naxatw-gap-2 naxatw-rounded-lg">
+        {showDrawButton() && (
+          <>
             <i
-              className="material-icons-outlined naxatw-w-full naxatw-cursor-pointer naxatw-rounded-l-md naxatw-border-r naxatw-text-center hover:naxatw-bg-gray-100"
-              role="presentation"
-              onClick={() => drawSaveFromMap()}
-            >
-              save
-            </i>
-            <i
-              className="material-icons-outlined naxatw-w-full naxatw-cursor-pointer naxatw-text-center hover:naxatw-bg-gray-100"
+              className={`material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-center hover:naxatw-bg-gray-100 ${
+                activeDraw
+                  ? 'naxatw-border-2 naxatw-border-gray-500 naxatw-bg-gray-100'
+                  : 'naxatw-bg-white'
+              }`}
               role="presentation"
               onClick={() => {
-                dispatch(setCreateProjectState({ drawnNoFlyZone: noFlyZone }));
-                resetDraw();
+                setDrawMode('draw_polygon');
               }}
+              title="Draw"
             >
-              restart_alt
+              draw
             </i>
+            {drawMode === 'draw_polygon' && (
+              <i
+                className={`material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-center hover:naxatw-bg-gray-100 ${'naxatw-bg-white'}`}
+                role="presentation"
+                onClick={() => {
+                  setDrawMode('static');
+                  resetDraw();
+                }}
+                title="reset"
+              >
+                replay
+              </i>
+            )}
+          </>
+        )}
+        {showEditButton() && (
+          <div className="naxatw-relative">
+            <i
+              className={`material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-center hover:naxatw-bg-gray-100 ${
+                activeDrawEdit
+                  ? 'naxatw-border-2 naxatw-border-gray-500 naxatw-bg-gray-100'
+                  : 'naxatw-bg-white'
+              }`}
+              role="presentation"
+              onClick={() => {
+                setDrawMode('simple_select');
+              }}
+              title="Edit"
+            >
+              edit
+            </i>
+            {activeDrawEdit && (
+              <div className="naxatw-absolute naxatw-left-11 naxatw-top-0 naxatw-flex naxatw-w-[100px] naxatw-justify-center naxatw-gap-1 naxatw-rounded-md naxatw-bg-white naxatw-px-2 naxatw-py-2">
+                <div className="naxatw-naxatw-w-0 naxatw-absolute naxatw-left-[-16px] naxatw-top-2.5 naxatw-h-0 naxatw-border-8 naxatw-border-solid naxatw-border-transparent naxatw-border-r-white"></div>
+                <div
+                  className="naxatw-w-[50px] naxatw-cursor-pointer hover:naxatw-underline"
+                  onClick={() => {
+                    handleEditSave();
+                  }}
+                >
+                  Save
+                </div>
+                <div
+                  className="naxatw-w-[50px] naxatw-cursor-pointer hover:naxatw-underline"
+                  onClick={() => {
+                    handleEditCancel();
+                  }}
+                >
+                  Cancel
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-      <VectorLayer
-        map={map as Map}
-        isMapLoaded={isMapLoaded}
-        id="uploaded-project-area"
-        geojson={projectArea as GeojsonType}
-        visibleOnMap={!!projectArea}
-        layerOptions={{
-          type: 'fill',
-          paint: {
-            'fill-color': '#328ffd',
-            'fill-outline-color': '#D33A38',
-            'fill-opacity': 0.2,
-          },
-        }}
-      />
-      <VectorLayer
-        map={map as Map}
-        isMapLoaded={isMapLoaded}
-        id="uploaded-no-fly-zone"
-        geojson={noFlyZone as GeojsonType}
-        visibleOnMap={!!noFlyZone}
-        layerOptions={{
-          type: 'fill',
-          paint: {
-            'fill-color': '#404040',
-            'fill-outline-color': '#D33A38',
-            'fill-opacity': 0.5,
-          },
-        }}
-      />
+        )}
+        {activeDrawEdit && (
+          <i
+            className="material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-bg-white naxatw-text-center hover:naxatw-bg-gray-100"
+            role="presentation"
+            onClick={() => {
+              handleDelete();
+            }}
+            title="Delete"
+          >
+            delete
+          </i>
+        )}
+      </div>
 
-      <VectorLayer
-        map={map as Map}
-        isMapLoaded={isMapLoaded}
-        id="uploaded-no-fly-zone-ongoing"
-        geojson={drawnNoFlyZone as GeojsonType}
-        visibleOnMap={!!drawnNoFlyZone}
-        layerOptions={{
-          type: 'fill',
-          paint: {
-            'fill-color': '#404040',
-            'fill-outline-color': '#D33A38',
-            'fill-opacity': 0.3,
-          },
-        }}
-      />
+      {projectArea && (selectedTab !== 'project' || drawMode === 'static') && (
+        <VectorLayer
+          map={map as Map}
+          isMapLoaded={isMapLoaded}
+          id="project-area"
+          geojson={projectArea as GeojsonType}
+          visibleOnMap={!!projectArea}
+          layerOptions={{
+            type: 'fill',
+            paint: {
+              'fill-color': '#D33A38',
+              'fill-outline-color': '#000',
+              'fill-opacity': 0.3,
+            },
+          }}
+        />
+      )}
+
+      {noFlyZone &&
+        (selectedTab !== 'no_fly_zone' ||
+          drawMode === 'static' ||
+          drawMode === 'draw_polygon') && (
+          <VectorLayer
+            map={map as Map}
+            isMapLoaded={isMapLoaded}
+            id="no-fly-zone-area"
+            geojson={noFlyZone as GeojsonType}
+            visibleOnMap={!!noFlyZone}
+            layerOptions={{
+              type: 'fill',
+              paint: {
+                'fill-color': '#bbbcb6',
+                'fill-outline-color': '#000',
+                'fill-opacity': 0.8,
+              },
+            }}
+          />
+        )}
     </MapContainer>
   );
 };

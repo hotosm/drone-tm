@@ -208,8 +208,7 @@ export default function useDrawTool({
 
   // add tooltip before draw start
   useEffect(() => {
-    if (!map || !drawMode?.includes('draw') || isDrawLayerAdded)
-      return () => {};
+    if (!map || isDrawLayerAdded) return () => {};
     const handleMouseMove = () => {
       // map.getCanvas().style.cursor = 'crosshair';
       map.getCanvas().style.cursor = '';
@@ -261,6 +260,7 @@ export default function useDrawTool({
       // @ts-ignore
       if (geojson) {
         draw.changeMode('static');
+
         // setIsDrawLayerAdded(true);
       } else {
         // @ts-ignore
@@ -284,6 +284,7 @@ export default function useDrawTool({
         }
         return;
       }
+
       // @ts-ignore
       if (map.hasControl(draw)) {
         // @ts-ignore

@@ -19,7 +19,7 @@ export default function ProjectsHeader() {
     state => state.createproject.ProjectsFilterByOwner,
   );
   const selectedProjectStatus = useTypedSelector(
-    state => state.createproject.selectedProjectStatus
+    state => state.createproject.selectedProjectStatus,
   );
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebounceListener(searchValue || '', 300);
@@ -33,7 +33,7 @@ export default function ProjectsHeader() {
       <FlexRow className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-gap-4 md:naxatw-w-[65%]">
         <h5 className="naxatw-font-bold">Projects</h5>
         <FlexRow gap={3} className="">
-          <div className='naxatw-flex naxatw-items-center naxatw-gap-2'>
+          <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
             <Select
               placeholder="Select"
               options={[
@@ -56,6 +56,7 @@ export default function ProjectsHeader() {
             <Select
               placeholder="Filter By Project Status"
               options={[
+                { label: 'All Projects', value: '' },
                 {
                   label: 'Not Started',
                   value: 'not-started',

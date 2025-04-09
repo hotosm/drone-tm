@@ -73,7 +73,7 @@ const ProjectsMapSection = ({
     )
       return;
     const bbox = getBbox(projectsCentroidGeojson as FeatureCollection);
-    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 100, duration: 500 });
+    map?.fitBounds(bbox as LngLatBoundsLike, { padding: 0, duration: 500 });
   }, [projectsCentroidGeojson, map, isMapLoaded]);
 
   const getPopupUI = useCallback(() => {
