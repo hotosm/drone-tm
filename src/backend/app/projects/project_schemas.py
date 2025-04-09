@@ -655,6 +655,7 @@ class ProjectInfo(BaseModel):
     status: Optional[str] = "not-started"
     created_at: datetime
     author_id: str
+    is_terrain_follow: bool = False
 
     @model_validator(mode="after")
     def set_image_url(cls, values):

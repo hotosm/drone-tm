@@ -1,4 +1,6 @@
 import { useGetTaskListQuery } from '@Api/dashboard';
+import NoDataComponent from '@Components/common/DataTable/NoDataFound';
+import NoChartDataComponent from '@Components/common/DataTable/NoDataFound';
 import { FlexColumn } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import { taskStatusObj } from '@Constants/index';
@@ -147,7 +149,7 @@ const RequestLogs = () => {
             </>
           ))
         ) : (
-          <div>No data available</div>
+          <NoDataComponent />
         )}
       </FlexColumn>
     </div>

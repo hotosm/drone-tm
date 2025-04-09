@@ -321,3 +321,12 @@ export const demFileOptions = [
   },
   { name: 'Upload DEM File', label: 'Upload DEM File', value: 'manual' },
 ];
+
+export const uploadOrDrawAreaOptions: Record<string, any>[] = [
+  { name: 'project', value: 'project', label: 'Project' },
+  {
+    name: 'no_fly_zone',
+    value: 'no_fly_zone',
+    label: 'No Fly Zone',
+  },
+];

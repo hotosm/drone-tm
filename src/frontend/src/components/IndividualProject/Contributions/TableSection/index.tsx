@@ -86,7 +86,10 @@ const contributionsDataColumns = [
               tabIndex={0}
               role="button"
               onKeyDown={() => {}}
-              onClick={() => handleViewResult()}
+              onClick={e => {
+                e.stopPropagation();
+                handleViewResult();
+              }}
             >
               <Icon
                 className="!naxatw-text-icon-sm"
@@ -99,7 +102,10 @@ const contributionsDataColumns = [
             tabIndex={0}
             role="button"
             onKeyDown={() => {}}
-            onClick={() => handleDownloadResult()}
+            onClick={e => {
+              e.stopPropagation();
+              handleDownloadResult();
+            }}
           >
             <Icon className="!naxatw-text-icon-sm" name="download" />
           </div>
