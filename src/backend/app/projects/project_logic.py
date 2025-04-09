@@ -13,7 +13,7 @@ from drone_flightplan import (
     calculate_parameters,
     create_placemarks,
     terrain_following_waylines,
-    waypoints,
+    create_waypoint,
 )
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -188,7 +188,7 @@ async def process_task_metrics(db, tasks_data, project):
         gsd = project.gsd_cm_px
         altitude = project.altitude_from_ground
 
-        parameters = calculate_parameters.calculate_parameters(
+        parameters = calculate_parameters(
             forward_overlap, side_overlap, altitude, gsd, 2
         )
         waypoint_params = {
@@ -204,7 +204,7 @@ async def process_task_metrics(db, tasks_data, project):
 
         if project.is_terrain_follow:
             dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
-            points = waypoints.create_waypoint(**waypoint_params)
+            points = create_waypoint(**waypoint_params)
             try:
                 get_file_from_bucket(
                     settings.S3_BUCKET_NAME,
@@ -218,14 +218,12 @@ async def process_task_metrics(db, tasks_data, project):
             except Exception:
                 points_with_elevation = points
 
-            placemarks = create_placemarks.create_placemarks(
+            placemarks = create_placemarks(
                 geojson.loads(points_with_elevation), parameters
             )
         else:
-            points = waypoints.create_waypoint(**waypoint_params)
-            placemarks = create_placemarks.create_placemarks(
-                geojson.loads(points), parameters
-            )
+            points = create_waypoint(**waypoint_params)
+            placemarks = create_placemarks(geojson.loads(points), parameters)
 
         flight_metrics = calculate_flight_time_from_placemarks(placemarks)
         flight_time_minutes = flight_metrics.get("total_flight_time")
@@ -361,7 +359,7 @@ async def create_tasks_from_geojson(
 #                 dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
 
 #                 # Terrain follow uses waypoints mode, waylines are generated later
-#                 points = waypoints.create_waypoint(**waypoint_params)
+#                 points = create_waypoint(**waypoint_params)
 
 #                 try:
 #                     get_file_from_bucket(
@@ -384,7 +382,7 @@ async def create_tasks_from_geojson(
 #                 )
 
 #             else:
-#                 points = waypoints.create_waypoint(**waypoint_params)
+#                 points = create_waypoint(**waypoint_params)
 #                 placemarks = create_placemarks(geojson.loads(points), parameters)
 
 #             flight_time_minutes = calculate_flight_time_from_placemarks(placemarks).get(
@@ -733,7 +731,7 @@ async def process_waypoints_and_waylines(
     # Prepare common parameters for waypoint creation
     forward_overlap = front_overlap if front_overlap else 70
     side_overlap = side_overlap if side_overlap else 70
-    parameters = calculate_parameters.calculate_parameters(
+    parameters = calculate_parameters(
         forward_overlap,
         side_overlap,
         altitude_from_ground,
@@ -765,7 +763,7 @@ async def process_waypoints_and_waylines(
 
             # Process waypoints with terrain-follow elevation
             waypoint_params["mode"] = FlightMode.waypoints
-            points = waypoints.create_waypoint(**waypoint_params)
+            points = create_waypoint(**waypoint_params)
 
             # Add elevation data to waypoints
             outfile_with_elevation = os.path.join(
@@ -781,7 +779,7 @@ async def process_waypoints_and_waylines(
                 )
 
             # Generate waylines from waypoints with elevation
-            wayline_placemarks = create_placemarks.create_placemarks(
+            wayline_placemarks = create_placemarks(
                 geojson.loads(points_with_elevation), parameters
             )
 
@@ -802,11 +800,11 @@ async def process_waypoints_and_waylines(
     else:
         # Generate waypoints and waylines
         waypoint_params["mode"] = FlightMode.waypoints
-        points = waypoints.create_waypoint(**waypoint_params)
+        points = create_waypoint(**waypoint_params)
         count_data["waypoints"] = len(json.loads(points)["features"])
 
         waypoint_params["mode"] = FlightMode.waylines
-        lines = waypoints.create_waypoint(**waypoint_params)
+        lines = create_waypoint(**waypoint_params)
         count_data["waylines"] = len(json.loads(lines)["features"])
 
     return count_data
