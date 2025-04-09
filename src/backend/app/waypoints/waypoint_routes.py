@@ -12,8 +12,8 @@ from drone_flightplan import (
     create_flightplan,
     create_placemarks,
     terrain_following_waylines,
-    waypoints,
-    wpml,
+    create_wpml,
+    create_waypoint,
 )
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -109,7 +109,7 @@ async def get_task_waypoint(
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
 
-    parameters = calculate_parameters.calculate_parameters(
+    parameters = calculate_parameters(
         forward_overlap,
         side_overlap,
         altitude,
@@ -134,7 +134,7 @@ async def get_task_waypoint(
 
         # Terrain follow uses waypoints mode, waylines are generated later
         waypoint_params["mode"] = FlightMode.waypoints
-        points = waypoints.create_waypoint(**waypoint_params)
+        points = create_waypoint(**waypoint_params)
 
         try:
             get_file_from_bucket(
@@ -156,9 +156,7 @@ async def get_task_waypoint(
             log.warning("Continuing, but the flightplan will not follow terrain.")
             points_with_elevation = points
 
-        placemarks = create_placemarks.create_placemarks(
-            geojson.loads(points_with_elevation), parameters
-        )
+        placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
 
         # Create a flight plan with terrain follow in waylines mode
         if mode == FlightMode.waylines:
@@ -166,14 +164,12 @@ async def get_task_waypoint(
 
     else:
         waypoint_params["mode"] = mode
-        points = waypoints.create_waypoint(**waypoint_params)
-        placemarks = create_placemarks.create_placemarks(
-            geojson.loads(points), parameters
-        )
+        points = create_waypoint(**waypoint_params)
+        placemarks = create_placemarks(geojson.loads(points), parameters)
 
     if download:
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
-        kmz_file = wpml.create_wpml(placemarks, outfile)
+        kmz_file = create_wpml(placemarks, outfile)
         return FileResponse(
             kmz_file,
             media_type="application/vnd.google-earth.kmz",
@@ -259,7 +255,7 @@ async def generate_kmz(
         )
 
     if not download:
-        points = waypoints.create_waypoint(
+        points = create_waypoint(
             project_area=boundary,
             agl=altitude,
             gsd=gsd,
@@ -295,7 +291,7 @@ async def generate_kmz_with_placemarks(
     try:
         outfile = f"/tmp/{task_id}_flight_plan.kmz"
 
-        kmz_file = wpml.create_wpml(data.model_dump(), outfile)
+        kmz_file = create_wpml(data.model_dump(), outfile)
         if not os.path.exists(kmz_file):
             raise HTTPException(status_code=500, detail="Failed to generate KMZ file.")
         return FileResponse(
