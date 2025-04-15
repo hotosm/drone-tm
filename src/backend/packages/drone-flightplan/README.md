@@ -28,7 +28,7 @@
 
 📖 **Documentation**: [https://hotosm.github.io/drone-flightplan/](https://hotosm.github.io/drone-flightplan/)
 
-🖥️ **Source Code**: <a href="https://github.com/hotosm/drone-tm/blob/main/src/backend/packages/drone-flightplan" target="_blank">https://github.com/hotosm/drone-tm/blob/main/src/backend/packages/drone-flightplan</a>
+🖥️ **Source Code**: <a href="https://github.com/hotosm/drone-tm/blob/develop/src/backend/packages/drone-flightplan" target="_blank">https://github.com/hotosm/drone-tm/blob/develop/src/backend/packages/drone-flightplan</a>
 
 ---
 

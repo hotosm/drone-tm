@@ -16,9 +16,9 @@ readme = "README.md"
 license = {text = "AGPL-3.0-only"}
 
 [project.urls]
-homepage = "https://github.com/hotosm/drone-flightplan"
+homepage = "https://github.com/hotosm/drone-tm/tree/develop/src/backend/packages/drone-flightplan"
 documentation = "https://hotosm.github.io/drone-flightplan"
-repository = "https://github.com/hotosm/drone-flightplan"
+repository = "https://github.com/hotosm/drone-tm/tree/develop/src/backend/packages/drone-flightplan"
 
 [build-system]
 requires = ["hatchling"]
