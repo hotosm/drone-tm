@@ -11,6 +11,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
+from drone_flightplan.drone_type import DroneType
 
 log = logging.getLogger(__name__)
 
@@ -388,6 +389,7 @@ def create_waypoint(
     no_fly_zones: dict = None,
     take_off_point: list[float] = None,
     mode: str = "waylines",
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ) -> str:
     """Create waypoints or waylines for a given project area based on specified parameters.
 
@@ -429,7 +431,7 @@ def create_waypoint(
     }
 
     """
-    parameters = cp(forward_overlap, side_overlap, agl, gsd)
+    parameters = cp(forward_overlap, side_overlap, agl, gsd, drone_type)
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 

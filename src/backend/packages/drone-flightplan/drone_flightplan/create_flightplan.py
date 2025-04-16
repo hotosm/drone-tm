@@ -10,6 +10,7 @@ from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.waypoints import create_waypoint
 from drone_flightplan.wpml import create_wpml
+from drone_flightplan.drone_type import DroneType
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ def create_flightplan(
     generate_each_points: bool = False,
     rotation_angle: float = 0.0,
     take_off_point: list[float] = None,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ):
     """Arguments:
         aoi: The area of interest in GeoJSON format.
@@ -41,7 +43,12 @@ def create_flightplan(
         Drone Flightplan in kmz format
     """
     parameters = calculate_parameters(
-        forward_overlap, side_overlap, agl, gsd, image_interval
+        forward_overlap,
+        side_overlap,
+        agl,
+        gsd,
+        image_interval,
+        drone_type,
     )
 
     waypoints = create_waypoint(
@@ -53,6 +60,7 @@ def create_flightplan(
         rotation_angle,
         generate_each_points,
         take_off_point=take_off_point,
+        drone_type=drone_type,
     )
 
     # Add elevation data to the waypoints
@@ -109,6 +117,12 @@ def main():
         "--gsd",
         type=float,
         help="The ground sampling distance in cm/px.",
+    )
+    parser.add_argument(
+        "--drone_type",
+        type=lambda dt: DroneType[dt.upper()],
+        default=DroneType.DJI_MINI_4_PRO,
+        help="The type of drone to use, e.g., DJI_MINI_4_PRO.",
     )
 
     parser.add_argument(
@@ -167,6 +181,7 @@ def main():
         args.generate_each_points,
         args.rotation_angle,
         args.take_off_point,
+        args.drone_type,
     )
 
 
