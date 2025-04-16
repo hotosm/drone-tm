@@ -1,5 +1,6 @@
 import argparse
 import logging
+from drone_flightplan.drone_type import DroneType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -12,6 +13,7 @@ def calculate_parameters(
     agl: float,
     gsd: float = None,
     image_interval: int = 2,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ):
     """Parameters
     ---------------------------------
@@ -33,10 +35,11 @@ def calculate_parameters(
     ground speed = forward spacing / image interval = 10
 
     """
-    # Constants ( For DJI Mini 4 Pro)
-    VERTICAL_FOV = 0.71
-    HORIZONTAL_FOV = 1.26
-    GSD_to_AGL_CONST = 29.7
+    # Get the drone specifications from the Enum
+    drone_specs = drone_type.value
+    VERTICAL_FOV = drone_specs["VERTICAL_FOV"]
+    HORIZONTAL_FOV = drone_specs["HORIZONTAL_FOV"]
+    GSD_to_AGL_CONST = drone_specs["GSD_to_AGL_CONST"]
 
     if gsd:
         agl = gsd * GSD_to_AGL_CONST
@@ -74,6 +77,12 @@ def main():
 
     group = parser.add_mutually_exclusive_group(required=True)
 
+    parser.add_argument(
+        "--drone_type",
+        type=lambda dt: DroneType[dt.upper()],
+        default=DroneType.DJI_MINI_4_PRO,
+        help="The type of drone to use, e.g., DJI_MINI_4_PRO.",
+    )
     group.add_argument(
         "--altitude_above_ground_level",
         type=float,
@@ -112,6 +121,7 @@ def main():
         args.altitude_above_ground_level,
         args.gsd,
         args.image_interval,
+        args.drone_type,
     )
 
     for key, value in results.items():

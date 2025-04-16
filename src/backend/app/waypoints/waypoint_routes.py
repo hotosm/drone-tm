@@ -22,7 +22,7 @@ from shapely.geometry import shape
 
 from app.config import settings
 from app.db import database
-from app.models.enums import FlightMode, HTTPStatus
+from app.models.enums import FlightMode, HTTPStatus, DroneType
 from app.projects import project_deps
 from app.s3 import get_file_from_bucket
 from app.tasks.task_logic import (
@@ -30,7 +30,7 @@ from app.tasks.task_logic import (
     get_task_geojson,
     update_take_off_point_in_db,
 )
-from app.utils import merge_multipolygon
+from app.utils import merge_multipolygon, calculate_flight_time_from_placemarks
 from app.waypoints import waypoint_schemas
 from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
@@ -56,6 +56,7 @@ async def get_task_waypoint(
     download: bool = True,
     mode: FlightMode = FlightMode.waylines,
     rotation_angle: float = 0,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     take_off_point: waypoint_schemas.PointField = None,
 ):
     """Retrieve task waypoints and download a flight plan.
@@ -115,6 +116,7 @@ async def get_task_waypoint(
         altitude,
         gsd,
         2,  # Image Interval is set to 2
+        drone_type,
     )
 
     # Common parameters for create_waypoint
@@ -127,6 +129,7 @@ async def get_task_waypoint(
         "rotation_angle": rotation_angle,
         "generate_3d": generate_3d,
         "take_off_point": take_off_point,
+        "drone_type": drone_type,
     }
 
     if project.is_terrain_follow:
@@ -175,7 +178,10 @@ async def get_task_waypoint(
             media_type="application/vnd.google-earth.kmz",
             filename=f"{task_id}_flight_plan.kmz",
         )
-    return {"results": placemarks}
+    flight_data = calculate_flight_time_from_placemarks(placemarks)
+
+    drones = list(DroneType.__members__.keys())
+    return {"results": placemarks, "flight_data": flight_data, "drones": drones}
 
 
 @router.post("/")
@@ -221,6 +227,7 @@ async def generate_kmz(
         description="The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format",
     ),
     take_off_point: waypoint_schemas.PointField = None,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ):
     if not (altitude or gsd):
         raise HTTPException(
@@ -264,6 +271,7 @@ async def generate_kmz(
             generate_each_points=generate_each_points,
             generate_3d=generate_3d,
             take_off_point=take_off_point,
+            drone_type=drone_type,
         )
         return geojson.loads(points)
     else:
@@ -277,6 +285,7 @@ async def generate_kmz(
             dem=dem_path if dem else None,
             outfile=f"/tmp/{uuid.uuid4()}",
             take_off_point=take_off_point,
+            drone_type=drone_type,
         )
 
         return FileResponse(
