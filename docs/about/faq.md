@@ -179,9 +179,14 @@ a priority for now.
 
 ## Info For Drone Operators
 
-### Help! I can't upload my imagery due to patchy internet
+### Help! I'm having trouble managing my collected imagery
 
-- There are a few alternative options for uploading data.
+- Sometimes you may have to deal with factors such as limited hard drive,
+  space, unreliable hardware, and patchy internet.
+- If you are worried about data loss, the best bet is to **backup** the data
+  first, then perhaps have a data/project manager deal with the final
+  upload and processing in DroneTM.
+- There are a few options for uploading data.
 - First of all, your project manager, or a contact at HOTOSM / NAXA should
   create an online accessible data bucket.
 - On the technical side, they will need:
@@ -275,7 +280,5 @@ a priority for now.
 #### Final Steps
 
 - Your manager, or contact at HOTOSM / NAXA will take it from here!
-- Your imagery will be processed and made available in DroneTM.
-- Alternatively, if you return to an area with more stable internet,
-  feel free to use this as a backup method, then download the data
-  again and upload as normal via DroneTM.
+- Your imagery is safely backed up online, so can now be processed
+  and made available in DroneTM.
