@@ -17,7 +17,7 @@ In reverse chronological order, with most recent events first.
 >     </div>
 >     <div class="timeline-entry">
 >         <div class="timeline-date">2025-01</div>
->         <h3>Field Testing in Bali</h3>
+>         <h3>Field Testing in Mexico</h3>
 >         🚁 Further field testing in Mexico, and formation of potential
 >         mapping partnerships.
 >         <div class="timeline-dot"></div>
