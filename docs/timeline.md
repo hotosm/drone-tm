@@ -9,6 +9,20 @@ In reverse chronological order, with most recent events first.
 
 > <div class="timeline-container">
 >     <div class="timeline-entry">
+>         <div class="timeline-date">2025-04</div>
+>         <h3>Freetown, Sierra Leone Project</h3>
+>         🚁 In collaboration with the government in Freetown, we undertook a large
+>         80km2 mapping project, alongside <b>local</b> drone operators.
+>         <div class="timeline-dot"></div>
+>     </div>
+>     <div class="timeline-entry">
+>         <div class="timeline-date">2025-01</div>
+>         <h3>Field Testing in Bali</h3>
+>         🚁 Further field testing in Mexico, and formation of potential
+>         mapping partnerships.
+>         <div class="timeline-dot"></div>
+>     </div>
+>     <div class="timeline-entry">
 >         <div class="timeline-date">2024-07</div>
 >         <h3>Field Testing in Bali</h3>
 >         🚁 Field tests to nail down the flight plan generation, including
