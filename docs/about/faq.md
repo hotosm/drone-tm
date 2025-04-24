@@ -125,6 +125,7 @@ Currently, only processed data is available for download. The final outputs incl
 ### Q. Do I need an OSM account or need to create a new account to contribute to DroneTM?
 
 No, you don’t need an OSM account. You can simply sign up using your Google account.
+We could add other login providers on request / over time too.
 
 ---
 
@@ -175,3 +176,106 @@ it.
 Our goal is to support affordable community mapping drones that ideally cost
 less than 1000 USD, so support for expensive commercial drones will not be
 a priority for now.
+
+## Info For Drone Operators
+
+### Help! I can't upload my imagery due to patchy internet
+
+- There are a few alternative options for uploading data.
+- First of all, your project manager, or a contact at HOTOSM / NAXA should
+  create an online accessible data bucket.
+- On the technical side, they will need:
+
+  - An S3 bucket with private permissions `some-bucket-name`.
+  - An IAM user, with policy (note `s3:ListAllMyBuckets` is required
+    unfortunately):
+
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetBucketLocation",
+            "s3:ListBucket",
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject"
+          ],
+          "Resource": [
+            "arn:aws:s3:::some-bucket-name",
+            "arn:aws:s3:::some-bucket-name/*"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": "s3:ListAllMyBuckets",
+          "Resource": "*"
+        }
+      ]
+    }
+    ```
+
+  - A pair of security credentials for the IAM user.
+    Access / Secret key pair.
+
+#### Simple: Web UI Option
+
+1. Access: [https://demo.filestash.app](https://demo.filestash.app)
+2. Go to the 'S3' tab.
+3. Click 'Advanced'.
+4. Enter credentials:
+
+- Endpoint: https://some-bucket-name.s3.amazonaws.com
+  - Replace `some-bucket-name` with the name provided by your manager.
+- Region: us-east-1
+- Access key: provided by manager
+- Secret key: provided by manager
+
+5. Click connect.
+6. Copy files across to this page and they will be safely stored.
+
+#### Advanced: RClone
+
+- Install RClone on your machine:
+
+  ```bash
+  sudo -v ; curl https://rclone.org/install.sh | sudo bash
+  mkdir -p ~/.config/rclone
+  ```
+
+- Add the details provided by your manager, either via the rclone
+  config command, or using:
+
+  ```bash
+  BUCKET_NAME=some-bucket-name
+  ACCESS_KEY=xxx
+  SECRET_KEY=xxx
+  cat <<EOF > ~/.config/rclone/rclone.conf
+  [s3-bucket]
+  type = s3
+  provider = AWS
+  access_key_id = ${ACCESS_KEY}
+  secret_access_key = ${SECRET_KEY}
+  endpoint = https://${BUCKET_NAME}.s3.amazonaws.com
+  region = us-east-1
+  acl = private
+  EOF
+  ```
+
+- Copy files from your system into the bucket:
+
+  ```bash
+  rclone sync \
+     /path/to/imagery_directory \
+     s3-bucket:imagery_directory_plus_timestamp
+  ```
+
+#### Final Steps
+
+- Your manager, or contact at HOTOSM / NAXA will take it from here!
+- Your imagery will be processed and made available in DroneTM.
+- Alternatively, if you return to an area with more stable internet,
+  feel free to use this as a backup method, then download the data
+  again and upload as normal via DroneTM.
