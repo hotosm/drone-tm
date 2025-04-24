@@ -232,11 +232,11 @@ a priority for now.
 3. Click 'Advanced'.
 4. Enter credentials:
 
-- Endpoint: https://some-bucket-name.s3.amazonaws.com
-  - Replace `some-bucket-name` with the name provided by your manager.
-- Region: us-east-1
-- Access key: provided by manager
-- Secret key: provided by manager
+   - Endpoint: https://some-bucket-name.s3.amazonaws.com
+     - Replace `some-bucket-name` with the name provided by your manager.
+   - Region: us-east-1
+   - Access key: provided by manager
+   - Secret key: provided by manager
 
 5. Click connect.
 6. Copy files across to this page and they will be safely stored.
