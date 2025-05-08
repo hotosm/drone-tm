@@ -243,6 +243,8 @@ a priority for now.
 
 #### Advanced: RClone
 
+This is more stable and the preferred approach if you can do this.
+
 - Install RClone on your machine:
 
   ```bash
@@ -276,6 +278,16 @@ a priority for now.
      /path/to/imagery_directory \
      s3-bucket:imagery_directory_plus_timestamp
   ```
+
+#### Other Options
+
+There are a few tools to mount an S3 bucket as a Windows drive:
+
+- [s3drive](https://www.callback.com/s3drive) offers free personal usage.
+- [cloudmounter](https://cloudmounter.net) is paid software.
+
+There is also [CyberDuck](https://cyberduck.io), a nice GUI tool also with
+a drag-and-drop interface for copying files to S3.
 
 #### Final Steps
 
