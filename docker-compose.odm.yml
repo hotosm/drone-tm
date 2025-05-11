@@ -9,7 +9,7 @@ volumes:
 services:
   # This container does the actual imagery processing (not persistent, scalable)
   odm-api:
-    image: docker.io/opendronemap/nodeodm:3.5.3
+    image: docker.io/opendronemap/nodeodm:3.5.5
     # This is hardcoded by default
     hostname: webodm-node-odm-1
     container_name: odm-api
@@ -20,7 +20,7 @@ services:
 
   # UI to coordinate queueing of tasks and display of output
   odm-web:
-    image: docker.io/opendronemap/webodm_webapp:2.5.5
+    image: docker.io/opendronemap/webodm_webapp:2.8.0
     container_name: odm-web
     entrypoint: /bin/bash -c "chmod +x /webodm/*.sh && /bin/bash -c \"/webodm/wait-for-postgres.sh odm-db /webodm/wait-for-it.sh -t 0 odm-broker:6379 -- /webodm/start.sh\""
     volumes:
@@ -39,7 +39,7 @@ services:
 
   # Instance of WebODM that uses Celery to manage processing jobs
   odm-worker:
-    image: docker.io/opendronemap/webodm_webapp:2.5.5
+    image: docker.io/opendronemap/webodm_webapp:2.8.0
     container_name: odm-worker
     entrypoint: /bin/bash -c "/webodm/wait-for-postgres.sh odm-db /webodm/wait-for-it.sh -t 0 odm-broker:6379 -- /webodm/wait-for-it.sh -t 0 odm-web:8000 -- /webodm/worker.sh start"
     volumes:
@@ -58,7 +58,7 @@ services:
 
   # Redis broker to manage job queue
   odm-broker:
-    image: docker.io/redis:7.4.1
+    image: docker.io/redis:8.0.0
     container_name: odm-broker
     networks:
       - dtm-network
