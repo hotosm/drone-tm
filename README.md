@@ -81,29 +81,29 @@ To get started with Drone TM:
 ## Roadmap
 
 <!-- prettier-ignore-start -->
-| Status | Feature |
-|:--:| :-- |
-|✅| 🖥️ simple UI with user sign up and login |
-|✅| 🖥️ project area subdivision into smaller task areas for operators |
-|✅| 📱 flight plan generation in task areas for DJI drones |
-|✅| 🖥️ upload of drone imagery collected during flight |
-|✅| 📱 follow terrain during flight plan generation in hilly/mountainous regions |
-|✅| 🖥️ merging of drone imagery into a final combined image for the project |
-|✅| 📱 flight plans working on DJI Mini 4 Pro, Air 3, and Mavic 3 |
-|✅| 📱 upload flight plan to drone via mobile app (no laptop required) |
-|✅| 🖥️ precise georeferencing of final imagery using Ground Control Points |
-|✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) |
-|✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) |
-|✅| 📱 allow adjustments to the flight plan orientation based on field conditions |
-|⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM |
-| | 📱 capture of imagery at multiple (configurable) angles from the drone camera |
-|⚙️| 📱 continue to add support for additional drone models |
-| | 🖥️ user access management for each part of the UI |
-| | 📱 & 🖥️ real-time notifications for drone flight progress & task status |
-| | 📱 improved offline capabilities of Drone-TM, reducing reliance on stable internet in the field |
-|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel |
-| | 🖥️ better usage of 3D model data collected by drones |
-| | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally |
+| Status | Feature | Release |
+|:------:|:-------:|:--------|
+|✅| 🖥️ simple UI with user sign up and login | Since [v2024.11.0][1] |
+|✅| 🖥️ project area subdivision into smaller task areas for operators | Since [v2024.11.0][1] |
+|✅| 📱 flight plan generation in task areas for DJI drones | Since [v2024.11.0][1] |
+|✅| 🖥️ upload of drone imagery collected during flight | Since [v2024.11.0][1] |
+|✅| 📱 follow terrain during flight plan generation in hilly/mountainous regions | Since [v2025.3.1][3] |
+|✅| 🖥️ merging of drone imagery into a final combined image for the project | Since [v2024.11.0][1] |
+|✅| 📱 flight plans working on DJI Mini 4 Pro, Air 3, and Mavic 3 | Since [v2024.11.0][1] |
+|✅| 📱 upload flight plan to drone via mobile app (no laptop required) | Since [v2025.3.1][3] |
+|✅| 🖥️ precise georeferencing of final imagery using Ground Control Points | Since [v2024.11.0][1] |
+|✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) | Since [v2024.11.0][1] |
+|✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) | Since [v2025.3.1][3] |
+|✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
+|⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
+| | 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
+|⚙️| 📱 continue to add support for additional drone models | |
+| | 🖥️ user access management for each part of the UI | |
+| | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
+| | 📱 improved offline capabilities of Drone-TM, reducing reliance on stable internet in the field | |
+|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
+| | 🖥️ better usage of 3D model data collected by drones | |
+| | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally | |
 <!-- prettier-ignore-end -->
 
 > [!Note]
@@ -120,3 +120,7 @@ Drone TM is an open-source project, and we welcome contributions from the commun
 - **Contribute Code**: Submit pull requests for new features or bug fixes.
 
 Join us in transforming aerial mapping through community-powered drones and create a resilient future for all.
+
+[1]: https://github.com/hotosm/drone-tm/releases/tag/v2024.11.0
+[2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
+[3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
