@@ -1,14 +1,19 @@
 """SQLite waypoint files used in Potensic Atom 1 & 2."""
 
 import os
+import logging
 import sqlite3
 from datetime import datetime, timezone
+
+log = logging.getLogger(__name__)
 
 
 def create_tables(conn):
     cursor = conn.cursor()
 
     # Core system tables
+    # NOTE these tables are present, but we aren't sure if they are used for anything,
+    # so they are added just in case
     cursor.execute("CREATE TABLE IF NOT EXISTS android_metadata (locale TEXT)")
     cursor.execute(
         "CREATE TABLE IF NOT EXISTS table_schema (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, type INTEGER)"
@@ -44,6 +49,10 @@ def create_tables(conn):
     )
 
     # Tables for waypoints
+    # NOTE these two tables are key
+    # - flightrecordbean has one entry per waypoint flight, however associated
+    #   metadata appears to be purely information (not doing anything)
+    # - multipointbean contains the coordinates of waypoints to fly to
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS flightrecordbean (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -185,7 +185,7 @@ async def get_task_waypoint(
 
 
 @router.post("/")
-async def generate_kmz(
+async def generate_wmpl_kmz(
     project_geojson: UploadFile = File(
         ...,
         description="The GeoJSON file representing the project area. This file will be used to define the boundaries and paths for the flight plan.",
