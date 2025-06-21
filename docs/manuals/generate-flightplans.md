@@ -6,6 +6,7 @@
 
    ```python
    python calculate_parameters.py \
+       --drone_type DJI_MINI_4_PRO \
        --forward_overlap 70 \
        --side_overlap 70 \
        --altitude_above_ground_level 115 \

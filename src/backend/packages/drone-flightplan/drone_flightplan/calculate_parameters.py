@@ -1,6 +1,7 @@
 import argparse
 import logging
-from drone_flightplan.drone_type import DroneType
+
+from drone_flightplan.drone_type import DroneType, DRONE_PARAMS, drone_type_arg
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -36,13 +37,13 @@ def calculate_parameters(
 
     """
     # Get the drone specifications from the Enum
-    drone_specs = drone_type.value
+    drone_specs = DRONE_PARAMS[drone_type]
     VERTICAL_FOV = drone_specs["VERTICAL_FOV"]
     HORIZONTAL_FOV = drone_specs["HORIZONTAL_FOV"]
-    GSD_to_AGL_CONST = drone_specs["GSD_to_AGL_CONST"]
+    GSD_TO_AGL_CONST = drone_specs["GSD_TO_AGL_CONST"]
 
     if gsd:
-        agl = gsd * GSD_to_AGL_CONST
+        agl = gsd * GSD_TO_AGL_CONST
 
     # Calculations
     forward_photo_height = agl * VERTICAL_FOV
@@ -72,17 +73,19 @@ def calculate_parameters(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate parameters for a drone which can be used for flight plans."
+        description="Generate parameters for a drone which can be used for flight plans.",
+        formatter_class=argparse.RawTextHelpFormatter,
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
 
     parser.add_argument(
         "--drone_type",
-        type=lambda dt: DroneType[dt.upper()],
+        type=drone_type_arg,
         default=DroneType.DJI_MINI_4_PRO,
-        help="The type of drone to use, e.g., DJI_MINI_4_PRO.",
+        help=f"The type of drone to use. Options:\n{'\n'.join(f'- {name}' for name in DroneType.__members__)}",
     )
+
     group.add_argument(
         "--altitude_above_ground_level",
         type=float,
@@ -91,9 +94,8 @@ def main():
     group.add_argument(
         "--gsd",
         type=float,
-        help="The flight altitude in meters.",
+        help="The ground sampling distance in cm/px.",
     )
-
     parser.add_argument(
         "--forward_overlap",
         type=float,

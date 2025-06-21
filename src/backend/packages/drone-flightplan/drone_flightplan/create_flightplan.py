@@ -9,7 +9,7 @@ from drone_flightplan.add_elevation_from_dem import add_elevation_from_dem
 from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.waypoints import create_waypoint
-from drone_flightplan.drone_type import DroneType
+from drone_flightplan.drone_type import DroneType, drone_type_arg
 from drone_flightplan.output.dji import create_wpml
 
 # Instantiate logger
@@ -97,8 +97,10 @@ def validate_coordinates(value):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate waypoints for drone missions."
+        description="Generate waypoints for drone missions.",
+        formatter_class=argparse.RawTextHelpFormatter,
     )
+
     parser.add_argument(
         "--project_geojson",
         required=True,
@@ -120,9 +122,9 @@ def main():
     )
     parser.add_argument(
         "--drone_type",
-        type=lambda dt: DroneType[dt.upper()],
+        type=drone_type_arg,
         default=DroneType.DJI_MINI_4_PRO,
-        help="The type of drone to use, e.g., DJI_MINI_4_PRO.",
+        help=f"The type of drone to use. Options:\n{'\n'.join(f'- {name}' for name in DroneType.__members__)}",
     )
 
     parser.add_argument(

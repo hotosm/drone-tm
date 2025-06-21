@@ -15,14 +15,14 @@ class IntEnum(int, Enum):
     pass
 
 
-class FinalOutput(str, Enum):
+class FinalOutput(StrEnum):
     ORTHOPHOTO_2D = "ORTHOPHOTO_2D"
     ORTHOPHOTO_3D = "ORTHOPHOTO_3D"
     DIGITAL_TERRAIN_MODEL = "DIGITAL_TERRAIN_MODEL"
     DIGITAL_SURFACE_MODEL = "DIGITAL_SURFACE_MODEL"
 
 
-class TaskStatus(IntEnum, Enum):
+class TaskStatus(IntEnum):
     """Enum describing available Task Statuses."""
 
     READY = 0
@@ -35,7 +35,7 @@ class TaskStatus(IntEnum, Enum):
     SPLIT = 7  # Task has been split
 
 
-class TaskAction(IntEnum, Enum):
+class TaskAction(IntEnum):
     """All possible task actions, recorded in task history."""
 
     RELEASED_FOR_MAPPING = 0
@@ -50,7 +50,7 @@ class TaskAction(IntEnum, Enum):
     COMMENT = 9
 
 
-class TaskSplitType(IntEnum, Enum):
+class TaskSplitType(IntEnum):
     """Enum describing task splitting type."""
 
     DIVIDE_ON_SQUARE = 0
@@ -58,7 +58,7 @@ class TaskSplitType(IntEnum, Enum):
     TASK_SPLITTING_ALGORITHM = 2
 
 
-class ProjectStatus(IntEnum, Enum):
+class ProjectStatus(IntEnum):
     """Enum to describes all possible states of a Mapping Project."""
 
     ARCHIVED = 0
@@ -66,7 +66,7 @@ class ProjectStatus(IntEnum, Enum):
     DRAFT = 2
 
 
-class RegulatorApprovalStatus(IntEnum, Enum):
+class RegulatorApprovalStatus(IntEnum):
     """Enum to describe all possible state of a Project from Regulator"""
 
     PENDING = 0
@@ -74,7 +74,7 @@ class RegulatorApprovalStatus(IntEnum, Enum):
     REJECTED = 2
 
 
-class ImageProcessingStatus(IntEnum, Enum):
+class ImageProcessingStatus(IntEnum):
     """Enum to describe all possible statys of a Image Processing for a Project"""
 
     NOT_STARTED = 0
@@ -83,7 +83,7 @@ class ImageProcessingStatus(IntEnum, Enum):
     FAILED = 3
 
 
-class ProjectVisibility(IntEnum, Enum):
+class ProjectVisibility(IntEnum):
     """Enum describing task splitting type."""
 
     PUBLIC = 0
@@ -91,7 +91,7 @@ class ProjectVisibility(IntEnum, Enum):
     INVITE_ONLY = 2
 
 
-class MappingLevel(IntEnum, Enum):
+class MappingLevel(IntEnum):
     """The mapping level the mapper has achieved."""
 
     BEGINNER = 1
@@ -99,7 +99,7 @@ class MappingLevel(IntEnum, Enum):
     ADVANCED = 3
 
 
-class ProjectPriority(IntEnum, Enum):
+class ProjectPriority(IntEnum):
     """Enum to describe all possible project priority levels."""
 
     URGENT = 0
@@ -130,18 +130,13 @@ class HTTPStatus(IntEnum):
     NOT_IMPLEMENTED = 501
 
 
-class DroneType(StrEnum):
-    DJI_MINI_4_PRO = "DJI_MINI_4_PRO"
-    DJI_AIR_3 = "DJI_AIR_3"
-
-
-class UserRole(int, Enum):
+class UserRole(IntEnum):
     PROJECT_CREATOR = 1
     DRONE_PILOT = 2
     REGULATOR = 3
 
 
-class State(int, Enum):
+class State(IntEnum):
     """The state of a task.
 
     The state can be:
@@ -170,7 +165,7 @@ class State(int, Enum):
     IMAGE_PROCESSING_FINISHED = 9
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """Events that can be used via the API to update a state
 
     Specify the event type for ``POST`` to:
@@ -209,7 +204,7 @@ class EventType(str, Enum):
     IMAGE_PROCESSING_START = "image_processing_start"
 
 
-class FlightMode(str, Enum):
+class FlightMode(StrEnum):
     """The flight mode of the drone.
     The flight mode can be:
     - ``waylines``
@@ -220,7 +215,7 @@ class FlightMode(str, Enum):
     waypoints = "waypoints"
 
 
-class ProjectCompletionStatus(str, Enum):
+class ProjectCompletionStatus(StrEnum):
     """Enum to describe all possible project completion status."""
 
     NOT_STARTED = "not-started"
@@ -228,7 +223,7 @@ class ProjectCompletionStatus(str, Enum):
     COMPLETED = "completed"
 
 
-class OAMUploadStatus(str, Enum):
+class OAMUploadStatus(StrEnum):
     """Enum to describe all possible OAM upload status."""
 
     NOT_STARTED = "not-started"
