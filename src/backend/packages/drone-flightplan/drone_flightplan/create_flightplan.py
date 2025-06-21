@@ -9,8 +9,9 @@ from drone_flightplan.add_elevation_from_dem import add_elevation_from_dem
 from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.waypoints import create_waypoint
-from drone_flightplan.drone_type import DroneType, drone_type_arg
+from drone_flightplan.drone_type import DroneType, DRONE_PARAMS, drone_type_arg
 from drone_flightplan.output.dji import create_wpml
+from drone_flightplan.output.potensic import generate_potensic_sqlite
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -75,8 +76,16 @@ def create_flightplan(
     # calculate the placemark data
     placemarks = create_placemarks(geojson.loads(waypoints), parameters)
 
-    # create wpml file
-    outpath = create_wpml(placemarks, outfile)
+    # create flightplan files
+    output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
+    if output_format == "DJI_WMPL":
+        outpath = create_wpml(placemarks, outfile)
+    elif output_format == "POTENSIC_SQLITE":
+        outpath = generate_potensic_sqlite(placemarks, outfile)
+    else:
+        log.error(f"Unsupported output format: {output_format}")
+        return
+
     log.info(f"Flight plan generated in the path {outpath}")
     return outpath
 

@@ -431,11 +431,18 @@ def create_waypoint(
     }
 
     """
-    parameters = cp(forward_overlap, side_overlap, agl, gsd, drone_type)
+    parameters = cp(forward_overlap, side_overlap, agl, gsd, drone_type=drone_type)
+
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 
-    polygon = shape(project_area["features"][0]["geometry"])
+    # Handle FeatureCollection, Feature, Polygon
+    if "features" in project_area:
+        polygon = shape(project_area["features"][0]["geometry"])
+    elif "geometry" in project_area:
+        polygon = shape(project_area["geometry"])
+    else:
+        polygon = shape(project_area)
 
     wgs84 = pyproj.CRS("EPSG:4326")
     web_mercator = pyproj.CRS("EPSG:3857")

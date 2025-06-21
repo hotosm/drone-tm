@@ -60,6 +60,7 @@ DRONE_PARAMS = {
         # (24 * 8064) / 9.6 = 20160
         # So for GSD of 0.01m/px: AGL = 0.01 * 20160 = 20.16m
         "GSD_TO_AGL_CONST": 20.16,
+        "OUTPUT_FORMAT": "DJI_WMPL",
     },
     # NOTE Mini 4 Pro, Mini 3 Pro, and Air 3 all have same CMOS size
     # and focal length, so have the same stats here
@@ -67,6 +68,7 @@ DRONE_PARAMS = {
         "VERTICAL_FOV": 0.2977799,
         "HORIZONTAL_FOV": 0.39479112,
         "GSD_TO_AGL_CONST": 20.16,
+        "OUTPUT_FORMAT": "DJI_WMPL",
     },
     # CMOS sensor 1/2" = 8.0mm width x 6.4mm height
     # Focal length = 26mm
@@ -81,6 +83,7 @@ DRONE_PARAMS = {
         # (26 * 8000) / 8 = 26000
         # So for GSD of 0.01m/px: AGL = 0.01 * 26000 = 26.0m
         "GSD_TO_AGL_CONST": 26.0,
+        "OUTPUT_FORMAT": "POTENSIC_SQLITE",
     },
 }
 

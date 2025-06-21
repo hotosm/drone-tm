@@ -5,6 +5,8 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 
+import geojson
+
 log = logging.getLogger(__name__)
 
 
@@ -74,19 +76,28 @@ def create_tables(conn):
     """)
 
 
-def generate_flight_db(
-    db_path, waypoints: list[tuple[float, float]], altitude: int = 110, speed: int = 4
+def generate_potensic_sqlite(
+    featcol: geojson.FeatureCollection, db_path: str = "map.db"
 ):
     """
     Generate SQLite DB in `db_path` with one flight record and many multipointbean entries.
 
     Args:
-        db_path (str): Path to the SQLite file to create.
         waypoints (list): List of (lat, lon) tuples.
-        altitude (float): Flight altitude in meters.
-        speed (float): Flight speed in m/s.
+        db_path (str): Path to the SQLite file to create.
     """
+    # Handle altitude & speed params (information only), else defaults
+    first_geom = featcol.get("features", {})[0]
+    altitude = first_geom.get("properties").get("altitude", 110)
+    speed = first_geom.get("properties").get("speed", 4)
+
+    waypoints: list[tuple[float, float]] = [
+        feat.get("geometry").get("coordinates")[0:2]
+        for feat in featcol.get("features", {})
+    ]
+
     if os.path.exists(db_path):
+        log.info(f"Deleting existing db at {db_path}")
         os.remove(db_path)
 
     conn = sqlite3.connect(db_path)
@@ -94,6 +105,7 @@ def generate_flight_db(
     cursor = conn.cursor()
 
     # Calculate metadata (placeholders for now)
+    log.debug("Creating Potensic SQLite metadata")
     flight_id = 1
     duration = len(waypoints) * 5 * 1000  # 5000ms per point
     mileage = len(waypoints) * 10  # 10m per point
@@ -125,6 +137,7 @@ def generate_flight_db(
     )
 
     # Insert waypoints
+    log.debug("Inserting Potensic SQLite waypoint data")
     for i, (lat, lon) in enumerate(waypoints, start=1):
         cursor.execute(
             """
@@ -136,7 +149,8 @@ def generate_flight_db(
 
     conn.commit()
     conn.close()
-    print(f"Database created at {db_path} with {len(waypoints)} waypoints.")
+    log.info(f"Database created at {db_path} with {len(waypoints)} waypoints.")
+    return db_path
 
 
 if __name__ == "__main__":
@@ -148,5 +162,4 @@ if __name__ == "__main__":
         (51.56557913214192, -0.13503835387621166),
         (51.56560158864778, -0.1350708671484142),
     ]
-    # overriding to altitude 50, as I'm taking off from a tall building...
-    generate_flight_db("map.db", sample_coords, altitude=45, speed=4)
+    generate_potensic_sqlite(sample_coords, "map.db")
