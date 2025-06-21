@@ -47,7 +47,7 @@
 5. Create WMPL Flightplan:
 
    ```python
-   python wpml.py \
+   python output/dji.py \
        --placemark placemarks.geojson \
        --outfile flightplan.wpml
    ```
