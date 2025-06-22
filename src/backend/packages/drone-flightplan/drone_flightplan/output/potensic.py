@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 #   All other tables are irrelevant (including generated flightnotes record).
 # - The info in flighrecordbean is purely information.
 #   It doesn't affect anything in the flight or restrict anything.
-# - The point limit per mission is advertised as 30, but it's actually 50 points
+# - The point limit per mission is advertised as 30, but it's actually about 45 points
 #   per flight in PotensicPro. Perhaps this could be modded in the app, but we
 #   have to work with it for now (smaller flightplans, or simplified).
 # - Coordinate rounding level in multipointbean doesn't seem to affect anything.
@@ -132,7 +132,7 @@ def generate_potensic_sqlite(
     altitude = round(first_geom.get("properties").get("altitude", 110))
     speed = round(first_geom.get("properties").get("speed", 4))
 
-    # NOTE PotensicPro only supports 50 waypoints per flightplan,
+    # NOTE PotensicPro only supports ~45 waypoints per flightplan,
     # so get get them all here, then split up further down
     all_waypoints: list[tuple[float, float]] = [
         feat.get("geometry").get("coordinates")[0:2] for feat in all_features
@@ -151,8 +151,8 @@ def generate_potensic_sqlite(
 
     flight_id = 1
     waypoint_id = 1
-    # Iterate each chunk of 50 waypoints as a new flight
-    for chunk in chunked(all_waypoints, 50):
+    # Iterate each chunk of 45 waypoints as a new flight
+    for chunk in chunked(all_waypoints, 45):
         duration = len(chunk) * 5 * 1000  # 5000ms per point
         mileage = len(chunk) * 10  # 10m per point
 
