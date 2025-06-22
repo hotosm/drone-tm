@@ -119,10 +119,12 @@ def generate_potensic_sqlite(
     altitude = round(first_geom.get("properties").get("altitude", 110))
     speed = round(first_geom.get("properties").get("speed", 4))
 
+    # NOTE PotensicPro only supports 50 waypoints per flightplan,
+    # with additional points simply being truncated / removed
     waypoints: list[tuple[float, float]] = [
         feat.get("geometry").get("coordinates")[0:2]
         for feat in featcol.get("features", {})
-    ][0:47]  # FIXME only 50 points accepted, testing
+    ]  # FIXME we need to set a hard limit here somehow
 
     if os.path.exists(db_path):
         log.info(f"Deleting existing db at {db_path}")
