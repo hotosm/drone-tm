@@ -138,7 +138,8 @@ def generate_potensic_sqlite(
 
     # Insert waypoints
     log.debug("Inserting Potensic SQLite waypoint data")
-    for i, (lat, lon) in enumerate(waypoints, start=1):
+    # NOTE the input waypoints are geojson lon,lat format
+    for i, (lon, lat) in enumerate(waypoints, start=1):
         cursor.execute(
             """
             INSERT INTO multipointbean(id, flightrecordbean_id, lat, lng)
@@ -155,11 +156,11 @@ def generate_potensic_sqlite(
 
 if __name__ == "__main__":
     sample_coords = [
-        (51.565597097346455, -0.13512505592254342),
-        (51.565631231208755, -0.1351416738206126),
-        (51.565631231208755, -0.13507375720794812),
-        (51.56561281688707, -0.13501523329526322),
-        (51.56557913214192, -0.13503835387621166),
-        (51.56560158864778, -0.1350708671484142),
+        (-0.13512505592254342, 51.565597097346455),
+        (-0.1351416738206126, 51.565631231208755),
+        (-0.13507375720794812, 51.565631231208755),
+        (-0.13501523329526322, 51.56561281688707),
+        (-0.13503835387621166, 51.56557913214192),
+        (-0.1350708671484142, 51.56560158864778),
     ]
     generate_potensic_sqlite(sample_coords, "map.db")
