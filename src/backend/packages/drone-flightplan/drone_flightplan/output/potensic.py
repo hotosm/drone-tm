@@ -3,7 +3,9 @@
 import os
 import logging
 import sqlite3
+from typing import Iterable
 from datetime import datetime, timezone
+from itertools import islice
 
 import geojson
 
@@ -104,6 +106,13 @@ def create_tables(conn):
     cursor.execute("PRAGMA schema_version = 22;")
 
 
+def chunked(iterable: Iterable, size: int):
+    """Yield successive `size`-sized chunks from iterable."""
+    it = iter(iterable)
+    while chunk := list(islice(it, size)):
+        yield chunk
+
+
 def generate_potensic_sqlite(
     featcol: geojson.FeatureCollection, db_path: str = "map.db"
 ):
@@ -114,17 +123,20 @@ def generate_potensic_sqlite(
         waypoints (list): List of (lat, lon) tuples.
         db_path (str): Path to the SQLite file to create.
     """
+    all_features = featcol.get("features", [])
+    if not all_features:
+        raise ValueError("No features found in feature collection")
+
     # Handle altitude & speed params (information only), else defaults
-    first_geom = featcol.get("features", {})[0]
+    first_geom = all_features[0]
     altitude = round(first_geom.get("properties").get("altitude", 110))
     speed = round(first_geom.get("properties").get("speed", 4))
 
     # NOTE PotensicPro only supports 50 waypoints per flightplan,
-    # with additional points simply being truncated / removed
-    waypoints: list[tuple[float, float]] = [
-        feat.get("geometry").get("coordinates")[0:2]
-        for feat in featcol.get("features", {})
-    ]  # FIXME we need to set a hard limit here somehow
+    # so get get them all here, then split up further down
+    all_waypoints: list[tuple[float, float]] = [
+        feat.get("geometry").get("coordinates")[0:2] for feat in all_features
+    ]
 
     if os.path.exists(db_path):
         log.info(f"Deleting existing db at {db_path}")
@@ -134,53 +146,62 @@ def generate_potensic_sqlite(
     create_tables(conn)
     cursor = conn.cursor()
 
-    # Calculate metadata (placeholders for now)
     log.debug("Creating Potensic SQLite metadata")
-    flight_id = 1
-    duration = len(waypoints) * 5 * 1000  # 5000ms per point
-    mileage = len(waypoints) * 10  # 10m per point
     date_str = datetime.now(tz=timezone.utc).strftime("%-d,%-m,%Y")
 
-    # Insert into flightrecordbean
-    cursor.execute(
-        """
-        INSERT INTO flightrecordbean(
-          id,
-          date,
-          duration,
-          height,
-          mileage,
-          num,
-          speed
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """,
-        (
-            flight_id,
-            date_str,
-            duration,
-            f"{altitude}m",
-            f"{mileage}m",
-            len(waypoints),
-            f"{speed}km/h",
-        ),
-    )
+    flight_id = 1
+    waypoint_id = 1
+    # Iterate each chunk of 50 waypoints as a new flight
+    for chunk in chunked(all_waypoints, 50):
+        duration = len(chunk) * 5 * 1000  # 5000ms per point
+        mileage = len(chunk) * 10  # 10m per point
 
-    # Insert waypoints
-    log.debug("Inserting Potensic SQLite waypoint data")
-    # NOTE the input waypoints are geojson lon,lat format
-    for i, (lon, lat) in enumerate(waypoints, start=1):
+        # Insert new flight record into flightrecordbean
         cursor.execute(
             """
-            INSERT INTO multipointbean(id, flightrecordbean_id, lat, lng)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO flightrecordbean(
+              id,
+              date,
+              duration,
+              height,
+              mileage,
+              num,
+              speed
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-            (i, flight_id, lat, lon),
+            (
+                flight_id,
+                date_str,
+                duration,
+                f"{altitude}m",
+                f"{mileage}m",
+                len(chunk),
+                f"{speed}km/h",
+            ),
         )
+
+        # Insert waypoints in multipointbean
+        # NOTE the waypoints are geojson lon,lat format
+        log.debug("Inserting Potensic SQLite waypoint data")
+        for lon, lat in chunk:
+            cursor.execute(
+                """
+                INSERT INTO multipointbean(id, flightrecordbean_id, lat, lng)
+                VALUES (?, ?, ?, ?)
+            """,
+                (waypoint_id, flight_id, lat, lon),
+            )
+            waypoint_id += 1
+
+        flight_id += 1
 
     conn.commit()
     conn.close()
-    log.info(f"Database created at {db_path} with {len(waypoints)} waypoints.")
+    log.info(
+        f"Database created at ({db_path}) with ({waypoint_id - 1}) "
+        f"waypoints across ({flight_id - 1}) flights."
+    )
     return db_path
 
 
