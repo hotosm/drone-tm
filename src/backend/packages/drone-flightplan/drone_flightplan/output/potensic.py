@@ -88,8 +88,8 @@ def generate_potensic_sqlite(
     """
     # Handle altitude & speed params (information only), else defaults
     first_geom = featcol.get("features", {})[0]
-    altitude = first_geom.get("properties").get("altitude", 110)
-    speed = first_geom.get("properties").get("speed", 4)
+    altitude = round(first_geom.get("properties").get("altitude", 110))
+    speed = round(first_geom.get("properties").get("speed", 4))
 
     waypoints: list[tuple[float, float]] = [
         feat.get("geometry").get("coordinates")[0:2]
