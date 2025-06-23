@@ -95,7 +95,7 @@ repos:
   # Lint / autoformat: Python code
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.11.13"
+    rev: "v0.12.0"
     hooks:
       # Run the linter
       - id: ruff
@@ -107,7 +107,7 @@ repos:
 
   # Autoformat: YAML, JSON, Markdown, etc.
   - repo: https://github.com/pycontribs/mirrors-prettier
-    rev: v3.5.3
+    rev: v3.6.0
     hooks:
       - id: prettier
         args:
