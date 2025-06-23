@@ -190,7 +190,6 @@ a priority for now.
 - First of all, your project manager, or a contact at HOTOSM / NAXA should
   create an online accessible data bucket.
 - On the technical side, they will need:
-
   - An S3 bucket with private permissions `some-bucket-name`.
   - An IAM user, with policy (note `s3:ListAllMyBuckets` is required
     unfortunately):
@@ -231,7 +230,6 @@ a priority for now.
 2. Go to the 'S3' tab.
 3. Click 'Advanced'.
 4. Enter credentials:
-
    - Endpoint: https://some-bucket-name.s3.amazonaws.com
      - Replace `some-bucket-name` with the name provided by your manager.
    - Region: us-east-1
