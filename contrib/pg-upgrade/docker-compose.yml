@@ -52,7 +52,7 @@ services:
 
   # Do the db upgrade
   db-upgrade:
-    image: ghcr.io/hotosm/drone-tm/pg-upgrade:16-3.4-alpine
+    image: ghcr.io/hotosm/pg-upgrade:16-3.4-alpine
     build: .
     depends_on:
       db-to-volume:
