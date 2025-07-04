@@ -1,5 +1,5 @@
 import argparse
-from enums import Enum
+from enum import Enum
 
 
 class StrEnum(str, Enum):

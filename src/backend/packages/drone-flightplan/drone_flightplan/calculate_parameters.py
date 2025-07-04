@@ -83,7 +83,10 @@ def main():
         "--drone_type",
         type=drone_type_arg,
         default=DroneType.DJI_MINI_4_PRO,
-        help=f"The type of drone to use. Options:\n{'\n'.join(f'- {name}' for name in DroneType.__members__)}",
+        help=(
+            "The type of drone to use. Options:\n"
+            + "\n".join(f"- {name}" for name in DroneType.__members__)
+        ),
     )
 
     group.add_argument(
