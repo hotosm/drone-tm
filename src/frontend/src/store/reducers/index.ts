@@ -5,7 +5,6 @@ import common from '../slices/common';
 import loader from '../slices/loader';
 import project from '../slices/project';
 
-
 const rootReducer = combineReducers({
   common,
   loader,

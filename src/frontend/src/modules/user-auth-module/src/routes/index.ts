@@ -5,7 +5,9 @@ interface IRoute {
   id?: number;
   path: string;
   name: string;
-  component: LazyExoticComponent<() => React.JSX.Element> | (() => React.JSX.Element);
+  component:
+    | LazyExoticComponent<() => React.JSX.Element>
+    | (() => React.JSX.Element);
   authenticated?: boolean;
   children?: IRoute[];
 }

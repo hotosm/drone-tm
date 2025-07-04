@@ -126,7 +126,7 @@ const CompleteUserProfile = () => {
         await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
       }
 
-      queryClient.invalidateQueries({queryKey: ['user-profile']});
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       dispatch(setCommonState({ userProfileActiveTab: 1 }));
       toast.success('UserProfile Updated Successfully');
       navigate('/projects');

@@ -18,7 +18,7 @@ const tasksDataColumns = [
   {
     header: 'Flight Distance in km',
     accessorKey: 'flight_distance_km',
-  }
+  },
 ];
 
 interface ITableSectionProps {

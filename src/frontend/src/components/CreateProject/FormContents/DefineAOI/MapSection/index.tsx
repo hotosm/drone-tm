@@ -54,14 +54,12 @@ const MapSection = ({
         setDrawMode('static');
         setValue('outline', geojson);
       }
+    } else if (noFlyZone && projectArea && drawMode === 'simple_select') {
+      setBufferGeojson(geojson);
     } else {
-      if (noFlyZone && projectArea && drawMode === 'simple_select') {
-        setBufferGeojson(geojson);
-      } else {
-        dispatch(setCreateProjectState({ noFlyZone: geojson }));
-        setDrawMode('static');
-        setValue('outline', geojson);
-      }
+      dispatch(setCreateProjectState({ noFlyZone: geojson }));
+      setDrawMode('static');
+      setValue('outline', geojson);
     }
   };
 
@@ -69,7 +67,7 @@ const MapSection = ({
     map,
     enable: drawMode === 'draw_polygon' || drawMode === 'simple_select',
     styles: drawStyles,
-    drawMode: drawMode,
+    drawMode,
     onDrawEnd: handleDrawEnd,
     geojson:
       selectedTab === 'project' ? projectArea || null : noFlyZone || null,
@@ -199,20 +197,20 @@ const MapSection = ({
             </i>
             {activeDrawEdit && (
               <div className="naxatw-absolute naxatw-left-11 naxatw-top-0 naxatw-flex naxatw-w-[100px] naxatw-justify-center naxatw-gap-1 naxatw-rounded-md naxatw-bg-white naxatw-px-2 naxatw-py-2">
-                <div className="naxatw-naxatw-w-0 naxatw-absolute naxatw-left-[-16px] naxatw-top-2.5 naxatw-h-0 naxatw-border-8 naxatw-border-solid naxatw-border-transparent naxatw-border-r-white"></div>
+                <div className="naxatw-naxatw-w-0 naxatw-absolute naxatw-left-[-16px] naxatw-top-2.5 naxatw-h-0 naxatw-border-8 naxatw-border-solid naxatw-border-transparent naxatw-border-r-white" />
                 <div
                   className="naxatw-w-[50px] naxatw-cursor-pointer hover:naxatw-underline"
-                  onClick={() => {
-                    handleEditSave();
-                  }}
+                  role="button"
+                  onClick={() => { handleEditSave(); }}
+                  onKeyDown={() => { handleEditSave(); }}
                 >
                   Save
                 </div>
                 <div
                   className="naxatw-w-[50px] naxatw-cursor-pointer hover:naxatw-underline"
-                  onClick={() => {
-                    handleEditCancel();
-                  }}
+                  role="button"
+                  onClick={() => { handleEditCancel(); }}
+                  onKeyDown={() => { handleEditCancel(); }}
                 >
                   Cancel
                 </div>

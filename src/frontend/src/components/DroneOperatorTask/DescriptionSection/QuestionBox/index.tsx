@@ -35,18 +35,18 @@ const QuestionBox = ({
   }
 
   const { mutate: mutateComment, isPending: commentIsUpdating } = useMutation({
-      mutationFn: (data: any) => postUnflyableComment({ projectId, taskId, data }),
-      onSuccess: () => {
-        // Optionally, refetch queries or show a success message
-        toast.success('Comment Added successfully');
-        navigate(`/projects/${projectId}`);
-      },
-      onError: (error: Record<string, any>) => {
-        // Handle error
-        toast.error(error?.message);
-      },
+    mutationFn: (data: any) =>
+      postUnflyableComment({ projectId, taskId, data }),
+    onSuccess: () => {
+      // Optionally, refetch queries or show a success message
+      toast.success('Comment Added successfully');
+      navigate(`/projects/${projectId}`);
     },
-  );
+    onError: (error: Record<string, any>) => {
+      // Handle error
+      toast.error(error?.message);
+    },
+  });
   function handleSubmit() {
     if (flyable === 'no') {
       const data = {

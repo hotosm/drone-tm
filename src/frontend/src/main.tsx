@@ -33,10 +33,10 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <App />
         </BrowserRouter>
         <hot-tracking
-          style={{position: 'fixed', bottom: '0%'}}
-          site-id={'35'}
-          domain={'dronetm.org'}
-        ></hot-tracking>
+          style={{ position: 'fixed', bottom: '0%' }}
+          site-id="35"
+          domain="dronetm.org"
+        />
       </PersistGate>
     </Provider>
     <ReactQueryDevtools initialIsOpen={false} />

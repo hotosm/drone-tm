@@ -84,12 +84,8 @@ export default function MultiSelect({
     };
   }, []);
 
-  const filterOptions = options?.filter(
-    opt =>
-      opt[labelKey]
-        ?.toString()
-        ?.toLowerCase()
-        .includes(searchText.toLowerCase()),
+  const filterOptions = options?.filter(opt =>
+    opt[labelKey]?.toString()?.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   const showClearIcon = !!searchText.length;

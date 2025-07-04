@@ -14,9 +14,9 @@ import type { AllGeoJSON } from '@turf/helpers';
 import type { FeatureCollection } from 'geojson';
 import { validateGeoJSON } from '@Utils/convertLayerUtils';
 import { toast } from 'react-toastify';
-import MapSection from './MapSection';
 import SwitchTab from '@Components/common/SwitchTab';
 import { uploadOrDrawAreaOptions } from '@Constants/createProject';
+import MapSection from './MapSection';
 
 function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
   return typeof obj === 'object' && obj !== null && 'type' in obj;
@@ -104,14 +104,12 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
     const totalNoFlyZoneArea =
       noFlyZoneArea && area(noFlyZoneArea as FeatureCollection);
     if (totalProjectArea) {
-      dispatch(setCreateProjectState({ totalProjectArea: totalProjectArea }));
+      dispatch(setCreateProjectState({ totalProjectArea }));
     } else {
       dispatch(setCreateProjectState({ totalProjectArea: 0 }));
     }
     if (totalNoFlyZoneArea) {
-      dispatch(
-        setCreateProjectState({ totalNoFlyZoneArea: totalNoFlyZoneArea }),
-      );
+      dispatch(setCreateProjectState({ totalNoFlyZoneArea }));
     } else {
       dispatch(setCreateProjectState({ totalNoFlyZoneArea: 0 }));
     }

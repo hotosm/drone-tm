@@ -94,7 +94,12 @@ export const rowsPerPageOptions = [
 
 export const taskStatusObj = {
   request_logs: ['REQUEST_FOR_MAPPING'],
-  ongoing: ['LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FAILED'],
+  ongoing: [
+    'LOCKED_FOR_MAPPING',
+    'IMAGE_UPLOADED',
+    'IMAGE_PROCESSING_STARTED',
+    'IMAGE_PROCESSING_FAILED',
+  ],
   completed: ['IMAGE_PROCESSING_FINISHED'],
   unflyable: ['UNFLYABLE_TASK'],
 };
