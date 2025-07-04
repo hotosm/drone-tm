@@ -30,7 +30,6 @@ dependencies = [
     "aiohttp>=3.11.11",
     "aiosmtplib>=3.0.1",
     "python-slugify>=8.0.4",
-    "psycopg2>=2.9.9",
     "pyodm>=1.5.11",
     "asgiref>=3.8.1",
     "bcrypt>=4.2.1",
@@ -75,7 +74,7 @@ monitoring = [
     #"opentelemetry-exporter-otlp>=1.27.0",
     "opentelemetry-instrumentation-fastapi>=0.48b0",
     "opentelemetry-instrumentation-logging>=0.48b0",
-    "opentelemetry-instrumentation-psycopg2>=0.48b0",
+    "opentelemetry-instrumentation-psycopg>=0.48b0",
     "opentelemetry-instrumentation-requests>=0.48b0",
 ]
 
