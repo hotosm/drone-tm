@@ -19,7 +19,7 @@ export interface IDroneOperatorTaskState {
   selectedTaskDetailToViewOrthophoto: any;
   filesExifData: IFilesExifData[];
   uploadProgress: Record<string, any>;
-  waypointMode: 'waypoints' | 'waylines';
+  waypointMode: 'waylines' | 'waypoints';
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
   rotationAngle: number;
@@ -39,7 +39,7 @@ const initialState: IDroneOperatorTaskState = {
   selectedTaskDetailToViewOrthophoto: null,
   filesExifData: [],
   uploadProgress: {},
-  waypointMode: 'waypoints',
+  waypointMode: 'waylines',
   taskAssetsInformation: {
     total_image_uploaded: 0,
     assets_url: '',
