@@ -200,17 +200,25 @@ const MapSection = ({
                 <div className="naxatw-naxatw-w-0 naxatw-absolute naxatw-left-[-16px] naxatw-top-2.5 naxatw-h-0 naxatw-border-8 naxatw-border-solid naxatw-border-transparent naxatw-border-r-white" />
                 <div
                   className="naxatw-w-[50px] naxatw-cursor-pointer hover:naxatw-underline"
-                  role="button"
-                  onClick={() => { handleEditSave(); }}
-                  onKeyDown={() => { handleEditSave(); }}
+                  role="presentation"
+                  onClick={() => {
+                    handleEditSave();
+                  }}
+                  onKeyDown={() => {
+                    handleEditSave();
+                  }}
                 >
                   Save
                 </div>
                 <div
                   className="naxatw-w-[50px] naxatw-cursor-pointer hover:naxatw-underline"
-                  role="button"
-                  onClick={() => { handleEditCancel(); }}
-                  onKeyDown={() => { handleEditCancel(); }}
+                  role="presentation"
+                  onClick={() => {
+                    handleEditCancel();
+                  }}
+                  onKeyDown={() => {
+                    handleEditCancel();
+                  }}
                 >
                   Cancel
                 </div>

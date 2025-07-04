@@ -61,7 +61,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   // @ts-ignore
   const validateAreaOfFileUpload = async (file: any) => {
     try {
-      if (!file) return;
+      if (!file) return false;
       const geojson: any = await validateGeoJSON(file[0]?.file);
       if (isAllGeoJSON(geojson) && !Array.isArray(geojson)) {
         const convertedGeojson = flatten(geojson);
@@ -99,23 +99,32 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   };
 
   useEffect(() => {
-    const totalProjectArea =
+    const calculatedTotalProjectArea =
       projectArea && area(projectArea as FeatureCollection);
-    const totalNoFlyZoneArea =
+    const calculatedTotalNoFlyZoneArea =
       noFlyZoneArea && area(noFlyZoneArea as FeatureCollection);
-    if (totalProjectArea) {
-      dispatch(setCreateProjectState({ totalProjectArea }));
+
+    if (calculatedTotalProjectArea) {
+      dispatch(
+        setCreateProjectState({ totalProjectArea: calculatedTotalProjectArea }),
+      );
     } else {
       dispatch(setCreateProjectState({ totalProjectArea: 0 }));
     }
-    if (totalNoFlyZoneArea) {
-      dispatch(setCreateProjectState({ totalNoFlyZoneArea }));
+
+    if (calculatedTotalNoFlyZoneArea) {
+      dispatch(
+        setCreateProjectState({
+          totalNoFlyZoneArea: calculatedTotalNoFlyZoneArea,
+        }),
+      );
     } else {
       dispatch(setCreateProjectState({ totalNoFlyZoneArea: 0 }));
     }
+
     setValue('outline', projectArea);
     setValue('no_fly_zones', noFlyZoneArea);
-  }, [projectArea, noFlyZoneArea]);
+  }, [projectArea, noFlyZoneArea, dispatch, setValue]);
 
   return (
     <div className="naxatw-h-full naxatw-bg-white">
@@ -151,8 +160,6 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                       required: 'Project Area is Required',
                     }}
                     render={({ field: { value } }) => {
-                      console.log(value, 'value');
-
                       return (
                         <FileUpload
                           name="outline"
