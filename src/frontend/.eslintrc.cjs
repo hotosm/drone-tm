@@ -23,6 +23,8 @@ module.exports = {
   rules: {
     'prettier/prettier': 'error',
     'no-console': 'error',
+    'no-unreachable': 'warn',
+    'no-unused-vars': 'warn',
     'react/react-in-jsx-scope': 0,
     'react/jsx-props-no-spreading': 'off',
     'react-hooks/rules-of-hooks': 'error',
