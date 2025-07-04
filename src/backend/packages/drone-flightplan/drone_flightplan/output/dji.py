@@ -276,14 +276,19 @@ def create_placemark(placemark):
     return placemark
 
 
-def create_mission_config(finish_action_value, global_height):
+def create_mission_config(global_height):
     mission_config = ET.Element("wpml:missionConfig")
 
     fly_to_wayline_mode = ET.SubElement(mission_config, "wpml:flyToWaylineMode")
     fly_to_wayline_mode.text = "safely"
 
     finish_action = ET.SubElement(mission_config, "wpml:finishAction")
-    finish_action.text = str(finish_action_value)
+    # NOTE options:
+    # goHome: Return to home / take off point.
+    # noAction: Hover in place.
+    # autoLand: Lands at the current location.
+    # gotoFirstWaypoint: Fly back to the starting point, then hover.
+    finish_action.text = str("goHome")
 
     exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
     exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
@@ -327,10 +332,12 @@ def create_folder(placemarks):
     duration.text = "0"
 
     global_waypoint_turn_mode = ET.SubElement(folder, "wpml:globalWaypointTurnMode")
+    # NOTE this setting ensure we fly in a straight line & stop at the waypoint
     global_waypoint_turn_mode.text = "toPointAndStopWithDiscontinuityCurvature"
 
     straight_line = ET.SubElement(folder, "wpml:globalUseStraightLine")
-    straight_line.text = "0"
+    # NOTE combined with toPointAndStopWithDiscontinuityCurvature for straight lines
+    straight_line.text = "1"
 
     auto_flight_speed = ET.SubElement(folder, "wpml:autoFlightSpeed")
     auto_flight_speed.text = "2.5"
@@ -354,8 +361,8 @@ def create_kml(mission_config, folder):
     return kml
 
 
-def create_xml(placemarks, finish_action, global_height, output_file_path="/tmp/"):
-    mission_config = create_mission_config(finish_action, global_height)
+def create_xml(placemarks, global_height, output_file_path="/tmp/"):
+    mission_config = create_mission_config(global_height)
     folder = create_folder(placemarks)
     kml = create_kml(mission_config, folder)
 
@@ -380,9 +387,6 @@ def create_wpml(
     Returns:
         wpml file.
     """
-    # NOTE: finish action is set to "goHome" static.
-    finish_action = "goHome"
-
     # global height is taken from the first point
     try:
         global_height = placemark_geojson["features"][0]["geometry"]["coordinates"][2]
@@ -391,7 +395,7 @@ def create_wpml(
 
     placemarks = placemark_geojson["features"]
 
-    output_file = create_xml(placemarks, finish_action, global_height, output_file_path)
+    output_file = create_xml(placemarks, global_height, output_file_path)
 
     return output_file
 
