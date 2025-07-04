@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 def zip_directory(directory_path, zip_path):
     with zipfile.ZipFile(zip_path, "w") as zipf:
-        for root, dirs, files in os.walk(directory_path):
+        for root, _dirs, files in os.walk(directory_path):
             for file in files:
                 zipf.write(
                     os.path.join(root, file),

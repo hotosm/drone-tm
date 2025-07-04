@@ -15,6 +15,7 @@ from drone_flightplan import (
     create_wpml,
     create_waypoint,
 )
+from drone_flightplan.drone_type import DroneType
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from psycopg import Connection
@@ -22,7 +23,7 @@ from shapely.geometry import shape
 
 from app.config import settings
 from app.db import database
-from app.models.enums import FlightMode, HTTPStatus, DroneType
+from app.models.enums import FlightMode, HTTPStatus
 from app.projects import project_deps
 from app.s3 import get_file_from_bucket
 from app.tasks.task_logic import (
@@ -37,9 +38,6 @@ from app.waypoints.waypoint_logic import (
 )
 
 log = logging.getLogger(__name__)
-
-# Constant to convert gsd to Altitude above ground level
-GSD_to_AGL_CONST = 29.7  # For DJI Mini 4 Pro
 
 router = APIRouter(
     prefix=f"{settings.API_PREFIX}/waypoint",
@@ -185,7 +183,7 @@ async def get_task_waypoint(
 
 
 @router.post("/")
-async def generate_kmz(
+async def generate_wmpl_kmz(
     project_geojson: UploadFile = File(
         ...,
         description="The GeoJSON file representing the project area. This file will be used to define the boundaries and paths for the flight plan.",

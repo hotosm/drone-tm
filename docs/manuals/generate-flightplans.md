@@ -6,9 +6,10 @@
 
    ```python
    python calculate_parameters.py \
-       --forward_overlap 70 \
-       --side_overlap 70 \
-       --altitude_above_ground_level 115 \
+       --drone_type DJI_MINI_4_PRO \
+       --forward_overlap 75 \
+       --side_overlap 75 \
+       --altitude_above_ground_level 110 \
        --image_interval 2
    ```
 
@@ -19,9 +20,9 @@
    ```python
    python waypoints.py \
        --project_geojson_polygon aoi.geojson \
-       --altitude_above_ground_level 115 \
-       --forward_overlap 70 \
-       --side_overlap 70 \
+       --altitude_above_ground_level 110 \
+       --forward_overlap 75 \
+       --side_overlap 75 \
        --generate_each_points \
        --take_off_point LON,LAT \
        --output_file_path ./waypoints.geojson
@@ -47,7 +48,7 @@
 5. Create WMPL Flightplan:
 
    ```python
-   python wpml.py \
+   python output/dji.py \
        --placemark placemarks.geojson \
        --outfile flightplan.wpml
    ```

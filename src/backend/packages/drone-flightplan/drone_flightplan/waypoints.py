@@ -350,7 +350,10 @@ def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> lis
     ]
 
 
-def remove_middle_points(data):
+def remove_middle_points(data: dict, drone_type: DroneType = DroneType.DJI_MINI_4_PRO):
+    if not data:
+        return []
+
     processed_data = []
     i = 0
 
@@ -363,13 +366,24 @@ def remove_middle_points(data):
             i += 1
 
         segment_end = i
+        segment_length = segment_end - segment_start
 
-        # If the segment has more than 4 points, keep only the first 2 and the last 2
-        if segment_end - segment_start > 4:
-            processed_data.extend(data[segment_start : segment_start + 2])
-            processed_data.extend(data[segment_end - 2 : segment_end])
+        # For Potensic Atom 2, we have point limt of 50, so each point is precious
+        if drone_type == DroneType.POTENSIC_ATOM_2:
+            # If the segment has more than 2 points, keep only the first and last
+            if segment_length > 2:
+                processed_data.extend(data[segment_start : segment_start + 1])
+                processed_data.extend(data[segment_end - 1 : segment_end])
+            else:
+                processed_data.extend(data[segment_start:segment_end])
+        # All other drones
         else:
-            processed_data.extend(data[segment_start:segment_end])
+            # If the segment has more than 4 points, keep only the first 2 and the last 2
+            if segment_length > 4:
+                processed_data.extend(data[segment_start : segment_start + 2])
+                processed_data.extend(data[segment_end - 2 : segment_end])
+            else:
+                processed_data.extend(data[segment_start:segment_end])
 
     # Make take_photo = False for all the points
     for point in processed_data:
@@ -431,11 +445,18 @@ def create_waypoint(
     }
 
     """
-    parameters = cp(forward_overlap, side_overlap, agl, gsd, drone_type)
+    parameters = cp(forward_overlap, side_overlap, agl, gsd, drone_type=drone_type)
+
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 
-    polygon = shape(project_area["features"][0]["geometry"])
+    # Handle FeatureCollection, Feature, Polygon
+    if "features" in project_area:
+        polygon = shape(project_area["features"][0]["geometry"])
+    elif "geometry" in project_area:
+        polygon = shape(project_area["geometry"])
+    else:
+        polygon = shape(project_area)
 
     wgs84 = pyproj.CRS("EPSG:4326")
     web_mercator = pyproj.CRS("EPSG:3857")
@@ -505,7 +526,7 @@ def create_waypoint(
 
     # If mode is "waylines", simplify to only start and end points
     if mode == "waylines":
-        waypoints = remove_middle_points(path)
+        waypoints = remove_middle_points(path, drone_type)
     else:
         waypoints = path
 
