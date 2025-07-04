@@ -69,6 +69,6 @@ jobs:
       - backend-build
     uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@2.0.5
     with:
-      docker_compose_file: docker-compose.vm.yml
+      docker_compose_file: compose.vm.yaml
       environment: ${{ github.ref_name }}
     secrets: inherit

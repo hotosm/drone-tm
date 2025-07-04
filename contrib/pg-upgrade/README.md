@@ -6,6 +6,6 @@
 
 ```bash
 # From the repo root
-docker compose --file contrib/pg-upgrade/docker-compose.yml \
+docker compose --file contrib/pg-upgrade/compose.yaml \
     up --abort-on-container-failure
 ```

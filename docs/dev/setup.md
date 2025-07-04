@@ -41,7 +41,7 @@ docker compose build
 This will also run ODM alongside DroneTM:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.odm.yml up -d
+docker compose -f compose.yaml -f compose.odm.yaml up -d
 ```
 
 ### Access The Services
