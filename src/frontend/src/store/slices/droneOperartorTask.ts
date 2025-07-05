@@ -20,6 +20,7 @@ export interface IDroneOperatorTaskState {
   filesExifData: IFilesExifData[];
   uploadProgress: Record<string, any>;
   waypointMode: 'waylines' | 'waypoints';
+  droneModel: 'DJI_MINI_4_PRO' | 'DJI_AIR_3' | 'POTENSIC_ATOM_2';
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
   rotationAngle: number;
@@ -40,6 +41,7 @@ const initialState: IDroneOperatorTaskState = {
   filesExifData: [],
   uploadProgress: {},
   waypointMode: 'waylines',
+  droneModel: 'DJI_MINI_4_PRO',
   taskAssetsInformation: {
     total_image_uploaded: 0,
     assets_url: '',
@@ -114,6 +116,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setWaypointMode: (state, action) => {
       state.waypointMode = action.payload;
+    },
+    setDroneModel: (state, action) => {
+      state.droneModel = action.payload;
     },
     setTaskAssetsInformation: (state, action) => {
       state.taskAssetsInformation = action.payload;

@@ -24,7 +24,7 @@ import { postTaskWaypoint } from '@Services/tasks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import { waypointModeOptions } from '@Constants/taskDescription';
+import { waypointModeOptions, droneModelOptions } from '@Constants/taskDescription';
 import {
   setRotationAngle as setFinalRotationAngle,
   setRotatedFlightPlan,
@@ -33,6 +33,7 @@ import {
   setTaskAreaPolygon,
   setTaskAssetsInformation,
   setWaypointMode,
+  setDroneModel,
 } from '@Store/actions/droneOperatorTask';
 import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import { findNearestCoordinate, swapFirstAndLast } from '@Utils/index';
@@ -78,6 +79,9 @@ const MapSection = ({ className }: { className?: string }) => {
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
   );
+  const droneModel = useTypedSelector(
+    state => state.droneOperatorTask.droneModel,
+  );
   const newTakeOffPoint = useTypedSelector(
     state => state.droneOperatorTask.selectedTakeOffPoint,
   );
@@ -115,6 +119,7 @@ const MapSection = ({ className }: { className?: string }) => {
       projectId as string,
       taskId as string,
       waypointMode as string,
+      droneModel as string,
       finalRotationAngle,
       {
         select: ({ data }: any) => {
@@ -135,6 +140,7 @@ const MapSection = ({ className }: { className?: string }) => {
               ],
             },
           };
+
           takeOffPointRef.current =
             modifiedTaskWayPointsData?.geojsonListOfPoint?.features[0]?.geometry?.coordinates;
           return modifiedTaskWayPointsData;
@@ -832,7 +838,18 @@ const MapSection = ({ className }: { className?: string }) => {
           getCoordOnProperties
         />
 
-        <div className="naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-10 lg:naxatw-right-64">
+        <div className="naxatw-absolute naxatw-top-3 naxatw-right-3 lg:naxatw-right-64 naxatw-z-10 flex gap-3 lg:gap-6">
+          <SwitchTab
+            activeClassName="naxatw-bg-red naxatw-text-white"
+            options={droneModelOptions}
+            labelKey="label"
+            valueKey="value"
+            selectedValue={droneModel}
+            onChange={(value: Record<string, any>) => {
+              dispatch(setDroneModel(value.value));
+            }}
+          />
+
           <SwitchTab
             activeClassName="naxatw-bg-red naxatw-text-white"
             options={waypointModeOptions}
@@ -844,6 +861,7 @@ const MapSection = ({ className }: { className?: string }) => {
             }}
           />
         </div>
+
         {/* additional controls */}
         <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
           <Button
