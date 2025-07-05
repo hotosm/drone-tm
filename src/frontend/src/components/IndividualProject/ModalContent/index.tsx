@@ -8,7 +8,7 @@ interface IPromptDialogProps {
   children: ReactNode;
 }
 
-export function ProjectPromptDialog({
+function ProjectPromptDialog({
   title = '',
   show = false,
   onClose = () => {},
