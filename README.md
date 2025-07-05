@@ -95,12 +95,15 @@ To get started with Drone TM:
 |✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) | Since [v2024.11.0][1] |
 |✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) | Since [v2025.3.1][3] |
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
+|✅| 📱 flight plans working on Potensic Atom 2 | |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
 | | 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
-|⚙️| 📱 continue to add support for additional drone models | |
+| | 📱 entirely offline flightplan generation, directly on device | |
+| | 📱 improved experience copying flightplans onto controllers (SDK or ADB) | |
+| | 📱 allow modification and division of flightplans by user before flight | |
 | | 🖥️ user access management for each part of the UI | |
+| | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
-| | 📱 improved offline capabilities of Drone-TM, reducing reliance on stable internet in the field | |
 |⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 | | 🖥️ better usage of 3D model data collected by drones | |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally | |
