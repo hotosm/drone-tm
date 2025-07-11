@@ -1,12 +1,42 @@
 networks:
-  dtm-network:
-    name: dtm-network
+  net:
 
 volumes:
+  certs:
   odm-media:
   odm-db-data:
 
 services:
+  traefik:
+    image: docker.io/traefik:v3.4.3
+    container_name: traefik
+    volumes:
+      - certs:/letsencrypt
+      # We run rootless as user 1000!
+      - /var/run/user/1000/docker.sock:/var/run/user/1000/docker.sock:ro
+    networks:
+      - net
+    labels:
+      traefik.enable: "false" # no dashboard
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=unix:///var/run/user/1000/docker.sock"
+      - "--entrypoints.http=true"
+      - "--entrypoints.http.address=:80"
+      - "--entrypoints.http.http.redirections.entrypoint.to=https"
+      - "--entrypoints.http.http.redirections.entrypoint.scheme=https"
+      - "--entryPoints.https.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      # For staging test
+      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.letsencrypt.acme.email=sysadmin@hotosm.org"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    restart: unless-stopped
+
   # This container does the actual imagery processing (not persistent, scalable)
   odm-api:
     image: docker.io/opendronemap/nodeodm:3.5.5
@@ -14,7 +44,7 @@ services:
     hostname: webodm-node-odm-1
     container_name: odm-api
     networks:
-      - dtm-network
+      - net
     restart: unless-stopped
     oom_score_adj: 500
 
@@ -25,17 +55,22 @@ services:
     entrypoint: /bin/bash -c "chmod +x /webodm/*.sh && /bin/bash -c \"/webodm/wait-for-postgres.sh odm-db /webodm/wait-for-it.sh -t 0 odm-broker:6379 -- /webodm/start.sh\""
     volumes:
       - odm-media:/webodm/app/media:z
-    ports:
-      - "${WO_PORT}:8000"
     depends_on:
       odm-worker:
         condition: service_started
     env_file:
       - .env
     networks:
-      - dtm-network
+      - net
     restart: unless-stopped
     oom_score_adj: 0
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.webodm.rule: "Host(`${WO_HOST:-webodm.dronetm.hotosm.org}`)"
+      traefik.http.routers.webodm.entrypoints: https
+      traefik.http.routers.webodm.tls: "true"
+      traefik.http.routers.webodm.tls.certresolver: letsencrypt
+      traefik.http.services.webodm.loadbalancer.server.port: "8000"
 
   # Instance of WebODM that uses Celery to manage processing jobs
   odm-worker:
@@ -52,7 +87,7 @@ services:
     env_file:
       - .env
     networks:
-      - dtm-network
+      - net
     restart: unless-stopped
     oom_score_adj: 250
 
@@ -61,7 +96,7 @@ services:
     image: docker.io/redis:8.0.0
     container_name: odm-broker
     networks:
-      - dtm-network
+      - net
     restart: unless-stopped
     oom_score_adj: -500
 
@@ -74,6 +109,6 @@ services:
     ports:
       - 5999:5432
     networks:
-      - dtm-network
+      - net
     restart: unless-stopped
     oom_score_adj: -100
