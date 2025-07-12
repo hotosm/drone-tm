@@ -77,18 +77,18 @@ calculate_parameters(
 **Fixed Parameters:**
 
 - `Image interval` = 2 sec
-- `Vertical FOV` = 0.71
-- `Horizontal FOV` = 1.26
+- `Vertical FOV` = 0.99
+- `Horizontal FOV` = 1.25
 
 **Calculations:**
 
-- Forward Photo height = AGL _Vertical_FOV = 115_ 0.71 = 81.65
-- Side Photo width = AGL _Horizontal_FOV = 115_ 1.26 = 144
-- Forward overlap distance = Forward photo height _Forward overlap = 75 / 100_ 81.65 = 61.5
-- Side overlap distance = Side photo width _Side overlap = 75 / 100_ 144 = 108
-- Forward spacing = Forward photo height - Forward overlap distance = 81.65 - 61.5 = 20.15
-- Side spacing = Side photo width - Side overlap distance = 144 - 108 = 36
-- Ground speed = Forward spacing / Image interval = 10
+- Forward Photo height = AGL \_Vertical_FOV
+- Side Photo width = AGL \_Horizontal_FOV
+- Forward overlap distance = Forward photo height \_Forward overlap
+- Side overlap distance = Side photo width \_Side overlap
+- Forward spacing = Forward photo height - Forward overlap distance
+- Side spacing = Side photo width - Side overlap distance
+- Ground speed = Forward spacing / Image interval
 
 **Parameters:**
 

@@ -1,11 +1,61 @@
 import argparse
 import logging
+import math
 
-from drone_flightplan.drone_type import DroneType, DRONE_PARAMS, drone_type_arg
+from drone_flightplan.drone_type import (
+    DroneType,
+    DRONE_PARAMS,
+    DRONE_SPECS,
+    drone_type_arg,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
+
+
+def print_drone_calcs():
+    for drone in DroneType:
+        print("-----------------------------------------")
+        print(f"-------------{drone.name}---------------")
+        print("-----------------------------------------")
+
+        stats = DRONE_SPECS[drone]
+        _calculate_constants(
+            stats["sensor_height_mm"],
+            stats["sensor_width_mm"],
+            stats["equiv_focal_length_mm"],
+            stats["image_width_px"],
+        )
+
+        print("")
+        print("")
+
+
+def _calculate_constants(
+    sensor_height_mm: float,
+    sensor_width_mm: float,
+    equiv_focal_length_mm: float,
+    image_width_px: int,
+):
+    """A helper function to calculate constants for a new drone added."""
+    # Sensor calcs
+    sensor_diagonal_mm = math.sqrt(sensor_width_mm**2 + sensor_height_mm**2)
+    sensor_crop_factor = 43.27 / sensor_diagonal_mm
+    actual_focal_length_mm = equiv_focal_length_mm / sensor_crop_factor
+
+    # For degrees, simply: horizontal_fov_rad * 180 / math.pi
+    horizontal_fov_rads = 2 * math.atan(sensor_width_mm / (2 * actual_focal_length_mm))
+    vertical_fov_rads = 2 * math.atan(sensor_height_mm / (2 * actual_focal_length_mm))
+    # mm --> cm to match GSD in cm/px (the *100 in formula)
+    gsd_to_agl_const = (actual_focal_length_mm * image_width_px) / (
+        sensor_width_mm * 100
+    )
+
+    print(f"Actual focal length:  {actual_focal_length_mm:.2f}mm")
+    print(f"Horizontal FOV:       {horizontal_fov_rads:.2f}rad")
+    print(f"Vertical FOV:         {vertical_fov_rads:.2f}rad")
+    print(f"GSD To AGL Const:     {gsd_to_agl_const}")
 
 
 def calculate_parameters(
@@ -27,14 +77,13 @@ def calculate_parameters(
     Vertical FOV = 0.71
     Horizontal FOV = 1.26
 
-    Forward Photo height = AGL * Vertical_FOV = 115*0.71 = 81.65
-    Side Photo width = AGL * Horizontal_FOV = 115*1.26 = 144
-    forward overlap distance =  forward photo height * forward overlap = 75 / 100 * 81.65 = 61.5
-    side overlap distance = side photo width * side overlap = 75 / 100 * 144 = 108
-    forward spacing =  forward photo height - forward overlap distance = 81.65 - 61.5 = 20.15
-    side spacing = side photo width - side overlap distance = 144 - 108 = 36
-    ground speed = forward spacing / image interval = 10
-
+    Forward Photo height = AGL * Vertical_FOV
+    Side Photo width = AGL * Horizontal_FOV
+    forward overlap distance =  forward photo height * forward overlap
+    side overlap distance = side photo width * side overlap
+    forward spacing =  forward photo height - forward overlap distance
+    side spacing = side photo width - side overlap distance
+    ground speed = forward spacing / image interval
     """
     # Get the drone specifications from the Enum
     drone_specs = DRONE_PARAMS[drone_type]
