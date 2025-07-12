@@ -24,6 +24,9 @@ const DroneOperatorDescriptionBox = () => {
   const rotationAngle = useTypedSelector(
     state => state.droneOperatorTask.rotationAngle,
   );
+  const droneModel = useTypedSelector(
+    state => state.droneOperatorTask.droneModel,
+  );
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
@@ -33,20 +36,24 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanKmz = () => {
     fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&rotation_angle=${rotationAngle}`,
+      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}`,
       { method: 'POST' },
     )
       .then(response => {
         if (!response.ok) {
           throw new Error(`Network response was ${response.statusText}`);
         }
-        return response.blob();
+        const filename = response.headers.get('content-disposition')
+          ?.split('filename=')[1]
+          ?.trim()
+          .replace(/^"|"$/g, '')!;
+        return response.blob().then(blob => ({ filename, blob }));
       })
-      .then(blob => {
+      .then(({ filename, blob }) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `flight_plan-${projectId}-${taskId}-${waypointMode}.kmz`;
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -159,7 +166,7 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download flight plan as kmz
+                  Download flight plan file for drone
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -171,7 +178,7 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download flight plan as geojson
+                  Download flight plan geojson for inspection
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"

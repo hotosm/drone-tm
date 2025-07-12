@@ -14,11 +14,12 @@ export const getTaskWaypoint = (
 export const getIndividualTask = (taskId: string) =>
   authenticated(api).get(`/tasks/${taskId}`);
 
+// TODO refactor this out and replace with getTaskWaypoint
 export const postTaskWaypoint = (payload: Record<string, any>) => {
-  const { taskId, projectId, data } = payload;
+  const { taskId, projectId, mode, rotationAngle, droneModel, takeOffPoint } = payload;
   return authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false`,
-    data,
+    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}`,
+    takeOffPoint,
     {
       headers: { 'Content-Type': 'application/json' },
     },

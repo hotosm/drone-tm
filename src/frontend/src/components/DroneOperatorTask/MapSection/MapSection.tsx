@@ -538,7 +538,10 @@ const MapSection = ({ className }: { className?: string }) => {
     postWaypoint({
       projectId,
       taskId,
-      data: {
+      mode: waypointMode,
+      rotationAngle: finalRotationAngle,
+      droneModel: droneModel,
+      takeOffPoint: {
         longitude: lng,
         latitude: lat,
       },
