@@ -42,11 +42,15 @@ const DescriptionBox = () => {
   const uploadProgress = useTypedSelector(
     state => state.droneOperatorTask.uploadProgress,
   );
+  const droneModel = useTypedSelector(
+    state => state.droneOperatorTask.droneModel,
+  );
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
     waypointMode as string,
+    droneModel as string,
     0,
     {
       select: (data: any) => {
