@@ -14,75 +14,83 @@ class DroneType(StrEnum):
     POTENSIC_ATOM_2 = "POTENSIC_ATOM_2"
 
 
-# NOTE param calcs:
-# The CMOS size in inches doesn't directly correspond to the sensor's
-#   physical width or height in millimeters or inches. It's a
-#   historical convention used to compare sensor sizes.
-# We we cannot use the aspect ratio plus some simple trigonometry.
-# It's more complex that that, see this article:
-#   https://commonlands.com/blogs/technical/cmos-sensor-size
-# A commonly agreed upon formula of the diagonal at 4:3 aspect ratio:
-#   1" = 16.0mm, 1/2" = 8.0mm, 1/3" = 6.0mm, 1/4" = 4.5mm
-# Here is a list of common sizes:
-#   https://en.wikipedia.org/wiki/Image_sensor_format#Table_of_sensor_formats_and_sizes
+DRONE_SPECS = {
+    DroneType.DJI_MINI_4_PRO: {
+        # 1/1.3-inch CMOS
+        # 4:3 (or 16:9 cropped)
+        "sensor_height_mm": 7.2,
+        "sensor_width_mm": 9.6,
+        "equiv_focal_length_mm": 24,
+        "image_width_px": 4032,
+    },
+    DroneType.DJI_AIR_3: {
+        # 1/1.3-inch CMOS
+        # 4:3 (or 16:9 cropped)
+        "sensor_height_mm": 7.2,
+        "sensor_width_mm": 9.6,
+        "equiv_focal_length_mm": 24,
+        "image_width_px": 4032,
+    },
+    DroneType.POTENSIC_ATOM_2: {
+        # 1/2-inch CMOS
+        # 4:3 (or 16:9 cropped)
+        "sensor_height_mm": 4.80,
+        "sensor_width_mm": 6.40,
+        "equiv_focal_length_mm": 26,
+        "image_width_px": 4608,
+    },
+}
+# NOTE see calculate_parameters._calculate_constants
+# 1. First get an accurate sensor width and height for the CMOS size
+#    https://commonlands.com/blogs/technical/cmos-sensor-size
+# 2. Next we must calculate the ACTUAL focal length, not the
+#    EQUIVALENT focal length (for a 35mm camera).
+# 3. Calculate the horizontal and vertical field of views using the formulas
+#    below.
+# 4. Calculate the GSD to AGL constant conversion factor with the formula below.abs
+#    (we use this to calculate the altitude to fly, given a set GSD in cm/px)
+#
 # Here is a spreadsheet of DJI Drone specs:
 #   https://docs.google.com/spreadsheets/d/15QyC3Y0HT1-zZm3nhE_2hRYHh6y5AnwBnO32uFtwNTw
 #
+# Some resources for double checking work:
+#   https://www.scantips.com/lights/fieldofview.html
+#   https://ardupilot.org/planner/docs/mission-planner-flight-plan.html
+#   https://github.com/spifftek70/Drone-Footprints
+#   https://github.com/OpenDroneMap/ODM/tree/master/contrib/orthorectify
 # -------------------------------------------------------------
 #
 # - Vertical Field of View (FOV):
-#   Formula: Vertical FOV = 2 * tan⁻¹(sensor height / 2 * focal length)
+#   Formula: Vertical FOV = 2 * tan⁻¹(sensor height / 2 * focal length) * 180 / math.pi
 #
 # - Horizontal Field of View (FOV):
-#   Formula: Horizontal FOV = 2 * tan⁻¹(sensor width / 2 * focal length)
+#   Formula: Horizontal FOV = 2 * tan⁻¹(sensor width / 2 * focal length) * 180 / math.pi
 #
-# - Ground Sampling Distance constant (GSD to AGL constant):
-#   This constant is a multiplication factor to convert a target
-#   GSD (in meters per pixel) into the required flight altitude (AGL, in meters).
-#   The typical GSD formula (for width only) is:
-#     GSD = (AGL * sensor_width_mm) / (focal_length_mm * image_width_px)
-#   Solving for AGL:
-#     AGL = (GSD * focal_length_mm * image_width_px) / sensor_width_mm
-#   So:
-#     GSD_TO_AGL_CONST = (focal_length_mm * image_width_px) / sensor_width_mm
-#   Final AGL = GSD_m_per_px * GSD_TO_AGL_CONST
+#   The typical GSD formula (for width only, in cm/px) is:
+#      GSD = (AGL * sensor_width_mm) / (focal_length_mm * image_width_px) * 100
+#   so our constant is
+#      AGL/GSD = (focal_length_mm * image_width_px) / (sensor_width_mm * 100)
+#   And we use it like so
+#      AGL = GSD_cm_per_px * GSD_TO_AGL_CONST
 DRONE_PARAMS = {
-    # CMOS sensor 1/1.3" = 9.6mm width x 7.2mm height
-    # Focal length = 24mm
-    # Image width = 8064px
     DroneType.DJI_MINI_4_PRO: {
-        # 2 * tan^(-1)(7.2 / (2 * 24))
-        # 2 * tan^(-1)(0.15) ≈ 0.2977799 radians
-        "VERTICAL_FOV": 0.2977799,
-        # 2 * tan^(-1)(9.6 / (2 * 24))
-        # 2 * tan^(-1)(0.2) ≈ 0.39479112 radians
-        "HORIZONTAL_FOV": 0.39479112,
-        # (24 * 8064) / 9.6 = 20160
-        # So for GSD of 0.01m/px: AGL = 0.01 * 20160 = 20.16m
-        "GSD_TO_AGL_CONST": 20.16,
+        "VERTICAL_FOV": 0.99,
+        "HORIZONTAL_FOV": 1.25,
+        "GSD_TO_AGL_CONST": 27.95,
         "OUTPUT_FORMAT": "DJI_WMPL",
     },
     # NOTE Mini 4 Pro, Mini 3 Pro, and Air 3 all have same CMOS size
     # and focal length, so have the same stats here
     DroneType.DJI_AIR_3: {
-        "VERTICAL_FOV": 0.2977799,
-        "HORIZONTAL_FOV": 0.39479112,
-        "GSD_TO_AGL_CONST": 20.16,
+        "VERTICAL_FOV": 0.99,
+        "HORIZONTAL_FOV": 1.25,
+        "GSD_TO_AGL_CONST": 27.95,
         "OUTPUT_FORMAT": "DJI_WMPL",
     },
-    # CMOS sensor 1/2" = 8.0mm width x 6.4mm height
-    # Focal length = 26mm
-    # Image width = 8000px
     DroneType.POTENSIC_ATOM_2: {
-        # 2 * tan^(-1)(6.4 / (2 * 26))
-        # 2 * tan^(-1)(0.123) ≈ 0.24477056 radians
-        "VERTICAL_FOV": 0.24477056,
-        # 2 * tan^(-1)(8 / (2 * 26))
-        # 2 * tan^(-1)(0.137931) ≈ 0.2741322 radians
-        "HORIZONTAL_FOV": 0.2741322,
-        # (26 * 8000) / 8 = 26000
-        # So for GSD of 0.01m/px: AGL = 0.01 * 26000 = 26.0m
-        "GSD_TO_AGL_CONST": 26.0,
+        "VERTICAL_FOV": 0.93,
+        "HORIZONTAL_FOV": 1.17,
+        "GSD_TO_AGL_CONST": 34.61,
         "OUTPUT_FORMAT": "POTENSIC_SQLITE",
     },
 }

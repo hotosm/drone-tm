@@ -12,10 +12,11 @@ from drone_flightplan import (
     create_flightplan,
     create_placemarks,
     terrain_following_waylines,
-    create_wpml,
     create_waypoint,
 )
-from drone_flightplan.drone_type import DroneType
+from drone_flightplan.output.dji import create_wpml
+from drone_flightplan.output.potensic import generate_potensic_sqlite
+from drone_flightplan.drone_type import DroneType, DRONE_PARAMS
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from psycopg import Connection
@@ -169,13 +170,28 @@ async def get_task_waypoint(
         placemarks = create_placemarks(geojson.loads(points), parameters)
 
     if download:
+        output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
         outfile = outfile = f"/tmp/{uuid.uuid4()}"
-        kmz_file = create_wpml(placemarks, outfile)
-        return FileResponse(
-            kmz_file,
-            media_type="application/vnd.google-earth.kmz",
-            filename=f"{task_id}_flight_plan.kmz",
-        )
+
+        if output_format == "DJI_WMPL":
+            outpath = create_wpml(placemarks, outfile)
+            return FileResponse(
+                outpath,
+                media_type="application/vnd.google-earth.kmz",
+                filename=f"flight_plan-task-{task_id}-{mode}.kmz",
+            )
+        elif output_format == "POTENSIC_SQLITE":
+            outpath = generate_potensic_sqlite(placemarks, outfile)
+            return FileResponse(
+                outpath,
+                media_type="application/vnd.sqlite3",
+                filename="map.db",
+            )
+        else:
+            msg = f"Unsupported output format / drone type: {output_format}"
+            log.error(msg)
+            raise HTTPException(status_code=400, detail=msg)
+
     flight_data = calculate_flight_time_from_placemarks(placemarks)
 
     drones = list(DroneType.__members__.keys())

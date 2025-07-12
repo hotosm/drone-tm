@@ -18,6 +18,7 @@ export const {
   setUploadProgress,
   resetFilesExifData,
   setWaypointMode,
+  setDroneModel,
   setTaskAssetsInformation,
   setRotatedFlightPlan,
   setRotationAngle,
