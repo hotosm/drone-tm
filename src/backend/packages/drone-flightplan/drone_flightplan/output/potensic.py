@@ -152,10 +152,13 @@ def generate_potensic_sqlite(
 
     flight_id = 1
     waypoint_id = 1
+    start_idx = 1
     # NOTE here we split into 10 waypoint chunks, to allow for easy resumption
     # of the flight if it stops. The PotensicPro app is a bit flaky with this,
     # and sometimes the flight may stop unexpectedly
     for chunk in chunked(all_waypoints, 10):
+        end_idx = start_idx + len(chunk) - 1  # calculate last index in this chunk
+
         duration = len(chunk) * 5 * 1000  # 5000ms per point
         mileage = len(chunk) * 10  # 10m per point
 
@@ -175,7 +178,7 @@ def generate_potensic_sqlite(
         """,
             (
                 flight_id,
-                f"flight_{flight_id}",
+                f"{start_idx}-{end_idx}",
                 duration,
                 f"{altitude}m",
                 f"{mileage}m",
@@ -197,6 +200,7 @@ def generate_potensic_sqlite(
             )
             waypoint_id += 1
 
+        start_idx = end_idx + 1  # next chunk starts after this one ends
         flight_id += 1
 
     conn.commit()
