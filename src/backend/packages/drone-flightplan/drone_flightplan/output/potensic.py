@@ -4,7 +4,6 @@ import os
 import logging
 import sqlite3
 from typing import Iterable
-from datetime import datetime, timezone
 from itertools import islice
 
 import geojson
@@ -130,7 +129,7 @@ def generate_potensic_sqlite(
     # Handle altitude & speed params (information only), else defaults
     first_geom = all_features[0]
     altitude = round(first_geom.get("properties").get("altitude", 110))
-    speed = round(first_geom.get("properties").get("speed", 4))
+    speed = round(first_geom.get("properties").get("speed", 8))
 
     # NOTE PotensicPro only supports ~45 waypoints per flightplan,
     # so get get them all here, then split up further down
@@ -147,12 +146,16 @@ def generate_potensic_sqlite(
     cursor = conn.cursor()
 
     log.debug("Creating Potensic SQLite metadata")
-    date_str = datetime.now(tz=timezone.utc).strftime("%-d,%-m,%Y")
+    # NOTE instead of an actual timestamp for the `date` field, we name the
+    # flights in order (this is what is displayed to the user in the sidebar)
+    # date_str = datetime.now(tz=timezone.utc).strftime("%-d,%-m,%Y")
 
     flight_id = 1
     waypoint_id = 1
-    # Iterate each chunk of 45 waypoints as a new flight
-    for chunk in chunked(all_waypoints, 45):
+    # NOTE here we split into 10 waypoint chunks, to allow for easy resumption
+    # of the flight if it stops. The PotensicPro app is a bit flaky with this,
+    # and sometimes the flight may stop unexpectedly
+    for chunk in chunked(all_waypoints, 10):
         duration = len(chunk) * 5 * 1000  # 5000ms per point
         mileage = len(chunk) * 10  # 10m per point
 
@@ -172,7 +175,7 @@ def generate_potensic_sqlite(
         """,
             (
                 flight_id,
-                date_str,
+                f"flight_{flight_id}",
                 duration,
                 f"{altitude}m",
                 f"{mileage}m",
