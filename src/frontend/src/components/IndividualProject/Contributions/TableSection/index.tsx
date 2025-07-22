@@ -46,7 +46,7 @@ const contributionsDataColumns = [
           link.click();
           link.remove();
         } catch (error) {
-          toast.error(`There wan an error while downloading file ${error}`);
+          toast.error(`There was an error while downloading file ${error}`);
         }
       };
 

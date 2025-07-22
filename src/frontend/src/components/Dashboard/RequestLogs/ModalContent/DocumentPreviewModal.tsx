@@ -38,7 +38,7 @@ const DocumentPreviewModal = () => {
         window.URL.revokeObjectURL(url);
       })
       .catch(error =>
-        toast.error(`There wan an error while downloading file
+        toast.error(`There was an error while downloading file
         ${error}`),
       );
   };
