@@ -194,7 +194,7 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Send flight plan file to phone
+                  Send flight plan file to controller
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
