@@ -83,6 +83,15 @@ importers:
       '@turf/transform-rotate':
         specifier: ^7.2.0
         version: 7.2.0
+      '@yume-chan/adb':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@yume-chan/adb-credential-web':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@yume-chan/adb-daemon-webusb':
+        specifier: ^2.1.0
+        version: 2.1.0
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.20(postcss@8.5.1)
@@ -1702,6 +1711,9 @@ packages:
   '@types/use-sync-external-store@0.0.6':
     resolution: {integrity: sha512-zFDAD+tlpf2r4asuHEj0XH6pY6i0g5NeAHPn+15wk3BV6JA69eERFXC1gyGThDkVa1zCyKr5jox1+2LbV/AMLg==}
 
+  '@types/w3c-web-usb@1.0.10':
+    resolution: {integrity: sha512-CHgUI5kTc/QLMP8hODUHhge0D4vx+9UiAwIGiT0sTy/B2XpdX1U5rJt6JSISgr6ikRT7vxV9EVAFeYZqUnl1gQ==}
+
   '@typescript-eslint/eslint-plugin@5.62.0':
     resolution: {integrity: sha512-TiZzBSJja/LbhNPvk6yc0JrX9XqhQ0hdh6M2svYfsHGejaKFIAGd9MQ+ERIMzLGlN/kZoYIgdxFV0PuljTKXag==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
@@ -1800,6 +1812,30 @@ packages:
   '@xmldom/xmldom@0.9.7':
     resolution: {integrity: sha512-syvR8iIJjpTZ/stv7l89UAViwGFh6lbheeOaqSxkYx9YNmIVvPTRH+CT/fpykFtUx5N+8eSMDRvggF9J8GEPzQ==}
     engines: {node: '>=14.6'}
+
+  '@yume-chan/adb-credential-web@2.1.0':
+    resolution: {integrity: sha512-ps5XWt+xxm6Mi9eF80ePprPJ/uRFMhfR437betQE8hixrjdZpkZgMlqZU6GlnuebMi0djrbP8GWB49jJekJVYA==}
+
+  '@yume-chan/adb-daemon-webusb@2.1.0':
+    resolution: {integrity: sha512-mAaDyTSGHO2dzteei5rkHrBAmonEmMkXZsdqmn35U/OZeXr4Zi42JDbtDVYtw6cjd/dyYGQfvwfipmmmqj6U0g==}
+
+  '@yume-chan/adb@2.1.0':
+    resolution: {integrity: sha512-OFubv3fLiPCGztJLqR0L9gSbxH66TxJXQTYKdlBheVU+HMFHxSq9mziP+iwW7CfIR73fu4KM6E1YmPrCW1UVOQ==}
+
+  '@yume-chan/async@4.1.3':
+    resolution: {integrity: sha512-0vzhNJMkWUPyjKzUK4rqHEeCU6YQtF78RsB1kFRB6Y2BLupmEQNxcSb0mjKabPL9jZpCCiLa5KL8oTOJClUVaw==}
+
+  '@yume-chan/event@2.0.0':
+    resolution: {integrity: sha512-z56MDOcX1QlgLUCuA6th3r10negVb7A3gzY//TwSC9ZOvzuRlrAqXcxZf1T3hHfNMk/NFO9RIgQgegXYSfaqLw==}
+
+  '@yume-chan/no-data-view@2.0.0':
+    resolution: {integrity: sha512-0GRJrrt6wtZlbiE92jocHOnaAvjQ+Y7xwwhwOPqLkwf90Kj1JIHJ5Zh4wJVQSQIkzfRSOpM+jeEQdC2K15snlA==}
+
+  '@yume-chan/stream-extra@2.1.0':
+    resolution: {integrity: sha512-Sq1mDCLTIOu+TbI3VmFhcKL5hi+qZkDA3S+JezZb/AJm4ESC3hB7+LgQIQs3QEK/ZeRwMg37w4IOYHSh30R7BQ==}
+
+  '@yume-chan/struct@2.0.1':
+    resolution: {integrity: sha512-Trqm2ovy5X+ydqv5jiDBH3UMA2jKNGG6alABCDTUsIsMjSsrTFE86cghI7fceVKIh4FkIUBd4DqOsxn2S1c4Jw==}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -5769,6 +5805,8 @@ snapshots:
 
   '@types/use-sync-external-store@0.0.6': {}
 
+  '@types/w3c-web-usb@1.0.10': {}
+
   '@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.2.0)(typescript@4.9.5))(eslint@8.2.0)(typescript@4.9.5)':
     dependencies:
       '@eslint-community/regexpp': 4.12.1
@@ -5928,6 +5966,44 @@ snapshots:
 
   '@xmldom/xmldom@0.9.7':
     optional: true
+
+  '@yume-chan/adb-credential-web@2.1.0':
+    dependencies:
+      '@yume-chan/adb': 2.1.0
+
+  '@yume-chan/adb-daemon-webusb@2.1.0':
+    dependencies:
+      '@types/w3c-web-usb': 1.0.10
+      '@yume-chan/adb': 2.1.0
+      '@yume-chan/event': 2.0.0
+      '@yume-chan/stream-extra': 2.1.0
+      '@yume-chan/struct': 2.0.1
+
+  '@yume-chan/adb@2.1.0':
+    dependencies:
+      '@yume-chan/async': 4.1.3
+      '@yume-chan/event': 2.0.0
+      '@yume-chan/no-data-view': 2.0.0
+      '@yume-chan/stream-extra': 2.1.0
+      '@yume-chan/struct': 2.0.1
+
+  '@yume-chan/async@4.1.3': {}
+
+  '@yume-chan/event@2.0.0':
+    dependencies:
+      '@yume-chan/async': 4.1.3
+
+  '@yume-chan/no-data-view@2.0.0': {}
+
+  '@yume-chan/stream-extra@2.1.0':
+    dependencies:
+      '@yume-chan/async': 4.1.3
+      '@yume-chan/struct': 2.0.1
+
+  '@yume-chan/struct@2.0.1':
+    dependencies:
+      '@yume-chan/async': 4.1.3
+      '@yume-chan/no-data-view': 2.0.0
 
   acorn-jsx@5.3.2(acorn@8.14.0):
     dependencies:

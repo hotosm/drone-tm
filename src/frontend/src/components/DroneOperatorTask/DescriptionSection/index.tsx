@@ -9,6 +9,7 @@ import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import MapSection from '../MapSection/MapSection';
 import DescriptionBox from './DescriptionBox';
+import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from '@Utils/adb';
 
 const { BASE_URL } = process.env;
 
@@ -60,9 +61,36 @@ const DroneOperatorDescriptionBox = () => {
         window.URL.revokeObjectURL(url);
       })
       .catch(error =>
-        toast.error(`There wan an error while downloading file
+        toast.error(`There was an error while downloading file
         ${error}`),
       );
+  };
+
+  const sendFlightPlanViaAdb = async () => {
+    try {
+      const response = await fetch(
+        `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}`,
+        { method: 'POST' },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Network response was ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+
+      // TODO improve this logic to be more generic
+      if (droneModel === 'POTENSIC_ATOM_2') {
+        await sendPotensicProFileViaAdb(blob);
+      } else {
+        await sendDjiGoFileViaAdb(blob);
+      }
+
+      toast.success(`Flight plan sent to device!`);
+    } catch (error) {
+      console.error(error);
+      toast.error(`There was an error while sending file: ${error}`);
+    }
   };
 
   const downloadFlightPlanGeojson = () => {
@@ -104,7 +132,7 @@ const DroneOperatorDescriptionBox = () => {
         window.URL.revokeObjectURL(url);
       })
       .catch(error =>
-        toast.error(`There wan an error while downloading file
+        toast.error(`There was an error while downloading file
         ${error}`),
       );
   };
@@ -131,7 +159,7 @@ const DroneOperatorDescriptionBox = () => {
         window.URL.revokeObjectURL(url);
       })
       .catch(error =>
-        toast.error(`There wan an error while downloading file
+        toast.error(`There was an error while downloading file
         ${error}`),
       );
   };
@@ -156,6 +184,18 @@ const DroneOperatorDescriptionBox = () => {
             </Button>
             {showDownloadOptions && (
               <div className="naxatw-absolute naxatw-right-0 naxatw-top-10 naxatw-z-20 naxatw-w-[200px] naxatw-rounded-sm naxatw-border naxatw-bg-white naxatw-shadow-2xl">
+                <div
+                  className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={() => sendFlightPlanViaAdb()}
+                  onClick={() => {
+                    sendFlightPlanViaAdb();
+                    setShowDownloadOptions(false);
+                  }}
+                >
+                  Send flight plan file to phone
+                </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                   role="button"
