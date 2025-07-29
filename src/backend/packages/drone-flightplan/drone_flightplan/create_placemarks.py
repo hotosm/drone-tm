@@ -57,16 +57,19 @@ def main(args_list: list[str] | None = None):
         type=str,
         help="The waypoint coordinates to be included in the flightplan mission",
     )
+    # NOTE this is passed as a json string via cmd line, not as a json file
     parser.add_argument(
         "--parameters",
         type=json_to_dict,
-        help="The drone flight parameters in a json",
+        help="The drone flight parameters in a json. Including ground_speed and altitude_above_ground_level.",
     )
 
     parser.add_argument("--outfile", required=True, help="output GeoJSON file")
 
     args = parser.parse_args(args_list)
 
+    if args.parameters is None:
+        raise ValueError("The parameters json must be included via command line")
     if "altitude_above_ground_level" not in args.parameters:
         raise ValueError(
             "altitude_above_ground_level is missing in the parameters json"
