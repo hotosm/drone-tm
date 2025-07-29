@@ -10,6 +10,7 @@ dependencies = [
     "geojson>=3.0.0",
     "shapely>=2.0.0",
     "pyproj>=3.0.0",
+    "gdal==3.6.2",
 ]
 requires-python = ">=3.10"
 readme = "README.md"

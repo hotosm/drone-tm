@@ -622,6 +622,7 @@ name = "drone-flightplan"
 version = "0.3.7"
 source = { editable = "packages/drone-flightplan" }
 dependencies = [
+    { name = "gdal" },
     { name = "geojson" },
     { name = "pyproj" },
     { name = "shapely" },
@@ -629,6 +630,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "gdal", specifier = "==3.6.2" },
     { name = "geojson", specifier = ">=3.0.0" },
     { name = "pyproj", specifier = ">=3.0.0" },
     { name = "shapely", specifier = ">=2.0.0" },
