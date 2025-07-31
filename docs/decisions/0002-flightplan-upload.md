@@ -55,7 +55,7 @@ Variants:
 
 There are many options for third-party apps, with varying drone support.
 
-These options are free to generate flightplans, but cost for the processing (we will use ODM, so this doesn't matter):
+These options are **free** to generate flightplans, but cost for the processing (we will use ODM, so this doesn't matter):
 
 - Pix4D Capture - [supports most](https://www.pix4d.com/supported-drones)
   DJI, Parrot, Autel drones + others.
@@ -65,15 +65,18 @@ These options are free to generate flightplans, but cost for the processing (we 
 - MapPilotPro from Maps Made Easy - [similar support](https://support.dronesmadeeasy.com/hc/en-us/articles/205704366-Supported-Hardware)
   to DroneDeploy above.
 
-Litchi provides a good offering for a $25 lifetime license, [DJI drones only](https://flylitchi.com/help).
+Litchi provides a good offering for a **$25 lifetime license**, [DJI drones only](https://flylitchi.com/help).
 
 The nice thing about Litchi, is they are used pretty actively in the drone enthusiast community,
 and seem to be well liked / keep their pricing model flat.
 
 Two pipelines are available via QGIS plugins currently:
 
-1. https://github.com/JMG30/flight_planner + https://github.com/pdfinn/flightplan2litchimission
-2. https://github.com/OpenGeoOne/qgis-drone-flight-planner
+1. [https://github.com/JMG30/flight_planner](https://github.com/JMG30/flight_planner)
+
+- [https://github.com/pdfinn/flightplan2litchimission](https://github.com/pdfinn/flightplan2litchimission)
+
+2. [https://github.com/OpenGeoOne/qgis-drone-flight-planner](https://github.com/OpenGeoOne/qgis-drone-flight-planner)
 
 Overall, it looks quite simple to dump a Litchi waypoint CSV (we could add this as an output option to drone-flightplan),
 to then import into the Litchi mobile app.
@@ -93,12 +96,17 @@ to then import into the Litchi mobile app.
 - The format used for waypoint missions inside the apps could also change, e.g. Litchi CSV
   format could change, breaking our integration temporarily.
 
-**A second approach to this could be attempting to partner with an organization such as Litchi, for better
-assurance of long term support and collaboration (perhaps also reduced license fees?)**
+Variants:
+
+- Try to do this without collaborating with the app developers. Simply download or purchase the app, then
+  integrate with it using their documentation.
+- Alternatively, we could try to partner with for exaple Litchi, for better assurance of long term support
+  and collaboration (perhaps also reduced license fees for advocating their use / bulk buy?).
 
 ### 3. Using Official Flight Apps
 
 **Approach**: use workarounds to import flightplans into official apps, while not officially supported.
+As of 2025-07-31, this is the primary mode available in DroneTM.
 
 > Note, the key thing here is that we use **official** apps for manufacturers, which are generally more locked down.
 
@@ -144,7 +152,10 @@ the need for users to mess with copying a file directly onto their device storag
 ### 5. Manufacturing Our Own Drone
 
 - This has been investigated as a possible option & may come to be in the future, as a longer term goal.
-- Once we have a cheap drone specifically for community mapping applications, we could load ArduPilot.
+- Once we have a cheap drone specifically for community mapping applications, we could load
+  [ArduPilot](https://github.com/ArduPilot/ardupilot) (open-source flight controller software).
+- The drone would be stripped down to the essentials for orthophoto generation, reducing the overall
+  cost. It would ideally also have replaceable components, making it easy to repair anywhere in the world.
 - This gives us ultimate flexibility and user experience refinement, at the cost of:
   - Reduced accessibility if we don't have enough drones, but other options are readily available.
   - Can't use existing fleet of drones present in communities globally.
