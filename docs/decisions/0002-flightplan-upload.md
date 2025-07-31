@@ -29,14 +29,14 @@ Ideally we develop this cross-platform using Flutter, but it may complicate SDK 
 
 👎 Cons
 
-- High upfront effort — SDK integration is non-trivial (especially DJI).
+- High effort: SDK integration is non-trivial (especially DJI).
 - Using Flutter (for both Android/iOS) may make SDK integration harder, needing
   [platform channels](https://docs.flutter.dev/platform-integration/platform-channels).
 - The SDK releases for Android / iOS are inconsistent. For example DJI last updated its
   [iOS SDKs](https://github.com/dji-sdk/Mobile-SDK-iOS) 3yrs ago!
   The [Android SDK](https://github.com/dji-sdk/Mobile-SDK-Android-V5) is pretty up to date though.
 - Maintenance cost is high (SDK updates, new device support, mobile developer).
-- Risk of bricking or misflying drones — safety and liability considerations.
+- Risk of bricking or misflying drones: safety and liability considerations if we break them.
 - SDK releases could be pulled at any point. DJI appear to be moving things to their cloud offering instead.
 
 Variants:
