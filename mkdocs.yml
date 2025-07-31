@@ -79,4 +79,9 @@ nav:
       - Ground Control Points: manuals/ground-control-points.md
   - Developer Guide:
       - Setup: dev/setup.md
+      - Practices:
+          - Dev Practices: https://docs.hotosm.org/dev-practices
+          - Tech Decisions: decisions/README.md
+          - Pre-Commit: https://docs.hotosm.org/dev-guide/repo-management/pre-commit/
+          - Versioning: https://docs.hotosm.org/dev-guide/repo-management/version-control/#creating-releases
   - Timeline: timeline.md
