@@ -15,6 +15,9 @@ log = logging.getLogger(__name__)
 
 
 def print_drone_calcs():
+
+    """Print helpful internal stats for all supported drones."""
+
     for drone in DroneType:
         print("-----------------------------------------")
         print(f"-------------{drone.name}---------------")
@@ -38,7 +41,14 @@ def _calculate_constants(
     equiv_focal_length_mm: float,
     image_width_px: int,
 ):
-    """A helper function to calculate constants for a new drone added."""
+    """A helper function to calculate constants for a new drone added.
+
+    Prints:
+    - Actual focal length
+    - Field of View (FOV)
+    - Constant used to convert GSD (ground sampling distance) to altitude
+    """
+
     # Sensor calcs
     sensor_diagonal_mm = math.sqrt(sensor_width_mm**2 + sensor_height_mm**2)
     sensor_crop_factor = 43.27 / sensor_diagonal_mm
@@ -48,6 +58,8 @@ def _calculate_constants(
     horizontal_fov_rads = 2 * math.atan(sensor_width_mm / (2 * actual_focal_length_mm))
     vertical_fov_rads = 2 * math.atan(sensor_height_mm / (2 * actual_focal_length_mm))
     # mm --> cm to match GSD in cm/px (the *100 in formula)
+
+    # This is used in altitude = gsd * constant
     gsd_to_agl_const = (actual_focal_length_mm * image_width_px) / (
         sensor_width_mm * 100
     )
@@ -66,14 +78,18 @@ def calculate_parameters(
     image_interval: int = 2,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ):
-    """Parameters
+    """
+    Converts drone specs + flight settings
+    into forward spacing, side spacing, and speed.
+
+    Parameters
     ---------------------------------
-    AGL(Altitude above ground level in meter ) = 115
-    Forward overlap = 75
-    Side overlap = 75
+    AGL (Altitude above ground level in meter) = 115
+    Forward overlap (% overlap between consecutive images along the flight path) = 75
+    Side overlap (% overlap between adjacent rows of images) = 75
 
     ## Fixed Parameters
-    Image interval = 2 sec
+    Image interval (Time between consecutive images)= 2 sec
     Vertical FOV = 0.71
     Horizontal FOV = 1.26
 
@@ -84,7 +100,17 @@ def calculate_parameters(
     forward spacing =  forward photo height - forward overlap distance
     side spacing = side photo width - side overlap distance
     ground speed = forward spacing / image interval
+
+    Returns:
+        dict: 
+            - forward_photo_height
+            - side_photo_width
+            - forward_spacing
+            - side_spacing
+            - ground_speed
+            - altitude_above_ground_level   
     """
+
     # Get the drone specifications from the Enum
     drone_specs = DRONE_PARAMS[drone_type]
     VERTICAL_FOV = drone_specs["VERTICAL_FOV"]
@@ -94,13 +120,19 @@ def calculate_parameters(
     if gsd:
         agl = gsd * GSD_TO_AGL_CONST
 
-    # Calculations
+    # Calculate dimensions of each image
     forward_photo_height = agl * VERTICAL_FOV
     side_photo_width = agl * HORIZONTAL_FOV
+
+    # How much of that is overlap
     forward_overlap_distance = forward_photo_height * forward_overlap / 100
     side_overlap_distance = side_photo_width * side_overlap / 100
+
+    # Remaining spacing between two images
     forward_spacing = forward_photo_height - forward_overlap_distance
     side_spacing = side_photo_width - side_overlap_distance
+
+    # Drone speed
     ground_speed = forward_spacing / image_interval
 
     if (
@@ -126,11 +158,26 @@ def calculate_parameters(
 
 
 def main():
+
+    """
+
+    Parses terminal arguments and prints out drone flight planning parameters.
+
+    If you run this file from the terminal, it asks the user for:
+    - Drone type
+    - Either altitude or GSD
+    - Overlap %
+    - Time between images
+
+    Then it prints the calculated parameters.
+    """
+
     parser = argparse.ArgumentParser(
         description="Generate parameters for a drone which can be used for flight plans.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
+    # Takes either gsd or altitude
     group = parser.add_mutually_exclusive_group(required=True)
 
     parser.add_argument(
@@ -172,6 +219,8 @@ def main():
         help="The time interval between two consecutive images in seconds.",
     )
 
+    # Parse all command-line arguments
+
     args = parser.parse_args()
 
     results = calculate_parameters(
@@ -183,11 +232,12 @@ def main():
         args.drone_type,
     )
 
+    # Print final outputs to terminal
+
     for key, value in results.items():
         log.info(f"{key}: {value}")
 
     return results
-
 
 if __name__ == "__main__":
     main()
