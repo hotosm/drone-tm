@@ -24,6 +24,9 @@
     "@turf/length": "^7.2.0",
     "@turf/meta": "^7.2.0",
     "@turf/transform-rotate": "^7.2.0",
+    "@yume-chan/adb": "^2.1.0",
+    "@yume-chan/adb-credential-web": "^2.1.0",
+    "@yume-chan/adb-daemon-webusb": "^2.1.0",
     "autoprefixer": "^10.4.20",
     "axios": "^1.7.9",
     "class-variance-authority": "^0.6.1",
@@ -92,7 +95,7 @@
   },
   "name": "drone-tm",
   "private": true,
-	"license": "(AGPL-3.0-only OR CC-BY-4.0)",
+  "license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "scripts": {
     "build": "tsc && vite build",
     "dev": "vite",
