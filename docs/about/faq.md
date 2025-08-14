@@ -145,27 +145,19 @@ no-fly zones. There is a feature to draw these zones on the project map, and the
 
 ### Q. What Drones Are Supported?
 
-Currently, DroneTM is tested on **DJI Mini 4 Pro**, and flight plans are optimized for its camera specifications.
-However, the system is compatible with any DJI drones that support waypoint features, such as:
+See [here](https://github.com/hotosm/Drone-TM/#drone-support) for an up to date
+list of supported drones.
 
-- **Mavic 3/3P/3C**
-- **Air 3/3S**
-- **Mini 4 Pro**
-
-Users can also download the **GeoJSON** of the task area, load it into their
-drones, and create custom flight plans as per the specifications provided by the project creator.
+Users can also download the **GeoJSON** of the task area and load it into their drone
+flight planning software to upload to their Drone.
 
 !!! note
 
-      We have two angles to increase the number of supported drones:
+      We have a few angles to improve drone support.
 
-      1. Support for interfacing with flight plan software such as DroneDeploy,
-      Litchi, DroneLink, meaning any drone supported there is supported by
-      DroneTM.
-
-      2. Support for Open-Source flight plan software such as ArduPilot and iNAV,
-      widening our support signficantly to cheap custom-made drones, and in future
-      the HOT mapping drone.
+      See
+      [this document](https://hotosm.github.io/drone-tm/decisions/0002-flightplan-upload)
+      for more information.
 
 ### Q. What Drones Are Not Supported?
 

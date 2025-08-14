@@ -114,6 +114,20 @@ To get started with Drone TM:
 >
 > 🖥️ for desktop / managers / validators
 
+## Drone Support
+
+<!-- prettier-ignore-start -->
+| Drone | Manual File Copy | WebUSB Upload | SDK Integration | External Tools With Support |
+|:------:|:-------:|:-------:|:-------:|:--------|
+| DJI Mini 4 Pro | ✅ | ✅ | | Litchi |
+| DJI Air 3/3S | ✅ | ✅ | | Litchi |
+| Mavic 3/3P/3C | ❔ | ❔ | | Litchi |
+| Potensic Atom 2 | ✅ | ✅ | | ❌ |
+<!-- prettier-ignore-end -->
+
+> [!Note]
+> ❔ untested in the field / not confirmed, but in theory should work
+
 ## Contribution
 
 Drone TM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:

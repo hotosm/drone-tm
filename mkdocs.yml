@@ -78,10 +78,10 @@ nav:
       - Flightplans: manuals/generate-flightplans.md
       - Ground Control Points: manuals/ground-control-points.md
   - Developer Guide:
-      - Setup: dev/setup.md
       - Practices:
           - Dev Practices: https://docs.hotosm.org/dev-practices
           - Tech Decisions: decisions/README.md
           - Pre-Commit: https://docs.hotosm.org/dev-guide/repo-management/pre-commit/
           - Versioning: https://docs.hotosm.org/dev-guide/repo-management/version-control/#creating-releases
+      - Setup: dev/Setup.md
   - Timeline: timeline.md
