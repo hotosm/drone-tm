@@ -125,6 +125,7 @@ To get started with Drone TM:
 | DJI Air 3/3S | ❌ | ✅❔ | ❌ | None |
 | DJI Mavic 3/3P/3C | ❌ | ✅❔ | ❌ | None |
 | DJI Mavic Air/Pro  | ❌ | ✅❔ | ✅ | Litchi, DroneDeploy |
+| DJI Mini 4k | ✅ | ✅❔ | ❌ | None |
 | DJI Mini SE (version 1 only) | ✅ | ❌ | ✅ | Litchi |
 | DJI Mini 2 | ✅ | ❌ | ✅ | Litchi |
 | DJI Air 2S | ❌ | ✅❔ | ✅ | Litchi, DroneDeploy |
@@ -133,6 +134,7 @@ To get started with Drone TM:
 
 > [!Note]
 > ✅❔ in theory should work, but untested in the field
+>
 > ⚙️ currently in development
 
 ## Contribution
