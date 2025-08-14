@@ -117,16 +117,23 @@ To get started with Drone TM:
 ## Drone Support
 
 <!-- prettier-ignore-start -->
-| Drone | Manual File Copy | WebUSB Upload | SDK Integration | External Tools With Support |
+| Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
 |:------:|:-------:|:-------:|:-------:|:--------|
-| DJI Mini 4 Pro | ✅ | ✅ | | Litchi |
-| DJI Air 3/3S | ✅ | ✅ | | Litchi |
-| Mavic 3/3P/3C | ❔ | ❔ | | Litchi |
-| Potensic Atom 2 | ✅ | ✅ | | ❌ |
+| DJI Mini 4 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta, DroneDeploy |
+| DJI Mini 3 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta |
+| DJI Mini 3 | ✅ | ✅ | ✅ | Litchi Pilot Beta |
+| DJI Air 3/3S | ❌ | ✅❔ | ❌ | None |
+| DJI Mavic 3/3P/3C | ❌ | ✅❔ | ❌ | None |
+| DJI Mavic Air/Pro  | ❌ | ✅❔ | ✅ | Litchi, DroneDeploy |
+| DJI Mini SE (version 1 only) | ✅ | ❌ | ✅ | Litchi |
+| DJI Mini 2 | ✅ | ❌ | ✅ | Litchi |
+| DJI Air 2S | ❌ | ✅❔ | ✅ | Litchi, DroneDeploy |
+| Potensic Atom 2 | ✅ | ✅ | ❌ | None |
 <!-- prettier-ignore-end -->
 
 > [!Note]
-> ❔ untested in the field / not confirmed, but in theory should work
+> ✅❔ in theory should work, but untested in the field
+> ⚙️ currently in development
 
 ## Contribution
 
