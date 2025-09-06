@@ -15,13 +15,13 @@ backend:
     repository: ghcr.io/hotosm/drone-tm/backend
     tag: "2025.3.2"
     pullPolicy: IfNotPresent
-  
+
   replicaCount: 1
-  
+
   service:
     type: ClusterIP
     port: 8000
-  
+
   ingress:
     enabled: true
     className: ""
@@ -33,7 +33,7 @@ backend:
         paths:
           - path: /
             pathType: Prefix
-  
+
   resources: {}
     # limits:
     #   cpu: 1000m
@@ -41,7 +41,7 @@ backend:
     # requests:
     #   cpu: 500m
     #   memory: 512Mi
-  
+
   livenessProbe:
     httpGet:
       path: /health
@@ -54,17 +54,17 @@ backend:
       port: http
     initialDelaySeconds: 5
     periodSeconds: 5
-  
+
   autoscaling:
     enabled: false
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
-  
+
   extraEnvFrom:
     - secretRef:
         name: drone-tm-secrets
-  
+
   # Database configuration
   database:
     host: ""
@@ -72,7 +72,7 @@ backend:
     name: ""
     user: ""
     password: ""
-  
+
   # S3 configuration
   s3:
     endpoint: ""
@@ -87,13 +87,13 @@ frontend:
     repository: ghcr.io/hotosm/drone-tm/frontend
     tag: "2025.3.2"
     pullPolicy: IfNotPresent
-  
+
   replicaCount: 1
-  
+
   service:
     type: ClusterIP
     port: 3040
-  
+
   ingress:
     enabled: true
     className: ""
@@ -105,9 +105,9 @@ frontend:
         paths:
           - path: /
             pathType: Prefix
-  
+
   resources: {}
-  
+
   extraEnvFrom:
     - secretRef:
         name: drone-tm-secrets
@@ -118,15 +118,15 @@ worker:
     repository: ghcr.io/hotosm/drone-tm/backend
     tag: "2025.3.2"
     pullPolicy: IfNotPresent
-  
+
   replicaCount: 1
-  
+
   resources: {}
-  
+
   extraEnvFrom:
     - secretRef:
         name: drone-tm-secrets
-  
+
   livenessProbe:
     exec:
       command:
@@ -147,7 +147,7 @@ worker:
 # ODM processing (optional)
 odm:
   enabled: false
-  
+
   nodeodm:
     enabled: true
     image:
@@ -158,7 +158,7 @@ odm:
       type: ClusterIP
       port: 3000
     resources: {}
-  
+
   webodm:
     enabled: true
     image:
@@ -174,7 +174,7 @@ odm:
       annotations: {}
       hosts: []
     resources: {}
-  
+
   worker:
     enabled: true
     image:

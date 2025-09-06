@@ -96,4 +96,3 @@ Create the name of the ODM services
 {{- define "drone-tm.odm.worker.fullname" -}}
 {{- printf "%s-odm-worker" (include "drone-tm.fullname" .) }}
 {{- end }}
-

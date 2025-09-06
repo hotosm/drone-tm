@@ -87,4 +87,3 @@ redis:
         memory: 256Mi
     persistence:
       size: 5Gi
-

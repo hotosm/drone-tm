@@ -4,8 +4,8 @@ description: Drone Tasking Manager - coordinated drone mapping
 version: "0.1.0"
 appVersion: "2025.3.2"
 maintainers:
-- email: sysadmin@hotosm.org
-  name: HOTOSM
+  - email: sysadmin@hotosm.org
+    name: HOTOSM
 home: https://github.com/hotosm/drone-tm
 icon: https://dronetm.hotosm.org/favicon.png
 dependencies:
@@ -24,4 +24,3 @@ dependencies:
     repository: oci://registry-1.docker.io/bitnamicharts
     condition: redis.enabled
     alias: redis
-
