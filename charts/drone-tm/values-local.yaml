@@ -1,0 +1,90 @@
+# Development values for drone-tm
+# Use with: helm install drone-tm ./charts/drone-tm -f values-local.yaml
+
+global:
+  domain: drone-tm.localhost
+
+# Development backend configuration
+backend:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  ingress:
+    enabled: false
+
+# Development frontend configuration
+frontend:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 125m
+      memory: 128Mi
+  ingress:
+    enabled: false
+
+# Development worker configuration
+worker:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Enable ODM processing for development (optional)
+odm:
+  enabled: true
+
+# Development database configuration
+postgresql:
+  enabled: true
+  primary:
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    persistence:
+      size: 10Gi
+
+# Development MinIO configuration
+minio:
+  enabled: true
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  persistence:
+    size: 10Gi
+
+# Development Redis configuration
+redis:
+  enabled: true
+  architecture: standalone
+  master:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    persistence:
+      size: 5Gi
+

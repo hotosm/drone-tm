@@ -1,0 +1,283 @@
+# Default values for drone-tm
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  domain: drone-tm.localhost
+  storageClass: ""
+  ingress:
+    className: ""
+
+# Main application services
+backend:
+  enabled: true
+  image:
+    repository: ghcr.io/hotosm/drone-tm/backend
+    tag: "2025.3.2"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 1
+  
+  service:
+    type: ClusterIP
+    port: 8000
+  
+  ingress:
+    enabled: true
+    className: ""
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    tls: []
+    hosts:
+      - host: api.drone-tm.localhost
+        paths:
+          - path: /
+            pathType: Prefix
+  
+  resources: {}
+    # limits:
+    #   cpu: 1000m
+    #   memory: 1Gi
+    # requests:
+    #   cpu: 500m
+    #   memory: 512Mi
+  
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  
+  extraEnvFrom:
+    - secretRef:
+        name: drone-tm-secrets
+  
+  # Database configuration
+  database:
+    host: ""
+    port: 5432
+    name: ""
+    user: ""
+    password: ""
+  
+  # S3 configuration
+  s3:
+    endpoint: ""
+    accessKey: ""
+    secretKey: ""
+    bucket: ""
+    region: ""
+
+frontend:
+  enabled: true
+  image:
+    repository: ghcr.io/hotosm/drone-tm/frontend
+    tag: "2025.3.2"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 1
+  
+  service:
+    type: ClusterIP
+    port: 3040
+  
+  ingress:
+    enabled: true
+    className: ""
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    tls: []
+    hosts:
+      - host: drone-tm.localhost
+        paths:
+          - path: /
+            pathType: Prefix
+  
+  resources: {}
+  
+  extraEnvFrom:
+    - secretRef:
+        name: drone-tm-secrets
+
+worker:
+  enabled: true
+  image:
+    repository: ghcr.io/hotosm/drone-tm/backend
+    tag: "2025.3.2"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 1
+  
+  resources: {}
+  
+  extraEnvFrom:
+    - secretRef:
+        name: drone-tm-secrets
+  
+  livenessProbe:
+    exec:
+      command:
+        - arq
+        - app.arq.tasks.WorkerSettings
+        - --check
+    initialDelaySeconds: 30
+    periodSeconds: 30
+  readinessProbe:
+    exec:
+      command:
+        - arq
+        - app.arq.tasks.WorkerSettings
+        - --check
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# ODM processing (optional)
+odm:
+  enabled: false
+  
+  nodeodm:
+    enabled: true
+    image:
+      repository: docker.io/opendronemap/nodeodm
+      tag: "3.5.5"
+    replicaCount: 1
+    service:
+      type: ClusterIP
+      port: 3000
+    resources: {}
+  
+  webodm:
+    enabled: true
+    image:
+      repository: docker.io/opendronemap/webodm_webapp
+      tag: "2.8.3"
+    replicaCount: 1
+    service:
+      type: ClusterIP
+      port: 8000
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      hosts: []
+    resources: {}
+  
+  worker:
+    enabled: true
+    image:
+      repository: docker.io/opendronemap/webodm_webapp
+      tag: "2.8.3"
+    replicaCount: 1
+    resources: {}
+
+# Subchart configurations
+postgresql:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: 16-debian-12
+  auth:
+    enablePostgresUser: false
+    username: dtm
+    database: dtm_db
+    existingSecret: drone-tm-secrets
+    secretKeys:
+      userPasswordKey: POSTGRES_PASSWORD
+  initdb:
+    scripts:
+      01-enable-postgis.sql: |
+        CREATE EXTENSION IF NOT EXISTS postgis;
+  primary:
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+
+minio:
+  enabled: true
+  mode: standalone
+  replicas: 1
+  image:
+    repository: quay.io/minio/minio
+    tag: RELEASE.2024-08-03T04-33-23Z
+  environment:
+    MINIO_BROWSER: "off"
+  mountPath: /mnt/data
+  resources:
+    requests:
+      memory: 200Mi
+  auth:
+    rootUser: dtm_user
+    existingSecret: drone-tm-secrets
+    existingSecretKey: S3_SECRET_KEY
+  defaultBuckets: "dtm-bucket"
+  ingress:
+    enabled: false
+    ingressClassName: ~
+    annotations: {}
+    path: /
+    hosts: []
+    tls: []
+
+redis:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/redis
+    tag: 7.2-debian-12
+  auth:
+    enabled: true
+    existingSecret: drone-tm-secrets
+    secretKeys:
+      passwordKey: REDIS_PASSWORD
+  architecture: standalone
+  master:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+# Kubernetes resources
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

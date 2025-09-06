@@ -1,0 +1,61 @@
+{{- if and .Values.odm.enabled .Values.odm.nodeodm.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "drone-tm.odm.nodeodm.fullname" . }}
+  labels:
+    {{- include "drone-tm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: odm-nodeodm
+spec:
+  replicas: {{ .Values.odm.nodeodm.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "drone-tm.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: odm-nodeodm
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "drone-tm.labels" . | nindent 8 }}
+        app.kubernetes.io/component: odm-nodeodm
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "drone-tm.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: odm-nodeodm
+          image: "{{ .Values.odm.nodeodm.image.repository }}:{{ .Values.odm.nodeodm.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ .Values.odm.nodeodm.service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.odm.nodeodm.resources | nindent 12 }}
+          env:
+            - name: NODEODM_HOSTNAME
+              value: "webodm-node-odm-1"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
