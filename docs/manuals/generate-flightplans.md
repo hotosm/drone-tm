@@ -23,7 +23,6 @@
        --altitude_above_ground_level 110 \
        --forward_overlap 75 \
        --side_overlap 75 \
-       --generate_each_points \
        --take_off_point LON,LAT \
        --output_file_path ./waypoints.geojson
    ```
