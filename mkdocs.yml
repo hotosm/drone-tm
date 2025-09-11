@@ -1,7 +1,7 @@
 site_name: Drone TM
 site_description: Community-driven drone imagery generation.
 # strict: true
-site_url: "https://hotosm.github.io/drone-tm/"
+site_url: "https://docs.dronetm.hotosm.org"
 
 repo_name: "hotosm/drone-tm"
 repo_url: "https://github.com/hotosm/drone-tm/"
@@ -66,7 +66,7 @@ plugins:
 
 nav:
   - Home: index.md
-  # - API Docs: https://hotosm.github.io/swagger/?url=https://hotosm.github.io/drone-tm/openapi.json
+  # - API Docs: https://hotosm.github.io/swagger/?url=https://docs.dronetm.hotosm.org/openapi.json
   - Get Started:
       - About: about/about.md
       - Installation: INSTALL.md

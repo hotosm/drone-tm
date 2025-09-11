@@ -126,7 +126,12 @@ def create_path(
     # TODO: Make the gimbal angle dynamic. Right now it is static to -80
 
     def filter_points_in_polygon(segment_points, polygon, is_edge_segment=False):
-        """Filter points outside the given polygon. If more than 2 points are outside the polygon,"""
+        """Filter points outside the given polygon. If more than 2 points are outside the polygon.
+
+        We need this because not all AOIs are rectangular. For example if the AOI is irregular,
+        then the two point buffer may have mroe than 2 points in certain parts and we need to clip
+        to ensure two points only.
+        """
         # Edge segments are first and last lines of the grid.
         # They are ignores to maintain overlap with the adjacent task grid.
         if not polygon or is_edge_segment:

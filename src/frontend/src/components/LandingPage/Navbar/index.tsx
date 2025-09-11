@@ -21,7 +21,7 @@ export default function Navbar() {
             Tutorials
           </Link>
 
-          <a href="https://hotosm.github.io/drone-tm/ ">
+          <a href="https://docs.dronetm.hotosm.org ">
             <p className="naxatw-pr-3 hover:naxatw-underline">Documentations</p>
           </a>
         </FlexRow>
