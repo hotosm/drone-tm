@@ -79,7 +79,7 @@ repos:
 
   # Deps: ensure Python uv lockfile is up to date
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.8.15
+    rev: 0.8.17
     hooks:
       - id: uv-lock
         files: src/backend/pyproject.toml
@@ -87,7 +87,7 @@ repos:
 
   # Versioning: Commit messages & changelog
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.8.4
+    rev: v4.9.1
     hooks:
       - id: commitizen
         stages: [commit-msg]
@@ -95,7 +95,7 @@ repos:
   # Lint / autoformat: Python code
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.12.12"
+    rev: "v0.13.0"
     hooks:
       # Run the linter
       - id: ruff
