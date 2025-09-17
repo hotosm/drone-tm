@@ -32,24 +32,6 @@ services:
           exit 0
         fi
 
-  # Only required as we are migrating from filesystem to volume
-  db-to-volume:
-    image: postgis/postgis:16-3.4-alpine
-    depends_on:
-      db-check-upgrade:
-        condition: service_completed_successfully
-    volumes:
-      - ${PROJECT_DIR:-../..}/DockerData/dtm_db_data:/db-data-old
-      - db-data:/db-data-new
-    network_mode: none
-    restart: no
-    entrypoint: /bin/sh -c
-    command:
-      - |
-        rm -rf /db-data-new/*
-        cp -r /db-data-old/* /db-data-new/
-        echo 'Copied postgres data to docker volume'
-
   # Do the db upgrade
   db-upgrade:
     image: ghcr.io/hotosm/pg-upgrade:16-3.4-alpine

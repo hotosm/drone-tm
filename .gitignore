@@ -76,9 +76,6 @@ envsubst
 # Chart dependencies
 chart/charts
 
-#Docker
-DockerData/
-
 #Backend Template
 src/backend/templates/*
 src/backend/frontend_html
