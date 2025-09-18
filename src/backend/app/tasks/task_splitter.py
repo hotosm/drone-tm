@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional, Union
 
 import geojson
-import numpy as np
 from geojson import Feature, FeatureCollection, GeoJSON
 from pyproj import Transformer
 from shapely.geometry import Polygon, shape
@@ -135,8 +134,16 @@ class TaskSplitter(object):
         xmin, ymin, xmax, ymax = aoi_mercator.bounds
 
         # Generate grid columns and rows based on AOI bounds and specified square length in meters
-        cols = np.arange(xmin, xmax + meters, meters)
-        rows = np.arange(ymin, ymax + meters, meters)
+        def frange(start: float, stop: float, step: float):
+            """Range function that works with floats."""
+            x = start
+            while x <= stop:
+                yield x
+                x += step
+
+        # Create grid columns and rows based on the AOI bounds
+        cols = list(frange(xmin, xmax + meters, meters))
+        rows = list(frange(ymin, ymax + meters, meters))
 
         polygons = []
         small_polygons = []

@@ -2,7 +2,7 @@
 ARG PYTHON_IMG_TAG=3.11
 
 # Base build stage with dependencies required to build Python wheels
-FROM python:$PYTHON_IMG_TAG-slim-bookworm AS build
+FROM python:$PYTHON_IMG_TAG-slim-trixie AS build
 
 # Install build dependencies
 RUN set -ex \
@@ -12,7 +12,7 @@ RUN set -ex \
         "build-essential" \
         "gcc" \
         "g++" \
-        "libpcre3-dev" \
+        "libpcre2-dev" \
         "libpq-dev" \
         "libspatialindex-dev" \
         "libproj-dev" \
@@ -57,7 +57,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-editable --no-dev --no-install-project
 
 # Run stage (final stage)
-FROM python:$PYTHON_IMG_TAG-slim-bookworm AS service
+FROM python:$PYTHON_IMG_TAG-slim-trixie AS service
 
 ARG PYTHON_IMG_TAG
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -76,15 +76,15 @@ RUN set -ex \
     "nano" \
     "curl" \
     "gettext-base" \
-    "libpcre3" \
+    "libpcre2-16-0" \
     "libpq5" \
-    "mime-support" \
+    "media-types" \
     "postgresql-client" \
-    "libglib2.0-0" \
-    "libspatialindex-c6" \
+    "libglib2.0-0t64" \
+    "libspatialindex-c8" \
     "libproj25" \
-    "libgeos-c1v5" \
-    "libgdal32" \
+    "libgeos-c1t64" \
+    "libgdal36" \
 && rm -rf /var/lib/apt/lists/*
 
 # Retrieve global Python packages and dependencies from the build stage

@@ -8,9 +8,9 @@ authors = [
 ]
 dependencies = [
     "geojson>=3.0.0",
-    "shapely>=2.0.0",
-    "pyproj>=3.0.0",
-    "gdal==3.6.2",
+    "shapely>=2.1.0",
+    "pyproj>=3.7.1",
+    "gdal==3.10.3",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
