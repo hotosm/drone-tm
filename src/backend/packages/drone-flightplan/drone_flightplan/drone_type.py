@@ -11,6 +11,7 @@ class StrEnum(str, Enum):
 class DroneType(StrEnum):
     DJI_MINI_4_PRO = "DJI_MINI_4_PRO"
     DJI_AIR_3 = "DJI_AIR_3"
+    DJI_MINI_5_PRO = "DJI_MINI_5_PRO"
     POTENSIC_ATOM_2 = "POTENSIC_ATOM_2"
 
 
@@ -21,7 +22,7 @@ DRONE_SPECS = {
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
-        "image_width_px": 4032,
+        "image_width_px": 4032,  # taken from actual files, at 12MP
     },
     DroneType.DJI_AIR_3: {
         # 1/1.3-inch CMOS
@@ -29,7 +30,15 @@ DRONE_SPECS = {
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
-        "image_width_px": 4032,
+        "image_width_px": 4032,  # at 12MP
+    },
+    DroneType.DJI_MINI_5_PRO: {
+        # 1-inch CMOS
+        # 4:3 (or 16:9 cropped)
+        "sensor_height_mm": 9.6,
+        "sensor_width_mm": 12.8,
+        "equiv_focal_length_mm": 24,
+        "image_width_px": 4032,  # at 12MP
     },
     DroneType.POTENSIC_ATOM_2: {
         # 1/2-inch CMOS
@@ -82,6 +91,14 @@ DRONE_PARAMS = {
     # NOTE Mini 4 Pro, Mini 3 Pro, and Air 3 all have same CMOS size
     # and focal length, so have the same stats here
     DroneType.DJI_AIR_3: {
+        "VERTICAL_FOV": 0.99,
+        "HORIZONTAL_FOV": 1.25,
+        "GSD_TO_AGL_CONST": 27.95,
+        "OUTPUT_FORMAT": "DJI_WMPL",
+    },
+    # NOTE the params are basically the same despite 1" CMOS, due to
+    # increase in both actual_focal_length_mm and sensor_width_mm
+    DroneType.DJI_MINI_5_PRO: {
         "VERTICAL_FOV": 0.99,
         "HORIZONTAL_FOV": 1.25,
         "GSD_TO_AGL_CONST": 27.95,

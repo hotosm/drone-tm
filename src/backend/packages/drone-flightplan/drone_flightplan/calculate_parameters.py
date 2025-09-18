@@ -103,13 +103,14 @@ def calculate_parameters(
     side_spacing = side_photo_width - side_overlap_distance
     ground_speed = forward_spacing / image_interval
 
-    if (
-        drone_type in [DroneType.DJI_MINI_4_PRO, DroneType.DJI_AIR_3]
-        and ground_speed > 12
+    # While Mini 4 Pro can go 12m/s and Mini 5 Pro 15m/s, we cap the ground speed at 11.5 m/s to
+    # avoid problems with the RC2 controller.
+    # Speeds over 12 m/s cause the controller to change the speed to 2.5 m/s, which is too slow.
+    # Keeping it below 12 m/s ensures the flight plan works correctly.
+    if ground_speed > 12 and (
+        drone_type
+        in [DroneType.DJI_MINI_5_PRO, DroneType.DJI_MINI_4_PRO, DroneType.DJI_AIR_3]
     ):
-        # Cap ground speed at 11.5 m/s to avoid problems with the DJI Mini 4 Pro controller.
-        # Speeds over 12 m/s cause the controller to change the speed to 2.5 m/s, which is too slow.
-        # Keeping it below 12 m/s ensures the flight plan works correctly.
         ground_speed = 11.5
     elif drone_type == DroneType.POTENSIC_ATOM_2:
         # This seems to be the max speed for the Potensic Atom 2

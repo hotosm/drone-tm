@@ -20,7 +20,7 @@ export interface IDroneOperatorTaskState {
   filesExifData: IFilesExifData[];
   uploadProgress: Record<string, any>;
   waypointMode: 'waylines' | 'waypoints';
-  droneModel: 'DJI_MINI_4_PRO' | 'DJI_AIR_3' | 'POTENSIC_ATOM_2';
+  droneModel: 'DJI_MINI_4_PRO' | 'DJI_MINI_5_PRO' | 'DJI_AIR_3' | 'POTENSIC_ATOM_2';
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
   rotationAngle: number;
