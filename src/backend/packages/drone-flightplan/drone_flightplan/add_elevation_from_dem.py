@@ -107,8 +107,8 @@ def add_elevation_from_dem(raster_file, points, outfile):
     for feature in lyr:
         geom = feature.GetGeometryRef()
         pointXYRasterCRS = transform.TransformPoint(geom.GetX(), geom.GetY())
-        mapX = pointXYRasterCRS[1]
-        mapY = pointXYRasterCRS[0]
+        mapX = pointXYRasterCRS[0]
+        mapY = pointXYRasterCRS[1]
         pixcoords = gdal.ApplyGeoTransform(reverse, mapX, mapY)
         pixX = math.floor(pixcoords[0])
         pixY = math.floor(pixcoords[1])
