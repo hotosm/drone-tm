@@ -267,7 +267,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 <ErrorMessage
                   message={errors?.side_overlap_percent?.message as string}
                 />
-                <p className="naxatw-text-[#68707F]">Recommended : 60%</p>
+                <p className="naxatw-text-[#68707F]">Recommended : 75%</p>
               </FormControl>
             </FlexRow>
           ) : (
