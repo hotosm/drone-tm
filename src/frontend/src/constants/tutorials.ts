@@ -1,5 +1,6 @@
 import flightPlanLoadOnRc from '@Assets/images/tutorials/flight_plan_load_on_Rc.png';
-import flightPlanReplacementOnRc from '@Assets/images/tutorials/flight_plan_replacement_on_rc.png';
+import flightPlanReplacementOnRcByLaptop from '@Assets/images/tutorials/flight_plan_replacement_on_rc_by_laptop.png';
+import flightPlanReplacementOnRcByApp from '@Assets/images/tutorials/flight_plan_replacement_on_rc_by_app.png';
 import imageProcessing from '@Assets/images/tutorials/image_processing.png';
 import projectCreation from '@Assets/images/tutorials/project_creation.png';
 import signUpAndLogin from '@Assets/images/tutorials/sign_up_and_login.png';
@@ -48,12 +49,20 @@ export const videoTutorialData: IVideoTutorialItems[] = [
     thumbnail: flightPlanLoadOnRc,
   },
   {
-    id: 'Flight+Plan+Replacement+on+RC',
+    id: 'Flight+Plan+Replacement+on+RC+By+App',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Flight+Plan+Replacement+on+RC.mp4',
-    title: 'How to Replace the Flight Plan on RC of Drone using Laptop',
+      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Flight+Plan+Replacement+on+RC+By+App.mp4',
+    title: 'How to Replace the Flight Plan on RC of Drone using Mobile App (Option 2)',
     description: '',
-    thumbnail: flightPlanReplacementOnRc,
+    thumbnail: flightPlanReplacementOnRcByApp,
+  },
+  {
+    id: 'Flight+Plan+Replacement+on+RC+By+Laptop',
+    videoUrl:
+      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Flight+Plan+Replacement+on+RC+By+Laptop.mp4',
+    title: 'How to Replace the Flight Plan on RC of Drone using Laptop (Option 1)',
+    description: '',
+    thumbnail: flightPlanReplacementOnRcByLaptop,
   },
   {
     id: 'Image+Processing',
