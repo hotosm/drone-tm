@@ -62,5 +62,5 @@ See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
          waypoint). Also ensure the photo capture is turned off when the final
          waypoint is captured for the mission.
 
-      4. Do not iterfere with the device mid-flight. Wait for the mission
+      4. Do not interfere with the device mid-flight. Wait for the mission
          to finish before carrying out other operations on the controller.
