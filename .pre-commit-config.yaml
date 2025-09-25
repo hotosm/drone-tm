@@ -105,6 +105,14 @@ repos:
       - id: ruff-format
         files: ^src/backend/(?:.*/)*.*$
 
+  # Spelling: Checks for common misspellings in text files.
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        types: [text]
+        args: [--toml, src/backend/pyproject.toml]
+
   # Autoformat: YAML, JSON, Markdown, etc.
   - repo: https://github.com/pycontribs/mirrors-prettier
     rev: v3.6.2

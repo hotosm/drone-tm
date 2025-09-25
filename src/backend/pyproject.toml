@@ -83,6 +83,11 @@ drone-flightplan = { workspace = true }
 [tool.uv.workspace]
 members = ["packages/*"]
 
+[tool.codespell]
+skip = "*pnpm-lock.yaml,*CHANGELOG.md,src/frontend/src/assets/*"
+ignore-words-list = "ProjectIn"
+write-changes = true
+
 #[tool.ruff]
 #fix = true
 #line-length = 88
