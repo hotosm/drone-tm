@@ -157,7 +157,7 @@ const ImageMapBox = () => {
         data,
       );
 
-      // urls fromm array of objects is retrieved and stored in value
+      // urls from array of objects is retrieved and stored in value
       const urls = urlsData.data.map(({ url }: { url: string }) => url);
       const chunkedUrls = chunkArray(urls, 4);
       const files = filesExifData.map((file: any) => file.file);

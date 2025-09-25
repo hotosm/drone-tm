@@ -209,7 +209,7 @@ def waypoints2waylines(injson, threshold):
     --------
     outgeojson : dict
         A dict suitable for writing to a GeoJSON file using json.dump
-        representing the flight plan, pretty much idential
+        representing the flight plan, pretty much identical
 
     """
     # Copy the header from the input file

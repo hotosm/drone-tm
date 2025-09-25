@@ -1,6 +1,6 @@
 # Using DJI Drones With DroneTM
 
-- Download a modifed `debuggable` version of PotensicPro.
+- Download a modified `debuggable` version of PotensicPro.
 - Connect your phone to the device running DroneTM via cable.
 - Create a flightplan and 'Copy directly to the drone'
   from the task page.

@@ -30,7 +30,7 @@ cp -v /tmp/dist/index.html /tmp/frontend_html/index.html
 
 echo "======================================================"
 echo "           Index File Copied Successfully!            "
-echo "                      Exitting!                       "
+echo "                      Exiting!                       "
 echo "======================================================"
 
 exit 0

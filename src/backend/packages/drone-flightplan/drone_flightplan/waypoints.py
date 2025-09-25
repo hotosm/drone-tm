@@ -129,7 +129,7 @@ def create_path(
         """Filter points outside the given polygon. If more than 2 points are outside the polygon.
 
         We need this because not all AOIs are rectangular. For example if the AOI is irregular,
-        then the two point buffer may have mroe than 2 points in certain parts and we need to clip
+        then the two point buffer may have more than 2 points in certain parts and we need to clip
         to ensure two points only.
         """
         # Edge segments are first and last lines of the grid.
@@ -373,7 +373,7 @@ def remove_middle_points(data: dict, drone_type: DroneType = DroneType.DJI_MINI_
         segment_end = i
         segment_length = segment_end - segment_start
 
-        # For Potensic Atom 2, we have point limt of 50, so each point is precious
+        # For Potensic Atom 2, we have point limit of 50, so each point is precious
         if drone_type == DroneType.POTENSIC_ATOM_2:
             # If the segment has more than 2 points, keep only the first and last
             if segment_length > 2:

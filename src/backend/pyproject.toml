@@ -85,7 +85,7 @@ members = ["packages/*"]
 
 [tool.codespell]
 skip = "*pnpm-lock.yaml,*CHANGELOG.md,src/frontend/src/assets/*"
-ignore-words-list = "ProjectIn"
+ignore-words-list = "ProjectIn,dateA,te,ALOS"
 write-changes = true
 
 #[tool.ruff]

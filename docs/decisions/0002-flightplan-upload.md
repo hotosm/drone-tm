@@ -7,7 +7,7 @@
 - Manufacturers typically produce their own flying apps, such as DJI Fly, PotensicPro, etc.
 - We have a tradeoff between the best user experience we can provide, with the maintainability
   of the approach going forward, considering our limited capacity within the tech team.
-- As of 2025, we have 3 major drone manufactuers:
+- As of 2025, we have 3 major drone manufacturers:
   - DJI
   - Parrot
   - Autel
@@ -100,7 +100,7 @@ Variants:
 
 - Try to do this without collaborating with the app developers. Simply download or purchase the app, then
   integrate with it using their documentation.
-- Alternatively, we could try to partner with for exaple Litchi, for better assurance of long term support
+- Alternatively, we could try to partner with for example Litchi, for better assurance of long term support
   and collaboration (perhaps also reduced license fees for advocating their use / bulk buy?).
 
 ### 3. Using Official Flight Apps

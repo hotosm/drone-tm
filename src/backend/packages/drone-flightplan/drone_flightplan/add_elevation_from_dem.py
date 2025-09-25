@@ -71,7 +71,7 @@ def add_elevation_from_dem(raster_file, points, outfile):
         f"corresponds to a struct {struct_data_type} data type"
     )
 
-    # Create the tranforms between geographical and pixel coordinates
+    # Create the transforms between geographical and pixel coordinates
     # The forward transform takes pixel coords and returns geographical coords,
     # the reverse transform... well, you get the idea.
     forward = r.GetGeoTransform()

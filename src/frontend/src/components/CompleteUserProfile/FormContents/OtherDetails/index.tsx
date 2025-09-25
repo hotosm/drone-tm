@@ -24,7 +24,7 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
-          <Label required>Notify for projects withing Distance (in km)</Label>
+          <Label required>Notify for projects within Distance (in km)</Label>
           <Input
             placeholder="Enter"
             className="naxatw-mt-1"

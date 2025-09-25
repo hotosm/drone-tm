@@ -64,7 +64,7 @@ class Auth:
 
         Args:
             callback_url(str): Absolute URL should be passed which
-                is catched from login_redirect_uri.
+                is caught from login_redirect_uri.
 
         Returns:
             access_token(str): The decoded access token.

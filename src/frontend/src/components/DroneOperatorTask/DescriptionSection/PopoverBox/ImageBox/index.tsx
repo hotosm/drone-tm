@@ -71,7 +71,7 @@ const ImageBoxPopOver = () => {
         data,
       );
 
-      // urls fromm array of objects is retrieved and stored in value
+      // urls from array of objects is retrieved and stored in value
       const urls = urlsData.data.map((url: any) => url.url);
       const chunkedUrls = chunkArray(urls, 4);
       const chunkedFiles = chunkArray(files, 4);

@@ -642,7 +642,7 @@ async def regulator_approval(
                 },
             )
 
-        return {"message": "Commend Added successfully !!!"}
+        return {"message": "Comment Added successfully !!!"}
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
