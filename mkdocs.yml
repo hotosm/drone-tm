@@ -75,7 +75,7 @@ nav:
       - FAQ: about/faq.md
       - The Team: about/team.md
   - User Manuals:
-      - Drone Operators: manuals/dji.md
+      - Drone Operators: manuals/operators.md
       - DJI Drones: manuals/dji.md
       - Potensic Drones: manuals/potensic.md
       - Ground Control Points: manuals/ground-control-points.md
