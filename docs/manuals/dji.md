@@ -53,5 +53,14 @@ See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
          500m (the maximum) - they allows for terrain following to work
          correctly.
 
-      3. Do not iterfere with the device mid-flight. Wait for the mission
+      3. If using wayline mode, ensure you set the **photo capture interval**
+         on the drone to **2 seconds**. Hold the icon above the photo capture
+         button, select the timer icon, scroll to 2 seconds, then click the
+         photo capture button to start. **Ensure this is done as soon as the
+         drone reaches the 2nd waypoint on the mission** (i.e. once it reaches
+         the start of the photo capture grid, after the initial takeoff
+         waypoint). Also ensure the photo capture is turned off when the final
+         waypoint is captured for the mission.
+
+      4. Do not iterfere with the device mid-flight. Wait for the mission
          to finish before carrying out other operations on the controller.
