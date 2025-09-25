@@ -75,10 +75,11 @@ nav:
       - FAQ: about/faq.md
       - The Team: about/team.md
   - User Manuals:
+      - Drone Operators: manuals/dji.md
       - DJI Drones: manuals/dji.md
       - Potensic Drones: manuals/potensic.md
-      - Flightplans: manuals/generate-flightplans.md
       - Ground Control Points: manuals/ground-control-points.md
+      - Manual Flightplan Generation: manuals/generate-flightplans.md
   - Developer Guide:
       - Practices:
           - Dev Practices: https://docs.hotosm.org/dev-practices
