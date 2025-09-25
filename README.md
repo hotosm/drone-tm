@@ -119,6 +119,7 @@ To get started with Drone TM:
 <!-- prettier-ignore-start -->
 | Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
 |:------:|:-------:|:-------:|:-------:|:--------|
+| DJI Mini 5 Pro | ✅ | ✅ | ❌ | None |
 | DJI Mini 4 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta, DroneDeploy |
 | DJI Mini 3 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta |
 | DJI Mini 3 | ✅ | ✅ | ✅ | Litchi Pilot Beta |
