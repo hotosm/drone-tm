@@ -210,6 +210,7 @@ def create_placemark(placemark):
     # )
     # wpml_waypoint_heading_path_mode.text = "followBadArc"
 
+    # Set the turn mode between waypoint (straight lines through points, no curves)
     # NOTE we can't seem to set these globally, so we set them per point instead
     wpml_waypoint_turn_param = ET.SubElement(placemark, "wpml:waypointTurnParam")
     wpml_waypoint_turn_mode = ET.SubElement(

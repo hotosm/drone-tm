@@ -93,8 +93,8 @@ def trim(line, threshold):
         indexedpoint["geometry"] = geom
         tp.append(indexedpoint)
 
-    # Keeper points (indexes only) - now including first two and last two points
-    kp = [tp[0]["index"], tp[1]["index"], tp[-2]["index"], tp[-1]["index"]]
+    # Keeper points (indexes only) - now including first and last points
+    kp = [tp[0]["index"], tp[-1]["index"]]
 
     # New keeper points after injection of the intermediate points needed
     # to maintain consistent AGL

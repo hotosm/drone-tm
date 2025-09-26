@@ -375,7 +375,9 @@ def remove_middle_points(data: dict):
 
         # Reduce the segment length to only two points (start and end)
         if segment_length > 2:
+            # first point
             processed_data.extend(data[segment_start : segment_start + 1])
+            # last point
             processed_data.extend(data[segment_end - 1 : segment_end])
         else:
             processed_data.extend(data[segment_start:segment_end])
