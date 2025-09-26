@@ -355,7 +355,7 @@ def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> lis
     ]
 
 
-def remove_middle_points(data: dict, drone_type: DroneType = DroneType.DJI_MINI_4_PRO):
+def remove_middle_points(data: dict):
     if not data:
         return []
 
@@ -373,24 +373,15 @@ def remove_middle_points(data: dict, drone_type: DroneType = DroneType.DJI_MINI_
         segment_end = i
         segment_length = segment_end - segment_start
 
-        # For Potensic Atom 2, we have point limit of 50, so each point is precious
-        if drone_type == DroneType.POTENSIC_ATOM_2:
-            # If the segment has more than 2 points, keep only the first and last
-            if segment_length > 2:
-                processed_data.extend(data[segment_start : segment_start + 1])
-                processed_data.extend(data[segment_end - 1 : segment_end])
-            else:
-                processed_data.extend(data[segment_start:segment_end])
-        # All other drones
+        # Reduce the segment length to only two points (start and end)
+        if segment_length > 2:
+            processed_data.extend(data[segment_start : segment_start + 1])
+            processed_data.extend(data[segment_end - 1 : segment_end])
         else:
-            # If the segment has more than 4 points, keep only the first 2 and the last 2
-            if segment_length > 4:
-                processed_data.extend(data[segment_start : segment_start + 2])
-                processed_data.extend(data[segment_end - 2 : segment_end])
-            else:
-                processed_data.extend(data[segment_start:segment_end])
+            processed_data.extend(data[segment_start:segment_end])
 
     # Make take_photo = False for all the points
+    # (instead we use manual shutter interval of 2s, set by user)
     for point in processed_data:
         point["take_photo"] = False
 
@@ -531,7 +522,7 @@ def create_waypoint(
 
     # If mode is "waylines", simplify to only start and end points
     if mode == "waylines":
-        waypoints = remove_middle_points(path, drone_type)
+        waypoints = remove_middle_points(path)
     else:
         waypoints = path
 
