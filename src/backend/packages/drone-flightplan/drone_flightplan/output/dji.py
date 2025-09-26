@@ -338,9 +338,18 @@ def create_folder(placemarks):
     # NOTE this setting ensure we fly in a straight line & stop at the waypoint
     global_waypoint_turn_mode.text = "toPointAndStopWithDiscontinuityCurvature"
 
-    straight_line = ET.SubElement(folder, "wpml:globalUseStraightLine")
+    straight_line = ET.SubElement(folder, "wpml:useStraightLine")
     # NOTE combined with toPointAndStopWithDiscontinuityCurvature for straight lines
     straight_line.text = "1"
+
+    # NOTE global config - not sure sure what this does, but no harm
+    single_straight_line = ET.SubElement(folder, "wpml:globalUseStraightLine")
+    single_straight_line.text = "1"
+
+    wpml_waypoint_turn_damping_dist = ET.SubElement(
+        folder, "wpml:waypointTurnDampingDist"
+    )
+    wpml_waypoint_turn_damping_dist.text = "0"
 
     auto_flight_speed = ET.SubElement(folder, "wpml:autoFlightSpeed")
     auto_flight_speed.text = "2.5"
