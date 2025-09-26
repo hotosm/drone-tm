@@ -62,29 +62,42 @@ this for your model).
 
 ## Flight Checklist
 
-- Ensure you have assessed the surrounding before takeoff. Is there
+### 1. Assessing the takeoff point
+
+- Ensure you have **assessed the surrounding** before takeoff. Is there
   anything overhead? Might the conditions here change over time
   (e.g. a car might be present when the drone returns).
+- Try to wear a high-visibility safety vest while flying.
 - Check the ground on which you place the drone. Is it level?
   Are there nearby obstacles it could collide with easily?
   It's good to clear away debris and vegetation where possible.
-- Is the drone facing away from you before takeoff? The drone
+
+### 2. Before flying
+
+- Is the drone **facing away from you** before takeoff? The drone
   should be in an orientation that is easily controllable,
   should there be an issue during takeoff and manual control
   is required.
 - Have you practiced how to manually control the drone? This is
   essential for if there are issues during the takeoff or landing
   and manual takeover is required.
+- Unfold the controller antenae and ensure they point at the drone
+  to **maintain a good connection**. If signal is lost, the drone may
+  return early.
+
+### 3. During the flight
+
 - **Ensure you keep line-of-sight of the drone at all times**.
   Sometimes various issues can occur mid-flight, such as 'fly-away'
   for misconfigured drones that you may have to catch before they
   get too far, or uncontrollable issues such as being attacked by
   birds.
-- Unfold the controller antenae and ensure they point at the drone
-  to maintain a good connection. If signal is lost, the drone may
-  return early.
-- Continually watch the flight and ensure the mission does not
-  return early due to an issue.
+- Regularly check the flight on the controller and ensure the mission
+  does not return early due to an issue.
+- **Try to keep the controller in the shade as much as possible**
+  during high temperatures, to avoid overheating. If possible,
+  wear a big hat and face away from the sun. Or fly from a shaded
+  area, but ensuring you can still see the drone.
 
 ## Field Workarounds
 
