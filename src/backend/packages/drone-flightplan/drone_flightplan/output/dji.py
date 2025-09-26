@@ -9,7 +9,7 @@ from xml.etree.ElementTree import Element
 import geojson
 from geojson import FeatureCollection
 
-from drone_flightplan.enums import RCLostAction, RCLostOptions
+from drone_flightplan.enums import RCLostOptions
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -290,11 +290,14 @@ def create_mission_config(global_height):
     # gotoFirstWaypoint: Fly back to the starting point, then hover.
     finish_action.text = str("goHome")
 
-    exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
+    # NOTE ensure the flight continues if signal lost
+    exit_on_rc_lost = ET.SubElement(mission_config, "wpml:goContinue")
     exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
 
-    execute_rc_lost_action = ET.SubElement(mission_config, "wpml:executeRCLostAction")
-    execute_rc_lost_action.text = str(RCLostAction.GO_BACK.value)
+    # NOTE for now, we don't want to execute lost action other than continue
+    # NOTE perhaps in future we may have user configuration
+    # execute_rc_lost_action = ET.SubElement(mission_config, "wpml:executeRCLostAction")
+    # execute_rc_lost_action.text = str(RCLostAction.GO_BACK.value)
 
     global_transitional_speed = ET.SubElement(
         mission_config, "wpml:globalTransitionalSpeed"
