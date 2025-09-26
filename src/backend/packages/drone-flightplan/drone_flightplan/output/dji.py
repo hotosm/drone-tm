@@ -204,23 +204,24 @@ def create_placemark(placemark):
     wpml_waypoint_heading_angle_enable.text = "1"
     # wpml_waypoint_heading_angle_enable.text = "0"
 
+    # NOTE if we need to update the heading direction per waypoint
     # wpml_waypoint_heading_path_mode = ET.SubElement(
     #     waypoint_heading_param, "wpml:waypointHeadingPathMode"
     # )
     # wpml_waypoint_heading_path_mode.text = "followBadArc"
 
-    # wpml_waypoint_turn_param = ET.SubElement(placemark, "wpml:waypointTurnParam")
-    # wpml_waypoint_turn_mode = ET.SubElement(
-    #     wpml_waypoint_turn_param, "wpml:waypointTurnMode"
-    # )
-    # wpml_waypoint_turn_mode.text = "toPointAndStopWithContinuityCurvature"
-    # wpml_waypoint_turn_damping_dist = ET.SubElement(
-    #     wpml_waypoint_turn_param, "wpml:waypointTurnDampingDist"
-    # )
-    # wpml_waypoint_turn_damping_dist.text = "0"
+    wpml_waypoint_turn_param = ET.SubElement(placemark, "wpml:waypointTurnParam")
+    wpml_waypoint_turn_mode = ET.SubElement(
+        wpml_waypoint_turn_param, "wpml:waypointTurnMode"
+    )
+    wpml_waypoint_turn_mode.text = "toPointAndStopWithContinuityCurvature"
+    wpml_waypoint_turn_damping_dist = ET.SubElement(
+        wpml_waypoint_turn_param, "wpml:toPointAndStopWithDiscontinuityCurvature"
+    )
+    wpml_waypoint_turn_damping_dist.text = "0"
 
-    # use_straight_line = ET.SubElement(placemark, "wpml:useStraightLine")
-    # use_straight_line.text = "0"
+    use_straight_line = ET.SubElement(placemark, "wpml:useStraightLine")
+    use_straight_line.text = "0"
 
     action_group1 = ET.SubElement(placemark, "wpml:actionGroup")
     action_group1_id = ET.SubElement(action_group1, "wpml:actionGroupId")
@@ -334,22 +335,12 @@ def create_folder(placemarks):
     duration = ET.SubElement(folder, "wpml:duration")
     duration.text = "0"
 
-    global_waypoint_turn_mode = ET.SubElement(folder, "wpml:globalWaypointTurnMode")
     # NOTE this setting ensure we fly in a straight line & stop at the waypoint
-    global_waypoint_turn_mode.text = "toPointAndStopWithDiscontinuityCurvature"
-
-    straight_line = ET.SubElement(folder, "wpml:useStraightLine")
-    # NOTE combined with toPointAndStopWithDiscontinuityCurvature for straight lines
-    straight_line.text = "1"
-
-    # NOTE global config - not sure sure what this does, but no harm
-    single_straight_line = ET.SubElement(folder, "wpml:globalUseStraightLine")
-    single_straight_line.text = "1"
-
-    wpml_waypoint_turn_damping_dist = ET.SubElement(
-        folder, "wpml:waypointTurnDampingDist"
-    )
-    wpml_waypoint_turn_damping_dist.text = "0"
+    # FIXME setting this globally does not work, so we have to set it per point
+    # global_waypoint_turn_mode = ET.SubElement(folder, "wpml:globalWaypointTurnMode")
+    # global_waypoint_turn_mode.text = "toPointAndStopWithDiscontinuityCurvature"
+    # single_straight_line = ET.SubElement(folder, "wpml:globalUseStraightLine")
+    # single_straight_line.text = "1"
 
     auto_flight_speed = ET.SubElement(folder, "wpml:autoFlightSpeed")
     auto_flight_speed.text = "2.5"
