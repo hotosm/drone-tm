@@ -3,7 +3,7 @@ import logging
 import os
 import xml.etree.ElementTree as ET
 import zipfile
-from typing import Union
+from typing import Optional
 from xml.etree.ElementTree import Element
 
 import geojson
@@ -82,6 +82,7 @@ def create_zip_file(waylines_path_uid):
 
 
 def take_photo_action(action_group_element: Element, index: str):
+    """Add a takePhoto action to an actionGroup."""
     action = ET.SubElement(action_group_element, "wpml:action")
     action_id = ET.SubElement(action, "wpml:actionId")
     action_id.text = str(index)
@@ -94,69 +95,146 @@ def take_photo_action(action_group_element: Element, index: str):
     payload_position_index.text = "0"
 
 
-def gimble_rotate_action(action_group_element: Element, index: str, gimbal_angle: str):
-    action1 = ET.SubElement(action_group_element, "wpml:action")
-    action1_id = ET.SubElement(action1, "wpml:actionId")
-    action1_id.text = str(index)
-    action1_actuator_func = ET.SubElement(action1, "wpml:actionActuatorFunc")
-    action1_actuator_func.text = "gimbalRotate"
-    action1_actuator_func_param = ET.SubElement(action1, "wpml:actionActuatorFuncParam")
-    gimbal_heading_yaw_base = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalHeadingYawBase"
-    )
-    gimbal_heading_yaw_base.text = "aircraft"
-    gimbal_rotate_mode = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRotateMode"
-    )
-    gimbal_rotate_mode.text = "absoluteAngle"
-    gimbal_pitch_rotate_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalPitchRotateEnable"
-    )
-    gimbal_pitch_rotate_enable.text = "1"
-    gimbal_pitch_rotate_angle = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalPitchRotateAngle"
-    )
-    gimbal_roll_rotate_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRollRotateEnable"
-    )
-    gimbal_roll_rotate_angle = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRollRotateAngle"
-    )
+def gimbal_rotate_action(action_group_element: Element, index: str, gimbal_angle: str):
+    """Rotate gimbal to a specific angle immediately."""
+    action = ET.SubElement(action_group_element, "wpml:action")
+    action_id = ET.SubElement(action, "wpml:actionId")
+    action_id.text = str(index)
+    action_func = ET.SubElement(action, "wpml:actionActuatorFunc")
+    action_func.text = "gimbalRotate"
+    params = ET.SubElement(action, "wpml:actionActuatorFuncParam")
 
-    # If the gimbal pitch rotate angle is 45, make it -90. 45 is just for reference. We need to change roll angle for this.
+    gimbal_heading_yaw_base = ET.SubElement(params, "wpml:gimbalHeadingYawBase")
+    gimbal_heading_yaw_base.text = "aircraft"
+
+    gimbal_rotate_mode = ET.SubElement(params, "wpml:gimbalRotateMode")
+    gimbal_rotate_mode.text = "absoluteAngle"
+
+    gimbal_pitch_rotate_enable = ET.SubElement(params, "wpml:gimbalPitchRotateEnable")
+    gimbal_pitch_rotate_enable.text = "1"
+
+    gimbal_pitch_rotate_angle = ET.SubElement(params, "wpml:gimbalPitchRotateAngle")
+    gimbal_roll_rotate_enable = ET.SubElement(params, "wpml:gimbalRollRotateEnable")
+    gimbal_roll_rotate_angle = ET.SubElement(params, "wpml:gimbalRollRotateAngle")
+
+    # If the gimbal pitch rotate angle is 45, make it -90.
+    # 45 is just for reference. We need to change roll angle for this.
+    # Gimbal angle = 45 --> pitch = -90 & roll = -45
     if str(gimbal_angle) == "45":
         gimbal_pitch_rotate_angle.text = "-90"
         gimbal_roll_rotate_enable.text = "1"
         gimbal_roll_rotate_angle.text = "-45"
-
     else:
         gimbal_pitch_rotate_angle.text = str(gimbal_angle)
         gimbal_roll_rotate_enable.text = "0"
         gimbal_roll_rotate_angle.text = "0"
 
-    gimbal_yaw_rotate_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalYawRotateEnable"
-    )
+    gimbal_yaw_rotate_enable = ET.SubElement(params, "wpml:gimbalYawRotateEnable")
     gimbal_yaw_rotate_enable.text = "0"
-    gimbal_yaw_rotate_angle = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalYawRotateAngle"
-    )
+
+    gimbal_yaw_rotate_angle = ET.SubElement(params, "wpml:gimbalYawRotateAngle")
     gimbal_yaw_rotate_angle.text = "0"
-    gimbal_rotate_time_enable = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRotateTimeEnable"
-    )
+
+    gimbal_rotate_time_enable = ET.SubElement(params, "wpml:gimbalRotateTimeEnable")
     gimbal_rotate_time_enable.text = "0"
-    gimbal_rotate_time = ET.SubElement(
-        action1_actuator_func_param, "wpml:gimbalRotateTime"
-    )
+
+    gimbal_rotate_time = ET.SubElement(params, "wpml:gimbalRotateTime")
     gimbal_rotate_time.text = "0"
-    payload_position_index = ET.SubElement(
-        action1_actuator_func_param, "wpml:payloadPositionIndex"
-    )
+
+    payload_position_index = ET.SubElement(params, "wpml:payloadPositionIndex")
     payload_position_index.text = "0"
 
 
-def create_placemark(placemark):
+def create_action_group(
+    parent: Element,
+    group_id: str,
+    start_index: str,
+    end_index: str,
+    mode: str,
+    trigger_type: str,
+    trigger_param: Optional[str] = None,
+) -> Element:
+    """Utility to create an actionGroup with trigger and return it."""
+    action_group = ET.SubElement(parent, "wpml:actionGroup")
+
+    gid = ET.SubElement(action_group, "wpml:actionGroupId")
+    gid.text = str(group_id)
+
+    gstart = ET.SubElement(action_group, "wpml:actionGroupStartIndex")
+    gstart.text = str(start_index)
+
+    gend = ET.SubElement(action_group, "wpml:actionGroupEndIndex")
+    gend.text = str(end_index)
+
+    gmode = ET.SubElement(action_group, "wpml:actionGroupMode")
+    gmode.text = mode
+
+    trigger = ET.SubElement(action_group, "wpml:actionTrigger")
+    trigger_type_el = ET.SubElement(trigger, "wpml:actionTriggerType")
+    trigger_type_el.text = trigger_type
+
+    if trigger_param is not None:
+        trigger_param_el = ET.SubElement(trigger, "wpml:actionTriggerParam")
+        trigger_param_el.text = str(trigger_param)
+
+    return action_group
+
+
+def create_photo_interval_group(
+    parent: Element, group_id: str, index: int, interval_sec: int, stop: bool = False
+):
+    """Create a group that starts or stops the photo interval timer."""
+    trigger_type = "multipleTiming"
+    trigger_param = (
+        interval_sec if not stop else "0"
+    )  # NOTE DJI convention: param=0 stops interval
+
+    group = create_action_group(
+        parent,
+        group_id=group_id,
+        start_index=str(index),
+        end_index=str(index),
+        mode="parallel",
+        trigger_type=trigger_type,
+        trigger_param=str(trigger_param),
+    )
+
+    # Add takePhoto action if starting
+    if not stop:
+        take_photo_action(group, "1")
+
+    return group
+
+
+def create_smooth_gimbal_group(parent: Element, group_id: str, gimbal_angle: str):
+    """Create an action group that smoothly rotates the gimbal toward the target angle."""
+    group = create_action_group(
+        parent,
+        group_id=group_id,
+        start_index="0",
+        end_index="1",
+        mode="parallel",
+        trigger_type="reachPoint",
+    )
+
+    smooth_gimbal = ET.SubElement(group, "wpml:action")
+    smooth_gimbal_id = ET.SubElement(smooth_gimbal, "wpml:actionId")
+    smooth_gimbal_id.text = "2"  # Not always 2
+    func = ET.SubElement(smooth_gimbal, "wpml:actionActuatorFunc")
+    func.text = "gimbalEvenlyRotate"
+    params = ET.SubElement(smooth_gimbal, "wpml:actionActuatorFuncParam")
+
+    gimbal_pitch_rotate_angle2 = ET.SubElement(params, "wpml:gimbalPitchRotateAngle")
+    gimbal_pitch_rotate_angle2.text = str(gimbal_angle)
+
+    payload_position_index2 = ET.SubElement(params, "wpml:payloadPositionIndex")
+    payload_position_index2.text = "0"
+
+    return group
+
+
+def create_placemark(placemark, final_index: int):
+    """Build Placemark element with gimbal/photo actions depending on waypoint properties."""
     try:
         index = placemark["properties"]["index"]
         coordinate = placemark["geometry"]["coordinates"]
@@ -169,22 +247,24 @@ def create_placemark(placemark):
     except IndexError as e:
         raise ValueError(str(e))
 
-    placemark = ET.Element("Placemark")
+    placemark_el = ET.Element("Placemark")
 
-    point = ET.SubElement(placemark, "Point")
+    # Basic waypoint elements
+    point = ET.SubElement(placemark_el, "Point")
     coordinates_elem = ET.SubElement(point, "coordinates")
     coordinates_elem.text = coordinates
 
-    wpml_index = ET.SubElement(placemark, "wpml:index")
+    wpml_index = ET.SubElement(placemark_el, "wpml:index")
     wpml_index.text = str(index)
 
-    execute_height_elem = ET.SubElement(placemark, "wpml:executeHeight")
+    execute_height_elem = ET.SubElement(placemark_el, "wpml:executeHeight")
     execute_height_elem.text = str(execute_height)
 
-    waypoint_speed_elem = ET.SubElement(placemark, "wpml:waypointSpeed")
+    waypoint_speed_elem = ET.SubElement(placemark_el, "wpml:waypointSpeed")
     waypoint_speed_elem.text = str(waypoint_speed)
 
-    waypoint_heading_param = ET.SubElement(placemark, "wpml:waypointHeadingParam")
+    # Set direction the drone is facing (i.e. the heading)
+    waypoint_heading_param = ET.SubElement(placemark_el, "wpml:waypointHeadingParam")
     wpml_waypoint_heading_mode = ET.SubElement(
         waypoint_heading_param, "wpml:waypointHeadingMode"
     )
@@ -194,88 +274,76 @@ def create_placemark(placemark):
         waypoint_heading_param, "wpml:waypointHeadingAngle"
     )
     wpml_waypoint_heading_angle.text = str(waypoint_heading_angle)
+
     wpml_waypoint_poi_point = ET.SubElement(
         waypoint_heading_param, "wpml:waypointPoiPoint"
     )
     wpml_waypoint_poi_point.text = "0.000000,0.000000,0.000000"
+
     wpml_waypoint_heading_angle_enable = ET.SubElement(
         waypoint_heading_param, "wpml:waypointHeadingAngleEnable"
     )
     wpml_waypoint_heading_angle_enable.text = "1"
     # wpml_waypoint_heading_angle_enable.text = "0"
 
-    # NOTE if we need to update the heading direction per waypoint
+    # NOTE if we need swap the heading mode (i.e. for future object tracking etc)
     # wpml_waypoint_heading_path_mode = ET.SubElement(
     #     waypoint_heading_param, "wpml:waypointHeadingPathMode"
     # )
     # wpml_waypoint_heading_path_mode.text = "followBadArc"
 
-    # Set the turn mode between waypoint (straight lines through points, no curves)
-    # NOTE we can't seem to set these globally, so we set them per point instead
-    wpml_waypoint_turn_param = ET.SubElement(placemark, "wpml:waypointTurnParam")
+    # Ensure the drone turns in straight lines for mapping, not curves
+    wpml_waypoint_turn_param = ET.SubElement(placemark_el, "wpml:waypointTurnParam")
     wpml_waypoint_turn_mode = ET.SubElement(
         wpml_waypoint_turn_param, "wpml:waypointTurnMode"
     )
     wpml_waypoint_turn_mode.text = "toPointAndStopWithDiscontinuityCurvature"
+
     wpml_waypoint_turn_damping_dist = ET.SubElement(
         wpml_waypoint_turn_param, "wpml:waypointTurnDampingDist"
     )
     wpml_waypoint_turn_damping_dist.text = "0"
-    use_straight_line = ET.SubElement(placemark, "wpml:useStraightLine")
+
+    use_straight_line = ET.SubElement(placemark_el, "wpml:useStraightLine")
     use_straight_line.text = "1"
 
-    action_group1 = ET.SubElement(placemark, "wpml:actionGroup")
-    action_group1_id = ET.SubElement(action_group1, "wpml:actionGroupId")
-    action_group1_id.text = "1"
-    action_group1_start = ET.SubElement(action_group1, "wpml:actionGroupStartIndex")
-    action_group1_start.text = str(index)  # Start index
-    action_group1_end = ET.SubElement(action_group1, "wpml:actionGroupEndIndex")
-    action_group1_end.text = str(index)  # End Index
-    action_group1_mode = ET.SubElement(action_group1, "wpml:actionGroupMode")
-    action_group1_mode.text = "parallel"
-    action_group1_trigger = ET.SubElement(action_group1, "wpml:actionTrigger")
-    action_group1_trigger_type = ET.SubElement(
-        action_group1_trigger, "wpml:actionTriggerType"
+    # Action groups
+    action_group1 = create_action_group(
+        placemark_el,
+        group_id="1",
+        start_index=index,
+        end_index=index,
+        mode="parallel",
+        trigger_type="reachPoint",
     )
-    action_group1_trigger_type.text = "reachPoint"
 
     if take_photo:
-        # Take photo action
+        # Take photo action, for waypoint mode
         take_photo_action(action_group1, "1")
     else:
-        # Gimble rotate action
-        gimble_rotate_action(action_group1, "1", str(gimbal_angle))
+        # Gimbal rotate action (immediate), prior to setting photo interval timer
+        gimbal_rotate_action(action_group1, "1", str(gimbal_angle))
 
-    action_group2 = ET.SubElement(placemark, "wpml:actionGroup")
-    action_group2_id = ET.SubElement(action_group2, "wpml:actionGroupId")
-    action_group2_id.text = "2"  # Not always 2
-    action_group2_start = ET.SubElement(action_group2, "wpml:actionGroupStartIndex")
-    action_group2_start.text = "0"
-    action_group2_end = ET.SubElement(action_group2, "wpml:actionGroupEndIndex")
-    action_group2_end.text = "1"
-    action_group2_mode = ET.SubElement(action_group2, "wpml:actionGroupMode")
-    action_group2_mode.text = "parallel"
-    action_group2_trigger = ET.SubElement(action_group2, "wpml:actionTrigger")
-    action_group2_trigger_type = ET.SubElement(
-        action_group2_trigger, "wpml:actionTriggerType"
-    )
-    action_group2_trigger_type.text = "reachPoint"
-    action2 = ET.SubElement(action_group2, "wpml:action")
-    action2_id = ET.SubElement(action2, "wpml:actionId")
-    action2_id.text = "2"  # Not always 2
-    action2_actuator_func = ET.SubElement(action2, "wpml:actionActuatorFunc")
-    action2_actuator_func.text = "gimbalEvenlyRotate"
-    action2_actuator_func_param = ET.SubElement(action2, "wpml:actionActuatorFuncParam")
-    gimbal_pitch_rotate_angle2 = ET.SubElement(
-        action2_actuator_func_param, "wpml:gimbalPitchRotateAngle"
-    )
-    gimbal_pitch_rotate_angle2.text = str(gimbal_angle)
-    payload_position_index2 = ET.SubElement(
-        action2_actuator_func_param, "wpml:payloadPositionIndex"
-    )
-    payload_position_index2.text = "0"
+        # start photo interval timer on second waypoint
+        # the first waypoint is the takeoff point, so we don't want photos immediately
+        # the second waypoint is the start of the waypoint mission grid
+        if index == 1:
+            create_photo_interval_group(
+                placemark_el, group_id="2", index=index, interval_sec=2, stop=False
+            )
 
-    return placemark
+        # stop interval capture on the final waypoint
+        if index == final_index:
+            create_photo_interval_group(
+                placemark_el, group_id="99", index=index, interval_sec=2, stop=True
+            )
+
+    # Final action group = smoothly rotate the gimbal toward the target angle
+    create_smooth_gimbal_group(
+        placemark_el, group_id="3", gimbal_angle=str(gimbal_angle)
+    )
+
+    return placemark_el
 
 
 def create_mission_config(global_height):
@@ -346,8 +414,9 @@ def create_folder(placemarks):
     auto_flight_speed = ET.SubElement(folder, "wpml:autoFlightSpeed")
     auto_flight_speed.text = "2.5"
 
+    final_placemark_index = len(placemarks) - 1
     for placemark in placemarks:
-        placemark = create_placemark(placemark)
+        placemark = create_placemark(placemark, final_placemark_index)
         folder.append(placemark)
 
     return folder
@@ -382,7 +451,7 @@ def create_xml(placemarks, global_height, output_file_path="/tmp/"):
 
 
 def create_wpml(
-    placemark_geojson: Union[str, FeatureCollection, dict],
+    placemark_geojson: str | FeatureCollection | dict,
     output_file_path: str = "/tmp/",
 ):
     """Arguments:
