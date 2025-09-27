@@ -328,12 +328,16 @@ def create_placemark(placemark, final_index: int):
         # the first waypoint is the takeoff point, so we don't want photos immediately
         # the second waypoint is the start of the waypoint mission grid
         if index == 1:
+            set_shoot_type_timed = ET.SubElement(placemark_el, "wpml:shootType")
+            set_shoot_type_timed.text = "time"
             create_photo_interval_group(
                 placemark_el, group_id="2", index=index, interval_sec=2, stop=False
             )
 
         # stop interval capture on the final waypoint
         if index == final_index:
+            set_shoot_type_timed = ET.SubElement(placemark_el, "wpml:shootType")
+            set_shoot_type_timed.text = "time"
             create_photo_interval_group(
                 placemark_el, group_id="99", index=index, interval_sec=2, stop=True
             )
