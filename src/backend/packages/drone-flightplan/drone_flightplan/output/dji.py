@@ -181,7 +181,11 @@ def create_action_group(
 
 
 def create_photo_interval_group(
-    parent: Element, group_id: str, index: int, interval_sec: int, stop: bool = False
+    parent: Element,
+    group_id: str,
+    index: int,
+    interval_sec: int = 2,
+    stop: bool = False,
 ):
     """Create a group that starts or stops the photo interval timer."""
     trigger_type = "multipleTiming"
@@ -324,23 +328,29 @@ def create_placemark(placemark, final_index: int):
         # Gimbal rotate action (immediate), prior to setting photo interval timer
         gimbal_rotate_action(action_group1, "1", str(gimbal_angle))
 
-        # start photo interval timer on second waypoint
-        # the first waypoint is the takeoff point, so we don't want photos immediately
-        # the second waypoint is the start of the waypoint mission grid
-        if index == 1:
-            set_shoot_type_timed = ET.SubElement(placemark_el, "wpml:shootType")
-            set_shoot_type_timed.text = "time"
-            create_photo_interval_group(
-                placemark_el, group_id="2", index=index, interval_sec=2, stop=False
-            )
+        # FIXME we are trying to enable and disable the photo capture interval
+        # FIXME timer, but this implementation doesn't work
+        # FIXME see https://github.com/hotosm/drone-tm/issues/612
+        #
+        # # start photo interval timer on second waypoint
+        # # the first waypoint is the takeoff point, so we don't want photos immediately
+        # # the second waypoint is the start of the waypoint mission grid
+        # if index == 1:
+        #     set_shoot_type_timed = ET.SubElement(placemark_el, "wpml:shootType")
+        #     set_shoot_type_timed.text = "time"
+        #     create_photo_interval_group(
+        #         placemark_el, group_id="2", index=index, stop=False
+        #     )
 
-        # stop interval capture on the final waypoint
-        if index == final_index:
-            set_shoot_type_timed = ET.SubElement(placemark_el, "wpml:shootType")
-            set_shoot_type_timed.text = "time"
-            create_photo_interval_group(
-                placemark_el, group_id="99", index=index, interval_sec=2, stop=True
-            )
+        # # stop interval capture on the final waypoint
+        # if index == final_index:
+        #     set_shoot_type_timed = ET.SubElement(placemark_el, "wpml:shootType")
+        #     # NOTE try and disable the shootType=time interval timer
+        #     set_shoot_type_timed.text = ""
+        #     create_photo_interval_group(
+        #         placemark_el, group_id="99", index=index, stop=True
+        #     )
+        #     take_photo_action(action_group1, "1")
 
     # Final action group = smoothly rotate the gimbal toward the target angle
     create_smooth_gimbal_group(
