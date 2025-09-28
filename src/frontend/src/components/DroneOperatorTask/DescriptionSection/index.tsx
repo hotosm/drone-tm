@@ -188,26 +188,27 @@ const DroneOperatorDescriptionBox = () => {
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={() => sendFlightPlanViaAdb()}
-                  onClick={() => {
-                    sendFlightPlanViaAdb();
-                    setShowDownloadOptions(false);
-                  }}
-                >
-                  Send flight plan file to controller
-                </div>
-                <div
-                  className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
-                  role="button"
-                  tabIndex={0}
                   onKeyDown={() => downloadFlightPlanKmz()}
                   onClick={() => {
                     downloadFlightPlanKmz();
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download flight plan file for drone
+                  💾 Flightplan for copy to controller
                 </div>
+                <div
+                  className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={() => sendFlightPlanViaAdb()}
+                  onClick={() => {
+                    sendFlightPlanViaAdb();
+                    setShowDownloadOptions(false);
+                  }}
+                >
+                  📨 Send flightplan to controller
+                </div>
+                <hr></hr>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                   role="button"
@@ -218,7 +219,7 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download flight plan geojson for inspection
+                  🔎 Inspect flightplan GeoJSON
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -230,7 +231,7 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download task area as kml
+                  📍 Task area as KML
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -242,7 +243,7 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  Download task area as geojson
+                  📍 Task area as GeoJSON
                 </div>
               </div>
             )}
