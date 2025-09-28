@@ -64,3 +64,31 @@ See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
 
       4. Do not interfere with the device mid-flight. Wait for the mission
          to finish before carrying out other operations on the controller.
+
+### Helpful Tips
+
+#### Q: My drone is asking me to log in
+
+- DJI is quite restrictive and requires all drones to be logged in to fly.
+- Sometimes a firmware update may require you to login again.
+- Ensure you are connected to Wifi: pull down the top bar on the screen
+  --> toggle Wifi --> connect to your network.
+- Enter your DJI login credentials (created on the DJI website).
+
+#### Q: I can't connect the mobile app on my phone to the controller
+
+- Make sure you enable '**Transfer mode**' once the cables are plugged
+  in. By default it will often start in 'Charging mode', but you
+  need to pull down the notifications bar and click the popup there
+  to toggle connection mode.
+- USB C cables can be difficult sometimes. Try swapping the direction
+  of the cable. Try another cable too. Ideally you should use the
+  USB C cable that was packaged with the drone.
+- Try a different phone if possible too, to help confirm where the
+  issue may be.
+
+#### Q: The dates on my final imagery files are wrong
+
+- If the drone has not connected to Wifi for a while, the
+  clock inside the drone may be out of date. Connect to
+  Wifi to fix this problem.
