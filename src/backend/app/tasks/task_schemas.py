@@ -80,12 +80,43 @@ class Task(BaseModel):
                     if split_area:
                         await cur.execute(
                             """
-                            SELECT ST_AsGeoJSON(outline) AS outline
+                            SELECT jsonb_build_object(
+                                'type',     'FeatureCollection',
+                                'features', jsonb_agg(
+                                    jsonb_build_object(
+                                        'type',       'Feature',
+                                        'geometry',   ST_AsGeoJSON(outline)::jsonb,
+                                        'properties', jsonb_build_object(
+                                            'unique_id',           project_id,
+                                            'project_task_id',     project_task_index,
+                                            'take_off_point',      CASE
+                                                                      WHEN take_off_point IS NOT NULL
+                                                                      THEN jsonb_build_array(
+                                                                          ST_X(take_off_point),
+                                                                          ST_Y(take_off_point)
+                                                                      )
+                                                                      ELSE NULL
+                                                                    END,
+                                            'total_area_sqkm',     total_area_sqkm,
+                                            'flight_time_minutes', flight_time_minutes,
+                                            'flight_distance_km',  flight_distance_km
+                                        )
+                                    )
+                                )
+                            )::text AS outline
                             FROM tasks
                             WHERE project_id = %(project_id)s
                         """,
                             {"project_id": project_id},
                         )
+                        row = await cur.fetchone()
+                        if row and row.outline:
+                            return row.outline
+                        else:
+                            raise HTTPException(
+                                status_code=404,
+                                detail="No tasks found for this project.",
+                            )
                     else:
                         await cur.execute(
                             """
@@ -95,21 +126,16 @@ class Task(BaseModel):
                         """,
                             {"project_id": project_id},
                         )
-
-                    # Fetch the result
-                    rows = await cur.fetchall()
-                    if rows:
-                        # Create a FeatureCollection with empty properties for each feature
-                        features = [
-                            f'{{"type": "Feature", "geometry": {row.outline}, "properties": {{}}}}'
-                            for row in rows
-                        ]
-                        feature_collection = f'{{"type": "FeatureCollection", "features": [{",".join(features)}]}}'
-                        return feature_collection
-                    else:
-                        raise HTTPException(
-                            status_code=404, detail="No tasks found for this project."
-                        )
+                        row = await cur.fetchone()
+                        if row and row.outline:
+                            # Create a FeatureCollection with empty properties
+                            feature_collection = f'{{"type": "FeatureCollection", "features": [{{"type": "Feature", "geometry": {row.outline}, "properties": {{}}}}]}}'
+                            return feature_collection
+                        else:
+                            raise HTTPException(
+                                status_code=404,
+                                detail="No tasks found for this project.",
+                            )
         except Exception as e:
             log.error(f"Error fetching task geometry: {e}")
             raise HTTPException(status_code=500, detail="Internal server error.")
