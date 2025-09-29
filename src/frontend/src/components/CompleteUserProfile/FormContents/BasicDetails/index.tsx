@@ -38,14 +38,11 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
           <ErrorMessage message={formState.errors?.name?.message} />
         </FormControl>
         <FormControl>
-          <Label required>Country</Label>
+          <Label>Country</Label>
           <Controller
             control={control}
             name="country"
             defaultValue=""
-            rules={{
-              required: 'Country is Required',
-            }}
             render={({ field: { value, onChange } }) => (
               <Select
                 withSearch
@@ -61,19 +58,18 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
           <ErrorMessage message={formState.errors?.country?.message} />
         </FormControl>
         <FormControl>
-          <Label required>City</Label>
+          <Label>City</Label>
           <Input
             placeholder="Enter City"
             className="naxatw-mt-1"
             {...register('city', {
               setValueAs: (value: string) => value?.trim(),
-              required: 'City is Required',
             })}
           />
           <ErrorMessage message={formState.errors?.city?.message} />
         </FormControl>
         <FormControl>
-          <Label required>Phone number</Label>
+          <Label>Phone number</Label>
           <div className="naxatw-flex naxatw-space-x-1">
             {/* <Input
               placeholder="+977"
@@ -87,7 +83,6 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               className="naxatw-mt-1 naxatw-w-full"
               type="number"
               {...register('phone_number', {
-                required: 'Phone Number is Required',
                 minLength: {
                   value: 5,
                   message: 'Invalid Phone Number',
