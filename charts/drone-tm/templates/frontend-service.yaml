@@ -1,0 +1,19 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "drone-tm.frontend.fullname" . }}
+  labels:
+    {{- include "drone-tm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: {{ .Values.frontend.service.type }}
+  ports:
+    - port: {{ .Values.frontend.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "drone-tm.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+{{- end }}
