@@ -550,6 +550,7 @@ const MapSection = ({ className }: { className?: string }) => {
         longitude: lng,
         latitude: lat,
       },
+      gimbalAngle: gimbalAngle,
     });
   };
 
