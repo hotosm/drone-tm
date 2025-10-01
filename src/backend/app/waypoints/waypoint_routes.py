@@ -71,6 +71,9 @@ async def get_task_waypoint(
     """
     rotation_angle = 360 - rotation_angle
     task_geojson = await get_task_geojson(db, task_id)
+    project_task_index = (
+        task_geojson.get("features")[0].get("properties").get("project_task_id")
+    )
     project = await project_deps.get_project_by_id(project_id, db)
 
     # create a takeoff point in this format ["lon","lat"]
@@ -178,11 +181,13 @@ async def get_task_waypoint(
             return FileResponse(
                 outpath,
                 media_type="application/vnd.google-earth.kmz",
-                filename=f"flight_plan-task-{task_id}-{mode}.kmz",
+                # Sets content-disposition header
+                filename=f"p-{project_id}-task-{project_task_index}-{mode.name}.kmz",
             )
         elif output_format == "POTENSIC_SQLITE":
             outpath = generate_potensic_sqlite(placemarks, outfile)
             return FileResponse(
+                # NOTE potensic file is always named map.db
                 outpath,
                 media_type="application/vnd.sqlite3",
                 filename="map.db",
