@@ -44,10 +44,10 @@ const DroneOperatorDescriptionBox = () => {
         if (!response.ok) {
           throw new Error(`Network response was ${response.statusText}`);
         }
-        const filename = response.headers.get('content-disposition')
-          ?.split('filename=')[1]
-          ?.trim()
-          .replace(/^"|"$/g, '')!;
+        const disposition = response.headers.get('content-disposition');
+        console.log(disposition)
+        const match = disposition?.match(/filename="?([^"]+)"?/i);
+        const filename = match?.[1] ?? `${taskId}.kmz`;
         return response.blob().then(blob => ({ filename, blob }));
       })
       .then(({ filename, blob }) => {

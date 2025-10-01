@@ -131,7 +131,8 @@ async def get_task_geojson(db: Connection, task_id: uuid.UUID):
                         'type', 'Feature',
                         'geometry', ST_AsGeoJSON(outline)::jsonb,
                         'properties', jsonb_build_object(
-                            'id', id
+                            'id', id,
+                            'project_task_id', project_task_index
                         )
                     )
                 )
