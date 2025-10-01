@@ -11,6 +11,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
 from drone_flightplan.calculate_parameters import calculate_parameters as cp
+from drone_flightplan.enums import GimbalAngle
 from drone_flightplan.drone_type import DroneType
 
 log = logging.getLogger(__name__)
@@ -110,6 +111,7 @@ def create_path(
     generate_3d: bool = False,
     take_off_point: list[float] = None,
     polygon: Optional[Polygon] = None,
+    gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ) -> list[dict]:
     """Create a continuous path of waypoints from a grid of points.
 
@@ -123,7 +125,6 @@ def create_path(
     Returns:
         list[dict]: A list of dictionaries representing the waypoints along the path.
     """
-    # TODO: Make the gimbal angle dynamic. Right now it is static to -80
 
     def filter_points_in_polygon(segment_points, polygon, is_edge_segment=False):
         """Filter points outside the given polygon. If more than 2 points are outside the polygon.
@@ -246,7 +247,7 @@ def create_path(
                 "coordinates": rotated_start_point,
                 "angle": angle,
                 "take_photo": False,
-                "gimbal_angle": "-80",
+                "gimbal_angle": gimbal_angle.value,
             }
         )
 
@@ -257,7 +258,7 @@ def create_path(
                     "coordinates": point["coordinates"],
                     "angle": point["angle"],
                     "take_photo": True,
-                    "gimbal_angle": "-80",
+                    "gimbal_angle": gimbal_angle.value,
                 }
             )
 
@@ -285,7 +286,7 @@ def create_path(
                 "coordinates": rotated_end_point,
                 "angle": angle,
                 "take_photo": False,
-                "gimbal_angle": "-80",
+                "gimbal_angle": gimbal_angle.value,
             }
         )
 
@@ -305,6 +306,8 @@ def generate_3d_waypoints(
     Returns:
         list[dict]: A list of dictionaries representing the additional 3D waypoints.
     """
+    # TODO incorporate this somewhere? Useful logic
+
     # Return path with -45 degree angle
     return_path = [
         {
@@ -402,6 +405,7 @@ def create_waypoint(
     take_off_point: list[float] = None,
     mode: str = "waylines",
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
+    gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ) -> str:
     """Create waypoints or waylines for a given project area based on specified parameters.
 
@@ -415,6 +419,8 @@ def create_waypoint(
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
         no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
         mode (str): "waypoints" for individual points, "waylines" for path lines.
+        drone_type (DroneType): the drone to create the flightplan for.
+        gimbal_angle (GimbalAngle): the gimbal angle to set for the flight.
 
     Returns:
         geojson: waypoints generated within the project area in the geojson format
@@ -480,7 +486,8 @@ def create_waypoint(
         rotation_angle,
         generate_3d=generate_3d,
         polygon=polygon_3857,
-    )  # TODO: Make the gimbal angle dynamic
+        gimbal_angle=gimbal_angle,
+    )
 
     # Path initialization
     path = []
@@ -505,7 +512,7 @@ def create_waypoint(
             "coordinates": Point(transformer_to_3857(*take_off_point)),
             "take_photo": False,
             "angle": 0,
-            "gimbal_angle": "-80",  # TODO: Make it dynamic
+            "gimbal_angle": gimbal_angle.value,
         }
         path.append(initial_point)
 
