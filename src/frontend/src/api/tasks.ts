@@ -12,12 +12,13 @@ export const useGetTaskWaypointQuery = (
   mode: string,
   droneModel: string,
   rotationAngle: number,
+  gimbalAngle: string,
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['task-waypoints', mode, droneModel, rotationAngle],
+    queryKey: ['task-waypoints', mode, droneModel, rotationAngle, gimbalAngle],
     enabled: !!(projectId && taskId),
-    queryFn: () => getTaskWaypoint(projectId, taskId, mode, droneModel, rotationAngle),
+    queryFn: () => getTaskWaypoint(projectId, taskId, mode, droneModel, rotationAngle, gimbalAngle),
     select: (res: any) => res.data,
     ...queryOptions,
   });

@@ -125,6 +125,7 @@ const MapSection = ({ className }: { className?: string }) => {
       waypointMode as string,
       droneModel as string,
       finalRotationAngle,
+      gimbalAngle as string,
       {
         select: ({ data }: any) => {
           const modifiedTaskWayPointsData = {
