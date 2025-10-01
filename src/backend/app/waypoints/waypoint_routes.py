@@ -182,7 +182,7 @@ async def get_task_waypoint(
                 outpath,
                 media_type="application/vnd.google-earth.kmz",
                 # Sets content-disposition header
-                filename=f"p-{project_id}-task-{project_task_index}-{mode.name}.kmz",
+                filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.kmz",
             )
         elif output_format == "POTENSIC_SQLITE":
             outpath = generate_potensic_sqlite(placemarks, outfile)
