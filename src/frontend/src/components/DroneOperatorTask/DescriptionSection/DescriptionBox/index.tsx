@@ -45,6 +45,9 @@ const DescriptionBox = () => {
   const droneModel = useTypedSelector(
     state => state.droneOperatorTask.droneModel,
   );
+  const gimbalAngle = useTypedSelector(
+    state => state.droneOperatorTask.gimbalAngle,
+  );
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
@@ -52,6 +55,7 @@ const DescriptionBox = () => {
     waypointMode as string,
     droneModel as string,
     0,
+    gimbalAngle as string,
     {
       select: (data: any) => {
         return data.data.results.features;
