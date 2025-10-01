@@ -49,11 +49,16 @@ See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
 
       1. Before takeoff, the image settings are 4:3 and not 16:9.
 
-      2. Ensure the max altitude setting on the drone is all the way to
+      2. Also ensure you have set the max altitude the drone can fly in the
+         settings to the maximum. This is required for terrain following
+         to work, as it's the max altitude **above sea level**, not the
+         max altitude above ground (so the drone can fly high enough).
+
+      3. Ensure the max altitude setting on the drone is all the way to
          500m (the maximum) - they allows for terrain following to work
          correctly.
 
-      3. If using wayline mode, ensure you set the **photo capture interval**
+      4. If using wayline mode, ensure you set the **photo capture interval**
          on the drone to **2 seconds**. Hold the icon above the photo capture
          button, select the timer icon, scroll to 2 seconds, then click the
          photo capture button to start. **Ensure this is done as soon as the
@@ -62,7 +67,7 @@ See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
          waypoint). Also ensure the photo capture is turned off when the final
          waypoint is captured for the mission.
 
-      4. Do not interfere with the device mid-flight. Wait for the mission
+      5. Do not interfere with the device mid-flight. Wait for the mission
          to finish before carrying out other operations on the controller.
 
 ### Helpful Tips

@@ -28,6 +28,9 @@ const DroneOperatorDescriptionBox = () => {
   const droneModel = useTypedSelector(
     state => state.droneOperatorTask.droneModel,
   );
+  const gimbalAngle = useTypedSelector(
+    state => state.droneOperatorTask.gimbalAngle,
+  );
 
   const { data: taskDescription }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string);
@@ -37,7 +40,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanKmz = () => {
     fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}`,
+      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
       { method: 'POST' },
     )
       .then(response => {
@@ -69,7 +72,7 @@ const DroneOperatorDescriptionBox = () => {
   const sendFlightPlanViaAdb = async () => {
     try {
       const response = await fetch(
-        `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}`,
+        `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
         { method: 'POST' },
       );
 

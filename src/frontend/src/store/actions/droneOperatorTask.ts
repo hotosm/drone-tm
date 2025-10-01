@@ -19,6 +19,7 @@ export const {
   resetFilesExifData,
   setWaypointMode,
   setDroneModel,
+  setGimbalAngle,
   setTaskAssetsInformation,
   setRotatedFlightPlan,
   setRotationAngle,

@@ -24,3 +24,9 @@ export const droneModelOptions = [
   { label: 'DJI Air 3', value: 'DJI_AIR_3' },
   { label: 'Potensic Atom 2', value: 'POTENSIC_ATOM_2' },
 ];
+
+export const gimbalAngleOptions = [
+  { label: '-80', value: '-80' },
+  { label: '-90', value: '-90' },
+  { label: '45', value: '-45' },
+];
