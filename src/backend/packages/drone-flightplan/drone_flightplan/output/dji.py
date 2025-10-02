@@ -34,29 +34,6 @@ def create_zip_file(waylines_path_uid):
 
     # TODO: Need to check if it is really required. It might not be needed.
 
-    # import xml.etree.ElementTree as ET
-
-    # xml_string = """<?xml version="1.0" encoding="UTF-8"?>
-    # <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:wpml="http://www.dji.com/wpmz/1.0.2">
-    #   <Document>
-    #     <wpml:author>fly</wpml:author>
-    #     <wpml:createTime>1702051864938</wpml:createTime>
-    #     <wpml:updateTime>1702051864938</wpml:updateTime>
-    #     <wpml:missionConfig>
-    #       <wpml:flyToWaylineMode>safely</wpml:flyToWaylineMode>
-    #       <wpml:finishAction>noAction</wpml:finishAction>
-    #       <wpml:exitOnRCLost>executeLostAction</wpml:exitOnRCLost>
-    #       <wpml:executeRCLostAction>hover</wpml:executeRCLostAction>
-    #       <wpml:globalTransitionalSpeed>2.5</wpml:globalTransitionalSpeed>
-    #       <wpml:droneInfo>
-    #         <wpml:droneEnumValue>68</wpml:droneEnumValue>
-    #         <wpml:droneSubEnumValue>0</wpml:droneSubEnumValue>
-    #       </wpml:droneInfo>
-    #     </wpml:missionConfig>
-    #   </Document>
-    # </kml>
-    # """
-
     # # Parse the XML string
     # root = ET.fromstring(xml_string)
 
@@ -412,8 +389,10 @@ def create_mission_config(global_height):
     exit_on_rc_lost = ET.SubElement(mission_config, "wpml:goContinue")
     exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
 
-    # NOTE for now, we don't want to execute lost action other than continue
-    # NOTE perhaps in future we may have user configuration
+    execute_exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
+    execute_exit_on_rc_lost.text = "goContinue"
+    # NOTE for now we don't need a configurable lost action, as want to ensure
+    # the flight continues every time (especially in hilly terrain)
     # execute_rc_lost_action = ET.SubElement(mission_config, "wpml:executeRCLostAction")
     # execute_rc_lost_action.text = str(RCLostAction.GO_BACK.value)
 
