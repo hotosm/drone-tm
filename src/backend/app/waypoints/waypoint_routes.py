@@ -17,6 +17,7 @@ from drone_flightplan import (
 from drone_flightplan.output.dji import create_wpml
 from drone_flightplan.output.potensic import generate_potensic_sqlite
 from drone_flightplan.drone_type import DroneType, DRONE_PARAMS
+from drone_flightplan.enums import GimbalAngle
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from psycopg import Connection
@@ -57,6 +58,7 @@ async def get_task_waypoint(
     rotation_angle: float = 0,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     take_off_point: waypoint_schemas.PointField = None,
+    gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ):
     """Retrieve task waypoints and download a flight plan.
 
@@ -71,6 +73,16 @@ async def get_task_waypoint(
     """
     rotation_angle = 360 - rotation_angle
     task_geojson = await get_task_geojson(db, task_id)
+    features = task_geojson.get("features") or []
+    # Prevent failure if cannot extract
+    project_task_index = next(
+        (
+            f.get("properties", {}).get("project_task_id")
+            for f in features
+            if f.get("properties")
+        ),
+        "unknown",
+    )
     project = await project_deps.get_project_by_id(project_id, db)
 
     # create a takeoff point in this format ["lon","lat"]
@@ -129,6 +141,7 @@ async def get_task_waypoint(
         "generate_3d": generate_3d,
         "take_off_point": take_off_point,
         "drone_type": drone_type,
+        "gimbal_angle": gimbal_angle,
     }
 
     if project.is_terrain_follow:
@@ -178,11 +191,13 @@ async def get_task_waypoint(
             return FileResponse(
                 outpath,
                 media_type="application/vnd.google-earth.kmz",
-                filename=f"flight_plan-task-{task_id}-{mode}.kmz",
+                # Sets content-disposition header
+                filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.kmz",
             )
         elif output_format == "POTENSIC_SQLITE":
             outpath = generate_potensic_sqlite(placemarks, outfile)
             return FileResponse(
+                # NOTE potensic file is always named map.db
                 outpath,
                 media_type="application/vnd.sqlite3",
                 filename="map.db",

@@ -658,7 +658,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "loguru" },
     { name = "minio" },
-    { name = "psycopg", extra = ["pool"] },
+    { name = "psycopg", extra = ["c", "pool"] },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
@@ -726,7 +726,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.4" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "minio", specifier = ">=7.2.7" },
-    { name = "psycopg", extras = ["pool"], specifier = ">=3.2.1" },
+    { name = "psycopg", extras = ["c", "pool"], specifier = ">=3.2.1" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.8.2" },
     { name = "pydantic-settings", specifier = "==2.4.0" },
     { name = "pyjwt", specifier = ">=2.8.0" },
@@ -1950,9 +1950,18 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+c = [
+    { name = "psycopg-c", marker = "implementation_name != 'pypy'" },
+]
 pool = [
     { name = "psycopg-pool" },
 ]
+
+[[package]]
+name = "psycopg-c"
+version = "3.2.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/ba/74caf4eab78d95a173e65cb81507a589365aeafb1d9c84f374002b51dc53/psycopg_c-3.2.3.tar.gz", hash = "sha256:06ae7db8eaec1a3845960fa7f997f4ccdb1a7a7ab8dc593a680bcc74e1359671", size = 598888, upload-time = "2024-09-29T21:27:27.856Z" }
 
 [[package]]
 name = "psycopg-pool"

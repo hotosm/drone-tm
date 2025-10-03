@@ -49,11 +49,16 @@ See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
 
       1. Before takeoff, the image settings are 4:3 and not 16:9.
 
-      2. Ensure the max altitude setting on the drone is all the way to
+      2. Also ensure you have set the max altitude the drone can fly in the
+         settings to the maximum. This is required for terrain following
+         to work, as it's the max altitude **above sea level**, not the
+         max altitude above ground (so the drone can fly high enough).
+
+      3. Ensure the max altitude setting on the drone is all the way to
          500m (the maximum) - they allows for terrain following to work
          correctly.
 
-      3. If using wayline mode, ensure you set the **photo capture interval**
+      4. If using wayline mode, ensure you set the **photo capture interval**
          on the drone to **2 seconds**. Hold the icon above the photo capture
          button, select the timer icon, scroll to 2 seconds, then click the
          photo capture button to start. **Ensure this is done as soon as the
@@ -62,5 +67,33 @@ See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
          waypoint). Also ensure the photo capture is turned off when the final
          waypoint is captured for the mission.
 
-      4. Do not interfere with the device mid-flight. Wait for the mission
+      5. Do not interfere with the device mid-flight. Wait for the mission
          to finish before carrying out other operations on the controller.
+
+### Helpful Tips
+
+#### Q: My drone is asking me to log in
+
+- DJI is quite restrictive and requires all drones to be logged in to fly.
+- Sometimes a firmware update may require you to login again.
+- Ensure you are connected to Wifi: pull down the top bar on the screen
+  --> toggle Wifi --> connect to your network.
+- Enter your DJI login credentials (created on the DJI website).
+
+#### Q: I can't connect the mobile app on my phone to the controller
+
+- Make sure you enable '**Transfer mode**' once the cables are plugged
+  in. By default it will often start in 'Charging mode', but you
+  need to pull down the notifications bar and click the popup there
+  to toggle connection mode.
+- USB C cables can be difficult sometimes. Try swapping the direction
+  of the cable. Try another cable too. Ideally you should use the
+  USB C cable that was packaged with the drone.
+- Try a different phone if possible too, to help confirm where the
+  issue may be.
+
+#### Q: The dates on my final imagery files are wrong
+
+- If the drone has not connected to Wifi for a while, the
+  clock inside the drone may be out of date. Connect to
+  Wifi to fix this problem.

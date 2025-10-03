@@ -24,7 +24,7 @@ import { postTaskWaypoint } from '@Services/tasks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import { waypointModeOptions, droneModelOptions } from '@Constants/taskDescription';
+import { waypointModeOptions, droneModelOptions, gimbalAngleOptions } from '@Constants/taskDescription';
 import {
   setRotationAngle as setFinalRotationAngle,
   setRotatedFlightPlan,
@@ -34,6 +34,7 @@ import {
   setTaskAssetsInformation,
   setWaypointMode,
   setDroneModel,
+  setGimbalAngle,
 } from '@Store/actions/droneOperatorTask';
 import rotateGeoJSON from '@Utils/rotateGeojsonData';
 import { findNearestCoordinate, swapFirstAndLast } from '@Utils/index';
@@ -82,6 +83,9 @@ const MapSection = ({ className }: { className?: string }) => {
   const droneModel = useTypedSelector(
     state => state.droneOperatorTask.droneModel,
   );
+  const gimbalAngle = useTypedSelector(
+    state => state.droneOperatorTask.gimbalAngle,
+  );
   const newTakeOffPoint = useTypedSelector(
     state => state.droneOperatorTask.selectedTakeOffPoint,
   );
@@ -121,6 +125,7 @@ const MapSection = ({ className }: { className?: string }) => {
       waypointMode as string,
       droneModel as string,
       finalRotationAngle,
+      gimbalAngle as string,
       {
         select: ({ data }: any) => {
           const modifiedTaskWayPointsData = {
@@ -545,6 +550,7 @@ const MapSection = ({ className }: { className?: string }) => {
         longitude: lng,
         latitude: lat,
       },
+      gimbalAngle: gimbalAngle,
     });
   };
 
@@ -850,6 +856,17 @@ const MapSection = ({ className }: { className?: string }) => {
             selectedValue={droneModel}
             onChange={(value: Record<string, any>) => {
               dispatch(setDroneModel(value.value));
+            }}
+          />
+
+          <SwitchTab
+            activeClassName="naxatw-bg-red naxatw-text-white"
+            options={gimbalAngleOptions}
+            labelKey="label"
+            valueKey="value"
+            selectedValue={gimbalAngle}
+            onChange={(value: Record<string, any>) => {
+              dispatch(setGimbalAngle(value.value));
             }}
           />
 

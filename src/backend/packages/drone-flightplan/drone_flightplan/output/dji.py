@@ -34,29 +34,6 @@ def create_zip_file(waylines_path_uid):
 
     # TODO: Need to check if it is really required. It might not be needed.
 
-    # import xml.etree.ElementTree as ET
-
-    # xml_string = """<?xml version="1.0" encoding="UTF-8"?>
-    # <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:wpml="http://www.dji.com/wpmz/1.0.2">
-    #   <Document>
-    #     <wpml:author>fly</wpml:author>
-    #     <wpml:createTime>1702051864938</wpml:createTime>
-    #     <wpml:updateTime>1702051864938</wpml:updateTime>
-    #     <wpml:missionConfig>
-    #       <wpml:flyToWaylineMode>safely</wpml:flyToWaylineMode>
-    #       <wpml:finishAction>noAction</wpml:finishAction>
-    #       <wpml:exitOnRCLost>executeLostAction</wpml:exitOnRCLost>
-    #       <wpml:executeRCLostAction>hover</wpml:executeRCLostAction>
-    #       <wpml:globalTransitionalSpeed>2.5</wpml:globalTransitionalSpeed>
-    #       <wpml:droneInfo>
-    #         <wpml:droneEnumValue>68</wpml:droneEnumValue>
-    #         <wpml:droneSubEnumValue>0</wpml:droneSubEnumValue>
-    #       </wpml:droneInfo>
-    #     </wpml:missionConfig>
-    #   </Document>
-    # </kml>
-    # """
-
     # # Parse the XML string
     # root = ET.fromstring(xml_string)
 
@@ -117,14 +94,15 @@ def gimbal_rotate_action(action_group_element: Element, index: str, gimbal_angle
     gimbal_roll_rotate_enable = ET.SubElement(params, "wpml:gimbalRollRotateEnable")
     gimbal_roll_rotate_angle = ET.SubElement(params, "wpml:gimbalRollRotateAngle")
 
-    # If the gimbal pitch rotate angle is 45, make it -90.
-    # 45 is just for reference. We need to change roll angle for this.
-    # Gimbal angle = 45 --> pitch = -90 & roll = -45
-    if str(gimbal_angle) == "45":
+    # If gimbal_angle is -45 oblique, set the pitch to -90 and the roll -45
+    # This ensures the gimbal is in the correct position for sideward shots
+    if str(gimbal_angle) == "-45":
         gimbal_pitch_rotate_angle.text = "-90"
         gimbal_roll_rotate_enable.text = "1"
         gimbal_roll_rotate_angle.text = "-45"
     else:
+        # Default is to just adjust the pitch to point downwards
+        # With no roll (sidewards movement)
         gimbal_pitch_rotate_angle.text = str(gimbal_angle)
         gimbal_roll_rotate_enable.text = "0"
         gimbal_roll_rotate_angle.text = "0"
@@ -211,7 +189,11 @@ def create_photo_interval_group(
 
 
 def create_smooth_gimbal_group(parent: Element, group_id: str, gimbal_angle: str):
-    """Create an action group that smoothly rotates the gimbal toward the target angle."""
+    """Create an action group that smoothly rotates the gimbal toward the target angle.
+
+    NOTE: Unlike gimbalRotate (immediate), gimbalEvenlyRotate moves the gimbal smoothly
+    to the target position. We support both pitch-only and oblique (pitch + roll) cases.
+    """
     group = create_action_group(
         parent,
         group_id=group_id,
@@ -228,8 +210,36 @@ def create_smooth_gimbal_group(parent: Element, group_id: str, gimbal_angle: str
     func.text = "gimbalEvenlyRotate"
     params = ET.SubElement(smooth_gimbal, "wpml:actionActuatorFuncParam")
 
+    # Smooth pitch + optional roll handling
     gimbal_pitch_rotate_angle2 = ET.SubElement(params, "wpml:gimbalPitchRotateAngle")
-    gimbal_pitch_rotate_angle2.text = str(gimbal_angle)
+    gimbal_roll_rotate_enable2 = ET.SubElement(params, "wpml:gimbalRollRotateEnable")
+    gimbal_roll_rotate_angle2 = ET.SubElement(params, "wpml:gimbalRollRotateAngle")
+
+    # If gimbal_angle is -45 oblique, set the pitch to -90 and the roll -45
+    # This ensures the gimbal is in the correct position for sideward shots
+    if str(gimbal_angle) == "-45":
+        gimbal_pitch_rotate_angle2.text = "-90"
+        gimbal_roll_rotate_enable2.text = "1"
+        gimbal_roll_rotate_angle2.text = "-45"
+    else:
+        # Default is to just adjust the pitch to point downwards
+        # With no roll (sidewards movement)
+        gimbal_pitch_rotate_angle2.text = str(gimbal_angle)
+        gimbal_roll_rotate_enable2.text = "0"
+        gimbal_roll_rotate_angle2.text = "0"
+
+    # Always keep yaw + timing disabled for smooth moves unless explicitly needed
+    gimbal_yaw_rotate_enable2 = ET.SubElement(params, "wpml:gimbalYawRotateEnable")
+    gimbal_yaw_rotate_enable2.text = "0"
+
+    gimbal_yaw_rotate_angle2 = ET.SubElement(params, "wpml:gimbalYawRotateAngle")
+    gimbal_yaw_rotate_angle2.text = "0"
+
+    gimbal_rotate_time_enable2 = ET.SubElement(params, "wpml:gimbalRotateTimeEnable")
+    gimbal_rotate_time_enable2.text = "0"
+
+    gimbal_rotate_time2 = ET.SubElement(params, "wpml:gimbalRotateTime")
+    gimbal_rotate_time2.text = "0"
 
     payload_position_index2 = ET.SubElement(params, "wpml:payloadPositionIndex")
     payload_position_index2.text = "0"
@@ -247,6 +257,7 @@ def create_placemark(placemark, final_index: int):
         waypoint_speed = placemark["properties"]["speed"]
         waypoint_heading_angle = placemark["properties"]["heading"]
         gimbal_angle = placemark["properties"]["gimbal_angle"]
+        print(gimbal_angle)
         take_photo = placemark["properties"]["take_photo"]
     except IndexError as e:
         raise ValueError(str(e))
@@ -374,12 +385,12 @@ def create_mission_config(global_height):
     # gotoFirstWaypoint: Fly back to the starting point, then hover.
     finish_action.text = str("goHome")
 
-    # NOTE ensure the flight continues if signal lost
-    exit_on_rc_lost = ET.SubElement(mission_config, "wpml:goContinue")
-    exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
-
-    # NOTE for now, we don't want to execute lost action other than continue
-    # NOTE perhaps in future we may have user configuration
+    # # NOTE ensure the flight continues if signal lost
+    execute_exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
+    execute_exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
+    # NOTE for now we don't need a configurable lost action, as want to ensure
+    # the flight continues every time (especially in hilly terrain)
+    # execute_exit_on_rc_lost.text = str(RCLostOptions.EXECUTE_LOST_ACTION.value)
     # execute_rc_lost_action = ET.SubElement(mission_config, "wpml:executeRCLostAction")
     # execute_rc_lost_action.text = str(RCLostAction.GO_BACK.value)
 

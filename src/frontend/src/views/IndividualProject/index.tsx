@@ -82,6 +82,9 @@ const IndividualProject = () => {
   const exportRef = useRef<any>(null);
   const [exportingContent, setExportingContent] = useState(false);
   const [showProjectDeletePrompt, setShowProjectDeletePrompt] = useState(false);
+  const [showDownloadOptions, setShowDownloadOptions] =
+    useState<boolean>(false);
+  const Token = localStorage.getItem('token');
 
   const individualProjectActiveTab = useTypedSelector(
     state => state.project.individualProjectActiveTab,
@@ -158,6 +161,33 @@ const IndividualProject = () => {
     mutate(id as string);
   };
 
+  const downloadProjectTaskGeojson = () => {
+    fetch(
+      `${BASE_URL}/projects/${projectData?.id}/download-boundaries?split_area=true&export_type=geojson`,
+      { method: 'GET', headers: { 'Access-token': Token || '' } },
+    )
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Network response was ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `project-${projectData?.name}-tasks.geojson`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error =>
+        toast.error(`There was an error while downloading file
+        ${error}`),
+      );
+  };
+
   return (
     <>
       <section className="individual project naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
@@ -169,28 +199,52 @@ const IndividualProject = () => {
             ]}
           />
           <div className="naxatw-flex naxatw-gap-5">
-            <Button
-              leftIcon="download"
-              size="sm"
-              className="naxatw-border naxatw-bg-redlight !naxatw-text-red hover:naxatw-border-red"
-              title="Download Project Details"
-              withLoader
-              isLoading={exportingContent}
-              onClick={() => {
-                setExportingContent(true);
-                setTimeout(() => {
-                  html2canvas(exportRef?.current).then((canvas: any) => {
-                    const link = document.createElement('a');
-                    link.download = `${projectData?.name}.png`;
-                    link.href = canvas.toDataURL();
-                    link.click();
-                  });
-                  setExportingContent(false);
-                }, 1000);
-              }}
-            >
-              Export
-            </Button>
+            <div className="naxatw-relative">
+              <Button
+                variant="ghost"
+                className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                leftIcon="download"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => setShowDownloadOptions(prev => !prev)}
+              >
+                Export
+              </Button>
+              {showDownloadOptions && (
+                <div className="naxatw-absolute naxatw-right-0 naxatw-top-10 naxatw-z-20 naxatw-w-[200px] naxatw-rounded-sm naxatw-border naxatw-bg-white naxatw-shadow-2xl">
+                  <div
+                    className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={() => downloadProjectTaskGeojson()}
+                    onClick={() => {
+                      downloadProjectTaskGeojson();
+                      setShowDownloadOptions(false);
+                    }}
+                  >
+                    📋 Task areas
+                  </div>
+                   <div
+                    className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={() => console.log('here')}
+                    onClick={() => {
+                      setExportingContent(true);
+                      html2canvas(exportRef?.current).then((canvas: any) => {
+                        const link = document.createElement('a');
+                        link.download = `${projectData?.name}.png`;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                      });
+                      setExportingContent(false);
+                      setShowDownloadOptions(false);
+                    }}
+                  >
+                    🖨️ Project printout
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {showGcpEditor ? (

@@ -21,6 +21,7 @@ export interface IDroneOperatorTaskState {
   uploadProgress: Record<string, any>;
   waypointMode: 'waylines' | 'waypoints';
   droneModel: 'DJI_MINI_4_PRO' | 'DJI_MINI_5_PRO' | 'DJI_AIR_3' | 'POTENSIC_ATOM_2';
+  gimbalAngle: '-80' | '-90' | '-45';
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
   rotationAngle: number;
@@ -42,6 +43,7 @@ const initialState: IDroneOperatorTaskState = {
   uploadProgress: {},
   waypointMode: 'waylines',
   droneModel: 'DJI_MINI_4_PRO',
+  gimbalAngle: '-80',
   taskAssetsInformation: {
     total_image_uploaded: 0,
     assets_url: '',
@@ -119,6 +121,9 @@ export const droneOperatorTaskSlice = createSlice({
     },
     setDroneModel: (state, action) => {
       state.droneModel = action.payload;
+    },
+    setGimbalAngle: (state, action) => {
+      state.gimbalAngle = action.payload;
     },
     setTaskAssetsInformation: (state, action) => {
       state.taskAssetsInformation = action.payload;

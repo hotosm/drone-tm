@@ -16,7 +16,7 @@ dependencies = [
     "shapely==2.1.0",
     "sqlalchemy==2.0.23",
     "geoalchemy2==0.14.2",
-    "psycopg[pool]>=3.2.1",
+    "psycopg[c,pool]>=3.2.1",
     "requests>=2.32.3",
     "requests-oauthlib>=2.0.0",
     "loguru>=0.7.2",
