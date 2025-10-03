@@ -385,14 +385,12 @@ def create_mission_config(global_height):
     # gotoFirstWaypoint: Fly back to the starting point, then hover.
     finish_action.text = str("goHome")
 
-    # NOTE ensure the flight continues if signal lost
-    exit_on_rc_lost = ET.SubElement(mission_config, "wpml:goContinue")
-    exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
-
+    # # NOTE ensure the flight continues if signal lost
     execute_exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
-    execute_exit_on_rc_lost.text = "goContinue"
+    execute_exit_on_rc_lost.text = str(RCLostOptions.CONTINUE.value)
     # NOTE for now we don't need a configurable lost action, as want to ensure
     # the flight continues every time (especially in hilly terrain)
+    # execute_exit_on_rc_lost.text = str(RCLostOptions.EXECUTE_LOST_ACTION.value)
     # execute_rc_lost_action = ET.SubElement(mission_config, "wpml:executeRCLostAction")
     # execute_rc_lost_action.text = str(RCLostAction.GO_BACK.value)
 
