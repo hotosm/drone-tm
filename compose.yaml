@@ -139,8 +139,20 @@ services:
       timeout: 5s
       retries: 2
       start_period: 20s
+
   redis:
     image: redis:7-alpine
     networks:
       - dtm-network
     restart: unless-stopped
+
+  # This container does the actual imagery processing (not persistent, scalable)
+  nodeodm:
+    image: docker.io/opendronemap/nodeodm:3.5.5
+    env_file: .env
+    ports:
+      - 9900:9900
+    networks:
+      - dtm-network
+    restart: unless-stopped
+    oom_score_adj: 500
