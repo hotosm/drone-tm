@@ -35,7 +35,15 @@ from app.jaxa.upload_dem import upload_dem_file
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
 from app.projects import image_processing, project_deps, project_logic, project_schemas
 from app.projects.oam import upload_to_oam
-from app.s3 import add_file_to_bucket, initiate_multipart_upload, s3_client
+from app.s3 import (
+    abort_multipart_upload,
+    add_file_to_bucket,
+    complete_multipart_upload,
+    get_presigned_upload_part_url,
+    initiate_multipart_upload,
+    list_parts,
+    s3_client,
+)
 from app.tasks import task_logic, task_schemas
 from app.users.permissions import (
     IsProjectCreator,
@@ -771,6 +779,134 @@ async def initiate_upload(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to initiate multipart upload: {e}",
+        )
+
+
+@router.post("/sign-part-upload/", tags=["Image Upload"])
+async def sign_part_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.SignPartUploadRequest,
+):
+    """Generate a presigned URL for uploading a specific part.
+
+    Args:
+        data: Contains upload_id, file_key, part_number, and optional expiry.
+
+    Returns:
+        dict: Presigned URL for uploading the part.
+    """
+    try:
+        url = get_presigned_upload_part_url(
+            settings.S3_BUCKET_NAME,
+            data.file_key,
+            data.upload_id,
+            data.part_number,
+            data.expiry,
+        )
+
+        return {
+            "url": url,
+            "part_number": data.part_number,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to generate presigned URL for part: {e}",
+        )
+
+
+@router.post("/complete-multipart-upload/", tags=["Image Upload"])
+async def complete_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.CompleteMultipartUploadRequest,
+):
+    """Complete a multipart upload by combining all parts.
+
+    Args:
+        data: Contains upload_id, file_key, and list of parts.
+
+    Returns:
+        dict: Success message.
+    """
+    try:
+        complete_multipart_upload(
+            settings.S3_BUCKET_NAME,
+            data.file_key,
+            data.upload_id,
+            data.parts,
+        )
+
+        return {
+            "message": "Multipart upload completed successfully",
+            "file_key": data.file_key,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to complete multipart upload: {e}",
+        )
+
+
+@router.post("/abort-multipart-upload/", tags=["Image Upload"])
+async def abort_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.AbortMultipartUploadRequest,
+):
+    """Abort a multipart upload and clean up parts.
+
+    Args:
+        data: Contains upload_id and file_key.
+
+    Returns:
+        dict: Success message.
+    """
+    try:
+        abort_multipart_upload(
+            settings.S3_BUCKET_NAME,
+            data.file_key,
+            data.upload_id,
+        )
+
+        return {
+            "message": "Multipart upload aborted successfully",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to abort multipart upload: {e}",
+        )
+
+
+@router.get("/list-parts/", tags=["Image Upload"])
+async def get_uploaded_parts(
+    user: Annotated[AuthUser, Depends(login_required)],
+    upload_id: str = Query(..., description="The upload ID"),
+    file_key: str = Query(..., description="The S3 file key"),
+):
+    """List all uploaded parts for a multipart upload (for resume capability).
+
+    Args:
+        upload_id: The upload ID from initiate_multipart_upload.
+        file_key: The S3 object key.
+
+    Returns:
+        dict: List of uploaded parts.
+    """
+    try:
+        parts = list_parts(
+            settings.S3_BUCKET_NAME,
+            file_key,
+            upload_id,
+        )
+
+        return {
+            "parts": parts,
+            "upload_id": upload_id,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to list parts: {e}",
         )
 
 

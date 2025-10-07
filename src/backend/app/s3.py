@@ -350,3 +350,131 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
     except Exception as e:
         log.error(f"Unexpected error during multipart upload initiation: {e}")
         raise
+
+
+def get_presigned_upload_part_url(
+    bucket_name: str, object_name: str, upload_id: str, part_number: int, expires: int = 2
+) -> str:
+    """Generate a presigned URL for uploading a specific part in a multipart upload.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket where the file will be stored.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+        part_number (int): The part number (1-10000).
+        expires (int, optional): The time in hours until the URL expires. Defaults to 2 hours.
+
+    Returns:
+        str: The presigned URL for uploading the part.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        url = client.presigned_put_object(
+            bucket_name,
+            object_name,
+            expires=timedelta(hours=expires),
+            extra_query_params={
+                "uploadId": upload_id,
+                "partNumber": str(part_number),
+            },
+        )
+        log.debug(f"Generated presigned URL for part {part_number} of {object_name}")
+        return url
+    except S3Error as e:
+        log.error(f"Error generating presigned URL for part upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error generating presigned URL: {e}")
+        raise
+
+
+def complete_multipart_upload(
+    bucket_name: str, object_name: str, upload_id: str, parts: list[dict]
+) -> bool:
+    """Complete a multipart upload by combining all uploaded parts.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket where the file is stored.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+        parts (list[dict]): List of parts with 'PartNumber' and 'ETag' keys.
+
+    Returns:
+        bool: True if the multipart upload was completed successfully.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        result = client._complete_multipart_upload(
+            bucket_name, object_name, upload_id, parts
+        )
+        log.info(
+            f"Completed multipart upload for {object_name}. "
+            f"ETag: {result.etag}, Version ID: {result.version_id}"
+        )
+        return True
+    except S3Error as e:
+        log.error(f"Error completing multipart upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error completing multipart upload: {e}")
+        raise
+
+
+def abort_multipart_upload(bucket_name: str, object_name: str, upload_id: str) -> bool:
+    """Abort a multipart upload and clean up uploaded parts.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+
+    Returns:
+        bool: True if the upload was aborted successfully.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        client._abort_multipart_upload(bucket_name, object_name, upload_id)
+        log.info(f"Aborted multipart upload for {object_name} with upload ID: {upload_id}")
+        return True
+    except S3Error as e:
+        log.error(f"Error aborting multipart upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error aborting multipart upload: {e}")
+        raise
+
+
+def list_parts(bucket_name: str, object_name: str, upload_id: str) -> list[dict]:
+    """List all uploaded parts for a multipart upload.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+
+    Returns:
+        list[dict]: List of uploaded parts with part number and ETag.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        parts_response = client._list_parts(bucket_name, object_name, upload_id)
+        parts = [
+            {"part_number": part.part_number, "etag": part.etag}
+            for part in parts_response.parts
+        ]
+        log.debug(f"Listed {len(parts)} parts for {object_name}")
+        return parts
+    except S3Error as e:
+        log.error(f"Error listing parts: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error listing parts: {e}")
+        raise

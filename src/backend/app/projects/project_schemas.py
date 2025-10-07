@@ -725,3 +725,21 @@ class MultipartUploadRequest(BaseModel):
     project_id: uuid.UUID
     task_id: uuid.UUID
     file_name: str
+
+
+class SignPartUploadRequest(BaseModel):
+    upload_id: str
+    file_key: str
+    part_number: int
+    expiry: int = 2  # Expiry time in hours
+
+
+class CompleteMultipartUploadRequest(BaseModel):
+    upload_id: str
+    file_key: str
+    parts: List[dict]  # List of {"PartNumber": int, "ETag": str}
+
+
+class AbortMultipartUploadRequest(BaseModel):
+    upload_id: str
+    file_key: str
