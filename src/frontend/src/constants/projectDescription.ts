@@ -157,7 +157,7 @@ export const descriptionItems = [
   },
   {
     label: 'Terrain Following',
-    key: 'is_terrain_flow',
+    key: 'is_terrain_follow',
     expectedDataType: 'boolean',
   },
   {

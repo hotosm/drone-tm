@@ -411,12 +411,12 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             });
           }}
           hideButton={
-            !showPrimaryButton(
-              taskStatusObj?.[selectedTaskId],
-              lockedUser?.id,
-              userDetails?.id,
-              projectData?.author_id,
-            ) ||
+            // !showPrimaryButton(
+            //   taskStatusObj?.[selectedTaskId],
+            //   lockedUser?.id,
+            //   userDetails?.id,
+            //   projectData?.author_id,
+            // ) ||
             projectData?.regulator_approval_status === 'REJECTED' || // Don't task lock button if regulator rejected the approval
             projectData?.regulator_approval_status === 'PENDING'
           }
