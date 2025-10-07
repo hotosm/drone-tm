@@ -72,27 +72,17 @@ def take_photo_action(action_group_element: Element, index: str):
     payload_position_index.text = "0"
 
 
-def gimbal_rotate_action(action_group_element: Element, index: str, gimbal_angle: str):
-    """Rotate gimbal to a specific angle immediately."""
-    action = ET.SubElement(action_group_element, "wpml:action")
-    action_id = ET.SubElement(action, "wpml:actionId")
-    action_id.text = str(index)
-    action_func = ET.SubElement(action, "wpml:actionActuatorFunc")
-    action_func.text = "gimbalRotate"
-    params = ET.SubElement(action, "wpml:actionActuatorFuncParam")
-
-    gimbal_heading_yaw_base = ET.SubElement(params, "wpml:gimbalHeadingYawBase")
-    gimbal_heading_yaw_base.text = "aircraft"
-
-    gimbal_rotate_mode = ET.SubElement(params, "wpml:gimbalRotateMode")
-    gimbal_rotate_mode.text = "absoluteAngle"
-
-    gimbal_pitch_rotate_enable = ET.SubElement(params, "wpml:gimbalPitchRotateEnable")
-    gimbal_pitch_rotate_enable.text = "1"
-
-    gimbal_pitch_rotate_angle = ET.SubElement(params, "wpml:gimbalPitchRotateAngle")
-    gimbal_roll_rotate_enable = ET.SubElement(params, "wpml:gimbalRollRotateEnable")
-    gimbal_roll_rotate_angle = ET.SubElement(params, "wpml:gimbalRollRotateAngle")
+def set_gimbal_pitch_and_roll(function_params: Element, gimbal_angle: str):
+    """Adjust gimbal pitch and roll angles."""
+    gimbal_pitch_rotate_angle = ET.SubElement(
+        function_params, "wpml:gimbalPitchRotateAngle"
+    )
+    gimbal_roll_rotate_enable = ET.SubElement(
+        function_params, "wpml:gimbalRollRotateEnable"
+    )
+    gimbal_roll_rotate_angle = ET.SubElement(
+        function_params, "wpml:gimbalRollRotateAngle"
+    )
 
     # If gimbal_angle is -45 oblique, set the pitch to -90 and the roll -45
     # This ensures the gimbal is in the correct position for sideward shots
@@ -108,6 +98,67 @@ def gimbal_rotate_action(action_group_element: Element, index: str, gimbal_angle
     gimbal_roll_rotate_enable.text = "0"
     gimbal_roll_rotate_angle.text = "0"
 
+
+def gimbal_rotate_action(
+    parent: Element,
+    group_id: str,
+    gimbal_angle: str,
+    smooth: bool = False,
+    index: str = "0",
+):
+    """Create an action (or action group) that rotates the gimbal to a target angle.
+
+    If `smooth` is True, the gimbal moves smoothly using gimbalEvenlyRotate.
+    Otherwise, it rotates immediately using gimbalRotate.
+
+    We support both pitch-only and oblique (pitch + roll) cases.
+    """
+    if smooth:
+        # Smooth rotation - wrap in an action group
+        group = create_action_group(
+            parent,
+            group_id=group_id,
+            start_index="0",
+            end_index="1",
+            mode="parallel",
+            trigger_type="reachPoint",
+        )
+        action_parent = group
+        func_name = "gimbalEvenlyRotate"
+        action_id_value = str(index)
+    else:
+        # Immediate rotation - add directly to existing group
+        action_parent = parent
+        func_name = "gimbalRotate"
+        action_id_value = str(index)
+
+    # Create the action element
+    action = ET.SubElement(action_parent, "wpml:action")
+    action_id = ET.SubElement(action, "wpml:actionId")
+    action_id.text = action_id_value
+
+    func = ET.SubElement(action, "wpml:actionActuatorFunc")
+    func.text = func_name
+
+    params = ET.SubElement(action, "wpml:actionActuatorFuncParam")
+
+    if not smooth:
+        # Additional parameters for immediate rotation mode
+        gimbal_heading_yaw_base = ET.SubElement(params, "wpml:gimbalHeadingYawBase")
+        gimbal_heading_yaw_base.text = "aircraft"
+
+        gimbal_rotate_mode = ET.SubElement(params, "wpml:gimbalRotateMode")
+        gimbal_rotate_mode.text = "absoluteAngle"
+
+        gimbal_pitch_rotate_enable = ET.SubElement(
+            params, "wpml:gimbalPitchRotateEnable"
+        )
+        gimbal_pitch_rotate_enable.text = "1"
+
+    # Common pitch + roll setup
+    set_gimbal_pitch_and_roll(params, str(gimbal_angle))
+
+    # Always keep yaw + timing disabled unless explicitly needed
     gimbal_yaw_rotate_enable = ET.SubElement(params, "wpml:gimbalYawRotateEnable")
     gimbal_yaw_rotate_enable.text = "0"
 
@@ -122,6 +173,8 @@ def gimbal_rotate_action(action_group_element: Element, index: str, gimbal_angle
 
     payload_position_index = ET.SubElement(params, "wpml:payloadPositionIndex")
     payload_position_index.text = "0"
+
+    return action_parent
 
 
 def create_action_group(
@@ -185,65 +238,6 @@ def create_photo_interval_group(
     # Add takePhoto action if starting
     if not stop:
         take_photo_action(group, "1")
-
-    return group
-
-
-def create_smooth_gimbal_group(parent: Element, group_id: str, gimbal_angle: str):
-    """Create an action group that smoothly rotates the gimbal toward the target angle.
-
-    NOTE: Unlike gimbalRotate (immediate), gimbalEvenlyRotate moves the gimbal smoothly
-    to the target position. We support both pitch-only and oblique (pitch + roll) cases.
-    """
-    group = create_action_group(
-        parent,
-        group_id=group_id,
-        start_index="0",
-        end_index="1",
-        mode="parallel",
-        trigger_type="reachPoint",
-    )
-
-    smooth_gimbal = ET.SubElement(group, "wpml:action")
-    smooth_gimbal_id = ET.SubElement(smooth_gimbal, "wpml:actionId")
-    smooth_gimbal_id.text = "2"  # Not always 2
-    func = ET.SubElement(smooth_gimbal, "wpml:actionActuatorFunc")
-    func.text = "gimbalEvenlyRotate"
-    params = ET.SubElement(smooth_gimbal, "wpml:actionActuatorFuncParam")
-
-    # Smooth pitch + optional roll handling
-    gimbal_pitch_rotate_angle2 = ET.SubElement(params, "wpml:gimbalPitchRotateAngle")
-    gimbal_roll_rotate_enable2 = ET.SubElement(params, "wpml:gimbalRollRotateEnable")
-    gimbal_roll_rotate_angle2 = ET.SubElement(params, "wpml:gimbalRollRotateAngle")
-
-    # If gimbal_angle is -45 oblique, set the pitch to -90 and the roll -45
-    # This ensures the gimbal is in the correct position for sideward shots
-    if str(gimbal_angle) == "-45":
-        gimbal_pitch_rotate_angle2.text = "-90"
-        gimbal_roll_rotate_enable2.text = "1"
-        gimbal_roll_rotate_angle2.text = "-45"
-    else:
-        # Default is to just adjust the pitch to point downwards
-        # With no roll (sidewards movement)
-        gimbal_pitch_rotate_angle2.text = str(gimbal_angle)
-        gimbal_roll_rotate_enable2.text = "0"
-        gimbal_roll_rotate_angle2.text = "0"
-
-    # Always keep yaw + timing disabled for smooth moves unless explicitly needed
-    gimbal_yaw_rotate_enable2 = ET.SubElement(params, "wpml:gimbalYawRotateEnable")
-    gimbal_yaw_rotate_enable2.text = "0"
-
-    gimbal_yaw_rotate_angle2 = ET.SubElement(params, "wpml:gimbalYawRotateAngle")
-    gimbal_yaw_rotate_angle2.text = "0"
-
-    gimbal_rotate_time_enable2 = ET.SubElement(params, "wpml:gimbalRotateTimeEnable")
-    gimbal_rotate_time_enable2.text = "0"
-
-    gimbal_rotate_time2 = ET.SubElement(params, "wpml:gimbalRotateTime")
-    gimbal_rotate_time2.text = "0"
-
-    payload_position_index2 = ET.SubElement(params, "wpml:payloadPositionIndex")
-    payload_position_index2.text = "0"
 
     return group
 
@@ -365,8 +359,8 @@ def create_placemark(placemark, final_index: int):
         #     take_photo_action(action_group1, "1")
 
     # Final action group = smoothly rotate the gimbal toward the target angle
-    create_smooth_gimbal_group(
-        placemark_el, group_id="3", gimbal_angle=str(gimbal_angle)
+    gimbal_rotate_action(
+        placemark_el, group_id="3", gimbal_angle=str(gimbal_angle), smooth=True
     )
 
     return placemark_el
