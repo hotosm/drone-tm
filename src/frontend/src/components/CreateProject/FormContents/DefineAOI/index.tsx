@@ -61,7 +61,10 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   // @ts-ignore
   const validateAreaOfFileUpload = async (file: any) => {
     try {
-      if (!file) return false;
+      if (!file || !file[0]?.file) {
+        toast.error('Please upload a valid file');
+        return false;
+      }
       const geojson: any = await validateGeoJSON(file[0]?.file);
       if (isAllGeoJSON(geojson) && !Array.isArray(geojson)) {
         const convertedGeojson = flatten(geojson);
@@ -73,10 +76,12 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
         }
         return true;
       }
+      toast.error('Invalid GeoJSON file. Please upload a valid file.');
       return false;
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.log(err);
+      toast.error('Failed to process file. Please upload a valid GeoJSON file.');
       return false;
     }
   };
