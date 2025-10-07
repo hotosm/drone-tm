@@ -96,16 +96,17 @@ def gimbal_rotate_action(action_group_element: Element, index: str, gimbal_angle
 
     # If gimbal_angle is -45 oblique, set the pitch to -90 and the roll -45
     # This ensures the gimbal is in the correct position for sideward shots
-    if str(gimbal_angle) == "-45":
-        gimbal_pitch_rotate_angle.text = "-90"
-        gimbal_roll_rotate_enable.text = "1"
-        gimbal_roll_rotate_angle.text = "-45"
-    else:
-        # Default is to just adjust the pitch to point downwards
-        # With no roll (sidewards movement)
-        gimbal_pitch_rotate_angle.text = str(gimbal_angle)
-        gimbal_roll_rotate_enable.text = "0"
-        gimbal_roll_rotate_angle.text = "0"
+    # if str(gimbal_angle) == "-45":
+    #     gimbal_pitch_rotate_angle.text = "-90"
+    #     gimbal_roll_rotate_enable.text = "0"
+    #     gimbal_roll_rotate_angle.text = "-45"
+    # else:
+    # NOTE for now we just adjust pitch, no roll (i.e. straight forward shots)
+    # Default is to just adjust the pitch to point downwards
+    # With no roll (sidewards movement)
+    gimbal_pitch_rotate_angle.text = str(gimbal_angle)
+    gimbal_roll_rotate_enable.text = "0"
+    gimbal_roll_rotate_angle.text = "0"
 
     gimbal_yaw_rotate_enable = ET.SubElement(params, "wpml:gimbalYawRotateEnable")
     gimbal_yaw_rotate_enable.text = "0"
