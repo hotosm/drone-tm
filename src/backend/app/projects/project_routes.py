@@ -35,7 +35,7 @@ from app.jaxa.upload_dem import upload_dem_file
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
 from app.projects import image_processing, project_deps, project_logic, project_schemas
 from app.projects.oam import upload_to_oam
-from app.s3 import add_file_to_bucket, s3_client
+from app.s3 import add_file_to_bucket, initiate_multipart_upload, s3_client
 from app.tasks import task_logic, task_schemas
 from app.users.permissions import (
     IsProjectCreator,
@@ -744,6 +744,34 @@ async def upload_imagery_to_oam(
 
     background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
     return {"message": "Uploading to OAM Started", "status": OAMUploadStatus.UPLOADING}
+
+
+@router.post("/initiate-multipart-upload/", tags=["Image Upload"])
+async def initiate_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.MultipartUploadRequest,
+):
+    """Initiate a multipart upload for large files.
+
+    Args:
+        data: Contains project_id, task_id, and file_name.
+
+    Returns:
+        dict: Upload ID and file key for the multipart upload session.
+    """
+    try:
+        file_key = f"dtm-data/projects/{data.project_id}/{data.task_id}/images/{data.file_name}"
+        upload_id = initiate_multipart_upload(settings.S3_BUCKET_NAME, file_key)
+
+        return {
+            "upload_id": upload_id,
+            "file_key": file_key,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to initiate multipart upload: {e}",
+        )
 
 
 @router.post("/test/arq_task")

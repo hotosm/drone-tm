@@ -324,3 +324,29 @@ def copy_file_within_bucket(
     except Exception as e:
         log.error(f"Unexpected error during object copy: {e}")
         return False
+
+
+def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
+    """Initiate a multipart upload and return the upload ID.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket where the file will be stored.
+
+    Returns:
+        str: The upload ID for the multipart upload session.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        result = client._create_multipart_upload(bucket_name, object_name, {})
+        upload_id = result.upload_id
+        log.debug(f"Initiated multipart upload for {object_name} with upload ID: {upload_id}")
+        return upload_id
+    except S3Error as e:
+        log.error(f"Error initiating multipart upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error during multipart upload initiation: {e}")
+        raise
