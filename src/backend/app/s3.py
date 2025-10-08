@@ -9,6 +9,7 @@ from minio.commonconfig import CopySource
 from minio.error import S3Error
 
 from app.config import settings
+from app.utils import strip_presigned_url_for_local_dev
 
 
 def s3_client():
@@ -226,9 +227,10 @@ def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
         str: The presigned URL to access the object.
     """
     client = s3_client()
-    return client.presigned_get_object(
+    url = client.presigned_get_object(
         bucket_name, object_name, expires=timedelta(hours=expires)
     )
+    return strip_presigned_url_for_local_dev(url)
 
 
 def get_object_metadata(bucket_name: str, object_name: str):
@@ -258,7 +260,8 @@ def get_assets_url_for_project(project_id: str):
     project_assets_path = f"dtm-data/projects/{project_id}/assets.zip"
     s3_download_root = settings.S3_DOWNLOAD_ROOT
     if s3_download_root:
-        return urljoin(s3_download_root, project_assets_path)
+        url = urljoin(s3_download_root, project_assets_path)
+        return strip_presigned_url_for_local_dev(url)
     return get_presigned_url(settings.S3_BUCKET_NAME, project_assets_path, 3)
 
 
@@ -274,7 +277,8 @@ def get_orthophoto_url_for_project(project_id: str):
 
     s3_download_root = settings.S3_DOWNLOAD_ROOT
     if s3_download_root:
-        return urljoin(s3_download_root, project_orthophoto_path)
+        url = urljoin(s3_download_root, project_orthophoto_path)
+        return strip_presigned_url_for_local_dev(url)
     return get_presigned_url(settings.S3_BUCKET_NAME, project_orthophoto_path, 3)
 
 
