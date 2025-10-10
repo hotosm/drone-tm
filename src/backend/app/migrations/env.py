@@ -16,7 +16,9 @@ config = context.config
 # This line sets up loggers basically.
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DTM_DB_URL.unicode_string())
+# Use psycopg (psycopg3) driver instead of psycopg2
+db_url = str(settings.DTM_DB_URL).replace("postgresql://", "postgresql+psycopg://")
+config.set_main_option("sqlalchemy.url", db_url)
 
 
 if config.config_file_name is not None:

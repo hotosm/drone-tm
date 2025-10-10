@@ -605,12 +605,12 @@ async def handle_event(
                     detail="You cannot upload an image for this task as it is locked by another user.",
                 )
             # update the count of the task to image uploaded.
-            toatl_image_count = project_logic.get_project_info_from_s3(
+            total_image_count = project_logic.get_project_info_from_s3(
                 project_id, task_id
             ).image_count
 
             await project_logic.update_task_field(
-                db, project_id, task_id, "total_image_uploaded", toatl_image_count
+                db, project_id, task_id, "total_image_uploaded", str(total_image_count)
             )
 
             return await update_task_state(

@@ -179,9 +179,13 @@ def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon])
     """
     try:
 
-        def remove_z_dimension(coord):
-            """Remove z dimension from geojson."""
-            return coord.pop() if len(coord) == 3 else None
+        def remove_z_dimension(obj):
+            """Recursively remove Z-dimension from coordinates."""
+            if isinstance(obj, (list, tuple)):
+                if len(obj) == 3 and all(isinstance(v, (int, float)) for v in obj):
+                    return obj[:2]
+                return [remove_z_dimension(i) for i in obj]
+            return obj
 
         features = parse_featcol(features)
 
@@ -190,7 +194,9 @@ def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon])
         features = features.get("features", [features])
 
         for feature in features:
-            list(map(remove_z_dimension, feature["geometry"]["coordinates"][0]))
+            coords_noz = remove_z_dimension(feature["geometry"]["coordinates"])
+            feature["geometry"]["coordinates"] = coords_noz
+
             polygon = shapely.geometry.shape(feature["geometry"])
             multi_polygons.append(polygon)
 
@@ -591,3 +597,33 @@ def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
         "total_flight_time_seconds": round(total_time, 2),
         "flight_distance_km": round(flight_distance_km, 2),
     }
+
+
+def strip_presigned_url_for_local_dev(url: str) -> str:
+    """Helper for local development handling docker URL + pre-signing.
+
+    For local dev only, we need to iterate through and replace S3_ENDPOINT
+    with S3_DOWNLOAD_ROOT, due to internal docker name used for S3 URL.
+    The bucket is also public in local dev, so we remove pre-signed portion
+    of URL, giving us direct access without a signature mismatch.
+
+    Args:
+        url: The S3 presigned URL to convert
+
+    Returns:
+        str: URL accessible from browser (localhost) without signature
+    """
+    if not settings.DEBUG:
+        return url
+
+    if not settings.S3_DOWNLOAD_ROOT:
+        return url
+
+    host_accessible_url = url.replace(settings.S3_ENDPOINT, settings.S3_DOWNLOAD_ROOT)
+    try:
+        # Remove presigned query parameters to avoid signature mismatch
+        split_url_on_presign_vars = host_accessible_url.split("?")
+        return split_url_on_presign_vars[0]
+    except Exception as e:
+        log.debug(f"Failed to convert S3 URL for local development: {e}")
+        return url
