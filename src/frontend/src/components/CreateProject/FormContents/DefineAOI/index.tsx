@@ -12,7 +12,7 @@ import flatten from '@turf/flatten';
 import area from '@turf/area';
 import type { AllGeoJSON } from '@turf/helpers';
 import type { FeatureCollection } from 'geojson';
-import { validateGeoJSON } from '@Utils/convertLayerUtils';
+import { validateGeoJSON, ensurePolygonGeometry } from '@Utils/convertLayerUtils';
 import { toast } from 'react-toastify';
 import SwitchTab from '@Components/common/SwitchTab';
 import { uploadOrDrawAreaOptions } from '@Constants/createProject';
@@ -48,8 +48,20 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       geojson.then((z: any) => {
         if (isAllGeoJSON(z) && !Array.isArray(z)) {
           const convertedGeojson = flatten(z);
-          dispatch(setCreateProjectState({ projectArea: convertedGeojson }));
-          setValue('outline', convertedGeojson);
+
+          // Validate and convert LineString to Polygon
+          const polygonResult = ensurePolygonGeometry(convertedGeojson);
+
+          if (!polygonResult.valid) {
+            // Show validation errors
+            polygonResult.errors?.forEach((error: string) => {
+              toast.error(error);
+            });
+            return;
+          }
+
+          dispatch(setCreateProjectState({ projectArea: polygonResult.data }));
+          setValue('outline', polygonResult.data);
         }
       });
     } catch (err: any) {
@@ -93,8 +105,20 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       geojson.then(z => {
         if (isAllGeoJSON(z) && !Array.isArray(z)) {
           const convertedGeojson = flatten(z);
-          dispatch(setCreateProjectState({ noFlyZone: convertedGeojson }));
-          setValue('no_fly_zones', convertedGeojson);
+
+          // Validate and convert LineString to Polygon
+          const polygonResult = ensurePolygonGeometry(convertedGeojson);
+
+          if (!polygonResult.valid) {
+            // Show validation errors
+            polygonResult.errors?.forEach((error: string) => {
+              toast.error(error);
+            });
+            return;
+          }
+
+          dispatch(setCreateProjectState({ noFlyZone: polygonResult.data }));
+          setValue('no_fly_zones', polygonResult.data);
         }
       });
     } catch (err: any) {
