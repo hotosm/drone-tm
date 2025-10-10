@@ -179,9 +179,13 @@ def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon])
     """
     try:
 
-        def remove_z_dimension(coord):
-            """Remove z dimension from geojson."""
-            return coord.pop() if len(coord) == 3 else None
+        def remove_z_dimension(obj):
+            """Recursively remove Z-dimension from coordinates."""
+            if isinstance(obj, (list, tuple)):
+                if len(obj) == 3 and all(isinstance(v, (int, float)) for v in obj):
+                    return obj[:2]
+                return [remove_z_dimension(i) for i in obj]
+            return obj
 
         features = parse_featcol(features)
 
@@ -190,7 +194,9 @@ def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon])
         features = features.get("features", [features])
 
         for feature in features:
-            list(map(remove_z_dimension, feature["geometry"]["coordinates"][0]))
+            coords_noz = remove_z_dimension(feature["geometry"]["coordinates"])
+            feature["geometry"]["coordinates"] = coords_noz
+
             polygon = shapely.geometry.shape(feature["geometry"])
             multi_polygons.append(polygon)
 
