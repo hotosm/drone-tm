@@ -89,13 +89,13 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = "http://localhost:3040"
     BACKEND_URL: str = "http://localhost:8000"
-    NODE_ODM_URL: Optional[str] = "http://odm-api:3000"
+    NODE_ODM_URL: Optional[str] = "http://nodeodm:9900"
     REDIS_DSN: str = "redis://redis:6379/0"
 
     S3_ENDPOINT: str = "http://minio:9000"
     S3_ACCESS_KEY: Optional[str] = ""
     S3_SECRET_KEY: Optional[str] = ""
-    S3_BUCKET_NAME: str = "dtm-data"
+    S3_BUCKET_NAME: str = "dtm-bucket"
     S3_DOWNLOAD_ROOT: Optional[str] = None
 
     JAXA_AUTH_TOKEN: Optional[str] = ""
