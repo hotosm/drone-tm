@@ -1,0 +1,7 @@
+[general]
+name=DroneTM
+description=Drone tasking manager plugin
+author=hotosm.org
+icon=dronetm.svg
+version=1.0
+homepage=https://dronetm.org
