@@ -116,6 +116,11 @@ To get started with Drone TM:
 
 ## Drone Support
 
+We currently recommend the **DJI Mini 5 Pro** or **Mini 4 Pro**, as the
+drones with the best waypoint support, and high quality cameras on board.
+
+For now, all other drones have a compromise of some kind.
+
 <!-- prettier-ignore-start -->
 | Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
 |:------:|:-------:|:-------:|:-------:|:--------|
