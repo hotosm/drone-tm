@@ -43,8 +43,8 @@ license = {text = "AGPL-3.0-only"}
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.0.1",
-    "commitizen>=3.30.0",
+    "pre-commit>=4.3.0",
+    "commitizen>=4.9.1",
 ]
 test = [
     "pytest==8.3.3",
