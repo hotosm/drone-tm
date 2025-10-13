@@ -1,17 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
-import Uppy from '@uppy/core';
+import { useEffect, useCallback, useContext } from 'react';
 import AwsS3 from '@uppy/aws-s3';
-import { DragDrop, ProgressBar } from '@uppy/react';
+import { Dropzone, useUppyState, UppyContext } from '@uppy/react';
 import { toast } from 'react-toastify';
 import { authenticated, api } from '@Services/index';
 import { useTypedDispatch } from '@Store/hooks';
 import { setFilesExifData } from '@Store/actions/droneOperatorTask';
 import { toggleModal } from '@Store/actions/common';
 import getExifData from '@Utils/getExifData';
-
-import '@uppy/core/dist/style.min.css';
-import '@uppy/drag-drop/dist/style.min.css';
-import '@uppy/progress-bar/dist/style.min.css';
 
 interface UppyImageUploaderProps {
   projectId: string;
@@ -27,41 +22,22 @@ const UppyImageUploader = ({
   label = 'Upload Images, GCP, and align.laz',
 }: UppyImageUploaderProps) => {
   const dispatch = useTypedDispatch();
-  const [filesCount, setFilesCount] = useState(0);
 
-  const handleFilesAdded = useCallback(
-    async (files: any[]) => {
-      try {
-        // Extract EXIF data from image files
-        const imageFiles = files.filter(file =>
-          file.type?.startsWith('image/')
-        );
+  // Get the shared Uppy instance from context
+  const { uppy } = useContext(UppyContext);
 
-        if (imageFiles.length > 0) {
-          const exifDataPromises = imageFiles.map(async file => {
-            const exifData = await getExifData(file.data);
-            return exifData;
-          });
+  if (!uppy) {
+    throw new Error(
+      'UppyImageUploader must be used within UppyContextProvider',
+    );
+  }
 
-          const exifData = await Promise.all(exifDataPromises);
-          dispatch(setFilesExifData(exifData));
-        }
-
-        setFilesCount(files.length);
-      } catch (error) {
-        console.error('Error extracting EXIF data:', error);
-        toast.error('Error reading file metadata');
-      }
-    },
-    [dispatch]
-  );
-
-  const [uppy] = useState(() =>
-    new Uppy({
-      id: 'drone-image-uploader',
-      autoProceed: false,
+  // Configure AWS S3 plugin for this component
+  useEffect(() => {
+    // Add restrictions specific to this uploader
+    uppy.setOptions({
       restrictions: {
-        maxFileSize: 500 * 1024 * 1024, // 500 MB per file
+        ...uppy.opts.restrictions,
         allowedFileTypes: [
           'image/jpeg',
           'image/jpg',
@@ -76,10 +52,14 @@ const UppyImageUploader = ({
           '.laz',
         ],
       },
-    }).use(AwsS3Multipart, {
+    });
+
+    // Add AWS S3 plugin if not already added
+    uppy.use(AwsS3, {
+      id: 'AwsS3',
       limit: 4, // Upload 4 parts simultaneously
       retryDelays: [0, 1000, 3000, 5000],
-      companionUrl: '', // Not using Companion server
+      shouldUseMultipart: true,
       createMultipartUpload: async file => {
         try {
           const response = await authenticated(api).post(
@@ -88,7 +68,7 @@ const UppyImageUploader = ({
               project_id: projectId,
               task_id: taskId,
               file_name: file.name,
-            }
+            },
           );
 
           return {
@@ -109,7 +89,7 @@ const UppyImageUploader = ({
               file_key: partData.key,
               part_number: partData.partNumber,
               expiry: 5,
-            }
+            },
           );
 
           return {
@@ -117,7 +97,7 @@ const UppyImageUploader = ({
           };
         } catch (error: any) {
           toast.error(
-            `Failed to sign part ${partData.partNumber} for ${file.name}`
+            `Failed to sign part ${partData.partNumber} for ${file.name}`,
           );
           throw error;
         }
@@ -130,8 +110,12 @@ const UppyImageUploader = ({
               upload_id: data.uploadId,
               file_key: data.key,
               parts: data.parts,
-            }
+            },
           );
+
+          return {
+            location: data.key,
+          };
         } catch (error: any) {
           toast.error(`Failed to complete upload for ${file.name}`);
           throw error;
@@ -147,17 +131,59 @@ const UppyImageUploader = ({
           console.error(`Failed to abort upload for ${file.name}:`, error);
         }
       },
-    })
+      listParts: async (file, data) => {
+        try {
+          const response = await authenticated(api).get(
+            `/projects/list-parts/?upload_id=${data.uploadId}&file_key=${data.key}`,
+          );
+
+          return response.data.parts || [];
+        } catch (error: any) {
+          console.error(`Failed to list parts for ${file.name}:`, error);
+          return [];
+        }
+      },
+    });
+
+    // Cleanup function - remove the plugin when component unmounts
+    return () => {
+      // Clear files when component unmounts
+      uppy.cancelAll();
+    };
+  }, [uppy, projectId, taskId]);
+
+  // Use useUppyState to reactively track files
+  const files = useUppyState(uppy, state => state.files);
+  const filesArray = Object.values(files);
+
+  // Extract EXIF data when files are added
+  const handleFilesAdded = useCallback(
+    async (addedFiles: any[]) => {
+      try {
+        // Extract EXIF data from image files
+        const imageFiles = addedFiles.filter(file =>
+          file.type?.startsWith('image/'),
+        );
+
+        if (imageFiles.length > 0) {
+          const exifDataPromises = imageFiles.map(async file => {
+            const exifData = await getExifData(file.data);
+            return exifData;
+          });
+
+          const exifData = await Promise.all(exifDataPromises);
+          dispatch(setFilesExifData(exifData));
+        }
+      } catch (error) {
+        console.error('Error extracting EXIF data:', error);
+        toast.error('Error reading file metadata');
+      }
+    },
+    [dispatch],
   );
 
   useEffect(() => {
-    uppy.on('files-added', files => {
-      handleFilesAdded(files);
-    });
-
-    uppy.on('upload-success', () => {
-      // File uploaded successfully
-    });
+    uppy.on('files-added', handleFilesAdded);
 
     uppy.on('upload-error', (file, error) => {
       toast.error(`Upload failed for ${file?.name}: ${error.message}`);
@@ -179,7 +205,7 @@ const UppyImageUploader = ({
     });
 
     return () => {
-      uppy.close({ reason: 'unmount' });
+      // Event listeners are automatically cleaned up when component unmounts
     };
   }, [uppy, handleFilesAdded, dispatch]);
 
@@ -192,33 +218,22 @@ const UppyImageUploader = ({
       </div>
 
       <div className="naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700">
-        <DragDrop
-          uppy={uppy}
-          locale={{
-            strings: {
-              dropHereOr: 'Drop files here or %{browse}',
-              browse: 'browse',
-            },
-          }}
-          note="Supported: .jpg, .jpeg, .png, .tif, .tiff, gcp_list.txt, align.laz"
-        />
+        <Dropzone note="Supported: .jpg, .jpeg, .png, .tif, .tiff, gcp_list.txt, align.laz" />
       </div>
 
-      {filesCount > 0 && (
+      {filesArray.length > 0 && (
         <p className="naxatw-text-sm naxatw-text-green-700">
-          {filesCount} items selected
+          {filesArray.length} items selected
         </p>
       )}
 
-      <ProgressBar uppy={uppy} hideAfterFinish={false} />
-
-      {filesCount > 0 && (
+      {filesArray.length > 0 && (
         <button
           type="button"
           onClick={() => uppy.upload()}
           className="naxatw-rounded-md naxatw-bg-[#D73F3F] naxatw-px-6 naxatw-py-2 naxatw-text-white hover:naxatw-bg-[#c13636]"
         >
-          Upload {filesCount} file(s)
+          Upload {filesArray.length} file(s)
         </button>
       )}
     </div>
