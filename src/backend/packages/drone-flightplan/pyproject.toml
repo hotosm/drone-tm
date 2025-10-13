@@ -31,9 +31,14 @@ packages = ["drone_flightplan"]
 [tool.commitizen]
 name = "cz_conventional_commits"
 version = "0.3.7"
+version_provider = "uv"
 version_files = [
     "pyproject.toml:version",
     "drone_flightplan/__version__.py",
 ]
-changelog_file = "CHANGELOG.md"
 update_changelog_on_bump = true
+# Create tag version prepended with drone-flightplan
+tag_format = "drone-flightplan-$version"
+# Skip the tags for FieldTM
+ignored_tag_formats = ["$version"]
+bump_message = "bump: drone-flightplan version $current_version → $new_version"
