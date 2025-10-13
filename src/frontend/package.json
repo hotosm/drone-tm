@@ -26,6 +26,8 @@
     "@turf/transform-rotate": "^7.2.0",
     "@uppy/aws-s3": "^5.0.1",
     "@uppy/core": "^5.1.0",
+    "@uppy/drag-drop": "^5.0.2",
+    "@uppy/progress-bar": "^4.3.2",
     "@uppy/react": "^5.1.0",
     "@yume-chan/adb": "^2.1.0",
     "@yume-chan/adb-credential-web": "^2.1.0",

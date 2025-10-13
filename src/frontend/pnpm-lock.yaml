@@ -89,6 +89,12 @@ importers:
       '@uppy/core':
         specifier: ^5.1.0
         version: 5.1.0
+      '@uppy/drag-drop':
+        specifier: ^5.0.2
+        version: 5.0.2(@uppy/core@5.1.0)
+      '@uppy/progress-bar':
+        specifier: ^4.3.2
+        version: 4.3.2(@uppy/core@5.1.0)
       '@uppy/react':
         specifier: ^5.1.0
         version: 5.1.0(@uppy/core@5.1.0)(@uppy/dashboard@5.0.2(@uppy/core@5.1.0))(@uppy/screen-capture@5.0.1(@uppy/core@5.1.0))(@uppy/webcam@5.0.1(@uppy/core@5.1.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1818,6 +1824,11 @@ packages:
     peerDependencies:
       '@uppy/core': ^5.0.2
 
+  '@uppy/drag-drop@5.0.2':
+    resolution: {integrity: sha512-ZuupN+zOVDlAKMpEsTKxPilzxb/RlQyKx95WPlxgBraGO6zkKHt4B/KlGfxQ6d6Fi6gAvwKzZzxPZXerbw0rNA==}
+    peerDependencies:
+      '@uppy/core': ^5.0.2
+
   '@uppy/dropbox@5.0.1':
     resolution: {integrity: sha512-TDF+K5APDorO67tr3u/y8rQxHIM66cIXy+1Uk4PfVPlFf5YSVdwYsKn9DEqDQZWsm3YmMdFI3iVJKOGsUlvD9Q==}
     peerDependencies:
@@ -1847,6 +1858,11 @@ packages:
     resolution: {integrity: sha512-jvTy7CE+M2SMRDH/b8RYB4vQb+BMloIdC1vEw3tNh9UyKpPWJjKCwSUk2sqCu1cT9Qv5bNgvU0/GOKxsZkv2tA==}
     peerDependencies:
       '@uppy/core': ^5.0.2
+
+  '@uppy/progress-bar@4.3.2':
+    resolution: {integrity: sha512-5BOhq49xPpBTlEVsEIRLkV+Hgb0qTuey8XKyrmrSetcgtolKLwtlDjrOWmUcxGYI3bkMbdeJulF9aiR8sSqQ6A==}
+    peerDependencies:
+      '@uppy/core': ^4.5.2
 
   '@uppy/provider-views@5.1.0':
     resolution: {integrity: sha512-iScuLW1VnpJXOogqxLdLliBdnoYIqGBWwRlzf2jpVducHJSGnAaFRqDuS/rki81ZzU781MGYDh5ETyyNMbam5A==}
@@ -1900,6 +1916,9 @@ packages:
     resolution: {integrity: sha512-hc7Sv/3p1aZIS0SebA10HO5T9022MWjr14NkNpdb1EfoeUzjjmr2xwQpnQNU1mo3UJFP4ULYWTlF3SH4cE8Deg==}
     peerDependencies:
       '@uppy/core': ^5.0.2
+
+  '@uppy/utils@6.2.2':
+    resolution: {integrity: sha512-9mYJtbcngv2HOJIECkyfmdXTI5dW/ObCyvWP1Iti3E5bKtsa4sMmbx5Yh/tGCj8k/lBNhfvWyZuYnvnjmzNLSQ==}
 
   '@uppy/utils@7.1.0':
     resolution: {integrity: sha512-yVM1j082QeIh8jB4XvBWDbIRgpvktozwK1vmo9Xe1F4N+7doIDYFyBQmrmmxKJwSUJwAKNDrLmu8uqb+7mMCqQ==}
@@ -6158,6 +6177,12 @@ snapshots:
       preact: 10.27.2
       shallow-equal: 3.1.0
 
+  '@uppy/drag-drop@5.0.2(@uppy/core@5.1.0)':
+    dependencies:
+      '@uppy/core': 5.1.0
+      '@uppy/utils': 7.1.0
+      preact: 10.27.2
+
   '@uppy/dropbox@5.0.1(@uppy/core@5.1.0)':
     dependencies:
       '@uppy/companion-client': 5.1.0(@uppy/core@5.1.0)
@@ -6203,6 +6228,12 @@ snapshots:
       '@uppy/core': 5.1.0
       '@uppy/provider-views': 5.1.0(@uppy/core@5.1.0)
       '@uppy/utils': 7.1.0
+      preact: 10.27.2
+
+  '@uppy/progress-bar@4.3.2(@uppy/core@5.1.0)':
+    dependencies:
+      '@uppy/core': 5.1.0
+      '@uppy/utils': 6.2.2
       preact: 10.27.2
 
   '@uppy/provider-views@5.1.0(@uppy/core@5.1.0)':
@@ -6270,6 +6301,11 @@ snapshots:
       '@uppy/core': 5.1.0
       '@uppy/utils': 7.1.0
       nanoid: 5.0.9
+      preact: 10.27.2
+
+  '@uppy/utils@6.2.2':
+    dependencies:
+      lodash: 4.17.21
       preact: 10.27.2
 
   '@uppy/utils@7.1.0':
