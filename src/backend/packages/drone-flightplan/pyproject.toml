@@ -1,7 +1,7 @@
 
 [project]
 name = "drone-flightplan"
-version = "0.3.7"
+version = "0.4.0"
 description = "Generate an optimized flight plan for aerial mapping with drones."
 authors = [
     {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
@@ -30,7 +30,7 @@ packages = ["drone_flightplan"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.3.7"
+version = "0.4.0"
 version_provider = "uv"
 version_files = [
     "pyproject.toml:version",

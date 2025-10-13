@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## drone-flightplan-0.4.0 (2025-10-13)
+
+### Feat
+
+- add support for dji mini 5 pro, fixes #598
+- add toggle to select drone type for flightplan generation & fix drone param calcs (#559)
+- **drone-flightplan**: support for Potensic Atom 2 waypoint missions (#545)
+
+### Fix
+
+- **drone-flightplan**: cleanup setting gimbal angle for oblique and nadir shots
+- **drone-flightplan**: for now do not adjust gimbal roll, just straight forward pitch
+- **drone-flightplan**: ensure that flights complete (don't return) on controller transmission loss
+- **drone-flightplan**: enable shootType=time for timed interval waylines
+- **drone-flightplan**: attempt auto-start photo intervals on wayline mode
+- **drone-flightplan**: update terrain following code to remove extra buffer points
+- **drone-flightplan**: attempt another fix of straight line flightplans, no curve
+- **drone-flightplan**: remove double end points for wayline missions (optimise curved --> straight)
+- **drone-flightplan**: correctly set the flightplan to not curve (per point, as globally doesn't work)
+- **drone-flightplan**: test creating straight line flight curvature
+- **drone-flightplan**: ensure flight continue on signal loss
+- **drone-flightplan**: potensic flights named per chunk
+- **drone-flightplan**: set potensic atom 2 ground speed to 8 m/s max
+- **drone-flightplan**: enable globalUseStraightLine=1 by default, fixes #524
+- **drone-flightplan**: add **all** for top level imports from pkg
+
 ## drone-flightplan-0.3.7 (2025-04-07)
 
 ### Fix
