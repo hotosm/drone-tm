@@ -25,6 +25,17 @@ Item {
     }
   }
 
+  ExpressionEvaluator {
+    id: expressionEvaluator
+    feature: feature
+
+    expressionText: "raster_value('dem_layer', 1, @geometry)"
+  }
+
+  function getDEMValue() {
+    const value = expressionEvaluator.evaluate()
+  }
+
   function extractElevations() {
     var demLayer = qgisProject.mapLayersByName('dem')[0]
     var flightPlan = qgisProject.mapLayersByName('flight_plan-a93e99f5-5aab-4316-b6f8-0acd56975df3-890dceae-d422-4337-b839-ab586bedea1a-waylines')[0]
@@ -39,11 +50,11 @@ Item {
       return
     }
 
-    var provider = demLayer.dataProvider()
+    // Set the layer context for the expression evaluator
+    expressionEvaluator.layer = flightPlan
 
-    // Use LayerUtils to create a feature iterator
+    // By setting the expression to 'True', this simply returns an iterator on all features
     var iterator = LayerUtils.createFeatureIteratorFromExpression(flightPlan, "TRUE")
-
     var count = 0
     var elevations = []
 
@@ -51,27 +62,16 @@ Item {
     while (iterator.hasNext()) {
       var feature = iterator.next()
 
-      // Access geometry as a property
+      var elevation = getDEMValue()
       var geom = feature.geometry
 
       if (geom) {
         // Use GeometryUtils.centroid() to get a QgsPoint from the geometry
         var point = GeometryUtils.centroid(geom)
 
-        // Sample the DEM at this point
-        var ok = { value: false }
-        // NOTE this doesn't work. We have access to QgsGdalProvider, but can't call .sample() on it?
-        // Can't see any relevant raster utils here to help
-        // https://github.com/opengisch/QField/tree/master/src/core/utils
-        var elevation = provider.sample(point, 1, ok)
-
-        if (ok.value) {
-          elevations.push(elevation)
-          console.log('Feature', feature.id, 'at', point.x(), point.y(), 'elevation:', elevation)
-          count++
-        } else {
-          console.log('Failed to sample for feature', feature.id)
-        }
+        elevations.push(elevation)
+        iface.logMessage('Feature', feature.id, 'elevation:', elevation)
+        count++
       }
     }
 
@@ -82,10 +82,8 @@ Item {
 
     if (count > 0) {
       var avg = elevations.reduce(function(a, b) { return a + b; }, 0) / elevations.length
-      console.log('Average elevation:', avg.toFixed(2), 'm')
+      iface.logMessage('Average elevation:', avg.toFixed(2), 'm')
     }
-
-    // FIXME Is raster sampling possible in QML plugin / all relevant parts of QGIS engine exposed?
 
     // TODO convert Python flightplan generation code to JavaScript
     // TODO hook into Javascript code like this:
