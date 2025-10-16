@@ -116,27 +116,32 @@ To get started with Drone TM:
 
 ## Drone Support
 
+We currently recommend the **DJI Mini 5 Pro** or **Mini 4 Pro**, as the
+drones with the best waypoint support, and high quality cameras on board.
+
+For now, all other drones have a compromise of some kind.
+
 <!-- prettier-ignore-start -->
 | Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
 |:------:|:-------:|:-------:|:-------:|:--------|
 | DJI Mini 5 Pro | ✅ | ✅ | ❌ | None |
 | DJI Mini 4 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta, DroneDeploy |
 | DJI Mini 3 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta |
-| DJI Mini 3 | ✅ | ✅ | ✅ | Litchi Pilot Beta |
-| DJI Air 3/3S | ❌ | ✅❔ | ❌ | None |
-| DJI Mavic 3/3P/3C | ❌ | ✅❔ | ❌ | None |
-| DJI Mavic Air/Pro  | ❌ | ✅❔ | ✅ | Litchi, DroneDeploy |
-| DJI Mini 4k | ✅ | ✅❔ | ❌ | None |
+| DJI Air 3/3S | ❌ | ❔ | ❌ | None |
+| DJI Mavic 3/3P/3C | ❌ | ❔ | ❌ | None |
+| DJI Mini 3 | ✅ | ❌ | 🤔 | Litchi Pilot Beta |
+| DJI Mavic Air/Pro  | ❌ | ❔ | ✅ | Litchi, DroneDeploy |
+| DJI Mini 4k | ✅ | ❔ | ❌ | None |
 | DJI Mini SE (version 1 only) | ✅ | ❌ | ✅ | Litchi |
 | DJI Mini 2 | ✅ | ❌ | ✅ | Litchi |
-| DJI Air 2S | ❌ | ✅❔ | ✅ | Litchi, DroneDeploy |
-| Potensic Atom 2 | ✅ | ✅ | ❌ | None |
+| DJI Air 2S | ❌ | ❔ | ✅ | Litchi, DroneDeploy |
+| Potensic Atom 2 | ✅ | 🤔 | ❌ | None |
 <!-- prettier-ignore-end -->
 
 > [!Note]
-> ✅❔ in theory should work, but untested in the field
+> ❔ in theory should work, but untested in the field
 >
-> ⚙️ currently in development
+> 🤔 works with some limitations, such as lack of terrain following
 
 ## Contribution
 

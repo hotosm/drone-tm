@@ -1,4 +1,16 @@
 {
+  "name": "drone-tm",
+  "version": "2025.4.0",
+  "private": true,
+  "license": "(AGPL-3.0-only OR CC-BY-4.0)",
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite",
+    "lint": "eslint ./src/ --ext .ts,.tsx --fix",
+    "preview": "vite preview",
+    "start": "vite"
+  },
+  "type": "module",
   "dependencies": {
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
@@ -93,17 +105,5 @@
       "prettier --cache --write"
     ]
   },
-  "name": "drone-tm",
-  "private": true,
-  "license": "(AGPL-3.0-only OR CC-BY-4.0)",
-  "scripts": {
-    "build": "tsc && vite build",
-    "dev": "vite",
-    "lint": "eslint ./src/ --ext .ts,.tsx --fix",
-    "preview": "vite preview",
-    "start": "vite"
-  },
-  "type": "module",
-  "version": "0.0.0",
   "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }
