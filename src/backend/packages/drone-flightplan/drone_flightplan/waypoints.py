@@ -10,7 +10,7 @@ from shapely.geometry import Point, Polygon, shape
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
-from drone_flightplan.calculate_parameters import calculate_parameters as cp
+from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.enums import GimbalAngle
 from drone_flightplan.drone_type import DroneType
 
@@ -33,69 +33,165 @@ def add_buffer_to_aoi(
 
 
 def generate_grid_in_aoi(
-    aoi_polygon: shape, x_spacing: float, y_spacing: float, rotation_angle: float = 0.0
-) -> list[Point]:
-    """Generate a grid of points within a given Area of Interest (AOI) polygon.
+    aoi_polygon: BaseGeometry,
+    x_spacing: float,
+    y_spacing: float,
+    rotation_angle: float = 0.0,
+    side_overlap: float = 70.0,
+) -> list[dict[str, object]]:
+    """Generate an optimized grid of points within a given Area of Interest (AOI) polygon.
+
+    This function creates a grid of flight waypoints inside an AOI polygon,
+    accounting for rotation and ensuring proper coverage based on the side overlap
+    parameter. The grid is optimized to avoid unnecessary waypoints at corners
+    while maintaining the required photo overlap at all polygon edges.
 
     Parameters:
-        aoi_polygon (shape): The Shapely shape representing the area of interest.
-        x_spacing (float): The spacing between points along the x-axis (in meters).
-        y_spacing (float): The spacing between points along the y-axis (in meters).
+        aoi_polygon (BaseGeometry): The Shapely polygon representing the area of interest.
+        x_spacing (float): Spacing between points along the x-axis (in meters).
+        y_spacing (float): Spacing between waylines along the y-axis (in meters).
+        rotation_angle (float, optional): Angle (in degrees) to rotate the flight grid
+            around the AOI centroid. Defaults to 0.0.
+        side_overlap (float, optional): Side overlap percentage (e.g., 70 means 70% overlap).
+            Defaults to 70.0.
 
     Returns:
-        list[Point]: A list of Points representing the generated grid within the AOI.
+        list[dict]: A list of dictionaries with:
+            - "coordinates": The Shapely Point of the waypoint.
+            - "angle": The flight direction (alternating -90 / +90 degrees per row).
     """
-    buffered_polygon = add_buffer_to_aoi(aoi_polygon, x_spacing)
+    # Calculate the minimum acceptable distance from waypoints to polygon edges
+    # based on the required side overlap percentage
+    # E.g., if side_overlap is 70%, we need points within 30% of y_spacing from edges
+    overlap_threshold = y_spacing * (1 - side_overlap / 100)
 
-    # Calculate the centroid for rotating the grid around the polygon's center
+    # Add a buffer to include edge points during containment tests
+    # This ensures we capture waypoints near the polygon boundary
+    buffered_polygon = add_buffer_to_aoi(aoi_polygon, x_spacing * 0.5)
+
+    # Get the centroid for rotation operations
     centroid = aoi_polygon.centroid
+
     # Rotate the AOI polygon to align with the desired flight direction
     rotated_polygon = rotate(
         aoi_polygon, rotation_angle, origin=centroid, use_radians=False
     )
 
-    # Get the bounds of the unrotated AOI to set limits for point generation
-    rotated_minx, rotated_miny, rotated_maxx, rotated_maxy = rotated_polygon.bounds
+    # Get the bounding box of the rotated polygon
+    # We use only the rotated bounds for a tighter, more efficient grid
+    minx, miny, maxx, maxy = rotated_polygon.bounds
 
-    # original polygon bounds
-    original_minx, original_miny, original_maxx, original_maxy = aoi_polygon.bounds
+    # Add strategic padding to ensure corner coverage
+    # The padding accounts for the maximum distance corners might be from waylines
+    # after rotation, based on the diagonal extent of a grid cell
+    corner_padding = sqrt(x_spacing**2 + y_spacing**2) * 0.5
+    minx -= corner_padding
+    miny -= corner_padding
+    maxx += corner_padding
+    maxy += corner_padding
 
-    # Compute the minimum and maximum bounds considering both the rotated and original polygons
-    minx = min(rotated_minx, original_minx)
-    miny = min(rotated_miny, original_miny)
-    maxx = max(rotated_maxx, original_maxx)
-    maxy = max(rotated_maxy, original_maxy)
-
-    # List to store the points
-    points = []
-
-    # Define a grid in the unrotated space
+    # Calculate the number of grid points needed along each axis
     xpoints = int((maxx - minx) / x_spacing) + 1
     ypoints = int((maxy - miny) / y_spacing) + 1
-    current_axis = "x"  # Start with the x-axis
 
-    # Generate points in the unrotated grid
+    points: list[dict] = []
+    current_axis = "x"  # Used to alternate flight direction between rows
+
+    # Generate the base flight grid
     for yi in range(ypoints):
         for xi in range(xpoints):
-            # Create the point in the unrotated space
+            # Calculate position in the rotated coordinate system
             x = minx + xi * x_spacing
             y = miny + yi * y_spacing
-            point = Point(x, y)
+            unrotated_point = Point(x, y)
 
-            # Rotate the point using Shapely's rotate function
+            # Rotate the point back around the AOI centroid to get final position
             rotated_point = rotate(
-                point, rotation_angle, origin=centroid, use_radians=False
+                unrotated_point, rotation_angle, origin=centroid, use_radians=False
             )
 
-            # Assign angle based on the current axis
+            # Alternate flight direction between waylines
+            # -90 degrees for even rows, +90 degrees for odd rows
             angle = -90 if current_axis == "x" else 90
 
-            # Check if the rotated point is inside the original AOI polygon (unrotated polygon)
+            # Only include points that fall inside the buffered AOI
             if buffered_polygon.contains(rotated_point):
                 points.append({"coordinates": rotated_point, "angle": angle})
 
-        # Toggle the axis after processing one row
+        # Switch flight direction for the next row
         current_axis = "y" if current_axis == "x" else "x"
+
+    # Verify corner coverage to ensure required overlap at all edges
+    # For rotated grids, corners can sometimes fall outside the coverage area
+    # of the nearest wayline, creating gaps in photo overlap
+    corners = [
+        Point(aoi_polygon.bounds[0], aoi_polygon.bounds[1]),  # Bottom-left
+        Point(aoi_polygon.bounds[0], aoi_polygon.bounds[3]),  # Top-left
+        Point(aoi_polygon.bounds[2], aoi_polygon.bounds[1]),  # Bottom-right
+        Point(aoi_polygon.bounds[2], aoi_polygon.bounds[3]),  # Top-right
+    ]
+
+    if not points:
+        return points
+
+    # Extract point geometries for distance calculations
+    point_coords = [p["coordinates"] for p in points]
+    corners_missing_coverage = []
+
+    # Check each corner to see if it has adequate coverage
+    for corner in corners:
+        # Find the nearest waypoint to this corner
+        nearest_point = min(point_coords, key=lambda p: corner.distance(p))
+        dist = corner.distance(nearest_point)
+
+        # If the corner is too far from the nearest waypoint,
+        # it won't have the required photo overlap
+        if dist > overlap_threshold:
+            corners_missing_coverage.append(corner)
+
+    # Add targeted waypoints to cover any under-covered corners
+    # Instead of adding entire waylines, we add only the specific points needed
+    if corners_missing_coverage:
+        log.info(
+            f"Adding {len(corners_missing_coverage)} targeted waypoints "
+            f"to ensure {side_overlap}% overlap at corners"
+        )
+
+        # For each under-covered corner, find the optimal wayline position
+        for corner in corners_missing_coverage:
+            # Determine which direction to extend the grid
+            # Based on whether the corner is closer to min or max bounds
+            rotated_corner = rotate(
+                corner, -rotation_angle, origin=centroid, use_radians=False
+            )
+
+            # Calculate the y-coordinate for a new wayline near this corner
+            # Snap to the nearest grid line position
+            new_y = miny + round((rotated_corner.y - miny) / y_spacing) * y_spacing
+
+            # Determine the flight angle for this new wayline
+            # based on its index in the grid
+            yi = round((new_y - miny) / y_spacing)
+            current_axis = "x" if yi % 2 == 0 else "y"
+            angle = -90 if current_axis == "x" else 90
+
+            # Generate points along this new wayline
+            for xi in range(xpoints):
+                x = minx + xi * x_spacing
+                unrotated_point = Point(x, new_y)
+                rotated_point = rotate(
+                    unrotated_point, rotation_angle, origin=centroid, use_radians=False
+                )
+
+                # Only add if inside the buffered polygon and not a duplicate
+                if buffered_polygon.contains(rotated_point):
+                    # Check if this point is too close to existing points
+                    is_duplicate = any(
+                        rotated_point.distance(p["coordinates"]) < x_spacing * 0.1
+                        for p in points
+                    )
+                    if not is_duplicate:
+                        points.append({"coordinates": rotated_point, "angle": angle})
 
     return points
 
@@ -450,7 +546,13 @@ def create_waypoint(
     }
 
     """
-    parameters = cp(forward_overlap, side_overlap, agl, gsd, drone_type=drone_type)
+    parameters = calculate_parameters(
+        forward_overlap,
+        side_overlap,
+        agl,
+        gsd,
+        drone_type=drone_type,
+    )
 
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
