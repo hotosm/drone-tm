@@ -1,6 +1,6 @@
 import argparse
 import logging
-from math import sqrt
+from math import sqrt, degrees, atan2
 from typing import Optional
 
 import geojson
@@ -199,6 +199,62 @@ def generate_grid_in_aoi(
 def calculate_distance(point1, point2):
     """Calculate Euclidean distance between two points."""
     return sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
+
+
+def calculate_optimal_rotation_angle(polygon: BaseGeometry) -> float:
+    """Calculate the optimal rotation angle based on the polygon's longest edge.
+
+    This function finds the minimum rotated rectangle (oriented bounding box)
+    that contains the polygon, then returns the angle of the longest edge.
+    Flying along the longest edge minimizes the number of turns required.
+
+    Parameters:
+        polygon (BaseGeometry): The Shapely polygon representing the area of interest.
+
+    Returns:
+        float: The rotation angle in degrees (0-180) aligned with the longest edge.
+    """
+    # Get the minimum rotated rectangle (oriented bounding box)
+    min_rect = polygon.minimum_rotated_rectangle
+
+    # Get the coordinates of the rectangle
+    coords = list(min_rect.exterior.coords)
+
+    # Calculate edge lengths and their angles
+    edges = []
+    for i in range(len(coords) - 1):
+        x1, y1 = coords[i]
+        x2, y2 = coords[i + 1]
+
+        # Calculate edge length
+        length = sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+        # Calculate angle in degrees
+        angle = degrees(atan2(y2 - y1, x2 - x1))
+
+        edges.append((length, angle))
+
+    # Find the longest edge
+    longest_edge = max(edges, key=lambda x: x[0])
+    angle = longest_edge[1]
+
+    # Normalize angle to 0-180 range (since 0° and 180° are the same flight direction)
+    # Also, we want the angle that aligns with the X-axis of our grid
+    if angle < 0:
+        angle += 180
+
+    # The grid is naturally aligned along the x-axis (0°)
+    # So we return the angle needed to rotate the polygon to align its longest edge with x-axis
+    # which is the negative of the edge angle
+    rotation_angle = -angle
+
+    # Normalize to -180 to 180 range
+    if rotation_angle < -180:
+        rotation_angle += 360
+    elif rotation_angle > 180:
+        rotation_angle -= 360
+
+    return rotation_angle
 
 
 def create_path(
@@ -503,6 +559,7 @@ def create_waypoint(
     mode: str = "waylines",
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
+    auto_rotation: bool = True,
 ) -> str:
     """Create waypoints or waylines for a given project area based on specified parameters.
 
@@ -518,6 +575,8 @@ def create_waypoint(
         mode (str): "waypoints" for individual points, "waylines" for path lines.
         drone_type (DroneType): the drone to create the flightplan for.
         gimbal_angle (GimbalAngle): the gimbal angle to set for the flight.
+        auto_rotation (bool): If True and rotation_angle is 0.0 or 360.0, automatically
+            align flight path with the longest edge of the polygon. Defaults to True.
 
     Returns:
         geojson: waypoints generated within the project area in the geojson format
@@ -576,6 +635,11 @@ def create_waypoint(
     ).transform
 
     polygon_3857 = transform(transformer_to_3857, polygon)
+
+    # Auto-calculate optimal rotation angle if not specified
+    if rotation_angle in [0.0, 360.0] and auto_rotation:
+        rotation_angle = calculate_optimal_rotation_angle(polygon_3857)
+        log.info(f"Auto-calculated optimal rotation angle: {rotation_angle:.2f}°")
 
     # Generate grid within the rotated AOI
     grid = generate_grid_in_aoi(
@@ -739,6 +803,13 @@ def main():
         type=str,
         help="Flight mode (waypoints or waylines).",
     )
+    parser.add_argument(
+        "--auto_rotation",
+        action="store_true",
+        default=True,
+        help="Automatically align flight path with longest edge when rotation_angle is 0.",
+    )
+
     args = parser.parse_args()
 
     with open(args.project_geojson_polygon, "r") as f:
@@ -760,6 +831,7 @@ def main():
         no_fly_zones,
         args.take_off_point,
         args.mode,
+        auto_rotation=args.auto_rotation,
     )
 
     with open(args.output_file_path, "w") as f:
