@@ -49,9 +49,10 @@ def generate_grid_in_aoi(
 
     # Calculate the centroid for rotating the grid around the polygon's center
     centroid = aoi_polygon.centroid
-
-    # rotate polygon
-    rotated_polygon = rotate(aoi_polygon, 30, origin=centroid, use_radians=False)
+    # Rotate the AOI polygon to align with the desired flight direction
+    rotated_polygon = rotate(
+        aoi_polygon, rotation_angle, origin=centroid, use_radians=False
+    )
 
     # Get the bounds of the unrotated AOI to set limits for point generation
     rotated_minx, rotated_miny, rotated_maxx, rotated_maxy = rotated_polygon.bounds
