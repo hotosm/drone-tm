@@ -23,7 +23,6 @@ from fastapi import (
 )
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
-from minio.deleteobjects import DeleteObject
 from psycopg import Connection
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
@@ -340,26 +339,38 @@ async def generate_presigned_url(
                     f"dtm-data/projects/{data.project_id}/{data.task_id}/images/"
                 )
                 try:
-                    # Prepare the list of objects to delete (recursively if necessary)
-                    delete_object_list = map(
-                        lambda x: DeleteObject(x.object_name),
-                        client.list_objects(
-                            settings.S3_BUCKET_NAME, image_dir, recursive=True
-                        ),
+                    # List objects to delete
+                    paginator = client.get_paginator('list_objects_v2')
+                    pages = paginator.paginate(
+                        Bucket=settings.S3_BUCKET_NAME,
+                        Prefix=image_dir.lstrip("/")
                     )
 
-                    # Remove the objects (images)
-                    errors = client.remove_objects(
-                        settings.S3_BUCKET_NAME, delete_object_list
-                    )
+                    # Collect all objects to delete
+                    objects_to_delete = []
+                    for page in pages:
+                        if 'Contents' in page:
+                            for obj in page['Contents']:
+                                objects_to_delete.append({'Key': obj['Key']})
 
-                    # Handle deletion errors, if any
-                    for error in errors:
-                        log.error("Error occurred when deleting object", error)
-                        raise HTTPException(
-                            status_code=HTTPStatus.BAD_REQUEST,
-                            detail=f"Failed to delete existing image: {error}",
+                    # Delete objects if any exist
+                    if objects_to_delete:
+                        response = client.delete_objects(
+                            Bucket=settings.S3_BUCKET_NAME,
+                            Delete={
+                                'Objects': objects_to_delete,
+                                'Quiet': True
+                            }
                         )
+
+                        # Handle deletion errors, if any
+                        if 'Errors' in response:
+                            for error in response['Errors']:
+                                log.error(f"Error occurred when deleting object: {error}")
+                                raise HTTPException(
+                                    status_code=HTTPStatus.BAD_REQUEST,
+                                    detail=f"Failed to delete existing image: {error}",
+                                )
 
                 except Exception as e:
                     raise HTTPException(
@@ -368,11 +379,15 @@ async def generate_presigned_url(
                     )
 
             # Generate a new pre-signed URL for the image upload
-            url = client.get_presigned_url(
-                "PUT",
-                settings.S3_BUCKET_NAME,
-                image_path,
-                expires=timedelta(hours=data.expiry),
+            # Use public endpoint for presigned URLs in local dev
+            presigned_client = s3_client(use_public_endpoint=True)
+            url = presigned_client.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket': settings.S3_BUCKET_NAME,
+                    'Key': image_path.lstrip("/")
+                },
+                ExpiresIn=data.expiry * 3600  # Convert hours to seconds
             )
             urls.append({"image_name": image, "url": url})
 

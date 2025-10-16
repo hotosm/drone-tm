@@ -69,6 +69,11 @@ const UppyImageUploader = ({
               task_id: taskId,
               file_name: file.name,
             },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
           );
 
           return {
@@ -89,6 +94,11 @@ const UppyImageUploader = ({
               file_key: partData.key,
               part_number: partData.partNumber,
               expiry: 5,
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
             },
           );
 
@@ -111,6 +121,11 @@ const UppyImageUploader = ({
               file_key: data.key,
               parts: data.parts,
             },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
           );
 
           return {
@@ -123,10 +138,18 @@ const UppyImageUploader = ({
       },
       abortMultipartUpload: async (file, data) => {
         try {
-          await authenticated(api).post('/projects/abort-multipart-upload/', {
-            upload_id: data.uploadId,
-            file_key: data.key,
-          });
+          await authenticated(api).post(
+            '/projects/abort-multipart-upload/',
+            {
+              upload_id: data.uploadId,
+              file_key: data.key,
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
+          );
         } catch (error: any) {
           console.error(`Failed to abort upload for ${file.name}:`, error);
         }
