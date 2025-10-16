@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## drone-flightplan-0.4.1 (2025-10-16)
+
+- capture edges on flightplan rotation
+- auto-rotate based on task longest edge
+- small bug fixed with hardcoded rotation val
+
 ## drone-flightplan-0.4.0 (2025-10-13)
 
 ### Feat
