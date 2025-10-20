@@ -95,13 +95,16 @@ To get started with Drone TM:
 |✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) | Since [v2024.11.0][1] |
 |✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) | Since [v2025.3.1][3] |
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
-|✅| 📱 flight plans working on Potensic Atom 2 | TBC |
-|✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | TBC |
+|✅| 📱 flight plans working on Potensic Atom 2 | [v2025.4.0][4] |
+|✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | [v2025.4.0][4] |
+|⚙️| 🖥️ support retries for dropped connections during photo uploads | |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
-| | 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
-| | 📱 entirely offline flightplan generation, directly on device | |
+|⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
+|⚙️| 📱 entirely offline flightplan generation, directly on device | |
 | | 📱 allow modification and division of flightplans by user before flight | |
+| | 🖥️ pre-filtering and validation of obvious photo issues prior to upload | |
 | | 🖥️ user access management for each part of the UI | |
+| | 🖥️ improved user feedback and retry capabilities during imagery processing | |
 | | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
 |⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
@@ -156,3 +159,4 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [1]: https://github.com/hotosm/drone-tm/releases/tag/v2024.11.0
 [2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
+[4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
