@@ -6,7 +6,7 @@ on:
     branches:
       - main
       - staging
-      - develop
+      - dev
     paths:
       # Workflow is triggered only if src changes
       - src/**
