@@ -95,8 +95,8 @@ To get started with Drone TM:
 |✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) | Since [v2024.11.0][1] |
 |✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) | Since [v2025.3.1][3] |
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
-|✅| 📱 flight plans working on Potensic Atom 2 | [v2025.4.0][4] |
-|✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | [v2025.4.0][4] |
+|✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.4.0][4] |
+|✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | Since [v2025.4.0][4] |
 |⚙️| 🖥️ support retries for dropped connections during photo uploads | |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
