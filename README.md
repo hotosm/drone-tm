@@ -97,6 +97,7 @@ To get started with Drone TM:
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
 |✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.4.0][4] |
 |✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | Since [v2025.4.0][4] |
+|✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | TBC |
 |⚙️| 🖥️ support retries for dropped connections during photo uploads | |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |

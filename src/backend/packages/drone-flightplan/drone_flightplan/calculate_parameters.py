@@ -114,7 +114,10 @@ def calculate_parameters(
         ground_speed = 11.5
     elif drone_type == DroneType.POTENSIC_ATOM_2:
         # This seems to be the max speed for the Potensic Atom 2
-        ground_speed = 8
+        ground_speed = 8.0
+    else:
+        # FIXME what should be the default?
+        ground_speed = 11.5
 
     return {
         "forward_photo_height": round(forward_photo_height, 0),

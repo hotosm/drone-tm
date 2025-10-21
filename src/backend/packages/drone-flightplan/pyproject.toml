@@ -21,6 +21,13 @@ homepage = "https://github.com/hotosm/drone-tm/tree/dev/src/backend/packages/dro
 documentation = "https://hotosm.github.io/drone-flightplan"
 repository = "https://github.com/hotosm/drone-tm/tree/dev/src/backend/packages/drone-flightplan"
 
+[project.scripts]
+calcparams = "drone_flightplan.calculate_parameters:main"
+waypoints = "drone_flightplan.waypoints:main"
+addelev = "drone_flightplan.add_elevation_from_dem:main"
+placemarks = "drone_flightplan.create_placemarks:main"
+flightplan = "drone_flightplan.create_flightplan:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
