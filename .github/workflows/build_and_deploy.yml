@@ -27,7 +27,7 @@ jobs:
   encode-envs:
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.ref_name }}
+      name: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
     outputs:
       ENCODED_ENV: ${{ steps.vars_and_secrets_to_b64.outputs.ENCODED_ENV }}
     steps:
@@ -70,5 +70,5 @@ jobs:
     uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@2.0.5
     with:
       docker_compose_file: compose.vm.yaml
-      environment: ${{ github.ref_name }}
+      environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
     secrets: inherit
