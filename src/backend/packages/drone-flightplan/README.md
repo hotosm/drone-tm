@@ -92,8 +92,7 @@ calculate_parameters(
 
 **Parameters:**
 
-- `waypoints_geojson`: The waypoint coordinates to be included in the flight plan mission.
-- `parameters`: The drone flight parameters in JSON format.
+- Run `uv run calcparams` to see options.
 
 ### 2. `create_waypoint`
 
@@ -109,7 +108,7 @@ create_waypoint(
     forward_overlap,
     side_overlap,
     rotation_angle=0.0,
-    generate_each_points=False,
+    flight_mode="waypoints",
     generate_3d=False,
     no_fly_zones=None,
     take_off_point=None,
@@ -118,16 +117,7 @@ create_waypoint(
 
 **Parameters:**
 
-- `project_area` (dict): A GeoJSON dictionary representing the project area (Polygon AOI).
-- `agl` (float): Altitude above ground level (the height at which the drone will fly).
-- `gsd` (float): Ground Sampling Distance (resolution of the images captured).
-- `forward_overlap` (float): Desired forward overlap percentage for the images in the flight plan.
-- `side_overlap` (float): Desired side overlap percentage for the images in the flight plan.
-- `rotation_angle` (float, optional): The rotation angle for the flight grid in degrees (default is 0.0).
-- `generate_each_points` (bool, optional): True to generate individual waypoints, False to generate waylines connecting waypoints for a continuous flight path.
-- `generate_3d` (bool, optional): True to capture 3D images at −90°, −45°, and 45° lateral angles, False to capture only 2D images.
-- `no_fly_zones` (dict, optional): A GeoJSON dictionary representing no-fly zones (areas to avoid).
-- `take_off_point` (list[float], optional): The GPS coordinates of the take-off point [longitude, latitude] for the flight.
+- Run `uv run waypoints` to see options.
 
 ### 3. `add_elevation_from_dem`
 
@@ -141,9 +131,7 @@ add_elevation_from_dem(raster_file, points, outfile)
 
 **Parameters:**
 
-- `raster_file`: Path to the DEM GeoTIFF file.
-- `points`: GeoJSON string with point coordinates.
-- `outfile`: Path for saving the output with added elevation.
+- Run `uv run addelev` to see options.
 
 ### 4. `create_placemarks`
 
@@ -157,6 +145,10 @@ create_placemarks(
     parameters: dict
 )
 ```
+
+**Parameters:**
+
+- Run `uv run placemarks` to see options.
 
 ### 5. `create_wpml`
 
@@ -192,7 +184,7 @@ create_flightplan(
     image_interval=2,
     dem=None,
     outfile=None,
-    generate_each_points=False,
+    flight_mode="waypoints",
     rotation_angle=0.0,
     take_off_point=None,
 )
@@ -200,14 +192,4 @@ create_flightplan(
 
 **Parameters:**
 
-- `aoi`: The area of interest in GeoJSON format.
-- `forward_overlap` (float): Desired forward overlap percentage for the images.
-- `side_overlap` (float): Desired side overlap percentage for the images.
-- `agl` (float): Altitude above ground level (in meters) for drone flight.
-- `gsd` (float, optional): Ground sampling distance in cm/px. If not provided, it will be calculated based on the altitude.
-- `image_interval` (int, optional): Time interval (in seconds) between two consecutive image captures.
-- `dem` (str, optional): Path to the Digital Elevation Model (DEM) file to add terrain elevation data to the flight plan.
-- `outfile` (str, optional): The output file path where the resulting flight plan will be saved. If not provided, the flight plan is returned as a string.
-- `generate_each_points` (bool, optional): True to generate individual waypoints for flight, False to generate waylines.
-- `rotation_angle` (float, optional): The rotation angle (in degrees) for the flight grid. Default is 0.0.
-- `take_off_point` (list[float], optional): A list of GPS coordinates [longitude, latitude] for the takeoff point.
+- Run `uv run flightplan` to see options.

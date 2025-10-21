@@ -13,6 +13,9 @@ class DroneType(StrEnum):
     DJI_AIR_3 = "DJI_AIR_3"
     DJI_MINI_5_PRO = "DJI_MINI_5_PRO"
     POTENSIC_ATOM_2 = "POTENSIC_ATOM_2"
+    MAVLINK = "MAVLINK"
+    QGROUNDCONTROL = "QGROUNDCONTROL"
+    LITCHI = "LITCHI"
 
 
 DRONE_SPECS = {
@@ -47,6 +50,27 @@ DRONE_SPECS = {
         "sensor_width_mm": 6.40,
         "equiv_focal_length_mm": 26,
         "image_width_px": 4608,
+    },
+    # FIXME these params can vary widely. We need a way for user to input
+    # FIXME the current values are simply for testing
+    # FIXME all values below need to be changed
+    DroneType.QGROUNDCONTROL: {
+        "sensor_height_mm": 7.2,
+        "sensor_width_mm": 9.6,
+        "equiv_focal_length_mm": 24,
+        "image_width_px": 4032,
+    },
+    DroneType.MAVLINK: {
+        "sensor_height_mm": 7.2,
+        "sensor_width_mm": 9.6,
+        "equiv_focal_length_mm": 24,
+        "image_width_px": 4032,
+    },
+    DroneType.LITCHI: {
+        "sensor_height_mm": 7.2,
+        "sensor_width_mm": 9.6,
+        "equiv_focal_length_mm": 24,
+        "image_width_px": 4032,
     },
 }
 # NOTE see calculate_parameters._calculate_constants
@@ -109,6 +133,27 @@ DRONE_PARAMS = {
         "HORIZONTAL_FOV": 1.17,
         "GSD_TO_AGL_CONST": 34.61,
         "OUTPUT_FORMAT": "POTENSIC_SQLITE",
+    },
+    # FIXME these params can vary widely. We need a way for user to input
+    # FIXME the current values are simply for testing different output formats
+    # FIXME everything below needs to be changed
+    DroneType.QGROUNDCONTROL: {
+        "VERTICAL_FOV": 0.99,
+        "HORIZONTAL_FOV": 1.25,
+        "GSD_TO_AGL_CONST": 27.95,
+        "OUTPUT_FORMAT": "QGROUNDCONTROL",
+    },
+    DroneType.MAVLINK: {
+        "VERTICAL_FOV": 0.99,
+        "HORIZONTAL_FOV": 1.25,
+        "GSD_TO_AGL_CONST": 27.95,
+        "OUTPUT_FORMAT": "MAVLINK_PLAN",
+    },
+    DroneType.LITCHI: {
+        "VERTICAL_FOV": 0.99,
+        "HORIZONTAL_FOV": 1.25,
+        "GSD_TO_AGL_CONST": 27.95,
+        "OUTPUT_FORMAT": "LITCHI",
     },
 }
 

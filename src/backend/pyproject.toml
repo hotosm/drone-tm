@@ -98,7 +98,7 @@ ignored_tag_formats = ["drone-flightplan-$version"]
 
 [tool.codespell]
 skip = "*pnpm-lock.yaml,*CHANGELOG.md,src/frontend/src/assets/*"
-ignore-words-list = "ProjectIn,dateA,te,ALOS"
+ignore-words-list = "ProjectIn,dateA,te,ALOS,algoritmos"
 write-changes = true
 
 #[tool.ruff]

@@ -1,4 +1,16 @@
+import argparse
 from enum import Enum
+
+
+class FlightMode(Enum):
+    """The flight mode of the drone.
+    The flight mode can be:
+    - ``waylines``
+    - ``waypoints``
+    """
+
+    WAYLINES = "waylines"
+    WAYPOINTS = "waypoints"
 
 
 class RCLostOptions(Enum):
@@ -24,3 +36,13 @@ class GimbalAngle(Enum):
     OFF_NADIR = "-80"
     OBLIQUE = "-45"
     NADIR = "-90"
+
+
+def flight_mode_arg(value: str) -> FlightMode:
+    try:
+        return FlightMode[value.upper()]
+    except KeyError:
+        valid_options = ", ".join(FlightMode.__members__)
+        raise argparse.ArgumentTypeError(
+            f"Invalid drone type '{value}'. Valid options are: {valid_options}"
+        )
