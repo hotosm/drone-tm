@@ -27,11 +27,13 @@ import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
 import UploadsBox from '../UploadsBox';
 import ProgressBar from './ProgessBar';
+import DroneImageProcessingWorkflow from '../DroneImageProcessingWorkflow';
 
 const DescriptionBox = () => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const [flyable, setFlyable] = useState('yes');
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const { taskId, projectId } = useParams();
   const uploadedImageType = useTypedSelector(
     state => state.droneOperatorTask.uploadedImagesType,
@@ -236,6 +238,13 @@ const DescriptionBox = () => {
         ))}
       </div>
 
+      {/* Drone Image Processing Workflow Modal */}
+      <DroneImageProcessingWorkflow
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
+        projectId={projectId as string}
+      />
+
       {taskAssetsInformation?.image_count === 0 &&
         (progressDetails?.totalFiles ? (
           <ProgressBar
@@ -296,6 +305,15 @@ const DescriptionBox = () => {
                 onClick={() => handleDownloadResult()}
               >
                 Download Result
+              </Button>
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white"
+                leftIcon="upload"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => setIsWorkflowModalOpen(true)}
+              >
+                Drone Image Processing Workflow
               </Button>
             </div>
           )}

@@ -11,13 +11,21 @@ from app.config import settings
 from app.utils import strip_presigned_url_for_local_dev
 
 
-def s3_client():
+def s3_client(use_public_endpoint: bool = False):
     """Return the initialised MinIO client with credentials.
 
     Args:
-        use_public_endpoint: If True and in DEBUG mode, use S3_DOWNLOAD_ROOT for presigned URLs
+        use_public_endpoint: If True and in DEBUG mode, use S3_DOWNLOAD_ROOT for presigned URLs.
+                            This is needed when generating presigned URLs that will be accessed
+                            by the browser, so the signature matches the public hostname.
     """
-    minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
+    # For presigned URLs in local dev, use S3_DOWNLOAD_ROOT so signature matches browser endpoint
+    if use_public_endpoint and settings.DEBUG and settings.S3_DOWNLOAD_ROOT:
+        endpoint = settings.S3_DOWNLOAD_ROOT
+    else:
+        endpoint = settings.S3_ENDPOINT
+
+    minio_url, is_secure = is_connection_secure(endpoint)
 
     log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
 
@@ -47,7 +55,7 @@ def is_connection_secure(minio_url: str):
         log.error(err)
         raise ValueError(err)
 
-    return stripped_url, secure
+    return strip_presigned_url_for_local_dev(stripped_url), secure
 
 
 def check_file_exists(bucket_name: str, object_name: str) -> bool:
@@ -217,7 +225,7 @@ def get_image_dir_url(bucket_name: str, image_dir: str):
         objects = client.list_objects(bucket_name, prefix=prefix, recursive=False)
 
         # Check if any objects exist with this prefix
-        for obj in objects:
+        for _ in objects:
             return url
 
         return None
@@ -409,8 +417,7 @@ def copy_file_within_bucket(
 def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
     """Initiate a multipart upload and return the upload ID.
 
-    Note: MinIO Python SDK doesn't directly expose multipart upload APIs.
-    For compatibility, we'll use the underlying urllib3 pool manager.
+    Uses MinIO's internal _create_multipart_upload method.
 
     Args:
         bucket_name (str): The name of the S3 bucket.
@@ -422,34 +429,9 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
     object_name = object_name.lstrip("/")
     client = s3_client()
 
-    # MinIO SDK handles multipart uploads internally, but for API compatibility
-    # we need to use the low-level API through XML
     try:
-        # Use MinIO's internal method to initiate multipart upload
-        # This requires accessing the underlying S3 API
-        from urllib.parse import quote
-
-        # Create the request
-        method = 'POST'
-        url = f"/{quote(bucket_name)}/{quote(object_name)}?uploads"
-
-        response = client._http.urlopen(
-            method,
-            client._base_url._url.scheme + "://" + client._base_url._url.netloc + url,
-            headers={
-                'Authorization': client._http.headers.get('Authorization'),
-                'Host': client._base_url._url.netloc,
-            }
-        )
-
-        if response.status != 200:
-            raise S3Error(f"Failed to initiate multipart upload: {response.status}")
-
-        # Parse the XML response to get the upload ID
-        import xml.etree.ElementTree as ET
-        root = ET.fromstring(response.data)
-        upload_id = root.find('.//{http://s3.amazonaws.com/doc/2006-03-01/}UploadId').text
-
+        # Use MinIO's internal method - much simpler!
+        upload_id = client._create_multipart_upload(bucket_name, object_name, {})
         log.debug(f"Initiated multipart upload for {object_name} with upload ID: {upload_id}")
         return upload_id
     except Exception as e:
@@ -473,25 +455,26 @@ def get_presigned_upload_part_url(
         str: The presigned URL for uploading the part.
     """
     object_name = object_name.lstrip("/")
-    # Use public endpoint for presigned URLs in local dev
     client = s3_client()
 
     try:
-        # MinIO client's presigned_put_object doesn't directly support multipart
-        # We need to construct the URL manually with proper query parameters
-        from urllib.parse import quote
+        # In local dev with public bucket, construct URL manually without signature
+        if settings.DEBUG and settings.S3_DOWNLOAD_ROOT:
+            url = f"{settings.S3_DOWNLOAD_ROOT}/{bucket_name}/{object_name}?uploadId={upload_id}&partNumber={part_number}"
+            log.debug(f"Generated unsigned URL for part {part_number} (local dev)")
+            return url
 
-        # Use presigned_put_object with custom query params
-        # This is a workaround since MinIO SDK doesn't directly expose presigned upload part
-        url = client.presigned_put_object(
+        # In production, generate proper presigned URL
+        url = client.get_presigned_url(
+            "PUT",
             bucket_name,
             object_name,
-            expires=timedelta(hours=expires)
+            expires=timedelta(hours=expires),
+            extra_query_params={
+                'uploadId': upload_id,
+                'partNumber': str(part_number)
+            }
         )
-
-        # Append the upload part query parameters
-        separator = '&' if '?' in url else '?'
-        url = f"{url}{separator}uploadId={quote(upload_id)}&partNumber={part_number}"
 
         log.debug(f"Generated presigned URL for part {part_number} of {object_name}")
         return url
@@ -518,64 +501,28 @@ def complete_multipart_upload(
     client = s3_client()
 
     try:
-        # Format parts for the XML request
-        from urllib.parse import quote
-        import xml.etree.ElementTree as ET
-
-        # Create XML for complete multipart upload
-        root = ET.Element('CompleteMultipartUpload')
-
+        # Format parts for MinIO's internal method
+        formatted_parts = []
         for part in parts:
-            part_elem = ET.SubElement(root, 'Part')
-
             # Handle both lowercase and uppercase key names
-            if 'PartNumber' in part:
-                part_number = part['PartNumber']
-            elif 'part_number' in part:
-                part_number = part['part_number']
-            else:
-                continue
+            part_number = part.get('PartNumber') or part.get('part_number')
+            etag = part.get('ETag') or part.get('etag')
 
-            if 'ETag' in part:
-                etag = part['ETag']
-            elif 'etag' in part:
-                etag = part['etag']
-            else:
-                continue
+            if part_number and etag:
+                formatted_parts.append({
+                    'PartNumber': int(part_number),
+                    'ETag': etag.strip('"')
+                })
 
-            ET.SubElement(part_elem, 'PartNumber').text = str(part_number)
-            ET.SubElement(part_elem, 'ETag').text = etag.strip('"')
-
-        xml_data = ET.tostring(root, encoding='utf-8')
-
-        # Make the request to complete multipart upload
-        method = 'POST'
-        url = f"/{quote(bucket_name)}/{quote(object_name)}?uploadId={quote(upload_id)}"
-
-        response = client._http.urlopen(
-            method,
-            client._base_url._url.scheme + "://" + client._base_url._url.netloc + url,
-            body=xml_data,
-            headers={
-                'Authorization': client._http.headers.get('Authorization'),
-                'Host': client._base_url._url.netloc,
-                'Content-Type': 'application/xml',
-            }
+        # Use MinIO's internal method - much simpler!
+        client._complete_multipart_upload(
+            bucket_name,
+            object_name,
+            upload_id,
+            formatted_parts
         )
 
-        if response.status != 200:
-            raise S3Error(f"Failed to complete multipart upload: {response.status}")
-
-        # Parse response to get ETag and version ID
-        response_root = ET.fromstring(response.data)
-        etag = response_root.find('.//{http://s3.amazonaws.com/doc/2006-03-01/}ETag')
-        version_id = response_root.find('.//{http://s3.amazonaws.com/doc/2006-03-01/}VersionId')
-
-        log.info(
-            f"Completed multipart upload for {object_name}. "
-            f"ETag: {etag.text if etag is not None else 'N/A'}, "
-            f"Version ID: {version_id.text if version_id is not None else 'N/A'}"
-        )
+        log.info(f"Completed multipart upload for {object_name}")
         return True
     except Exception as e:
         log.error(f"Error completing multipart upload: {e}")
@@ -597,24 +544,8 @@ def abort_multipart_upload(bucket_name: str, object_name: str, upload_id: str) -
     client = s3_client()
 
     try:
-        from urllib.parse import quote
-
-        # Make the request to abort multipart upload
-        method = 'DELETE'
-        url = f"/{quote(bucket_name)}/{quote(object_name)}?uploadId={quote(upload_id)}"
-
-        response = client._http.urlopen(
-            method,
-            client._base_url._url.scheme + "://" + client._base_url._url.netloc + url,
-            headers={
-                'Authorization': client._http.headers.get('Authorization'),
-                'Host': client._base_url._url.netloc,
-            }
-        )
-
-        if response.status != 204:
-            raise S3Error(f"Failed to abort multipart upload: {response.status}")
-
+        # Use MinIO's internal method
+        client._abort_multipart_upload(bucket_name, object_name, upload_id)
         log.info(f"Aborted multipart upload for {object_name} with upload ID: {upload_id}")
         return True
     except Exception as e:
@@ -637,39 +568,14 @@ def list_parts(bucket_name: str, object_name: str, upload_id: str) -> list[dict]
     client = s3_client()
 
     try:
-        from urllib.parse import quote
-        import xml.etree.ElementTree as ET
+        parts_data = client._list_object_parts(bucket_name, object_name, upload_id)
 
         parts = []
-
-        # Make the request to list parts
-        method = 'GET'
-        url = f"/{quote(bucket_name)}/{quote(object_name)}?uploadId={quote(upload_id)}"
-
-        response = client._http.urlopen(
-            method,
-            client._base_url._url.scheme + "://" + client._base_url._url.netloc + url,
-            headers={
-                'Authorization': client._http.headers.get('Authorization'),
-                'Host': client._base_url._url.netloc,
-            }
-        )
-
-        if response.status != 200:
-            raise S3Error(f"Failed to list parts: {response.status}")
-
-        # Parse XML response
-        root = ET.fromstring(response.data)
-
-        for part in root.findall('.//{http://s3.amazonaws.com/doc/2006-03-01/}Part'):
-            part_number = part.find('{http://s3.amazonaws.com/doc/2006-03-01/}PartNumber')
-            etag = part.find('{http://s3.amazonaws.com/doc/2006-03-01/}ETag')
-
-            if part_number is not None and etag is not None:
-                parts.append({
-                    'part_number': int(part_number.text),
-                    'etag': etag.text.strip('"')
-                })
+        for part in parts_data:
+            parts.append({
+                'part_number': part.part_number,
+                'etag': part.etag.strip('"') if part.etag else ''
+            })
 
         log.debug(f"Listed {len(parts)} parts for {object_name}")
         return parts

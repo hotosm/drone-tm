@@ -593,7 +593,7 @@ def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
     }
 
 
-def strip_presigned_url_for_local_dev(url: str) -> str:
+def strip_presigned_url_for_local_dev(url: str, strip_presign: bool = True) -> str:
     """Helper for local development handling docker URL + pre-signing.
 
     For local dev only, we need to iterate through and replace S3_ENDPOINT
@@ -603,9 +603,11 @@ def strip_presigned_url_for_local_dev(url: str) -> str:
 
     Args:
         url: The S3 presigned URL to convert
+        strip_presign: If True, removes signature query params. If False, preserves all query params.
+                       Set to False for multipart uploads where uploadId/partNumber must be kept.
 
     Returns:
-        str: URL accessible from browser (localhost) without signature
+        str: URL accessible from browser (localhost), with or without signature
     """
     if not settings.DEBUG:
         return url
@@ -614,6 +616,11 @@ def strip_presigned_url_for_local_dev(url: str) -> str:
         return url
 
     host_accessible_url = url.replace(settings.S3_ENDPOINT, settings.S3_DOWNLOAD_ROOT)
+
+    if not strip_presign:
+        # Keep all query parameters intact (needed for multipart uploads)
+        return host_accessible_url
+
     try:
         # Remove presigned query parameters to avoid signature mismatch
         split_url_on_presign_vars = host_accessible_url.split("?")
