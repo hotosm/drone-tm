@@ -211,8 +211,8 @@ class FlightMode(StrEnum):
     - ``waypoints``
     """
 
-    waylines = "waylines"
-    waypoints = "waypoints"
+    WAYLINES = "waylines"
+    WAYPOINTS = "waypoints"
 
 
 class ProjectCompletionStatus(StrEnum):
