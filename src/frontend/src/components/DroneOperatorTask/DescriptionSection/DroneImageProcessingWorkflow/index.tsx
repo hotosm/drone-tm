@@ -63,9 +63,9 @@ const DroneImageProcessingWorkflow = ({
       show={isOpen}
       onClose={handleClose}
       title="Drone Image Processing Workflow"
-      className="!naxatw-max-w-[80vw] !naxatw-w-[80vw] !naxatw-max-h-[75vh] !naxatw-h-[75vh]"
+      className="!naxatw-max-w-[80vw] !naxatw-w-[80vw] !naxatw-max-h-[85vh] !naxatw-h-[85vh] !naxatw-flex !naxatw-flex-col"
     >
-      <div className="naxatw-flex naxatw-h-full naxatw-flex-col naxatw-gap-4">
+      <div className="naxatw-flex naxatw-h-[calc(85vh-8rem)] naxatw-flex-col naxatw-gap-4">
         {/* Step Indicator */}
         <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between">
           {steps.map((step, index) => (

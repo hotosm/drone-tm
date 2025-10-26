@@ -89,9 +89,12 @@ importers:
       '@uppy/core':
         specifier: ^5.1.0
         version: 5.1.0
+      '@uppy/dashboard':
+        specifier: ^5.0.3
+        version: 5.0.3(@uppy/core@5.1.0)
       '@uppy/react':
         specifier: ^5.1.0
-        version: 5.1.0(@uppy/core@5.1.0)(@uppy/dashboard@5.0.2(@uppy/core@5.1.0))(@uppy/screen-capture@5.0.1(@uppy/core@5.1.0))(@uppy/webcam@5.0.1(@uppy/core@5.1.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+        version: 5.1.0(@uppy/core@5.1.0)(@uppy/dashboard@5.0.3(@uppy/core@5.1.0))(@uppy/screen-capture@5.0.1(@uppy/core@5.1.0))(@uppy/webcam@5.0.1(@uppy/core@5.1.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@yume-chan/adb':
         specifier: ^2.1.0
         version: 2.1.0
@@ -2027,10 +2030,10 @@ packages:
   '@uppy/core@5.1.0':
     resolution: {integrity: sha512-LlwSg26hZXEVCvf4OCUVPJ3mM3L+1VZWFPHDya4KSt1aWJnAyYLz099QYqhy1XLGGDjjQMAX4n1xcK8eiakcNw==}
 
-  '@uppy/dashboard@5.0.2':
-    resolution: {integrity: sha512-mW/bl4w1W3AUFpNHup0jJG+rAdavROyvVdLjXIr3az1Q2Hzu2IN0HgCpeVD4YEUhdLB6ToRYY4z91gyoRSZdQg==}
+  '@uppy/dashboard@5.0.3':
+    resolution: {integrity: sha512-FJXEMnfwpovXS+3arndSYno3cv6QW2bgsXaMveqKAQ5FeZ9WlkwLCXPR3QHOvBXLDK7RDLkfzOJIio35/7yuFg==}
     peerDependencies:
-      '@uppy/core': ^5.0.2
+      '@uppy/core': ^5.1.1
 
   '@uppy/dropbox@5.0.1':
     resolution: {integrity: sha512-TDF+K5APDorO67tr3u/y8rQxHIM66cIXy+1Uk4PfVPlFf5YSVdwYsKn9DEqDQZWsm3YmMdFI3iVJKOGsUlvD9Q==}
@@ -2067,6 +2070,11 @@ packages:
     peerDependencies:
       '@uppy/core': ^5.1.0
 
+  '@uppy/provider-views@5.1.1':
+    resolution: {integrity: sha512-V7wZxJddrDjhQ1CVqg1WVuhh+cvklUp6OltjoUmJTRP0EcMxj4RdTisoBt5Ls+zi1rLMeTfrhOlYWvTTyurg/g==}
+    peerDependencies:
+      '@uppy/core': ^5.1.1
+
   '@uppy/react@5.1.0':
     resolution: {integrity: sha512-KkGP7pKdSx+7WPik+a2HjnPq80MPakjIw0AoBbkqQUlyXhOkF7GYtzfJ13ng4odtYob+d7H+MP3EIxX7Bq/09w==}
     peerDependencies:
@@ -2100,10 +2108,10 @@ packages:
   '@uppy/store-default@5.0.0':
     resolution: {integrity: sha512-hQtCSQ1yGiaval/wVYUWquYGDJ+bpQ7e4FhUUAsRQz1x1K+o7NBtjfp63O9I4Ks1WRoKunpkarZ+as09l02cPw==}
 
-  '@uppy/thumbnail-generator@5.0.1':
-    resolution: {integrity: sha512-kmRpZKGS+xCdXU66weLHZ30F8UYEW3U5amtZE8l/ZoDJf/mVevae0RBE8qQsEPXjs6IFH3MCgb4fZ/s/itc3QA==}
+  '@uppy/thumbnail-generator@5.0.2':
+    resolution: {integrity: sha512-MRNZEgjNO0gYC/CPji2ngmDx9dCZyHuXkeLQmZen986f+rHcOkeVXim163PBbkFT5CF1xavez03yNDJSeWl6PA==}
     peerDependencies:
-      '@uppy/core': ^5.0.2
+      '@uppy/core': ^5.1.1
 
   '@uppy/unsplash@5.0.1':
     resolution: {integrity: sha512-Iiy8904TQbM9FN0Sx1B8mXAP0iTS7464MxoJUJuMaHNQzPs6IlOs5In/6T0VX36OJ8hFmOG2hM3Q3xB2fGU0yQ==}
@@ -2117,6 +2125,9 @@ packages:
 
   '@uppy/utils@7.1.0':
     resolution: {integrity: sha512-yVM1j082QeIh8jB4XvBWDbIRgpvktozwK1vmo9Xe1F4N+7doIDYFyBQmrmmxKJwSUJwAKNDrLmu8uqb+7mMCqQ==}
+
+  '@uppy/utils@7.1.1':
+    resolution: {integrity: sha512-4jKH3WKmQs6SCOGHCbZkLHykiaJgQo3DZsET144K8mhaoaOxfVupCYohI/UKurTQll1FhCr9dKS95Qcm0T4w7g==}
 
   '@uppy/webcam@5.0.1':
     resolution: {integrity: sha512-zjt3g5E6g5NbufEtYBnK6IS5uBABQnuVixAiwfTYe9of1GkZJpOAe6qeg+zoRad0K/twt2YGqkGyhwzVL9ipuQ==}
@@ -6569,13 +6580,13 @@ snapshots:
       nanoid: 5.0.9
       preact: 10.27.2
 
-  '@uppy/dashboard@5.0.2(@uppy/core@5.1.0)':
+  '@uppy/dashboard@5.0.3(@uppy/core@5.1.0)':
     dependencies:
       '@transloadit/prettier-bytes': 0.3.5
       '@uppy/core': 5.1.0
-      '@uppy/provider-views': 5.1.0(@uppy/core@5.1.0)
-      '@uppy/thumbnail-generator': 5.0.1(@uppy/core@5.1.0)
-      '@uppy/utils': 7.1.0
+      '@uppy/provider-views': 5.1.1(@uppy/core@5.1.0)
+      '@uppy/thumbnail-generator': 5.0.2(@uppy/core@5.1.0)
+      '@uppy/utils': 7.1.1
       classnames: 2.5.1
       lodash: 4.17.21
       nanoid: 5.0.9
@@ -6638,7 +6649,16 @@ snapshots:
       p-queue: 8.1.1
       preact: 10.27.2
 
-  '@uppy/react@5.1.0(@uppy/core@5.1.0)(@uppy/dashboard@5.0.2(@uppy/core@5.1.0))(@uppy/screen-capture@5.0.1(@uppy/core@5.1.0))(@uppy/webcam@5.0.1(@uppy/core@5.1.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+  '@uppy/provider-views@5.1.1(@uppy/core@5.1.0)':
+    dependencies:
+      '@uppy/core': 5.1.0
+      '@uppy/utils': 7.1.1
+      classnames: 2.5.1
+      nanoid: 5.0.9
+      p-queue: 8.1.1
+      preact: 10.27.2
+
+  '@uppy/react@5.1.0(@uppy/core@5.1.0)(@uppy/dashboard@5.0.3(@uppy/core@5.1.0))(@uppy/screen-capture@5.0.1(@uppy/core@5.1.0))(@uppy/webcam@5.0.1(@uppy/core@5.1.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@uppy/components': 1.0.3
       '@uppy/core': 5.1.0
@@ -6648,7 +6668,7 @@ snapshots:
       react-dom: 19.0.0(react@19.0.0)
       use-sync-external-store: 1.4.0(react@19.0.0)
     optionalDependencies:
-      '@uppy/dashboard': 5.0.2(@uppy/core@5.1.0)
+      '@uppy/dashboard': 5.0.3(@uppy/core@5.1.0)
       '@uppy/screen-capture': 5.0.1(@uppy/core@5.1.0)
       '@uppy/webcam': 5.0.1(@uppy/core@5.1.0)
 
@@ -6656,7 +6676,7 @@ snapshots:
     dependencies:
       '@uppy/box': 4.0.1(@uppy/core@5.1.0)
       '@uppy/core': 5.1.0
-      '@uppy/dashboard': 5.0.2(@uppy/core@5.1.0)
+      '@uppy/dashboard': 5.0.3(@uppy/core@5.1.0)
       '@uppy/dropbox': 5.0.1(@uppy/core@5.1.0)
       '@uppy/facebook': 5.0.1(@uppy/core@5.1.0)
       '@uppy/google-drive': 5.0.1(@uppy/core@5.1.0)
@@ -6674,10 +6694,10 @@ snapshots:
 
   '@uppy/store-default@5.0.0': {}
 
-  '@uppy/thumbnail-generator@5.0.1(@uppy/core@5.1.0)':
+  '@uppy/thumbnail-generator@5.0.2(@uppy/core@5.1.0)':
     dependencies:
       '@uppy/core': 5.1.0
-      '@uppy/utils': 7.1.0
+      '@uppy/utils': 7.1.1
       exifr: 7.1.3
 
   '@uppy/unsplash@5.0.1(@uppy/core@5.1.0)':
@@ -6697,6 +6717,11 @@ snapshots:
       preact: 10.27.2
 
   '@uppy/utils@7.1.0':
+    dependencies:
+      lodash: 4.17.21
+      preact: 10.27.2
+
+  '@uppy/utils@7.1.1':
     dependencies:
       lodash: 4.17.21
       preact: 10.27.2

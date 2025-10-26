@@ -1,11 +1,16 @@
 import { useEffect, useCallback, useContext } from 'react';
 import AwsS3 from '@uppy/aws-s3';
-import { useUppyState, UppyContext } from '@uppy/react';
+import { Dashboard } from '@uppy/react';
+import { UppyContext } from '@uppy/react';
 import { toast } from 'react-toastify';
 import { authenticated, api } from '@Services/index';
 import { useTypedDispatch } from '@Store/hooks';
 import { setFilesExifData } from '@Store/actions/droneOperatorTask';
 import getExifData from '@Utils/getExifData';
+
+import '@uppy/core/css/style.min.css';
+import '@uppy/dashboard/css/style.min.css';
+import './uppy-theme.css';
 
 interface UppyFileUploaderProps {
   projectId: string;
@@ -188,10 +193,6 @@ const UppyFileUploader = ({
     };
   }, [uppy, projectId, taskId, allowedFileTypes, staging]);
 
-  // Use useUppyState to reactively track files
-  const files = useUppyState(uppy, state => state.files);
-  const filesArray = Object.values(files);
-
   // Extract EXIF data when files are added
   const handleFilesAdded = useCallback(
     async (addedFiles: any[]) => {
@@ -247,77 +248,23 @@ const UppyFileUploader = ({
   }, [uppy, handleFilesAdded, dispatch, onUploadComplete]);
 
   return (
-    <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-5">
-      <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
+    <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">
+      {label && (
         <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
           {label}
         </p>
-      </div>
+      )}
 
-      <label
-        htmlFor="uppy-file-input"
-        className="naxatw-relative naxatw-flex naxatw-min-h-20 naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700 naxatw-py-3 naxatw-transition-colors hover:naxatw-border-red hover:naxatw-bg-gray-50"
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.currentTarget.classList.add('naxatw-border-red', 'naxatw-bg-gray-50');
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          e.currentTarget.classList.remove('naxatw-border-red', 'naxatw-bg-gray-50');
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.currentTarget.classList.remove('naxatw-border-red', 'naxatw-bg-gray-50');
-          const files = Array.from(e.dataTransfer.files);
-          files.forEach(file => {
-            try {
-              uppy.addFile({
-                name: file.name,
-                type: file.type,
-                data: file,
-              });
-            } catch (err: any) {
-              if (err.isRestriction) {
-                toast.error(err.message);
-              }
-            }
-          });
-        }}
-      >
-        <input
-          id="uppy-file-input"
-          type="file"
-          multiple
-          accept={allowedFileTypes.join(',')}
-          onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            files.forEach(file => {
-              try {
-                uppy.addFile({
-                  name: file.name,
-                  type: file.type,
-                  data: file,
-                });
-              } catch (err: any) {
-                if (err.isRestriction) {
-                  toast.error(err.message);
-                }
-              }
-            });
-            e.target.value = ''; // Reset input
-          }}
-          className="naxatw-absolute naxatw-opacity-0"
-        />
-        <div className="naxatw-flex naxatw-flex-col naxatw-items-center">
-          <span className="material-icons-outlined naxatw-text-red">
-            cloud_upload
-          </span>
-          <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-text-center">
-            <p className="naxatw-text-sm naxatw-text-gray-700">{note}</p>
-          </div>
-
-        </div>
-      </label>
+      <Dashboard
+        uppy={uppy}
+        proudlyDisplayPoweredByUppy={false}
+        width='100%'
+        height='45vh'
+        note={note}
+        theme="light"
+        hideProgressAfterFinish={false}
+        hideUploadButton={false}
+      />
     </div>
   );
 };
