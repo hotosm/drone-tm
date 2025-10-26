@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useContext } from 'react';
 import AwsS3 from '@uppy/aws-s3';
-import { Dropzone, useUppyState, UppyContext } from '@uppy/react';
+import { useUppyState, UppyContext } from '@uppy/react';
 import { toast } from 'react-toastify';
 import { authenticated, api } from '@Services/index';
 import { useTypedDispatch } from '@Store/hooks';
@@ -14,6 +14,7 @@ interface UppyFileUploaderProps {
   onUploadComplete?: (result: any) => void;
   allowedFileTypes?: string[];
   note?: string;
+  staging?: boolean; // If true, uploads to user-uploads staging directory
 }
 
 const UppyFileUploader = ({
@@ -35,6 +36,7 @@ const UppyFileUploader = ({
     '.laz',
   ],
   note = 'Drag and drop files here, or click to browse',
+  staging = false,
 }: UppyFileUploaderProps) => {
   const dispatch = useTypedDispatch();
 
@@ -65,13 +67,20 @@ const UppyFileUploader = ({
       shouldUseMultipart: true,
       createMultipartUpload: async file => {
         try {
+          const requestData: any = {
+            project_id: projectId,
+            file_name: file.name,
+            staging,
+          };
+
+          // Only include task_id if not staging and taskId is provided
+          if (!staging && taskId) {
+            requestData.task_id = taskId;
+          }
+
           const response = await authenticated(api).post(
             '/projects/initiate-multipart-upload/',
-            {
-              project_id: projectId,
-              task_id: taskId,
-              file_name: file.name,
-            },
+            requestData,
             {
               headers: {
                 'Content-Type': 'application/json',
@@ -177,7 +186,7 @@ const UppyFileUploader = ({
       // Clear files when component unmounts
       uppy.cancelAll();
     };
-  }, [uppy, projectId, taskId, allowedFileTypes]);
+  }, [uppy, projectId, taskId, allowedFileTypes, staging]);
 
   // Use useUppyState to reactively track files
   const files = useUppyState(uppy, state => state.files);
@@ -239,33 +248,76 @@ const UppyFileUploader = ({
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-5">
-      {label && (
-        <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
-          <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
-            {label}
-          </p>
-        </div>
-      )}
-
-      <div className="naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700">
-        <Dropzone note={note} />
+      <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
+        <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
+          {label}
+        </p>
       </div>
 
-      {filesArray.length > 0 && (
-        <p className="naxatw-text-sm naxatw-text-green-700">
-          {filesArray.length} items selected
-        </p>
-      )}
+      <label
+        htmlFor="uppy-file-input"
+        className="naxatw-relative naxatw-flex naxatw-min-h-20 naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-700 naxatw-py-3 naxatw-transition-colors hover:naxatw-border-red hover:naxatw-bg-gray-50"
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.add('naxatw-border-red', 'naxatw-bg-gray-50');
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.remove('naxatw-border-red', 'naxatw-bg-gray-50');
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.remove('naxatw-border-red', 'naxatw-bg-gray-50');
+          const files = Array.from(e.dataTransfer.files);
+          files.forEach(file => {
+            try {
+              uppy.addFile({
+                name: file.name,
+                type: file.type,
+                data: file,
+              });
+            } catch (err: any) {
+              if (err.isRestriction) {
+                toast.error(err.message);
+              }
+            }
+          });
+        }}
+      >
+        <input
+          id="uppy-file-input"
+          type="file"
+          multiple
+          accept={allowedFileTypes.join(',')}
+          onChange={(e) => {
+            const files = Array.from(e.target.files || []);
+            files.forEach(file => {
+              try {
+                uppy.addFile({
+                  name: file.name,
+                  type: file.type,
+                  data: file,
+                });
+              } catch (err: any) {
+                if (err.isRestriction) {
+                  toast.error(err.message);
+                }
+              }
+            });
+            e.target.value = ''; // Reset input
+          }}
+          className="naxatw-absolute naxatw-opacity-0"
+        />
+        <div className="naxatw-flex naxatw-flex-col naxatw-items-center">
+          <span className="material-icons-outlined naxatw-text-red">
+            cloud_upload
+          </span>
+          <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-text-center">
+            <p className="naxatw-text-sm naxatw-text-gray-700">{note}</p>
+          </div>
 
-      {filesArray.length > 0 && (
-        <button
-          type="button"
-          onClick={() => uppy.upload()}
-          className="naxatw-rounded-md naxatw-bg-[#D73F3F] naxatw-px-6 naxatw-py-2 naxatw-text-white hover:naxatw-bg-[#c13636]"
-        >
-          Upload {filesArray.length} file(s)
-        </button>
-      )}
+        </div>
+      </label>
     </div>
   );
 };

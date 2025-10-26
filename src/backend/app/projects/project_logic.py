@@ -17,9 +17,9 @@ from drone_flightplan import (
 )
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from botocore.exceptions import ClientError
 from geojson import Feature, FeatureCollection
 from loguru import logger as log
-from minio.error import S3Error
 from psycopg import Connection
 from psycopg.rows import dict_row
 from shapely.geometry import shape
@@ -595,8 +595,9 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
             presigned_url = get_presigned_url(
                 settings.S3_BUCKET_NAME, assets_path, expires=2
             )
-        except S3Error as e:
-            if e.code == 'NoSuchKey':
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', '')
+            if error_code == '404' or error_code == 'NoSuchKey':
                 # The object does not exist
                 log.info(
                     f"Assets ZIP file not found for project {project_id}, task {task_id}."

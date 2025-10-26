@@ -63,9 +63,9 @@ const DroneImageProcessingWorkflow = ({
       show={isOpen}
       onClose={handleClose}
       title="Drone Image Processing Workflow"
-      className="!naxatw-max-w-[90vw] !naxatw-w-[90vw]"
+      className="!naxatw-max-w-[80vw] !naxatw-w-[80vw] !naxatw-max-h-[75vh] !naxatw-h-[75vh]"
     >
-      <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
+      <div className="naxatw-flex naxatw-h-full naxatw-flex-col naxatw-gap-4">
         {/* Step Indicator */}
         <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between">
           {steps.map((step, index) => (
@@ -117,12 +117,12 @@ const DroneImageProcessingWorkflow = ({
         </div>
 
         {/* Content */}
-        <div className="naxatw-flex-1 naxatw-overflow-y-auto">
+        <div className="naxatw-flex-1 naxatw-min-h-0 naxatw-overflow-y-auto naxatw-pb-4">
           {renderStepContent()}
         </div>
 
         {/* Footer */}
-        <div className="naxatw-flex naxatw-w-full naxatw-justify-between naxatw-border-t naxatw-pt-4">
+        <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-justify-between naxatw-border-t naxatw-pt-4">
           <Button
             variant="outline"
             className="naxatw-border-gray-300"

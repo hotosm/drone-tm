@@ -723,8 +723,9 @@ class PresignedUrlRequest(BaseModel):
 
 class MultipartUploadRequest(BaseModel):
     project_id: uuid.UUID
-    task_id: uuid.UUID
+    task_id: Optional[uuid.UUID] = None
     file_name: str
+    staging: bool = False  # If True, upload to user-uploads staging directory
 
 
 class SignPartUploadRequest(BaseModel):

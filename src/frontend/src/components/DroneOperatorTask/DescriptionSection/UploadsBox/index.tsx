@@ -1,4 +1,4 @@
-import UppyImageUploader from '../UppyImageUploader';
+import UppyFileUploader from '../UppyFileUploader';
 
 const UploadsBox = ({
   label = 'Upload Images, GCP, and align.laz',
@@ -10,11 +10,11 @@ const UploadsBox = ({
   const taskId = pathname?.[4];
 
   return (
-    <UppyImageUploader
+    <UppyFileUploader
       projectId={projectId}
       taskId={taskId}
       label={label}
-      replaceExisting={false}
+      note="Supported: .jpg, .jpeg, .png, .tif, .tiff, gcp_list.txt, align.laz"
     />
   );
 };

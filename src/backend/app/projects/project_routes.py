@@ -777,13 +777,25 @@ async def initiate_upload(
     """Initiate a multipart upload for large files.
 
     Args:
-        data: Contains project_id, task_id, and file_name.
+        data: Contains project_id, optional task_id, file_name, and staging flag.
 
     Returns:
         dict: Upload ID and file key for the multipart upload session.
     """
     try:
-        file_key = f"dtm-data/projects/{data.project_id}/{data.task_id}/images/{data.file_name}"
+        # Determine file path based on staging flag
+        if data.staging:
+            # Upload to staging directory
+            file_key = f"dtm-data/projects/{data.project_id}/user-uploads/{data.file_name}"
+        else:
+            # Upload to task directory (original behavior)
+            if not data.task_id:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="task_id is required when staging=False",
+                )
+            file_key = f"dtm-data/projects/{data.project_id}/{data.task_id}/images/{data.file_name}"
+
         upload_id = initiate_multipart_upload(settings.S3_BUCKET_NAME, file_key)
 
         return {
