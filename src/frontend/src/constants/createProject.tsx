@@ -27,7 +27,7 @@ export const stepDescriptionComponents: StepComponentMap = {
   5: Contributions,
 };
 
-export const stepSwticherData = [
+export const stepSwitcherData = [
   {
     url: '/',
     step: 1,
