@@ -1,7 +1,6 @@
 import json
 import os
 import uuid
-from datetime import timedelta
 from typing import Annotated, Dict, List, Optional
 from uuid import UUID
 
@@ -340,33 +339,31 @@ async def generate_presigned_url(
                 )
                 try:
                     # List objects to delete
-                    paginator = client.get_paginator('list_objects_v2')
+                    paginator = client.get_paginator("list_objects_v2")
                     pages = paginator.paginate(
-                        Bucket=settings.S3_BUCKET_NAME,
-                        Prefix=image_dir.lstrip("/")
+                        Bucket=settings.S3_BUCKET_NAME, Prefix=image_dir.lstrip("/")
                     )
 
                     # Collect all objects to delete
                     objects_to_delete = []
                     for page in pages:
-                        if 'Contents' in page:
-                            for obj in page['Contents']:
-                                objects_to_delete.append({'Key': obj['Key']})
+                        if "Contents" in page:
+                            for obj in page["Contents"]:
+                                objects_to_delete.append({"Key": obj["Key"]})
 
                     # Delete objects if any exist
                     if objects_to_delete:
                         response = client.delete_objects(
                             Bucket=settings.S3_BUCKET_NAME,
-                            Delete={
-                                'Objects': objects_to_delete,
-                                'Quiet': True
-                            }
+                            Delete={"Objects": objects_to_delete, "Quiet": True},
                         )
 
                         # Handle deletion errors, if any
-                        if 'Errors' in response:
-                            for error in response['Errors']:
-                                log.error(f"Error occurred when deleting object: {error}")
+                        if "Errors" in response:
+                            for error in response["Errors"]:
+                                log.error(
+                                    f"Error occurred when deleting object: {error}"
+                                )
                                 raise HTTPException(
                                     status_code=HTTPStatus.BAD_REQUEST,
                                     detail=f"Failed to delete existing image: {error}",
@@ -382,12 +379,12 @@ async def generate_presigned_url(
             # Use public endpoint for presigned URLs in local dev
             presigned_client = s3_client(use_public_endpoint=True)
             url = presigned_client.generate_presigned_url(
-                'put_object',
+                "put_object",
                 Params={
-                    'Bucket': settings.S3_BUCKET_NAME,
-                    'Key': image_path.lstrip("/")
+                    "Bucket": settings.S3_BUCKET_NAME,
+                    "Key": image_path.lstrip("/"),
                 },
-                ExpiresIn=data.expiry * 3600  # Convert hours to seconds
+                ExpiresIn=data.expiry * 3600,  # Convert hours to seconds
             )
             urls.append({"image_name": image, "url": url})
 
@@ -786,7 +783,9 @@ async def initiate_upload(
         # Determine file path based on staging flag
         if data.staging:
             # Upload to staging directory
-            file_key = f"dtm-data/projects/{data.project_id}/user-uploads/{data.file_name}"
+            file_key = (
+                f"dtm-data/projects/{data.project_id}/user-uploads/{data.file_name}"
+            )
         else:
             # Upload to task directory (original behavior)
             if not data.task_id:
