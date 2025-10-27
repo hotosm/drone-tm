@@ -193,12 +193,12 @@ class DbUserProfile(BaseUserProfile):
                     # Use public endpoint for presigned URLs in local dev
                     client = s3_client(use_public_endpoint=True)
                     presigned_url = client.generate_presigned_url(
-                        'put_object',
+                        "put_object",
                         Params={
-                            'Bucket': settings.S3_BUCKET_NAME,
-                            'Key': s3_path.lstrip("/")
+                            "Bucket": settings.S3_BUCKET_NAME,
+                            "Key": s3_path.lstrip("/"),
                         },
-                        ExpiresIn=3600  # 1 hour
+                        ExpiresIn=3600,  # 1 hour
                     )
                     result[file_type] = {
                         "presigned_url": presigned_url,

@@ -596,7 +596,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 settings.S3_BUCKET_NAME, assets_path, expires=2
             )
         except S3Error as e:
-            if e.code == 'NoSuchKey':
+            if e.code == "NoSuchKey":
                 # The object does not exist
                 log.info(
                     f"Assets ZIP file not found for project {project_id}, task {task_id}."

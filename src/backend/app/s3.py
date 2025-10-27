@@ -360,7 +360,9 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
 
     try:
         upload_id = client._create_multipart_upload(bucket_name, object_name, {})
-        log.debug(f"Initiated multipart upload for {object_name} with upload ID: {upload_id}")
+        log.debug(
+            f"Initiated multipart upload for {object_name} with upload ID: {upload_id}"
+        )
         return upload_id
     except S3Error as e:
         log.error(f"Error initiating multipart upload: {e}")
@@ -371,7 +373,11 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
 
 
 def get_presigned_upload_part_url(
-    bucket_name: str, object_name: str, upload_id: str, part_number: int, expires: int = 2
+    bucket_name: str,
+    object_name: str,
+    upload_id: str,
+    part_number: int,
+    expires: int = 2,
 ) -> str:
     """Generate a presigned URL for uploading a specific part in a multipart upload.
 
@@ -435,8 +441,8 @@ def complete_multipart_upload(
         part_objects = []
         for part in parts:
             # Handle both lowercase and uppercase key names
-            part_number = part.get('PartNumber') or part.get('part_number')
-            etag = part.get('ETag') or part.get('etag')
+            part_number = part.get("PartNumber") or part.get("part_number")
+            etag = part.get("ETag") or part.get("etag")
 
             if part_number and etag:
                 # Create Part object - strip quotes from ETag if present
@@ -475,7 +481,9 @@ def abort_multipart_upload(bucket_name: str, object_name: str, upload_id: str) -
 
     try:
         client._abort_multipart_upload(bucket_name, object_name, upload_id)
-        log.info(f"Aborted multipart upload for {object_name} with upload ID: {upload_id}")
+        log.info(
+            f"Aborted multipart upload for {object_name} with upload ID: {upload_id}"
+        )
         return True
     except S3Error as e:
         log.error(f"Error aborting multipart upload: {e}")
