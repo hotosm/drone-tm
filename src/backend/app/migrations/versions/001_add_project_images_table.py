@@ -1,0 +1,71 @@
+"""add_project_images_table
+
+Revision ID: 001_project_images
+Revises: fa5c74996273
+Create Date: 2025-10-26 00:00:00.000000
+
+"""
+
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+from geoalchemy2 import Geometry
+
+# revision identifiers, used by Alembic.
+revision: str = "001_project_images"
+down_revision: Union[str, None] = "fa5c74996273"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    # Create enum type for image status
+    image_status_enum = postgresql.ENUM(
+        'staged',
+        'classified',
+        'invalid_exif',
+        'unmatched',
+        'duplicate',
+        name='image_status',
+        create_type=True
+    )
+    image_status_enum.create(op.get_bind(), checkfirst=True)
+
+    # Create project_images table
+    op.create_table(
+        'project_images',
+        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()')),
+        sa.Column('project_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('task_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('tasks.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('filename', sa.Text(), nullable=False),
+        sa.Column('s3_key', sa.Text(), nullable=False),
+        sa.Column('hash_md5', sa.CHAR(32), nullable=False),
+        sa.Column('location', Geometry('POINT', srid=4326), nullable=True),
+        sa.Column('exif', postgresql.JSONB(), nullable=True),
+        sa.Column('uploaded_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('uploaded_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('classified_at', sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column('status', image_status_enum, server_default='staged', nullable=False),
+        sa.Column('duplicate_of', postgresql.UUID(as_uuid=True), sa.ForeignKey('project_images.id', ondelete='SET NULL'), nullable=True),
+    )
+
+    # Create indexes for better query performance
+    op.create_index('idx_project_images_project_id', 'project_images', ['project_id'])
+    op.create_index('idx_project_images_task_id', 'project_images', ['task_id'])
+    op.create_index('idx_project_images_status', 'project_images', ['status'])
+    op.create_index('idx_project_images_hash_md5', 'project_images', ['hash_md5'])
+    op.create_index('idx_project_images_uploaded_by', 'project_images', ['uploaded_by'])
+
+    # Create spatial index on location
+    op.execute('CREATE INDEX idx_project_images_location ON project_images USING GIST (location);')
+
+
+def downgrade() -> None:
+    # Drop table and enum
+    op.drop_table('project_images')
+
+    # Drop enum type
+    image_status_enum = postgresql.ENUM(name='image_status')
+    image_status_enum.drop(op.get_bind(), checkfirst=True)

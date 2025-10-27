@@ -845,17 +845,21 @@ async def sign_part_upload(
 @router.post("/complete-multipart-upload/", tags=["Image Upload"])
 async def complete_upload(
     user: Annotated[AuthUser, Depends(login_required)],
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     data: project_schemas.CompleteMultipartUploadRequest,
 ):
-    """Complete a multipart upload by combining all parts.
+    """Complete a multipart upload and queue image processing in background.
 
     Args:
-        data: Contains upload_id, file_key, and list of parts.
+        user: Authenticated user
+        redis: Redis connection for background tasks
+        data: Contains upload_id, file_key, parts, project_id, and filename.
 
     Returns:
-        dict: Success message.
+        dict: Success message with background job ID.
     """
     try:
+        # Complete the multipart upload in S3
         complete_multipart_upload(
             settings.S3_BUCKET_NAME,
             data.file_key,
@@ -863,11 +867,24 @@ async def complete_upload(
             data.parts,
         )
 
+        # Queue background task to process image (EXIF extraction, hash, duplicate check)
+        job = await redis.enqueue_job(
+            "process_uploaded_image",
+            str(data.project_id),
+            data.file_key,
+            data.filename,
+            str(user.id),
+        )
+
+        log.info(f"Queued image processing job: {job.job_id} for file: {data.filename}")
+
         return {
-            "message": "Multipart upload completed successfully",
+            "message": "Multipart upload completed successfully. Image processing queued.",
             "file_key": data.file_key,
+            "job_id": job.job_id,
         }
     except Exception as e:
+        log.error(f"Failed to complete multipart upload: {e}")
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to complete multipart upload: {e}",

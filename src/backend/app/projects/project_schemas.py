@@ -739,6 +739,8 @@ class CompleteMultipartUploadRequest(BaseModel):
     upload_id: str
     file_key: str
     parts: List[dict]  # List of {"PartNumber": int, "ETag": str}
+    project_id: uuid.UUID
+    filename: str
 
 
 class AbortMultipartUploadRequest(BaseModel):

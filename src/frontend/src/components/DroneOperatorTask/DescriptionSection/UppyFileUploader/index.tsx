@@ -137,6 +137,8 @@ const UppyFileUploader = ({
               upload_id: data.uploadId,
               file_key: data.key,
               parts: data.parts,
+              project_id: projectId,
+              filename: file.name,
             },
             {
               headers: {
