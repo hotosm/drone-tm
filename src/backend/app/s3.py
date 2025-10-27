@@ -1,51 +1,41 @@
 from datetime import timedelta
 from io import BytesIO
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
-import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
 from loguru import logger as log
+from minio import Minio
+from minio.commonconfig import CopySource
+from minio.datatypes import Part
+from minio.error import S3Error
 
 from app.config import settings
 from app.utils import strip_presigned_url_for_local_dev
 
-# For presigned URL generation, use signature version 2 for MinIO compatibility
-from botocore.client import Config
 
-
-def s3_client(use_public_endpoint=False):
-    """Return the initialised S3 client with credentials.
+def s3_client(use_public_endpoint: bool = False):
+    """Return the initialised MinIO client with credentials.
 
     Args:
-        use_public_endpoint: If True and in DEBUG mode, use S3_DOWNLOAD_ROOT for presigned URLs
+        use_public_endpoint: If True and in DEBUG mode, use S3_DOWNLOAD_ROOT for presigned URLs.
+                            This is needed when generating presigned URLs that will be accessed
+                            by the browser, so the signature matches the public hostname.
     """
-    # Determine which endpoint to use
+    # For presigned URLs in local dev, use S3_DOWNLOAD_ROOT so signature matches browser endpoint
     if use_public_endpoint and settings.DEBUG and settings.S3_DOWNLOAD_ROOT:
-        endpoint_url = settings.S3_DOWNLOAD_ROOT
+        endpoint = settings.S3_DOWNLOAD_ROOT
     else:
-        endpoint_url = settings.S3_ENDPOINT
+        endpoint = settings.S3_ENDPOINT
 
-    # Ensure the endpoint has proper protocol
-    if not endpoint_url.startswith(('http://', 'https://')):
-        endpoint_url = f"http://{endpoint_url}"
+    minio_url, is_secure = is_connection_secure(endpoint)
 
-    log.debug(f"Connecting to S3 server via boto3 at {endpoint_url}")
+    log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
 
-    
-
-    return boto3.client(
-        's3',
-        endpoint_url=endpoint_url,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
-        region_name='us-east-1', 
-        use_ssl=endpoint_url.startswith('https://'),
-        verify=False, 
-        config=Config(
-            signature_version='s3v4',
-            s3={'addressing_style': 'path'}
-        )
+    return Minio(
+        minio_url,
+        access_key=settings.S3_ACCESS_KEY,
+        secret_key=settings.S3_SECRET_KEY,
+        secure=is_secure,
     )
 
 
@@ -82,11 +72,9 @@ def check_file_exists(bucket_name: str, object_name: str) -> bool:
     """
     client = s3_client()
     try:
-        # Remove leading slash if present for boto3 compatibility
-        object_name = object_name.lstrip("/")
-        client.head_object(Bucket=bucket_name, Key=object_name)
+        client.stat_object(bucket_name, object_name)
         return True
-    except ClientError:
+    except S3Error:
         return False
 
 
@@ -98,12 +86,12 @@ def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
         file_path (str): The path to the file on the local filesystem.
         s3_path (str): The path in the S3 bucket where the file will be stored.
     """
-    # Remove leading slash for boto3 compatibility
-    s3_path = s3_path.lstrip("/")
+    # Ensure s3_path starts with a forward slash
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
-    client.upload_file(file_path, bucket_name, s3_path)
-    log.debug(f"Uploaded file {file_path} to {bucket_name}/{s3_path}")
+    client.fput_object(bucket_name, s3_path, file_path)
 
 
 def add_obj_to_bucket(
@@ -124,26 +112,20 @@ def add_obj_to_bucket(
         kwargs (dict[str, Any]): Any other arguments to pass to client.put_object.
 
     """
-    # Strip "/" from start of s3_path (not required by boto3)
-    s3_path = s3_path.lstrip("/")
+    # Strip "/" from start of s3_path (not required by put_object)
+    if s3_path.startswith("/"):
+        s3_path = s3_path.lstrip("/")
 
     client = s3_client()
     # Set BytesIO object to start, prior to .read()
     file_obj.seek(0)
 
-    # Prepare extra args for put_object
-    extra_args = kwargs.copy()
-    extra_args['ContentType'] = content_type
-
-    response = client.put_object(
-        Bucket=bucket_name,
-        Key=s3_path,
-        Body=file_obj,
-        **extra_args
+    result = client.put_object(
+        bucket_name, s3_path, file_obj, file_obj.getbuffer().nbytes, **kwargs
     )
     log.debug(
-        f"Created {s3_path} object; etag: {response.get('ETag', 'N/A')}, "
-        f"version-id: {response.get('VersionId', 'N/A')}"
+        f"Created {result.object_name} object; etag: {result.etag}, "
+        f"version-id: {result.version_id}"
     )
 
 
@@ -156,16 +138,14 @@ def get_file_from_bucket(bucket_name: str, s3_path: str, file_path: str):
         file_path (str): The path on the local filesystem where the S3
             file will be saved.
     """
-    # Remove leading slash for boto3 compatibility
-    s3_path = s3_path.lstrip("/")
-
+    # Ensure s3_path starts with a forward slash
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
     try:
         client = s3_client()
-        client.download_file(bucket_name, s3_path, file_path)
-        log.debug(f"Downloaded {bucket_name}/{s3_path} to {file_path}")
-    except ClientError as e:
-        error_code = e.response.get('Error', {}).get('Code', '')
-        if error_code == '404' or error_code == 'NoSuchKey':
+        client.fget_object(bucket_name, s3_path, file_path)
+    except S3Error as e:
+        if e.code == "NoSuchKey":
             log.warning(f"File not found in bucket: {s3_path}")
         else:
             log.error(f"Error occurred while downloading file: {e}")
@@ -182,16 +162,22 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
     Returns:
         BytesIO: A BytesIO object containing the content of the downloaded S3 object.
     """
-    # Remove leading slash for boto3 compatibility
-    s3_path = s3_path.lstrip("/")
+    # Ensure s3_path starts with a forward slash
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
 
     client = s3_client()
+    response = None
     try:
-        response = client.get_object(Bucket=bucket_name, Key=s3_path)
-        return BytesIO(response['Body'].read())
-    except ClientError as e:
+        response = client.get_object(bucket_name, s3_path)
+        return BytesIO(response.read())
+    except Exception as e:
         log.warning(f"Failed attempted download from S3 path: {s3_path}")
         raise ValueError(str(e)) from e
+    finally:
+        if response:
+            response.close()
+            response.release_conn()
 
 
 def get_image_dir_url(bucket_name: str, image_dir: str):
@@ -215,20 +201,17 @@ def get_image_dir_url(bucket_name: str, image_dir: str):
 
     url = f"{protocol}://{minio_url}/{bucket_name}{image_dir}"
 
-    client = s3_client()
+    minio_client = s3_client()
     try:
         # List objects with a prefix to check if the directory exists
-        # Remove leading slash for boto3
-        prefix = image_dir.lstrip("/")
-        response = client.list_objects_v2(Bucket=bucket_name, Prefix=prefix, MaxKeys=1)
-        if response.get('Contents'):
+        objects = minio_client.list_objects(bucket_name, prefix=image_dir.lstrip("/"))
+        if any(objects):
             return url
         else:
             return None
 
     except Exception as e:
         log.error(f"Error checking directory existence: {str(e)}")
-        return None
 
 
 def list_objects_from_bucket(bucket_name: str, prefix: str):
@@ -242,32 +225,7 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
         list: A list of objects in the bucket with the specified prefix.
     """
     client = s3_client()
-    # Remove leading slash for boto3
-    prefix = prefix.lstrip("/")
-
-    objects = []
-    paginator = client.get_paginator('list_objects_v2')
-    page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
-
-    for page in page_iterator:
-        if 'Contents' in page:
-            # Convert boto3 format to be compatible with old minio code
-            for obj in page['Contents']:
-                # Create a simple object with attributes for compatibility
-                class S3Object:
-                    def __init__(self, key, size, etag, last_modified):
-                        self.object_name = key
-                        self.size = size
-                        self.etag = etag
-                        self.last_modified = last_modified
-
-                objects.append(S3Object(
-                    obj['Key'],
-                    obj.get('Size', 0),
-                    obj.get('ETag', ''),
-                    obj.get('LastModified', None)
-                ))
-
+    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
     return objects
 
 
@@ -283,17 +241,11 @@ def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
     Returns:
         str: The presigned URL to access the object.
     """
-    # Use public endpoint for presigned URLs in local dev
-    client = s3_client(use_public_endpoint=True)
-    # Remove leading slash for boto3
-    object_name = object_name.lstrip("/")
-
-    url = client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': bucket_name, 'Key': object_name},
-        ExpiresIn=expires * 3600  # Convert hours to seconds
+    client = s3_client()
+    url = client.presigned_get_object(
+        bucket_name, object_name, expires=timedelta(hours=expires)
     )
-    return url
+    return strip_presigned_url_for_local_dev(url)
 
 
 def get_object_metadata(bucket_name: str, object_name: str):
@@ -307,10 +259,7 @@ def get_object_metadata(bucket_name: str, object_name: str):
         dict: A dictionary containing metadata about the object.
     """
     client = s3_client()
-    # Remove leading slash for boto3
-    object_name = object_name.lstrip("/")
-
-    return client.head_object(Bucket=bucket_name, Key=object_name)
+    return client.stat_object(bucket_name, object_name)
 
 
 def generate_static_url(bucket_name: str, s3_path: str):
@@ -370,31 +319,25 @@ def copy_file_within_bucket(
 
         # Check if source file exists
         try:
-            client.head_object(Bucket=bucket_name, Key=source_path)
-        except ClientError:
+            client.stat_object(bucket_name, source_path)
+        except S3Error:
             log.warning(f"Source file not found: {source_path} in bucket {bucket_name}")
             return False
 
-        # Copy the object within the same bucket
-        copy_source = {
-            'Bucket': bucket_name,
-            'Key': source_path
-        }
+        # Create CopySource object
+        copy_source = CopySource(bucket_name, source_path)
 
-        result = client.copy_object(
-            Bucket=bucket_name,
-            Key=destination_path,
-            CopySource=copy_source
-        )
+        # Copy the object within the same bucket
+        result = client.copy_object(bucket_name, destination_path, copy_source)
 
         log.debug(
             f"Successfully copied object within {bucket_name} "
             f"from {source_path} to {destination_path}. "
-            f"ETag: {result.get('ETag', 'N/A')}, Version ID: {result.get('VersionId', 'N/A')}"
+            f"Object name: {result.object_name}, Version ID: {result.version_id}"
         )
         return True
 
-    except ClientError as e:
+    except S3Error as e:
         log.error(f"Error copying object: {e}")
         return False
     except Exception as e:
@@ -416,14 +359,10 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
     client = s3_client()
 
     try:
-        response = client.create_multipart_upload(
-            Bucket=bucket_name,
-            Key=object_name
-        )
-        upload_id = response['UploadId']
+        upload_id = client._create_multipart_upload(bucket_name, object_name, {})
         log.debug(f"Initiated multipart upload for {object_name} with upload ID: {upload_id}")
         return upload_id
-    except ClientError as e:
+    except S3Error as e:
         log.error(f"Error initiating multipart upload: {e}")
         raise
     except Exception as e:
@@ -454,20 +393,19 @@ def get_presigned_upload_part_url(
 
     try:
         # Generate presigned URL signed for localhost:9000
-        url = client.generate_presigned_url(
-            'upload_part',
-            Params={
-                'Bucket': bucket_name,
-                'Key': object_name,
-                'UploadId': upload_id,
-                'PartNumber': part_number
+        url = client.get_presigned_url(
+            "PUT",
+            bucket_name,
+            object_name,
+            expires=timedelta(hours=expires),
+            extra_query_params={
+                "uploadId": upload_id,
+                "partNumber": str(part_number),
             },
-            ExpiresIn=expires * 3600  # Convert hours to seconds
         )
-
         log.debug(f"Generated presigned URL for part {part_number} of {object_name}")
         return url
-    except ClientError as e:
+    except S3Error as e:
         log.error(f"Error generating presigned URL for part upload: {e}")
         raise
     except Exception as e:
@@ -493,37 +431,27 @@ def complete_multipart_upload(
     client = s3_client()
 
     try:
-        # Format parts for boto3 (expects 'PartNumber' and 'ETag' keys)
-        formatted_parts = []
+        # Convert dict parts to Part objects for MinIO SDK
+        part_objects = []
         for part in parts:
-            formatted_part = {}
             # Handle both lowercase and uppercase key names
-            if 'PartNumber' in part:
-                formatted_part['PartNumber'] = part['PartNumber']
-            elif 'part_number' in part:
-                formatted_part['PartNumber'] = part['part_number']
+            part_number = part.get('PartNumber') or part.get('part_number')
+            etag = part.get('ETag') or part.get('etag')
 
-            if 'ETag' in part:
-                formatted_part['ETag'] = part['ETag']
-            elif 'etag' in part:
-                formatted_part['ETag'] = part['etag']
+            if part_number and etag:
+                # Create Part object - strip quotes from ETag if present
+                part_obj = Part(int(part_number), etag.strip('"'))
+                part_objects.append(part_obj)
 
-            formatted_parts.append(formatted_part)
-
-        result = client.complete_multipart_upload(
-            Bucket=bucket_name,
-            Key=object_name,
-            UploadId=upload_id,
-            MultipartUpload={
-                'Parts': formatted_parts
-            }
+        result = client._complete_multipart_upload(
+            bucket_name, object_name, upload_id, part_objects
         )
         log.info(
             f"Completed multipart upload for {object_name}. "
-            f"ETag: {result.get('ETag', 'N/A')}, Version ID: {result.get('VersionId', 'N/A')}"
+            f"ETag: {result.etag}, Version ID: {result.version_id}"
         )
         return True
-    except ClientError as e:
+    except S3Error as e:
         log.error(f"Error completing multipart upload: {e}")
         raise
     except Exception as e:
@@ -546,14 +474,10 @@ def abort_multipart_upload(bucket_name: str, object_name: str, upload_id: str) -
     client = s3_client()
 
     try:
-        client.abort_multipart_upload(
-            Bucket=bucket_name,
-            Key=object_name,
-            UploadId=upload_id
-        )
+        client._abort_multipart_upload(bucket_name, object_name, upload_id)
         log.info(f"Aborted multipart upload for {object_name} with upload ID: {upload_id}")
         return True
-    except ClientError as e:
+    except S3Error as e:
         log.error(f"Error aborting multipart upload: {e}")
         raise
     except Exception as e:
@@ -576,25 +500,14 @@ def list_parts(bucket_name: str, object_name: str, upload_id: str) -> list[dict]
     client = s3_client()
 
     try:
-        parts = []
-        paginator = client.get_paginator('list_parts')
-        page_iterator = paginator.paginate(
-            Bucket=bucket_name,
-            Key=object_name,
-            UploadId=upload_id
-        )
-
-        for page in page_iterator:
-            if 'Parts' in page:
-                for part in page['Parts']:
-                    parts.append({
-                        'part_number': part['PartNumber'],
-                        'etag': part['ETag']
-                    })
-
+        parts_response = client._list_parts(bucket_name, object_name, upload_id)
+        parts = [
+            {"part_number": part.part_number, "etag": part.etag}
+            for part in parts_response.parts
+        ]
         log.debug(f"Listed {len(parts)} parts for {object_name}")
         return parts
-    except ClientError as e:
+    except S3Error as e:
         log.error(f"Error listing parts: {e}")
         raise
     except Exception as e:
