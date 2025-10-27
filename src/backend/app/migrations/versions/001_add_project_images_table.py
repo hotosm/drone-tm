@@ -21,17 +21,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum type for image status
-    image_status_enum = postgresql.ENUM(
-        'staged',
-        'classified',
-        'invalid_exif',
-        'unmatched',
-        'duplicate',
-        name='image_status',
-        create_type=True
-    )
-    image_status_enum.create(op.get_bind(), checkfirst=True)
+    # Create enum type for image status (only if it doesn't exist)
+    connection = op.get_bind()
+    result = connection.execute(sa.text(
+        "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'image_status')"
+    )).scalar()
+
+    if not result:
+        image_status_enum = postgresql.ENUM(
+            'staged',
+            'classified',
+            'invalid_exif',
+            'unmatched',
+            'duplicate',
+            name='image_status',
+            create_type=False
+        )
+        image_status_enum.create(op.get_bind(), checkfirst=False)
 
     # Create project_images table
     op.create_table(
@@ -44,22 +50,22 @@ def upgrade() -> None:
         sa.Column('hash_md5', sa.CHAR(32), nullable=False),
         sa.Column('location', Geometry('POINT', srid=4326), nullable=True),
         sa.Column('exif', postgresql.JSONB(), nullable=True),
-        sa.Column('uploaded_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('uploaded_by', sa.String(), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('uploaded_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('classified_at', sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column('status', image_status_enum, server_default='staged', nullable=False),
+        sa.Column('status', postgresql.ENUM('staged', 'classified', 'invalid_exif', 'unmatched', 'duplicate', name='image_status', create_type=False), server_default='staged', nullable=False),
         sa.Column('duplicate_of', postgresql.UUID(as_uuid=True), sa.ForeignKey('project_images.id', ondelete='SET NULL'), nullable=True),
     )
 
-    # Create indexes for better query performance
-    op.create_index('idx_project_images_project_id', 'project_images', ['project_id'])
-    op.create_index('idx_project_images_task_id', 'project_images', ['task_id'])
-    op.create_index('idx_project_images_status', 'project_images', ['status'])
-    op.create_index('idx_project_images_hash_md5', 'project_images', ['hash_md5'])
-    op.create_index('idx_project_images_uploaded_by', 'project_images', ['uploaded_by'])
+    # Create indexes for better query performance (if they don't exist)
+    op.create_index('idx_project_images_project_id', 'project_images', ['project_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_project_images_task_id', 'project_images', ['task_id'], unique=False, if_not_exists=True)
+    op.create_index('idx_project_images_status', 'project_images', ['status'], unique=False, if_not_exists=True)
+    op.create_index('idx_project_images_hash_md5', 'project_images', ['hash_md5'], unique=False, if_not_exists=True)
+    op.create_index('idx_project_images_uploaded_by', 'project_images', ['uploaded_by'], unique=False, if_not_exists=True)
 
-    # Create spatial index on location
-    op.execute('CREATE INDEX idx_project_images_location ON project_images USING GIST (location);')
+    # Create spatial index on location (if it doesn't exist)
+    op.execute('CREATE INDEX IF NOT EXISTS idx_project_images_location ON project_images USING GIST (location);')
 
 
 def downgrade() -> None:
