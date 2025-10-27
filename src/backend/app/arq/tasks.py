@@ -126,7 +126,9 @@ async def process_uploaded_image(
             # Check for duplicates - IDEMPOTENT: return existing record if found
             duplicate_id = await check_duplicate_image(db, UUID(project_id), file_hash)
             if duplicate_id:
-                log.info(f"Duplicate image detected (idempotent): {file_hash}, existing record: {duplicate_id}")
+                log.info(
+                    f"Duplicate image detected (idempotent): {file_hash}, existing record: {duplicate_id}"
+                )
                 # Return existing record - idempotent behavior, don't create new record
                 sql = "SELECT * FROM project_images WHERE id = %(id)s"
                 async with db.cursor(row_factory=dict_row) as cur:
