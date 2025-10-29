@@ -143,6 +143,12 @@ async def home(request: Request):
         return RedirectResponse(f"{settings.API_PREFIX}/docs")
 
 
+@api.get("/__lbheartbeat__")
+async def simple_heartbeat():
+    """Simple ping/pong API response."""
+    return Response(status_code=HTTPStatus.OK)
+
+
 @api.get("/__heartbeat__")
 async def heartbeat_plus_db(db: Annotated[Connection, Depends(get_db)]):
     """Heartbeat that checks that API and DB are both up and running."""

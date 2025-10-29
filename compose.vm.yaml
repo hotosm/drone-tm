@@ -89,9 +89,10 @@ services:
         "--port",
         "8000",
         "--workers",
-        "${UVICORN_WORKERS:-1}",
+        "1",
         "--log-level",
-        "${UVICORN_LOG_LEVEL:-info}",
+        "critical",
+        "--no-access-log",
       ]
     networks:
       - dtm-network
@@ -105,8 +106,7 @@ services:
           cpus: "0.1"
           memory: 100M
     healthcheck:
-      # test: ["CMD", "curl", "-f", "http://localhost:8000/__lbheartbeat__"]
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/__lbheartbeat__"]
       start_period: 60s
       interval: 10s
       timeout: 5s
