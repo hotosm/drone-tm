@@ -113,9 +113,6 @@ importers:
       dom-to-code:
         specifier: ^1.5.4
         version: 1.5.4(rollup@3.29.5)
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
       exifreader:
         specifier: ^4.26.1
         version: 4.26.1
@@ -2234,10 +2231,6 @@ packages:
 
   dom-to-code@1.5.4:
     resolution: {integrity: sha512-MDOzkqXuDv/cdbZfGAKrVqpKXN+mUaR8q2It3dX5DQMWfljULLZwzMmXnW6wISdqH9SYC5oJeD2+iBpxCfMrNg==}
-
-  dotenv@16.4.7:
-    resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
-    engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -6429,8 +6422,6 @@ snapshots:
     transitivePeerDependencies:
       - rollup
       - supports-color
-
-  dotenv@16.4.7: {}
 
   dunder-proto@1.0.1:
     dependencies:
