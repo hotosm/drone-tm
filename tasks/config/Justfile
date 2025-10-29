@@ -1,0 +1,89 @@
+# Copyright (c) Humanitarian OpenStreetMap Team
+#
+# This file is part of Drone-TM.
+#
+#     Drone-TM is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     Drone-TM is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU General Public License
+#     along with Drone-TM.  If not, see <https:#www.gnu.org/licenses/>.
+#
+
+# Allow usage of nerdctl instead of docker
+docker := env("DOCKER_ALIAS", "docker")
+
+# List available commands
+[private]
+default:
+  just --justfile {{justfile()}} --list config
+
+# Check if a dotenv variable is present
+[no-cd]
+[no-exit-message]
+_dotenv-check key:
+  #!/usr/bin/env sh
+  if [ -z "${{ key }}" ]; then
+      echo "Environment variable {{ key }} is not set."
+      exit 1
+  fi
+
+# Update a variable in the .env file
+[no-cd]
+update-dotenv key value:
+  #!/usr/bin/env sh
+
+  var_name={{key}}
+  var_value={{value}}
+  var_pattern="^${var_name}="
+  new_var="${var_name}=${var_value}"
+
+  if grep -Eq "${var_pattern}" .env; then
+    sed -i "s|${var_pattern}.*|${new_var}|" .env
+  else
+    echo "${new_var}" >> .env
+  fi
+
+# Generate the .env file from scratch, using .env.example and substitutions
+[no-cd]
+generate-dotenv branch="dev":
+  #!/usr/bin/env sh
+  set -e
+
+  # By default we deploy from 'dev' branch, but can be overridden
+
+  cd {{justfile_directory()}}
+  just manage _install_envsubst
+
+  # Check if .env already exists and warn, but continue
+  if [ -f .env ]; then
+    just _echo-yellow "'.env' file already exists. Skipping dotenv generation to avoid overwriting."
+  else
+    # Generate a .env file from .env.example, substituting values from environment
+    ./envsubst -i .env.example | grep -vE '^\s*#|^\s*$' > .env
+  fi
+
+  # Re-export .env to the environment, with cleaned variables
+  if [ -f .env ]; then
+      while IFS= read -r line; do
+          # Remove surrounding quotes (single or double)
+          clean_line=$(echo "$line" | sed -E 's/^([^=]+)=(["'\'']?)(.*)\2$/\1=\3/')
+          var_name=$(echo "$clean_line" | cut -d= -f1)
+          var_value=$(echo "$clean_line" | cut -d= -f2-)
+          export "$var_name=$var_value"
+      done < .env
+  fi
+
+  # Generate compose file (default dev, but can be overridden)
+  export GIT_BRANCH="{{ branch }}"
+  echo ""
+  just _echo-blue "Final compose file output for branch {{ branch }}:"
+  echo ""
+  # NOTE we run through envsubst twice for nested vars
+  ./envsubst -i deploy/compose.sub.yaml | ./envsubst

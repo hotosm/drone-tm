@@ -20,6 +20,7 @@ set dotenv-load
 
 mod build 'tasks/build/Justfile'
 mod start 'tasks/start/Justfile'
+mod config 'tasks/config/Justfile'
 
 # List available commands
 [private]
