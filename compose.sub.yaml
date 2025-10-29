@@ -94,7 +94,7 @@ services:
     networks:
       - dtm-network
     deploy:
-      replicas: ${API_REPLICAS:-4}
+      replicas: ${BACKEND_REPLICAS:-4}
       resources:
         limits:
           cpus: "0.9"
