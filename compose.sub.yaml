@@ -114,11 +114,20 @@ services:
 
   frontend:
     image: ghcr.io/hotosm/drone-tm/frontend:${GIT_BRANCH:-main}
+    build:
+      context: src/frontend
+      dockerfile: Dockerfile
+      target: live
+      args:
+        # For some reason BASE_URL was misused as the API url, so we are stuck with it for now
+        BASE_URL: ${BASE_URL}
+        COG_URL: ${COG_URL}
+        SITE_NAME: ${SITE_NAME}
     volumes:
       - frontend-html:/tmp/frontend_html
     env_file: .env
-    networks:
-      - dtm-network
+    network_mode: none
+    restart: "on-failure:2"
 
   db:
     image: postgis/postgis:16-3.4-alpine

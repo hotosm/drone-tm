@@ -37,9 +37,12 @@ services:
     build:
       context: src/frontend
       dockerfile: Dockerfile
-      target: ${FRONTEND_TARGET_OVERRIDE:-development}
+      target: development
       args:
-        BASE64_ARGS_TO_ENV: <USE FOR LIVE. Base64 encoded env variables>
+        # For some reason BASE_URL was misused as the API url, so we are stuck with it for now
+        BASE_URL: ${BASE_URL}
+        COG_URL: ${COG_URL}
+        SITE_NAME: ${SITE_NAME}
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:

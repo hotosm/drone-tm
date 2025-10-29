@@ -18,6 +18,8 @@
 
 set dotenv-load
 
+mod build 'contrib/just/build/Justfile'
+
 # List available commands
 [private]
 default:

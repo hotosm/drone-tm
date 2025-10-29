@@ -58,7 +58,7 @@ jobs:
       build_target: live
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
-      extra_build_args: BASE64_ARGS_TO_ENV=${{ needs.encode-envs.outputs.ENCODED_ENV }}
+      # extra_build_args: BASE64_ARGS_TO_ENV=${{ needs.encode-envs.outputs.ENCODED_ENV }}
       scan_image: false
     secrets: inherit
 
@@ -69,6 +69,6 @@ jobs:
       - backend-build
     uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@2.0.5
     with:
-      docker_compose_file: compose.vm.yaml
+      docker_compose_file: compose.sub.yaml
       environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
     secrets: inherit

@@ -1,9 +1,7 @@
 import react from '@vitejs/plugin-react';
-import dotenv from 'dotenv';
 import { domToCodePlugin } from 'dom-to-code/vite';
 import { defineConfig } from 'vite';
 
-dotenv.config();
 export default defineConfig({
   base: '/',
   plugins: [

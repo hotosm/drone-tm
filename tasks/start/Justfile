@@ -1,0 +1,72 @@
+# Copyright (c) Humanitarian OpenStreetMap Team
+#
+# This file is part of Drone-TM.
+#
+#     Drone-TM is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     Drone-TM is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU General Public License
+#     along with Drone-TM.  If not, see <https:#www.gnu.org/licenses/>.
+#
+
+# Allow usage of nerdctl instead of docker
+docker := env("DOCKER_ALIAS", "docker")
+
+# List available commands
+[private]
+default:
+  just --justfile {{justfile()}} --list start
+
+# Start Drone-TM
+[no-cd]
+all:
+  #!/usr/bin/env sh
+
+  cd {{justfile_directory()}}
+  {{docker}} compose up -d
+
+# Production deploy, depending which branch on current
+[no-cd]
+prod:
+  #!/usr/bin/env sh
+  set -e
+
+  cd {{justfile_directory()}}
+  export GIT_BRANCH=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)
+  just _echo-blue "Current branch: ${GIT_BRANCH}"
+
+  # Config
+  just config generate-dotenv "${GIT_BRANCH}"
+
+  # Pull images
+  ./envsubst -no-unset -i compose.sub.yaml | {{docker}} compose -f - pull
+
+  # Build frontends
+  just build frontends-prod "${GIT_BRANCH}"
+
+  # Deploy
+  ./envsubst -no-unset -i compose.sub.yaml | \
+        {{docker}} compose -f - up --detach \
+        --remove-orphans --force-recreate
+
+  just _echo-blue "DroneTM started successfully"
+
+# Start backend API only
+[no-cd]
+backend:
+  #!/usr/bin/env sh
+
+  cd {{justfile_directory()}}
+  {{docker}} compose up -d backend
+
+# Start frontend UI
+[no-cd]
+frontend:
+  {{docker}} compose up -d frontend
