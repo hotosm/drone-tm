@@ -5,8 +5,7 @@ import { defineConfig } from 'vite';
 
 dotenv.config();
 export default defineConfig({
-  base:
-    process.env.NODE_ENV === 'development' ? './' : process.env.STATIC_BASE_URL,
+  base: '/',
   plugins: [
     react(),
     process.env.NODE_ENV !== 'production'
@@ -43,9 +42,7 @@ export default defineConfig({
   define: {
     'process.env': {
       BASE_URL: process.env.BASE_URL,
-      API_URL_V1: process.env.API_URL_V1,
       SITE_NAME: process.env.SITE_NAME,
-      STATIC_BASE_URL: process.env.STATIC_BASE_URL,
       COG_URL: process.env.COG_URL,
     },
   },

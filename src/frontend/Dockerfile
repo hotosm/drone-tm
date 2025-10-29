@@ -1,6 +1,5 @@
 # ARG for the base image
 ARG NODE_BASE=22-slim
-ARG MINIO_TAG=RELEASE.2024-08-03T04-33-23Z
 ARG BASE64_ARGS_TO_ENV=ENV_VARS_BASE64_ENCODED_FOR_LIVE
 
 # Base image with frontend code
@@ -32,9 +31,11 @@ RUN pnpm run build
 
 
 
-# Copy static files to minio and generated index.html to volume
-FROM docker.io/minio/minio:${MINIO_TAG} AS live
+# Copy generate static files docker volume at start
+FROM docker.io/debian:trixie-slim AS live
 COPY --from=build /app/dist /tmp/dist
+# Despite what it looks like, there is no sensitive info baked into images (phew..).
+# But this approach should probably be refactored in future.
 COPY --from=build /app/.env /.env
 VOLUME /tmp/frontend_html
 COPY ./docker-entrypoint.sh /docker-entrypoint.sh
