@@ -26,7 +26,7 @@ default:
 
 # Build backend & frontend containers
 [no-cd]
-all: backend frontends
+all: backend frontend
 
 # Build backend container
 [no-cd]

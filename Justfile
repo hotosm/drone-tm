@@ -18,7 +18,8 @@
 
 set dotenv-load
 
-mod build 'contrib/just/build/Justfile'
+mod build 'tasks/build/Justfile'
+mod start 'tasks/start/Justfile'
 
 # List available commands
 [private]
