@@ -70,9 +70,9 @@ jobs:
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
       extra_build_args: |
-        BASE_URL=${{ needs.encode-envs.outputs.BASE_URL }}
-        COG_URL=${{ needs.encode-envs.outputs.COG_URL }}
-        SITE_NAME=${{ needs.encode-envs.outputs.SITE_NAME }}
+        BASE_URL=${{ needs.extra-vars.outputs.BASE_URL }}
+        COG_URL=${{ needs.extra-vars.outputs.COG_URL }}
+        SITE_NAME=${{ needs.extra-vars.outputs.SITE_NAME }}
       scan_image: false
     secrets: inherit
 
