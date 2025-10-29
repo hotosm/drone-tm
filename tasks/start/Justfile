@@ -34,13 +34,19 @@ all:
 
 # Production deploy, depending which branch on current
 [no-cd]
-prod:
+prod branch="none":
   #!/usr/bin/env sh
   set -e
 
   cd {{justfile_directory()}}
-  export GIT_BRANCH=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)
-  just _echo-blue "Current branch: ${GIT_BRANCH}"
+
+  # Use passed in git branch, or determine from current checked out branch
+  GIT_BRANCH="{{ branch }}"
+  if [ "$GIT_BRANCH" = "none" ]; then
+    export GIT_BRANCH=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)
+  fi
+  export GIT_BRANCH
+  just _echo-blue "Using branch: ${GIT_BRANCH}"
 
   # Config
   just config generate-dotenv "${GIT_BRANCH}"

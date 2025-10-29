@@ -33,8 +33,10 @@ RUN pnpm run build
 
 
 # Copy generate static files docker volume at start
-FROM docker.io/debian:trixie-slim AS live
-COPY --from=build /app/dist /tmp/dist
-VOLUME /tmp/frontend_html
+FROM docker.io/rclone/rclone:1 AS prod
+VOLUME /frontend_html
 COPY ./docker-entrypoint.sh /docker-entrypoint.sh
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
+WORKDIR /app
+COPY --from=build /app/dist /app

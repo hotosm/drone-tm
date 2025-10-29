@@ -5,7 +5,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from loguru import logger as log
 from psycopg import Connection
 
-from app.config import settings
 from app.db import database
 from app.projects import project_deps, project_schemas
 from app.tasks import task_logic, task_schemas
@@ -13,7 +12,7 @@ from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/tasks",
+    prefix="/tasks",
     tags=["tasks"],
     responses={404: {"description": "Not found"}},
 )

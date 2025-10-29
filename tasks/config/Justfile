@@ -52,14 +52,14 @@ update-dotenv key value:
 
 # Generate the .env file from scratch, using .env.example and substitutions
 [no-cd]
-generate-dotenv branch="dev":
+generate-dotenv branch="main":
   #!/usr/bin/env sh
   set -e
 
   # By default we deploy from 'dev' branch, but can be overridden
 
   cd {{justfile_directory()}}
-  just manage _install_envsubst
+  just prep _install_envsubst
 
   # Check if .env already exists and warn, but continue
   if [ -f .env ]; then
@@ -72,6 +72,10 @@ generate-dotenv branch="dev":
   # Re-export .env to the environment, with cleaned variables
   if [ -f .env ]; then
       while IFS= read -r line; do
+          # Skip comments and empty lines
+          case "$line" in
+              \#*|'') continue ;;
+          esac
           # Remove surrounding quotes (single or double)
           clean_line=$(echo "$line" | sed -E 's/^([^=]+)=(["'\'']?)(.*)\2$/\1=\3/')
           var_name=$(echo "$clean_line" | cut -d= -f1)
@@ -86,4 +90,4 @@ generate-dotenv branch="dev":
   just _echo-blue "Final compose file output for branch {{ branch }}:"
   echo ""
   # NOTE we run through envsubst twice for nested vars
-  ./envsubst -i deploy/compose.sub.yaml | ./envsubst
+  ./envsubst -i compose.sub.yaml | ./envsubst

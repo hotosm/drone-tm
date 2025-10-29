@@ -3,7 +3,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg import Connection
 
-from app.config import settings
 from app.db import database
 from app.drones import drone_deps, drone_schemas
 from app.models.enums import HTTPStatus
@@ -15,7 +14,7 @@ from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/drones",
+    prefix="/drones",
     tags=["Drones"],
     responses={404: {"description": "Not found"}},
 )

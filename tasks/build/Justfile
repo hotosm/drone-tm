@@ -46,7 +46,7 @@ frontend:
   {{docker}} compose build frontend
 
 # Build production frontends (via var substitution)
-frontends-prod branch="dev":
+frontends-prod branch="main":
   #!/usr/bin/env sh
   set -e
 

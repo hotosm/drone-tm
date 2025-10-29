@@ -55,7 +55,7 @@ jobs:
       - encode-envs
     with:
       context: ./src/frontend
-      build_target: live
+      build_target: prod
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
       # extra_build_args: BASE64_ARGS_TO_ENV=${{ needs.encode-envs.outputs.ENCODED_ENV }}

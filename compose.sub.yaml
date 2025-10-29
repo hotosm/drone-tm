@@ -60,17 +60,14 @@ services:
       # USE_LETS_ENCRYPT_STAGING: yes
       # Reverse proxy configs
       SERVER_NAME: ${FRONTEND_HOST}
-      # For API under subpath
-      ${FRONTEND_HOST}_REVERSE_PROXY_URL: http://backend:8000
-      ${FRONTEND_HOST}_REVERSE_PROXY_HOST: /api
+      ${FRONTEND_HOST}_REVERSE_PROXY_HOST: http://backend:8000
+      ${FRONTEND_HOST}_REVERSE_PROXY_URL: /api
     ports:
       - 80:8080
       - 443:8443
     networks:
       - dtm-network
     restart: "unless-stopped"
-    annotations:
-      nerdctl/bypass4netns: true
 
   backend:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
@@ -117,14 +114,14 @@ services:
     build:
       context: src/frontend
       dockerfile: Dockerfile
-      target: live
+      target: prod
       args:
         # For some reason BASE_URL was misused as the API url, so we are stuck with it for now
         BASE_URL: ${BASE_URL}
         COG_URL: ${COG_URL}
         SITE_NAME: ${SITE_NAME}
     volumes:
-      - frontend-html:/tmp/frontend_html
+      - frontend-html:/frontend_html
     env_file: .env
     network_mode: none
     restart: "on-failure:2"
@@ -164,8 +161,6 @@ services:
     env_file: .env
     networks:
       - dtm-network
-    volumes:
-      - frontend-html:/project/src/backend/frontend_html
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]

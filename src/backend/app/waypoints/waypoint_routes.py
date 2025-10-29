@@ -44,7 +44,7 @@ from app.waypoints.waypoint_logic import (
 log = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/waypoint",
+    prefix="/waypoint",
     tags=["waypoint"],
     responses={404: {"description": "Not found"}},
 )

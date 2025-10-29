@@ -58,7 +58,7 @@ services:
       - ${PROJECT_DIR:-.}/src/frontend/postcss.config.js:/app/postcss.config.js
       - ${PROJECT_DIR:-.}/src/frontend/tailwind.config.js:/app/tailwind.config.js
       - ${PROJECT_DIR:-.}/src/frontend/vite.config.ts:/app/vite.config.ts
-      - frontend-html:/tmp/frontend_html
+      - frontend-html:/frontend_html
 
   # If error, please upgrade the db with `contrib/pg-upgrade/compose.yaml`
   db:
@@ -134,7 +134,6 @@ services:
       - dtm-network
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
-      - frontend-html:/project/src/backend/frontend_html
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]
