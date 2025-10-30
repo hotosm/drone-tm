@@ -82,11 +82,9 @@ jobs:
       - frontend-build
       - backend-build
     uses: hotosm/gh-workflows/.github/workflows/remote_deploy_just.yml@3.4.1
-    env:
-      GIT_BRANCH: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
     with:
-      environment: ${GIT_BRANCH}
+      environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
       # Note we set build="false", as we already built in the step above
-      command: start prod ${GIT_BRANCH} "false"
+      command: start prod ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }} "false"
       example_env_file_path: .env.example
     secrets: inherit
