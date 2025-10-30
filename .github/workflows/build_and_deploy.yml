@@ -85,6 +85,6 @@ jobs:
     with:
       environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
       # Note we set build="false", as we already built in the step above
-      command: start prod ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }} "false"
+      command: start prod ${{ github.ref_name }} "false"
       example_env_file_path: .env.example
     secrets: inherit
