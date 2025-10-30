@@ -34,7 +34,7 @@ all:
 
 # Production deploy, depending which branch on current
 [no-cd]
-prod branch="none":
+prod branch="none" build="true":
   #!/usr/bin/env sh
   set -e
 
@@ -55,7 +55,9 @@ prod branch="none":
   ./envsubst -no-unset -i compose.sub.yaml | {{docker}} compose -f - pull
 
   # Build frontends
-  just build frontends-prod "${GIT_BRANCH}"
+  if [ "{{ build }}" = "true" ]; then
+    just build frontends-prod "${GIT_BRANCH}"
+  fi
 
   # Deploy
   ./envsubst -no-unset -i compose.sub.yaml | \
