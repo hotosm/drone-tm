@@ -83,6 +83,6 @@ jobs:
       - backend-build
     uses: hotosm/gh-workflows/.github/workflows/remote_deploy_just.yml@3.4.0
     with:
-      environment: ${{ github.ref_name }}
+      environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
       command: start prod
     secrets: inherit
