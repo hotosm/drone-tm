@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Modal from '@Components/common/Modal';
 import { Button } from '@Components/RadixComponents/Button';
+import StepSwitcher from '@Components/common/StepSwitcher';
 import ImageUpload from './ImageUpload';
 import ImageClassification from './ImageClassification';
 import ImageReview from './ImageReview';
@@ -20,10 +21,10 @@ const DroneImageProcessingWorkflow = ({
   const [currentStep, setCurrentStep] = useState(1);
 
   const steps = [
-    { id: 1, title: 'Image Upload', label: 'Upload' },
-    { id: 2, title: 'Classification', label: 'Classify' },
-    { id: 3, title: 'Review', label: 'Review' },
-    { id: 4, title: 'Processing', label: 'Process' },
+    { url: '', step: 1, label: '01', name: 'Image Upload', title: 'Upload' },
+    { url: '', step: 2, label: '02', name: 'Classification', title: 'Classify' },
+    { url: '', step: 3, label: '03', name: 'Review', title: 'Review' },
+    { url: '', step: 4, label: '04', name: 'Processing', title: 'Process' },
   ];
 
   const handleNext = () => {
@@ -67,47 +68,7 @@ const DroneImageProcessingWorkflow = ({
     >
       <div className="naxatw-flex naxatw-h-[calc(85vh-8rem)] naxatw-flex-col naxatw-gap-4">
         {/* Step Indicator */}
-        <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between">
-          {steps.map((step, index) => (
-            <div key={step.id} className="naxatw-flex naxatw-flex-1 naxatw-items-center">
-              <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2">
-                <div
-                  className={`naxatw-flex naxatw-h-10 naxatw-w-10 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border-2 ${
-                    currentStep === step.id
-                      ? 'naxatw-border-red naxatw-bg-red naxatw-text-white'
-                      : currentStep > step.id
-                        ? 'naxatw-border-green-500 naxatw-bg-green-500 naxatw-text-white'
-                        : 'naxatw-border-gray-300 naxatw-bg-white naxatw-text-gray-400'
-                  }`}
-                >
-                  {currentStep > step.id ? (
-                    <span className="material-icons naxatw-text-[1.25rem]">check</span>
-                  ) : (
-                    <span className="naxatw-font-semibold">{step.id}</span>
-                  )}
-                </div>
-                <p
-                  className={`naxatw-text-xs naxatw-font-medium ${
-                    currentStep === step.id
-                      ? 'naxatw-text-[#D73F3F]'
-                      : 'naxatw-text-gray-500'
-                  }`}
-                >
-                  {step.label}
-                </p>
-              </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`naxatw-mx-2 naxatw-h-0.5 naxatw-flex-1 ${
-                    currentStep > step.id
-                      ? 'naxatw-bg-green-500'
-                      : 'naxatw-bg-gray-300'
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+        <StepSwitcher data={steps} activeStep={currentStep} />
 
         {/* Step Title */}
         <div className="naxatw-border-b naxatw-pb-3">

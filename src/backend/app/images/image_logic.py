@@ -150,25 +150,25 @@ async def create_project_image(
         ProjectImageOut: The created project image record
     """
     # Convert location dict to PostGIS point if provided
-    location_sql = None
+    location_sql = "NULL"
     if image_data.location:
         lat = image_data.location.get("lat")
         lon = image_data.location.get("lon")
         if lat is not None and lon is not None:
             location_sql = f"ST_SetSRID(ST_MakePoint({lon}, {lat}), 4326)"
 
-    sql = """
+    sql = f"""
         INSERT INTO project_images (
             project_id, task_id, filename, s3_key, hash_md5,
             location, exif, uploaded_by, status
         ) VALUES (
             %(project_id)s, %(task_id)s, %(filename)s, %(s3_key)s, %(hash_md5)s,
-            {location}, %(exif)s, %(uploaded_by)s, %(status)s
+            {location_sql}, %(exif)s, %(uploaded_by)s, %(status)s
         )
         RETURNING id, project_id, task_id, filename, s3_key, hash_md5,
                   ST_AsGeoJSON(location)::json as location, exif, uploaded_by,
                   uploaded_at, classified_at, status, duplicate_of
-    """.format(location=location_sql if location_sql else "NULL")
+    """
 
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -203,7 +203,7 @@ async def check_duplicate_image(
     Returns:
         UUID of the duplicate image if found, None otherwise
     """
-    sql = """
+    sql = f"""
         SELECT id FROM project_images
         WHERE project_id = %(project_id)s
         AND hash_md5 = %(hash_md5)s
@@ -229,7 +229,7 @@ async def mark_image_as_duplicate(
         image_id: ID of the image to mark as duplicate
         duplicate_of: ID of the original image
     """
-    sql = """
+    sql = f"""
         UPDATE project_images
         SET status = %(status)s, duplicate_of = %(duplicate_of)s
         WHERE id = %(image_id)s
@@ -261,21 +261,21 @@ async def get_images_by_project(
     Returns:
         List of project images
     """
-    sql = """
+    status_filter = ""
+    params = {"project_id": str(project_id)}
+
+    if status:
+        status_filter = " AND status = %(status)s"
+        params["status"] = status.value
+
+    sql = f"""
         SELECT id, project_id, task_id, filename, s3_key, hash_md5,
                ST_AsGeoJSON(location)::json as location, exif, uploaded_by,
                uploaded_at, classified_at, status, duplicate_of
         FROM project_images
-        WHERE project_id = %(project_id)s
+        WHERE project_id = %(project_id)s{status_filter}
+        ORDER BY uploaded_at DESC
     """
-
-    params = {"project_id": str(project_id)}
-
-    if status:
-        sql += " AND status = %(status)s"
-        params["status"] = status.value
-
-    sql += " ORDER BY uploaded_at DESC"
 
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(sql, params)
