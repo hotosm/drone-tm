@@ -15,7 +15,7 @@ on:
 
 jobs:
   backend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.0
     with:
       context: ./src/backend
       build_target: service
@@ -61,7 +61,7 @@ jobs:
           echo $SITE_NAME
 
   frontend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.0
     needs:
       - extra-vars
     with:
@@ -81,8 +81,8 @@ jobs:
     needs:
       - frontend-build
       - backend-build
-    uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@2.0.5
+    uses: hotosm/gh-workflows/.github/workflows/remote_deploy_just.yml@3.4.0
     with:
-      docker_compose_file: compose.sub.yaml
-      environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
+      environment: ${{ github.ref_name }}
+      command: start prod
     secrets: inherit
