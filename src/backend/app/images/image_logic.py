@@ -1,6 +1,7 @@
 """Business logic for project images."""
 
 import hashlib
+import json
 from io import BytesIO
 from typing import Any, Optional
 from uuid import UUID
@@ -10,9 +11,47 @@ from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 from psycopg import Connection
 from psycopg.rows import dict_row
+from psycopg.types.json import Json
 
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import ImageStatus
+
+
+def _convert_exif_value(value: Any) -> Any:
+    """Convert EXIF values to JSON-serializable types.
+
+    PIL's EXIF data contains special types like IFDRational, TiffImagePlugin.IFDRational
+    which need to be converted to standard Python types for JSON serialization.
+    """
+    # Handle IFDRational (PIL's rational number type)
+    if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
+        # Convert rational to float
+        return float(value.numerator) / float(value.denominator) if value.denominator != 0 else 0.0
+
+    # Handle bytes
+    if isinstance(value, bytes):
+        try:
+            return value.decode('utf-8', errors='ignore')
+        except:
+            return str(value)
+
+    # Handle tuples (convert to list for JSON)
+    if isinstance(value, tuple):
+        return [_convert_exif_value(item) for item in value]
+
+    # Handle lists
+    if isinstance(value, list):
+        return [_convert_exif_value(item) for item in value]
+
+    # Handle dicts
+    if isinstance(value, dict):
+        return {k: _convert_exif_value(v) for k, v in value.items()}
+
+    # Handle other non-serializable types
+    if not isinstance(value, (str, int, float, bool, type(None))):
+        return str(value)
+
+    return value
 
 
 def extract_exif_data(image_bytes: bytes) -> tuple[Optional[dict[str, Any]], Optional[dict[str, float]]]:
@@ -45,15 +84,11 @@ def extract_exif_data(image_bytes: bytes) -> tuple[Optional[dict[str, Any]], Opt
             if tag_name == "GPSInfo":
                 for gps_tag_id, gps_value in value.items():
                     gps_tag_name = GPSTAGS.get(gps_tag_id, gps_tag_id)
-                    gps_info[gps_tag_name] = gps_value
+                    # Convert GPS values to JSON-serializable types
+                    gps_info[gps_tag_name] = _convert_exif_value(gps_value)
             else:
-                # Convert bytes to string for JSON serialization
-                if isinstance(value, bytes):
-                    try:
-                        value = value.decode('utf-8', errors='ignore')
-                    except:
-                        value = str(value)
-                exif_dict[tag_name] = value
+                # Convert all EXIF values to JSON-serializable types
+                exif_dict[tag_name] = _convert_exif_value(value)
 
         # Extract GPS coordinates
         location = None
@@ -63,6 +98,24 @@ def extract_exif_data(image_bytes: bytes) -> tuple[Optional[dict[str, Any]], Opt
         # Add GPS info to EXIF dict
         if gps_info:
             exif_dict["GPSInfo"] = gps_info
+
+        # Log EXIF data for debugging
+        log.debug(f"Extracted EXIF data with {len(exif_dict)} tags")
+        log.debug(f"EXIF sample: {list(exif_dict.keys())[:5]}")
+
+        # Verify EXIF data is JSON-serializable
+        try:
+            json.dumps(exif_dict)
+        except TypeError as e:
+            log.error(f"EXIF data contains non-serializable types: {e}")
+            log.error(f"Problematic EXIF keys: {exif_dict.keys()}")
+            # Find the problematic field
+            for key, value in exif_dict.items():
+                try:
+                    json.dumps({key: value})
+                except TypeError:
+                    log.error(f"Non-serializable field: {key} = {type(value)} {value}")
+            raise
 
         return exif_dict, location
 
@@ -179,7 +232,7 @@ async def create_project_image(
                 "filename": image_data.filename,
                 "s3_key": image_data.s3_key,
                 "hash_md5": image_data.hash_md5,
-                "exif": image_data.exif,
+                "exif": Json(image_data.exif) if image_data.exif else None,
                 "uploaded_by": str(image_data.uploaded_by),
                 "status": image_data.status.value,
             },

@@ -876,6 +876,7 @@ async def complete_upload(
             data.file_key,
             data.filename,
             str(user.id),
+            _queue_name="default_queue",
         )
 
         log.info(f"Queued image processing job: {job.job_id} for file: {data.filename}")
