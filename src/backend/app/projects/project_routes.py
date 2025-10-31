@@ -867,6 +867,9 @@ async def complete_upload(
         )
 
         # Queue background task to process image (EXIF extraction, hash, duplicate check)
+        # NOTE: Each image is queued individually (not batched) to isolate failures.
+        # If one image has corrupt EXIF data, others aren't affected. Redis/ARQ should
+        # handle thousands of jobs, but monitor performance if queue length grows significantly.
         job = await redis.enqueue_job(
             "process_uploaded_image",
             str(data.project_id),
