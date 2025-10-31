@@ -54,7 +54,9 @@ def _convert_exif_value(value: Any) -> Any:
     return value
 
 
-def extract_exif_data(image_bytes: bytes) -> tuple[Optional[dict[str, Any]], Optional[dict[str, float]]]:
+def extract_exif_data(
+    image_bytes: bytes,
+) -> tuple[Optional[dict[str, Any]], Optional[dict[str, float]]]:
     """Extract EXIF data and GPS coordinates from image bytes.
 
     Args:
@@ -264,9 +266,7 @@ async def check_duplicate_image(
     """
 
     async with db.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            sql, {"project_id": str(project_id), "hash_md5": hash_md5}
-        )
+        await cur.execute(sql, {"project_id": str(project_id), "hash_md5": hash_md5})
         result = await cur.fetchone()
 
     return result["id"] if result else None
