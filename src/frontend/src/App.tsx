@@ -86,7 +86,7 @@ export default function App() {
         </PromptDialog>
         <div
           id="app_playground"
-          className="app_playground scrollbar naxatw-overflow-y-auto naxatw-px-3 naxatw-px-0"
+          className="app_playground scrollbar naxatw-overflow-y-auto"
           style={{
             height: 'calc(100vh-3.5rem)',
           }}
