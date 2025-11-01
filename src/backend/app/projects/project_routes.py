@@ -51,7 +51,7 @@ from app.utils import (
 )
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/projects",
+    prefix="/projects",
     responses={404: {"description": "Not found"}},
 )
 

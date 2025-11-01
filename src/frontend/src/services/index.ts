@@ -2,13 +2,10 @@
 import axios, { AxiosInstance } from 'axios';
 import { toast } from 'react-toastify';
 
-const { API_URL_V1, BASE_URL } = process.env;
-
-export const baseURL = BASE_URL;
-export const apiURL = API_URL_V1;
+const { BASE_URL } = process.env;
 
 export const api = axios.create({
-  baseURL: API_URL_V1,
+  baseURL: BASE_URL,
   timeout: 5 * 60 * 1000,
   headers: {
     accept: 'application/json',

@@ -15,7 +15,9 @@ from drone_flightplan import (
     create_waypoint,
 )
 from drone_flightplan.output.dji import create_wpml
-from drone_flightplan.output.potensic import generate_potensic_sqlite
+from drone_flightplan.output.potensic import create_potensic_sqlite
+from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
+from drone_flightplan.output.litchi import create_litchi_csv
 from drone_flightplan.drone_type import DroneType, DRONE_PARAMS
 from drone_flightplan.enums import GimbalAngle
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -42,7 +44,7 @@ from app.waypoints.waypoint_logic import (
 log = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/waypoint",
+    prefix="/waypoint",
     tags=["waypoint"],
     responses={404: {"description": "Not found"}},
 )
@@ -54,13 +56,16 @@ async def get_task_waypoint(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
-    mode: FlightMode = FlightMode.waylines,
+    mode: FlightMode = FlightMode.WAYLINES,
     rotation_angle: float = 0,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     take_off_point: waypoint_schemas.PointField = None,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ):
     """Retrieve task waypoints and download a flight plan.
+
+    FIXME why do we do all steps manually here, when we have create_flightplan
+    FIXME helper available?
 
     Args:
         project_id (uuid.UUID): The UUID of the project.
@@ -148,7 +153,7 @@ async def get_task_waypoint(
         dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
 
         # Terrain follow uses waypoints mode, waylines are generated later
-        waypoint_params["mode"] = FlightMode.waypoints
+        waypoint_params["mode"] = FlightMode.WAYPOINTS
         points = create_waypoint(**waypoint_params)
 
         try:
@@ -174,7 +179,7 @@ async def get_task_waypoint(
         placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
 
         # Create a flight plan with terrain follow in waylines mode
-        if mode == FlightMode.waylines:
+        if mode == FlightMode.WAYLINES:
             placemarks = terrain_following_waylines.waypoints2waylines(placemarks, 5)
 
     else:
@@ -195,12 +200,26 @@ async def get_task_waypoint(
                 filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.kmz",
             )
         elif output_format == "POTENSIC_SQLITE":
-            outpath = generate_potensic_sqlite(placemarks, outfile)
+            outpath = create_potensic_sqlite(placemarks, outfile)
             return FileResponse(
                 # NOTE potensic file is always named map.db
                 outpath,
                 media_type="application/vnd.sqlite3",
                 filename="map.db",
+            )
+        elif output_format == "QGROUNDCONTROL":
+            outpath = create_qgroundcontrol_plan(placemarks, outfile)
+            return FileResponse(
+                outpath,
+                media_type="application/json",
+                filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.plan",
+            )
+        elif output_format == "LITCHI":
+            outpath = create_litchi_csv(placemarks, outfile, flight_mode=mode)
+            return FileResponse(
+                outpath,
+                media_type="text/csv",
+                filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.csv",
             )
         else:
             msg = f"Unsupported output format / drone type: {output_format}"
@@ -239,10 +258,6 @@ async def generate_wmpl_kmz(
         70,
         description="The percentage of overlap between images taken during the mission.",
     ),
-    generate_each_points: bool = Form(
-        False,
-        description="A flag indicating weather you want to generate waypoints for each point in the boundary and capture image at each point or just at the end of the waylines",
-    ),
     generate_3d: bool = Form(
         False,
         description="A flag indicating weather you want to generate 3D imageries or not (To generate 3D imagery, we need to click images at 3 different angles -90, -45 and lateral 45 degree angle)",
@@ -255,8 +270,18 @@ async def generate_wmpl_kmz(
         None,
         description="The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format",
     ),
-    take_off_point: waypoint_schemas.PointField = None,
-    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
+    take_off_point: waypoint_schemas.PointField = Form(
+        None,
+        description="The coordinate that the drone will take off from (important for AGL calculations).",
+    ),
+    drone_type: DroneType = Form(
+        DroneType.DJI_MINI_4_PRO,
+        description="The model of drone to use parameters for.",
+    ),
+    flight_mode: FlightMode = Form(
+        FlightMode.WAYLINES,
+        description="Use 'waypoint' or 'wayline' mode for the flightplan.",
+    ),
 ):
     if not (altitude or gsd):
         raise HTTPException(
@@ -297,7 +322,7 @@ async def generate_wmpl_kmz(
             gsd=gsd,
             forward_overlap=forward_overlap,
             side_overlap=side_overlap,
-            generate_each_points=generate_each_points,
+            flight_mode=flight_mode,
             generate_3d=generate_3d,
             take_off_point=take_off_point,
             drone_type=drone_type,
@@ -310,7 +335,7 @@ async def generate_wmpl_kmz(
             side_overlap=side_overlap,
             agl=altitude,
             gsd=gsd,
-            generate_each_points=generate_each_points,
+            flight_mode=flight_mode,
             dem=dem_path if dem else None,
             outfile=f"/tmp/{uuid.uuid4()}",
             take_off_point=take_off_point,

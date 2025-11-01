@@ -33,7 +33,7 @@ if settings.DEBUG:
 
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/users",
+    prefix="/users",
     tags=["users"],
     responses={404: {"description": "Not found"}},
 )

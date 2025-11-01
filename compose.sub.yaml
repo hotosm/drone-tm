@@ -1,0 +1,177 @@
+networks:
+  dtm-network:
+    name: dtm-network
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.20.30.0/24
+
+volumes:
+  db-data:
+    name: drone-tm-db-data-${GIT_BRANCH}
+  frontend-html:
+    name: drone-tm-frontend-html-${GIT_BRANCH}
+  certs:
+    name: drone-tm-certs-${GIT_BRANCH}
+
+services:
+  proxy:
+    image: "bunkerity/bunkerweb-all-in-one:1.6.2"
+    depends_on:
+      backend:
+        condition: service_healthy
+      # Frontends must be built and available first
+      frontend:
+        condition: service_completed_successfully
+    volumes:
+      - certs:/data
+      - frontend-html:/var/www/html/${FRONTEND_HOST}:ro
+    environment:
+      # General
+      BUNKERWEB_INSTANCES: proxy:5000
+      LOG_LEVEL: notice
+      UI_WIZARD: no
+      USE_BUNKERNET: no
+      DISABLE_DEFAULT_SERVER: yes
+      USE_REDIS: no
+      # Avoid running ModSec rules on internal service calls
+      API_WHITELIST_IP: 127.0.0.0/8 10.20.30.0/24
+      WHITELIST_IP: 10.20.30.0/24
+      WHITELIST_URI: ${FRONTEND_URL}
+      MULTISITE: yes
+      USE_REVERSE_PROXY: yes
+      REVERSE_PROXY_INTERCEPT_ERRORS: no
+      ALLOWED_METHODS: OPTIONS|HEAD|GET|POST|PATCH|PUT|DELETE
+      USE_REAL_IP: yes
+      SERVE_FILES: yes
+      USE_BACKUP: no
+      USE_METRICS: no
+      # USE_ANTIBOT: yes
+      USE_LIMIT_CONN: yes
+      # BAD_BEHAVIOUR disabled as it's difficult to work with...
+      USE_BAD_BEHAVIOR: no
+      USE_LIMIT_REQ: yes
+      # USE_MODSECURITY: yes
+      USE_GZIP: yes
+      # On client, brotli is preferred over gzip if both are enabled
+      USE_BROTLI: yes
+      AUTO_LETS_ENCRYPT: yes
+      EMAIL_LETS_ENCRYPT: ${CERT_EMAIL}
+      # USE_LETS_ENCRYPT_STAGING: yes
+      # Reverse proxy configs
+      SERVER_NAME: ${FRONTEND_HOST}
+      ${FRONTEND_HOST}_REVERSE_PROXY_HOST: http://backend:8000
+      ${FRONTEND_HOST}_REVERSE_PROXY_URL: /api
+      ${FRONTEND_HOST}_ERRORS=404: /index.html
+    ports:
+      - 80:8080
+      - 443:8443
+    networks:
+      - dtm-network
+    restart: "unless-stopped"
+
+  backend:
+    image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
+    restart: always
+    depends_on:
+      - db
+    volumes:
+      - frontend-html:/project/src/backend/frontend_html
+    env_file: .env
+    command:
+      [
+        "uvicorn",
+        "app.main:api",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--workers",
+        "1",
+        "--log-level",
+        "critical",
+        "--no-access-log",
+      ]
+    networks:
+      - dtm-network
+    deploy:
+      replicas: ${BACKEND_REPLICAS:-4}
+      resources:
+        limits:
+          cpus: "0.9"
+          memory: 1500M
+        reservations:
+          cpus: "0.1"
+          memory: 100M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/__lbheartbeat__"]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    image: ghcr.io/hotosm/drone-tm/frontend:${GIT_BRANCH:-main}
+    build:
+      context: src/frontend
+      dockerfile: Dockerfile
+      target: prod
+      args:
+        # For some reason BASE_URL was misused as the API url, so we are stuck with it for now
+        BASE_URL: ${BASE_URL}
+        COG_URL: ${COG_URL}
+        SITE_NAME: ${SITE_NAME}
+    volumes:
+      - frontend-html:/frontend_html
+    env_file: .env
+    network_mode: none
+    restart: "on-failure:2"
+
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    env_file: .env
+    networks:
+      - dtm-network
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
+      start_period: 5s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  migrations:
+    image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
+    depends_on:
+      - backend
+      - db
+    env_file:
+      - .env
+    networks:
+      - dtm-network
+    entrypoint: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  arq-worker:
+    image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
+    command: arq app.arq.tasks.WorkerSettings
+    depends_on:
+      - redis
+    env_file: .env
+    networks:
+      - dtm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - dtm-network
+    restart: unless-stopped

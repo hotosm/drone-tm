@@ -42,7 +42,7 @@ def raster_data_format_string(input_datatype: str):
     return struct_data_type
 
 
-def add_elevation_from_dem(raster_file, points, outfile):
+def add_elevation_from_dem(raster_file, points, outfile) -> int:
     """Arguments:
         DEM raster file as GeoTIFF
         Points as GeoJSON string
@@ -149,7 +149,8 @@ def add_elevation_from_dem(raster_file, points, outfile):
     return 0
 
 
-if __name__ == "__main__":
+def main() -> int:
+    """The main func for argparse / CLI usage."""
     p = argparse.ArgumentParser()
 
     p.add_argument("inraster", help="input DEM GeoTIFF raster file")
@@ -161,4 +162,8 @@ if __name__ == "__main__":
     inpointsfile = open(a.inpoints, "r")
     points = inpointsfile.read()
 
-    writeout = add_elevation_from_dem(a.inraster, points, a.outfile)
+    return add_elevation_from_dem(a.inraster, points, a.outfile)
+
+
+if __name__ == "__main__":
+    main()

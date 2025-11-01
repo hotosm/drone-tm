@@ -112,9 +112,7 @@ def chunked(iterable: Iterable, size: int):
         yield chunk
 
 
-def generate_potensic_sqlite(
-    featcol: geojson.FeatureCollection, db_path: str = "map.db"
-):
+def create_potensic_sqlite(featcol: geojson.FeatureCollection, db_path: str = "map.db"):
     """
     Generate SQLite DB in `db_path` with one flight record and many multipointbean entries.
 
@@ -221,4 +219,4 @@ if __name__ == "__main__":
         (-0.13503835387621166, 51.56557913214192),
         (-0.1350708671484142, 51.56560158864778),
     ]
-    generate_potensic_sqlite(sample_coords, "map.db")
+    create_potensic_sqlite(sample_coords, "map.db")

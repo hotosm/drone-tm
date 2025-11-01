@@ -1,3 +1,25 @@
+"""
+Create a DJI .kmz file containing .wpml XML flight instructions.
+
+Details: https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dji-wpml/overview.html
+
+NOTE as of 21-10-2025, the DJI Waypoint engine built into the DJI Fly app does not
+support photo interval capture.
+The Waypoint Markup Language spec does actually support this! The problem is the
+engine implementation we have in DJI Fly does not.
+The Litchi app does support photo interval capture, however.
+
+Quote from Litchi engineer:
+'''
+Waypoint actions add a lot of code to the WPML data, making the KMZ file much larger.
+While the WPML language does support distance intervals, apparently, DJI has not
+implemented that function in their waypoint engine. If they did, distance intervals
+could be added to the WPML code just as they can be for flights flown with the Litchi
+app. For now, we seem to be constrained by the memory limitations of the flying
+device and partially supported WPML functions in the DJI waypoint implementation.
+'''
+"""
+
 import argparse
 import logging
 import os
@@ -31,18 +53,6 @@ def create_zip_file(waylines_path_uid):
     # Create the wpmz folder if it doesn't exist
     wpmz_path = f"{waylines_path_uid}/wpmz"
     os.makedirs(wpmz_path, exist_ok=True)
-
-    # TODO: Need to check if it is really required. It might not be needed.
-
-    # # Parse the XML string
-    # root = ET.fromstring(xml_string)
-
-    # # Create an ElementTree object
-    # tree = ET.ElementTree(root)
-
-    # # Write the ElementTree object to a file
-    # with open(f"{wpmz_path}/template.kml", "wb") as file:
-    #     tree.write(file, encoding="utf-8", xml_declaration=True)
 
     # Read content of template.kml
     with open(f"{waylines_path_uid}/waylines.wpml", "r") as f:

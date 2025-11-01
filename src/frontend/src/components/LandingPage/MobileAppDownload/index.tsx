@@ -18,7 +18,7 @@ const MobileAppDownload = () => {
               Download our Mobile App
             </h1>
             <p className="naxatw-text-sm md:naxatw-text-base">
-              Drone TM is an integrated open source digital public good solution
+              DroneTM is an integrated open source digital public good solution
               that aims to harness the power of the crowd to help generate
               high-resolution aerial maps to improve resilience of the disaster
               prone communities across the world.

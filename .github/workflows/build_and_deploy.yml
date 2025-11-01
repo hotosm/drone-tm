@@ -6,7 +6,7 @@ on:
     branches:
       - main
       - staging
-      - develop
+      - dev
     paths:
       # Workflow is triggered only if src changes
       - src/**
@@ -15,7 +15,7 @@ on:
 
 jobs:
   backend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.1
     with:
       context: ./src/backend
       build_target: service
@@ -24,12 +24,14 @@ jobs:
       scan_image: false
     secrets: inherit
 
-  encode-envs:
+  extra-vars:
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.ref_name }}
+      name: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
     outputs:
-      ENCODED_ENV: ${{ steps.vars_and_secrets_to_b64.outputs.ENCODED_ENV }}
+      BASE_URL: ${{ steps.vars_and_secrets_to_env.outputs.BASE_URL }}
+      COG_URL: ${{ steps.vars_and_secrets_to_env.outputs.COG_URL }}
+      SITE_NAME: ${{ steps.vars_and_secrets_to_env.outputs.SITE_NAME }}
     steps:
       - name: Vars to Env File
         env:
@@ -43,22 +45,34 @@ jobs:
             echo "${VARS_CONTEXT}" | to_envs > .env
           fi
 
-      - name: Vars and Secrets to base64 encoded
-        id: vars_and_secrets_to_b64
+      - name: Extract relevant vars
+        id: vars_and_secrets_to_env
         run: |
-          ENCODED_ENV=$(cat .env | base64 -w0 | tr -d '\n' | tr -d '[:space:]' | xargs )
-          echo "ENCODED_ENV=${ENCODED_ENV}" >> "$GITHUB_OUTPUT"
+          BASE_URL=$(grep '^BASE_URL=' .env | cut -d '=' -f2-)
+          echo $BASE_URL
+          echo "BASE_URL=${BASE_URL}" >> "$GITHUB_OUTPUT"
+
+          COG_URL=$(grep '^COG_URL=' .env | cut -d '=' -f2-)
+          echo "COG_URL=${COG_URL}" >> "$GITHUB_OUTPUT"
+          echo $COG_URL
+
+          SITE_NAME=$(grep '^SITE_NAME=' .env | cut -d '=' -f2-)
+          echo "SITE_NAME=${SITE_NAME}" >> "$GITHUB_OUTPUT"
+          echo $SITE_NAME
 
   frontend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@2.0.5
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.1
     needs:
-      - encode-envs
+      - extra-vars
     with:
       context: ./src/frontend
-      build_target: live
+      build_target: prod
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
-      extra_build_args: BASE64_ARGS_TO_ENV=${{ needs.encode-envs.outputs.ENCODED_ENV }}
+      extra_build_args: |
+        BASE_URL=${{ needs.extra-vars.outputs.BASE_URL }}
+        COG_URL=${{ needs.extra-vars.outputs.COG_URL }}
+        SITE_NAME=${{ needs.extra-vars.outputs.SITE_NAME }}
       scan_image: false
     secrets: inherit
 
@@ -67,8 +81,10 @@ jobs:
     needs:
       - frontend-build
       - backend-build
-    uses: hotosm/gh-workflows/.github/workflows/remote_deploy_compose.yml@2.0.5
+    uses: hotosm/gh-workflows/.github/workflows/remote_deploy_just.yml@3.4.1
     with:
-      docker_compose_file: compose.vm.yaml
-      environment: ${{ github.ref_name }}
+      environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
+      # Note we set build="false", as we already built in the step above
+      command: start prod ${{ github.ref_name }} "false"
+      example_env_file_path: .env.example
     secrets: inherit
