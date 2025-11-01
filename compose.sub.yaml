@@ -62,6 +62,7 @@ services:
       SERVER_NAME: ${FRONTEND_HOST}
       ${FRONTEND_HOST}_REVERSE_PROXY_HOST: http://backend:8000
       ${FRONTEND_HOST}_REVERSE_PROXY_URL: /api
+      ${FRONTEND_HOST}_ERRORS=404: /index.html"
     ports:
       - 80:8080
       - 443:8443
@@ -150,7 +151,7 @@ services:
       - .env
     networks:
       - dtm-network
-    entrypoint: ["uv", "run", "alembic", "upgrade", "head"]
+    entrypoint: ["alembic", "upgrade", "head"]
     restart: "no"
 
   arq-worker:
