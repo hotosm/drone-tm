@@ -1,4 +1,4 @@
-# Setting Up Drone TM For Development
+# Setting Up DroneTM For Development
 
 !!! important
 

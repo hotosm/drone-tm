@@ -33,7 +33,7 @@
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
 
-**Drone TM** is an integrated digital public good solution designed to harness
+**DroneTM** is an integrated digital public good solution designed to harness
 the power of the crowd to generate high-resolution aerial maps of any location.
 
 This innovative platform provides drone pilots, particularly in developing
@@ -46,7 +46,7 @@ In low-income and disaster-prone areas, the accessibility to near real-time sate
 
 ## Solution
 
-**Drone TM** offers a solution to these challenges by empowering communities to utilize drones for immediate and locally relevant mapping needs. Our platform:
+**DroneTM** offers a solution to these challenges by empowering communities to utilize drones for immediate and locally relevant mapping needs. Our platform:
 
 - Provides a user-friendly, inclusive application enabling anyone with a drone, including inexpensive consumer or DIY drones, to contribute to a global repository of free and open aerial imagery.
 - Facilitates community-driven drone operations, ensuring immediate response and responsible mapping that considers local needs.
@@ -72,7 +72,7 @@ the [FAQ](https://docs.dronetm.hotosm.org/about/faq/#q-what-drones-are-supported
 
 ## Getting Started
 
-To get started with Drone TM:
+To get started with DroneTM:
 
 1. **Sign Up**: Create an account and join our community of project creators and drone pilots.
 2. **Create Projects**: Sign up as a project creator to define Area for mapping.
@@ -149,7 +149,7 @@ For now, all other drones have a compromise of some kind.
 
 ## Contribution
 
-Drone TM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
+DroneTM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
 
 - **Fork the Repository**: https://github.com/hotosm/drone-tm
 - **Report Issues**: https://github.com/hotosm/drone-tm/issues
