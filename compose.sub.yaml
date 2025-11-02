@@ -51,7 +51,7 @@ services:
       # BAD_BEHAVIOUR disabled as it's difficult to work with...
       USE_BAD_BEHAVIOR: no
       USE_LIMIT_REQ: yes
-      # USE_MODSECURITY: yes
+      USE_MODSECURITY: no
       USE_GZIP: yes
       # On client, brotli is preferred over gzip if both are enabled
       USE_BROTLI: yes
