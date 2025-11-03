@@ -1,5 +1,5 @@
 import Image from '@Components/RadixComponents/Image';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import dtmLogo from '@Assets/images/DTM-logo-black.svg';
 import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
@@ -7,7 +7,6 @@ import { FlexRow } from '../Layouts';
 
 export default function Navbar() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const pathnameOnArray = pathname?.split('/');
   const isApprovalPage =
     pathnameOnArray?.includes('projects') &&
@@ -16,17 +15,18 @@ export default function Navbar() {
   return (
     <nav className="naxatw-h-[3.5rem] naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
       <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-px-16">
-        <div
+        <a
           className="naxatw-cursor-pointer"
           role="presentation"
-          onClick={() => navigate('/')}
+          aria-label="Navigate to home page"
+          href="/"
         >
           <Image
             src={dtmLogo}
-            alt="DTM-logo"
+            alt="Drone Tasking Manager Logo"
             className="naxatw-h-8 naxatw-w-40"
           />
-        </div>
+        </a>
         {!isApprovalPage && (
           <>
             <FlexRow className="naxatw-gap-4">
