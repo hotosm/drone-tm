@@ -74,8 +74,8 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     restart: always
     depends_on:
-      db:
-        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     volumes:
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
@@ -146,8 +146,6 @@ services:
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     depends_on:
-      backend:
-        condition: service_healthy
       db:
         condition: service_healthy
     env_file:
