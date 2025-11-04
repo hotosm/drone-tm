@@ -20,7 +20,7 @@
 ## Configure Your Dotenv
 
 - There is an example `.env.example` file that `.env` can be generated from:
-  `envsubst -i .env.example -o .env`
+  `cp .env.example .env`
 - If you only plan on using the backend then everything should be
   configured for you.
 - Else, if you set up Google OAuth credentials, set the variables here:
