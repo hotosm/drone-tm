@@ -1,12 +1,10 @@
 # Setting Up DroneTM For Development
 
-!!! important
+## Prerequisites
 
-      You must have Docker and Docker Compose installed first.
-
-      Docker install guide: [https://docs.docker.com/engine/install][1]
-
-      Compose install guide: [https://docs.docker.com/compose/install][2]
+- [Docker](https://docs.docker.com/engine/install)
+- [Docker Compose](https://docs.docker.com/compose/install)
+- [Just](https://github.com/casey/just#installation)
 
 ## (Optional) Configure Google OAuth
 
@@ -19,8 +17,8 @@
 
 ## Configure Your Dotenv
 
-- There is an example `.env.example` file that `.env` can be generated from:
-  `cp .env.example .env`
+- There is an example `.env.example` file that `.env` can be generated from using this command:
+  `just config generate-dotenv`
 - If you only plan on using the backend then everything should be
   configured for you.
 - Else, if you set up Google OAuth credentials, set the variables here:
@@ -30,19 +28,16 @@
   GOOGLE_LOGIN_REDIRECT_URI="http://localhost:3040/auth"
   ```
 
-## Build The Containers
+### Build and Run The Containers
 
-```bash
-docker compose build
-```
-
-### Run The Containers
-
-This will also run ODM alongside DroneTM:
-
-```bash
-docker compose -f compose.yaml -f compose.odm.yaml up -d
-```
+- The `Justfile` in the project root contains all the logic needed to build and run the application.
+- To start the application, run:
+  `just start all`
+- This single command will:
+    1.  Generate a `.env` file if one doesn't exist.
+    2.  Pull the required Docker images.
+    3.  Build the frontend container.
+    4.  Start all services correctly.
 
 ### Access The Services
 
