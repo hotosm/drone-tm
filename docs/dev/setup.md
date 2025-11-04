@@ -34,10 +34,10 @@
 - To start the application, run:
   `just start all`
 - This single command will:
-    1.  Generate a `.env` file if one doesn't exist.
-    2.  Pull the required Docker images.
-    3.  Build the frontend container.
-    4.  Start all services correctly.
+  1.  Generate a `.env` file if one doesn't exist.
+  2.  Pull the required Docker images.
+  3.  Build the frontend container.
+  4.  Start all services correctly.
 
 ### Access The Services
 
