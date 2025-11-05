@@ -16,6 +16,7 @@ import { signInGoogle, signInUser } from '@Services/common';
 import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
 import { toast } from 'react-toastify';
+import { isSafeRedirect } from '@Utils/url';
 
 const { BASE_URL } = process.env;
 
@@ -57,7 +58,7 @@ export default function Login() {
       const from = location.state?.from?.pathname;
 
       if (userDetails?.has_user_profile) {
-        if (from && from.startsWith('/') && !from.startsWith('//')) {
+        if (isSafeRedirect(from)) {
           navigate(from, { replace: true });
         } else if (userDetails?.role?.includes(signedInAs)) {
           navigate('/projects');

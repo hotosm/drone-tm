@@ -245,3 +245,5 @@ export function swapFirstAndLast<T>(arr: T[]): T[] {
 
   return arr;
 }
+
+export { isSafeRedirect } from './url';
