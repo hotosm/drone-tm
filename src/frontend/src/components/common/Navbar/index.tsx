@@ -5,12 +5,28 @@ import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
 // import Icon from '../Icon';
 
+// Import Hanko web component when using SSO
+const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
+const HANKO_API_URL = (import.meta as any).env.VITE_HANKO_API_URL || 'https://login.hotosm.org';
+const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://login.hotosm.org';
+const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
+
+if (AUTH_PROVIDER === 'hanko') {
+  // Dynamically import web component
+  import('../../../../auth-libs/web-component/dist/hanko-auth.esm.js');
+}
+
 export default function Navbar() {
   const { pathname } = useLocation();
   const pathnameOnArray = pathname?.split('/');
   const isApprovalPage =
     pathnameOnArray?.includes('projects') &&
     pathnameOnArray?.includes('approval');
+
+  // Get user role for Hanko auth callback
+  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
+  // Build return URL for Hanko SSO that goes through /hanko-auth callback
+  const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
 
   return (
     <nav className="naxatw-h-[3.5rem] naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
@@ -57,7 +73,16 @@ export default function Navbar() {
             </FlexRow>
             <FlexRow className="naxatw-items-center" gap={2}>
               {/* <Icon name="notifications" /> */}
-              <UserProfile />
+              {AUTH_PROVIDER === 'hanko' ? (
+                <hotosm-auth
+                  hanko-url={HANKO_API_URL}
+                  base-path={PORTAL_SSO_URL}
+                  redirect-after-login={hankoReturnUrl}
+                  redirect-after-logout="/"
+                />
+              ) : (
+                <UserProfile />
+              )}
             </FlexRow>
           </>
         )}

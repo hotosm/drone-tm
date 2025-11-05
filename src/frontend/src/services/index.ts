@@ -62,12 +62,15 @@ api.interceptors.response.use(
 
 export const authenticated = (apiInstance: AxiosInstance) => {
   const token = localStorage.getItem('token');
-  if (!token) return apiInstance;
-  if (process.env.NODE_ENV === 'development') {
+
+  // When using Hanko SSO, we need to send cookies for authentication
+  // Set withCredentials=true to include cookies in CORS requests
+  apiInstance.defaults.withCredentials = true;
+
+  // For legacy authentication, also set Access-Token header if token exists
+  if (token) {
     apiInstance.defaults.headers.common['Access-Token'] = `${token}`;
-  } else {
-    apiInstance.defaults.headers.common['Access-Token'] = `${token}`;
-    apiInstance.defaults.withCredentials = false;
   }
+
   return apiInstance;
 };

@@ -30,6 +30,8 @@ services:
     env_file: .env
     networks:
       - dtm-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   frontend:
@@ -58,7 +60,8 @@ services:
       - ${PROJECT_DIR:-.}/src/frontend/postcss.config.js:/app/postcss.config.js
       - ${PROJECT_DIR:-.}/src/frontend/tailwind.config.js:/app/tailwind.config.js
       - ${PROJECT_DIR:-.}/src/frontend/vite.config.ts:/app/vite.config.ts
-      - frontend-html:/frontend_html
+      - ${PROJECT_DIR:-.}/../auth-libs/web-component:/app/auth-libs/web-component:ro
+      - frontend-html:/tmp/frontend_html
 
   # If error, please upgrade the db with `contrib/pg-upgrade/compose.yaml`
   db:

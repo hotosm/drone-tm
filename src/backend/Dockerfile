@@ -24,7 +24,7 @@ RUN set -ex \
 WORKDIR /project
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /bin/uv
 
 ARG PYTHON_IMG_TAG=3.11
 # - Ensure executables are at the front of the path
@@ -49,11 +49,13 @@ STOPSIGNAL SIGINT
 # Copy files needed for building the project
 COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
 COPY packages /project/packages
+COPY libs /project/libs
 
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=packages,target=packages \
     uv sync --locked --no-editable --no-dev --no-install-project
 
 # Run stage (final stage)
@@ -94,7 +96,7 @@ COPY --from=build /opt/python /opt/python
 WORKDIR /project/src/backend
 
 # Install uv in runtime stage
-COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /bin/uv
 
 # Copy the source files to the final image
 COPY . /project/src/backend

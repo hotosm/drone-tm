@@ -4,13 +4,15 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from loguru import logger as log
 from psycopg import Connection
 from psycopg_pool import AsyncConnectionPool
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 from app.__version__ import __version__
 from app.config import settings
@@ -22,6 +24,10 @@ from app.projects import project_routes
 from app.tasks import task_routes
 from app.users import user_routes
 from app.waypoints import waypoint_routes
+
+# Import auth initialization for Hanko SSO
+from hotosm_auth import AuthConfig
+from hotosm_auth.integrations.fastapi import init_auth
 
 root = os.path.dirname(os.path.abspath(__file__))
 frontend_html = Jinja2Templates(directory="frontend_html")
@@ -74,6 +80,27 @@ def get_logger():
     )
 
 
+class CORSHeaderMiddleware(BaseHTTPMiddleware):
+    """Ensure CORS headers are added to ALL responses, including errors."""
+
+    async def dispatch(self, request: Request, call_next):
+        # Get origin from request
+        origin = request.headers.get("origin")
+
+        # Call the next middleware/route
+        response = await call_next(request)
+
+        # Add CORS headers if origin is allowed
+        if origin and origin in settings.EXTRA_CORS_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+
+        return response
+
+
 def get_application() -> FastAPI:
     """Get the FastAPI app instance, with settings."""
     _app = FastAPI(
@@ -97,6 +124,9 @@ def get_application() -> FastAPI:
     # Set custom logger
     _app.logger = get_logger()
 
+    # Add custom CORS middleware to ensure headers on ALL responses
+    _app.add_middleware(CORSHeaderMiddleware)
+
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.EXTRA_CORS_ORIGINS,
@@ -119,6 +149,14 @@ def get_application() -> FastAPI:
 async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
+
+    # Initialize authentication for Hanko SSO
+    if settings.AUTH_PROVIDER == "hanko":
+        log.info("🔧 Initializing Hanko SSO authentication...")
+        auth_config = AuthConfig.from_env()
+        log.info(f"🔧 AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}")
+        init_auth(auth_config)
+        log.info("✅ Authentication initialized")
 
     async with AsyncConnectionPool(
         conninfo=settings.DTM_DB_URL.unicode_string()

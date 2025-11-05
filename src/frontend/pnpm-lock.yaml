@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@awesome.me/webawesome':
+        specifier: 3.0.0-beta.1
+        version: 3.0.0-beta.1(@floating-ui/utils@0.2.9)
       '@cyntler/react-doc-viewer':
         specifier: ^1.17.0
         version: 1.17.0(@types/react@19.0.8)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -262,6 +265,10 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
+
+  '@awesome.me/webawesome@3.0.0-beta.1':
+    resolution: {integrity: sha512-pHER462/pQrEEiHkmx6HtAcFu4VOCm+El0LxwufrxfMqnLMiXbHYFnBI4cnVbPFwcdycLGZZ4IKx/bzC8AA/EA==}
+    engines: {node: '>=14.17.0'}
 
   '@babel/code-frame@7.26.2':
     resolution: {integrity: sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==}
@@ -3781,6 +3788,9 @@ packages:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
 
+  style-observer@0.0.7:
+    resolution: {integrity: sha512-t75H3CRy+vd5q3yqyrf/De4tkz33hPQTiCcfh0NTesI5G7kJnZ227LEYTwqjKTtaFOCJvqZcYFHpJlF8bsk3bQ==}
+
   styled-components@6.1.15:
     resolution: {integrity: sha512-PpOTEztW87Ua2xbmLa7yssjNyUF9vE7wdldRfn1I2E6RTkqknkBYpj771OxM/xrvRGinLy2oysa7GOd7NcZZIA==}
     engines: {node: '>= 16'}
@@ -4108,6 +4118,19 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
+
+  '@awesome.me/webawesome@3.0.0-beta.1(@floating-ui/utils@0.2.9)':
+    dependencies:
+      '@ctrl/tinycolor': 4.1.0
+      '@floating-ui/dom': 1.6.13
+      '@shoelace-style/animations': 1.2.0
+      '@shoelace-style/localize': 3.2.1
+      composed-offset-position: 0.0.6(@floating-ui/utils@0.2.9)
+      lit: 3.2.1
+      qr-creator: 1.0.0
+      style-observer: 0.0.7
+    transitivePeerDependencies:
+      - '@floating-ui/utils'
 
   '@babel/code-frame@7.26.2':
     dependencies:
@@ -8107,6 +8130,8 @@ snapshots:
     optional: true
 
   strip-json-comments@3.1.1: {}
+
+  style-observer@0.0.7: {}
 
   styled-components@6.1.15(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:

@@ -48,5 +48,11 @@ export default defineConfig({
     open: false,
     port: 3040,
     host: '0.0.0.0',
+    strictPort: true,
+    allowedHosts: ['dronetm.hotosm.test', 'localhost', '127.0.0.1', '.test'],
+    hmr: {
+      clientPort: 80,
+      host: 'dronetm.hotosm.test',
+    },
   },
 });

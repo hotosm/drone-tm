@@ -19,6 +19,11 @@ import { toast } from 'react-toastify';
 
 const { BASE_URL } = process.env;
 
+// Auth provider configuration
+const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
+const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://login.hotosm.org';
+const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
+
 const initialState = {
   username: '',
   password: '',
@@ -101,15 +106,29 @@ export default function Login() {
             : 'Drone Operator'}
         </h3>
 
-        {/* google login button */}
-        <div
-          className="naxatw-flex naxatw-w-[60%] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-rounded-lg naxatw-border naxatw-border-grey-800 naxatw-px-5 naxatw-py-3 hover:naxatw-shadow-md"
-          onClick={() => setOnSignUpBtnClick(true)}
-        >
-          <Image src={googleIcon} />
-          <span className="naxatw-text-body-btn">Continue with Google</span>
-        </div>
-        {/* google login button */}
+        {/* Conditional auth rendering */}
+        {AUTH_PROVIDER === 'hanko' ? (
+          // Hanko SSO: Redirect to Portal login page with role
+          <div
+            className="naxatw-flex naxatw-w-[60%] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-rounded-lg naxatw-border naxatw-border-grey-800 naxatw-px-5 naxatw-py-3 hover:naxatw-shadow-md"
+            onClick={() => {
+              // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
+              const returnTo = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
+              window.location.href = `${PORTAL_SSO_URL}/login?return_to=${encodeURIComponent(returnTo)}`;
+            }}
+          >
+            <span className="naxatw-text-body-btn">Login with HOTOSM SSO</span>
+          </div>
+        ) : (
+          // Google OAuth button
+          <div
+            className="naxatw-flex naxatw-w-[60%] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-rounded-lg naxatw-border naxatw-border-grey-800 naxatw-px-5 naxatw-py-3 hover:naxatw-shadow-md"
+            onClick={() => setOnSignUpBtnClick(true)}
+          >
+            <Image src={googleIcon} />
+            <span className="naxatw-text-body-btn">Continue with Google</span>
+          </div>
+        )}
 
         <FlexRow
           className="naxatw-w-full naxatw-items-center naxatw-justify-center"

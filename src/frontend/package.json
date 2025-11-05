@@ -12,6 +12,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@awesome.me/webawesome": "3.0.0-beta.1",
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
     "@hotosm/gcp-editor": "^0.0.9",

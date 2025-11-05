@@ -12,10 +12,42 @@ import { setCommonState } from '@Store/actions/common';
 import { motion } from 'framer-motion';
 import { slideVariants } from '@Constants/animations';
 
+const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
+const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://login.hotosm.org';
+const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
+
 export default function SignInOverlay() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+
+  const handleRoleSelection = (role: 'PROJECT_CREATOR' | 'DRONE_PILOT') => {
+    localStorage.setItem('signedInAs', role);
+
+    // With Hanko SSO, ALWAYS redirect to Portal for fresh login
+    // This ensures users can switch between accounts cleanly
+    if (AUTH_PROVIDER === 'hanko') {
+      // Clear any existing Hanko session to force fresh login
+      // This prevents account confusion when switching users
+      document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
+      document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
+
+      // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
+      // Return to /hanko-auth callback which validates with backend and sets up user profile
+      const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${role}`;
+      window.location.href = `${PORTAL_SSO_URL}/login?return_to=${encodeURIComponent(returnUrl)}`;
+      return;
+    }
+
+    // Legacy flow: only skip login if already authenticated
+    if (isAuthenticated()) {
+      navigate('/projects');
+      return;
+    }
+
+    // Legacy flow: navigate to /login page
+    navigate('/login');
+  };
 
   return (
     <motion.section
@@ -45,14 +77,7 @@ export default function SignInOverlay() {
           <Button
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
-            onClick={() => {
-              localStorage.setItem('signedInAs', 'PROJECT_CREATOR');
-              if (isAuthenticated()) {
-                navigate('/projects');
-              } else {
-                navigate('/login');
-              }
-            }}
+            onClick={() => handleRoleSelection('PROJECT_CREATOR')}
           >
             I&apos;m a Project Creator
           </Button>
@@ -66,14 +91,7 @@ export default function SignInOverlay() {
           <Button
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
-            onClick={() => {
-              localStorage.setItem('signedInAs', 'DRONE_PILOT');
-              if (isAuthenticated()) {
-                navigate('/projects');
-              } else {
-                navigate('/login');
-              }
-            }}
+            onClick={() => handleRoleSelection('DRONE_PILOT')}
           >
             I&apos;m a Drone Operator
           </Button>

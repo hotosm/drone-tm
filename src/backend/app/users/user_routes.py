@@ -134,6 +134,12 @@ async def update_user_profile(
         )
 
     if profile_update.old_password and profile_update.password:
+        # Check if user has a local password (not SSO user)
+        if not user.get("password"):
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Cannot change password for SSO users. Password is managed by the SSO provider.",
+            )
         if not verify_password(profile_update.old_password, user.get("password")):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,

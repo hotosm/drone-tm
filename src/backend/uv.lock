@@ -656,6 +656,7 @@ dependencies = [
     { name = "geoalchemy2" },
     { name = "geojson" },
     { name = "geojson-pydantic" },
+    { name = "hotosm-auth" },
     { name = "itsdangerous" },
     { name = "jinja2" },
     { name = "loguru" },
@@ -724,6 +725,7 @@ requires-dist = [
     { name = "geoalchemy2", specifier = "==0.14.2" },
     { name = "geojson", specifier = "==3.1.0" },
     { name = "geojson-pydantic", specifier = "==1.1.0" },
+    { name = "hotosm-auth", path = "libs/hotosm_auth-0.1.0-py3-none-any.whl" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jinja2", specifier = ">=3.1.4" },
     { name = "loguru", specifier = ">=0.7.2" },
@@ -1056,6 +1058,39 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/77/00b420ad567875e5a4b37a16f1a89fef1a22c6a9e1a12195c77bb5b101dd/hiredis-3.1.0-cp313-cp313-win32.whl", hash = "sha256:539e5bb725b62b76a5319a4e68fc7085f01349abc2316ef3df608ea0883c51d2", size = 20211, upload-time = "2024-12-04T14:45:22.216Z" },
     { url = "https://files.pythonhosted.org/packages/cc/04/eaa88433249ddfc282018d3da4198d0b0018e48768e137bfad304aacb1ec/hiredis-3.1.0-cp313-cp313-win_amd64.whl", hash = "sha256:9020fd7e58f489fda6a928c31355add0e665fd6b87b21954e675cf9943eafa32", size = 22004, upload-time = "2024-12-04T14:45:23.123Z" },
 ]
+
+[[package]]
+name = "hotosm-auth"
+version = "0.1.0"
+source = { path = "libs/hotosm_auth-0.1.0-py3-none-any.whl" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "python-dateutil" },
+]
+wheels = [
+    { filename = "hotosm_auth-0.1.0-py3-none-any.whl", hash = "sha256:bf3ee983617da5837b47799c450a220f820c2c6cfde6dadaf4c5031b073a56ad" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "cryptography", specifier = ">=41.0.0" },
+    { name = "django", marker = "extra == 'django'", specifier = ">=4.2.0" },
+    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.104.0" },
+    { name = "httpx", specifier = ">=0.25.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
+    { name = "python-dateutil", specifier = ">=2.8.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev", "django", "fastapi"]
 
 [[package]]
 name = "httpcore"
@@ -2173,6 +2208,11 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/46/bd74733ff231675599650d3e47f361794b22ef3e3770998dda30d3b63726/pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953", size = 87785, upload-time = "2024-11-28T03:43:29.933Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/61/ad/689f02752eeec26aed679477e80e632ef1b682313be70793d798c1d5fc8f/PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb", size = 22997, upload-time = "2024-11-28T03:43:27.893Z" },
+]
+
+[package.optional-dependencies]
+crypto = [
+    { name = "cryptography" },
 ]
 
 [[package]]

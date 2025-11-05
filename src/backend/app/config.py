@@ -104,9 +104,20 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 60 * 24 * 1  # 1 day
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 60 * 24 * 8  # 8 day
     RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 5
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
+
+    # Authentication Provider Switch
+    # Options: "legacy" (Google OAuth) or "hanko" (Hanko SSO)
+    AUTH_PROVIDER: str = "legacy"
+
+    # Legacy Google OAuth (when AUTH_PROVIDER="legacy")
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
     GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
+
+    # Hanko SSO (when AUTH_PROVIDER="hanko")
+    HANKO_API_URL: Optional[str] = None
+    COOKIE_SECRET: Optional[str] = None
+    COOKIE_DOMAIN: Optional[str] = None
 
     # SMTP Configurations
     SMTP_TLS: bool = True
