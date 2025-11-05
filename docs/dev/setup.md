@@ -2,8 +2,15 @@
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/engine/install)
-- [Docker Compose](https://docs.docker.com/compose/install)
+!!! important
+
+    You must have Docker and Docker Compose installed first:
+
+    - [Docker install guide](https://docs.docker.com/engine/install)
+    - [Docker Compose install guide](https://docs.docker.com/compose/install)
+
+Just is required too:
+
 - [Just](https://github.com/casey/just#installation)
 
 ## (Optional) Configure Google OAuth
@@ -34,11 +41,7 @@
 - `compose.sub.yaml` is used for production builds - `compose.yaml`, meanwhile, is used for development.
 - To start the application, run:
   `just start all`
-- This single command will:
-  1.  Generate a `.env` file if one doesn't exist.
-  2.  Pull the required Docker images.
-  3.  Build the frontend container.
-  4.  Start all services correctly.
+- This command will pull the required Docker images and start all services correctly.
 
 ### Access The Services
 
