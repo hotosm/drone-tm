@@ -56,13 +56,14 @@ export default function Login() {
 
       const from = location.state?.from?.pathname;
 
-      if (from && from.startsWith('/') && !from.startsWith('//')) {
-        navigate(from, { replace: true });
-      } else if (
-        userDetails?.has_user_profile &&
-        userDetails?.role?.includes(signedInAs)
-      ) {
-        navigate('/projects');
+      if (userDetails?.has_user_profile) {
+        if (from && from.startsWith('/') && !from.startsWith('//')) {
+          navigate(from, { replace: true });
+        } else if (userDetails?.role?.includes(signedInAs)) {
+          navigate('/projects');
+        } else {
+          navigate('/complete-profile');
+        }
       } else {
         navigate('/complete-profile');
       }
