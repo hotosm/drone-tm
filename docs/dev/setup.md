@@ -31,6 +31,7 @@
 ### Build and Run The Containers
 
 - The `Justfile` in the project root contains all the logic needed to build and run the application.
+- `compose.sub.yaml` is used for production builds - `compose.yaml`, meanwhile, is used for development.
 - To start the application, run:
   `just start all`
 - This single command will:
