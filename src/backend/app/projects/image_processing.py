@@ -524,9 +524,13 @@ async def process_assets_from_odm(
             try:
                 log.info(f"Attempting to delete task {odm_task_id} from NodeODM.")
                 task.remove()
-                log.info(f"Successful attempt at deleting task {odm_task_id} from NodeODM.")
-            except Exception as e: 
-                log.error(f"Error occurred while cleaning up task {odm_task_id} from NodeODM: {e}.")
+                log.info(
+                    f"Successful attempt at deleting task {odm_task_id} from NodeODM."
+                )
+            except Exception as e:
+                log.error(
+                    f"Error occurred while cleaning up task {odm_task_id} from NodeODM: {e}."
+                )
 
         if os.path.exists(output_file_path):
             try:
