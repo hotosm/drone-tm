@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 
 import Image from '@Components/RadixComponents/Image';
 import { Input, Label, FormControl } from '@Components/common/FormUI';
@@ -15,7 +16,6 @@ import { useTypedDispatch } from '@Store/hooks';
 import { signInGoogle, signInUser } from '@Services/common';
 import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
-import { toast } from 'react-toastify';
 import { isSafeRedirect } from '@Utils/url';
 
 const { BASE_URL } = process.env;
