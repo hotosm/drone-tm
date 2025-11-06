@@ -12,6 +12,9 @@ export const signInCallBackUrl = () => api.get('/users/callback/');
 
 export const logoutUser = () => api.post('/user/logout/');
 
+export const forgotPassword = (data: any) =>
+  api.post('/users/forgot-password/', data);
+
 export const postUserProfile = ({
   userId,
   data,
