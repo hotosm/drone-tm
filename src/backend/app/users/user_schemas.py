@@ -190,8 +190,7 @@ class DbUserProfile(BaseUserProfile):
             file_name = getattr(profile, file_type, None)
             if file_name:
                 try:
-                    # Use public endpoint for presigned URLs in local dev
-                    client = s3_client(use_public_endpoint=True)
+                    client = s3_client()
                     presigned_url = client.generate_presigned_url(
                         "put_object",
                         Params={

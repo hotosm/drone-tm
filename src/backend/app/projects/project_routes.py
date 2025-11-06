@@ -37,7 +37,7 @@ from app.s3 import (
     abort_multipart_upload,
     add_file_to_bucket,
     complete_multipart_upload,
-    get_presigned_upload_part_url,
+    generate_presigned_multipart_upload_url,
     initiate_multipart_upload,
     list_parts,
     s3_client,
@@ -376,8 +376,7 @@ async def generate_presigned_url(
                     )
 
             # Generate a new pre-signed URL for the image upload
-            # Use public endpoint for presigned URLs in local dev
-            presigned_client = s3_client(use_public_endpoint=True)
+            presigned_client = s3_client()
             url = presigned_client.generate_presigned_url(
                 "put_object",
                 Params={
@@ -822,7 +821,7 @@ async def sign_part_upload(
         dict: Presigned URL for uploading the part.
     """
     try:
-        url = get_presigned_upload_part_url(
+        url = generate_presigned_multipart_upload_url(
             settings.S3_BUCKET_NAME,
             data.file_key,
             data.upload_id,

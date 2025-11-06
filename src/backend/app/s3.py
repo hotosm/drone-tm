@@ -13,20 +13,9 @@ from app.config import settings
 from app.utils import strip_presigned_url_for_local_dev
 
 
-def s3_client(use_public_endpoint: bool = False):
-    """Return the initialised MinIO client with credentials.
-
-    Args:
-        use_public_endpoint: If True and in DEBUG mode, use S3_DOWNLOAD_ROOT for presigned URLs.
-                            This is needed when generating presigned URLs that will be accessed
-                            by the browser, so the signature matches the public hostname.
-    """
-    # For presigned URLs in local dev, use S3_DOWNLOAD_ROOT so signature matches browser endpoint
-    if use_public_endpoint and settings.DEBUG and settings.S3_DOWNLOAD_ROOT:
-        endpoint = settings.S3_DOWNLOAD_ROOT
-    else:
-        endpoint = settings.S3_ENDPOINT
-
+def s3_client():
+    """Return the initialised MinIO client with credentials."""
+    endpoint = settings.S3_ENDPOINT
     minio_url, is_secure = is_connection_secure(endpoint)
 
     log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
@@ -229,23 +218,33 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return objects
 
 
-def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
-    """Generate a presigned URL for an object in an S3 bucket.
+def generate_presigned_download_url(bucket_name: str, object_name: str, expires_hours: int = 2) -> str:
+    """Generate a presigned URL for downloading an object from S3 (GET request).
+
+    This generates a temporary URL that allows unauthenticated access to download
+    a specific object from S3. Commonly used for assets, orthophotos, and processed outputs.
 
     Args:
         bucket_name (str): The name of the S3 bucket.
-        object_name (str): The name of the object in the bucket.
-        expires (int, optional): The time in hours until the URL expires.
-            Defaults to 2 hour.
+        object_name (str): The S3 key/path of the object to download.
+        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
 
     Returns:
-        str: The presigned URL to access the object.
+        str: The presigned URL for downloading the object.
     """
     client = s3_client()
     url = client.presigned_get_object(
-        bucket_name, object_name, expires=timedelta(hours=expires)
+        bucket_name, object_name, expires=timedelta(hours=expires_hours)
     )
     return strip_presigned_url_for_local_dev(url)
+
+
+def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
+    """Deprecated: Use generate_presigned_download_url instead.
+
+    This function is maintained for backwards compatibility.
+    """
+    return generate_presigned_download_url(bucket_name, object_name, expires)
 
 
 def get_object_metadata(bucket_name: str, object_name: str):
@@ -372,38 +371,41 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
         raise
 
 
-def get_presigned_upload_part_url(
+def generate_presigned_multipart_upload_url(
     bucket_name: str,
     object_name: str,
     upload_id: str,
     part_number: int,
-    expires: int = 2,
+    expires_hours: int = 2,
 ) -> str:
-    """Generate a presigned URL for uploading a specific part in a multipart upload.
+    """Generate a presigned URL for uploading a single part in a multipart upload (PUT request).
+
+    This is used by the frontend (Uppy) to upload large files in chunks. Each chunk/part
+    gets its own presigned URL. This endpoint is called frequently during active uploads.
 
     Args:
         bucket_name (str): The name of the S3 bucket.
-        object_name (str): The path in the S3 bucket where the file will be stored.
+        object_name (str): The S3 key/path where the file will be stored.
         upload_id (str): The upload ID from initiate_multipart_upload.
-        part_number (int): The part number (1-10000).
-        expires (int, optional): The time in hours until the URL expires. Defaults to 2 hours.
+        part_number (int): The part number (1-10000) for this chunk.
+        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
 
     Returns:
-        str: The presigned URL for uploading the part.
+        str: The presigned URL for uploading this specific part.
+
+    Raises:
+        S3Error: If there's an error communicating with S3.
     """
     object_name = object_name.lstrip("/")
 
-    # Use public endpoint (localhost:9000) for presigned URLs
-    # Backend can now reach localhost:9000 via extra_hosts mapping to host-gateway
-    client = s3_client(use_public_endpoint=True)
+    client = s3_client()
 
     try:
-        # Generate presigned URL signed for localhost:9000
         url = client.get_presigned_url(
             "PUT",
             bucket_name,
             object_name,
-            expires=timedelta(hours=expires),
+            expires=timedelta(hours=expires_hours),
             extra_query_params={
                 "uploadId": upload_id,
                 "partNumber": str(part_number),
@@ -417,6 +419,22 @@ def get_presigned_upload_part_url(
     except Exception as e:
         log.error(f"Unexpected error generating presigned URL: {e}")
         raise
+
+
+def get_presigned_upload_part_url(
+    bucket_name: str,
+    object_name: str,
+    upload_id: str,
+    part_number: int,
+    expires: int = 2,
+) -> str:
+    """Deprecated: Use generate_presigned_multipart_upload_url instead.
+
+    This function is maintained for backwards compatibility.
+    """
+    return generate_presigned_multipart_upload_url(
+        bucket_name, object_name, upload_id, part_number, expires
+    )
 
 
 def complete_multipart_upload(

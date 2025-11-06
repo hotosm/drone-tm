@@ -31,9 +31,9 @@ from app.projects import project_schemas
 from app.projects.image_processing import DroneImageProcessor
 from app.s3 import (
     add_obj_to_bucket,
+    generate_presigned_download_url,
     get_file_from_bucket,
     get_object_metadata,
-    get_presigned_url,
     list_objects_from_bucket,
 )
 from app.tasks.task_splitter import split_by_square
@@ -592,8 +592,8 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL
-            presigned_url = get_presigned_url(
-                settings.S3_BUCKET_NAME, assets_path, expires=2
+            presigned_url = generate_presigned_download_url(
+                settings.S3_BUCKET_NAME, assets_path, expires_hours=2
             )
         except S3Error as e:
             if e.code == "NoSuchKey":
