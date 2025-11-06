@@ -156,6 +156,7 @@ export default function TableSection({
       data={taskDataForTable as Record<string, any>[]}
       withPagination={false}
       loading={isFetching}
+      tableOptions={{ manualSorting: false }}
       handleTableRowClick={handleTableRowClick}
     />
   );
