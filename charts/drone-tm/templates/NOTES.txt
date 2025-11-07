@@ -1,0 +1,53 @@
+1. Get the application URL by running these commands:
+{{- if .Values.frontend.ingress.enabled }}
+{{- range $host := .Values.frontend.ingress.hosts }}
+  http{{ if $.Values.frontend.ingress.tls }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- else if contains "NodePort" .Values.frontend.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "drone-tm.frontend.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.frontend.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "drone-tm.frontend.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "drone-tm.frontend.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.frontend.service.port }}
+{{- else if contains "ClusterIP" .Values.frontend.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "drone-tm.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=frontend" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+{{- end }}
+
+{{- if .Values.backend.ingress.enabled }}
+2. API endpoint:
+{{- range $host := .Values.backend.ingress.hosts }}
+  http{{ if $.Values.backend.ingress.tls }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.odm.enabled }}
+3. ODM processing is enabled:
+   - NodeODM service: {{ include "drone-tm.odm.nodeodm.fullname" . }}
+   - WebODM UI: Available through the main application
+{{- end }}
+
+4. Database connection:
+{{- if .Values.postgresql.enabled }}
+   - PostgreSQL is deployed as part of this chart
+   - Host: {{ include "drone-tm.fullname" . }}-postgresql
+   - Port: 5432
+   - Database: {{ .Values.postgresql.auth.database }}
+   - User: {{ .Values.postgresql.auth.username }}
+{{- else }}
+   - Using external PostgreSQL database
+{{- end }}
+
+5. S3 Storage:
+{{- if .Values.minio.enabled }}
+   - MinIO is deployed as part of this chart
+   - Endpoint: http://{{ include "drone-tm.fullname" . }}-minio:9000
+   - Access Key: {{ .Values.minio.auth.rootUser }}
+{{- else }}
+   - Using external S3-compatible storage
+{{- end }}
