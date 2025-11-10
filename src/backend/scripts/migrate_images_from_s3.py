@@ -3,19 +3,19 @@ import json
 import os
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 
 from loguru import logger as log
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings
-from app.db.db_models import DbProject, DbProjectImage, DbTask
+from app.db.db_models import DbProject, DbTask
 from app.models.enums import ImageStatus
 
 
@@ -56,7 +56,7 @@ def migrate_images_for_task(
     if not images_data:
         return 0
 
-    inserted_count = 0
+    upserted_count = 0
 
     for image_data in images_data:
         filename = image_data.get("filename")
@@ -65,14 +65,6 @@ def migrate_images_for_task(
 
         s3_key = f"dtm-data/projects/{project_id}/{task_id}/{filename}"
         hash_md5 = create_image_hash(filename, str(project_id), str(task_id))
-
-        existing = session.query(DbProjectImage).filter(
-            DbProjectImage.hash_md5 == hash_md5
-        ).first()
-
-        if existing:
-            log.debug(f"Image {filename} already exists, skipping")
-            continue
 
         exif_data = {
             "width": image_data.get("width"),
@@ -100,26 +92,50 @@ def migrate_images_for_task(
         latitude = image_data.get("latitude")
         longitude = image_data.get("longitude")
 
-        new_image = DbProjectImage(
-            id=uuid.uuid4(),
-            project_id=project_id,
-            task_id=task_id,
-            filename=filename,
-            s3_key=s3_key,
-            hash_md5=hash_md5,
-            exif=exif_data,
-            uploaded_by=uploaded_by,
-            uploaded_at=datetime.utcnow(),
-            status=ImageStatus.UPLOADED,
+        location_wkt = None
+        if latitude is not None and longitude is not None:
+            location_wkt = f"SRID=4326;POINT({longitude} {latitude})"
+
+        # Use INSERT ... ON CONFLICT DO UPDATE for idempotency
+        upsert_query = text("""
+            INSERT INTO project_images (
+                id, project_id, task_id, filename, s3_key, hash_md5,
+                exif, location, uploaded_by, uploaded_at, status
+            ) VALUES (
+                :id, :project_id, :task_id, :filename, :s3_key, :hash_md5,
+                :exif, ST_GeomFromEWKT(:location), :uploaded_by, :uploaded_at, :status
+            )
+            ON CONFLICT (hash_md5)
+            DO UPDATE SET
+                filename = EXCLUDED.filename,
+                s3_key = EXCLUDED.s3_key,
+                exif = EXCLUDED.exif,
+                location = EXCLUDED.location,
+                task_id = EXCLUDED.task_id,
+                status = EXCLUDED.status
+            RETURNING id
+        """)
+
+        session.execute(
+            upsert_query,
+            {
+                "id": str(uuid.uuid4()),
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+                "filename": filename,
+                "s3_key": s3_key,
+                "hash_md5": hash_md5,
+                "exif": json.dumps(exif_data) if exif_data else None,
+                "location": location_wkt,
+                "uploaded_by": uploaded_by,
+                "uploaded_at": datetime.now(timezone.utc),
+                "status": ImageStatus.UPLOADED,
+            }
         )
 
-        if latitude is not None and longitude is not None:
-            new_image.location = f"SRID=4326;POINT({longitude} {latitude})"
+        upserted_count += 1
 
-        session.add(new_image)
-        inserted_count += 1
-
-    return inserted_count
+    return upserted_count
 
 
 def migrate_all_projects():
@@ -153,12 +169,12 @@ def migrate_all_projects():
                 )
 
                 if count > 0:
-                    log.info(f"  Inserted {count} images for task {task.id}")
+                    log.info(f"  Upserted {count} images for task {task.id}")
                     total_images += count
 
             session.commit()
 
-        log.info(f"Migration complete. Total images inserted: {total_images}")
+        log.info(f"Migration complete. Total images upserted: {total_images}")
 
 
 if __name__ == "__main__":
