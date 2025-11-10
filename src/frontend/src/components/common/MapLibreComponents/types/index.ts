@@ -64,6 +64,7 @@ export interface IVectorLayer extends ILayer {
   onDrag?: (e: any) => void;
   onDragEnd?: () => void;
   needDragEvent?: boolean;
+  imageLayoutOptions?: Object;
 }
 
 type InteractionsType = 'hover' | 'select';
