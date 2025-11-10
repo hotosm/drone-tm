@@ -1,6 +1,9 @@
 import { useLocation } from 'react-router-dom';
 import { initDomToCode } from 'dom-to-code';
 import { ToastContainer } from 'react-toastify';
+import { useState } from 'react';
+import Uppy from '@uppy/core';
+import { UppyContextProvider } from '@uppy/react';
 
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import generateRoutes from '@Routes/generateRoutes';
@@ -13,6 +16,7 @@ import {
   togglePromptDialog,
 } from '@Store/actions/common';
 import 'react-toastify/dist/ReactToastify.css';
+import '@uppy/core/css/style.min.css';
 import Modal from '@Components/common/Modal';
 import Navbar from '@Components/common/Navbar';
 import PromptDialog from '@Components/common/PromptDialog';
@@ -33,6 +37,15 @@ export default function App() {
   const promptDialogContent = useTypedSelector(
     state => state.common.promptDialogContent,
   );
+
+  // Initialize Uppy instance (shared across the app)
+  const [uppy] = useState(() => new Uppy({
+    id: 'global-uppy',
+    autoProceed: false,
+    restrictions: {
+      maxFileSize: 500 * 1024 * 1024, // 500 MB per file
+    },
+  }));
 
   const handleModalClose = () => {
     dispatch(toggleModal());
@@ -58,6 +71,7 @@ export default function App() {
   ];
 
   return (
+    <UppyContextProvider uppy={uppy}>
     <>
       {process.env.NODE_ENV !== 'production' &&
         !process.env.DISABLE_DOM_TO_CODE &&
@@ -101,5 +115,6 @@ export default function App() {
         <ScrollToTop />
       </div>
     </>
+    </UppyContextProvider>
   );
 }

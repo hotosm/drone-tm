@@ -1,7 +1,6 @@
 import json
 import os
 import uuid
-from datetime import timedelta
 from typing import Annotated, Dict, List, Optional
 from uuid import UUID
 
@@ -23,7 +22,6 @@ from fastapi import (
 )
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
-from minio.deleteobjects import DeleteObject
 from psycopg import Connection
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
@@ -35,7 +33,15 @@ from app.jaxa.upload_dem import upload_dem_file
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
 from app.projects import image_processing, project_deps, project_logic, project_schemas
 from app.projects.oam import upload_to_oam
-from app.s3 import add_file_to_bucket, s3_client
+from app.s3 import (
+    abort_multipart_upload,
+    add_file_to_bucket,
+    complete_multipart_upload,
+    generate_presigned_multipart_upload_url,
+    initiate_multipart_upload,
+    list_parts,
+    s3_client,
+)
 from app.tasks import task_logic, task_schemas
 from app.users.permissions import (
     IsProjectCreator,
@@ -332,26 +338,36 @@ async def generate_presigned_url(
                     f"dtm-data/projects/{data.project_id}/{data.task_id}/images/"
                 )
                 try:
-                    # Prepare the list of objects to delete (recursively if necessary)
-                    delete_object_list = map(
-                        lambda x: DeleteObject(x.object_name),
-                        client.list_objects(
-                            settings.S3_BUCKET_NAME, image_dir, recursive=True
-                        ),
+                    # List objects to delete
+                    paginator = client.get_paginator("list_objects_v2")
+                    pages = paginator.paginate(
+                        Bucket=settings.S3_BUCKET_NAME, Prefix=image_dir.lstrip("/")
                     )
 
-                    # Remove the objects (images)
-                    errors = client.remove_objects(
-                        settings.S3_BUCKET_NAME, delete_object_list
-                    )
+                    # Collect all objects to delete
+                    objects_to_delete = []
+                    for page in pages:
+                        if "Contents" in page:
+                            for obj in page["Contents"]:
+                                objects_to_delete.append({"Key": obj["Key"]})
 
-                    # Handle deletion errors, if any
-                    for error in errors:
-                        log.error("Error occurred when deleting object", error)
-                        raise HTTPException(
-                            status_code=HTTPStatus.BAD_REQUEST,
-                            detail=f"Failed to delete existing image: {error}",
+                    # Delete objects if any exist
+                    if objects_to_delete:
+                        response = client.delete_objects(
+                            Bucket=settings.S3_BUCKET_NAME,
+                            Delete={"Objects": objects_to_delete, "Quiet": True},
                         )
+
+                        # Handle deletion errors, if any
+                        if "Errors" in response:
+                            for error in response["Errors"]:
+                                log.error(
+                                    f"Error occurred when deleting object: {error}"
+                                )
+                                raise HTTPException(
+                                    status_code=HTTPStatus.BAD_REQUEST,
+                                    detail=f"Failed to delete existing image: {error}",
+                                )
 
                 except Exception as e:
                     raise HTTPException(
@@ -360,11 +376,14 @@ async def generate_presigned_url(
                     )
 
             # Generate a new pre-signed URL for the image upload
-            url = client.get_presigned_url(
-                "PUT",
-                settings.S3_BUCKET_NAME,
-                image_path,
-                expires=timedelta(hours=data.expiry),
+            presigned_client = s3_client()
+            url = presigned_client.generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": settings.S3_BUCKET_NAME,
+                    "Key": image_path.lstrip("/"),
+                },
+                ExpiresIn=data.expiry * 3600,  # Convert hours to seconds
             )
             urls.append({"image_name": image, "url": url})
 
@@ -744,6 +763,197 @@ async def upload_imagery_to_oam(
 
     background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
     return {"message": "Uploading to OAM Started", "status": OAMUploadStatus.UPLOADING}
+
+
+@router.post("/initiate-multipart-upload/", tags=["Image Upload"])
+async def initiate_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.MultipartUploadRequest,
+):
+    """Initiate a multipart upload for large files.
+
+    Args:
+        data: Contains project_id, optional task_id, file_name, and staging flag.
+
+    Returns:
+        dict: Upload ID and file key for the multipart upload session.
+    """
+    try:
+        # Determine file path based on staging flag
+        if data.staging:
+            # Upload to staging directory
+            file_key = (
+                f"dtm-data/projects/{data.project_id}/user-uploads/{data.file_name}"
+            )
+        else:
+            # Upload to task directory (original behavior)
+            if not data.task_id:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="task_id is required when staging=False",
+                )
+            file_key = f"dtm-data/projects/{data.project_id}/{data.task_id}/images/{data.file_name}"
+
+        upload_id = initiate_multipart_upload(settings.S3_BUCKET_NAME, file_key)
+
+        return {
+            "upload_id": upload_id,
+            "file_key": file_key,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to initiate multipart upload: {e}",
+        )
+
+
+@router.post("/sign-part-upload/", tags=["Image Upload"])
+async def sign_part_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.SignPartUploadRequest,
+):
+    """Generate a presigned URL for uploading a specific part.
+
+    Args:
+        data: Contains upload_id, file_key, part_number, and optional expiry.
+
+    Returns:
+        dict: Presigned URL for uploading the part.
+    """
+    try:
+        url = generate_presigned_multipart_upload_url(
+            settings.S3_BUCKET_NAME,
+            data.file_key,
+            data.upload_id,
+            data.part_number,
+            data.expiry,
+        )
+
+        return {
+            "url": url,
+            "part_number": data.part_number,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to generate presigned URL for part: {e}",
+        )
+
+
+@router.post("/complete-multipart-upload/", tags=["Image Upload"])
+async def complete_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    data: project_schemas.CompleteMultipartUploadRequest,
+):
+    """Complete a multipart upload and queue image processing in background.
+
+    Args:
+        user: Authenticated user
+        redis: Redis connection for background tasks
+        data: Contains upload_id, file_key, parts, project_id, and filename.
+
+    Returns:
+        dict: Success message with background job ID.
+    """
+    try:
+        # Complete the multipart upload in S3
+        complete_multipart_upload(
+            settings.S3_BUCKET_NAME,
+            data.file_key,
+            data.upload_id,
+            data.parts,
+        )
+
+        # Queue background task to process image (EXIF extraction, hash, duplicate check)
+        # NOTE: Each image is queued individually (not batched) to isolate failures.
+        # If one image has corrupt EXIF data, others aren't affected. Redis/ARQ should
+        # handle thousands of jobs, but monitor performance if queue length grows significantly.
+        job = await redis.enqueue_job(
+            "process_uploaded_image",
+            str(data.project_id),
+            data.file_key,
+            data.filename,
+            str(user.id),
+            _queue_name="default_queue",
+        )
+
+        log.info(f"Queued image processing job: {job.job_id} for file: {data.filename}")
+
+        return {
+            "message": "Multipart upload completed successfully. Image processing queued.",
+            "file_key": data.file_key,
+            "job_id": job.job_id,
+        }
+    except Exception as e:
+        log.error(f"Failed to complete multipart upload: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to complete multipart upload: {e}",
+        )
+
+
+@router.post("/abort-multipart-upload/", tags=["Image Upload"])
+async def abort_upload(
+    user: Annotated[AuthUser, Depends(login_required)],
+    data: project_schemas.AbortMultipartUploadRequest,
+):
+    """Abort a multipart upload and clean up parts.
+
+    Args:
+        data: Contains upload_id and file_key.
+
+    Returns:
+        dict: Success message.
+    """
+    try:
+        abort_multipart_upload(
+            settings.S3_BUCKET_NAME,
+            data.file_key,
+            data.upload_id,
+        )
+
+        return {
+            "message": "Multipart upload aborted successfully",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to abort multipart upload: {e}",
+        )
+
+
+@router.get("/list-parts/", tags=["Image Upload"])
+async def get_uploaded_parts(
+    user: Annotated[AuthUser, Depends(login_required)],
+    upload_id: str = Query(..., description="The upload ID"),
+    file_key: str = Query(..., description="The S3 file key"),
+):
+    """List all uploaded parts for a multipart upload (for resume capability).
+
+    Args:
+        upload_id: The upload ID from initiate_multipart_upload.
+        file_key: The S3 object key.
+
+    Returns:
+        dict: List of uploaded parts.
+    """
+    try:
+        parts = list_parts(
+            settings.S3_BUCKET_NAME,
+            file_key,
+            upload_id,
+        )
+
+        return {
+            "parts": parts,
+            "upload_id": upload_id,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to list parts: {e}",
+        )
 
 
 @router.post("/test/arq_task")

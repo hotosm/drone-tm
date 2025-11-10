@@ -30,6 +30,7 @@ import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import DroneImageProcessingWorkflow from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
 
 // eslint-disable-next-line camelcase
 const { BASE_URL } = process.env;
@@ -84,6 +85,7 @@ const IndividualProject = () => {
   const [showProjectDeletePrompt, setShowProjectDeletePrompt] = useState(false);
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const Token = localStorage.getItem('token');
 
   const individualProjectActiveTab = useTypedSelector(
@@ -199,6 +201,15 @@ const IndividualProject = () => {
             ]}
           />
           <div className="naxatw-flex naxatw-gap-5">
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-bg-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-white"
+              leftIcon="upload"
+              iconClassname="naxatw-text-[1.125rem]"
+              onClick={() => setIsWorkflowModalOpen(true)}
+            >
+              Drone Image Processing Workflow
+            </Button>
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
@@ -342,6 +353,12 @@ const IndividualProject = () => {
           setShowUnlockDialog={setShowProjectDeletePrompt}
         />
       </ProjectPromptDialog>
+
+      <DroneImageProcessingWorkflow
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
+        projectId={id as string}
+      />
     </>
   );
 };
