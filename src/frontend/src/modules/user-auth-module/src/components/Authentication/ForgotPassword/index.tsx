@@ -7,7 +7,8 @@ import { Button } from '@Components/RadixComponents/Button';
 import Icon from '@Components/common/Icon';
 import { Flex, FlexRow } from '@Components/common/Layouts';
 import ErrorMessage from '@Components/common/ErrorMessage';
-import { signInUser } from '@Services/common';
+import { forgotPassword } from '@Services/common';
+import { toast } from 'react-toastify';
 
 const initialState = {
   email: '',
@@ -17,11 +18,11 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
 
   const { mutate, error } = useMutation<any, any, any, unknown>({
-    mutationFn: signInUser,
+    mutationFn: forgotPassword,
     onSuccess: () => {
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
+      toast.success('Password reset email sent');
+
+      navigate('/login');
     },
   });
 
@@ -55,15 +56,6 @@ export default function ForgotPassword() {
         onSubmit={handleSubmit(onSubmit)}
         className="naxatw-flex naxatw-w-[60%] naxatw-flex-col naxatw-gap-5 naxatw-pt-7"
       >
-        {/* {isSuccess && (
-          <InfoDialog
-            status="success"
-            description={
-              successMessage?.data?.Message ||
-              'Email has been sent successfully.'
-            }
-          />
-        )} */}
         <FormControl>
           <Label htmlFor="email">Email</Label>
           <Input
@@ -72,7 +64,12 @@ export default function ForgotPassword() {
             placeholder="Email"
             {...register('email', { required: true })}
           />
-          <ErrorMessage message={error?.response?.data?.Message || ''} />
+          <ErrorMessage
+            message={
+              error?.response?.data?.detail?.[0]?.msg ||
+              'Error resetting password. Please try again.'
+            }
+          />
         </FormControl>
 
         <FlexRow className="naxatw-items-center naxatw-justify-between">
