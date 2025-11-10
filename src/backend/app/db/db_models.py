@@ -243,11 +243,19 @@ class DbProjectImage(Base):
     id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
     project_id = cast(
         str,
-        Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False),
+        Column(
+            UUID(as_uuid=True),
+            ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
     )
     task_id = cast(
         str,
-        Column(UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True),
+        Column(
+            UUID(as_uuid=True),
+            ForeignKey("tasks.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
     )
     filename = cast(str, Column(Text, nullable=False))
     s3_key = cast(str, Column(Text, nullable=False))
@@ -275,7 +283,9 @@ class DbProjectImage(Base):
     # Relationships
     project = relationship(DbProject, backref="images")
     task = relationship(DbTask, backref="images")
-    uploader = relationship(DbUser, foreign_keys=[uploaded_by], backref="uploaded_images")
+    uploader = relationship(
+        DbUser, foreign_keys=[uploaded_by], backref="uploaded_images"
+    )
 
     __table_args__ = (
         Index("idx_project_images_project_id", "project_id"),
