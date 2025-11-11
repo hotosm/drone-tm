@@ -17,11 +17,19 @@ class DroneType(StrEnum):
     QGROUNDCONTROL = "QGROUNDCONTROL"
     LITCHI = "LITCHI"
 
-
+# Battery life is calculated using a constant average speed of 11.5 m/s, using
+# the quoted max flight time and the speed of the drone used for that test from the manufacturer.
+# Results were estimated based on simulating the average drag force on the drone during flight
+# at 11.5 m/s and the lower bound of that result was used. Maybe we can use a less conservative
+# estimate just to be more accommodating - will need testing to see how much effect this has on 
+# existing flightplans.
+# NB - mention this in some kind of disclaimer when suggesting to user that their 
+# task should be split
 DRONE_SPECS = {
     DroneType.DJI_MINI_4_PRO: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": 12,
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -30,6 +38,7 @@ DRONE_SPECS = {
     DroneType.DJI_AIR_3: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": 25,
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -38,6 +47,7 @@ DRONE_SPECS = {
     DroneType.DJI_MINI_5_PRO: {
         # 1-inch CMOS
         # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": 9,
         "sensor_height_mm": 9.6,
         "sensor_width_mm": 12.8,
         "equiv_focal_length_mm": 24,
@@ -46,6 +56,7 @@ DRONE_SPECS = {
     DroneType.POTENSIC_ATOM_2: {
         # 1/2-inch CMOS
         # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": 6,
         "sensor_height_mm": 4.80,
         "sensor_width_mm": 6.40,
         "equiv_focal_length_mm": 26,
@@ -60,6 +71,7 @@ DRONE_SPECS = {
         "equiv_focal_length_mm": 24,
         "image_width_px": 4032,
     },
+    # TODO - need to find a way to calculate battery life for the Mavlink
     DroneType.MAVLINK: {
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
