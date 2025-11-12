@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useContext } from 'react';
+import { useEffect, useCallback, useContext, useRef } from 'react';
 import AwsS3 from '@uppy/aws-s3';
 import { Dashboard } from '@uppy/react';
 import { UppyContext } from '@uppy/react';
@@ -16,7 +16,7 @@ interface UppyFileUploaderProps {
   projectId: string;
   taskId?: string;
   label?: string;
-  onUploadComplete?: (result: any) => void;
+  onUploadComplete?: (result: any, batchId?: string) => void;
   allowedFileTypes?: string[];
   note?: string;
   staging?: boolean; // If true, uploads to user-uploads staging directory
@@ -44,6 +44,8 @@ const UppyFileUploader = ({
   staging = false,
 }: UppyFileUploaderProps) => {
   const dispatch = useTypedDispatch();
+  // Generate a batch ID when upload starts (for staging uploads only)
+  const batchIdRef = useRef<string | null>(null);
 
   // Get the shared Uppy instance from context
   const { uppy } = useContext(UppyContext);
@@ -131,15 +133,22 @@ const UppyFileUploader = ({
       },
       completeMultipartUpload: async (file, data) => {
         try {
+          const requestBody: any = {
+            upload_id: data.uploadId,
+            file_key: data.key,
+            parts: data.parts,
+            project_id: projectId,
+            filename: file.name,
+          };
+
+          // Include batch_id for staging uploads
+          if (staging && batchIdRef.current) {
+            requestBody.batch_id = batchIdRef.current;
+          }
+
           await authenticated(api).post(
             '/projects/complete-multipart-upload/',
-            {
-              upload_id: data.uploadId,
-              file_key: data.key,
-              parts: data.parts,
-              project_id: projectId,
-              filename: file.name,
-            },
+            requestBody,
             {
               headers: {
                 'Content-Type': 'application/json',
@@ -224,6 +233,15 @@ const UppyFileUploader = ({
   useEffect(() => {
     uppy.on('files-added', handleFilesAdded);
 
+    // Generate batch ID when upload starts (for staging uploads only)
+    uppy.on('upload', () => {
+      if (staging && !batchIdRef.current) {
+        // Generate a UUID v4 for the batch
+        batchIdRef.current = crypto.randomUUID();
+        console.log('Generated batch ID:', batchIdRef.current);
+      }
+    });
+
     uppy.on('upload-error', (file, error) => {
       toast.error(`Upload failed for ${file?.name}: ${error.message}`);
     });
@@ -235,7 +253,12 @@ const UppyFileUploader = ({
       if (successfulUploads > 0) {
         toast.success(`${successfulUploads} file(s) uploaded successfully`);
         if (onUploadComplete) {
-          onUploadComplete(result);
+          onUploadComplete(result, staging ? batchIdRef.current || undefined : undefined);
+        }
+
+        // Reset batch ID after successful upload
+        if (staging) {
+          batchIdRef.current = null;
         }
       }
 
@@ -247,7 +270,7 @@ const UppyFileUploader = ({
     return () => {
       // Event listeners are automatically cleaned up when component unmounts
     };
-  }, [uppy, handleFilesAdded, dispatch, onUploadComplete]);
+  }, [uppy, handleFilesAdded, dispatch, onUploadComplete, staging]);
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">

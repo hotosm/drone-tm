@@ -875,6 +875,7 @@ async def complete_upload(
             data.file_key,
             data.filename,
             str(user.id),
+            str(data.batch_id) if data.batch_id else None,
             _queue_name="default_queue",
         )
 

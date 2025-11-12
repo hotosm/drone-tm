@@ -19,6 +19,7 @@ const DroneImageProcessingWorkflow = ({
   projectId,
 }: IDroneImageProcessingWorkflowProps) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [batchId, setBatchId] = useState<string | null>(null);
 
   const steps = [
     { url: '', step: 1, label: '01', name: 'Image Upload', title: 'Upload' },
@@ -44,12 +45,41 @@ const DroneImageProcessingWorkflow = ({
     onClose();
   };
 
+  // Handle upload complete - store batch ID and move to classification
+  const handleUploadComplete = (result: any, uploadedBatchId?: string) => {
+    if (uploadedBatchId) {
+      setBatchId(uploadedBatchId);
+      // Automatically move to classification step
+      setCurrentStep(2);
+    }
+  };
+
+  // Handle classification complete - move to review
+  const handleClassificationComplete = () => {
+    setCurrentStep(3);
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <ImageUpload projectId={projectId} />;
+        return (
+          <ImageUpload
+            projectId={projectId}
+            onUploadComplete={handleUploadComplete}
+          />
+        );
       case 2:
-        return <ImageClassification />;
+        return batchId ? (
+          <ImageClassification
+            projectId={projectId}
+            batchId={batchId}
+            onClassificationComplete={handleClassificationComplete}
+          />
+        ) : (
+          <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-text-gray-500">
+            No batch ID available. Please upload images first.
+          </div>
+        );
       case 3:
         return <ImageReview />;
       case 4:

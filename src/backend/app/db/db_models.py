@@ -252,6 +252,7 @@ class DbProjectImage(Base):
     filename = cast(str, Column(Text, nullable=False))
     s3_key = cast(str, Column(Text, nullable=False))
     hash_md5 = cast(str, Column(CHAR(32), nullable=False))
+    batch_id = cast(str, Column(UUID(as_uuid=True), nullable=True))
     location = cast(WKBElement, Column(Geometry("POINT", srid=4326), nullable=True))
     exif = cast(dict, Column(JSONB, nullable=True))
     uploaded_by = cast(
@@ -261,8 +262,9 @@ class DbProjectImage(Base):
     classified_at = cast(datetime, Column(DateTime, nullable=True))
     status = cast(
         ImageStatus,
-        Column(Enum(ImageStatus), default=ImageStatus.STAGED, nullable=False),
+        Column(Enum(ImageStatus), default=ImageStatus.UPLOADED, nullable=False),
     )
+    rejection_reason = cast(str, Column(Text, nullable=True))
     duplicate_of = cast(
         str,
         Column(
@@ -281,9 +283,11 @@ class DbProjectImage(Base):
         Index("idx_project_images_project_id", "project_id"),
         Index("idx_project_images_task_id", "task_id"),
         Index("idx_project_images_status", "status"),
+        Index("idx_project_images_batch_id", "batch_id"),
         Index("idx_project_images_hash_md5", "hash_md5"),
         Index("idx_project_images_uploaded_by", "uploaded_by"),
         Index("idx_project_images_location", location, postgresql_using="gist"),
+        Index("idx_project_images_batch_status", "batch_id", "status"),
         {},
     )
 

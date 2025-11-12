@@ -15,7 +15,7 @@ from app.utils import strip_presigned_url_for_local_dev
 
 def s3_client():
     """Return the initialised MinIO client with credentials."""
-    endpoint = settings.S3_ENDPOINT
+    endpoint = settings.S3_DOWNLOAD_ROOT
     minio_url, is_secure = is_connection_secure(endpoint)
 
     log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
@@ -167,6 +167,36 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
         if response:
             response.close()
             response.release_conn()
+
+
+async def async_get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
+    """Download an S3 object from a bucket and return it as a BytesIO object.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        s3_path (str): The path to the S3 object in the bucket.
+
+    Returns:
+        BytesIO: A BytesIO object containing the content of the downloaded S3 object.
+    """
+    # Ensure s3_path starts with a forward slash
+    # if not s3_path.startswith("/"):
+    #     s3_path = f"/{s3_path}"
+
+    client = s3_client()
+    response = None
+    try:
+        response = client.get_object(bucket_name, s3_path)
+        return BytesIO(response.read())
+    except Exception as e:
+        log.warning(f"Failed attempted download from S3 path: {s3_path}")
+        raise ValueError(str(e)) from e
+    finally:
+        if response:
+            response.close()
+            response.release_conn()
+
+
 
 
 def get_image_dir_url(bucket_name: str, image_dir: str):

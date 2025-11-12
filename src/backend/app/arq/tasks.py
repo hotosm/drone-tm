@@ -20,7 +20,7 @@ from app.images.image_logic import (
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import HTTPStatus, ImageStatus
 from app.projects.project_logic import process_all_drone_images, process_drone_images
-from app.s3 import get_obj_from_bucket
+from app.s3 import async_get_obj_from_bucket
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
@@ -96,6 +96,7 @@ async def _save_image_record(
     exif_dict: Optional[dict] = None,
     location: Optional[dict] = None,
     status: ImageStatus = ImageStatus.STAGED,
+    batch_id: Optional[str] = None,
 ) -> ProjectImageOut:
     """Save image record to database.
 
@@ -109,6 +110,7 @@ async def _save_image_record(
         exif_dict: EXIF data (optional)
         location: GPS location (optional)
         status: Image status (STAGED, INVALID_EXIF, etc.)
+        batch_id: Batch UUID for grouping uploads (optional)
 
     Returns:
         ProjectImageOut: Saved image record
@@ -122,6 +124,7 @@ async def _save_image_record(
         exif=exif_dict,
         uploaded_by=uploaded_by,
         status=status,
+        batch_id=UUID(batch_id) if batch_id else None,
     )
 
     image_record = await create_project_image(db, image_data)
@@ -141,6 +144,7 @@ async def process_uploaded_image(
     file_key: str,
     filename: str,
     uploaded_by: str,
+    batch_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Background task to process uploaded image: extract EXIF, calculate hash, save to DB.
 
@@ -168,7 +172,7 @@ async def process_uploaded_image(
 
         async with db_pool.connection() as db:
             log.info(f"Downloading file from S3: {file_key}")
-            file_obj = get_obj_from_bucket(settings.S3_BUCKET_NAME, file_key)
+            file_obj = await async_get_obj_from_bucket(settings.S3_BUCKET_NAME, file_key)
             file_content = file_obj.read()
 
             log.info(f"Calculating hash for: {filename}")
@@ -222,6 +226,7 @@ async def process_uploaded_image(
                 exif_dict=exif_dict,
                 location=location,
                 status=status,
+                batch_id=batch_id,
             )
 
             log.info(
@@ -242,6 +247,41 @@ async def process_uploaded_image(
         raise
 
 
+async def classify_image_batch(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    batch_id: str,
+) -> Dict:
+    from app.projects.image_classification import ImageClassifier
+
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting batch classification job {job_id} for batch {batch_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            result = await ImageClassifier.classify_batch(
+                conn,
+                UUID(batch_id),
+                UUID(project_id),
+            )
+
+            log.info(
+                f"Batch classification complete: "
+                f"Total={result['total']}, Assigned={result['assigned']}, "
+                f"Rejected={result['rejected']}, Unmatched={result['unmatched']}"
+            )
+
+            return result
+
+    except Exception as e:
+        log.error(f"Batch classification failed: {str(e)}")
+        raise
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -252,6 +292,7 @@ class WorkerSettings:
         process_drone_images,
         process_all_drone_images,
         process_uploaded_image,
+        classify_image_batch,
     ]
 
     queue_name = "default_queue"
