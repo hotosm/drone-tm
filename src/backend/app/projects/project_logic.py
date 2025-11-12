@@ -801,10 +801,10 @@ async def process_waypoints_and_waylines(
         # Generate waypoints and waylines
         waypoint_params["mode"] = FlightMode.WAYPOINTS
         points = create_waypoint(**waypoint_params)
-        count_data["waypoints"] = len(json.loads(points)["features"])
+        count_data["waypoints"] = len(json.loads(points["geojson"])["features"])
 
         waypoint_params["mode"] = FlightMode.WAYLINES
         lines = create_waypoint(**waypoint_params)
-        count_data["waylines"] = len(json.loads(lines)["features"])
+        count_data["waylines"] = len(json.loads(lines["geojson"])["features"])
 
     return count_data
