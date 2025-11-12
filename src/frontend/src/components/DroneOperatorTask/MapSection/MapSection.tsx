@@ -144,6 +144,8 @@ const MapSection = ({ className }: { className?: string }) => {
                 },
               ],
             },
+            battery_warning: data.battery_warning,
+            estimated_flight_time_minutes: data.estimated_flight_time_minutes,
           };
 
           takeOffPointRef.current =
@@ -152,6 +154,14 @@ const MapSection = ({ className }: { className?: string }) => {
         },
       },
     );
+
+  useEffect(() => {
+    if (taskWayPointsData?.battery_warning) {
+      toast.warn(
+        `The estimated flight time of ${taskWayPointsData.estimated_flight_time_minutes} minutes exceeds 80% of the drone's battery life. Consider splitting the task into smaller parts.`,
+      );
+    }
+  }, [taskWayPointsData]);
 
   const {
     data: taskAssetsInformation,
