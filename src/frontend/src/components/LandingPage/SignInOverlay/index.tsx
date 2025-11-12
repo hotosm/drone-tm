@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTypedDispatch } from '@Store/hooks';
 import useAuth from '@Hooks/useAuth';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
@@ -15,6 +15,7 @@ import { slideVariants } from '@Constants/animations';
 export default function SignInOverlay() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
 
   return (
@@ -32,6 +33,7 @@ export default function SignInOverlay() {
           name="close"
           onClick={() => {
             dispatch(setCommonState({ openSignInMenu: false }));
+            navigate(location.pathname, { replace: true, state: null });
           }}
         />
       </FlexRow>
@@ -50,7 +52,7 @@ export default function SignInOverlay() {
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {
-                navigate('/login');
+                navigate('/login', { state: { from: location.state?.from } });
               }
             }}
           >
@@ -71,7 +73,7 @@ export default function SignInOverlay() {
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {
-                navigate('/login');
+                navigate('/login', { state: { from: location.state?.from } });
               }
             }}
           >

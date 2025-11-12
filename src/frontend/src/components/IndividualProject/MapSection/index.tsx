@@ -45,6 +45,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
   const [showTaskArea, setShowTaskArea] = useState(true);
+  const [showTaskIndex, setShowTaskIndex] = useState(false);
 
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
@@ -225,6 +226,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
   };
 
+  const handleToggleTaskIndex = () => {
+    setShowTaskIndex(prev => !prev);
+  };
+
   const handleToggleTaskArea = () => {
     const taskLayerIds = map
       ?.getStyle()
@@ -302,7 +307,13 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                 map={map as Map}
                 id={`tasks-layer-${task?.id}-${taskStatusObj?.[task?.id]}`}
                 visibleOnMap={task?.id && taskStatusObj}
-                geojson={task.outline as GeojsonType}
+                geojson={{
+                  ...task.outline,
+                  properties: {
+                    ...task.outline.properties,
+                    project_task_index: task?.project_task_index,
+                  },
+                }}
                 interactions={['feature']}
                 layerOptions={getLayerOptionsByStatus(
                   taskStatusObj?.[`${task?.id}`],
@@ -312,6 +323,16 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                   false
                 }
                 image={lock}
+                imageLayoutOptions={{
+                  ...(showTaskIndex
+                    ? {
+                        'text-field': ['get', 'project_task_index'],
+                        'text-size': 12,
+                        'text-font': ['Open Sans Regular'],
+                        'text-offset': [0, 1.5],
+                      }
+                    : {}),
+                }}
               />
             );
           })}
@@ -372,6 +393,19 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
               <ToolTip
                 name="zoom_out_map"
                 message="Zoom to project area"
+                symbolType="material-icons"
+                iconClassName="!naxatw-text-xl !naxatw-text-black"
+                className="naxatw-mt-[-4px]"
+              />
+            </Button>
+            <Button
+              variant="ghost"
+              className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
+              onClick={() => handleToggleTaskIndex()}
+            >
+              <ToolTip
+                name="numbers"
+                message={showTaskIndex ? 'Hide Task Index' : 'Show Task Index'}
                 symbolType="material-icons"
                 iconClassName="!naxatw-text-xl !naxatw-text-black"
                 className="naxatw-mt-[-4px]"

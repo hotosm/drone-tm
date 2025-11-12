@@ -44,8 +44,15 @@ function GoogleAuth() {
           localStorage.setItem('userprofile', userDetailsString);
           setUserProfileDetails(userDetails);
 
+          const savedPath = sessionStorage.getItem('postLoginRedirect');
+          if (savedPath) {
+            sessionStorage.removeItem('postLoginRedirect');
+          }
+
           // navigate according the user profile completion
-          if (
+          if (savedPath && savedPath.startsWith('/') && !savedPath.startsWith('//')) {
+            navigate(savedPath, { replace: true });
+          } else if (
             userDetails?.has_user_profile &&
             userDetails?.role?.includes(signedInAs)
           ) {

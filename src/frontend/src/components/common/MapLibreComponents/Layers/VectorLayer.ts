@@ -25,6 +25,7 @@ export default function VectorLayer({
   onDrag,
   onDragEnd,
   needDragEvent = false,
+  imageLayoutOptions = {},
 }: IVectorLayer) {
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
@@ -78,6 +79,8 @@ export default function VectorLayer({
           }
         });
 
+        map.setGlyphs('https://fonts.openmaptiles.org/{fontstack}/{range}.pbf');
+
         map.addLayer({
           id: imageId,
           type: 'symbol',
@@ -88,6 +91,7 @@ export default function VectorLayer({
             'icon-size': 0.8,
             'icon-overlap': 'always',
             'icon-anchor': iconAnchor,
+            ...imageLayoutOptions,
           },
           ...imageLayerOptions,
         });
