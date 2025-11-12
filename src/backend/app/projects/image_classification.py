@@ -2,6 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Literal, Optional
 
+import cv2
+import numpy as np
+from fastapi.concurrency import run_in_threadpool
 from geoalchemy2.functions import ST_Intersects, ST_SetSRID, ST_Point
 from loguru import logger as log
 from psycopg import Connection
@@ -9,23 +12,97 @@ from psycopg.rows import dict_row
 from shapely import wkb
 from shapely.geometry import Point, shape
 
+from app.config import settings
 from app.db.db_models import DbTask
 from app.models.enums import ImageStatus
+from app.s3 import get_obj_from_bucket
 
 
 MIN_GIMBAL_ANGLE = -30.0
-MIN_QUALITY_SCORE = 100.0
+MIN_SHARPNESS_SCORE = 100.0
 
 
 class ImageClassifier:
 
     @staticmethod
-    async def check_image_quality(exif_data: dict) -> tuple[bool, Optional[str]]:
+    def calculate_sharpness(image_bytes: bytes) -> float:
+        """Calculate image sharpness using Laplacian variance method.
+
+        The Laplacian variance method detects blur by computing the variance
+        of the Laplacian (second derivative) of the image. A low variance
+        indicates a blurry image, while a high variance indicates a sharp image.
+
+        Args:
+            image_bytes: Raw image file bytes
+
+        Returns:
+            float: Sharpness score (Laplacian variance). Higher = sharper.
+                   Typical values:
+                   - < 50: Very blurry
+                   - 50-100: Moderately blurry
+                   - 100-500: Acceptable sharpness
+                   - > 500: Very sharp
+
+        Raises:
+            ValueError: If image cannot be decoded
+        """
+        try:
+            # Convert bytes to numpy array
+            nparr = np.frombuffer(image_bytes, np.uint8)
+
+            # Decode image
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if img is None:
+                raise ValueError("Failed to decode image")
+
+            # Convert to grayscale for better edge detection
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+            # Calculate Laplacian variance
+            laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+            variance = laplacian.var()
+
+            log.debug(f"Calculated sharpness score: {variance:.2f}")
+
+            return float(variance)
+
+        except Exception as e:
+            log.error(f"Error calculating sharpness: {e}")
+            raise ValueError(f"Failed to calculate sharpness: {e}") from e
+
+    @staticmethod
+    async def check_image_quality(
+        exif_data: dict,
+        image_bytes: Optional[bytes] = None
+    ) -> tuple[bool, Optional[str], Optional[float]]:
+        """Check image quality based on EXIF and optionally image content.
+
+        Args:
+            exif_data: EXIF metadata dictionary
+            image_bytes: Optional raw image bytes for sharpness analysis
+
+        Returns:
+            Tuple of (passed, reason, sharpness_score)
+        """
+        # Check gimbal angle from EXIF
         gimbal_angle = exif_data.get("pitch")
         if gimbal_angle is not None and gimbal_angle > MIN_GIMBAL_ANGLE:
-            return False, f"Gimbal angle {gimbal_angle:.1f}° too shallow (must be < {MIN_GIMBAL_ANGLE}°)"
+            return False, f"Gimbal angle {gimbal_angle:.1f}° too shallow (must be < {MIN_GIMBAL_ANGLE}°)", None
 
-        return True, None
+        # Check sharpness if image bytes provided
+        sharpness_score = None
+        if image_bytes:
+            try:
+                sharpness_score = ImageClassifier.calculate_sharpness(image_bytes)
+                if sharpness_score < MIN_SHARPNESS_SCORE:
+                    return False, f"Image too blurry (sharpness: {sharpness_score:.1f}, required: {MIN_SHARPNESS_SCORE:.1f})", sharpness_score
+            except Exception as e:
+                log.warning(f"Could not calculate sharpness: {e}")
+                # Don't fail the image if we can't calculate sharpness
+                # Just continue without sharpness check
+
+        return True, None, sharpness_score
 
     @staticmethod
     async def find_matching_task(
@@ -66,7 +143,7 @@ class ImageClassifier:
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
-                SELECT id, exif, location, status
+                SELECT id, exif, location, status, s3_key
                 FROM project_images
                 WHERE id = %(image_id)s AND project_id = %(project_id)s
                 """,
@@ -83,6 +160,7 @@ class ImageClassifier:
 
         logs = []
         exif_data = image.get("exif") or {}
+        s3_key = image.get("s3_key")
 
         logs.append({
             "action": "EXIF Extraction",
@@ -129,10 +207,37 @@ class ImageClassifier:
             "status": "success"
         })
 
-        quality_passed, quality_reason = await ImageClassifier.check_image_quality(exif_data)
+        # Download image for quality analysis using run_in_threadpool
+        # to properly handle the sync MinIO client from async context
+        image_bytes = None
+        try:
+            log.info(f"Downloading image from S3: {s3_key}")
+            file_obj = await run_in_threadpool(
+                get_obj_from_bucket,
+                settings.S3_BUCKET_NAME,
+                s3_key
+            )
+            image_bytes = file_obj.read()
+            logs.append({
+                "action": "Image Download",
+                "details": f"Downloaded {len(image_bytes) / 1024 / 1024:.2f} MB from S3",
+                "status": "success"
+            })
+        except Exception as e:
+            log.error(f"Failed to download image from S3: {e}")
+            logs.append({
+                "action": "Image Download",
+                "details": f"Failed to download from S3: {str(e)}",
+                "status": "warning"
+            })
+
+        quality_passed, quality_reason, sharpness_score = await ImageClassifier.check_image_quality(
+            exif_data, image_bytes
+        )
+
         if not quality_passed:
             await ImageClassifier._update_image_status(
-                db, image_id, ImageStatus.REJECTED, quality_reason
+                db, image_id, ImageStatus.REJECTED, quality_reason, sharpness_score
             )
             logs.append({
                 "action": "REJECTED",
@@ -143,13 +248,19 @@ class ImageClassifier:
                 "image_id": str(image_id),
                 "status": ImageStatus.REJECTED,
                 "reason": quality_reason,
+                "sharpness_score": sharpness_score,
                 "logs": logs
             }
 
         gimbal_angle = exif_data.get("pitch")
+        quality_details = f"Gimbal: {gimbal_angle:.1f}°"
+        if sharpness_score is not None:
+            quality_details += f", Sharpness: {sharpness_score:.1f}"
+        quality_details += " - Passed"
+
         logs.append({
             "action": "Quality Check",
-            "details": f"Gimbal: {gimbal_angle:.1f}° - Passed",
+            "details": quality_details,
             "status": "success"
         })
 
@@ -173,7 +284,7 @@ class ImageClassifier:
             }
 
         await ImageClassifier._assign_image_to_task(
-            db, image_id, task_id
+            db, image_id, task_id, sharpness_score
         )
 
         logs.append({
@@ -186,6 +297,7 @@ class ImageClassifier:
             "image_id": str(image_id),
             "status": ImageStatus.ASSIGNED,
             "task_id": str(task_id),
+            "sharpness_score": sharpness_score,
             "logs": logs
         }
 
@@ -194,12 +306,14 @@ class ImageClassifier:
         db: Connection,
         image_id: uuid.UUID,
         status: ImageStatus,
-        rejection_reason: Optional[str] = None
+        rejection_reason: Optional[str] = None,
+        sharpness_score: Optional[float] = None
     ):
         query = """
             UPDATE project_images
             SET status = %(status)s,
                 rejection_reason = %(rejection_reason)s,
+                sharpness_score = %(sharpness_score)s,
                 classified_at = %(classified_at)s
             WHERE id = %(image_id)s
         """
@@ -211,6 +325,7 @@ class ImageClassifier:
                     "image_id": str(image_id),
                     "status": status.value,
                     "rejection_reason": rejection_reason,
+                    "sharpness_score": sharpness_score,
                     "classified_at": datetime.utcnow()
                 }
             )
@@ -219,12 +334,14 @@ class ImageClassifier:
     async def _assign_image_to_task(
         db: Connection,
         image_id: uuid.UUID,
-        task_id: uuid.UUID
+        task_id: uuid.UUID,
+        sharpness_score: Optional[float] = None
     ):
         query = """
             UPDATE project_images
             SET status = %(status)s,
                 task_id = %(task_id)s,
+                sharpness_score = %(sharpness_score)s,
                 classified_at = %(classified_at)s
             WHERE id = %(image_id)s
         """
@@ -236,6 +353,7 @@ class ImageClassifier:
                     "image_id": str(image_id),
                     "status": ImageStatus.ASSIGNED.value,
                     "task_id": str(task_id),
+                    "sharpness_score": sharpness_score,
                     "classified_at": datetime.utcnow()
                 }
             )

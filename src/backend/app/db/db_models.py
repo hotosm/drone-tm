@@ -265,6 +265,7 @@ class DbProjectImage(Base):
         Column(Enum(ImageStatus), default=ImageStatus.UPLOADED, nullable=False),
     )
     rejection_reason = cast(str, Column(Text, nullable=True))
+    sharpness_score = cast(float, Column(Float, nullable=True))
     duplicate_of = cast(
         str,
         Column(

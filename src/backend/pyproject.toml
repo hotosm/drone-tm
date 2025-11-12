@@ -37,6 +37,8 @@ dependencies = [
     "asgi-lifespan==2.1.0",
     "arq==0.26.3",
     "redis==5.2.1",
+    "opencv-python-headless==4.10.0.84",
+    "numpy>=1.26.0,<2.0.0",
     "drone-flightplan",
 ]
 requires-python = ">=3.11"

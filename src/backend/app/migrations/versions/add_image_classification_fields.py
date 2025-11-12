@@ -42,6 +42,18 @@ def upgrade():
     if not rejection_reason_exists:
         op.add_column('project_images', sa.Column('rejection_reason', sa.Text(), nullable=True))
 
+    # Check if sharpness_score column exists
+    sharpness_score_exists = connection.execute(sa.text("""
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'project_images'
+            AND column_name = 'sharpness_score'
+        )
+    """)).scalar()
+
+    if not sharpness_score_exists:
+        op.add_column('project_images', sa.Column('sharpness_score', sa.Float(), nullable=True))
+
     # Create indexes if they don't exist
     op.execute("CREATE INDEX IF NOT EXISTS idx_project_images_batch_id ON project_images (batch_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_project_images_batch_status ON project_images (batch_id, status)")
@@ -117,6 +129,7 @@ def upgrade():
 def downgrade():
     op.drop_index('idx_project_images_batch_status', table_name='project_images')
     op.drop_index('idx_project_images_batch_id', table_name='project_images')
+    op.drop_column('project_images', 'sharpness_score')
     op.drop_column('project_images', 'rejection_reason')
     op.drop_column('project_images', 'batch_id')
 
