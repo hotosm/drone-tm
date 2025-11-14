@@ -77,6 +77,9 @@ const MapSection = ({ className }: { className?: string }) => {
   const centroidRef = useRef<[number, number]>(null);
   const takeOffPointRef = useRef<[number, number]>(null);
 
+  const isCertifiedDroneOperator = useTypedSelector(
+    state => state.common.isCertifiedDroneUser,
+  );
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
   );
@@ -156,9 +159,10 @@ const MapSection = ({ className }: { className?: string }) => {
     );
 
   useEffect(() => {
-    if (taskWayPointsData?.battery_warning) {
+    if (isCertifiedDroneOperator && taskWayPointsData?.battery_warning) {
       toast.warn(
-        `The estimated flight time of ${taskWayPointsData.estimated_flight_time_minutes} minutes exceeds 80% of the drone's battery life. Consider splitting the task into smaller parts.`,
+        `The estimated flight time of ${taskWayPointsData.estimated_flight_time_minutes} minutes 
+        exceeds 80% of the drone's battery life. Consider splitting the task into smaller parts.`,
       );
     }
   }, [taskWayPointsData]);
