@@ -17,6 +17,7 @@ class DroneType(StrEnum):
     QGROUNDCONTROL = "QGROUNDCONTROL"
     LITCHI = "LITCHI"
 
+
 # Battery life is calculated using a constant average speed of 11.5 m/s, using
 # the quoted max flight time and the speed of the drone used for that test from the manufacturer.
 # For any drones which are added that have a max speed of less than 11.5 m/s, it shouldn't be relevant
@@ -24,7 +25,7 @@ class DroneType(StrEnum):
 # maximum speeds.
 # Results were estimated based on simulating a moderate drag force on the drone during flight
 # at 11.5 m/s. Will need testing to see how realistic these speeds are.
-# NB - mention this in some kind of disclaimer when suggesting to user that their 
+# NB - mention this in some kind of disclaimer when suggesting to user that their
 # task should be split
 DRONE_SPECS = {
     DroneType.DJI_MINI_4_PRO: {

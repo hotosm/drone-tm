@@ -709,7 +709,7 @@ def create_waypoint(
 
     if "max_battery_life_minutes" in DRONE_SPECS[drone_type]:
         max_battery_life_minutes = DRONE_SPECS[drone_type]["max_battery_life_minutes"]
-        
+
         if estimated_flight_time_minutes > (max_battery_life_minutes * 0.8):
             battery_warning = True
 
