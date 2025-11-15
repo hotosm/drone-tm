@@ -158,7 +158,7 @@ const MapSection = ({ className }: { className?: string }) => {
   useEffect(() => {
     if (taskWayPointsData?.battery_warning) {
       toast.warn(
-        `The estimated flight time of ${taskWayPointsData.estimated_flight_time_minutes} minutes 
+        `The estimated flight time of ${taskWayPointsData.estimated_flight_time_minutes} minutes
          exceeds 80% of the drone's battery life. Consider splitting the task into smaller parts.`,
       );
     }
