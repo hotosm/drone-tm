@@ -24,9 +24,7 @@ class DroneType(StrEnum):
 # as they can't get to that speed anyway, so we can just use the estimated battery life at those drones'
 # maximum speeds.
 # Results were estimated based on simulating a moderate drag force on the drone during flight
-# at 11.5 m/s. Will need testing to see how realistic these speeds are.
-# NB - mention this in some kind of disclaimer when suggesting to user that their
-# task should be split
+# at 11.5 m/s. TODO - Will need testing to see how realistic these speeds are.
 DRONE_SPECS = {
     DroneType.DJI_MINI_4_PRO: {
         # 1/1.3-inch CMOS
@@ -40,7 +38,7 @@ DRONE_SPECS = {
     DroneType.DJI_AIR_3: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": 25,
+        "max_battery_life_minutes": 33,
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -49,7 +47,7 @@ DRONE_SPECS = {
     DroneType.DJI_MINI_5_PRO: {
         # 1-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": 16,
+        "max_battery_life_minutes": 20,
         "sensor_height_mm": 9.6,
         "sensor_width_mm": 12.8,
         "equiv_focal_length_mm": 24,
@@ -58,7 +56,7 @@ DRONE_SPECS = {
     DroneType.POTENSIC_ATOM_2: {
         # 1/2-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": 10,
+        "max_battery_life_minutes": 12,
         "sensor_height_mm": 4.80,
         "sensor_width_mm": 6.40,
         "equiv_focal_length_mm": 26,
