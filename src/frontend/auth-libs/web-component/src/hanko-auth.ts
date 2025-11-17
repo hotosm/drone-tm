@@ -606,10 +606,10 @@ export class HankoAuth extends LitElement {
       if (jwt) {
         const hostname = window.location.hostname;
         const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-        const domainPart = isLocalhost ? `; domain=${hostname}` : '';
+        const domainPart = isLocalhost ? `; domain=${hostname}` : `; domain=.hotosm.org`;
 
         document.cookie = `hanko=${jwt}; path=/${domainPart}; max-age=86400; SameSite=Lax`;
-        this.log(`🔐 JWT synced to cookie for SSO${isLocalhost ? ` (domain=${hostname})` : ''}`);
+        this.log(`🔐 JWT synced to cookie for SSO${isLocalhost ? ` (domain=${hostname})` : ' (domain=.hotosm.org)'}`);
       } else {
         this.log('⚠️ No JWT found in session event');
       }
