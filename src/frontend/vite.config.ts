@@ -51,7 +51,7 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: ['dronetm.hotosm.test', 'localhost', '127.0.0.1', '.test'],
     hmr: {
-      clientPort: 80,
+      clientPort: 443,
       host: 'dronetm.hotosm.test',
     },
   },
