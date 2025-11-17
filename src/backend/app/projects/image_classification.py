@@ -386,7 +386,12 @@ class ImageClassifier:
             return {
                 "batch_id": str(batch_id),
                 "message": "No images to classify",
-                "total": 0
+                "total": 0,
+                "assigned": 0,
+                "rejected": 0,
+                "unmatched": 0,
+                "invalid": 0,
+                "images": []
             }
 
         results = {

@@ -129,6 +129,8 @@ services:
     depends_on:
       - redis
     env_file: .env
+    extra_hosts:
+      - "localhost:host-gateway"
     networks:
       - dtm-network
     volumes:

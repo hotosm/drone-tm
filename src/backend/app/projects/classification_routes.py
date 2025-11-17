@@ -46,6 +46,34 @@ async def start_batch_classification(
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
+    # First check if there are any images in the batch with status 'uploaded'
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT COUNT(*) as count
+            FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+            AND status = 'uploaded'
+            """,
+            {
+                "batch_id": str(batch_id),
+                "project_id": str(project_id)
+            }
+        )
+        result = await cur.fetchone()
+        image_count = result[0] if result else 0
+
+    # If no images to classify, return early without creating a job
+    if image_count == 0:
+        log.info(f"No images to classify for batch: {batch_id}")
+        return {
+            "message": "No images available for classification",
+            "batch_id": str(batch_id),
+            "image_count": 0,
+        }
+
+    # Enqueue the classification job
     job = await redis.enqueue_job(
         "classify_image_batch",
         str(project_id),
@@ -53,12 +81,13 @@ async def start_batch_classification(
         _queue_name="default_queue",
     )
 
-    log.info(f"Queued batch classification job: {job.job_id} for batch: {batch_id}")
+    log.info(f"Queued batch classification job: {job.job_id} for batch: {batch_id} ({image_count} images)")
 
     return {
         "message": "Batch classification started",
         "job_id": job.job_id,
         "batch_id": str(batch_id),
+        "image_count": image_count,
     }
 
 

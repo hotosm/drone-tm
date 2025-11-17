@@ -215,14 +215,14 @@ async def create_project_image(
     sql = f"""
         INSERT INTO project_images (
             project_id, task_id, filename, s3_key, hash_md5,
-            location, exif, uploaded_by, status
+            location, exif, uploaded_by, status, batch_id
         ) VALUES (
             %(project_id)s, %(task_id)s, %(filename)s, %(s3_key)s, %(hash_md5)s,
-            {location_sql}, %(exif)s, %(uploaded_by)s, %(status)s
+            {location_sql}, %(exif)s, %(uploaded_by)s, %(status)s, %(batch_id)s
         )
         RETURNING id, project_id, task_id, filename, s3_key, hash_md5,
                   ST_AsGeoJSON(location)::json as location, exif, uploaded_by,
-                  uploaded_at, classified_at, status, duplicate_of
+                  uploaded_at, classified_at, status, duplicate_of, batch_id, rejection_reason
     """
 
     async with db.cursor(row_factory=dict_row) as cur:
@@ -237,6 +237,7 @@ async def create_project_image(
                 "exif": Json(image_data.exif) if image_data.exif else None,
                 "uploaded_by": str(image_data.uploaded_by),
                 "status": image_data.status.value,
+                "batch_id": str(image_data.batch_id) if image_data.batch_id else None,
             },
         )
         result = await cur.fetchone()

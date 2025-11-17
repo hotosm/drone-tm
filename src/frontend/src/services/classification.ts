@@ -31,8 +31,8 @@ export const startClassification = async (
   batchId: string,
 ): Promise<{ job_id: string; message: string }> => {
   const response = await authenticated(api).post(
-    `/projects/${projectId}/classify-batch/`,
-    { batch_id: batchId },
+    `/projects/${projectId}/classify-batch/?batch_id=${batchId}`,
+    {},
     {
       headers: {
         'Content-Type': 'application/json',

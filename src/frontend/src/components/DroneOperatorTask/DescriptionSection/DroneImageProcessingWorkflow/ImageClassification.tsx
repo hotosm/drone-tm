@@ -157,12 +157,11 @@ const ImageClassification = ({
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 naxatw-p-6">
       {/* Header Section */}
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
-        <h2 className="naxatw-text-xl naxatw-font-bold">Image Classification</h2>
 
         {!jobId && (
           <button
             onClick={handleStartClassification}
-            disabled={startClassificationMutation.isPending}
+            disabled={startClassificationMutation.isPending || (batchStatus?.uploaded ?? 0) === 0}
             className="naxatw-rounded naxatw-bg-red naxatw-px-6 naxatw-py-2 naxatw-text-white hover:naxatw-bg-red-600 disabled:naxatw-bg-gray-400 disabled:naxatw-cursor-not-allowed naxatw-transition-colors"
           >
             {startClassificationMutation.isPending ? 'Starting...' : 'Start Classification'}

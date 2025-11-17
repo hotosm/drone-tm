@@ -122,11 +122,11 @@ export const useStartClassificationMutation = (
 export const useGetBatchStatusQuery = (
   projectId: string,
   batchId: string,
-  queryOptions?: Partial<UseQueryOptions>,
+  queryOptions?: Partial<UseQueryOptions<BatchStatusSummary>>,
 ) => {
-  return useQuery({
+  return useQuery<BatchStatusSummary>({
     queryKey: ['batch-status', projectId, batchId],
-    queryFn: () => getBatchStatus(projectId, batchId),
+    queryFn: async () => getBatchStatus(projectId, batchId),
     enabled: !!projectId && !!batchId,
     ...queryOptions,
   });

@@ -3,6 +3,7 @@ from io import BytesIO
 from typing import Any
 from urllib.parse import urljoin
 
+from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from minio import Minio
 from minio.commonconfig import CopySource
@@ -172,6 +173,9 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
 async def async_get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
     """Download an S3 object from a bucket and return it as a BytesIO object.
 
+    This async wrapper uses run_in_threadpool to handle the synchronous MinIO client
+    without blocking the event loop.
+
     Args:
         bucket_name (str): The name of the S3 bucket.
         s3_path (str): The path to the S3 object in the bucket.
@@ -179,22 +183,8 @@ async def async_get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
     Returns:
         BytesIO: A BytesIO object containing the content of the downloaded S3 object.
     """
-    # Ensure s3_path starts with a forward slash
-    # if not s3_path.startswith("/"):
-    #     s3_path = f"/{s3_path}"
-
-    client = s3_client()
-    response = None
-    try:
-        response = client.get_object(bucket_name, s3_path)
-        return BytesIO(response.read())
-    except Exception as e:
-        log.warning(f"Failed attempted download from S3 path: {s3_path}")
-        raise ValueError(str(e)) from e
-    finally:
-        if response:
-            response.close()
-            response.release_conn()
+    # Use run_in_threadpool to handle the synchronous operation
+    return await run_in_threadpool(get_obj_from_bucket, bucket_name, s3_path)
 
 
 

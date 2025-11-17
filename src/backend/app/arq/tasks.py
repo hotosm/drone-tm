@@ -21,6 +21,7 @@ from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import HTTPStatus, ImageStatus
 from app.projects.project_logic import process_all_drone_images, process_drone_images
 from app.s3 import async_get_obj_from_bucket
+from app.projects.image_classification import ImageClassifier
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
@@ -204,13 +205,13 @@ async def process_uploaded_image(
                 exif_dict, location = extract_exif_data(file_content)
 
                 if exif_dict:
-                    log.info(f"✓ EXIF: {len(exif_dict)} tags | GPS: {location is not None}")
+                    log.info(f" EXIF: {len(exif_dict)} tags | GPS: {location is not None}")
                     log.debug(f"EXIF tags: {list(exif_dict.keys())[:10]}")
                 else:
-                    log.warning(f"✗ No EXIF data in: {filename}")
+                    log.warning(f"No EXIF data in: {filename}")
 
             except Exception as exif_error:
-                log.error(f"✗ EXIF extraction failed for {filename}: {exif_error}")
+                log.error(f"EXIF extraction failed for {filename}: {exif_error}")
 
             # Step 4: Determine status
             status = ImageStatus.STAGED if exif_dict else ImageStatus.INVALID_EXIF
@@ -230,7 +231,7 @@ async def process_uploaded_image(
             )
 
             log.info(
-                f"✓ Completed (Job: {job_id}): "
+                f"Completed (Job: {job_id}): "
                 f"ID={image_record.id} | Status={status} | "
                 f"EXIF={'Yes' if exif_dict else 'No'} | GPS={'Yes' if location else 'No'}"
             )
@@ -243,7 +244,7 @@ async def process_uploaded_image(
             }
 
     except Exception as e:
-        log.error(f"✗ Failed (Job: {job_id}): {str(e)}")
+        log.error(f"Failed (Job: {job_id}): {str(e)}")
         raise
 
 
@@ -252,8 +253,6 @@ async def classify_image_batch(
     project_id: str,
     batch_id: str,
 ) -> Dict:
-    from app.projects.image_classification import ImageClassifier
-
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting batch classification job {job_id} for batch {batch_id}")
 
