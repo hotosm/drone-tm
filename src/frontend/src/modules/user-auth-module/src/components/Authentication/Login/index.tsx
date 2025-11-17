@@ -120,7 +120,7 @@ export default function Login() {
             onClick={() => {
               // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
               const returnTo = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
-              window.location.href = `${PORTAL_SSO_URL}/login?return_to=${encodeURIComponent(returnTo)}`;
+              window.location.href = `${PORTAL_SSO_URL}/app?return_to=${encodeURIComponent(returnTo)}`;
             }}
           >
             <span className="naxatw-text-body-btn">Login with HOTOSM SSO</span>

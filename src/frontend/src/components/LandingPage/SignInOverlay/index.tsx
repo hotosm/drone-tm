@@ -64,7 +64,7 @@ export default function SignInOverlay() {
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'PROJECT_CREATOR'}`;
-                window.location.href = `${PORTAL_SSO_URL}/login?return_to=${encodeURIComponent(returnUrl)}`;
+                window.location.href = `${PORTAL_SSO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
               }
 
@@ -99,7 +99,7 @@ export default function SignInOverlay() {
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'DRONE_PILOT'}`;
-                window.location.href = `${PORTAL_SSO_URL}/login?return_to=${encodeURIComponent(returnUrl)}`;
+                window.location.href = `${PORTAL_SSO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
               }
 
