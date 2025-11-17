@@ -235,6 +235,8 @@ const DescriptionBox = () => {
           />
         ))}
         <p className="naxatw-text-[0.75rem] naxatw-text-[#212121]">
+          {/* TODO - we might need to change this value if a drone is added which cannot
+          achieve this speed */}
           *This flight time was calculated using an average ground speed of 11.5 m/s.
         </p>
       </div>

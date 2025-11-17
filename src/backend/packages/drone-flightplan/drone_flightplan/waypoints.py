@@ -698,11 +698,10 @@ def create_waypoint(
     # Calculate estimated flight time
     ground_speed = parameters["ground_speed"]
 
+    estimated_flight_time_minutes = 0
     if ground_speed > 0:
         estimated_flight_time_seconds = total_distance / ground_speed
         estimated_flight_time_minutes = estimated_flight_time_seconds / 60
-    else:
-        estimated_flight_time_minutes = 0
 
     # Check battery life
     battery_warning = False
