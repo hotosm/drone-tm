@@ -7,8 +7,8 @@ import { FlexRow } from '../Layouts';
 
 // Import Hanko web component when using SSO
 const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
-const HANKO_API_URL = (import.meta as any).env.VITE_HANKO_API_URL || 'https://login.hotosm.org';
-const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://login.hotosm.org';
+const HANKO_API_URL = (import.meta as any).env.VITE_HANKO_API_URL || 'https://dev.login.hotosm.org';
+const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://dev.login.hotosm.org';
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 if (AUTH_PROVIDER === 'hanko') {
