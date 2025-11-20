@@ -108,19 +108,13 @@ const DescriptionBox = () => {
       },
     });
 
-  const { data: taskDescription }: Record<string, any> =
+  const { data: taskQueryData }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
       // enabled: !!taskWayPoints,
       select: (data: any) => {
         const { data: taskData } = data;
 
-        dispatch(
-          setSelectedTaskDetailToViewOrthophoto({
-            outline: taskData?.outline,
-          }),
-        );
-
-        return [
+        const taskDescription = [
           {
             id: 1,
             title: 'Task Description',
@@ -191,13 +185,26 @@ const DescriptionBox = () => {
             ],
           },
           // {
-          //   total_image_uploaded: taskData?.total_image_uploaded || 0,
-          //   assets_url: taskData?.assets_url,
-          //   state: taskData?.state,
-          // },
+         //   total_image_uploaded: taskData?.total_image_uploaded || 0,
+         //   assets_url: taskData?.assets_url,
+         //   state: taskData?.state,
+         // },
         ];
+        return { taskDescription, taskData };
       },
     });
+
+  const taskDescription = taskQueryData?.taskDescription;
+
+  useEffect(() => {
+    if (taskQueryData?.taskData) {
+      dispatch(
+        setSelectedTaskDetailToViewOrthophoto({
+          outline: taskQueryData.taskData.outline,
+        }),
+      );
+    }
+  }, [dispatch, taskQueryData]);
 
   // const taskAssetsInformation = useMemo(() => {
   //   if (!taskDescription) return {};
