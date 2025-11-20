@@ -58,7 +58,9 @@ def _calculate_constants(
     print(f"GSD To AGL Const:     {gsd_to_agl_const}")
 
 
-def calculate_adjusted_max_battery_life(drone_type: DroneType, ground_speed: float) -> float:
+def calculate_adjusted_max_battery_life(
+    drone_type: DroneType, ground_speed: float
+) -> float:
     """
     Calculates the adjusted max battery life based on ground speed using a simplified power model.
 
@@ -73,7 +75,7 @@ def calculate_adjusted_max_battery_life(drone_type: DroneType, ground_speed: flo
       of 2:1 (hover to drag) is chosen as a reasonable starting point for many quadcopters
       at moderate speeds.
     - Wind and temperature are not factored in.
-    
+
     Simplified power model: P_total = P_hover + k * v^2
     Energy E = P_total * T
     So, T = E / (P_hover + k * v^2)
