@@ -55,6 +55,7 @@ import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLaye
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
+import Icon from '@Components/common/Icon';
 
 const { COG_URL } = process.env;
 
@@ -885,32 +886,30 @@ const MapSection = ({ className }: { className?: string }) => {
 
         {/* additional controls */}
         <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
-          <Button
-            variant="ghost"
-            className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${isRotationEnabled ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-            onClick={() => handleRotationToggle()}
-          >
-            <ToolTip
-              name="rotate_90_degrees_cw"
-              message="Enable Rotation"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
-          <Button
-            variant="ghost"
-            className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showFlightPlan ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-            onClick={() => handleToggleFlightPlan()}
-          >
-            <ToolTip
-              name="flight_take_off"
-              message="Show Flight Plan"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
+          <ToolTip message="Enable Rotation" className="naxatw-mt-[-4px]">
+            <Button
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${isRotationEnabled ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+              onClick={() => handleRotationToggle()}
+            >
+              <Icon
+                name="rotate_90_degrees_cw"
+                iconSymbolType="material-icons"
+                className="!naxatw-text-xl !naxatw-text-black"
+              />
+            </Button>
+          </ToolTip>
+          <ToolTip message="Show Flight Plan" className="naxatw-mt-[-4px]">
+            <Button
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${showFlightPlan ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+              onClick={() => handleToggleFlightPlan()}
+            >
+              <Icon
+                name="flight_take_off"
+                iconSymbolType="material-icons"
+                className="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
+              />
+            </Button>
+          </ToolTip>
 
           <Button
             variant="ghost"
@@ -923,34 +922,32 @@ const MapSection = ({ className }: { className?: string }) => {
             </div>
           </Button>
 
-          <Button
-            variant="ghost"
-            className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
-            onClick={() => zoomToExtent()}
-          >
-            <ToolTip
-              name="zoom_out_map"
-              message="Zoom to task area"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
-
-          {taskAssetsInformation?.assets_url && (
+          <ToolTip message="Zoom to task area" className="naxatw-mt-[-4px]">
             <Button
-              variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-              onClick={() => handleToggleOrthophoto()}
+              className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-p-[0.315rem]"
+              onClick={() => zoomToExtent()}
             >
-              <ToolTip
-                name="visibility"
-                message="Show Orthophoto"
-                symbolType="material-icons"
-                iconClassName="!naxatw-text-xl !naxatw-text-black"
-                className="naxatw-mt-[-4px]"
+              <Icon
+                name="zoom_out_map"
+                iconSymbolType="material-icons"
+                className="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
               />
             </Button>
+          </ToolTip>
+
+          {taskAssetsInformation?.assets_url && (
+            <ToolTip message="Show Orthophoto" className="naxatw-mt-[-4px]">
+              <Button
+                className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${showOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+                onClick={() => handleToggleOrthophoto()}
+              >
+                <Icon
+                  name="visibility"
+                  iconSymbolType="material-icons"
+                  className="!naxatw-text-xl !naxatw-text-black"
+                />
+              </Button>
+            </ToolTip>
           )}
         </div>
       </MapContainer>
