@@ -75,8 +75,7 @@ const UploadsBox = ({
             id="file-input"
             type="file"
             // @ts-ignore
-            webkitDirectory=""
-            directory=""
+            webkitdirectory=""
             multiple
             onChange={handleFileChange}
             className="naxatw-absolute naxatw-opacity-0"
