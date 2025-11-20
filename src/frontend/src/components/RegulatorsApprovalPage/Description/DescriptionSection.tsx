@@ -101,7 +101,7 @@ const DescriptionSection = ({
                 </div>
               );
             }
-            return <></>;
+            return null;
           })}
 
           {(projectData?.oam_upload_status === 'UPLOADING' ||
