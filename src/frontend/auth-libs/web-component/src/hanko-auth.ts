@@ -728,39 +728,49 @@ export class HankoAuth extends LitElement {
   private async handleHankoSuccess(event: any) {
     this.log('Hanko auth success:', event.detail);
 
-    const claims = event.detail?.claims || {};
-    const userId = claims.subject || claims.sub;
-
     this._sessionJWT = event.detail?.jwt || null;
-
-    if (!userId) {
-      console.error('No user ID found in claims');
-      return;
-    }
 
     if (!this._hanko) {
       console.error('Hanko instance not initialized');
       return;
     }
 
+    // Try to get user info from /me endpoint first (preferred)
     try {
-      const user = await this._hanko.user.getCurrent();
-      this.log('👤 User data from Hanko:', user);
+      const meResponse = await fetch(`${this.hankoUrl}/me`, {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      this.user = {
-        id: user.id || userId,
-        email: user.email,
-        username: user.username,
-        emailVerified: user.email_verified || false
-      };
+      if (meResponse.ok) {
+        const userData = await meResponse.json();
+        this.log('👤 User data retrieved from /me:', userData);
+
+        this.user = {
+          id: userData.user_id,
+          email: userData.email || null,
+          username: userData.username || null,
+          emailVerified: false
+        };
+      } else {
+        this.log('⚠️ /me endpoint failed, trying SDK fallback');
+        // Fallback to SDK method
+        const user = await this._hanko.user.getCurrent();
+        this.user = {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          emailVerified: user.email_verified || false
+        };
+      }
     } catch (error) {
       console.error('Failed to fetch user info:', error);
-      this.user = {
-        id: userId,
-        email: null,
-        username: null,
-        emailVerified: false
-      };
+      // If both fail, we can't get user data
+      this.user = null;
+      return;
     }
 
     this.log('✅ User state updated:', this.user);
