@@ -29,7 +29,11 @@ DRONE_SPECS = {
     DroneType.DJI_MINI_4_PRO: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": 18,
+        # Testing speed is in kmph
+        "max_battery_life_minutes": {
+            "quoted_value": 34,
+            "testing_speed": 21.6
+        },
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -38,7 +42,10 @@ DRONE_SPECS = {
     DroneType.DJI_AIR_3: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": 33,
+         "max_battery_life_minutes": {
+            "quoted_value": 46,
+            "testing_speed": 28.8
+        },
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -47,7 +54,10 @@ DRONE_SPECS = {
     DroneType.DJI_MINI_5_PRO: {
         # 1-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": 20,
+         "max_battery_life_minutes": {
+            "quoted_value": 36,
+            "testing_speed": 21.6
+        },
         "sensor_height_mm": 9.6,
         "sensor_width_mm": 12.8,
         "equiv_focal_length_mm": 24,
@@ -56,7 +66,10 @@ DRONE_SPECS = {
     DroneType.POTENSIC_ATOM_2: {
         # 1/2-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": 12,
+        "max_battery_life_minutes": {
+            "quoted_value": 32,
+            "testing_speed": 18
+        },
         "sensor_height_mm": 4.80,
         "sensor_width_mm": 6.40,
         "equiv_focal_length_mm": 26,

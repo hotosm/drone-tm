@@ -58,6 +58,70 @@ def _calculate_constants(
     print(f"GSD To AGL Const:     {gsd_to_agl_const}")
 
 
+def calculate_adjusted_max_battery_life(drone_type: DroneType, ground_speed: float) -> float:
+    """
+    Calculates the adjusted max battery life based on ground speed using a simplified power model.
+
+    This model assumes that the total power consumption of the drone is the sum of
+    power required for hovering and power required to overcome drag.
+    P_total = P_hover + P_drag
+
+    - We assume P_drag is proportional to the square of the velocity (a common simplification).
+    - We use the manufacturer's spec (quoted battery life at a given testing speed) as a
+      reference point.
+    - We also need to assume a ratio for P_hover vs P_drag at that reference speed. A ratio
+      of 2:1 (hover to drag) is chosen as a reasonable starting point for many quadcopters
+      at moderate speeds.
+    - Wind and temperature are not factored in.
+    
+    Simplified power model: P_total = P_hover + k * v^2
+    Energy E = P_total * T
+    So, T = E / (P_hover + k * v^2)
+
+    Assume P_hover is 2/3 and P_drag is 1/3 of total power at v_test_mps.
+    This is a reasonable assumption for moderate speeds.
+    P_total_test = P_hover + k * v_test_mps^2
+    P_hover = 2 * k * v_test_mps^2
+    So, P_total_test = 3 * k * v_test_mps^2
+    And E = T_quoted * 3 * k * v_test_mps^2
+
+    Now calculate time at the mission ground_speed (v_g)
+    T_adjusted = E / (P_hover + k * v_g^2)
+    T_adjusted = (T_quoted * 3 * k * v_test_mps^2) / (2 * k * v_test_mps^2 + k * ground_speed^2)
+    The 'k' constant cancels out.
+    T_adjusted = T_quoted * (3 * v_test_mps^2) / (2 * v_test_mps^2 + ground_speed^2)
+
+    Args:
+        drone_type: The type of drone.
+        ground_speed: The ground speed of the drone in m/s.
+
+    Returns:
+        The estimated adjusted max battery life in minutes.
+    """
+    drone_specs = DRONE_SPECS[drone_type]
+    battery_specs = drone_specs.get("max_battery_life_minutes")
+
+    if not battery_specs:
+        return 0.0
+
+    t_quoted = battery_specs["quoted_value"]
+    v_test_kmh = battery_specs["testing_speed"]
+    v_test_mps = v_test_kmh / 3.6
+
+    if v_test_mps == 0:
+        return t_quoted
+
+    numerator = 3 * (v_test_mps**2)
+    denominator = 2 * (v_test_mps**2) + ground_speed**2
+
+    if denominator == 0:
+        return 0.0
+
+    adjusted_max_battery_life = t_quoted * (numerator / denominator)
+
+    return adjusted_max_battery_life
+
+
 def calculate_parameters(
     forward_overlap: float,
     side_overlap: float,
@@ -103,12 +167,25 @@ def calculate_parameters(
     side_spacing = side_photo_width - side_overlap_distance
     ground_speed = forward_spacing / image_interval
 
-    # While Mini 4 Pro can go 12m/s, Atom 2 16m/s and Mini 5 Pro 15m/s, we cap the ground speed at 11.5 m/s to
+    # While Mini 4 Pro can go 12m/s and Mini 5 Pro 15m/s, we cap the ground speed at 11.5 m/s to
     # avoid problems with the RC2 controller.
     # Speeds over 12 m/s cause the controller to change the speed to 2.5 m/s, which is too slow.
     # Keeping it below 12 m/s ensures the flight plan works correctly.
-    if ground_speed > 11.5:
+    if ground_speed > 12 and (
+        drone_type
+        in [DroneType.DJI_MINI_5_PRO, DroneType.DJI_MINI_4_PRO, DroneType.DJI_AIR_3]
+    ):
         ground_speed = 11.5
+    elif drone_type == DroneType.POTENSIC_ATOM_2:
+        # This seems to be the max speed for the Potensic Atom 2
+        ground_speed = 8.0
+    else:
+        # FIXME what should be the default?
+        ground_speed = 11.5
+
+    adjusted_max_battery_life = calculate_adjusted_max_battery_life(
+        drone_type, ground_speed
+    )
 
     return {
         "forward_photo_height": round(forward_photo_height, 0),
@@ -117,6 +194,7 @@ def calculate_parameters(
         "side_spacing": round(side_spacing, 2),
         "ground_speed": round(ground_speed, 2),
         "altitude_above_ground_level": agl,
+        "adjusted_max_battery_life": round(adjusted_max_battery_life, 2),
     }
 
 
