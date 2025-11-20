@@ -195,10 +195,15 @@ const MapSection = ({ className }: { className?: string }) => {
           },
         ],
       };
-      dispatch(setTaskAreaPolygon(taskAreaPolygon));
       return taskAreaPolygon;
     },
   });
+
+  useEffect(() => {
+    if (taskDataPolygon) {
+      dispatch(setTaskAreaPolygon(taskDataPolygon));
+    }
+  }, [taskDataPolygon, dispatch]);
 
   useEffect(() => {
     if (taskDataPolygon && map) {
@@ -409,7 +414,9 @@ const MapSection = ({ className }: { className?: string }) => {
   // to set bulk of ids (waypoint, way line and arrow symbols )
   function setVisibilityOfLayers(layerIds: string[], visibility: string) {
     layerIds.forEach(layerId => {
-      map?.setLayoutProperty(layerId, 'visibility', visibility);
+      if (map?.getLayer(layerId)) {
+        map?.setLayoutProperty(layerId, 'visibility', visibility);
+      }
     });
   }
 
@@ -604,12 +611,11 @@ const MapSection = ({ className }: { className?: string }) => {
         />
 
         {/* task waypoints/way lines plot */}
-        {taskWayPointsData && !taskWayPointsLoading && (
-          <>
-            {/* render line */}
+        {/* render line, points and image (only if index is 0)  */}
+        {taskWayPointsData &&
+          !taskWayPointsLoading && [
             <VectorLayer
-              map={map}
-              isMapLoaded={isMapLoaded}
+              key="waypoint-line"
               id="waypoint-line"
               geojson={taskWayPointsData?.geojsonAsLineString as GeojsonType}
               visibleOnMap={!!taskWayPointsData}
@@ -625,11 +631,9 @@ const MapSection = ({ className }: { className?: string }) => {
               image={right}
               symbolPlacement="line"
               iconAnchor="center"
-            />
-            {/* render points */}
+            />,
             <VectorLayer
-              map={map as Map}
-              isMapLoaded={isMapLoaded}
+              key="waypoint-points"
               id="waypoint-points"
               geojson={taskWayPointsData?.geojsonListOfPoint as GeojsonType}
               visibleOnMap={!!taskWayPointsData}
@@ -657,11 +661,9 @@ const MapSection = ({ className }: { className?: string }) => {
                   ],
                 },
               }}
-            />
-            {/* render image and only if index is 0 */}
+            />,
             <VectorLayer
-              map={map as Map}
-              isMapLoaded={isMapLoaded}
+              key="waypoint-points-image"
               id="waypoint-points-image"
               geojson={taskWayPointsData?.geojsonListOfPoint as GeojsonType}
               visibleOnMap={!!taskWayPointsData}
@@ -672,9 +674,8 @@ const MapSection = ({ className }: { className?: string }) => {
               imageLayerOptions={{
                 filter: ['==', 'index', 0],
               }}
-            />
-          </>
-        )}
+            />,
+          ]}
 
         {/* end of waypoint/way line plot */}
 
