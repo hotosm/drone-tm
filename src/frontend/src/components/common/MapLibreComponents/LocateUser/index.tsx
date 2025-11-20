@@ -1,13 +1,9 @@
 import { GeolocateControl } from 'maplibre-gl';
 import { useEffect } from 'react';
-import { MapInstanceType } from '../types';
+import { useMap } from '../MapContext';
 
-interface ILocateTheUserProps {
-  map?: MapInstanceType;
-  isMapLoaded: Boolean;
-}
-
-const LocateUser = ({ map, isMapLoaded }: ILocateTheUserProps) => {
+const LocateUser = () => {
+  const { map, isMapLoaded } = useMap();
   useEffect(() => {
     if (!map || !isMapLoaded) return;
     // Add geolocate control to the map.

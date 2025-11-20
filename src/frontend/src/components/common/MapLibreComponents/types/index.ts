@@ -76,8 +76,6 @@ export interface IVectorTileLayer extends ILayer {
 }
 
 export interface IAsyncPopup {
-  map?: MapInstanceType;
-  isMapLoaded?: Boolean;
   fetchPopupData?: (properties: Record<string, any>) => void;
   popupUI?: (properties: Record<string, any>) => ReactElement;
   title?: string;
