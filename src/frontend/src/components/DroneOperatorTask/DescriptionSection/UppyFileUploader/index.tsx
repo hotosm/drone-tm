@@ -5,8 +5,6 @@ import { UppyContext } from '@uppy/react';
 import { toast } from 'react-toastify';
 import { authenticated, api } from '@Services/index';
 import { useTypedDispatch } from '@Store/hooks';
-import { setFilesExifData } from '@Store/actions/droneOperatorTask';
-import getExifData from '@Utils/getExifData';
 
 import '@uppy/core/css/style.min.css';
 import '@uppy/dashboard/css/style.min.css';
@@ -46,6 +44,8 @@ const UppyFileUploader = ({
   const dispatch = useTypedDispatch();
   // Generate a batch ID when upload starts (for staging uploads only)
   const batchIdRef = useRef<string | null>(null);
+  // Track if we've shown the success notification to prevent duplicates
+  const notificationShownRef = useRef<boolean>(false);
 
   // Get the shared Uppy instance from context
   const { uppy } = useContext(UppyContext);
@@ -204,35 +204,8 @@ const UppyFileUploader = ({
     };
   }, [uppy, projectId, taskId, allowedFileTypes, staging]);
 
-  // Extract EXIF data when files are added
-  const handleFilesAdded = useCallback(
-    async (addedFiles: any[]) => {
-      try {
-        // Extract EXIF data from image files
-        const imageFiles = addedFiles.filter(file =>
-          file.type?.startsWith('image/'),
-        );
-
-        if (imageFiles.length > 0) {
-          const exifDataPromises = imageFiles.map(async file => {
-            const exifData = await getExifData(file.data);
-            return exifData;
-          });
-
-          const exifData = await Promise.all(exifDataPromises);
-          dispatch(setFilesExifData(exifData));
-        }
-      } catch (error) {
-        console.error('Error extracting EXIF data:', error);
-        toast.error('Error reading file metadata');
-      }
-    },
-    [dispatch],
-  );
 
   useEffect(() => {
-    uppy.on('files-added', handleFilesAdded);
-
     // Generate batch ID when upload starts (for staging uploads only)
     uppy.on('upload', () => {
       if (staging && !batchIdRef.current) {
@@ -240,6 +213,8 @@ const UppyFileUploader = ({
         batchIdRef.current = crypto.randomUUID();
         console.log('Generated batch ID:', batchIdRef.current);
       }
+      // Reset notification flag when new upload starts
+      notificationShownRef.current = false;
     });
 
     uppy.on('upload-error', (file, error) => {
@@ -250,8 +225,11 @@ const UppyFileUploader = ({
       const successfulUploads = result.successful?.length || 0;
       const failedUploads = result.failed?.length || 0;
 
-      if (successfulUploads > 0) {
+      // Only show notification once per upload batch
+      if (successfulUploads > 0 && !notificationShownRef.current) {
         toast.success(`${successfulUploads} file(s) uploaded successfully`);
+        notificationShownRef.current = true;
+
         if (onUploadComplete) {
           onUploadComplete(result, staging ? batchIdRef.current || undefined : undefined);
         }
@@ -270,7 +248,7 @@ const UppyFileUploader = ({
     return () => {
       // Event listeners are automatically cleaned up when component unmounts
     };
-  }, [uppy, handleFilesAdded, dispatch, onUploadComplete, staging]);
+  }, [uppy, dispatch, onUploadComplete, staging]);
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">

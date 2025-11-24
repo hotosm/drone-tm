@@ -46,7 +46,7 @@ async def start_batch_classification(
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
-    # First check if there are any images in the batch with status 'uploaded'
+    # First check if there are any images in the batch with status 'staged'
     async with db.cursor() as cur:
         await cur.execute(
             """
@@ -54,7 +54,7 @@ async def start_batch_classification(
             FROM project_images
             WHERE batch_id = %(batch_id)s
             AND project_id = %(project_id)s
-            AND status = 'uploaded'
+            AND status = 'staged'
             """,
             {
                 "batch_id": str(batch_id),
@@ -153,6 +153,7 @@ async def get_batch_status(
         return {
             "batch_id": str(batch_id),
             "total": sum(status_counts.values()),
+            "staged": status_counts.get("staged", 0),
             "uploaded": status_counts.get("uploaded", 0),
             "classifying": status_counts.get("classifying", 0),
             "assigned": status_counts.get("assigned", 0),

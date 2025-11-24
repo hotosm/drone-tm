@@ -59,6 +59,13 @@ const DroneImageProcessingWorkflow = ({
     setCurrentStep(3);
   };
 
+  // Shoudl proceed to the next step
+  const handleNextButton = () => {
+    if (currentStep === 1 && !batchId) {
+      return true;
+    }
+  }
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -136,6 +143,7 @@ const DroneImageProcessingWorkflow = ({
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white"
                 onClick={handleNext}
+                disabled={handleNextButton()}
                 rightIcon="chevron_right"
               >
                 Next

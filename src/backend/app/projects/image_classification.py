@@ -377,7 +377,7 @@ class ImageClassifier:
                 {
                     "batch_id": str(batch_id),
                     "project_id": str(project_id),
-                    "status": ImageStatus.UPLOADED.value
+                    "status": ImageStatus.STAGED.value
                 }
             )
             images = await cur.fetchall()
