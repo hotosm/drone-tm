@@ -429,7 +429,7 @@ const MapSection = ({ className }: { className?: string }) => {
             return {
               icon: 'info',
               message: `> 200 waypoints detected. If you are using a DJI RC-2 controller or low-spec device with RC-N2,
-                then waylines are recommended to avoid the device lagging and struggling to load so many points.`,
+                then Waylines mode is recommended to avoid device input lag and delay due to an excessive number of waypoints.`,
               ...option,
             };
           }
