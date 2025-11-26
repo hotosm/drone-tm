@@ -26,6 +26,7 @@ import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import {
   waypointModeOptions,
+  waypointUpperLimit,
   droneModelOptions,
   gimbalAngleOptions,
 } from '@Constants/taskDescription';
@@ -421,7 +422,7 @@ const MapSection = ({ className }: { className?: string }) => {
     const numberOfFeatures =
       taskWayPointsData?.geojsonListOfPoints.features.length;
 
-    if (numberOfFeatures > 200) {
+    if (numberOfFeatures > waypointUpperLimit) {
       setModifiedWaypointModeOptions(
         modifiedWaypointModeOptions.map(option => {
           if (option.label === 'Waypoints') {
