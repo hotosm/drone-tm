@@ -30,6 +30,7 @@ import ToolTip from '@Components/RadixComponents/ToolTip';
 import Legend from './Legend';
 import ProjectPromptDialog from '../ModalContent';
 import UnlockTaskPromptDialog from '../ModalContent/UnlockTaskPromptDialog';
+import Icon from '@Components/common/Icon';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const { id } = useParams();
@@ -361,23 +362,22 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
           <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
             {projectData?.orthophoto_url && (
-              <Button
-                variant="ghost"
-                className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-                onClick={() => handleToggleOverallOrthophoto()}
-              >
-                <ToolTip
-                  name="visibility"
-                  message="Show Orthophoto"
-                  symbolType="material-icons"
-                  iconClassName="!naxatw-text-xl !naxatw-text-black"
-                  className="naxatw-mt-[-4px]"
-                />
-              </Button>
+              <ToolTip message="Show Orthophoto" className="naxatw-mt-[-4px]">
+                <button
+                  className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${showOverallOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+                  onClick={() => handleToggleOverallOrthophoto()}
+                >
+                  <Icon
+                    name="visibility"
+                    iconSymbolType="material-icons"
+                    className="!naxatw-text-xl !naxatw-text-black"
+                  />
+                </button>
+              </ToolTip>
             )}
             <Button
               variant="ghost"
-              className={`naxatw-flex naxatw-h-[1.85rem] naxatw-w-[] naxatw-items-center naxatw-justify-center naxatw-border !naxatw-px-[0.315rem] ${showTaskArea ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+              className={`naxatw-flex naxatw-h-[1.85rem] naxatw-w-[] naxatw-items-center naxatw-justify-center naxatw-border !naxatw-p-[0.315rem] ${showTaskArea ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
               onClick={() => handleToggleTaskArea()}
               title="Task area"
             >
@@ -385,32 +385,33 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                 <img src={areaIcon} alt="area-icon" />
               </div>
             </Button>
-            <Button
-              variant="ghost"
-              className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
-              onClick={() => handleZoomToExtent()}
+            <ToolTip message="Zoom to project area" className="naxatw-mt-[-4px]">
+              <button
+                className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-p-[0.315rem]"
+                onClick={() => handleZoomToExtent()}
+              >
+                <Icon
+                  name="zoom_out_map"
+                  iconSymbolType="material-icons"
+                  className="!naxatw-text-xl !naxatw-text-black"
+                />
+              </button>
+            </ToolTip>
+            <ToolTip
+              message={showTaskIndex ? 'Hide Task Index' : 'Show Task Index'}
+              className="naxatw-mt-[-4px]"
             >
-              <ToolTip
-                name="zoom_out_map"
-                message="Zoom to project area"
-                symbolType="material-icons"
-                iconClassName="!naxatw-text-xl !naxatw-text-black"
-                className="naxatw-mt-[-4px]"
-              />
-            </Button>
-            <Button
-              variant="ghost"
-              className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
-              onClick={() => handleToggleTaskIndex()}
-            >
-              <ToolTip
-                name="numbers"
-                message={showTaskIndex ? 'Hide Task Index' : 'Show Task Index'}
-                symbolType="material-icons"
-                iconClassName="!naxatw-text-xl !naxatw-text-black"
-                className="naxatw-mt-[-4px]"
-              />
-            </Button>
+              <button
+                className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-p-[0.315rem]"
+                onClick={() => handleToggleTaskIndex()}
+              >
+                <Icon
+                  name="numbers"
+                  iconSymbolType="material-icons"
+                  className="!naxatw-text-xl !naxatw-text-black"
+                />
+              </button>
+            </ToolTip>
           </div>
         </div>
         {/*  additional controls */}
