@@ -18,11 +18,15 @@ export const waypointModeOptions = [
   { label: 'Waypoints', value: 'waypoints' },
 ];
 
+// FIXME we need a separate DroneType and OutputFormat
+// instead of this hack to reuse DroneType
 export const droneModelOptions = [
   { label: 'DJI Mini 4 Pro', value: 'DJI_MINI_4_PRO' },
   { label: 'DJI Mini 5 Pro', value: 'DJI_MINI_5_PRO' },
   { label: 'DJI Air 3', value: 'DJI_AIR_3' },
   { label: 'Potensic Atom 2', value: 'POTENSIC_ATOM_2' },
+  { label: 'Litchi', value: 'LITCHI' },
+  { label: 'QGroundControl', value: 'QGROUNDCONTROL' },
 ];
 
 export const gimbalAngleOptions = [

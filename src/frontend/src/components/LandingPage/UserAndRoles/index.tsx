@@ -17,7 +17,7 @@ export default function UserAndRoles() {
           whileInView="visible"
           className="naxatw-text-center naxatw-text-[2rem] naxatw-leading-[2.66rem] naxatw-text-landing-red md:naxatw-text-[4.375rem]"
         >
-          Drone TM: Users & Roles
+          DroneTM: Users & Roles
         </motion.p>
         <FlexRow
           gap={5}

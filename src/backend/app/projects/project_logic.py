@@ -199,7 +199,7 @@ async def process_task_metrics(db, tasks_data, project):
             "side_overlap": side_overlap,
             "rotation_angle": 0,
             "generate_3d": False,
-            "mode": FlightMode.waypoints,
+            "mode": FlightMode.WAYPOINTS,
         }
 
         if project.is_terrain_follow:
@@ -354,7 +354,7 @@ async def create_tasks_from_geojson(
 #                 "rotation_angle": 0,
 #                 "generate_3d": generate_3d,
 #             }
-#             waypoint_params["mode"] = FlightMode.waypoints
+#             waypoint_params["mode"] = FlightMode.WAYPOINTS
 #             if project.is_terrain_follow:
 #                 dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
 
@@ -762,7 +762,7 @@ async def process_waypoints_and_waylines(
                 file.write(file_content)
 
             # Process waypoints with terrain-follow elevation
-            waypoint_params["mode"] = FlightMode.waypoints
+            waypoint_params["mode"] = FlightMode.WAYPOINTS
             points = create_waypoint(**waypoint_params)
 
             # Add elevation data to waypoints
@@ -799,11 +799,11 @@ async def process_waypoints_and_waylines(
 
     else:
         # Generate waypoints and waylines
-        waypoint_params["mode"] = FlightMode.waypoints
+        waypoint_params["mode"] = FlightMode.WAYPOINTS
         points = create_waypoint(**waypoint_params)
         count_data["waypoints"] = len(json.loads(points)["features"])
 
-        waypoint_params["mode"] = FlightMode.waylines
+        waypoint_params["mode"] = FlightMode.WAYLINES
         lines = create_waypoint(**waypoint_params)
         count_data["waylines"] = len(json.loads(lines)["features"])
 

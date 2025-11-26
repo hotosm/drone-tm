@@ -85,10 +85,13 @@ def get_application() -> FastAPI:
             "url": "https://raw.githubusercontent.com/hotosm/drone-tm/main/LICENSE.md",
         },
         debug=settings.DEBUG,
-        docs_url="/api/docs",
-        openapi_url="/api/openapi.json",
-        redoc_url="/api/redoc",
+        docs_url=f"{settings.API_PREFIX}/docs",
+        openapi_url=f"{settings.API_PREFIX}/openapi.json",
+        redoc_url=f"{settings.API_PREFIX}/redoc",
         lifespan=lifespan,
+        root_path=f"{settings.API_PREFIX}/api",
+        # NOTE REST APIs should not have trailing slashes
+        redirect_slashes=False,
     )
 
     # Set custom logger
@@ -140,7 +143,13 @@ async def home(request: Request):
         )
     except Exception:
         """Fall back if tempalate missing. Redirect home to docs."""
-        return RedirectResponse(f"{settings.API_PREFIX}/docs")
+        return RedirectResponse("/docs")
+
+
+@api.get("/__lbheartbeat__")
+async def simple_heartbeat():
+    """Simple ping/pong API response."""
+    return Response(status_code=HTTPStatus.OK)
 
 
 @api.get("/__heartbeat__")

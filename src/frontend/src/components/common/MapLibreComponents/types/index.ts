@@ -64,6 +64,7 @@ export interface IVectorLayer extends ILayer {
   onDrag?: (e: any) => void;
   onDragEnd?: () => void;
   needDragEvent?: boolean;
+  imageLayoutOptions?: Object;
 }
 
 type InteractionsType = 'hover' | 'select';
@@ -75,8 +76,6 @@ export interface IVectorTileLayer extends ILayer {
 }
 
 export interface IAsyncPopup {
-  map?: MapInstanceType;
-  isMapLoaded?: Boolean;
   fetchPopupData?: (properties: Record<string, any>) => void;
   popupUI?: (properties: Record<string, any>) => ReactElement;
   title?: string;

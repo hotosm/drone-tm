@@ -1,18 +1,15 @@
 /* eslint-disable no-param-reassign */
-import { MapInstanceType } from '@Components/common/MapLibreComponents/types';
 import { useEffect } from 'react';
+import { useMap } from '../../common/MapLibreComponents/MapContext';
 
 interface IGetCoordinatesOnClick {
-  map?: MapInstanceType;
-  isMapLoaded?: Boolean;
   getCoordinates: any;
 }
 
 const GetCoordinatesOnClick = ({
-  map,
-  isMapLoaded,
   getCoordinates,
 }: IGetCoordinatesOnClick) => {
+  const { map, isMapLoaded } = useMap();
   useEffect(() => {
     if (!map || !isMapLoaded) return () => {};
     map.getCanvas().style.cursor = 'crosshair';

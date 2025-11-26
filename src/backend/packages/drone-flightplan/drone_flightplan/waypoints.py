@@ -11,7 +11,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
 from drone_flightplan.calculate_parameters import calculate_parameters
-from drone_flightplan.enums import GimbalAngle
+from drone_flightplan.enums import GimbalAngle, FlightMode
 from drone_flightplan.drone_type import DroneType
 
 log = logging.getLogger(__name__)
@@ -556,7 +556,7 @@ def create_waypoint(
     generate_3d: bool = False,
     no_fly_zones: dict = None,
     take_off_point: list[float] = None,
-    mode: str = "waylines",
+    mode: FlightMode = FlightMode.WAYLINES,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
     auto_rotation: bool = True,
@@ -697,7 +697,7 @@ def create_waypoint(
     )
 
     # If mode is "waylines", simplify to only start and end points
-    if mode == "waylines":
+    if mode == FlightMode.WAYLINES:
         waypoints = remove_middle_points(path)
     else:
         waypoints = path

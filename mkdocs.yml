@@ -1,4 +1,4 @@
-site_name: Drone TM
+site_name: DroneTM
 site_description: Community-driven drone imagery generation.
 # strict: true
 site_url: "https://docs.dronetm.hotosm.org"
@@ -86,5 +86,5 @@ nav:
           - Tech Decisions: decisions/README.md
           - Pre-Commit: https://docs.hotosm.org/dev-guide/repo-management/pre-commit/
           - Versioning: https://docs.hotosm.org/dev-guide/repo-management/version-control/#creating-releases
-      - Setup: dev/Setup.md
+      - Setup: dev/setup.md
   - Timeline: timeline.md

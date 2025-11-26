@@ -2,22 +2,14 @@ import useOutsideClick from '@Hooks/useOutsideClick';
 import { useState } from 'react';
 import BaseLayerSwitcher from '../MapLibreComponents/BaseLayerSwitcher';
 import baseLayersData from '../MapLibreComponents/BaseLayerSwitcher/baseLayers';
-import { MapInstanceType } from '../MapLibreComponents/types';
+import { useMap } from '../MapLibreComponents/MapContext';
 
-interface IBaseLayerSwitcherUIProps {
-  map?: MapInstanceType;
-  baseLayerList?: object;
-  isMapLoaded?: Boolean;
-}
-
-const BaseLayerSwitcherUI = ({
-  map,
-  baseLayerList = baseLayersData,
-  isMapLoaded,
-}: IBaseLayerSwitcherUIProps) => {
+const BaseLayerSwitcherUI = () => {
+  const { map, isMapLoaded } = useMap();
   const [selectedBaseLayer, setSelectedBaseLayer] = useState('osm');
   // eslint-disable-next-line no-unused-vars
   const [_, toggle, handleToggle]: any = useOutsideClick('single');
+  const baseLayerList = baseLayersData;
 
   return (
     <>

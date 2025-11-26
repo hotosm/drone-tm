@@ -73,7 +73,7 @@ For the latter drawback, it's really a question of who is flying. If it's a
 highly-paid person who travels away from home to cover a given area, you want
 a larger, faster drone to cover more area per day (you can cover 1-4 km² per
 day at 5cm GSD with good enough overlap for decent 3D using a Mini 4 Pro, whereas
-you can cover >20km²/day with a Sensefly Ebee or Wingtra One—but those are $20,000
+you can cover >20km²/day with a Sensefly Ebee or Wingtra One - but those are $20,000
 instead of $1050).
 
 If it's local community members flying relatively close to home, it can be much more

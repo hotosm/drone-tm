@@ -1,46 +1,23 @@
-/* eslint-disable react/display-name */
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-nested-ternary */
-/* eslint-disable react/jsx-props-no-spreading */
-/* eslint-disable react/jsx-no-useless-fragment */
-import React, { ReactElement } from 'react';
-import { IMapContainer, MapInstanceType } from '../types';
+import React, { forwardRef, useMemo } from 'react';
+import { IMapContainer } from '../types';
+import { MapContext } from '../MapContext';
 
-const { Children, cloneElement, forwardRef } = React;
+const MapContainer = forwardRef<HTMLDivElement, IMapContainer>(
+  ({ children, containerId = 'maplibre-gl-map', map, isMapLoaded, ...rest }, ref) => {
+    const contextValue = useMemo(
+      () => ({
+        map,
+        isMapLoaded: !!isMapLoaded,
+      }),
+      [map, isMapLoaded],
+    );
 
-const MapContainer = forwardRef(
-  (
-    {
-      children,
-      containerId = 'maplibre-gl-map',
-      map,
-      isMapLoaded,
-      ...rest
-    }: IMapContainer,
-    ref,
-  ) => {
-    const childrenCount = Children.count(children);
-    const props = {
-      map,
-      isMapLoaded,
-    };
     return (
-      <div
-        // ref={ref}
-        id={containerId}
-        // className="ol-map"
-        {...rest}
-      >
-        {childrenCount < 1 ? (
-          <></>
-        ) : childrenCount > 1 ? (
-          Children.map(children, child =>
-            child ? cloneElement(child, { ...props }) : <></>,
-          )
-        ) : (
-          cloneElement(children as ReactElement<any>, { ...props })
-        )}
-      </div>
+      <MapContext.Provider value={contextValue}>
+        <div ref={ref} id={containerId} {...rest}>
+          {children}
+        </div>
+      </MapContext.Provider>
     );
   },
 );

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export interface IBreadCrumbItem {
@@ -14,9 +15,8 @@ const BreadCrumb = ({ data }: IBreadCrumbProps) => {
   return (
     <div className="naxatw-flex naxatw-items-center naxatw-justify-start naxatw-gap-1 naxatw-p-1 naxatw-text-sm naxatw-tracking-[0.0175rem] naxatw-text-[#212121]">
       {data.map((breadCrumbItem, index) => (
-        <>
+        <React.Fragment key={breadCrumbItem.name}>
           <div
-            key={breadCrumbItem.name}
             onClick={() =>
               index < data.length - 1
                 ? navigate(breadCrumbItem.navLink)
@@ -30,7 +30,7 @@ const BreadCrumb = ({ data }: IBreadCrumbProps) => {
             {breadCrumbItem?.name}
           </div>
           {index < data.length - 1 && <div>/</div>}
-        </>
+        </React.Fragment>
       ))}
     </div>
   );

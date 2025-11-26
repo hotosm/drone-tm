@@ -33,7 +33,7 @@
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
 
-**Drone TM** is an integrated digital public good solution designed to harness
+**DroneTM** is an integrated digital public good solution designed to harness
 the power of the crowd to generate high-resolution aerial maps of any location.
 
 This innovative platform provides drone pilots, particularly in developing
@@ -46,7 +46,7 @@ In low-income and disaster-prone areas, the accessibility to near real-time sate
 
 ## Solution
 
-**Drone TM** offers a solution to these challenges by empowering communities to utilize drones for immediate and locally relevant mapping needs. Our platform:
+**DroneTM** offers a solution to these challenges by empowering communities to utilize drones for immediate and locally relevant mapping needs. Our platform:
 
 - Provides a user-friendly, inclusive application enabling anyone with a drone, including inexpensive consumer or DIY drones, to contribute to a global repository of free and open aerial imagery.
 - Facilitates community-driven drone operations, ensuring immediate response and responsible mapping that considers local needs.
@@ -72,7 +72,7 @@ the [FAQ](https://docs.dronetm.hotosm.org/about/faq/#q-what-drones-are-supported
 
 ## Getting Started
 
-To get started with Drone TM:
+To get started with DroneTM:
 
 1. **Sign Up**: Create an account and join our community of project creators and drone pilots.
 2. **Create Projects**: Sign up as a project creator to define Area for mapping.
@@ -95,13 +95,17 @@ To get started with Drone TM:
 |✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) | Since [v2024.11.0][1] |
 |✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) | Since [v2025.3.1][3] |
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
-|✅| 📱 flight plans working on Potensic Atom 2 | TBC |
-|✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | TBC |
+|✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.4.0][4] |
+|✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | Since [v2025.4.0][4] |
+|✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | TBC |
+|⚙️| 🖥️ support retries for dropped connections during photo uploads | |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
-| | 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
-| | 📱 entirely offline flightplan generation, directly on device | |
+|⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
+|⚙️| 📱 entirely offline flightplan generation, directly on device | |
 | | 📱 allow modification and division of flightplans by user before flight | |
+| | 🖥️ pre-filtering and validation of obvious photo issues prior to upload | |
 | | 🖥️ user access management for each part of the UI | |
+| | 🖥️ improved user feedback and retry capabilities during imagery processing | |
 | | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
 |⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
@@ -145,7 +149,7 @@ For now, all other drones have a compromise of some kind.
 
 ## Contribution
 
-Drone TM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
+DroneTM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
 
 - **Fork the Repository**: https://github.com/hotosm/drone-tm
 - **Report Issues**: https://github.com/hotosm/drone-tm/issues
@@ -156,3 +160,4 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [1]: https://github.com/hotosm/drone-tm/releases/tag/v2024.11.0
 [2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
+[4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
