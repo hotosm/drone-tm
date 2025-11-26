@@ -61,7 +61,6 @@ router = APIRouter(
 )
 async def read_project_centroids(
     db: Annotated[Connection, Depends(database.get_db)],
-    user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Get all project centroids."""
     return await project_logic.get_centroids(
@@ -434,7 +433,6 @@ async def read_project(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    user_data: Annotated[AuthUser, Depends(login_required)],
 ):
     """Get a specific project and all associated tasks by ID."""
     return project
