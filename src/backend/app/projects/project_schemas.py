@@ -663,7 +663,9 @@ class ProjectInfo(BaseModel):
         project_id = values.id
         if project_id:
             image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
-            values.image_url = generate_presigned_download_url(settings.S3_BUCKET_NAME, image_dir, 5)
+            values.image_url = generate_presigned_download_url(
+                settings.S3_BUCKET_NAME, image_dir, 5
+            )
         return values
 
     @model_validator(mode="after")

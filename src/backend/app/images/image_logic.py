@@ -24,14 +24,18 @@ def _convert_exif_value(value: Any) -> Any:
     which need to be converted to standard Python types for JSON serialization.
     """
     # Handle IFDRational (PIL's rational number type)
-    if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
+    if hasattr(value, "numerator") and hasattr(value, "denominator"):
         # Convert rational to float
-        return float(value.numerator) / float(value.denominator) if value.denominator != 0 else 0.0
+        return (
+            float(value.numerator) / float(value.denominator)
+            if value.denominator != 0
+            else 0.0
+        )
 
     # Handle bytes
     if isinstance(value, bytes):
         try:
-            return value.decode('utf-8', errors='ignore')
+            return value.decode("utf-8", errors="ignore")
         except:
             return str(value)
 
@@ -259,7 +263,7 @@ async def check_duplicate_image(
     Returns:
         UUID of the duplicate image if found, None otherwise
     """
-    sql = f"""
+    sql = """
         SELECT id FROM project_images
         WHERE project_id = %(project_id)s
         AND hash_md5 = %(hash_md5)s
@@ -283,7 +287,7 @@ async def mark_image_as_duplicate(
         image_id: ID of the image to mark as duplicate
         duplicate_of: ID of the original image
     """
-    sql = f"""
+    sql = """
         UPDATE project_images
         SET status = %(status)s, duplicate_of = %(duplicate_of)s
         WHERE id = %(image_id)s

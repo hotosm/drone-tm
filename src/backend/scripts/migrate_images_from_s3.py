@@ -19,7 +19,9 @@ from app.db.db_models import DbProject, DbTask
 from app.models.enums import ImageStatus
 
 
-S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT", "https://drone-tm-public.s3.amazonaws.com")
+S3_PUBLIC_ENDPOINT = os.getenv(
+    "S3_PUBLIC_ENDPOINT", "https://drone-tm-public.s3.amazonaws.com"
+)
 
 
 def fetch_images_json(project_id: str, task_id: str) -> list | None:
@@ -31,7 +33,9 @@ def fetch_images_json(project_id: str, task_id: str) -> list | None:
             return json.loads(data)
     except HTTPError as e:
         if e.code == 404:
-            log.warning(f"images.json not found for project {project_id}, task {task_id}")
+            log.warning(
+                f"images.json not found for project {project_id}, task {task_id}"
+            )
         else:
             log.error(f"Failed to fetch {url}: {e.code}")
         return None
@@ -49,7 +53,7 @@ def migrate_images_for_task(
     session: Session,
     project_id: uuid.UUID,
     task_id: uuid.UUID,
-    uploaded_by: str | None = None
+    uploaded_by: str | None = None,
 ) -> int:
     images_data = fetch_images_json(str(project_id), str(task_id))
 
@@ -130,7 +134,7 @@ def migrate_images_for_task(
                 "uploaded_by": uploaded_by,
                 "uploaded_at": datetime.now(timezone.utc),
                 "status": ImageStatus.UPLOADED,
-            }
+            },
         )
 
         upserted_count += 1
@@ -139,10 +143,7 @@ def migrate_images_for_task(
 
 
 def migrate_all_projects():
-    engine = create_engine(
-        settings.DTM_DB_URL.unicode_string(),
-        echo=False
-    )
+    engine = create_engine(settings.DTM_DB_URL.unicode_string(), echo=False)
 
     with Session(engine) as session:
         projects = session.query(DbProject).all()
@@ -154,18 +155,13 @@ def migrate_all_projects():
         for project in projects:
             log.info(f"Processing project: {project.name} ({project.id})")
 
-            tasks = session.query(DbTask).filter(
-                DbTask.project_id == project.id
-            ).all()
+            tasks = session.query(DbTask).filter(DbTask.project_id == project.id).all()
 
             log.info(f"  Found {len(tasks)} tasks for project {project.id}")
 
             for task in tasks:
                 count = migrate_images_for_task(
-                    session,
-                    project.id,
-                    task.id,
-                    uploaded_by=project.author_id
+                    session, project.id, task.id, uploaded_by=project.author_id
                 )
 
                 if count > 0:

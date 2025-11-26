@@ -5,12 +5,13 @@ Revises: 001_project_images
 Create Date: 2025-01-06
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = 'add_image_classification'
-down_revision = '001_project_images'
+revision = "add_image_classification"
+down_revision = "001_project_images"
 branch_labels = None
 depends_on = None
 
@@ -19,48 +20,66 @@ def upgrade():
     connection = op.get_bind()
 
     # Check if batch_id column exists
-    batch_id_exists = connection.execute(sa.text("""
+    batch_id_exists = connection.execute(
+        sa.text("""
         SELECT EXISTS (
             SELECT 1 FROM information_schema.columns
             WHERE table_name = 'project_images'
             AND column_name = 'batch_id'
         )
-    """)).scalar()
+    """)
+    ).scalar()
 
     if not batch_id_exists:
-        op.add_column('project_images', sa.Column('batch_id', postgresql.UUID(as_uuid=True), nullable=True))
+        op.add_column(
+            "project_images",
+            sa.Column("batch_id", postgresql.UUID(as_uuid=True), nullable=True),
+        )
 
     # Check if rejection_reason column exists
-    rejection_reason_exists = connection.execute(sa.text("""
+    rejection_reason_exists = connection.execute(
+        sa.text("""
         SELECT EXISTS (
             SELECT 1 FROM information_schema.columns
             WHERE table_name = 'project_images'
             AND column_name = 'rejection_reason'
         )
-    """)).scalar()
+    """)
+    ).scalar()
 
     if not rejection_reason_exists:
-        op.add_column('project_images', sa.Column('rejection_reason', sa.Text(), nullable=True))
+        op.add_column(
+            "project_images", sa.Column("rejection_reason", sa.Text(), nullable=True)
+        )
 
     # Check if sharpness_score column exists
-    sharpness_score_exists = connection.execute(sa.text("""
+    sharpness_score_exists = connection.execute(
+        sa.text("""
         SELECT EXISTS (
             SELECT 1 FROM information_schema.columns
             WHERE table_name = 'project_images'
             AND column_name = 'sharpness_score'
         )
-    """)).scalar()
+    """)
+    ).scalar()
 
     if not sharpness_score_exists:
-        op.add_column('project_images', sa.Column('sharpness_score', sa.Float(), nullable=True))
+        op.add_column(
+            "project_images", sa.Column("sharpness_score", sa.Float(), nullable=True)
+        )
 
     # Create indexes if they don't exist
-    op.execute("CREATE INDEX IF NOT EXISTS idx_project_images_batch_id ON project_images (batch_id)")
-    op.execute("CREATE INDEX IF NOT EXISTS idx_project_images_batch_status ON project_images (batch_id, status)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_project_images_batch_id ON project_images (batch_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_project_images_batch_status ON project_images (batch_id, status)"
+    )
 
     # Check if we need to update the enum
     # Get current enum type name
-    enum_type_name = connection.execute(sa.text("""
+    enum_type_name = connection.execute(
+        sa.text("""
         SELECT t.typname
         FROM pg_type t
         JOIN pg_class c ON c.reltype = t.oid
@@ -79,17 +98,20 @@ def upgrade():
         WHERE c.relname = 'project_images'
         AND a.attname = 'status'
         LIMIT 1
-    """)).scalar()
+    """)
+    ).scalar()
 
     # Check if 'uploaded' value exists in the enum
-    uploaded_exists = connection.execute(sa.text("""
+    uploaded_exists = connection.execute(
+        sa.text("""
         SELECT EXISTS (
             SELECT 1 FROM pg_enum e
             JOIN pg_type t ON e.enumtypid = t.oid
             WHERE t.typname IN ('imagestatus', 'image_status')
             AND e.enumlabel = 'uploaded'
         )
-    """)).scalar()
+    """)
+    ).scalar()
 
     if not uploaded_exists:
         # Need to recreate the enum with new values
@@ -123,15 +145,17 @@ def upgrade():
 
         # Drop old enum and restore default
         op.execute(f"DROP TYPE {enum_type_name}_old")
-        op.execute("ALTER TABLE project_images ALTER COLUMN status SET DEFAULT 'staged'::imagestatus")
+        op.execute(
+            "ALTER TABLE project_images ALTER COLUMN status SET DEFAULT 'staged'::imagestatus"
+        )
 
 
 def downgrade():
-    op.drop_index('idx_project_images_batch_status', table_name='project_images')
-    op.drop_index('idx_project_images_batch_id', table_name='project_images')
-    op.drop_column('project_images', 'sharpness_score')
-    op.drop_column('project_images', 'rejection_reason')
-    op.drop_column('project_images', 'batch_id')
+    op.drop_index("idx_project_images_batch_status", table_name="project_images")
+    op.drop_index("idx_project_images_batch_id", table_name="project_images")
+    op.drop_column("project_images", "sharpness_score")
+    op.drop_column("project_images", "rejection_reason")
+    op.drop_column("project_images", "batch_id")
 
     op.execute("ALTER TYPE imagestatus RENAME TO imagestatus_new")
     op.execute("""
@@ -156,7 +180,17 @@ def downgrade():
     """)
     op.execute("DROP TYPE imagestatus_new")
 
-    op.alter_column('project_images', 'status',
-               existing_type=postgresql.ENUM('staged', 'classified', 'invalid_exif', 'unmatched', 'duplicate', name='imagestatus'),
-               nullable=False,
-               server_default='staged')
+    op.alter_column(
+        "project_images",
+        "status",
+        existing_type=postgresql.ENUM(
+            "staged",
+            "classified",
+            "invalid_exif",
+            "unmatched",
+            "duplicate",
+            name="imagestatus",
+        ),
+        nullable=False,
+        server_default="staged",
+    )

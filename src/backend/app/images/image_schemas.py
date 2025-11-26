@@ -1,7 +1,7 @@
 """Pydantic schemas for project images."""
 
 from datetime import datetime
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -15,7 +15,9 @@ class ProjectImageBase(BaseModel):
     filename: str
     s3_key: str
     hash_md5: str = Field(..., max_length=32)
-    location: Optional[dict[str, Any]] = None  # Supports both {"lat": float, "lon": float} and GeoJSON
+    location: Optional[dict[str, Any]] = (
+        None  # Supports both {"lat": float, "lon": float} and GeoJSON
+    )
     exif: Optional[dict[str, Any]] = None
 
     @field_validator("location", mode="before")

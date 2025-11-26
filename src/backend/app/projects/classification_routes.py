@@ -46,7 +46,9 @@ async def start_batch_classification(
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
-    log.info(f"Received classification request: project_id={project_id}, batch_id={batch_id}")
+    log.info(
+        f"Received classification request: project_id={project_id}, batch_id={batch_id}"
+    )
 
     # First check if there are any images in the batch with status 'staged'
     async with db.cursor() as cur:
@@ -58,19 +60,20 @@ async def start_batch_classification(
             AND project_id = %(project_id)s
             AND status = 'staged'
             """,
-            {
-                "batch_id": str(batch_id),
-                "project_id": str(project_id)
-            }
+            {"batch_id": str(batch_id), "project_id": str(project_id)},
         )
         result = await cur.fetchone()
         image_count = result[0] if result else 0
 
-    log.info(f"Found {image_count} staged images for project_id={project_id}, batch_id={batch_id}")
+    log.info(
+        f"Found {image_count} staged images for project_id={project_id}, batch_id={batch_id}"
+    )
 
     # If no images to classify, return early without creating a job
     if image_count == 0:
-        log.warning(f"No images to classify for batch: {batch_id}, project: {project_id}")
+        log.warning(
+            f"No images to classify for batch: {batch_id}, project: {project_id}"
+        )
         return {
             "message": "No images available for classification",
             "batch_id": str(batch_id),
@@ -85,7 +88,9 @@ async def start_batch_classification(
         _queue_name="default_queue",
     )
 
-    log.info(f"Queued batch classification job: {job.job_id} for batch: {batch_id} ({image_count} images)")
+    log.info(
+        f"Queued batch classification job: {job.job_id} for batch: {batch_id} ({image_count} images)"
+    )
 
     return {
         "message": "Batch classification started",
@@ -101,7 +106,9 @@ async def get_batch_images(
     batch_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
-    last_timestamp: Optional[str] = Query(None, description="ISO 8601 timestamp to get updates since"),
+    last_timestamp: Optional[str] = Query(
+        None, description="ISO 8601 timestamp to get updates since"
+    ),
 ):
     try:
         timestamp = datetime.fromisoformat(last_timestamp) if last_timestamp else None
@@ -110,17 +117,13 @@ async def get_batch_images(
             db, batch_id, project_id, timestamp
         )
 
-        return {
-            "batch_id": str(batch_id),
-            "images": images,
-            "count": len(images)
-        }
+        return {"batch_id": str(batch_id), "images": images, "count": len(images)}
 
     except Exception as e:
         log.error(f"Failed to get batch images: {e}")
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"Failed to retrieve batch images: {e}"
+            detail=f"Failed to retrieve batch images: {e}",
         )
 
 
@@ -144,11 +147,7 @@ async def get_batch_status(
 
         async with db.cursor() as cur:
             await cur.execute(
-                query,
-                {
-                    "batch_id": str(batch_id),
-                    "project_id": str(project_id)
-                }
+                query, {"batch_id": str(batch_id), "project_id": str(project_id)}
             )
             results = await cur.fetchall()
 
@@ -170,5 +169,5 @@ async def get_batch_status(
         log.error(f"Failed to get batch status: {e}")
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"Failed to retrieve batch status: {e}"
+            detail=f"Failed to retrieve batch status: {e}",
         )
