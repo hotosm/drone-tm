@@ -21,10 +21,10 @@ export default function AboutTM() {
             className="naxatw-col-span-1 naxatw-text-start"
           >
             <p className="naxatw-text-[2rem] naxatw-leading-[2.66rem] naxatw-text-landing-red md:naxatw-text-[3.75rem] md:naxatw-leading-[77px]">
-              About Drone Tasking Manager (Drone TM)
+              About Drone Tasking Manager (DroneTM)
             </p>
             <p className="naxatw-mt-5 naxatw-text-base naxatw-leading-[24px] naxatw-text-landing-grey">
-              Drone TM is an integrated digital public good solution that aims
+              DroneTM is an integrated digital public good solution that aims
               to harness the power of the crowd to help generate high-resolution
               aerial maps of any location. Its innovative platform allows drone
               pilots in developing countries to access job opportunities and

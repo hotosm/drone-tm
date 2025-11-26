@@ -238,7 +238,9 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return objects
 
 
-def generate_presigned_download_url(bucket_name: str, object_name: str, expires_hours: int = 2) -> str:
+def generate_presigned_download_url(
+    bucket_name: str, object_name: str, expires_hours: int = 2
+) -> str:
     """Generate a presigned URL for downloading an object from S3 (GET request).
 
     This generates a temporary URL that allows unauthenticated access to download

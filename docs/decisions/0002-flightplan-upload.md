@@ -41,7 +41,7 @@ Ideally we develop this cross-platform using Flutter, but it may complicate SDK 
 
 Variants:
 
-- Full drone TM experience on mobile: swap the web-app for a full mobile experience.
+- Full DroneTM experience on mobile: swap the web-app for a full mobile experience.
 - Hybrid (web-app + lightweight mobile app for flights), keeping the web-app for all drone-tm functionality,
   while having a very small mobile app that is a thin SDK wrapper.
   - Simply embed the SDKs, then have a few buttons: 'Load Waypoints', 'Fly'.

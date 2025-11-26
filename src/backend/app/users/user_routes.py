@@ -33,7 +33,7 @@ if settings.DEBUG:
 
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/users",
+    prefix="/users",
     tags=["users"],
     responses={404: {"description": "Not found"}},
 )
@@ -226,7 +226,7 @@ async def my_data(
 @router.post("/forgot-password/")
 async def forgot_password(
     db: Annotated[Connection, Depends(database.get_db)],
-    email: EmailStr,
+    email: Annotated[EmailStr, Form()],
     background_tasks: BackgroundTasks,
 ):
     user = await DbUser.get_user_by_email(db, email)

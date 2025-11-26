@@ -1,0 +1,68 @@
+# Copyright (c) Humanitarian OpenStreetMap Team
+#
+# This file is part of Drone-TM.
+#
+#     Drone-TM is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     Drone-TM is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU General Public License
+#     along with Drone-TM.  If not, see <https:#www.gnu.org/licenses/>.
+#
+
+# Allow usage of nerdctl instead of docker
+docker := env("DOCKER_ALIAS", "docker")
+
+# List available commands
+[private]
+default:
+  just --justfile {{justfile()}} --list build
+
+# Build backend & frontend containers
+[no-cd]
+all: backend frontend
+
+# Build backend container
+[no-cd]
+backend:
+  # Consider caching
+  # cache_to:
+  #   - type=registry,ref=ghcr.io/hotosm/Drone-TM/backend:${TAG_OVERRIDE:-debug}
+  #   - type=gha
+  # cache_from:
+  #   - type=registry,ref=ghcr.io/hotosm/Drone-TM/backend:${TAG_OVERRIDE:-debug}
+  #   - type=gha
+  COMPOSE_BAKE=true {{docker}} compose build backend
+
+# Build frontend container
+[no-cd]
+frontend:
+  {{docker}} compose build frontend
+
+# Build production frontends (via var substitution)
+frontends-prod branch="main":
+  #!/usr/bin/env sh
+  set -e
+
+  cd {{justfile_directory()}}
+
+  export COMPOSE_BAKE=true
+  export GIT_BRANCH="{{ branch }}"
+  ./envsubst -i compose.sub.yaml | {{docker}} compose -f - build frontend
+
+# Set 'dc' alias for docker compose
+alias:
+  #!/usr/bin/env sh
+  dc_alias_cmd="alias dc='docker compose'"
+  if ! grep -q "$dc_alias_cmd" ~/.bashrc; then
+      echo "Adding 'dc' alias to ~/.bashrc."
+      echo "$dc_alias_cmd" | tee -a ~/.bashrc > /dev/null
+  else
+      echo "'dc' alias already exists in ~/.bashrc."
+  fi

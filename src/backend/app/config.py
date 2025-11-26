@@ -62,7 +62,7 @@ class Settings(BaseSettings):
             default_origins += val
             return default_origins
 
-    API_PREFIX: str = "/api"
+    API_PREFIX: str = ""
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
     POSTGRES_HOST: Optional[str] = "db"

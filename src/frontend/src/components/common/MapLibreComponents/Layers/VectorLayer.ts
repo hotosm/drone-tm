@@ -5,13 +5,12 @@ import bbox from '@turf/bbox';
 import { toast } from 'react-toastify';
 import { Feature, FeatureCollection } from 'geojson';
 // import { v4 as uuidv4 } from 'uuid';
+import { useMap } from '../MapContext';
 import { IVectorLayer } from '../types';
 
 export default function VectorLayer({
-  map,
   id,
   geojson,
-  isMapLoaded,
   interactions = [],
   layerOptions,
   onFeatureSelect,
@@ -25,7 +24,9 @@ export default function VectorLayer({
   onDrag,
   onDragEnd,
   needDragEvent = false,
+  imageLayoutOptions = {},
 }: IVectorLayer) {
+  const { map, isMapLoaded } = useMap();
   const sourceId = useMemo(() => id.toString(), [id]);
   const hasInteractions = useRef(false);
   const firstRender = useRef(true);
@@ -36,68 +37,97 @@ export default function VectorLayer({
   }, [interactions]);
 
   useEffect(() => {
-    if (!map || !isMapLoaded || !geojson) return;
+    if (!map || !isMapLoaded || !geojson) return () => {};
 
-    if (map?.getSource(sourceId)) {
-      if (map?.getLayer(sourceId)) map?.removeLayer(sourceId);
-      if (map?.getLayer(imageId)) map?.removeLayer(imageId);
-      if (map?.getLayer(`${sourceId}-layer`))
-        map?.removeLayer(`${sourceId}-layer`);
-      map?.removeSource(sourceId);
+    let isCancelled = false;
+    const layerId = `${sourceId}-layer`;
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: geojson,
+      });
     }
 
-    map.addSource(sourceId, {
-      type: 'geojson',
-      data: geojson,
-    });
-  }, [sourceId, isMapLoaded, map, geojson, imageId]);
-
-  useEffect(() => {
-    if (!map || !isMapLoaded) return;
-
-    if (visibleOnMap) {
+    if (visibleOnMap && !map.getLayer(layerId)) {
       map.addLayer({
-        id: `${sourceId}-layer`,
+        id: layerId,
         type: 'line',
         source: sourceId,
         layout: {},
         ...layerOptions,
       });
-
-      if (hasImage) {
-        // map.loadImage(image, (error, img: any) => {
-        //   if (error) throw error;
-        //   // Add the loaded image to the style's sprite with the ID 'kitten'.
-        //   map.addImage(imageId, img);
-        // });
-
-        // changes on map libre 4
-        map.loadImage(image).then(({ data }) => {
-          if (!map.hasImage(imageId)) {
-            map.addImage(imageId, data);
-          }
-        });
-
-        map.addLayer({
-          id: imageId,
-          type: 'symbol',
-          source: sourceId,
-          layout: {
-            'symbol-placement': symbolPlacement,
-            'icon-image': imageId,
-            'icon-size': 0.8,
-            'icon-overlap': 'always',
-            'icon-anchor': iconAnchor,
-          },
-          ...imageLayerOptions,
-        });
-      }
-    } else if (map.getLayer(`${sourceId}-layer`)) {
-      map.removeLayer(`${sourceId}-layer`);
     }
 
-    // eslint-disable-next-line consistent-return
-  }, [map, isMapLoaded, visibleOnMap, sourceId, geojson, layerOptions]); // eslint-disable-line
+    if (hasImage && image) {
+      // map.loadImage(image, (error, img: any) => {
+      //   if (error) throw error;
+      //   // Add the loaded image to the style's sprite with the ID 'kitten'.
+      //   map.addImage(imageId, img);
+      // });
+
+      // changes on map libre 4
+      map.loadImage(image).then(({ data }) => {
+        if (isCancelled || !map.getStyle()) return;
+
+        if (!map.hasImage(imageId)) {
+          map.addImage(imageId, data);
+        }
+        if (
+          visibleOnMap &&
+          !map.getLayer(imageId) &&
+          map.getSource(sourceId)
+        ) {
+          map.addLayer({
+            id: imageId,
+            type: 'symbol',
+            source: sourceId,
+            layout: {
+              'symbol-placement': symbolPlacement,
+              'icon-image': imageId,
+              'icon-size': 0.8,
+              'icon-overlap': 'always',
+              'icon-anchor': iconAnchor,
+              ...imageLayoutOptions,
+            },
+            ...imageLayerOptions,
+          });
+        }
+      });
+    }
+
+    return () => {
+      isCancelled = true;
+      if (!map || !map.getStyle()) return;
+
+      if (map.getLayer(imageId)) {
+        map.removeLayer(imageId);
+      }
+      if (map.getLayer(layerId)) {
+        map.removeLayer(layerId);
+      }
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+      if (map.hasImage(imageId)) {
+        map.removeImage(imageId);
+      }
+    };
+  }, [
+    map,
+    isMapLoaded,
+    geojson,
+    sourceId,
+    visibleOnMap,
+    layerOptions,
+    hasImage,
+    image,
+    imageId,
+    symbolPlacement,
+    iconAnchor,
+    imageLayoutOptions,
+    imageLayerOptions,
+  ]);
 
   // change cursor to pointer on feature hover
   useEffect(() => {
@@ -236,12 +266,9 @@ export default function VectorLayer({
   useEffect(
     () => () => {
       if (map?.getSource(sourceId)) {
-        if (map?.getLayer(sourceId)) map?.removeLayer(sourceId);
         if (map?.getLayer(imageId)) map?.removeLayer(imageId);
         if (map?.getLayer(`${sourceId}-layer`))
           map?.removeLayer(`${sourceId}-layer`);
-        if (map?.getLayer(`${sourceId}-image/logo`))
-          map?.removeLayer(`${sourceId}-image/logo`);
         map?.removeSource(sourceId);
       }
     },

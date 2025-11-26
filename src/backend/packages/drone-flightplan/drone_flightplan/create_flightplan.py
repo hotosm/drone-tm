@@ -4,16 +4,20 @@ from typing import Union
 
 import geojson
 from geojson import FeatureCollection
+from shapely.geometry import shape
 
 from drone_flightplan.add_elevation_from_dem import add_elevation_from_dem
 from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.waypoints import create_waypoint
 from drone_flightplan.drone_type import DroneType, DRONE_PARAMS, drone_type_arg
+from drone_flightplan.enums import FlightMode, flight_mode_arg
 from drone_flightplan.output.dji import create_wpml
-from drone_flightplan.output.potensic import generate_potensic_sqlite
+from drone_flightplan.output.potensic import create_potensic_sqlite
+from drone_flightplan.output.mavlink import create_mavlink_plan
+from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
+from drone_flightplan.output.litchi import create_litchi_csv
 
-# Instantiate logger
 log = logging.getLogger(__name__)
 
 
@@ -26,7 +30,7 @@ def create_flightplan(
     image_interval: int = 2,
     dem: str = None,
     outfile: str = None,
-    generate_each_points: bool = False,
+    flight_mode: FlightMode = FlightMode.WAYLINES,
     rotation_angle: float = 0.0,
     take_off_point: list[float] = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
@@ -52,16 +56,21 @@ def create_flightplan(
         drone_type,
     )
 
+    # FIXME we need the commented out params to also be passed
     waypoints = create_waypoint(
-        aoi,
-        agl,
-        gsd,
-        forward_overlap,
-        side_overlap,
-        rotation_angle,
-        generate_each_points,
+        project_area=aoi,
+        agl=agl,
+        gsd=gsd,
+        forward_overlap=forward_overlap,
+        side_overlap=side_overlap,
+        rotation_angle=rotation_angle,
+        # generate_3d: bool = False,
+        # no_fly_zones: dict = None,
         take_off_point=take_off_point,
+        mode=flight_mode,
         drone_type=drone_type,
+        # gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
+        # auto_rotation: bool = True,
     )
 
     # Add elevation data to the waypoints
@@ -81,7 +90,13 @@ def create_flightplan(
     if output_format == "DJI_WMPL":
         outpath = create_wpml(placemarks, outfile)
     elif output_format == "POTENSIC_SQLITE":
-        outpath = generate_potensic_sqlite(placemarks, outfile)
+        outpath = create_potensic_sqlite(placemarks, outfile)
+    elif output_format == "MAVLINK_PLAN":
+        outpath = create_mavlink_plan(placemarks, outfile)
+    elif output_format == "QGROUNDCONTROL":
+        outpath = create_qgroundcontrol_plan(placemarks, outfile)
+    elif output_format == "LITCHI":
+        outpath = create_litchi_csv(placemarks, outfile, flight_mode=flight_mode)
     else:
         log.error(f"Unsupported output format: {output_format}")
         return
@@ -161,9 +176,13 @@ def main():
     parser.add_argument("--inraster", help="input DEM GeoTIFF raster file")
     parser.add_argument("--outfile", required=True, help="output GeoJSON file")
     parser.add_argument(
-        "--generate_each_points",
-        action="store_true",
-        help="Do you want waypoints or waylines.",
+        "--flight_mode",
+        type=flight_mode_arg,
+        default=FlightMode.WAYLINES,
+        help=(
+            "Flight mode options:\n"
+            + "\n".join(f"- {name}" for name in FlightMode.__members__)
+        ),
     )
     parser.add_argument(
         "--rotation_angle",
@@ -172,16 +191,29 @@ def main():
         help="The rotation angle for the flight grid in degrees.",
     )
 
-    parser.add_argument(
+    takeoff_group = parser.add_mutually_exclusive_group(required=True)
+    takeoff_group.add_argument(
         "--take_off_point",
-        required=True,
         type=validate_coordinates,
         help="Take off Point Coordinates in 'longitude,latitude' format (e.g., 82.52,28.29).",
     )
+    takeoff_group.add_argument(
+        "--use_centroid_as_take_off_point",
+        action="store_true",
+        help="Use the centroid of the AOI polygon as the takeoff point instead of specifying coordinates.",
+    )
+
     args = parser.parse_args()
 
     with open(args.project_geojson, "r") as f:
         aoi = geojson.load(f)
+
+    if args.use_centroid_as_take_off_point:
+        geom = shape(aoi["features"][0]["geometry"])
+        centroid = geom.centroid
+        take_off_point = [centroid.x, centroid.y]
+    else:
+        take_off_point = args.take_off_point
 
     create_flightplan(
         aoi,
@@ -192,9 +224,9 @@ def main():
         args.image_interval,
         args.inraster,
         args.outfile,
-        args.generate_each_points,
+        args.flight_mode,
         args.rotation_angle,
-        args.take_off_point,
+        take_off_point,
         args.drone_type,
     )
 
@@ -203,4 +235,4 @@ if __name__ == "__main__":
     main()
 
 
-# python3 create_flightplan.py --project_geojson '/home/niraj/NAXA/HOT/adarsha_polygons_for_terrain_testing.geojson'  --altitude_above_ground_level 118 --forward_overlap 75 --side_overlap 70 --image_interval 2 --inraster '/home/niraj/Downloads/Bhanu.tif'  --outfile /home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan --generate_each_points
+# python3 create_flightplan.py --project_geojson '/home/niraj/NAXA/HOT/adarsha_polygons_for_terrain_testing.geojson'  --altitude_above_ground_level 118 --forward_overlap 75 --side_overlap 70 --image_interval 2 --inraster '/home/niraj/Downloads/Bhanu.tif'  --outfile /home/niraj/NAXA/HOT/drone-flightplan/drone_flightplan

@@ -4,7 +4,6 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends
 from psycopg import Connection
 
-from app.config import settings
 from app.db import database
 from app.gcp import gcp_crud
 from app.projects import project_schemas
@@ -12,7 +11,7 @@ from app.tasks.task_logic import list_task_id_for_project
 from app.waypoints import waypoint_schemas
 
 router = APIRouter(
-    prefix=f"{settings.API_PREFIX}/gcp",
+    prefix="/gcp",
     tags=["gcp"],
     responses={404: {"description": "Not found"}},
 )

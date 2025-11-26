@@ -1,9 +1,10 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 
 import Image from '@Components/RadixComponents/Image';
 import { Input, Label, FormControl } from '@Components/common/FormUI';
@@ -15,7 +16,7 @@ import { useTypedDispatch } from '@Store/hooks';
 import { signInGoogle, signInUser } from '@Services/common';
 import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
-import { toast } from 'react-toastify';
+import { isSafeRedirect } from '@Utils/url';
 
 const { BASE_URL } = process.env;
 
@@ -26,6 +27,7 @@ const initialState = {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useTypedDispatch();
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [onSignUpBtnClick, setOnSignUpBtnClick] = useState<boolean>(false);
@@ -53,12 +55,16 @@ export default function Login() {
       const userDetailsString = JSON.stringify(userDetails);
       localStorage.setItem('userprofile', userDetailsString);
 
-      // navigate according the user profile completion
-      if (
-        userDetails?.has_user_profile &&
-        userDetails?.role?.includes(signedInAs)
-      ) {
-        navigate('/projects');
+      const from = location.state?.from?.pathname;
+
+      if (userDetails?.has_user_profile) {
+        if (isSafeRedirect(from)) {
+          navigate(from, { replace: true });
+        } else if (userDetails?.role?.includes(signedInAs)) {
+          navigate('/projects');
+        } else {
+          navigate('/complete-profile');
+        }
       } else {
         navigate('/complete-profile');
       }
@@ -104,7 +110,13 @@ export default function Login() {
         {/* google login button */}
         <div
           className="naxatw-flex naxatw-w-[60%] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-rounded-lg naxatw-border naxatw-border-grey-800 naxatw-px-5 naxatw-py-3 hover:naxatw-shadow-md"
-          onClick={() => setOnSignUpBtnClick(true)}
+          onClick={() => {
+            const from = location.state?.from?.pathname;
+            if (from) {
+              sessionStorage.setItem('postLoginRedirect', from);
+            }
+            setOnSignUpBtnClick(true);
+          }}
         >
           <Image src={googleIcon} />
           <span className="naxatw-text-body-btn">Continue with Google</span>
