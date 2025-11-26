@@ -427,7 +427,7 @@ const MapSection = ({ className }: { className?: string }) => {
           if (option.label === 'Waypoints') {
             return {
               icon: 'info',
-              message: `> 200 waypoints detected. If you are using a DJI RC-2 controller or low-spec device with RC-N2, 
+              message: `> 200 waypoints detected. If you are using a DJI RC-2 controller or low-spec device with RC-N2,
                 then waylines are recommended to avoid the device lagging and struggling to load so many points.`,
               ...option,
             };

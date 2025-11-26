@@ -36,7 +36,7 @@ const SwitchTab = ({
             role="button"
             tabIndex={0}
             key={option[labelKey]}
-            className={`naxatw-body-sm naxatw-cursor-pointer naxatw-select-none naxatw-rounded-lg 
+            className={`naxatw-body-sm naxatw-cursor-pointer naxatw-select-none naxatw-rounded-lg
               naxatw-px-[0.5rem] naxatw-py-[0.4rem] naxatw-capitalize${
               option[valueKey] === selectedValue
                 ? cn(
@@ -44,7 +44,7 @@ const SwitchTab = ({
                     activeClassName,
                   )
                 : 'naxatw-text-matt-200 hover:naxatw-text-primary-700'
-            } 
+            }
             ${option['icon'] && option['message'] ? 'naxatw-flex naxatw-items-center' : ''}
             naxatw-duration-300`}
             onClick={() => {
