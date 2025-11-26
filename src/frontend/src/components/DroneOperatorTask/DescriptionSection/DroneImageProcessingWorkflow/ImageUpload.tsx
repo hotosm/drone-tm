@@ -2,7 +2,7 @@ import UppyFileUploader from '../UppyFileUploader';
 
 interface ImageUploadProps {
   projectId: string;
-  onUploadComplete?: (result: any) => void;
+  onUploadComplete?: (result: any, batchId?: string) => void;
 }
 
 const ImageUpload = ({ projectId, onUploadComplete }: ImageUploadProps) => {

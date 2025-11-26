@@ -1,12 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import {
+  startClassification as startClassificationAction,
+  completeClassification,
+} from '@Store/slices/imageProcessingWorkflow';
 import {
   useStartClassificationMutation,
   useGetBatchStatusQuery,
   useGetBatchImagesQuery,
 } from '@Api/projects';
-import type { ImageClassificationResult, BatchStatusSummary } from '@Services/classification';
+import type { ImageClassificationResult } from '@Services/classification';
 
 interface ImageClassificationProps {
   projectId: string;
@@ -19,16 +23,18 @@ const ImageClassification = ({
   batchId,
   onClassificationComplete,
 }: ImageClassificationProps) => {
-  const queryClient = useQueryClient();
+  const dispatch = useTypedDispatch();
+  const { jobId } = useTypedSelector(
+    (state) => state.imageProcessingWorkflow
+  );
   const [images, setImages] = useState<Record<string, ImageClassificationResult>>({});
   const [lastUpdateTime, setLastUpdateTime] = useState<string | undefined>();
   const [isPolling, setIsPolling] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
 
   // Mutation to start classification
   const startClassificationMutation = useStartClassificationMutation({
     onSuccess: (data) => {
-      setJobId(data.job_id);
+      dispatch(startClassificationAction(data.job_id));
       setIsPolling(true);
       toast.info('Classification started. Processing images...');
     },
@@ -47,14 +53,14 @@ const ImageClassification = ({
     },
   );
 
-  // Query for batch images - fetch immediately and poll during classification for incremental updates
+  // Query for batch images - fetch immediately and poll every 10 seconds to handle race conditions
   const { data: newImages, refetch: refetchImages } = useGetBatchImagesQuery(
     projectId,
     batchId,
     lastUpdateTime,
     {
       enabled: !!projectId && !!batchId, // Fetch immediately when component loads
-      refetchInterval: isPolling ? 2000 : false, // Poll every 2 seconds during classification
+      refetchInterval: 10000, // Poll every 10 seconds to catch images that may be in DB due to race conditions
     },
   );
 
@@ -91,13 +97,14 @@ const ImageClassification = ({
       // Stop polling when there are no more images to classify and we have classified results
       if (classified > 0 && toClassify === 0) {
         setIsPolling(false);
+        dispatch(completeClassification());
         toast.success('Classification complete!');
         if (onClassificationComplete) {
           onClassificationComplete();
         }
       }
     }
-  }, [batchStatus, isPolling, onClassificationComplete]);
+  }, [batchStatus, isPolling, onClassificationComplete, dispatch]);
 
   // Start classification
   const handleStartClassification = useCallback(() => {
@@ -151,7 +158,7 @@ const ImageClassification = ({
   };
 
   const imagesList = Object.values(images);
-  const isClassifying = (batchStatus?.classifying ?? 0) > 0 || isPolling;
+  const showProcessingIndicator = (batchStatus?.classifying ?? 0) > 0 || isPolling;
 
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 naxatw-p-6">
@@ -212,7 +219,7 @@ const ImageClassification = ({
       )}
 
       {/* Progress Indicator */}
-      {isClassifying && (
+      {showProcessingIndicator && (
         <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded naxatw-bg-blue-50 naxatw-p-4">
           <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-blue-600 naxatw-border-t-transparent"></div>
           <span className="naxatw-text-sm naxatw-text-blue-800">

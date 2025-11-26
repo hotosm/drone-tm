@@ -1,4 +1,11 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import {
+  setCurrentStep,
+  setBatchId,
+  setProjectId,
+  resetWorkflow,
+} from '@Store/slices/imageProcessingWorkflow';
 import Modal from '@Components/common/Modal';
 import { Button } from '@Components/RadixComponents/Button';
 import StepSwitcher from '@Components/common/StepSwitcher';
@@ -18,8 +25,17 @@ const DroneImageProcessingWorkflow = ({
   onClose,
   projectId,
 }: IDroneImageProcessingWorkflowProps) => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [batchId, setBatchId] = useState<string | null>(null);
+  const dispatch = useTypedDispatch();
+  const { currentStep, batchId, isClassifying } = useTypedSelector(
+    (state) => state.imageProcessingWorkflow
+  );
+
+  // Set project ID when component mounts or projectId changes
+  useEffect(() => {
+    if (projectId) {
+      dispatch(setProjectId(projectId));
+    }
+  }, [projectId, dispatch]);
 
   const steps = [
     { url: '', step: 1, label: '01', name: 'Image Upload', title: 'Upload' },
@@ -30,40 +46,46 @@ const DroneImageProcessingWorkflow = ({
 
   const handleNext = () => {
     if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
+      dispatch(setCurrentStep(currentStep + 1));
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      dispatch(setCurrentStep(currentStep - 1));
     }
   };
 
   const handleClose = () => {
-    setCurrentStep(1);
+    dispatch(resetWorkflow());
     onClose();
   };
 
   // Handle upload complete - store batch ID and move to classification
   const handleUploadComplete = (result: any, uploadedBatchId?: string) => {
     if (uploadedBatchId) {
-      setBatchId(uploadedBatchId);
+      dispatch(setBatchId(uploadedBatchId));
       // Automatically move to classification step
-      setCurrentStep(2);
+      dispatch(setCurrentStep(2));
     }
   };
 
   // Handle classification complete - move to review
   const handleClassificationComplete = () => {
-    setCurrentStep(3);
+    dispatch(setCurrentStep(3));
   };
 
-  // Shoudl proceed to the next step
+  // Should proceed to the next step
   const handleNextButton = () => {
+    // Disable Next button on step 1 if no batch ID
     if (currentStep === 1 && !batchId) {
       return true;
     }
+    // Disable Next button if currently classifying
+    if (isClassifying) {
+      return true;
+    }
+    return false;
   }
 
   const renderStepContent = () => {
@@ -125,7 +147,7 @@ const DroneImageProcessingWorkflow = ({
             variant="outline"
             className="naxatw-border-gray-300"
             onClick={handlePrevious}
-            disabled={currentStep === 1}
+            disabled={currentStep === 1 || isClassifying}
             leftIcon="chevron_left"
           >
             Previous
