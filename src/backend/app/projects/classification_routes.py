@@ -46,6 +46,8 @@ async def start_batch_classification(
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
+    log.info(f"Received classification request: project_id={project_id}, batch_id={batch_id}")
+
     # First check if there are any images in the batch with status 'staged'
     async with db.cursor() as cur:
         await cur.execute(
@@ -64,9 +66,11 @@ async def start_batch_classification(
         result = await cur.fetchone()
         image_count = result[0] if result else 0
 
+    log.info(f"Found {image_count} staged images for project_id={project_id}, batch_id={batch_id}")
+
     # If no images to classify, return early without creating a job
     if image_count == 0:
-        log.info(f"No images to classify for batch: {batch_id}")
+        log.warning(f"No images to classify for batch: {batch_id}, project: {project_id}")
         return {
             "message": "No images available for classification",
             "batch_id": str(batch_id),
