@@ -256,8 +256,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           height: '100%',
         }}
       >
-        <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
-        <LocateUser isMapLoaded={isMapLoaded} />
+        <BaseLayerSwitcherUI />
+        <LocateUser />
         {projectArea && showTaskArea && (
           <VectorLayer
             map={map as Map}

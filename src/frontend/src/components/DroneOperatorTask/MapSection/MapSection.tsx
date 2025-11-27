@@ -593,7 +593,7 @@ const MapSection = ({ className }: { className?: string }) => {
         }}
       >
         <BaseLayerSwitcherUI />
-        <LocateUser isMapLoaded={isMapLoaded} />
+        <LocateUser />
 
         <VectorLayer
           map={map as Map}
