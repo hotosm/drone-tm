@@ -1,3 +1,4 @@
+from enum import Enum
 import os
 import base64
 import secrets
@@ -8,6 +9,7 @@ import bcrypt
 from loguru import logger as log
 from pydantic import (
     BeforeValidator,
+    Field,
     EmailStr,
     TypeAdapter,
     ValidationInfo,
@@ -27,6 +29,73 @@ HttpUrlStr = Annotated[
     ),
 ]
 
+class MonitoringTypes(str, Enum):
+    """Configuration options for monitoring."""
+
+    NONE = ""
+    SENTRY = "sentry"
+
+class OtelSettings(BaseSettings):
+    """Inherited OpenTelemetry specific settings (monitoring).
+
+    These mostly set environment variables set by the OTEL SDK.
+    """
+
+    FMTM_DOMAIN: Optional[str] = Field(exclude=True)
+    LOG_LEVEL: Optional[str] = Field(exclude=True)
+    ODK_CENTRAL_URL: Optional[str] = Field(exclude=True)
+
+    @computed_field
+    @property
+    def otel_log_level(self) -> Optional[str]:
+        """Set OpenTelemetry log level."""
+        log_level = "info"
+        if self.LOG_LEVEL:
+            log_level = self.LOG_LEVEL.lower()
+            # NOTE setting to DEBUG makes very verbose for every library
+            # os.environ["OTEL_LOG_LEVEL"] = log_level
+            os.environ["OTEL_LOG_LEVEL"] = "info"
+        return log_level
+
+    @computed_field
+    @property
+    def otel_service_name(self) -> Optional[HttpUrlStr]:
+        """Set OpenTelemetry service name for traces."""
+        service_name = "unknown"
+        if self.FMTM_DOMAIN:
+            # Return domain with underscores
+            service_name = self.FMTM_DOMAIN.replace(".", "_")
+            # Export to environment for OTEL instrumentation
+            os.environ["OTEL_SERVICE_NAME"] = service_name
+        return service_name
+
+    @computed_field
+    @property
+    def otel_python_excluded_urls(self) -> Optional[str]:
+        """Set excluded URLs for Python instrumentation."""
+        endpoints = "__lbheartbeat__,docs,openapi.json"
+        os.environ["OTEL_PYTHON_EXCLUDED_URLS"] = endpoints
+        # Add extra endpoints ignored by for requests
+        # NOTE we add ODK Central session auth endpoint here
+        if self.ODK_CENTRAL_URL:
+            os.environ["OTEL_PYTHON_REQUESTS_EXCLUDED_URLS"] = (
+                f"{endpoints}{self.ODK_CENTRAL_URL}/v1/sessions"
+            )
+        return endpoints
+
+    @computed_field
+    @property
+    def otel_python_log_correlation(self) -> Optional[str]:
+        """Set log correlation for OpenTelemetry Python spans."""
+        value = "true"
+        os.environ["OTEL_PYTHON_LOG_CORRELATION"] = value
+        return value
+
+
+class SentrySettings(OtelSettings):
+    """Optional Sentry OpenTelemetry specific settings (monitoring)."""
+
+    SENTRY_DSN: HttpUrlStr
 
 class Settings(BaseSettings):
     """Main settings class, defining environment variables."""
