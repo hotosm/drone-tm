@@ -29,11 +29,13 @@ HttpUrlStr = Annotated[
     ),
 ]
 
+
 class MonitoringTypes(str, Enum):
     """Configuration options for monitoring."""
 
     NONE = ""
     SENTRY = "sentry"
+
 
 class OtelSettings(BaseSettings):
     """Inherited OpenTelemetry specific settings (monitoring).
@@ -96,6 +98,7 @@ class SentrySettings(OtelSettings):
     """Optional Sentry OpenTelemetry specific settings (monitoring)."""
 
     SENTRY_DSN: HttpUrlStr
+
 
 class Settings(BaseSettings):
     """Main settings class, defining environment variables."""

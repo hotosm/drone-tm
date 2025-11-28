@@ -1,17 +1,13 @@
 from fastapi import FastAPI
 
+
 def set_sentry_otel_tracer(dsn: str):
     """Add OpenTelemetry tracing only if environment variables configured."""
     from sentry_sdk import init
     from sentry_sdk.integrations.otlp import OTLPIntegration
 
-    init(
-        dsn=dsn,
-        send_default_pii=True,
-        integrations=[
-          OTLPIntegration()
-        ]
-    )
+    init(dsn=dsn, send_default_pii=True, integrations=[OTLPIntegration()])
+
 
 def instrument_app_otel(app: FastAPI):
     """Add OpenTelemetry FastAPI instrumentation.
