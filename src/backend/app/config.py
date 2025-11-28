@@ -177,6 +177,17 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
 
+    MONITORING: Optional[MonitoringTypes] = None
+
+    @computed_field
+    @property
+    def monitoring_config(self) -> Optional[SentrySettings]:
+        """Get the monitoring configuration."""
+        if self.MONITORING == MonitoringTypes.SENTRY:
+            return SentrySettings()
+
+        return None
+
     # SMTP Configurations
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False

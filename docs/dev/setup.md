@@ -35,6 +35,11 @@ Just is required too:
   GOOGLE_LOGIN_REDIRECT_URI="http://localhost:3040/auth"
   ```
 
+#### Monitoring
+
+- At present, only Sentry is configured as the default backend for logging with OpenTelemetry.
+- To set it up, you will need the Sentry DSN, which can be obtained upon request from a maintainer.
+
 ### Build and Run The Containers
 
 - The `Justfile` in the project root contains all the logic needed to build and run the application.
