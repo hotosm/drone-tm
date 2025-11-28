@@ -51,12 +51,10 @@ class OtelSettings(BaseSettings):
     @property
     def otel_log_level(self) -> Optional[str]:
         """Set OpenTelemetry log level."""
-        log_level = "info"
         if self.LOG_LEVEL:
             log_level = self.LOG_LEVEL.lower()
             # NOTE setting to DEBUG makes very verbose for every library
-            # os.environ["OTEL_LOG_LEVEL"] = log_level
-            os.environ["OTEL_LOG_LEVEL"] = "info"
+            os.environ["OTEL_LOG_LEVEL"] = log_level
         return log_level
 
     @computed_field
@@ -64,9 +62,9 @@ class OtelSettings(BaseSettings):
     def otel_service_name(self) -> Optional[HttpUrlStr]:
         """Set OpenTelemetry service name for traces."""
         service_name = "unknown"
-        if self.FMTM_DOMAIN:
-            # Return domain with underscores
-            service_name = self.FMTM_DOMAIN.replace(".", "_")
+        if self.SITE_NAME:
+            # Return name with underscores
+            service_name = self.SITE_NAME.lower().replace(" ", "-")
             # Export to environment for OTEL instrumentation
             os.environ["OTEL_SERVICE_NAME"] = service_name
         return service_name
@@ -77,12 +75,7 @@ class OtelSettings(BaseSettings):
         """Set excluded URLs for Python instrumentation."""
         endpoints = "__lbheartbeat__,docs,openapi.json"
         os.environ["OTEL_PYTHON_EXCLUDED_URLS"] = endpoints
-        # Add extra endpoints ignored by for requests
-        # NOTE we add ODK Central session auth endpoint here
-        if self.ODK_CENTRAL_URL:
-            os.environ["OTEL_PYTHON_REQUESTS_EXCLUDED_URLS"] = (
-                f"{endpoints}{self.ODK_CENTRAL_URL}/v1/sessions"
-            )
+
         return endpoints
 
     @computed_field
