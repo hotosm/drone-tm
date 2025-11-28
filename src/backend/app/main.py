@@ -95,11 +95,6 @@ def get_application() -> FastAPI:
         redirect_slashes=False,
     )
 
-    if settings.MONITORING == MonitoringTypes.SENTRY:
-        log.info("Adding Sentry OpenTelemetry monitoring config")
-        set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
-        instrument_app_otel(api)
-
     # Set custom logger
     _app.logger = get_logger()
 
@@ -125,6 +120,11 @@ def get_application() -> FastAPI:
 async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
+
+    if settings.MONITORING == MonitoringTypes.SENTRY:
+        log.info("Adding Sentry OpenTelemetry monitoring config")
+        set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
+        instrument_app_otel(app)
 
     async with AsyncConnectionPool(
         conninfo=settings.DTM_DB_URL.unicode_string()
