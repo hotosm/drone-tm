@@ -40,7 +40,7 @@ Just is required too:
 - At present, only Sentry is configured as the default backend for logging with OpenTelemetry.
 - To set it up and work with it, you will need a valid Sentry DSN.
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
-is recommended to leave the setting as is.
+  is recommended to leave the setting as is.
 
 ### Build and Run The Containers
 
