@@ -128,7 +128,7 @@
           <div class="container">
             <hanko-auth></hanko-auth>
           </div>
-        `;{const a=window.location.pathname.includes("/app")?window.location.origin:window.location.href,d=new URLSearchParams(window.location.search).get("auto_connect")==="true"?"&auto_connect=true":"",l=this.hankoUrl;console.log("🔗 Login URL base:",l);const u=`${l}/app?return_to=${encodeURIComponent(a)}${this.osmRequired?"&osm_required=true":""}${d}`;return Ue`
+        `;{const r=window.location.pathname.includes("/app"),a=this.redirectAfterLogin||(r?window.location.origin:window.location.href),d=new URLSearchParams(window.location.search).get("auto_connect")==="true"?"&auto_connect=true":"",l=this.hankoUrl;console.log("🔗 Login URL base:",l);const u=`${l}/app?return_to=${encodeURIComponent(a)}${this.osmRequired?"&osm_required=true":""}${d}`;return Ue`
           <div class="container">
             <a href="${u}" class="btn-login">Log In</a>
           </div>

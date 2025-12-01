@@ -80,7 +80,7 @@ monitoring = [
 
 [tool.uv.sources]
 drone-flightplan = { workspace = true }
-hotosm-auth = { path = "libs/hotosm_auth-0.1.0-py3-none-any.whl" }
+hotosm-auth = { path = "libs/hotosm_auth-0.1.1-py3-none-any.whl" }
 
 [tool.uv.workspace]
 members = ["packages/*"]

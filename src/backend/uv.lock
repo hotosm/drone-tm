@@ -725,7 +725,7 @@ requires-dist = [
     { name = "geoalchemy2", specifier = "==0.14.2" },
     { name = "geojson", specifier = "==3.1.0" },
     { name = "geojson-pydantic", specifier = "==1.1.0" },
-    { name = "hotosm-auth", path = "libs/hotosm_auth-0.1.0-py3-none-any.whl" },
+    { name = "hotosm-auth", path = "libs/hotosm_auth-0.1.1-py3-none-any.whl" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jinja2", specifier = ">=3.1.4" },
     { name = "loguru", specifier = ">=0.7.2" },
@@ -1061,8 +1061,8 @@ wheels = [
 
 [[package]]
 name = "hotosm-auth"
-version = "0.1.0"
-source = { path = "libs/hotosm_auth-0.1.0-py3-none-any.whl" }
+version = "0.1.1"
+source = { path = "libs/hotosm_auth-0.1.1-py3-none-any.whl" }
 dependencies = [
     { name = "cryptography" },
     { name = "httpx" },
@@ -1071,7 +1071,7 @@ dependencies = [
     { name = "python-dateutil" },
 ]
 wheels = [
-    { filename = "hotosm_auth-0.1.0-py3-none-any.whl", hash = "sha256:bf3ee983617da5837b47799c450a220f820c2c6cfde6dadaf4c5031b073a56ad" },
+    { filename = "hotosm_auth-0.1.1-py3-none-any.whl", hash = "sha256:ce19d53507f47d2cfbd5dc5bbdef6dd1e03b335942efd556dfaf90ee5d942a96" },
 ]
 
 [package.metadata]

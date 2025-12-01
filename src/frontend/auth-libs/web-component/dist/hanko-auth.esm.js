@@ -4495,7 +4495,7 @@ let Ne = class extends Nt {
           </div>
         `;
       {
-        const r = window.location.pathname.includes("/app") ? window.location.origin : window.location.href, c = new URLSearchParams(window.location.search).get("auto_connect") === "true" ? "&auto_connect=true" : "", d = this.hankoUrl;
+        const i = window.location.pathname.includes("/app"), r = this.redirectAfterLogin || (i ? window.location.origin : window.location.href), c = new URLSearchParams(window.location.search).get("auto_connect") === "true" ? "&auto_connect=true" : "", d = this.hankoUrl;
         console.log("🔗 Login URL base:", d);
         const l = `${d}/app?return_to=${encodeURIComponent(r)}${this.osmRequired ? "&osm_required=true" : ""}${c}`;
         return Ue`

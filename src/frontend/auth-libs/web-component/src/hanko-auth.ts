@@ -686,6 +686,11 @@ export class HankoAuth extends LitElement {
             bubbles: true,
             composed: true
           }));
+
+          // Dispatch event so parent components can handle the connection
+          // Note: We don't auto-redirect here because that would cause loops
+          // The Login page's onboarding flow listens for 'osm-connected' event
+          // and handles the redirect to the app's onboarding endpoint
         } else {
           this.log('❌ OSM is NOT connected');
           this.osmConnected = false;
@@ -1139,10 +1144,11 @@ export class HankoAuth extends LitElement {
         `;
       } else {
         // In header - show login link
+        // Use redirectAfterLogin if set, otherwise use current URL
         // Smart return_to: if already on a login page, redirect to home instead
         const currentPath = window.location.pathname;
         const isOnLoginPage = currentPath.includes('/app');
-        const returnTo = isOnLoginPage ? window.location.origin : window.location.href;
+        const returnTo = this.redirectAfterLogin || (isOnLoginPage ? window.location.origin : window.location.href);
 
         const urlParams = new URLSearchParams(window.location.search);
         const autoConnectParam = urlParams.get('auto_connect') === 'true' ? '&auto_connect=true' : '';
