@@ -187,8 +187,6 @@ async def async_get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
     return await run_in_threadpool(get_obj_from_bucket, bucket_name, s3_path)
 
 
-
-
 def get_image_dir_url(bucket_name: str, image_dir: str):
     """Generate the full URL for the image directory in an S3 bucket.
 

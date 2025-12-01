@@ -345,7 +345,9 @@ async def find_images_in_a_task_for_point(
     s3_images_json_path = f"dtm-data/projects/{project_id}/{task_id}/images.json"
 
     # Generate pre-signed URL for the `images.json` file
-    s3_images_json_url = generate_presigned_download_url(settings.S3_BUCKET_NAME, s3_images_json_path)
+    s3_images_json_url = generate_presigned_download_url(
+        settings.S3_BUCKET_NAME, s3_images_json_path
+    )
 
     # Fetch bounding boxes from the `images.json` file
     bbox_list = await calculate_bbox_from_images_file(

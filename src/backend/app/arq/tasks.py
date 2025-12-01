@@ -1,5 +1,4 @@
 import asyncio
-import json
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -173,7 +172,9 @@ async def process_uploaded_image(
 
         async with db_pool.connection() as db:
             log.info(f"Downloading file from S3: {file_key}")
-            file_obj = await async_get_obj_from_bucket(settings.S3_BUCKET_NAME, file_key)
+            file_obj = await async_get_obj_from_bucket(
+                settings.S3_BUCKET_NAME, file_key
+            )
             file_content = file_obj.read()
 
             log.info(f"Calculating hash for: {filename}")
@@ -183,7 +184,7 @@ async def process_uploaded_image(
             duplicate_id = await check_duplicate_image(db, UUID(project_id), file_hash)
             if duplicate_id:
                 log.info(f"Duplicate detected: {file_hash} -> {duplicate_id}")
-                sql = f"SELECT * FROM project_images WHERE id = %(id)s"
+                sql = "SELECT * FROM project_images WHERE id = %(id)s"
                 async with db.cursor(row_factory=dict_row) as cur:
                     await cur.execute(sql, {"id": str(duplicate_id)})
                     existing_record = await cur.fetchone()
@@ -205,7 +206,9 @@ async def process_uploaded_image(
                 exif_dict, location = extract_exif_data(file_content)
 
                 if exif_dict:
-                    log.info(f" EXIF: {len(exif_dict)} tags | GPS: {location is not None}")
+                    log.info(
+                        f" EXIF: {len(exif_dict)} tags | GPS: {location is not None}"
+                    )
                     log.debug(f"EXIF tags: {list(exif_dict.keys())[:10]}")
                 else:
                     log.warning(f"No EXIF data in: {filename}")

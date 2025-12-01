@@ -235,7 +235,9 @@ class OAMUploadStatus(StrEnum):
 class ImageStatus(StrEnum):
     """Enum to describe the status of uploaded project images."""
 
-    STAGED = "staged"  # Files uploaded but not yet committed (multipart upload in progress)
+    STAGED = (
+        "staged"  # Files uploaded but not yet committed (multipart upload in progress)
+    )
     UPLOADED = "uploaded"  # Successfully uploaded to S3, pending classification
     CLASSIFYING = "classifying"  # Currently being classified
     ASSIGNED = "assigned"  # Assigned to a task after successful classification
