@@ -12,7 +12,7 @@ from shapely.ops import transform
 
 from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.enums import GimbalAngle, FlightMode
-from drone_flightplan.drone_type import DroneType
+from drone_flightplan.drone_type import DroneType, DRONE_SPECS
 
 log = logging.getLogger(__name__)
 
@@ -560,7 +560,7 @@ def create_waypoint(
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
     auto_rotation: bool = True,
-) -> str:
+) -> dict:
     """Create waypoints or waylines for a given project area based on specified parameters.
 
     Parameters:
@@ -579,32 +579,10 @@ def create_waypoint(
             align flight path with the longest edge of the polygon. Defaults to True.
 
     Returns:
-        geojson: waypoints generated within the project area in the geojson format
-
-    Example Response:
-    {
-        "type": "FeatureCollection",
-            "features": [
-                {
-                "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [
-                    85.328347,
-                    27.729837
-                    ]
-                },
-                "properties": {
-                    "index": 0,
-                    "angle": "0",
-                    "take_photo": false,
-                    "gimbal_angle": "-90"
-                }
-            }
-        }
-    }
-
+        dict: A dictionary containing the generated waypoints in GeoJSON format,
+              a battery warning flag, and the estimated flight time.
     """
+
     parameters = calculate_parameters(
         forward_overlap,
         side_overlap,
@@ -710,6 +688,30 @@ def create_waypoint(
         ]
         waypoints = exclude_no_fly_zones(waypoints, no_fly_polygons)
 
+    # Calculate total distance
+    total_distance = 0
+    for i in range(len(waypoints) - 1):
+        point1 = waypoints[i]["coordinates"]
+        point2 = waypoints[i + 1]["coordinates"]
+        total_distance += calculate_distance(point1, point2)
+
+    # Calculate estimated flight time
+    ground_speed = parameters["ground_speed"]
+
+    estimated_flight_time_minutes = 0
+    if ground_speed > 0:
+        estimated_flight_time_seconds = total_distance / ground_speed
+        estimated_flight_time_minutes = estimated_flight_time_seconds / 60
+
+    # Check battery life
+    battery_warning = False
+
+    if "max_battery_life_minutes" in DRONE_SPECS[drone_type]:
+        max_battery_life_minutes = DRONE_SPECS[drone_type]["max_battery_life_minutes"]
+
+        if estimated_flight_time_minutes > (max_battery_life_minutes * 0.8):
+            battery_warning = True
+
     # Generate GeoJSON features
     features = []
     for index, wp in enumerate(waypoints):
@@ -725,7 +727,12 @@ def create_waypoint(
         )
         features.append(feature)
     feature_collection = geojson.FeatureCollection(features)
-    return geojson.dumps(feature_collection, indent=2)
+
+    return {
+        "geojson": geojson.dumps(feature_collection, indent=2),
+        "battery_warning": battery_warning,
+        "estimated_flight_time_minutes": round(estimated_flight_time_minutes, 2),
+    }
 
 
 def validate_coordinates(value):

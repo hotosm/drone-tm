@@ -154,7 +154,8 @@ async def get_task_waypoint(
 
         # Terrain follow uses waypoints mode, waylines are generated later
         waypoint_params["mode"] = FlightMode.WAYPOINTS
-        points = create_waypoint(**waypoint_params)
+        waypoint_data = create_waypoint(**waypoint_params)
+        points = waypoint_data["geojson"]
 
         try:
             get_file_from_bucket(
@@ -184,7 +185,8 @@ async def get_task_waypoint(
 
     else:
         waypoint_params["mode"] = mode
-        points = create_waypoint(**waypoint_params)
+        waypoint_data = create_waypoint(**waypoint_params)
+        points = waypoint_data["geojson"]
         placemarks = create_placemarks(geojson.loads(points), parameters)
 
     if download:
@@ -229,7 +231,13 @@ async def get_task_waypoint(
     flight_data = calculate_flight_time_from_placemarks(placemarks)
 
     drones = list(DroneType.__members__.keys())
-    return {"results": placemarks, "flight_data": flight_data, "drones": drones}
+    return {
+        "results": placemarks,
+        "flight_data": flight_data,
+        "drones": drones,
+        "battery_warning": waypoint_data["battery_warning"],
+        "estimated_flight_time_minutes": waypoint_data["estimated_flight_time_minutes"],
+    }
 
 
 @router.post("/")
