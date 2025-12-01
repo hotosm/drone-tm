@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = 'add_image_classification'
-down_revision = '001_project_images'
+down_revision = '7389d0d528c3'
 branch_labels = None
 depends_on = None
 

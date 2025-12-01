@@ -15,13 +15,11 @@ import type { ImageClassificationResult } from '@Services/classification';
 interface ImageClassificationProps {
   projectId: string;
   batchId: string;
-  onClassificationComplete?: () => void;
 }
 
 const ImageClassification = ({
   projectId,
   batchId,
-  onClassificationComplete,
 }: ImageClassificationProps) => {
   const dispatch = useTypedDispatch();
   const { jobId } = useTypedSelector(
@@ -43,18 +41,18 @@ const ImageClassification = ({
     },
   });
 
-  // Query for batch status (summary counts) - fetch immediately and poll during classification
+  // Query for batch status (summary counts) - poll every 10 seconds to handle race conditions
   const { data: batchStatus, refetch: refetchStatus } = useGetBatchStatusQuery(
     projectId,
     batchId,
     {
-      enabled: !!projectId && !!batchId, // Fetch immediately when component loads
-      refetchInterval: isPolling ? 3000 : false, // Poll every 3 seconds during classification
+      enabled: !!projectId && !!batchId,
+      refetchInterval: 10000,
     },
   );
 
   // Query for batch images - fetch immediately and poll every 10 seconds to handle race conditions
-  const { data: newImages, refetch: refetchImages } = useGetBatchImagesQuery(
+  const { data: newImages, refetch: refetchImages, isLoading: isLoadingImages } = useGetBatchImagesQuery(
     projectId,
     batchId,
     lastUpdateTime,
@@ -98,13 +96,10 @@ const ImageClassification = ({
       if (classified > 0 && toClassify === 0) {
         setIsPolling(false);
         dispatch(completeClassification());
-        toast.success('Classification complete!');
-        if (onClassificationComplete) {
-          onClassificationComplete();
-        }
+        toast.success('Classification complete! Review the results below.');
       }
     }
-  }, [batchStatus, isPolling, onClassificationComplete, dispatch]);
+  }, [batchStatus, isPolling, dispatch]);
 
   // Start classification
   const handleStartClassification = useCallback(() => {
@@ -228,43 +223,69 @@ const ImageClassification = ({
         </div>
       )}
 
-      {/* 12x12 Image Grid */}
-      <div className="naxatw-grid naxatw-grid-cols-6 naxatw-gap-3 md:naxatw-grid-cols-12">
+      {/* Image Grid */}
+      <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-3 md:naxatw-grid-cols-6 lg:naxatw-grid-cols-8">
         {imagesList.map((image) => (
           <div
             key={image.id}
             className="naxatw-group naxatw-relative naxatw-aspect-square naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-border-gray-300 naxatw-transition-all hover:naxatw-scale-105 hover:naxatw-shadow-lg"
             title={`${image.filename}\nStatus: ${getStatusLabel(image.status)}${image.rejection_reason ? `\nReason: ${image.rejection_reason}` : ''}`}
           >
-            {/* Status indicator */}
-            <div className={`naxatw-absolute naxatw-inset-0 ${getStatusColor(image.status)} naxatw-opacity-60`} />
+            {/* Actual image thumbnail */}
+            {image.url ? (
+              <img
+                src={image.url}
+                alt={image.filename}
+                className="naxatw-absolute naxatw-inset-0 naxatw-h-full naxatw-w-full naxatw-object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-gray-200">
+                <svg
+                  className="naxatw-h-6 naxatw-w-6 naxatw-text-gray-400"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+            )}
 
-            {/* Image thumbnail placeholder */}
-            <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center">
-              <svg
-                className="naxatw-h-6 naxatw-w-6 naxatw-text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
-                  clipRule="evenodd"
-                />
-              </svg>
+            {/* Status overlay */}
+            <div className={`naxatw-absolute naxatw-inset-0 ${getStatusColor(image.status)} naxatw-opacity-40 naxatw-pointer-events-none`} />
+
+            {/* Status badge */}
+            <div className={`naxatw-absolute naxatw-top-1 naxatw-right-1 naxatw-rounded naxatw-px-1.5 naxatw-py-0.5 naxatw-text-xs naxatw-font-medium naxatw-text-white ${getStatusColor(image.status)}`}>
+              {getStatusLabel(image.status)}
             </div>
 
             {/* Hover tooltip */}
             <div className="naxatw-absolute naxatw-inset-x-0 naxatw-bottom-0 naxatw-bg-black naxatw-bg-opacity-75 naxatw-p-1 naxatw-text-xs naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-100">
               <div className="naxatw-truncate">{image.filename}</div>
-              <div>{getStatusLabel(image.status)}</div>
+              {image.rejection_reason && (
+                <div className="naxatw-text-red-300 naxatw-truncate">{image.rejection_reason}</div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
+      {/* Loading state */}
+      {imagesList.length === 0 && isLoadingImages && (
+        <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
+          <div className="naxatw-text-center">
+            <div className="naxatw-mx-auto naxatw-h-12 naxatw-w-12 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-gray-300 naxatw-border-t-red"></div>
+            <p className="naxatw-mt-4 naxatw-text-gray-500">Fetching images...</p>
+          </div>
+        </div>
+      )}
+
       {/* Empty state */}
-      {imagesList.length === 0 && !isPolling && (
+      {imagesList.length === 0 && !isPolling && !isLoadingImages && (
         <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
           <div className="naxatw-text-center">
             <svg
@@ -280,8 +301,8 @@ const ImageClassification = ({
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <p className="naxatw-mt-2 naxatw-text-gray-500">No images classified yet</p>
-            <p className="naxatw-text-sm naxatw-text-gray-400">Click to start classificationheck</p>
+            <p className="naxatw-mt-2 naxatw-text-gray-500">No images found</p>
+            <p className="naxatw-text-sm naxatw-text-gray-400">Upload images first to start classification</p>
           </div>
         </div>
       )}

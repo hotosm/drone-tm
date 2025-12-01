@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal, Optional
 
 import cv2
@@ -15,7 +15,8 @@ from shapely.geometry import Point, shape
 from app.config import settings
 from app.db.db_models import DbTask
 from app.models.enums import ImageStatus
-from app.s3 import get_obj_from_bucket
+from app.s3 import get_obj_from_bucket, s3_client
+from app.utils import strip_presigned_url_for_local_dev
 
 
 MIN_GIMBAL_ANGLE = -30.0
@@ -405,7 +406,8 @@ class ImageClassifier:
         }
 
         for image in images:
-            image_id = uuid.UUID(image["id"])
+            # image["id"] may already be a UUID object from the database
+            image_id = image["id"] if isinstance(image["id"], uuid.UUID) else uuid.UUID(image["id"])
 
             async with db.cursor() as cur:
                 await cur.execute(
@@ -467,4 +469,18 @@ class ImageClassifier:
 
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(query, params)
-            return await cur.fetchall()
+            images = await cur.fetchall()
+
+        # Generate presigned URLs for each image (keep signature for authentication)
+        for image in images:
+            if image.get("s3_key"):
+                client = s3_client()
+                url = client.presigned_get_object(
+                    settings.S3_BUCKET_NAME,
+                    image["s3_key"],
+                    expires=timedelta(hours=1)
+                )
+                # Keep presigned params (strip_presign=False) so signature is preserved
+                image["url"] = strip_presigned_url_for_local_dev(url, strip_presign=False)
+
+        return images

@@ -70,11 +70,6 @@ const DroneImageProcessingWorkflow = ({
     }
   };
 
-  // Handle classification complete - move to review
-  const handleClassificationComplete = () => {
-    dispatch(setCurrentStep(3));
-  };
-
   // Should proceed to the next step
   const handleNextButton = () => {
     // Disable Next button on step 1 if no batch ID
@@ -102,7 +97,6 @@ const DroneImageProcessingWorkflow = ({
           <ImageClassification
             projectId={projectId}
             batchId={batchId}
-            onClassificationComplete={handleClassificationComplete}
           />
         ) : (
           <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-text-gray-500">

@@ -8,6 +8,7 @@ export interface ImageClassificationResult {
   rejection_reason?: string;
   has_gps: boolean;
   s3_key: string;
+  url?: string;
   uploaded_at: string;
 }
 
