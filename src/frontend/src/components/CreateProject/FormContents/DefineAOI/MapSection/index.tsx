@@ -146,7 +146,7 @@ const MapSection = ({
       }}
     >
       <BaseLayerSwitcherUI />
-      <LocateUser isMapLoaded={isMapLoaded} />
+      <LocateUser />
       <div className="naxatw-absolute naxatw-left-2 naxatw-top-24 naxatw-z-50 naxatw-flex naxatw-h-fit naxatw-w-9 naxatw-flex-col naxatw-gap-2 naxatw-rounded-lg">
         {showDrawButton() && (
           <>
