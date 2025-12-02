@@ -15,12 +15,9 @@ def instrument_app_otel(app: FastAPI):
     Only used if environment variables configured.
     """
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
-
+ 
     FastAPIInstrumentor.instrument_app(app)
-
-    # FIXME psycopg enable once linked issue addressed:
-    # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3793
-    # see: https://github.com/hotosm/field-tm/blob/4f29ed3fb462a65dbbcf2fa5c7db0a2b8ac5dc60/src/backend/app/monitoring.py#L185
-    # for more details
+    PsycopgInstrumentor().instrument(enable_commenter=True, commenter_options={})
     RequestsInstrumentor().instrument()
