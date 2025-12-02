@@ -43,9 +43,8 @@ class OtelSettings(BaseSettings):
     These mostly set environment variables set by the OTEL SDK.
     """
 
-    FMTM_DOMAIN: Optional[str] = Field(exclude=True)
+    SITE_NAME: Optional[str] = Field(exclude=True)
     LOG_LEVEL: Optional[str] = Field(exclude=True)
-    ODK_CENTRAL_URL: Optional[str] = Field(exclude=True)
 
     @computed_field
     @property
