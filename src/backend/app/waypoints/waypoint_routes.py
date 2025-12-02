@@ -19,7 +19,7 @@ from drone_flightplan.output.potensic import create_potensic_sqlite
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
 from drone_flightplan.output.litchi import create_litchi_csv
 from drone_flightplan.drone_type import DroneType, DRONE_PARAMS
-from drone_flightplan.enums import GimbalAngle
+from drone_flightplan.enums import GimbalAngle, FlightMode
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from psycopg import Connection
@@ -27,7 +27,7 @@ from shapely.geometry import shape
 
 from app.config import settings
 from app.db import database
-from app.models.enums import FlightMode, HTTPStatus
+from app.models.enums import HTTPStatus
 from app.projects import project_deps
 from app.s3 import get_file_from_bucket
 from app.tasks.task_logic import (
@@ -152,7 +152,6 @@ async def get_task_waypoint(
     if project.is_terrain_follow:
         dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
 
-        # Terrain follow uses waypoints mode, waylines are generated later
         waypoint_params["mode"] = FlightMode.WAYPOINTS
         waypoint_data = create_waypoint(**waypoint_params)
         points = waypoint_data["geojson"]
@@ -184,7 +183,7 @@ async def get_task_waypoint(
             placemarks = terrain_following_waylines.waypoints2waylines(placemarks, 5)
 
     else:
-        waypoint_params["mode"] = mode
+        waypoint_params["mode"] = FlightMode(mode.value)
         waypoint_data = create_waypoint(**waypoint_params)
         points = waypoint_data["geojson"]
         placemarks = create_placemarks(geojson.loads(points), parameters)
