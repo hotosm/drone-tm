@@ -17,7 +17,7 @@ def instrument_app_otel(app: FastAPI):
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
- 
+
     FastAPIInstrumentor.instrument_app(app)
     PsycopgInstrumentor().instrument(enable_commenter=True, commenter_options={})
     RequestsInstrumentor().instrument()
