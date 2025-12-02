@@ -291,17 +291,19 @@ const ImageClassification = ({
         ))}
       </div>
 
-      {/* Loading state */}
-      {imagesList.length === 0 && isLoadingImages && (
+      {/* Loading state - show when images are empty and either loading or polling */}
+      {imagesList.length === 0 && (
         <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
           <div className="naxatw-text-center">
             <div className="naxatw-mx-auto naxatw-h-12 naxatw-w-12 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-gray-300 naxatw-border-t-red"></div>
-            <p className="naxatw-mt-4 naxatw-text-gray-500">Fetching images...</p>
+            <p className="naxatw-mt-4 naxatw-text-gray-500">
+              Loading images...
+            </p>
           </div>
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty state - only show when not loading and not polling */}
       {imagesList.length === 0 && !isPolling && !isLoadingImages && (
         <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
           <div className="naxatw-text-center">

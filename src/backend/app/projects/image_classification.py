@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional
@@ -15,7 +16,7 @@ from app.s3 import get_obj_from_bucket, s3_client
 from app.utils import strip_presigned_url_for_local_dev
 
 
-MIN_GIMBAL_ANGLE = -30.0
+MIN_GIMBAL_ANGLE = 10.0
 MIN_SHARPNESS_SCORE = 100.0
 
 
@@ -66,46 +67,6 @@ class ImageClassifier:
         except Exception as e:
             log.error(f"Error calculating sharpness: {e}")
             raise ValueError(f"Failed to calculate sharpness: {e}") from e
-
-    @staticmethod
-    async def check_image_quality(
-        exif_data: dict, image_bytes: Optional[bytes] = None
-    ) -> tuple[bool, Optional[str], Optional[float]]:
-        """Check image quality based on EXIF and optionally image content.
-
-        Args:
-            exif_data: EXIF metadata dictionary
-            image_bytes: Optional raw image bytes for sharpness analysis
-
-        Returns:
-            Tuple of (passed, reason, sharpness_score)
-        """
-        # Check gimbal angle from EXIF
-        gimbal_angle = exif_data.get("pitch")
-        if gimbal_angle is not None and gimbal_angle > MIN_GIMBAL_ANGLE:
-            return (
-                False,
-                f"Gimbal angle {gimbal_angle:.1f}° too shallow (must be < {MIN_GIMBAL_ANGLE}°)",
-                None,
-            )
-
-        # Check sharpness if image bytes provided
-        sharpness_score = None
-        if image_bytes:
-            try:
-                sharpness_score = ImageClassifier.calculate_sharpness(image_bytes)
-                if sharpness_score < MIN_SHARPNESS_SCORE:
-                    return (
-                        False,
-                        f"Image too blurry (sharpness: {sharpness_score:.1f}, required: {MIN_SHARPNESS_SCORE:.1f})",
-                        sharpness_score,
-                    )
-            except Exception as e:
-                log.warning(f"Could not calculate sharpness: {e}")
-                # Don't fail the image if we can't calculate sharpness
-                # Just continue without sharpness check
-
-        return True, None, sharpness_score
 
     @staticmethod
     async def find_matching_task(
@@ -159,64 +120,12 @@ class ImageClassifier:
                 }
 
         logs = []
+        issues = []
         exif_data = image.get("exif") or {}
         s3_key = image.get("s3_key")
+        sharpness_score = None
 
-        logs.append(
-            {
-                "action": "EXIF Extraction",
-                "details": "Reading metadata...",
-                "status": "info",
-            }
-        )
-
-        if not exif_data:
-            await ImageClassifier._update_image_status(
-                db, image_id, ImageStatus.INVALID_EXIF, "No EXIF data found"
-            )
-            logs.append(
-                {
-                    "action": "REJECTED",
-                    "details": "No EXIF data found",
-                    "status": "error",
-                }
-            )
-            return {
-                "image_id": str(image_id),
-                "status": ImageStatus.INVALID_EXIF,
-                "logs": logs,
-            }
-
-        latitude = exif_data.get("latitude")
-        longitude = exif_data.get("longitude")
-
-        if latitude is None or longitude is None:
-            await ImageClassifier._update_image_status(
-                db, image_id, ImageStatus.INVALID_EXIF, "No GPS coordinates in EXIF"
-            )
-            logs.append(
-                {
-                    "action": "REJECTED",
-                    "details": "No GPS coordinates found",
-                    "status": "error",
-                }
-            )
-            return {
-                "image_id": str(image_id),
-                "status": ImageStatus.INVALID_EXIF,
-                "logs": logs,
-            }
-
-        logs.append(
-            {
-                "action": "GPS Check",
-                "details": f"Location: {latitude:.4f}, {longitude:.4f}",
-                "status": "success",
-            }
-        )
-
-        # Download image for quality analysis using run_in_threadpool
-        # to properly handle the sync MinIO client from async context
+        # Download image first for quality analysis
         image_bytes = None
         try:
             log.info(f"Downloading image from S3: {s3_key}")
@@ -227,7 +136,7 @@ class ImageClassifier:
             logs.append(
                 {
                     "action": "Image Download",
-                    "details": f"Downloaded {len(image_bytes) / 1024 / 1024:.2f} MB from S3",
+                    "details": f"Downloaded {len(image_bytes) / 1024 / 1024:.2f} MB",
                     "status": "success",
                 }
             )
@@ -236,37 +145,136 @@ class ImageClassifier:
             logs.append(
                 {
                     "action": "Image Download",
-                    "details": f"Failed to download from S3: {str(e)}",
+                    "details": f"Failed to download: {str(e)}",
                     "status": "warning",
                 }
             )
 
-        (
-            quality_passed,
-            quality_reason,
-            sharpness_score,
-        ) = await ImageClassifier.check_image_quality(exif_data, image_bytes)
+        # Check sharpness first (if image bytes available)
+        if image_bytes:
+            try:
+                sharpness_score = ImageClassifier.calculate_sharpness(image_bytes)
+                if sharpness_score < MIN_SHARPNESS_SCORE:
+                    issues.append(
+                        f"Blurry (sharpness: {sharpness_score:.1f}, min: {MIN_SHARPNESS_SCORE})"
+                    )
+                    logs.append(
+                        {
+                            "action": "Sharpness Check",
+                            "details": f"Score: {sharpness_score:.1f} - FAILED",
+                            "status": "error",
+                        }
+                    )
+                else:
+                    logs.append(
+                        {
+                            "action": "Sharpness Check",
+                            "details": f"Score: {sharpness_score:.1f} - Passed",
+                            "status": "success",
+                        }
+                    )
+            except Exception as e:
+                log.warning(f"Could not calculate sharpness: {e}")
+                logs.append(
+                    {
+                        "action": "Sharpness Check",
+                        "details": f"Could not analyze: {str(e)}",
+                        "status": "warning",
+                    }
+                )
 
-        if not quality_passed:
-            await ImageClassifier._update_image_status(
-                db, image_id, ImageStatus.REJECTED, quality_reason, sharpness_score
+        # Check EXIF data
+        if not exif_data:
+            issues.append("No EXIF data found")
+            logs.append(
+                {"action": "EXIF Check", "details": "No EXIF data", "status": "error"}
+            )
+        else:
+            logs.append(
+                {"action": "EXIF Check", "details": "EXIF data present", "status": "success"}
+            )
+
+        # Extract GPS coordinates from stored EXIF data
+        latitude = exif_data.get("GPSLatitude")
+        longitude = exif_data.get("GPSLongitude")
+
+        if latitude is None or longitude is None:
+            issues.append("No GPS coordinates in EXIF")
+            logs.append(
+                {"action": "GPS Check", "details": "No coordinates found", "status": "error"}
+            )
+        else:
+            logs.append(
+                {
+                    "action": "GPS Check",
+                    "details": f"Location: {latitude:.4f}, {longitude:.4f}",
+                    "status": "success",
+                }
+            )
+
+        # Parse UserComment for drone metadata (pitch, yaw, etc.)
+        user_comment = exif_data.get("UserComment")
+        drone_metadata = {}
+        if isinstance(user_comment, str):
+            try:
+                drone_metadata = json.loads(user_comment)
+            except (json.JSONDecodeError, TypeError):
+                log.debug("Could not parse UserComment as JSON")
+
+        # Merge drone metadata for quality checks
+        quality_check_data = {**exif_data, **drone_metadata}
+
+        # Check gimbal angle
+        gimbal_angle = quality_check_data.get("pitch")
+        if gimbal_angle is not None and gimbal_angle > MIN_GIMBAL_ANGLE:
+            issues.append(
+                f"Gimbal angle {gimbal_angle:.1f}° too shallow (must be < {MIN_GIMBAL_ANGLE}°)"
             )
             logs.append(
-                {"action": "REJECTED", "details": quality_reason, "status": "error"}
+                {
+                    "action": "Gimbal Check",
+                    "details": f"Angle: {gimbal_angle:.1f}° - FAILED",
+                    "status": "error",
+                }
+            )
+        elif gimbal_angle is not None:
+            logs.append(
+                {
+                    "action": "Gimbal Check",
+                    "details": f"Angle: {gimbal_angle:.1f}° - Passed",
+                    "status": "success",
+                }
+            )
+
+        # If there are any issues, reject the image with all reasons
+        if issues:
+            # Determine the primary status based on issue types
+            has_exif_issue = any(
+                "EXIF" in issue or "GPS" in issue for issue in issues
+            )
+            rejection_reason = "; ".join(issues)
+
+            status = ImageStatus.INVALID_EXIF if has_exif_issue else ImageStatus.REJECTED
+
+            await ImageClassifier._update_image_status(
+                db, image_id, status, rejection_reason, sharpness_score
+            )
+            logs.append(
+                {"action": "REJECTED", "details": rejection_reason, "status": "error"}
             )
             return {
                 "image_id": str(image_id),
-                "status": ImageStatus.REJECTED,
-                "reason": quality_reason,
+                "status": status,
+                "reason": rejection_reason,
                 "sharpness_score": sharpness_score,
                 "logs": logs,
             }
 
-        gimbal_angle = exif_data.get("pitch")
-        quality_details = f"Gimbal: {gimbal_angle:.1f}°"
+        # All checks passed
+        quality_details = f"Gimbal: {gimbal_angle:.1f}°" if gimbal_angle else "Gimbal: N/A"
         if sharpness_score is not None:
             quality_details += f", Sharpness: {sharpness_score:.1f}"
-        quality_details += " - Passed"
+        quality_details += " - All checks passed"
 
         logs.append(
             {"action": "Quality Check", "details": quality_details, "status": "success"}
@@ -464,6 +472,7 @@ class ImageClassifier:
                 rejection_reason,
                 task_id,
                 classified_at,
+                uploaded_at,
                 exif,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
@@ -495,5 +504,10 @@ class ImageClassifier:
                 image["url"] = strip_presigned_url_for_local_dev(
                     url, strip_presign=False
                 )
+
+            # Add has_gps field for frontend display
+            image["has_gps"] = (
+                image.get("latitude") is not None and image.get("longitude") is not None
+            )
 
         return images
