@@ -93,7 +93,10 @@ class ImageClassifier:
                 },
             )
             result = await cur.fetchone()
-            return uuid.UUID(result["id"]) if result else None
+            if not result:
+                return None
+            task_id = result["id"]
+            return task_id if isinstance(task_id, uuid.UUID) else uuid.UUID(task_id)
 
     @staticmethod
     async def classify_single_image(

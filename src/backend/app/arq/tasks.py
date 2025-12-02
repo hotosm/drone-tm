@@ -15,6 +15,7 @@ from app.images.image_logic import (
     check_duplicate_image,
     create_project_image,
     extract_exif_data,
+    mark_image_as_duplicate,
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import HTTPStatus, ImageStatus
@@ -180,21 +181,33 @@ async def process_uploaded_image(
             log.info(f"Calculating hash for: {filename}")
             file_hash = calculate_file_hash(file_content)
 
-            # Step 2: Check for duplicates (idempotent behavior)
-            duplicate_id = await check_duplicate_image(db, UUID(project_id), file_hash)
-            if duplicate_id:
-                log.info(f"Duplicate detected: {file_hash} -> {duplicate_id}")
-                sql = "SELECT * FROM project_images WHERE id = %(id)s"
-                async with db.cursor(row_factory=dict_row) as cur:
-                    await cur.execute(sql, {"id": str(duplicate_id)})
-                    existing_record = await cur.fetchone()
+            # Step 2: Check for duplicates
+            duplicate_of_id = await check_duplicate_image(db, UUID(project_id), file_hash)
+            if duplicate_of_id:
+                log.info(f"Duplicate detected: {file_hash} -> {duplicate_of_id}")
+                # Create a new record marked as duplicate (so it shows in batch)
+                image_record = await _save_image_record(
+                    db=db,
+                    project_id=project_id,
+                    filename=filename,
+                    file_key=file_key,
+                    file_hash=file_hash,
+                    uploaded_by=uploaded_by,
+                    exif_dict=None,
+                    location=None,
+                    status=ImageStatus.DUPLICATE,
+                    batch_id=batch_id,
+                )
+                # Mark with reference to original
+                await mark_image_as_duplicate(db, image_record.id, duplicate_of_id)
 
                 return {
-                    "image_id": str(duplicate_id),
-                    "status": existing_record["status"],
-                    "has_gps": existing_record["location"] is not None,
+                    "image_id": str(image_record.id),
+                    "status": ImageStatus.DUPLICATE.value,
+                    "has_gps": False,
                     "is_duplicate": True,
-                    "message": "Duplicate image (idempotent)",
+                    "duplicate_of": str(duplicate_of_id),
+                    "message": "Duplicate image detected",
                 }
 
             # Step 3: Extract EXIF (try-catch to handle failures gracefully)

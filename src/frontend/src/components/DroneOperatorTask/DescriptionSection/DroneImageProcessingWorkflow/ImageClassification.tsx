@@ -103,25 +103,25 @@ const ImageClassification = ({
 
   // Get status badge styles
   const getStatusBadgeClass = (status: string): string => {
-    const baseClass = 'naxatw-inline-flex naxatw-items-center naxatw-rounded-full naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-medium';
+    const baseClass = 'naxatw-inline-flex naxatw-items-center naxatw-rounded-full naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-medium naxatw-shadow-sm';
     switch (status) {
       case 'assigned':
-        return `${baseClass} naxatw-bg-green-100 naxatw-text-green-800`;
+        return `${baseClass} naxatw-bg-green-500 naxatw-text-white`;
       case 'rejected':
-        return `${baseClass} naxatw-bg-red-100 naxatw-text-red-800`;
+        return `${baseClass} naxatw-bg-red-500 naxatw-text-white`;
       case 'unmatched':
-        return `${baseClass} naxatw-bg-yellow-100 naxatw-text-yellow-800`;
+        return `${baseClass} naxatw-bg-yellow-500 naxatw-text-white`;
       case 'invalid_exif':
-        return `${baseClass} naxatw-bg-orange-100 naxatw-text-orange-800`;
+        return `${baseClass} naxatw-bg-orange-500 naxatw-text-white`;
       case 'duplicate':
-        return `${baseClass} naxatw-bg-gray-100 naxatw-text-gray-800`;
+        return `${baseClass} naxatw-bg-grey-500 naxatw-text-white`;
       case 'classifying':
-        return `${baseClass} naxatw-bg-blue-100 naxatw-text-blue-800 naxatw-animate-pulse`;
+        return `${baseClass} naxatw-bg-blue-500 naxatw-text-white naxatw-animate-pulse`;
       case 'uploaded':
-        return `${baseClass} naxatw-bg-gray-100 naxatw-text-gray-600`;
+        return `${baseClass} naxatw-bg-grey-400 naxatw-text-white`;
       case 'staged':
       default:
-        return `${baseClass} naxatw-bg-gray-50 naxatw-text-gray-500`;
+        return `${baseClass} naxatw-bg-grey-300 naxatw-text-grey-700`;
     }
   };
 

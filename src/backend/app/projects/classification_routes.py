@@ -163,6 +163,7 @@ async def get_batch_status(
             "rejected": status_counts.get("rejected", 0),
             "unmatched": status_counts.get("unmatched", 0),
             "invalid_exif": status_counts.get("invalid_exif", 0),
+            "duplicate": status_counts.get("duplicate", 0),
         }
 
     except Exception as e:
