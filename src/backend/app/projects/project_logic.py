@@ -8,13 +8,6 @@ from typing import Any, Dict
 import geojson
 import pyproj
 import shapely.wkb as wkblib
-from drone_flightplan import (
-    add_elevation_from_dem,
-    calculate_parameters,
-    create_placemarks,
-    terrain_following_waylines,
-    create_waypoint,
-)
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from geojson import Feature, FeatureCollection
@@ -25,8 +18,17 @@ from psycopg.rows import dict_row
 from shapely.geometry import shape
 from shapely.ops import transform
 
+from drone_flightplan import (
+    add_elevation_from_dem,
+    calculate_parameters,
+    create_placemarks,
+    terrain_following_waylines,
+    create_waypoint,
+)
+from drone_flightplan.enums import FlightMode
+
 from app.config import settings
-from app.models.enums import FlightMode, ImageProcessingStatus, OAMUploadStatus
+from app.models.enums import ImageProcessingStatus, OAMUploadStatus
 from app.projects import project_schemas
 from app.projects.image_processing import DroneImageProcessor
 from app.s3 import (
