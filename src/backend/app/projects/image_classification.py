@@ -416,7 +416,11 @@ class ImageClassifier:
 
         for image in images:
             # image["id"] may already be a UUID object from the database
-            image_id = image["id"] if isinstance(image["id"], uuid.UUID) else uuid.UUID(image["id"])
+            image_id = (
+                image["id"]
+                if isinstance(image["id"], uuid.UUID)
+                else uuid.UUID(image["id"])
+            )
 
             async with db.cursor() as cur:
                 await cur.execute(
@@ -485,11 +489,11 @@ class ImageClassifier:
             if image.get("s3_key"):
                 client = s3_client()
                 url = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME,
-                    image["s3_key"],
-                    expires=timedelta(hours=1)
+                    settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
                 )
                 # Keep presigned params (strip_presign=False) so signature is preserved
-                image["url"] = strip_presigned_url_for_local_dev(url, strip_presign=False)
+                image["url"] = strip_presigned_url_for_local_dev(
+                    url, strip_presign=False
+                )
 
         return images

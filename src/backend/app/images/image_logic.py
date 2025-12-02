@@ -34,10 +34,19 @@ def _sanitize_exif_value(value: Any) -> Any:
         return _sanitize_string(value)
     if isinstance(value, bytes):
         try:
-            decoded = value.decode("utf-8", errors="ignore")
-            return _sanitize_string(decoded)
-        except (UnicodeDecodeError, AttributeError):
-            return _sanitize_string(str(value))
+            return value.decode("utf-8", errors="ignore")
+        except Exception:
+            return str(value)
+
+    # Handle tuples (convert to list for JSON)
+    if isinstance(value, tuple):
+        return [_convert_exif_value(item) for item in value]
+
+    # Handle lists
+    if isinstance(value, list):
+        return [_convert_exif_value(item) for item in value]
+
+    # Handle dicts
     if isinstance(value, dict):
         return {k: _sanitize_exif_value(v) for k, v in value.items()}
     if isinstance(value, list):
