@@ -219,3 +219,18 @@ class OAMUploadStatus(StrEnum):
     UPLOADING = "uploading"
     UPLOADED = "uploaded"
     FAILED = "failed"
+
+
+class ImageStatus(StrEnum):
+    """Enum to describe the status of uploaded project images."""
+
+    STAGED = (
+        "staged"  # Files uploaded but not yet committed (multipart upload in progress)
+    )
+    UPLOADED = "uploaded"  # Successfully uploaded to S3, pending classification
+    CLASSIFYING = "classifying"  # Currently being classified
+    ASSIGNED = "assigned"  # Assigned to a task after successful classification
+    REJECTED = "rejected"  # Failed quality checks (blur, gimbal angle, etc.)
+    UNMATCHED = "unmatched"  # GPS coordinates don't match any task boundary
+    INVALID_EXIF = "invalid_exif"  # EXIF data is missing or unreadable
+    DUPLICATE = "duplicate"  # Duplicate image (same hash as existing image)

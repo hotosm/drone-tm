@@ -85,6 +85,7 @@ RUN set -ex \
     "libproj25" \
     "libgeos-c1t64" \
     "libgdal36" \
+    "libimage-exiftool-perl" \
 && rm -rf /var/lib/apt/lists/*
 
 # Retrieve global Python packages and dependencies from the build stage

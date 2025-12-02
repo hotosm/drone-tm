@@ -18,7 +18,7 @@ from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
-from app.projects import project_routes
+from app.projects import classification_routes, project_routes
 from app.tasks import task_routes
 from app.users import user_routes
 from app.waypoints import waypoint_routes
@@ -107,6 +107,7 @@ def get_application() -> FastAPI:
     )
     _app.include_router(drone_routes.router)
     _app.include_router(project_routes.router)
+    _app.include_router(classification_routes.router)
     _app.include_router(waypoint_routes.router)
     _app.include_router(user_routes.router)
     _app.include_router(task_routes.router)

@@ -191,8 +191,13 @@ class DbUserProfile(BaseUserProfile):
             if file_name:
                 try:
                     client = s3_client()
-                    presigned_url = client.get_presigned_url(
-                        "PUT", settings.S3_BUCKET_NAME, s3_path
+                    presigned_url = client.generate_presigned_url(
+                        "put_object",
+                        Params={
+                            "Bucket": settings.S3_BUCKET_NAME,
+                            "Key": s3_path.lstrip("/"),
+                        },
+                        ExpiresIn=3600,  # 1 hour
                     )
                     result[file_type] = {
                         "presigned_url": presigned_url,

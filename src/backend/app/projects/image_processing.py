@@ -21,8 +21,8 @@ from app.projects import project_logic
 from app.s3 import (
     add_file_to_bucket,
     copy_file_within_bucket,
+    generate_presigned_download_url,
     get_file_from_bucket,
-    get_presigned_url,
     list_objects_from_bucket,
 )
 from app.tasks import task_logic
@@ -130,7 +130,7 @@ class DroneImageProcessor:
         else:
             # generate pre-signed URL for each object
             object_urls = [
-                get_presigned_url(bucket_name, obj.object_name, 12)
+                generate_presigned_download_url(bucket_name, obj.object_name, 12)
                 for obj in objects
                 if obj.object_name.lower().endswith(accepted_file_extensions)
             ]
