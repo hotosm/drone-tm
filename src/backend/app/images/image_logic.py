@@ -36,7 +36,7 @@ def _convert_exif_value(value: Any) -> Any:
     if isinstance(value, bytes):
         try:
             return value.decode("utf-8", errors="ignore")
-        except:
+        except UnicodeDecodeError:
             return str(value)
 
     # Handle tuples (convert to list for JSON)
