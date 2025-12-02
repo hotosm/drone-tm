@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 from loguru import logger as log
 from minio import Minio
 from minio.commonconfig import CopySource
+from minio.datatypes import Part
 from minio.error import S3Error
 
 from app.config import settings
@@ -13,13 +14,16 @@ from app.utils import strip_presigned_url_for_local_dev
 
 
 def s3_client():
-    """Return the initialised S3 client with credentials."""
-    minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
-    log.debug("Connecting to Minio S3 server")
+    """Return the initialised MinIO client with credentials."""
+    endpoint = settings.S3_ENDPOINT
+    minio_url, is_secure = is_connection_secure(endpoint)
+
+    log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
+
     return Minio(
         minio_url,
-        settings.S3_ACCESS_KEY,
-        settings.S3_SECRET_KEY,
+        access_key=settings.S3_ACCESS_KEY,
+        secret_key=settings.S3_SECRET_KEY,
         secure=is_secure,
     )
 
@@ -214,23 +218,35 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return objects
 
 
-def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
-    """Generate a presigned URL for an object in an S3 bucket.
+def generate_presigned_download_url(
+    bucket_name: str, object_name: str, expires_hours: int = 2
+) -> str:
+    """Generate a presigned URL for downloading an object from S3 (GET request).
+
+    This generates a temporary URL that allows unauthenticated access to download
+    a specific object from S3. Commonly used for assets, orthophotos, and processed outputs.
 
     Args:
         bucket_name (str): The name of the S3 bucket.
-        object_name (str): The name of the object in the bucket.
-        expires (int, optional): The time in hours until the URL expires.
-            Defaults to 2 hour.
+        object_name (str): The S3 key/path of the object to download.
+        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
 
     Returns:
-        str: The presigned URL to access the object.
+        str: The presigned URL for downloading the object.
     """
     client = s3_client()
     url = client.presigned_get_object(
-        bucket_name, object_name, expires=timedelta(hours=expires)
+        bucket_name, object_name, expires=timedelta(hours=expires_hours)
     )
     return strip_presigned_url_for_local_dev(url)
+
+
+def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
+    """Deprecated: Use generate_presigned_download_url instead.
+
+    This function is maintained for backwards compatibility.
+    """
+    return generate_presigned_download_url(bucket_name, object_name, expires)
 
 
 def get_object_metadata(bucket_name: str, object_name: str):
@@ -328,3 +344,200 @@ def copy_file_within_bucket(
     except Exception as e:
         log.error(f"Unexpected error during object copy: {e}")
         return False
+
+
+def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
+    """Initiate a multipart upload and return the upload ID.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket where the file will be stored.
+
+    Returns:
+        str: The upload ID for the multipart upload session.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        upload_id = client._create_multipart_upload(bucket_name, object_name, {})
+        log.debug(
+            f"Initiated multipart upload for {object_name} with upload ID: {upload_id}"
+        )
+        return upload_id
+    except S3Error as e:
+        log.error(f"Error initiating multipart upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error during multipart upload initiation: {e}")
+        raise
+
+
+def generate_presigned_multipart_upload_url(
+    bucket_name: str,
+    object_name: str,
+    upload_id: str,
+    part_number: int,
+    expires_hours: int = 2,
+) -> str:
+    """Generate a presigned URL for uploading a single part in a multipart upload (PUT request).
+
+    This is used by the frontend (Uppy) to upload large files in chunks. Each chunk/part
+    gets its own presigned URL. This endpoint is called frequently during active uploads.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The S3 key/path where the file will be stored.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+        part_number (int): The part number (1-10000) for this chunk.
+        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
+
+    Returns:
+        str: The presigned URL for uploading this specific part.
+
+    Raises:
+        S3Error: If there's an error communicating with S3.
+    """
+    object_name = object_name.lstrip("/")
+
+    client = s3_client()
+
+    try:
+        url = client.get_presigned_url(
+            "PUT",
+            bucket_name,
+            object_name,
+            expires=timedelta(hours=expires_hours),
+            extra_query_params={
+                "uploadId": upload_id,
+                "partNumber": str(part_number),
+            },
+        )
+        log.debug(f"Generated presigned URL for part {part_number} of {object_name}")
+        return url
+    except S3Error as e:
+        log.error(f"Error generating presigned URL for part upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error generating presigned URL: {e}")
+        raise
+
+
+def get_presigned_upload_part_url(
+    bucket_name: str,
+    object_name: str,
+    upload_id: str,
+    part_number: int,
+    expires: int = 2,
+) -> str:
+    """Deprecated: Use generate_presigned_multipart_upload_url instead.
+
+    This function is maintained for backwards compatibility.
+    """
+    return generate_presigned_multipart_upload_url(
+        bucket_name, object_name, upload_id, part_number, expires
+    )
+
+
+def complete_multipart_upload(
+    bucket_name: str, object_name: str, upload_id: str, parts: list[dict]
+) -> bool:
+    """Complete a multipart upload by combining all uploaded parts.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket where the file is stored.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+        parts (list[dict]): List of parts with 'PartNumber' and 'ETag' keys.
+
+    Returns:
+        bool: True if the multipart upload was completed successfully.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        # Convert dict parts to Part objects for MinIO SDK
+        part_objects = []
+        for part in parts:
+            # Handle both lowercase and uppercase key names
+            part_number = part.get("PartNumber") or part.get("part_number")
+            etag = part.get("ETag") or part.get("etag")
+
+            if part_number and etag:
+                # Create Part object - strip quotes from ETag if present
+                part_obj = Part(int(part_number), etag.strip('"'))
+                part_objects.append(part_obj)
+
+        result = client._complete_multipart_upload(
+            bucket_name, object_name, upload_id, part_objects
+        )
+        log.info(
+            f"Completed multipart upload for {object_name}. "
+            f"ETag: {result.etag}, Version ID: {result.version_id}"
+        )
+        return True
+    except S3Error as e:
+        log.error(f"Error completing multipart upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error completing multipart upload: {e}")
+        raise
+
+
+def abort_multipart_upload(bucket_name: str, object_name: str, upload_id: str) -> bool:
+    """Abort a multipart upload and clean up uploaded parts.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+
+    Returns:
+        bool: True if the upload was aborted successfully.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        client._abort_multipart_upload(bucket_name, object_name, upload_id)
+        log.info(
+            f"Aborted multipart upload for {object_name} with upload ID: {upload_id}"
+        )
+        return True
+    except S3Error as e:
+        log.error(f"Error aborting multipart upload: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error aborting multipart upload: {e}")
+        raise
+
+
+def list_parts(bucket_name: str, object_name: str, upload_id: str) -> list[dict]:
+    """List all uploaded parts for a multipart upload.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The path in the S3 bucket.
+        upload_id (str): The upload ID from initiate_multipart_upload.
+
+    Returns:
+        list[dict]: List of uploaded parts with part number and ETag.
+    """
+    object_name = object_name.lstrip("/")
+    client = s3_client()
+
+    try:
+        parts_response = client._list_parts(bucket_name, object_name, upload_id)
+        parts = [
+            {"part_number": part.part_number, "etag": part.etag}
+            for part in parts_response.parts
+        ]
+        log.debug(f"Listed {len(parts)} parts for {object_name}")
+        return parts
+    except S3Error as e:
+        log.error(f"Error listing parts: {e}")
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error listing parts: {e}")
+        raise
