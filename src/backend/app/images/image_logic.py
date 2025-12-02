@@ -2,13 +2,12 @@
 
 import hashlib
 import json
-from io import BytesIO
+import tempfile
 from typing import Any, Optional
 from uuid import UUID
 
+import exiftool
 from loguru import logger as log
-from PIL import Image
-from PIL.ExifTags import TAGS, GPSTAGS
 from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
@@ -17,111 +16,102 @@ from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import ImageStatus
 
 
-def _convert_exif_value(value: Any) -> Any:
-    """Convert EXIF values to JSON-serializable types.
+def _sanitize_string(s: str) -> str:
+    """Remove null characters and other problematic characters for PostgreSQL JSONB.
 
-    PIL's EXIF data contains special types like IFDRational, TiffImagePlugin.IFDRational
-    which need to be converted to standard Python types for JSON serialization.
+    PostgreSQL's JSONB type cannot store null characters (\\u0000).
     """
-    # Handle IFDRational (PIL's rational number type)
-    if hasattr(value, "numerator") and hasattr(value, "denominator"):
-        # Convert rational to float
-        return (
-            float(value.numerator) / float(value.denominator)
-            if value.denominator != 0
-            else 0.0
-        )
+    # Remove null characters which PostgreSQL JSONB cannot handle
+    return s.replace("\x00", "").replace("\u0000", "")
 
-    # Handle bytes
+
+def _sanitize_exif_value(value: Any) -> Any:
+    """Recursively sanitize EXIF values for PostgreSQL JSONB storage.
+
+    Removes null characters from strings and handles nested structures.
+    """
+    if isinstance(value, str):
+        return _sanitize_string(value)
     if isinstance(value, bytes):
         try:
-            return value.decode("utf-8", errors="ignore")
-        except Exception as e:
-            return str(value)
-
-    # Handle tuples (convert to list for JSON)
-    if isinstance(value, tuple):
-        return [_convert_exif_value(item) for item in value]
-
-    # Handle lists
-    if isinstance(value, list):
-        return [_convert_exif_value(item) for item in value]
-
-    # Handle dicts
+            decoded = value.decode("utf-8", errors="ignore")
+            return _sanitize_string(decoded)
+        except (UnicodeDecodeError, AttributeError):
+            return _sanitize_string(str(value))
     if isinstance(value, dict):
-        return {k: _convert_exif_value(v) for k, v in value.items()}
-
-    # Handle other non-serializable types
-    if not isinstance(value, (str, int, float, bool, type(None))):
-        return str(value)
-
+        return {k: _sanitize_exif_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_exif_value(item) for item in value]
     return value
 
 
 def extract_exif_data(
     image_bytes: bytes,
 ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, float]]]:
-    """Extract EXIF data and GPS coordinates from image bytes.
+    """Extract EXIF data and GPS coordinates from image bytes using exiftool.
+
+    This uses pyexiftool which provides comprehensive metadata extraction,
+    including DJI drone-specific XMP data (yaw, pitch, roll, gimbal angles, etc.).
 
     Args:
         image_bytes: Image file content as bytes
 
     Returns:
         Tuple of (exif_dict, location_dict)
-        - exif_dict: All EXIF data as a dictionary
+        - exif_dict: All EXIF/XMP data as a dictionary
         - location_dict: GPS coordinates as {"lat": float, "lon": float} or None
     """
     try:
-        image = Image.open(BytesIO(image_bytes))
-        exif_data = image._getexif()
+        # Write bytes to a temp file since exiftool works with files
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=True) as tmp_file:
+            tmp_file.write(image_bytes)
+            tmp_file.flush()
 
-        if not exif_data:
-            log.warning("No EXIF data found in image")
-            return None, None
+            # Extract metadata using exiftool
+            with exiftool.ExifToolHelper() as et:
+                metadata_list = et.get_metadata(tmp_file.name)
 
-        # Convert EXIF data to readable format
+            if not metadata_list:
+                log.warning("No EXIF data found in image")
+                return None, None
+
+            # exiftool returns a list, get first item
+            raw_metadata = metadata_list[0]
+
+        # Clean up the metadata - remove SourceFile and sanitize values
         exif_dict = {}
-        gps_info = {}
+        for key, value in raw_metadata.items():
+            # Skip internal exiftool fields
+            if key in ("SourceFile", "ExifTool:ExifToolVersion"):
+                continue
 
-        for tag_id, value in exif_data.items():
-            tag_name = TAGS.get(tag_id, tag_id)
+            # Simplify key names by removing group prefix if desired
+            # e.g., "EXIF:Make" -> "Make" or keep full name for clarity
+            # We'll keep the simplified name for common fields
+            simple_key = key.split(":")[-1] if ":" in key else key
 
-            # Handle GPS data specially
-            if tag_name == "GPSInfo":
-                for gps_tag_id, gps_value in value.items():
-                    gps_tag_name = GPSTAGS.get(gps_tag_id, gps_tag_id)
-                    # Convert GPS values to JSON-serializable types
-                    gps_info[gps_tag_name] = _convert_exif_value(gps_value)
-            else:
-                # Convert all EXIF values to JSON-serializable types
-                exif_dict[tag_name] = _convert_exif_value(value)
+            # Sanitize the value for PostgreSQL JSONB
+            exif_dict[simple_key] = _sanitize_exif_value(value)
 
         # Extract GPS coordinates
-        location = None
-        if gps_info:
-            location = _parse_gps_coordinates(gps_info)
-
-        # Add GPS info to EXIF dict
-        if gps_info:
-            exif_dict["GPSInfo"] = gps_info
+        location = _extract_gps_from_exif(exif_dict)
 
         # Log EXIF data for debugging
         log.debug(f"Extracted EXIF data with {len(exif_dict)} tags")
-        log.debug(f"EXIF sample: {list(exif_dict.keys())[:5]}")
+        log.debug(f"EXIF sample: {list(exif_dict.keys())[:10]}")
 
         # Verify EXIF data is JSON-serializable
         try:
             json.dumps(exif_dict)
         except TypeError as e:
             log.error(f"EXIF data contains non-serializable types: {e}")
-            log.error(f"Problematic EXIF keys: {exif_dict.keys()}")
-            # Find the problematic field
-            for key, value in exif_dict.items():
+            # Find and fix problematic fields
+            for key, value in list(exif_dict.items()):
                 try:
                     json.dumps({key: value})
                 except TypeError:
-                    log.error(f"Non-serializable field: {key} = {type(value)} {value}")
-            raise
+                    log.warning(f"Removing non-serializable field: {key}")
+                    del exif_dict[key]
 
         return exif_dict, location
 
@@ -130,58 +120,102 @@ def extract_exif_data(
         return None, None
 
 
-def _parse_gps_coordinates(gps_info: dict) -> Optional[dict[str, float]]:
-    """Parse GPS coordinates from EXIF GPS info.
+def _extract_gps_from_exif(exif_dict: dict) -> Optional[dict[str, float]]:
+    """Extract GPS coordinates from exiftool metadata.
+
+    Exiftool provides GPS coordinates in multiple formats. This function
+    handles the most common ones.
 
     Args:
-        gps_info: GPS info dictionary from EXIF
+        exif_dict: Exiftool metadata dictionary
 
     Returns:
         Dictionary with lat/lon or None
     """
     try:
-        # Get latitude
-        lat_ref = gps_info.get("GPSLatitudeRef")
-        lat_data = gps_info.get("GPSLatitude")
+        # Try direct decimal coordinates first (exiftool often provides these)
+        lat = exif_dict.get("GPSLatitude")
+        lon = exif_dict.get("GPSLongitude")
 
-        # Get longitude
-        lon_ref = gps_info.get("GPSLongitudeRef")
-        lon_data = gps_info.get("GPSLongitude")
+        if lat is not None and lon is not None:
+            # Handle string format like "9 deg 16' 31.05\" N"
+            if isinstance(lat, str):
+                lat = _parse_gps_string(lat)
+            if isinstance(lon, str):
+                lon = _parse_gps_string(lon)
 
-        if not (lat_data and lon_data):
-            return None
+            if lat is not None and lon is not None:
+                return {"lat": float(lat), "lon": float(lon)}
 
-        # Convert to decimal degrees
-        lat = _convert_to_degrees(lat_data)
-        lon = _convert_to_degrees(lon_data)
+        # Try composite GPS position
+        gps_position = exif_dict.get("GPSPosition")
+        if gps_position and isinstance(gps_position, str):
+            # Format: "lat, lon" or "lat lon"
+            parts = gps_position.replace(",", " ").split()
+            if len(parts) >= 2:
+                try:
+                    lat = float(parts[0])
+                    lon = float(parts[1])
+                    return {"lat": lat, "lon": lon}
+                except ValueError:
+                    pass
 
-        # Apply reference (N/S, E/W)
-        if lat_ref == "S":
-            lat = -lat
-        if lon_ref == "W":
-            lon = -lon
-
-        return {"lat": lat, "lon": lon}
+        return None
 
     except Exception as e:
         log.error(f"Error parsing GPS coordinates: {e}")
         return None
 
 
-def _convert_to_degrees(value: tuple) -> float:
-    """Convert GPS coordinates from degrees/minutes/seconds to decimal degrees.
+def _parse_gps_string(gps_str: str) -> Optional[float]:
+    """Parse GPS coordinate string to decimal degrees.
+
+    Handles formats like:
+    - "9 deg 16' 31.05\" N"
+    - "9.123456"
+    - "-8.299743916666667"
 
     Args:
-        value: Tuple of (degrees, minutes, seconds)
+        gps_str: GPS coordinate string
 
     Returns:
-        Decimal degrees as float
+        Decimal degrees as float or None
     """
-    degrees = float(value[0])
-    minutes = float(value[1])
-    seconds = float(value[2])
+    try:
+        # Try direct float conversion first
+        return float(gps_str)
+    except ValueError:
+        pass
 
-    return degrees + (minutes / 60.0) + (seconds / 3600.0)
+    try:
+        # Parse DMS format: "9 deg 16' 31.05\" N"
+        import re
+
+        # Remove directional suffix and note it
+        direction = 1
+        gps_str = gps_str.strip()
+        if gps_str.endswith(("S", "W")):
+            direction = -1
+            gps_str = gps_str[:-1].strip()
+        elif gps_str.endswith(("N", "E")):
+            gps_str = gps_str[:-1].strip()
+
+        # Extract degrees, minutes, seconds
+        match = re.match(
+            r"(\d+(?:\.\d+)?)\s*(?:deg|°)?\s*(\d+(?:\.\d+)?)?['\s]*(\d+(?:\.\d+)?)?",
+            gps_str,
+        )
+        if match:
+            degrees = float(match.group(1))
+            minutes = float(match.group(2)) if match.group(2) else 0
+            seconds = float(match.group(3)) if match.group(3) else 0
+            decimal = degrees + (minutes / 60.0) + (seconds / 3600.0)
+            return decimal * direction
+
+    except Exception as e:
+        log.debug(f"Could not parse GPS string '{gps_str}': {e}")
+
+    return None
 
 
 def calculate_file_hash(file_content: bytes) -> str:
