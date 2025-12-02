@@ -22,6 +22,8 @@ jobs:
       image_name: ghcr.io/${{ github.repository }}/backend
       dockerfile: Dockerfile
       scan_image: false
+      extra_build_args: |
+        INSTALL_MONITORING=true
     secrets: inherit
 
   extra-vars:
