@@ -79,6 +79,7 @@ export default function Navbar() {
                   base-path={PORTAL_SSO_URL}
                   redirect-after-login={hankoReturnUrl}
                   redirect-after-logout="/"
+                  verify-session
                 />
               ) : (
                 <UserProfile />

@@ -154,7 +154,14 @@ class BaseUserProfile(BaseModel):
 
 
 class UserProfileCreate(BaseUserProfile):
-    password: str
+    password: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_password_required(self):
+        """Password is required for legacy auth, optional for Hanko SSO."""
+        if settings.AUTH_PROVIDER == "legacy" and not self.password:
+            raise ValueError("Password is required for legacy authentication")
+        return self
 
 
 class UserProfileUpdate(BaseUserProfile):
