@@ -56,7 +56,7 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
           height: '100%',
         }}
       >
-        <BaseLayerSwitcherUI isMapLoaded={isMapLoaded} />
+        <BaseLayerSwitcherUI />
 
         {projectArea && (
           <VectorLayer

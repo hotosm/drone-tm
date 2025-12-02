@@ -1,11 +1,9 @@
 import { useEffect } from 'react';
 import mapLibre, { RasterSourceSpecification } from 'maplibre-gl';
 import { cogProtocol } from '@geomatico/maplibre-cog-protocol';
-import { MapInstanceType } from '../types';
+import { useMap } from '../MapContext';
 
 interface IViewOrthophotoProps {
-  map?: MapInstanceType;
-  isMapLoaded?: Boolean;
   id: string;
   source: RasterSourceSpecification;
   visibleOnMap?: Boolean;
@@ -13,13 +11,12 @@ interface IViewOrthophotoProps {
 }
 
 const COGOrthophotoViewer = ({
-  map,
-  isMapLoaded,
   id,
   source,
   visibleOnMap,
   zoomToLayer = false,
 }: IViewOrthophotoProps) => {
+  const { map, isMapLoaded } = useMap();
   useEffect(() => {
     if (!map || !isMapLoaded || !source || !visibleOnMap) return;
 

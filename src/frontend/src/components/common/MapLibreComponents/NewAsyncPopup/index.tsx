@@ -3,14 +3,15 @@
 /* eslint-disable react/display-name */
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/no-danger */
-import '@Components/common/MapLibreComponents/map.css';
-import { Button } from '@Components/RadixComponents/Button';
-import Skeleton from '@Components/RadixComponents/Skeleton';
 import type { LngLatLike, MapMouseEvent } from 'maplibre-gl';
 import { Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useState } from 'react';
 import { renderToString } from 'react-dom/server';
+import '@Components/common/MapLibreComponents/map.css';
+import { Button } from '@Components/RadixComponents/Button';
+import Skeleton from '@Components/RadixComponents/Skeleton';
+import { useMap } from '../MapContext';
 import { IAsyncPopup } from '../types';
 
 const popup = new Popup({
@@ -80,7 +81,6 @@ function PopupUIComponent({
 const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
   (
     {
-      map,
       fetchPopupData,
       popupUI,
       title,
@@ -97,6 +97,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     }: IAsyncPopup,
     ref,
   ) => {
+    const { map } = useMap();
     const [properties, setProperties] = useState<Record<string, any> | null>(
       null,
     );

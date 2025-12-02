@@ -25,7 +25,7 @@ export interface IMapContainer {
 }
 
 export interface IBaseLayerSwitcher {
-  map?: MapInstanceType;
+  map?: MapInstanceType | null;
   baseLayers?: object;
   activeLayer?: string;
   isMapLoaded?: Boolean;
@@ -77,7 +77,6 @@ export interface IVectorTileLayer extends ILayer {
 
 export interface IAsyncPopup {
   map?: MapInstanceType;
-  isMapLoaded?: Boolean;
   fetchPopupData?: (properties: Record<string, any>) => void;
   popupUI?: (properties: Record<string, any>) => ReactElement;
   title?: string;

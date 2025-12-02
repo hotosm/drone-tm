@@ -108,19 +108,13 @@ const DescriptionBox = () => {
       },
     });
 
-  const { data: taskDescription }: Record<string, any> =
+  const { data: taskQueryData }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
       // enabled: !!taskWayPoints,
       select: (data: any) => {
         const { data: taskData } = data;
 
-        dispatch(
-          setSelectedTaskDetailToViewOrthophoto({
-            outline: taskData?.outline,
-          }),
-        );
-
-        return [
+        const taskDescription = [
           {
             id: 1,
             title: 'Task Description',
@@ -148,7 +142,7 @@ const DescriptionBox = () => {
                 value: taskWayPoints?.length,
               },
               {
-                name: 'Est. flight time',
+                name: 'Est. flight time*',
                 value: taskData?.flight_time_minutes
                   ? `${Number(taskData?.flight_time_minutes)?.toFixed(3)} minutes`
                   : null,
@@ -191,13 +185,26 @@ const DescriptionBox = () => {
             ],
           },
           // {
-          //   total_image_uploaded: taskData?.total_image_uploaded || 0,
-          //   assets_url: taskData?.assets_url,
-          //   state: taskData?.state,
-          // },
+         //   total_image_uploaded: taskData?.total_image_uploaded || 0,
+         //   assets_url: taskData?.assets_url,
+         //   state: taskData?.state,
+         // },
         ];
+        return { taskDescription, taskData };
       },
     });
+
+  const taskDescription = taskQueryData?.taskDescription;
+
+  useEffect(() => {
+    if (taskQueryData?.taskData) {
+      dispatch(
+        setSelectedTaskDetailToViewOrthophoto({
+          outline: taskQueryData.taskData.outline,
+        }),
+      );
+    }
+  }, [dispatch, taskQueryData]);
 
   // const taskAssetsInformation = useMemo(() => {
   //   if (!taskDescription) return {};
@@ -234,6 +241,11 @@ const DescriptionBox = () => {
             data={description?.data}
           />
         ))}
+        <p className="naxatw-text-[0.75rem] naxatw-text-[#212121]">
+          {/* TODO - we might need to change this value if a drone is added which cannot
+          achieve this speed */}
+          *This flight time was calculated using an average ground speed of 11.5 m/s.
+        </p>
       </div>
 
       {taskAssetsInformation?.image_count === 0 &&

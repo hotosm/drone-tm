@@ -24,7 +24,12 @@ import { postTaskWaypoint } from '@Services/tasks';
 import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import { waypointModeOptions, droneModelOptions, gimbalAngleOptions } from '@Constants/taskDescription';
+import {
+  waypointModeOptions,
+  waypointUpperLimit,
+  droneModelOptions,
+  gimbalAngleOptions,
+} from '@Constants/taskDescription';
 import {
   setRotationAngle as setFinalRotationAngle,
   setRotatedFlightPlan,
@@ -55,6 +60,7 @@ import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLaye
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
+import Icon from '@Components/common/Icon';
 
 const { COG_URL } = process.env;
 
@@ -73,6 +79,8 @@ const MapSection = ({ className }: { className?: string }) => {
     string,
     any
   > | null>();
+  const [modifiedWaypointModeOptions, setModifiedWaypointModeOptions] =
+    useState(waypointModeOptions);
 
   const centroidRef = useRef<[number, number]>(null);
   const takeOffPointRef = useRef<[number, number]>(null);
@@ -129,7 +137,7 @@ const MapSection = ({ className }: { className?: string }) => {
       {
         select: ({ data }: any) => {
           const modifiedTaskWayPointsData = {
-            geojsonListOfPoint: data.results,
+            geojsonListOfPoints: data.results,
             geojsonAsLineString: {
               type: 'FeatureCollection',
               features: [
@@ -144,14 +152,27 @@ const MapSection = ({ className }: { className?: string }) => {
                 },
               ],
             },
+            battery_warning: data.battery_warning,
+            estimated_flight_time_minutes: data.estimated_flight_time_minutes,
           };
 
           takeOffPointRef.current =
-            modifiedTaskWayPointsData?.geojsonListOfPoint?.features[0]?.geometry?.coordinates;
+            modifiedTaskWayPointsData?.geojsonListOfPoints?.features[0]?.geometry?.coordinates;
           return modifiedTaskWayPointsData;
         },
       },
     );
+
+  useEffect(() => {
+    if (taskWayPointsData?.battery_warning) {
+      const friendlyModelName = droneModelOptions.find((drone) => drone.value === droneModel)?.label
+
+      toast.warn(
+        `The estimated flight time of ${taskWayPointsData.estimated_flight_time_minutes} minutes
+         exceeds 80% of ${friendlyModelName}'s battery life. Consider splitting the task into smaller parts.`,
+      );
+    }
+  }, [taskWayPointsData]);
 
   const {
     data: taskAssetsInformation,
@@ -195,10 +216,15 @@ const MapSection = ({ className }: { className?: string }) => {
           },
         ],
       };
-      dispatch(setTaskAreaPolygon(taskAreaPolygon));
       return taskAreaPolygon;
     },
   });
+
+  useEffect(() => {
+    if (taskDataPolygon) {
+      dispatch(setTaskAreaPolygon(taskDataPolygon));
+    }
+  }, [taskDataPolygon, dispatch]);
 
   useEffect(() => {
     if (taskDataPolygon && map) {
@@ -402,6 +428,31 @@ const MapSection = ({ className }: { className?: string }) => {
   }, [rotationAngle, dragging]);
 
   useEffect(() => {
+    if (!taskWayPointsData) {
+      return;
+    }
+
+    const numberOfFeatures =
+      taskWayPointsData?.geojsonListOfPoints.features.length;
+
+    if (numberOfFeatures > waypointUpperLimit) {
+      setModifiedWaypointModeOptions(
+        modifiedWaypointModeOptions.map(option => {
+          if (option.label === 'Waypoints') {
+            return {
+              icon: 'info',
+              message: `> 200 waypoints detected. If you are using a DJI RC-2 controller or low-spec device with RC-N2,
+                then Waylines mode is recommended to avoid device input lag and delay due to an excessive number of waypoints.`,
+              ...option,
+            };
+          }
+          return option;
+        }),
+      );
+    }
+  }, [taskWayPointsData]);
+
+  useEffect(() => {
     if (!taskWayPointsData || initialWaypointData) return;
     setInitialWaypointData(taskWayPointsData);
   }, [initialWaypointData, taskWayPointsData]);
@@ -409,7 +460,9 @@ const MapSection = ({ className }: { className?: string }) => {
   // to set bulk of ids (waypoint, way line and arrow symbols )
   function setVisibilityOfLayers(layerIds: string[], visibility: string) {
     layerIds.forEach(layerId => {
-      map?.setLayoutProperty(layerId, 'visibility', visibility);
+      if (map?.getLayer(layerId)) {
+        map?.setLayoutProperty(layerId, 'visibility', visibility);
+      }
     });
   }
 
@@ -430,7 +483,7 @@ const MapSection = ({ className }: { className?: string }) => {
     if (!taskWayPointsData) return;
     dispatch(
       setRotatedFlightPlan({
-        geojsonListOfPoint: taskWayPointsData.geojsonListOfPoint,
+        geojsonListOfPoints: taskWayPointsData.geojsonListOfPoints,
         geojsonAsLineString: taskWayPointsData.geojsonAsLineString,
       }),
     );
@@ -585,7 +638,7 @@ const MapSection = ({ className }: { className?: string }) => {
         }}
       >
         <BaseLayerSwitcherUI />
-        <LocateUser isMapLoaded={isMapLoaded} />
+        <LocateUser />
 
         <VectorLayer
           map={map as Map}
@@ -604,12 +657,11 @@ const MapSection = ({ className }: { className?: string }) => {
         />
 
         {/* task waypoints/way lines plot */}
-        {taskWayPointsData && !taskWayPointsLoading && (
-          <>
-            {/* render line */}
+        {/* render line, points and image (only if index is 0)  */}
+        {taskWayPointsData &&
+          !taskWayPointsLoading && [
             <VectorLayer
-              map={map}
-              isMapLoaded={isMapLoaded}
+              key="waypoint-line"
               id="waypoint-line"
               geojson={taskWayPointsData?.geojsonAsLineString as GeojsonType}
               visibleOnMap={!!taskWayPointsData}
@@ -625,13 +677,11 @@ const MapSection = ({ className }: { className?: string }) => {
               image={right}
               symbolPlacement="line"
               iconAnchor="center"
-            />
-            {/* render points */}
+            />,
             <VectorLayer
-              map={map as Map}
-              isMapLoaded={isMapLoaded}
+              key="waypoint-points"
               id="waypoint-points"
-              geojson={taskWayPointsData?.geojsonListOfPoint as GeojsonType}
+              geojson={taskWayPointsData?.geojsonListOfPoints as GeojsonType}
               visibleOnMap={!!taskWayPointsData}
               interactions={['feature']}
               layerOptions={{
@@ -649,7 +699,7 @@ const MapSection = ({ className }: { className?: string }) => {
                     Number(
                       // @ts-ignore
                       // eslint-disable-next-line no-unsafe-optional-chaining
-                      taskWayPointsData?.geojsonListOfPoint?.features?.length -
+                      taskWayPointsData?.geojsonListOfPoints?.features?.length -
                         1,
                     ),
                     0,
@@ -657,13 +707,11 @@ const MapSection = ({ className }: { className?: string }) => {
                   ],
                 },
               }}
-            />
-            {/* render image and only if index is 0 */}
+            />,
             <VectorLayer
-              map={map as Map}
-              isMapLoaded={isMapLoaded}
+              key="waypoint-points-image"
               id="waypoint-points-image"
-              geojson={taskWayPointsData?.geojsonListOfPoint as GeojsonType}
+              geojson={taskWayPointsData?.geojsonListOfPoints as GeojsonType}
               visibleOnMap={!!taskWayPointsData}
               layerOptions={{}}
               hasImage
@@ -672,9 +720,8 @@ const MapSection = ({ className }: { className?: string }) => {
               imageLayerOptions={{
                 filter: ['==', 'index', 0],
               }}
-            />
-          </>
-        )}
+            />,
+          ]}
 
         {/* end of waypoint/way line plot */}
 
@@ -708,7 +755,9 @@ const MapSection = ({ className }: { className?: string }) => {
               map={map as Map}
               isMapLoaded={isMapLoaded}
               id="rotated-waypoint-points"
-              geojson={rotatedFlightPlanData?.geojsonListOfPoint as GeojsonType}
+              geojson={
+                rotatedFlightPlanData?.geojsonListOfPoints as GeojsonType
+              }
               visibleOnMap={!!taskWayPointsData}
               interactions={['feature']}
               layerOptions={{
@@ -726,7 +775,7 @@ const MapSection = ({ className }: { className?: string }) => {
                     Number(
                       // @ts-ignore
                       // eslint-disable-next-line no-unsafe-optional-chaining
-                      rotatedFlightPlanData?.geojsonListOfPoint?.features
+                      rotatedFlightPlanData?.geojsonListOfPoints?.features
                         ?.length - 1,
                     ),
                     0,
@@ -847,7 +896,7 @@ const MapSection = ({ className }: { className?: string }) => {
           getCoordOnProperties
         />
 
-        <div className="naxatw-absolute naxatw-top-3 naxatw-right-3 lg:naxatw-right-64 naxatw-z-10 flex gap-3 lg:gap-6">
+        <div className="flex gap-3 lg:gap-6 naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-10 lg:naxatw-right-64">
           <SwitchTab
             activeClassName="naxatw-bg-red naxatw-text-white"
             options={droneModelOptions}
@@ -872,7 +921,7 @@ const MapSection = ({ className }: { className?: string }) => {
 
           <SwitchTab
             activeClassName="naxatw-bg-red naxatw-text-white"
-            options={waypointModeOptions}
+            options={modifiedWaypointModeOptions}
             labelKey="label"
             valueKey="value"
             selectedValue={waypointMode}
@@ -884,32 +933,30 @@ const MapSection = ({ className }: { className?: string }) => {
 
         {/* additional controls */}
         <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
-          <Button
-            variant="ghost"
-            className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${isRotationEnabled ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-            onClick={() => handleRotationToggle()}
-          >
-            <ToolTip
-              name="rotate_90_degrees_cw"
-              message="Enable Rotation"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
-          <Button
-            variant="ghost"
-            className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showFlightPlan ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-            onClick={() => handleToggleFlightPlan()}
-          >
-            <ToolTip
-              name="flight_take_off"
-              message="Show Flight Plan"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
+          <ToolTip message="Enable Rotation" className="naxatw-mt-[-4px]">
+            <Button
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${isRotationEnabled ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+              onClick={() => handleRotationToggle()}
+            >
+              <Icon
+                name="rotate_90_degrees_cw"
+                iconSymbolType="material-icons"
+                className="!naxatw-text-xl !naxatw-text-black"
+              />
+            </Button>
+          </ToolTip>
+          <ToolTip message="Show Flight Plan" className="naxatw-mt-[-4px]">
+            <Button
+              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${showFlightPlan ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+              onClick={() => handleToggleFlightPlan()}
+            >
+              <Icon
+                name="flight_take_off"
+                iconSymbolType="material-icons"
+                className="naxatw-w-[1.25rem] !naxatw-text-xl !naxatw-text-black"
+              />
+            </Button>
+          </ToolTip>
 
           <Button
             variant="ghost"
@@ -922,34 +969,32 @@ const MapSection = ({ className }: { className?: string }) => {
             </div>
           </Button>
 
-          <Button
-            variant="ghost"
-            className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-px-[0.315rem]"
-            onClick={() => zoomToExtent()}
-          >
-            <ToolTip
-              name="zoom_out_map"
-              message="Zoom to task area"
-              symbolType="material-icons"
-              iconClassName="!naxatw-text-xl !naxatw-text-black naxatw-w-[1.25rem]"
-              className="naxatw-mt-[-4px]"
-            />
-          </Button>
-
-          {taskAssetsInformation?.assets_url && (
+          <ToolTip message="Zoom to task area" className="naxatw-mt-[-4px]">
             <Button
-              variant="ghost"
-              className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-px-[0.315rem] ${showOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
-              onClick={() => handleToggleOrthophoto()}
+              className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-p-[0.315rem]"
+              onClick={() => zoomToExtent()}
             >
-              <ToolTip
-                name="visibility"
-                message="Show Orthophoto"
-                symbolType="material-icons"
-                iconClassName="!naxatw-text-xl !naxatw-text-black"
-                className="naxatw-mt-[-4px]"
+              <Icon
+                name="zoom_out_map"
+                iconSymbolType="material-icons"
+                className="naxatw-w-[1.25rem] !naxatw-text-xl !naxatw-text-black"
               />
             </Button>
+          </ToolTip>
+
+          {taskAssetsInformation?.assets_url && (
+            <ToolTip message="Show Orthophoto" className="naxatw-mt-[-4px]">
+              <Button
+                className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${showOrthophoto ? 'naxatw-border-red naxatw-bg-[#ffe0e0]' : 'naxatw-border-gray-400 naxatw-bg-[#F5F5F5]'}`}
+                onClick={() => handleToggleOrthophoto()}
+              >
+                <Icon
+                  name="visibility"
+                  iconSymbolType="material-icons"
+                  className="!naxatw-text-xl !naxatw-text-black"
+                />
+              </Button>
+            </ToolTip>
           )}
         </div>
       </MapContainer>
