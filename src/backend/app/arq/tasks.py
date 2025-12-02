@@ -6,7 +6,6 @@ from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings, log_redis_info
 from fastapi import HTTPException
 from loguru import logger as log
-from psycopg.rows import dict_row
 
 from app.config import settings
 from app.db.database import get_db_connection_pool
@@ -182,7 +181,9 @@ async def process_uploaded_image(
             file_hash = calculate_file_hash(file_content)
 
             # Step 2: Check for duplicates
-            duplicate_of_id = await check_duplicate_image(db, UUID(project_id), file_hash)
+            duplicate_of_id = await check_duplicate_image(
+                db, UUID(project_id), file_hash
+            )
             if duplicate_of_id:
                 log.info(f"Duplicate detected: {file_hash} -> {duplicate_of_id}")
                 # Create a new record marked as duplicate (so it shows in batch)

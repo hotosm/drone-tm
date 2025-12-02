@@ -194,7 +194,11 @@ class ImageClassifier:
             )
         else:
             logs.append(
-                {"action": "EXIF Check", "details": "EXIF data present", "status": "success"}
+                {
+                    "action": "EXIF Check",
+                    "details": "EXIF data present",
+                    "status": "success",
+                }
             )
 
         # Extract GPS coordinates from stored EXIF data
@@ -204,7 +208,11 @@ class ImageClassifier:
         if latitude is None or longitude is None:
             issues.append("No GPS coordinates in EXIF")
             logs.append(
-                {"action": "GPS Check", "details": "No coordinates found", "status": "error"}
+                {
+                    "action": "GPS Check",
+                    "details": "No coordinates found",
+                    "status": "error",
+                }
             )
         else:
             logs.append(
@@ -252,12 +260,12 @@ class ImageClassifier:
         # If there are any issues, reject the image with all reasons
         if issues:
             # Determine the primary status based on issue types
-            has_exif_issue = any(
-                "EXIF" in issue or "GPS" in issue for issue in issues
-            )
+            has_exif_issue = any("EXIF" in issue or "GPS" in issue for issue in issues)
             rejection_reason = "; ".join(issues)
 
-            status = ImageStatus.INVALID_EXIF if has_exif_issue else ImageStatus.REJECTED
+            status = (
+                ImageStatus.INVALID_EXIF if has_exif_issue else ImageStatus.REJECTED
+            )
 
             await ImageClassifier._update_image_status(
                 db, image_id, status, rejection_reason, sharpness_score
@@ -274,7 +282,9 @@ class ImageClassifier:
             }
 
         # All checks passed
-        quality_details = f"Gimbal: {gimbal_angle:.1f}°" if gimbal_angle else "Gimbal: N/A"
+        quality_details = (
+            f"Gimbal: {gimbal_angle:.1f}°" if gimbal_angle else "Gimbal: N/A"
+        )
         if sharpness_score is not None:
             quality_details += f", Sharpness: {sharpness_score:.1f}"
         quality_details += " - All checks passed"
