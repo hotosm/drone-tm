@@ -44,8 +44,9 @@ Just is required too:
   MONITORING="sentry"
   SENTRY_DSN="<sentry dsn url here>"
   ```
-  Also, make sure to uncomment `INSTALL_MONITORING` in `compose.yaml`
-  to allow the Docker image to install the requisite monitoring libraries, otherwise you will get an error.
+  Then make sure to rebuild your backend Docker image: `docker compose build --build-arg INSTALL_MONITORING=true backend`
+  so that the correct monitoring group dependencies are installed.
+  You should see a success message if it worked correctly. 
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
   is recommended to leave the setting as is.
 
