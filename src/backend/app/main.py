@@ -19,9 +19,8 @@ from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
-from app.utils import sanitize_sensitive_text
-from app.public_routes import router as public_router
-from app.projects import classification_routes, project_routes
+from app.monitoring import set_sentry_otel_tracer, instrument_app_otel
+from app.projects import project_routes
 from app.tasks import task_routes
 from app.users import user_routes
 from app.waypoints import waypoint_routes
@@ -185,23 +184,10 @@ async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
 
-    if (
-        settings.MONITORING == MonitoringTypes.SENTRY
-        and settings.monitoring_config.SENTRY_DSN
-    ):
-        try:
-            from app.monitoring import set_sentry_otel_tracer, instrument_app_otel
-
-            log.info("Adding Sentry OpenTelemetry monitoring config")
-            set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
-            instrument_app_otel(app)
-        except ImportError:
-            log.warning(
-                """
-                Sentry monitoring is enabled, but dependencies are not installed.
-                Ensure that the MONITORING env variable is populated and try restarting the build process for the backend Docker image.
-                """
-            )
+    if settings.MONITORING == MonitoringTypes.SENTRY:
+        log.info("Adding Sentry OpenTelemetry monitoring config")
+        set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
+        instrument_app_otel(app)
 
     async with AsyncConnectionPool(
         conninfo=settings.DTM_DB_URL.unicode_string()

@@ -14,23 +14,12 @@ services:
   backend:
     image: ghcr.io/hotosm/drone-tm/backend:debug
     build:
-      context: src
-      dockerfile: backend/Dockerfile
-      args:
-        - MONITORING=${MONITORING}
-    # Override to include --reload hot-reloading
-    command:
-      [
-        "uvicorn",
-        "app.main:api",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000",
-        "--log-level",
-        "info",
-        "--reload",
-      ]
+      context: src/backend
+      dockerfile: Dockerfile
+      # Uncomment the lines below to install monitoring dependencies (Sentry + OTEL)
+      # during the build.
+      # args:
+      #   INSTALL_MONITORING: "true"
     depends_on:
       db:
         condition: service_healthy

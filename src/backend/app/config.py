@@ -43,15 +43,17 @@ class OtelSettings(BaseSettings):
     These mostly set environment variables set by the OTEL SDK.
     """
 
-    LOG_LEVEL: Optional[str] = Field(default="INFO", exclude=True)
+    SITE_NAME: Optional[str] = Field(exclude=True)
+    LOG_LEVEL: Optional[str] = Field(exclude=True)
 
     @computed_field
     @property
     def otel_log_level(self) -> Optional[str]:
-        """Set OpenTelemetry log level based on main app log level."""
-        log_level = (self.LOG_LEVEL or "INFO").lower()
-        # NOTE setting to DEBUG makes very verbose for every library
-        os.environ["OTEL_LOG_LEVEL"] = log_level
+        """Set OpenTelemetry log level."""
+        if self.LOG_LEVEL:
+            log_level = self.LOG_LEVEL.lower()
+            # NOTE setting to DEBUG makes very verbose for every library
+            os.environ["OTEL_LOG_LEVEL"] = log_level
         return log_level
 
     @computed_field
@@ -59,9 +61,9 @@ class OtelSettings(BaseSettings):
     def otel_service_name(self) -> Optional[HttpUrlStr]:
         """Set OpenTelemetry service name for traces."""
         service_name = "unknown"
-        if self.DOMAIN:
-            # Return domain with underscores
-            service_name = self.FMTM_DOMAIN.replace(".", "_")
+        if self.SITE_NAME:
+            # Return name with underscores
+            service_name = self.SITE_NAME.lower().replace(" ", "-")
             # Export to environment for OTEL instrumentation
             os.environ["OTEL_SERVICE_NAME"] = service_name
         return service_name
@@ -233,7 +235,8 @@ class Settings(BaseSettings):
     def monitoring_config(self) -> Optional[SentrySettings]:
         """Get the monitoring configuration."""
         if self.MONITORING == MonitoringTypes.SENTRY:
-            return SentrySettings(LOG_LEVEL=self.LOG_LEVEL)
+            return SentrySettings()
+
         return None
 
     # SMTP Configurations
