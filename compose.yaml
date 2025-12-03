@@ -16,10 +16,6 @@ services:
     build:
       context: src/backend
       dockerfile: Dockerfile
-      # Uncomment the lines below to install monitoring dependencies (Sentry + OTEL)
-      # during the build.
-      # args:
-      #   INSTALL_MONITORING: "true"
     depends_on:
       - db
       - minio
