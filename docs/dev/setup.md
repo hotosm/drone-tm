@@ -37,10 +37,15 @@ Just is required too:
 
 #### Monitoring
 
-- At present, only Sentry is configured as the default backend for logging with OpenTelemetry.
-- To set it up and work with it, you will need a valid Sentry DSN, as well as making sure to uncomment
-  `INSTALL_MONITORING` in `src/backend/Dockerfile` to allow the Docker image to build with that option
-  enabled.
+- At present, only Sentry is configured as the backend for logging with OpenTelemetry. By default
+  logging in non-production environments is disabled.
+- To set it up and work with it, you will need these two ENV variables set correctly:
+  ```
+  MONITORING="sentry"
+  SENTRY_DSN="<sentry dsn url here>"
+  ```
+  Also, make sure to uncomment `INSTALL_MONITORING` in `compose.yaml`
+  to allow the Docker image to install the requisite monitoring libraries, otherwise you will get an error.
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
   is recommended to leave the setting as is.
 
