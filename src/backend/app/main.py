@@ -18,7 +18,6 @@ from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
-from app.monitoring import set_sentry_otel_tracer, instrument_app_otel
 from app.projects import project_routes
 from app.tasks import task_routes
 from app.users import user_routes
@@ -121,10 +120,23 @@ async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
 
-    if settings.MONITORING == MonitoringTypes.SENTRY:
-        log.info("Adding Sentry OpenTelemetry monitoring config")
-        set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
-        instrument_app_otel(app)
+    if (
+        settings.MONITORING == MonitoringTypes.SENTRY
+        and settings.monitoring_config.SENTRY_DSN
+    ):
+        try:
+            from app.monitoring import set_sentry_otel_tracer, instrument_app_otel
+
+            log.info("Adding Sentry OpenTelemetry monitoring config")
+            set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
+            instrument_app_otel(app)
+        except ImportError:
+            log.warning(
+                "Sentry monitoring is enabled, but dependencies are not installed."
+            )
+            log.warning(
+                "To fix, please install with the 'monitoring' dependency group, or set INSTALL_MONITORING=true in the build."
+            )
 
     async with AsyncConnectionPool(
         conninfo=settings.DTM_DB_URL.unicode_string()
