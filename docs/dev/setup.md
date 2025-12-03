@@ -46,7 +46,7 @@ Just is required too:
   ```
   Then make sure to rebuild your backend Docker image: `docker compose build --build-arg INSTALL_MONITORING=true backend`
   so that the correct monitoring group dependencies are installed.
-  You should see a success message if it worked correctly. 
+  You should see a success message if it worked correctly.
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
   is recommended to leave the setting as is.
 
