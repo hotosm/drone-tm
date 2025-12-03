@@ -44,8 +44,8 @@ Just is required too:
   MONITORING="sentry"
   SENTRY_DSN="<sentry dsn url here>"
   ```
-  Also, make sure to uncomment `INSTALL_MONITORING` in `compose.yaml` 
-  to allow the Docker image to install the requisite monitoring libraries, otherwise you will get an error. 
+  Also, make sure to uncomment `INSTALL_MONITORING` in `compose.yaml`
+  to allow the Docker image to install the requisite monitoring libraries, otherwise you will get an error.
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
   is recommended to leave the setting as is.
 
