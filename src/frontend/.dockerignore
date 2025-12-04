@@ -1,4 +1,4 @@
 **/.pnpm-store
 **/node_modules
-**/dist
+dist
 **/*.gitignore
