@@ -102,7 +102,7 @@ function HankoAuth() {
         toast.success('Logged In Successfully');
       } catch (error) {
         console.error('❌ Authentication error:', error);
-        toast.error(error.message || 'Authentication failed. Please try again.');
+        toast.error(error instanceof Error ? error.message : 'Authentication failed. Please try again.');
         navigate('/login');
       }
     };

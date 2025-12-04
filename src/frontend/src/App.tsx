@@ -64,6 +64,7 @@ export default function App() {
         authComponent.removeEventListener('hanko-login', handleHankoLogin as EventListener);
       };
     }
+    return undefined;
   }, [pathname]);
 
   // Listen for Hanko logout event and clean localStorage
@@ -86,6 +87,7 @@ export default function App() {
         authComponent.removeEventListener('logout', handleHankoLogout as EventListener);
       };
     }
+    return undefined;
   }, [pathname]); // Re-run when pathname changes to re-attach listener if component remounts
   const showModal = useTypedSelector(state => state.common.showModal);
   const modalContent = useTypedSelector(state => state.common.modalContent);
