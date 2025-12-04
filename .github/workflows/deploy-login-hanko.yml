@@ -96,7 +96,7 @@ jobs:
           POSTGRES_USER=dtm
           POSTGRES_PASSWORD=dtm
           POSTGRES_DB=dtm_db
-          SECRET_KEY=test-secret-key-for-testing-only
+          SECRET_KEY=test-secret-key-for-testing-only-min-32-chars
           S3_ACCESS_KEY=minioadmin
           S3_SECRET_KEY=minioadmin
           EOF
