@@ -1,11 +1,13 @@
 import asyncio
-from typing import Any, Dict, Optional
+import io
+from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
 
 from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings, log_redis_info
 from fastapi import HTTPException
 from loguru import logger as log
+from PIL import Image
 from psycopg.rows import dict_row
 
 from app.config import settings
@@ -20,8 +22,11 @@ from app.images.image_logic import (
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import HTTPStatus, ImageStatus
 from app.projects.project_logic import process_all_drone_images, process_drone_images
-from app.s3 import async_get_obj_from_bucket
+from app.s3 import async_get_obj_from_bucket, s3_client
 from app.projects.image_classification import ImageClassifier
+
+
+THUMBNAIL_SIZE = (200, 200)
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
@@ -50,6 +55,51 @@ async def shutdown(ctx: Dict[Any, Any]) -> None:
     if db_pool := ctx.get("db_pool"):
         await db_pool.close()
         log.info("Database connection pool closed")
+
+
+def generate_thumbnail(
+    image_bytes: bytes, size: Tuple[int, int] = THUMBNAIL_SIZE
+) -> bytes:
+    """Generate thumbnail from image bytes.
+
+    Args:
+        image_bytes: Original image bytes
+        size: Thumbnail size (width, height), defaults to 200x200
+
+    Returns:
+        Thumbnail image bytes in JPEG format
+
+    Raises:
+        ValueError: If image cannot be decoded
+    """
+    try:
+        # Open image from bytes
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # Convert RGBA to RGB if necessary (for PNG with transparency)
+        if image.mode in ("RGBA", "LA", "P"):
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            if image.mode == "P":
+                image = image.convert("RGBA")
+            background.paste(
+                image,
+                mask=image.split()[-1] if image.mode in ("RGBA", "LA") else None,
+            )
+            image = background
+
+        # Generate thumbnail maintaining aspect ratio
+        image.thumbnail(size, Image.Resampling.LANCZOS)
+
+        # Save to bytes
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=85, optimize=True)
+        output.seek(0)
+
+        return output.getvalue()
+
+    except Exception as e:
+        log.error(f"Error generating thumbnail: {e}")
+        raise ValueError(f"Failed to generate thumbnail: {e}") from e
 
 
 async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
@@ -98,6 +148,7 @@ async def _save_image_record(
     location: Optional[dict] = None,
     status: ImageStatus = ImageStatus.STAGED,
     batch_id: Optional[str] = None,
+    thumbnail_url: Optional[str] = None,
 ) -> ProjectImageOut:
     """Save image record to database.
 
@@ -112,6 +163,7 @@ async def _save_image_record(
         location: GPS location (optional)
         status: Image status (STAGED, INVALID_EXIF, etc.)
         batch_id: Batch UUID for grouping uploads (optional)
+        thumbnail_url: S3 key for thumbnail (optional)
 
     Returns:
         ProjectImageOut: Saved image record
@@ -126,6 +178,7 @@ async def _save_image_record(
         uploaded_by=uploaded_by,
         status=status,
         batch_id=UUID(batch_id) if batch_id else None,
+        thumbnail_url=thumbnail_url,
     )
 
     image_record = await create_project_image(db, image_data)
@@ -133,7 +186,8 @@ async def _save_image_record(
 
     log.info(
         f"Saved: {filename} | Status: {status} | "
-        f"GPS: {location is not None} | EXIF: {exif_dict is not None}"
+        f"GPS: {location is not None} | EXIF: {exif_dict is not None} | "
+        f"BatchID: {batch_id}"
     )
 
     return image_record
@@ -163,7 +217,10 @@ async def process_uploaded_image(
         dict: Processing result with image_id and status
     """
     job_id = ctx.get("job_id", "unknown")
-    log.info(f"Starting process_uploaded_image (Job ID: {job_id}): {filename}")
+    log.info(
+        f"Starting process_uploaded_image (Job ID: {job_id}): {filename} | "
+        f"BatchID received: {batch_id}"
+    )
 
     try:
         # Get database connection from pool
@@ -229,10 +286,45 @@ async def process_uploaded_image(
             except Exception as exif_error:
                 log.error(f"EXIF extraction failed for {filename}: {exif_error}")
 
-            # Step 4: Determine status
+            # Step 4: Generate and upload thumbnail
+            thumbnail_s3_key = None
+            try:
+                log.info(f"Generating thumbnail for: {filename}")
+                # Generate thumbnail (run in threadpool since PIL is CPU-bound)
+                thumbnail_bytes = await asyncio.to_thread(
+                    generate_thumbnail, file_content
+                )
+
+                # Create thumbnail S3 key (store in thumbnails/ subdirectory)
+                thumbnail_s3_key = file_key.replace("/images/", "/thumbnails/", 1)
+                if "/images/" not in file_key:
+                    # Fallback: add thumb_ prefix
+                    parts = file_key.rsplit("/", 1)
+                    thumbnail_s3_key = f"{parts[0]}/thumb_{parts[1]}" if len(parts) > 1 else f"thumb_{file_key}"
+
+                # Upload thumbnail to S3
+                log.info(f"Uploading thumbnail to S3: {thumbnail_s3_key}")
+                client = s3_client()
+                thumbnail_s3_key = thumbnail_s3_key.lstrip("/")
+                client.put_object(
+                    settings.S3_BUCKET_NAME,
+                    thumbnail_s3_key,
+                    io.BytesIO(thumbnail_bytes),
+                    len(thumbnail_bytes),
+                    content_type="image/jpeg",
+                )
+
+                log.info(f"Thumbnail generated and uploaded: {thumbnail_s3_key}")
+
+            except Exception as thumb_error:
+                log.warning(f"Failed to generate/upload thumbnail for {filename}: {thumb_error}")
+                # Continue even if thumbnail generation fails
+                thumbnail_s3_key = None
+
+            # Step 5: Determine status
             status = ImageStatus.STAGED if exif_dict else ImageStatus.INVALID_EXIF
 
-            # Step 5: Save image record (ALWAYS save, even if EXIF failed)
+            # Step 6: Save image record (ALWAYS save, even if EXIF/thumbnail failed)
             image_record = await _save_image_record(
                 db=db,
                 project_id=project_id,
@@ -244,6 +336,7 @@ async def process_uploaded_image(
                 location=location,
                 status=status,
                 batch_id=batch_id,
+                thumbnail_url=thumbnail_s3_key,
             )
 
             log.info(

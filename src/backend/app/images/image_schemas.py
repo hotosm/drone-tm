@@ -19,6 +19,7 @@ class ProjectImageBase(BaseModel):
         None  # Supports both {"lat": float, "lon": float} and GeoJSON
     )
     exif: Optional[dict[str, Any]] = None
+    thumbnail_url: Optional[str] = None  # S3 key for 200x200 thumbnail
 
     @field_validator("location", mode="before")
     @classmethod

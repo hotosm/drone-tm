@@ -227,8 +227,12 @@ class ImageClassifier:
         # Merge drone metadata for quality checks
         quality_check_data = {**exif_data, **drone_metadata}
 
-        # Check gimbal angle
-        gimbal_angle = quality_check_data.get("pitch")
+        # Check gimbal angle - look for DJI XMP field or UserComment pitch
+        gimbal_angle = (
+            quality_check_data.get("GimbalPitchDegree")
+            or quality_check_data.get("FlightPitchDegree")
+            or quality_check_data.get("pitch")
+        )
         if gimbal_angle is not None and gimbal_angle > MIN_GIMBAL_ANGLE:
             issues.append(
                 f"Gimbal angle {gimbal_angle:.1f}° too shallow (must be < {MIN_GIMBAL_ANGLE}°)"
@@ -471,6 +475,7 @@ class ImageClassifier:
                 id,
                 filename,
                 s3_key,
+                thumbnail_url,
                 status,
                 rejection_reason,
                 task_id,
@@ -506,6 +511,18 @@ class ImageClassifier:
                 # Keep presigned params (strip_presign=False) so signature is preserved
                 image["url"] = strip_presigned_url_for_local_dev(
                     url, strip_presign=False
+                )
+
+            # Generate presigned URL for thumbnail if available
+            if image.get("thumbnail_url"):
+                client = s3_client()
+                thumbnail_presigned = client.presigned_get_object(
+                    settings.S3_BUCKET_NAME,
+                    image["thumbnail_url"],
+                    expires=timedelta(hours=1),
+                )
+                image["thumbnail_url"] = strip_presigned_url_for_local_dev(
+                    thumbnail_presigned, strip_presign=False
                 )
 
             # Add has_gps field for frontend display

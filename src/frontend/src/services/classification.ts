@@ -9,6 +9,7 @@ export interface ImageClassificationResult {
   has_gps: boolean;
   s3_key: string;
   url?: string;
+  thumbnail_url?: string;  // 200x200 thumbnail for grid display
   uploaded_at: string;
 }
 

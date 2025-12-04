@@ -207,7 +207,7 @@ const UppyFileUploader = ({
 
   useEffect(() => {
     // Generate batch ID when upload starts (for staging uploads only)
-    uppy.on('upload', () => {
+    const handleUpload = () => {
       if (staging && !batchIdRef.current) {
         // Generate a UUID v4 for the batch
         batchIdRef.current = crypto.randomUUID();
@@ -215,13 +215,13 @@ const UppyFileUploader = ({
       }
       // Reset notification flag when new upload starts
       notificationShownRef.current = false;
-    });
+    };
 
-    uppy.on('upload-error', (file, error) => {
+    const handleUploadError = (file: any, error: Error) => {
       toast.error(`Upload failed for ${file?.name}: ${error.message}`);
-    });
+    };
 
-    uppy.on('complete', result => {
+    const handleComplete = (result: any) => {
       const successfulUploads = result.successful?.length || 0;
       const failedUploads = result.failed?.length || 0;
 
@@ -243,10 +243,16 @@ const UppyFileUploader = ({
       if (failedUploads > 0) {
         toast.error(`${failedUploads} file(s) failed to upload`);
       }
-    });
+    };
+
+    uppy.on('upload', handleUpload);
+    uppy.on('upload-error', handleUploadError);
+    uppy.on('complete', handleComplete);
 
     return () => {
-      // Event listeners are automatically cleaned up when component unmounts
+      uppy.off('upload', handleUpload);
+      uppy.off('upload-error', handleUploadError);
+      uppy.off('complete', handleComplete);
     };
   }, [uppy, dispatch, onUploadComplete, staging]);
 

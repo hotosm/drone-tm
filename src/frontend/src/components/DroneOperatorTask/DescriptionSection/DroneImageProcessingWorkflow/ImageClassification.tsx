@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { toast } from 'react-toastify';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import {
   startClassification as startClassificationAction,
@@ -11,6 +12,10 @@ import {
   useGetBatchImagesQuery,
 } from '@Api/projects';
 import type { ImageClassificationResult } from '@Services/classification';
+
+// Grid configuration
+const COLUMNS = 8; // Number of columns in the grid
+const ROW_HEIGHT = 120; // Height of each row in pixels (including gap)
 
 interface ImageClassificationProps {
   projectId: string;
@@ -53,7 +58,7 @@ const ImageClassification = ({
   );
 
   // Query for batch images - fetch immediately and poll every 10 seconds to handle race conditions
-  const { data: newImages, isLoading: isLoadingImages } = useGetBatchImagesQuery(
+  const { data: newImages } = useGetBatchImagesQuery(
     projectId,
     batchId,
     lastUpdateTime,
@@ -167,10 +172,54 @@ const ImageClassification = ({
   };
 
   const imagesList = Object.values(images);
-  const showProcessingIndicator = (batchStatus?.classifying ?? 0) > 0 || isPolling;
+  const isClassifying = (batchStatus?.classifying ?? 0) > 0 || isPolling;
+
+  // Compute simplified stats for user-friendly display
+  const computedStats = useMemo(() => {
+    if (!batchStatus) return null;
+
+    return {
+      uploaded: (batchStatus.staged ?? 0) + (batchStatus.uploaded ?? 0),
+      processing: batchStatus.classifying ?? 0,
+      complete: batchStatus.assigned ?? 0,
+      issues: (batchStatus.rejected ?? 0) + (batchStatus.unmatched ?? 0) + (batchStatus.invalid_exif ?? 0),
+      duplicates: batchStatus.duplicate ?? 0,
+    };
+  }, [batchStatus]);
+
+  // Virtualization setup
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  // Split images into rows for virtualization
+  const rows = useMemo(() => {
+    const result: ImageClassificationResult[][] = [];
+    for (let i = 0; i < imagesList.length; i += COLUMNS) {
+      result.push(imagesList.slice(i, i + COLUMNS));
+    }
+    return result;
+  }, [imagesList]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 3, // Render 3 extra rows above and below viewport
+  });
+
+  // Helper to render value with spinner for pending stages
+  const renderValue = (value: number, showSpinner: boolean, colorClass: string = '') => {
+    if (value === 0 && showSpinner) {
+      return (
+        <div className="naxatw-flex naxatw-items-center naxatw-justify-center">
+          <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-blue-600"></div>
+        </div>
+      );
+    }
+    return <div className={`naxatw-text-2xl naxatw-font-bold ${colorClass}`}>{value}</div>;
+  };
 
   return (
-    <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 naxatw-p-6">
+    <div className="naxatw-flex naxatw-h-full naxatw-flex-col naxatw-gap-6">
       {/* Header Section */}
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
         {!jobId && (
@@ -193,49 +242,33 @@ const ImageClassification = ({
       </div>
 
       {/* Status Summary */}
-      {batchStatus && (
-        <div className="naxatw-grid naxatw-grid-cols-5 naxatw-gap-4 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4 md:naxatw-grid-cols-9">
+      {computedStats && (
+        <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-5">
           <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold">{batchStatus.total}</div>
-            <div className="naxatw-text-sm naxatw-text-gray-600">Total</div>
+            {renderValue(computedStats.uploaded, isClassifying, 'naxatw-text-gray-500')}
+            <div className="naxatw-text-sm naxatw-text-gray-600">Uploaded</div>
           </div>
           <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-gray-400">{batchStatus.staged ?? 0}</div>
-            <div className="naxatw-text-sm naxatw-text-gray-600">Staged</div>
-          </div>
-          <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-gray-500">{batchStatus.uploaded ?? 0}</div>
-            <div className="naxatw-text-sm naxatw-text-gray-600">Ready</div>
-          </div>
-          <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-blue-600">{batchStatus.classifying ?? 0}</div>
+            {renderValue(computedStats.processing, isClassifying, 'naxatw-text-blue-600')}
             <div className="naxatw-text-sm naxatw-text-gray-600">Processing</div>
           </div>
           <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-green-600">{batchStatus.assigned ?? 0}</div>
-            <div className="naxatw-text-sm naxatw-text-gray-600">Assigned</div>
+            {renderValue(computedStats.complete, isClassifying, 'naxatw-text-green-600')}
+            <div className="naxatw-text-sm naxatw-text-gray-600">Complete</div>
           </div>
           <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-red-600">{batchStatus.rejected ?? 0}</div>
-            <div className="naxatw-text-sm naxatw-text-gray-600">Rejected</div>
+            {renderValue(computedStats.issues, isClassifying, 'naxatw-text-orange-600')}
+            <div className="naxatw-text-sm naxatw-text-gray-600">Issues</div>
           </div>
           <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-yellow-600">{batchStatus.unmatched ?? 0}</div>
-            <div className="naxatw-text-sm naxatw-text-gray-600">Unmatched</div>
-          </div>
-          <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-orange-600">{batchStatus.invalid_exif ?? 0}</div>
-            <div className="naxatw-text-sm naxatw-text-gray-600">Invalid EXIF</div>
-          </div>
-          <div className="naxatw-text-center">
-            <div className="naxatw-text-2xl naxatw-font-bold naxatw-text-gray-600">{batchStatus.duplicate ?? 0}</div>
+            {renderValue(computedStats.duplicates, isClassifying, 'naxatw-text-gray-600')}
             <div className="naxatw-text-sm naxatw-text-gray-600">Duplicates</div>
           </div>
         </div>
       )}
 
-      {/* Progress Indicator */}
-      {showProcessingIndicator && (
+      {/* Progress Indicator - show when classifying and we have images */}
+      {isClassifying && imagesList.length > 0 && (
         <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded naxatw-bg-blue-50 naxatw-p-4">
           <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-blue-600 naxatw-border-t-transparent"></div>
           <span className="naxatw-text-sm naxatw-text-blue-800">
@@ -244,84 +277,99 @@ const ImageClassification = ({
         </div>
       )}
 
-      {/* Image Grid */}
-      <div className="naxatw-grid naxatw-grid-cols-4 naxatw-gap-3 md:naxatw-grid-cols-6 lg:naxatw-grid-cols-8">
-        {imagesList.map((image) => (
+      {/* Virtualized Image Grid */}
+      {imagesList.length > 0 && (
+        <div
+          ref={parentRef}
+          className="naxatw-flex-1 naxatw-min-h-[400px] naxatw-overflow-auto naxatw-rounded naxatw-border naxatw-border-gray-200"
+        >
           <div
-            key={image.id}
-            onClick={() => setSelectedImage(image)}
-            className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded-lg naxatw-border-2 ${getBorderColor(image.status)} naxatw-transition-all hover:naxatw-scale-105 hover:naxatw-shadow-lg`}
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
           >
-            {/* Image thumbnail */}
-            {image.url ? (
-              <img
-                src={image.url}
-                alt={image.filename}
-                className="naxatw-absolute naxatw-inset-0 naxatw-h-full naxatw-w-full naxatw-object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-gray-200">
-                <svg
-                  className="naxatw-h-6 naxatw-w-6 naxatw-text-gray-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const rowImages = rows[virtualRow.index];
+              return (
+                <div
+                  key={virtualRow.key}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className="naxatw-flex naxatw-gap-3 naxatw-px-2"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            )}
+                  {rowImages.map((image) => (
+                    <div
+                      key={image.id}
+                      onClick={() => setSelectedImage(image)}
+                      className={`naxatw-group naxatw-relative naxatw-h-[108px] naxatw-w-[calc(12.5%-10px)] naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded-lg naxatw-border-2 ${getBorderColor(image.status)} naxatw-transition-all hover:naxatw-scale-105 hover:naxatw-shadow-lg`}
+                    >
+                      {/* Image thumbnail - use thumbnail_url if available, otherwise fall back to full url */}
+                      {(image.thumbnail_url || image.url) ? (
+                        <>
+                          {/* Loading placeholder - shown before image loads */}
+                          <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-gray-100">
+                            <div className="naxatw-h-6 naxatw-w-6 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-red"></div>
+                          </div>
+                          {/* Actual image - will overlay the placeholder once loaded */}
+                          <img
+                            src={image.thumbnail_url || image.url}
+                            alt={image.filename}
+                            className="naxatw-absolute naxatw-inset-0 naxatw-h-full naxatw-w-full naxatw-object-cover naxatw-bg-white"
+                            loading="lazy"
+                          />
+                        </>
+                      ) : (
+                        <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-gray-200">
+                          <svg
+                            className="naxatw-h-6 naxatw-w-6 naxatw-text-gray-400"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </div>
+                      )}
 
-            {/* Status badge */}
-            <div className="naxatw-absolute naxatw-top-1 naxatw-right-1">
-              <span className={getStatusBadgeClass(image.status)}>
-                {getStatusLabel(image.status)}
-              </span>
-            </div>
+                      {/* Status badge */}
+                      <div className="naxatw-absolute naxatw-top-1 naxatw-right-1">
+                        <span className={getStatusBadgeClass(image.status)}>
+                          {getStatusLabel(image.status)}
+                        </span>
+                      </div>
 
-            {/* Filename on hover */}
-            <div className="naxatw-absolute naxatw-inset-x-0 naxatw-bottom-0 naxatw-bg-black naxatw-bg-opacity-60 naxatw-p-1 naxatw-text-xs naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-100">
-              <div className="naxatw-truncate">{image.filename}</div>
-            </div>
+                      {/* Filename on hover */}
+                      <div className="naxatw-absolute naxatw-inset-x-0 naxatw-bottom-0 naxatw-bg-black naxatw-bg-opacity-60 naxatw-p-1 naxatw-text-xs naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-100">
+                        <div className="naxatw-truncate">{image.filename}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Loading state - show when images are empty and either loading or polling */}
+      {/* Loading state - show when no images yet */}
       {imagesList.length === 0 && (
-        <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
+        <div className="naxatw-flex naxatw-flex-1 naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
           <div className="naxatw-text-center">
             <div className="naxatw-mx-auto naxatw-h-12 naxatw-w-12 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-gray-300 naxatw-border-t-red"></div>
             <p className="naxatw-mt-4 naxatw-text-gray-500">
               Loading images...
             </p>
-          </div>
-        </div>
-      )}
-
-      {/* Empty state - only show when not loading and not polling */}
-      {imagesList.length === 0 && !isPolling && !isLoadingImages && (
-        <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
-          <div className="naxatw-text-center">
-            <svg
-              className="naxatw-mx-auto naxatw-h-12 naxatw-w-12 naxatw-text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            <p className="naxatw-mt-2 naxatw-text-gray-500">No images found</p>
-            <p className="naxatw-text-sm naxatw-text-gray-400">Upload images first to start classification</p>
           </div>
         </div>
       )}

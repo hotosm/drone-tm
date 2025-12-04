@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import {
   setCurrentStep,
@@ -62,13 +62,13 @@ const DroneImageProcessingWorkflow = ({
   };
 
   // Handle upload complete - store batch ID and move to classification
-  const handleUploadComplete = (result: any, uploadedBatchId?: string) => {
+  const handleUploadComplete = useCallback((result: any, uploadedBatchId?: string) => {
     if (uploadedBatchId) {
       dispatch(setBatchId(uploadedBatchId));
       // Automatically move to classification step
       dispatch(setCurrentStep(2));
     }
-  };
+  }, [dispatch]);
 
   // Should proceed to the next step
   const handleNextButton = () => {
