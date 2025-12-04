@@ -3,17 +3,32 @@
 # Requires: Traefik running in /opt/traefik with hotosm-test network
 
 services:
+  # Frontend syncs built files to a shared volume
   frontend:
     image: ghcr.io/hotosm/drone-tm/frontend:login-hanko
     restart: unless-stopped
+    volumes:
+      - frontend-html:/frontend_html
+    networks:
+      - internal
+
+  # Nginx serves the static files
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    volumes:
+      - frontend-html:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - hotosm-test
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dronetm-frontend.rule=Host(`testlogin.dronetm.hotosm.org`)"
+      - "traefik.http.routers.dronetm-frontend.rule=Host(`testlogin.dronetm.hotosm.org`) && !PathPrefix(`/api`)"
       - "traefik.http.routers.dronetm-frontend.entrypoints=websecure"
       - "traefik.http.routers.dronetm-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.dronetm-frontend.loadbalancer.server.port=3040"
+      - "traefik.http.services.dronetm-frontend.loadbalancer.server.port=80"
 
   backend:
     image: ghcr.io/hotosm/drone-tm/backend:login-hanko
@@ -118,3 +133,4 @@ networks:
 volumes:
   dronetm-db:
   dronetm-minio:
+  frontend-html:
