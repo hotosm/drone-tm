@@ -21,6 +21,7 @@
     "paths": {
       "@Api/*": ["api/*"],
       "@Assets/*": ["assets/*"],
+      "@AuthLibs/*": ["../auth-libs/*"],
       "@Components/*": ["components/*"],
       "@Constants/*": ["constants/*"],
       "@Hooks/*": ["hooks/*"],

@@ -17,6 +17,7 @@ export default defineConfig({
     alias: {
       '@': new URL('./src/', import.meta.url).pathname,
       '@Assets': new URL('./src/assets/', import.meta.url).pathname,
+      '@AuthLibs': new URL('./auth-libs/', import.meta.url).pathname,
       '@Utils': new URL('./src/utils/', import.meta.url).pathname,
       '@Store': new URL('./src/store/', import.meta.url).pathname,
       '@Schemas': new URL('./src/schemas/', import.meta.url).pathname,

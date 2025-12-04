@@ -1,15 +1,15 @@
 /// <reference types="vite/client" />
 
-export {};
+import type React from 'react';
 
-// Auth-libs web component module declaration (wildcard for any path)
-declare module '*auth-libs/web-component/dist/hanko-auth.esm.js';
-
-// JSX IntrinsicElements for custom web components
+// JSX IntrinsicElements for hotosm-auth custom web component
 declare module 'react' {
   namespace JSX {
-    interface IntrinsicElements {
-      'hotosm-auth': {
+    interface IntrinsicElements extends IntrinsicElements {
+      'hotosm-auth': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & {
         'hanko-url'?: string;
         'base-path'?: string;
         'show-profile'?: string | boolean;

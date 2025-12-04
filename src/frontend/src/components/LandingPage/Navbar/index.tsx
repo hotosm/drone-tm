@@ -9,7 +9,7 @@ const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.locati
 
 // Import Hanko web component for session verification
 if (AUTH_PROVIDER === 'hanko') {
-  import('../../../../auth-libs/web-component/dist/hanko-auth.esm.js');
+  import('@AuthLibs/web-component/dist/hanko-auth.esm.js');
 }
 
 export default function Navbar() {

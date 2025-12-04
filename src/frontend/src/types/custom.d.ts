@@ -1,4 +1,5 @@
 declare module '@hotosm/ui/dist/hotosm-ui';
+declare module '@AuthLibs/web-component/dist/hanko-auth.esm.js';
 declare module '*.png';
 declare module '*.svg';
 declare module '*.jpeg';
