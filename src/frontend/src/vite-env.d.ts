@@ -2,8 +2,8 @@
 
 export {};
 
-// Auth-libs web component module declaration
-declare module '../../../../auth-libs/web-component/dist/hanko-auth.esm.js';
+// Auth-libs web component module declaration (wildcard for any path)
+declare module '*auth-libs/web-component/dist/hanko-auth.esm.js';
 
 // JSX IntrinsicElements for custom web components
 declare module 'react' {
