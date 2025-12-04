@@ -1,40 +1,24 @@
 /// <reference types="vite/client" />
 
-// Auth-libs web component - declare all possible relative paths
-declare module '../../../../auth-libs/web-component/dist/hanko-auth.esm.js' {
-  const content: any;
-  export default content;
-}
-declare module '../../../auth-libs/web-component/dist/hanko-auth.esm.js' {
-  const content: any;
-  export default content;
-}
-declare module '../../auth-libs/web-component/dist/hanko-auth.esm.js' {
-  const content: any;
-  export default content;
-}
-declare module '../auth-libs/web-component/dist/hanko-auth.esm.js' {
-  const content: any;
-  export default content;
-}
+export {};
 
-// JSX IntrinsicElements for hotosm-auth web component
-declare global {
+// Auth-libs web component module declaration
+declare module '../../../../auth-libs/web-component/dist/hanko-auth.esm.js';
+
+// JSX IntrinsicElements for custom web components
+declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
-      'hotosm-auth': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          'hanko-url'?: string;
-          'base-path'?: string;
-          'show-profile'?: string | boolean;
-          'redirect-after-login'?: string;
-          'redirect-after-logout'?: string;
-          'osm-required'?: string | boolean;
-          'auto-connect'?: string | boolean;
-          'verify-session'?: string | boolean;
-        },
-        HTMLElement
-      >;
+      'hotosm-auth': {
+        'hanko-url'?: string;
+        'base-path'?: string;
+        'show-profile'?: string | boolean;
+        'redirect-after-login'?: string;
+        'redirect-after-logout'?: string;
+        'osm-required'?: string | boolean;
+        'auto-connect'?: string | boolean;
+        'verify-session'?: string | boolean;
+      };
     }
   }
 }
