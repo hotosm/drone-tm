@@ -49,6 +49,7 @@ services:
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - S3_BUCKET_NAME=dronetm
+      - S3_DOWNLOAD_ROOT=https://s3.testlogin.dronetm.hotosm.org
       - REDIS_URL=redis://redis:6379
       - FRONTEND_URL=https://testlogin.dronetm.hotosm.org
       - BACKEND_URL=https://testlogin.dronetm.hotosm.org/api
@@ -94,10 +95,18 @@ services:
       - hotosm-test
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dronetm-minio.rule=Host(`minio.testlogin.dronetm.hotosm.org`)"
-      - "traefik.http.routers.dronetm-minio.entrypoints=websecure"
-      - "traefik.http.routers.dronetm-minio.tls.certresolver=letsencrypt"
-      - "traefik.http.services.dronetm-minio.loadbalancer.server.port=9001"
+      # MinIO Console (Web UI)
+      - "traefik.http.routers.dronetm-minio-console.rule=Host(`minio.testlogin.dronetm.hotosm.org`)"
+      - "traefik.http.routers.dronetm-minio-console.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dronetm-minio-console.service=dronetm-minio-console"
+      - "traefik.http.services.dronetm-minio-console.loadbalancer.server.port=9001"
+      # MinIO S3 API (for presigned URLs)
+      - "traefik.http.routers.dronetm-minio-api.rule=Host(`s3.testlogin.dronetm.hotosm.org`)"
+      - "traefik.http.routers.dronetm-minio-api.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dronetm-minio-api.service=dronetm-minio-api"
+      - "traefik.http.services.dronetm-minio-api.loadbalancer.server.port=9000"
 
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:login-hanko
@@ -123,6 +132,7 @@ services:
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - S3_BUCKET_NAME=dronetm
+      - S3_DOWNLOAD_ROOT=https://s3.testlogin.dronetm.hotosm.org
     networks:
       - internal
 
