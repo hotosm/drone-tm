@@ -53,6 +53,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - FRONTEND_URL=https://testlogin.dronetm.hotosm.org
       - BACKEND_URL=https://testlogin.dronetm.hotosm.org/api
+      - EXTRA_CORS_ORIGINS=["https://testlogin.dronetm.hotosm.org","https://portal.hotosm.org"]
     networks:
       - hotosm-test
       - internal
