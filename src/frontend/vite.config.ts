@@ -12,6 +12,11 @@ export default defineConfig({
         })
       : undefined,
   ],
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext',
+    },
+  },
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
@@ -36,6 +41,7 @@ export default defineConfig({
     },
   },
   build: {
+    target: 'esnext',
     sourcemap: process.env.NODE_ENV === 'development',
   },
   define: {

@@ -107,7 +107,7 @@ def calculate_adjusted_max_battery_life(
         return 0.0
 
     t_quoted = battery_specs["quoted_value"]
-    v_test_kmh = battery_specs["testing_speed"]
+    v_test_kmh = battery_specs["tested_value"]
     v_test_mps = v_test_kmh / 3.6
 
     if v_test_mps == 0:

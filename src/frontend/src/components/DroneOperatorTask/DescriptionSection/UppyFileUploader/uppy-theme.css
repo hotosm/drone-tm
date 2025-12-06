@@ -1,0 +1,170 @@
+/* Custom Uppy Dashboard Theme - Matching App Colors */
+
+/* Main dashboard container */
+.uppy-Dashboard-inner {
+  background-color: #fafafa;
+  border: 2px solid #e1e0e0;
+  border-radius: 4px;
+}
+
+/* Top bar */
+.uppy-DashboardContent-bar {
+  background-color: #f0efef;
+  border-bottom: 1px solid #e1e0e0;
+}
+
+.uppy-DashboardContent-title {
+  color: #2c3038;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+}
+
+/* Upload area */
+.uppy-Dashboard-AddFiles {
+  border-color: #e1e0e0;
+}
+
+.uppy-Dashboard-AddFiles-title {
+  color: #2c3038;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+}
+
+.uppy-Dashboard-note {
+  color: #68707f;
+  font-family: 'Manrope', sans-serif;
+}
+
+/* Tabs */
+.uppy-DashboardTab {
+  color: #68707f;
+  font-family: 'Manrope', sans-serif;
+}
+
+.uppy-DashboardTab:hover,
+.uppy-DashboardTab:focus {
+  background-color: #f0efef;
+  color: #d73f3f;
+}
+
+.uppy-DashboardTab-btn:focus {
+  outline-color: #d73f3f;
+}
+
+/* Primary buttons */
+.uppy-c-btn-primary {
+  background-color: #d73f3f;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+}
+
+.uppy-c-btn-primary:hover {
+  background-color: #c23535;
+}
+
+.uppy-c-btn-primary:focus {
+  outline-color: #d73f3f;
+  box-shadow: 0 0 0 3px rgba(215, 63, 63, 0.25);
+}
+
+/* Status bar */
+.uppy-StatusBar {
+  background-color: #f0efef;
+  border-top: 1px solid #e1e0e0;
+}
+
+.uppy-StatusBar-progress {
+  background-color: #d73f3f;
+}
+
+.uppy-StatusBar-actionBtn--upload {
+  background-color: #d73f3f;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+}
+
+.uppy-StatusBar-actionBtn--upload:hover {
+  background-color: #c23535;
+}
+
+.uppy-StatusBar-actionBtn--done {
+  font-family: 'Manrope', sans-serif;
+  color: #68707f;
+}
+
+.uppy-StatusBar-actionBtn--done:hover {
+  color: #2c3038;
+}
+
+/* File items */
+.uppy-Dashboard-Item-action--remove {
+  color: #d73f3f;
+}
+
+.uppy-Dashboard-Item-action--remove:hover {
+  background-color: #ffeded;
+}
+
+.uppy-Dashboard-Item-name {
+  font-family: 'Manrope', sans-serif;
+  color: #2c3038;
+}
+
+.uppy-Dashboard-Item-status {
+  font-family: 'Manrope', sans-serif;
+  color: #68707f;
+}
+
+/* Provider browser (for cloud sources) */
+.uppy-ProviderBrowser-header {
+  background-color: #f0efef;
+  border-bottom: 1px solid #e1e0e0;
+}
+
+.uppy-ProviderBrowser-headerBar {
+  background-color: #f0efef;
+}
+
+/* Upload button icon color */
+.uppy-Dashboard-browse {
+  color: #d73f3f;
+  font-weight: 600;
+}
+
+.uppy-Dashboard-browse:hover {
+  text-decoration: underline;
+}
+
+/* Drag and drop overlay */
+.uppy-Dashboard-AddFiles[data-uppy-drag-drop-supported='true'] {
+  border-style: dashed;
+  border-width: 2px;
+}
+
+.uppy-Dashboard-AddFiles[data-uppy-drag-drop-supported='true']:hover {
+  background-color: #ffeded;
+  border-color: #d73f3f;
+}
+
+.uppy-Dashboard-overlay {
+  background-color: rgba(215, 63, 63, 0.1);
+  border-color: #d73f3f;
+}
+
+/* Info badge for file count */
+.uppy-DashboardContent-badge {
+  background-color: #d73f3f;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+}
+
+/* Secondary text */
+.uppy-Dashboard-poweredBy {
+  color: #929db3;
+  font-family: 'Manrope', sans-serif;
+}
+
+
+.uppy-StatusBar-actionBtn {
+   background-color: #d73f3f !important;
+}

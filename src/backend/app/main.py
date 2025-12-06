@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.__version__ import __version__
-from app.config import settings
+from app.config import settings, MonitoringTypes
 from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
@@ -157,6 +157,25 @@ async def lifespan(app: FastAPI):
         log.info(f"🔧 AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}")
         init_auth(auth_config)
         log.info("✅ Authentication initialized")
+
+    # Initialize Sentry monitoring if enabled
+    if (
+        settings.MONITORING == MonitoringTypes.SENTRY
+        and settings.monitoring_config.SENTRY_DSN
+    ):
+        try:
+            from app.monitoring import set_sentry_otel_tracer, instrument_app_otel
+
+            log.info("Adding Sentry OpenTelemetry monitoring config")
+            set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
+            instrument_app_otel(app)
+        except ImportError:
+            log.warning(
+                "Sentry monitoring is enabled, but dependencies are not installed."
+            )
+            log.warning(
+                "To fix, please install with the 'monitoring' dependency group, or set INSTALL_MONITORING=true in the build."
+            )
 
     async with AsyncConnectionPool(
         conninfo=settings.DTM_DB_URL.unicode_string()

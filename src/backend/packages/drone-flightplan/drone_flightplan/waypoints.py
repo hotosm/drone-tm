@@ -709,7 +709,13 @@ def create_waypoint(
     if "max_battery_life_minutes" in DRONE_SPECS[drone_type]:
         max_battery_life_minutes = DRONE_SPECS[drone_type]["max_battery_life_minutes"]
 
-        if estimated_flight_time_minutes > (max_battery_life_minutes * 0.8):
+        drone_battery_life = max_battery_life_minutes.get("tested_value")
+        if drone_battery_life is None:
+            # Fallback to manufacturer specs, if untested in the field
+            drone_battery_life = max_battery_life_minutes.get("quoted_value")
+
+        # Use 80% of quoted value to allow battery for return to base
+        if estimated_flight_time_minutes > (drone_battery_life * 0.8):
             battery_warning = True
 
     # Generate GeoJSON features

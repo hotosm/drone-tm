@@ -35,6 +35,20 @@ Just is required too:
   GOOGLE_LOGIN_REDIRECT_URI="http://localhost:3040/auth"
   ```
 
+#### Monitoring
+
+- At present, only Sentry is configured as the backend for logging with OpenTelemetry. By default
+  logging in non-production environments is disabled.
+- To set it up and work with it, you will need these two ENV variables set correctly:
+  ```
+  MONITORING="sentry"
+  SENTRY_DSN="<sentry dsn url here>"
+  ```
+  Also, make sure to uncomment `INSTALL_MONITORING` in `compose.yaml`
+  to allow the Docker image to install the requisite monitoring libraries, otherwise you will get an error.
+- `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
+  is recommended to leave the setting as is.
+
 ### Build and Run The Containers
 
 - The `Justfile` in the project root contains all the logic needed to build and run the application.

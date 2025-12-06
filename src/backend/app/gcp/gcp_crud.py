@@ -8,7 +8,7 @@ from pyproj import Transformer
 from shapely.geometry import Point, Polygon
 
 from app.config import settings
-from app.s3 import get_presigned_url
+from app.s3 import generate_presigned_download_url
 from app.waypoints import waypoint_schemas
 
 
@@ -297,7 +297,7 @@ async def find_images_in_a_project_for_point(
         s3_images_json_path_for_task = (
             f"dtm-data/projects/{project_id}/{task_id_str}/images.json"
         )
-        s3_images_json_url = get_presigned_url(
+        s3_images_json_url = generate_presigned_download_url(
             settings.S3_BUCKET_NAME, s3_images_json_path_for_task
         )
 
@@ -314,7 +314,7 @@ async def find_images_in_a_project_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        get_presigned_url(
+        generate_presigned_download_url(
             settings.S3_BUCKET_NAME,
             f"dtm-data/projects/{project_id}/{image}",
         )
@@ -345,7 +345,9 @@ async def find_images_in_a_task_for_point(
     s3_images_json_path = f"dtm-data/projects/{project_id}/{task_id}/images.json"
 
     # Generate pre-signed URL for the `images.json` file
-    s3_images_json_url = get_presigned_url(settings.S3_BUCKET_NAME, s3_images_json_path)
+    s3_images_json_url = generate_presigned_download_url(
+        settings.S3_BUCKET_NAME, s3_images_json_path
+    )
 
     # Fetch bounding boxes from the `images.json` file
     bbox_list = await calculate_bbox_from_images_file(
@@ -362,7 +364,7 @@ async def find_images_in_a_task_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        get_presigned_url(
+        generate_presigned_download_url(
             settings.S3_BUCKET_NAME,
             f"dtm-data/projects/{project_id}/{task_id}/images/{image}",
         )

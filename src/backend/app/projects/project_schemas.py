@@ -32,10 +32,10 @@ from app.models.enums import (
     UserRole,
 )
 from app.s3 import (
+    generate_presigned_download_url,
     generate_static_url,
     get_assets_url_for_project,
     get_orthophoto_url_for_project,
-    get_presigned_url,
 )
 from app.utils import (
     merge_multipolygon,
@@ -663,7 +663,9 @@ class ProjectInfo(BaseModel):
         project_id = values.id
         if project_id:
             image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
-            values.image_url = get_presigned_url(settings.S3_BUCKET_NAME, image_dir, 5)
+            values.image_url = generate_presigned_download_url(
+                settings.S3_BUCKET_NAME, image_dir, 5
+            )
         return values
 
     @model_validator(mode="after")
@@ -719,3 +721,30 @@ class PresignedUrlRequest(BaseModel):
     task_id: uuid.UUID
     image_name: List[str]
     expiry: int  # Expiry time in hours
+
+
+class MultipartUploadRequest(BaseModel):
+    project_id: uuid.UUID
+    task_id: Optional[uuid.UUID] = None
+    file_name: str
+    staging: bool = False  # If True, upload to user-uploads staging directory
+
+
+class SignPartUploadRequest(BaseModel):
+    upload_id: str
+    file_key: str
+    part_number: int
+    expiry: int = 2  # Expiry time in hours
+
+
+class CompleteMultipartUploadRequest(BaseModel):
+    upload_id: str
+    file_key: str
+    parts: List[dict]  # List of {"PartNumber": int, "ETag": str}
+    project_id: uuid.UUID
+    filename: str
+
+
+class AbortMultipartUploadRequest(BaseModel):
+    upload_id: str
+    file_key: str

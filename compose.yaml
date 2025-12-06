@@ -16,6 +16,10 @@ services:
     build:
       context: src/backend
       dockerfile: Dockerfile
+      # Uncomment the lines below to install monitoring dependencies (Sentry + OTEL)
+      # during the build.
+      # args:
+      #   INSTALL_MONITORING: "true"
     depends_on:
       - db
       - minio
@@ -28,6 +32,8 @@ services:
       - ${PROJECT_DIR:-.}/src/backend/packages/drone-flightplan/drone_flightplan:/opt/python/lib/python3.11/site-packages/drone_flightplan:ro
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
+    extra_hosts:
+      - "localhost:host-gateway"
     networks:
       - dtm-network
     extra_hosts:
