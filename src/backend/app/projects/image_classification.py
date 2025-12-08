@@ -541,3 +541,70 @@ class ImageClassifier:
             )
 
         return images
+
+    @staticmethod
+    async def get_batch_review_data(
+        db: Connection,
+        batch_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        query = """
+            SELECT
+                pi.task_id,
+                t.project_task_index,
+                COUNT(*) as image_count,
+                json_agg(
+                    json_build_object(
+                        'id', pi.id,
+                        'filename', pi.filename,
+                        's3_key', pi.s3_key,
+                        'thumbnail_url', pi.thumbnail_url,
+                        'status', pi.status,
+                        'uploaded_at', pi.uploaded_at
+                    ) ORDER BY pi.uploaded_at
+                ) as images
+            FROM project_images pi
+            LEFT JOIN tasks t ON pi.task_id = t.id
+            WHERE pi.batch_id = %(batch_id)s
+            AND pi.project_id = %(project_id)s
+            AND pi.status IN ('assigned', 'unmatched')
+            GROUP BY pi.task_id, t.project_task_index
+            ORDER BY t.project_task_index NULLS LAST
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query, {"batch_id": str(batch_id), "project_id": str(project_id)}
+            )
+            task_groups = await cur.fetchall()
+
+        # Generate presigned URLs for thumbnails
+        for group in task_groups:
+            for image in group["images"]:
+                if image.get("thumbnail_url"):
+                    client = s3_client()
+                    thumbnail_presigned = client.presigned_get_object(
+                        settings.S3_BUCKET_NAME,
+                        image["thumbnail_url"],
+                        expires=timedelta(hours=1),
+                    )
+                    image["thumbnail_url"] = strip_presigned_url_for_local_dev(
+                        thumbnail_presigned, strip_presign=False
+                    )
+
+                # Generate presigned URL for full image
+                if image.get("s3_key"):
+                    client = s3_client()
+                    url = client.presigned_get_object(
+                        settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
+                    )
+                    image["url"] = strip_presigned_url_for_local_dev(
+                        url, strip_presign=False
+                    )
+
+        return {
+            "batch_id": str(batch_id),
+            "task_groups": task_groups,
+            "total_tasks": len(task_groups),
+            "total_images": sum(group["image_count"] for group in task_groups),
+        }

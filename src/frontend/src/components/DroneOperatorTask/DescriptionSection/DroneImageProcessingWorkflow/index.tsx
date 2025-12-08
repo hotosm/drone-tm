@@ -104,7 +104,16 @@ const DroneImageProcessingWorkflow = ({
           </div>
         );
       case 3:
-        return <ImageReview />;
+        return batchId ? (
+          <ImageReview
+            projectId={projectId}
+            batchId={batchId}
+          />
+        ) : (
+          <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-text-gray-500">
+            No batch ID available. Please complete classification first.
+          </div>
+        );
       case 4:
         return <ImageProcessing />;
       default:

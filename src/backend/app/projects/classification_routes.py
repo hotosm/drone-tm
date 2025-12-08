@@ -172,3 +172,24 @@ async def get_batch_status(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to retrieve batch status: {e}",
         )
+
+
+@router.get("/{project_id}/batch/{batch_id}/review/", tags=["Image Classification"])
+async def get_batch_review(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    try:
+        review_data = await ImageClassifier.get_batch_review_data(
+            db, batch_id, project_id
+        )
+        return review_data
+
+    except Exception as e:
+        log.error(f"Failed to get batch review data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch review data: {e}",
+        )

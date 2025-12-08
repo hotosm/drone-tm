@@ -25,6 +25,30 @@ export interface BatchStatusSummary {
   duplicate: number;
 }
 
+export interface TaskGroupImage {
+  id: string;
+  filename: string;
+  s3_key: string;
+  thumbnail_url?: string;
+  url?: string;
+  status: 'assigned' | 'unmatched';
+  uploaded_at: string;
+}
+
+export interface TaskGroup {
+  task_id: string | null;
+  project_task_index: number | null;
+  image_count: number;
+  images: TaskGroupImage[];
+}
+
+export interface BatchReviewData {
+  batch_id: string;
+  task_groups: TaskGroup[];
+  total_tasks: number;
+  total_images: number;
+}
+
 /**
  * Start classification job for a batch of uploaded images
  */
@@ -71,4 +95,17 @@ export const getBatchImages = async (
     { params },
   );
   return response.data.images || response.data;
+};
+
+/**
+ * Get batch review data grouped by tasks
+ */
+export const getBatchReview = async (
+  projectId: string,
+  batchId: string,
+): Promise<BatchReviewData> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/batch/${batchId}/review/`,
+  );
+  return response.data;
 };
