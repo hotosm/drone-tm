@@ -30,7 +30,7 @@ services:
         condition: service_started
       migrations:
         condition: service_completed_successfully
-    
+
   frontend:
     extends:
       file: compose.yaml
@@ -71,7 +71,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    
+
   arq-worker:
     extends:
       file: compose.yaml
@@ -79,7 +79,7 @@ services:
     environment:
       NODEODM_API_URL: http://nodeodm:3000
       S3_ENDPOINT_URL: http://minio:9000
-      BACKEND_URL: http://backend:8000 
+      BACKEND_URL: http://backend:8000
     depends_on:
       db:
         condition: service_healthy
@@ -92,7 +92,7 @@ services:
     extends:
       file: compose.yaml
       service: redis
-  
+
   nodeodm:
     extends:
       file: compose.yaml
