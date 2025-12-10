@@ -106,8 +106,8 @@ jobs:
             echo "${GH_TOKEN}" | docker login ghcr.io -u ${GH_ACTOR} --password-stdin
 
             # Pull and deploy
-            docker compose -f compose.test.yaml pull
-            docker compose -f compose.test.yaml up -d --force-recreate
+            docker compose -f compose.login-hanko.yaml pull
+            docker compose -f compose.login-hanko.yaml up -d --force-recreate
 
             # Cleanup
             docker image prune -af
