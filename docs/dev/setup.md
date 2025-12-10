@@ -44,8 +44,8 @@ Just is required too:
   MONITORING="sentry"
   SENTRY_DSN="<sentry dsn url here>"
   ```
-  Then make sure to rebuild your backend Docker image: `docker compose build --build-arg INSTALL_MONITORING=true backend`
-  so that the correct monitoring group dependencies are installed.
+  Then make sure to rebuild your backend Docker image: `docker compose build backend` so that Docker
+  now knows to install the extra set of dependencies.
   You should see a success message if it worked correctly.
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
   is recommended to leave the setting as is.

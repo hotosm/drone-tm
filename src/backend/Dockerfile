@@ -50,16 +50,11 @@ STOPSIGNAL SIGINT
 COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
 COPY packages /project/packages
 
-# Define a build argument to control installation of monitoring dependencies
-ARG INSTALL_MONITORING=false
-
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
-    EXTRA_GROUPS="" && \
-    if [ "$INSTALL_MONITORING" = "true" ]; then EXTRA_GROUPS="--group monitoring"; fi && \
-    uv sync --locked --no-editable --no-dev --no-install-project $EXTRA_GROUPS
+    uv sync --locked --no-editable --no-dev
 
 # Run stage (final stage)
 FROM python:$PYTHON_IMG_TAG-slim-trixie AS service
