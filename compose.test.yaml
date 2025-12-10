@@ -1,0 +1,101 @@
+# compose.test.yaml
+
+name: dtm-test
+
+volumes:
+  db-data:
+  minio-data:
+  frontend-html:
+
+networks:
+  dtm-network:
+    driver: bridge
+
+services:
+  backend:
+    extends:
+      file: compose.yaml
+      service: backend
+    environment:
+      NODEODM_API_URL: http://nodeodm:3000
+      S3_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      redis:
+        condition: service_started
+      nodeodm:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
+
+  frontend:
+    extends:
+      file: compose.yaml
+      service: frontend
+    ports:
+      - "3040:3040"
+    depends_on:
+      backend:
+        condition: service_started
+
+  db:
+    extends:
+      file: compose.yaml
+      service: db
+
+  minio:
+    extends:
+      file: compose.yaml
+      service: minio
+
+  createbuckets:
+    extends:
+      file: compose.yaml
+      service: createbuckets
+    depends_on:
+      - minio
+
+  migrations:
+    image: ghcr.io/hotosm/drone-tm/backend:debug
+    volumes:
+      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+    env_file:
+      - .env
+    networks:
+      - dtm-network
+    entrypoint: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  arq-worker:
+    extends:
+      file: compose.yaml
+      service: arq-worker
+    environment:
+      NODEODM_API_URL: http://nodeodm:3000
+      S3_ENDPOINT_URL: http://minio:9000
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nodeodm:
+        condition: service_started
+
+  redis:
+    extends:
+      file: compose.yaml
+      service: redis
+
+  nodeodm:
+    extends:
+      file: compose.yaml
+      service: nodeodm
+    ports:
+      - "9900:3000"
