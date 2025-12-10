@@ -133,7 +133,7 @@ async def lifespan(app: FastAPI):
         except ImportError:
             log.warning(
                 """
-                Sentry monitoring is enabled, but dependencies are not installed. 
+                Sentry monitoring is enabled, but dependencies are not installed.
                 Ensure that the MONITORING env variable is populated and try restarting the build process for the backend Docker image.
                 """
             )
