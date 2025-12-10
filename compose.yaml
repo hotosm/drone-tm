@@ -16,6 +16,8 @@ services:
     build:
       context: src/backend
       dockerfile: Dockerfile
+      args:
+        - MONITORING=${MONITORING}
     depends_on:
       - db
       - minio

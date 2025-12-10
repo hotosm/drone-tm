@@ -2,16 +2,6 @@
 
 set -eo pipefail
 
-# Function to install monitoring dependencies if MONITORING is set
-install_monitoring_deps() {
-    if [ "$MONITORING" = "sentry" ]; then
-        echo "Installing monitoring dependencies..."
-        uv sync --locked --no-editable --no-dev --group monitoring
-    else
-        echo "MONITORING is blank/invalid, skipping installation of monitoring dependencies."
-    fi
-}
-
 wait_for_db() {
     max_retries=30
     retry_interval=5
@@ -28,9 +18,6 @@ wait_for_db() {
     echo "Timed out waiting for the database to become available."
     exit 1  # Exit with an error code
 }
-
-# Install monitoring dependencies
-install_monitoring_deps
 
 # Start wait in background with tmp log files
 wait_for_db &

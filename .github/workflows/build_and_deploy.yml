@@ -20,8 +20,9 @@ jobs:
       context: ./src/backend
       build_target: service
       image_name: ghcr.io/${{ github.repository }}/backend
-      dockerfile: Dockerfile
       scan_image: false
+      extra_build_args: |
+        MONITORING=${{ secrets.MONITORING }}
     secrets: inherit
 
   extra-vars:
