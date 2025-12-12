@@ -9,16 +9,16 @@ RUN set -ex \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install \
     -y --no-install-recommends \
-        "build-essential" \
-        "gcc" \
-        "g++" \
-        "libpcre2-dev" \
-        "libpq-dev" \
-        "libspatialindex-dev" \
-        "libproj-dev" \
-        "libgeos-dev" \
-        "libgdal-dev" \
-        "git" \
+    "build-essential" \
+    "gcc" \
+    "g++" \
+    "libpcre2-dev" \
+    "libpq-dev" \
+    "libspatialindex-dev" \
+    "libproj-dev" \
+    "libgeos-dev" \
+    "libgdal-dev" \
+    "git" \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /project
@@ -50,16 +50,19 @@ STOPSIGNAL SIGINT
 COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
 COPY packages /project/packages
 
-# Define a build argument to control installation of monitoring dependencies
-ARG INSTALL_MONITORING=false
+ARG MONITORING
 
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    EXTRA_GROUPS="" && \
-    if [ "$INSTALL_MONITORING" = "true" ]; then EXTRA_GROUPS="--group monitoring"; fi && \
-    uv sync --locked --no-editable --no-dev --no-install-project $EXTRA_GROUPS
+    --mount=type=bind,source=uv.lock,target=uv.lock <<EOT
+    set -e
+    EXTRA_GROUPS=""
+    if [ "$MONITORING" = "sentry" ]; then
+        EXTRA_GROUPS="--group monitoring"
+    fi
+    uv sync --locked --no-editable --no-dev $EXTRA_GROUPS
+EOT
 
 # Run stage (final stage)
 FROM python:$PYTHON_IMG_TAG-slim-trixie AS service
@@ -75,9 +78,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN set -ex \
-&& apt-get update \
-&& DEBIAN_FRONTEND=noninteractive apt-get install \
--y --no-install-recommends \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install \
+    -y --no-install-recommends \
     "nano" \
     "curl" \
     "gettext-base" \
@@ -90,7 +93,7 @@ RUN set -ex \
     "libproj25" \
     "libgeos-c1t64" \
     "libgdal36" \
-&& rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Retrieve global Python packages and dependencies from the build stage
 COPY --from=build /opt/python /opt/python
