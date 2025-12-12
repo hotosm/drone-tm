@@ -132,10 +132,10 @@ async def lifespan(app: FastAPI):
             instrument_app_otel(app)
         except ImportError:
             log.warning(
-                "Sentry monitoring is enabled, but dependencies are not installed."
-            )
-            log.warning(
-                "To fix, please install with the 'monitoring' dependency group, or set INSTALL_MONITORING=true in the build."
+                """
+                Sentry monitoring is enabled, but dependencies are not installed.
+                Ensure that the MONITORING env variable is populated and try restarting the build process for the backend Docker image.
+                """
             )
 
     async with AsyncConnectionPool(
