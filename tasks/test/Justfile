@@ -1,0 +1,37 @@
+# Copyright (c) Humanitarian OpenStreetMap Team
+#
+# This file is part of Drone-TM.
+#
+#     Drone-TM is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     Drone-TM is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU General Public License
+#     along with Drone-TM.  If not, see <https:#www.gnu.org/licenses/>.
+#
+
+# Allow usage of nerdctl instead of docker
+docker := env("DOCKER_ALIAS", "docker")
+
+# List available commands
+[private]
+default:
+  just --justfile {{justfile()}} --list test
+
+# Test backend
+[no-cd]
+backend:
+    just build backend
+
+    # Start services.
+    {{docker}} compose -f compose.test.yaml up --detach --wait
+
+    {{docker}} compose -f compose.test.yaml run --rm backend uv run pytest
+
+    {{docker}} compose -f compose.test.yaml down

@@ -60,6 +60,7 @@ services:
 
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:debug
+    working_dir: /project/src/backend 
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     env_file:
@@ -98,4 +99,5 @@ services:
       file: compose.yaml
       service: nodeodm
     ports:
-      - "9900:3000"
+      # Using 9901 to avoid collision with the inherited file's 9900
+      - "9901:3000"
