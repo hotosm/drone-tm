@@ -41,8 +41,5 @@ jobs:
         run: |
           cp .env.example .env
 
-          echo "MONITORING=false" >> .env
-          echo "S3_ENDPOINT=http://minio:9000" >> .env
-
       - name: Run Backend Tests
         run: just test backend
