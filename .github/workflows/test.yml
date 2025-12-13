@@ -43,11 +43,6 @@ jobs:
 
           echo "MONITORING=false" >> .env
           echo "S3_ENDPOINT=http://minio:9000" >> .env
-      
+
       - name: Run Backend Tests
         run: just test backend
-
-         # Add this step to debug failures
-      - name: Show Migration Logs on Failure
-        if: failure()
-        run: docker compose -f compose.test.yaml logs migrations

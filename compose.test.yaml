@@ -60,7 +60,7 @@ services:
 
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:debug
-    working_dir: /project/src/backend 
+    working_dir: /project/src/backend
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     env_file:
