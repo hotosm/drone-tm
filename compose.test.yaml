@@ -16,7 +16,13 @@ services:
     extends:
       file: compose.yaml
       service: backend
+    build:
+      context: src/backend
+      args:
+        INSTALL_TEST: "true"
     environment:
+      MONITORING: ""
+      LOG_LEVEL: "INFO"
       NODEODM_API_URL: http://nodeodm:3000
       S3_ENDPOINT_URL: http://minio:9000
     depends_on:
@@ -64,6 +70,8 @@ services:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     env_file:
       - .env
+    environment:
+      MONITORING: ""
     networks:
       - dtm-network
     entrypoint: ["alembic", "upgrade", "head"]

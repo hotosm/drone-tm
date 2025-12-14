@@ -30,12 +30,14 @@ backend:
     just build backend
 
     # Start services
+    {{docker}} compose -f compose.test.yaml build backend
+
     {{docker}} compose -f compose.test.yaml up --detach db redis minio nodeodm
 
     {{docker}} compose -f compose.test.yaml run --rm migrations
 
     {{docker}} compose -f compose.test.yaml up --detach
 
-    {{docker}} compose -f compose.test.yaml run --rm backend uv run pytest
+    {{docker}} compose -f compose.test.yaml run --rm backend pytest
 
     {{docker}} compose -f compose.test.yaml down
