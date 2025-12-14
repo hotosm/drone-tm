@@ -52,6 +52,8 @@ COPY packages /project/packages
 
 ARG MONITORING
 
+ARG INSTALL_TEST=false
+
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
@@ -61,6 +63,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "$MONITORING" = "sentry" ]; then
         EXTRA_GROUPS="--group monitoring"
     fi
+
+    if [ "$INSTALL_TEST" = "true" ]; then
+        EXTRA_GROUPS="$EXTRA_GROUPS --group test"
+    fi
+
     uv sync --locked --no-editable --no-dev $EXTRA_GROUPS
 EOT
 
