@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { toast } from 'react-toastify';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import {
@@ -11,7 +12,9 @@ import {
   useGetBatchStatusQuery,
   useGetBatchImagesQuery,
 } from '@Api/projects';
+import { acceptImage } from '@Services/classification';
 import type { ImageClassificationResult } from '@Services/classification';
+import { Button } from '@Components/RadixComponents/Button';
 
 // Grid configuration
 const COLUMNS = 8; // Number of columns in the grid
@@ -27,6 +30,7 @@ const ImageClassification = ({
   batchId,
 }: ImageClassificationProps) => {
   const dispatch = useTypedDispatch();
+  const queryClient = useQueryClient();
   const { jobId } = useTypedSelector(
     (state) => state.imageProcessingWorkflow
   );
@@ -34,6 +38,48 @@ const ImageClassification = ({
   const [lastUpdateTime, setLastUpdateTime] = useState<string | undefined>();
   const [isPolling, setIsPolling] = useState(false);
   const [selectedImage, setSelectedImage] = useState<ImageClassificationResult | null>(null);
+
+  // Mutation to accept a rejected image
+  const acceptImageMutation = useMutation({
+    mutationFn: (imageId: string) => acceptImage(projectId, imageId),
+    onSuccess: (data: { message: string; image_id: string; status: string; task_id: string | null }) => {
+      // Handle based on the returned status
+      if (data.status === 'unmatched') {
+        toast.warning(data.message);
+        // Update local state to reflect unmatched status
+        if (selectedImage) {
+          setImages(prev => ({
+            ...prev,
+            [selectedImage.id]: {
+              ...prev[selectedImage.id],
+              status: 'unmatched' as const,
+              task_id: undefined,
+            },
+          }));
+        }
+      } else {
+        toast.success('Image accepted successfully');
+        // Update the local state to reflect the change
+        if (selectedImage) {
+          setImages(prev => ({
+            ...prev,
+            [selectedImage.id]: {
+              ...prev[selectedImage.id],
+              status: 'assigned' as const,
+              task_id: data.task_id || undefined,
+            },
+          }));
+        }
+      }
+      setSelectedImage(null);
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['batchStatus', projectId, batchId] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || error.message || 'Failed to accept image';
+      toast.error(message);
+    },
+  });
 
   // Mutation to start classification
   const startClassificationMutation = useStartClassificationMutation({
@@ -113,20 +159,20 @@ const ImageClassification = ({
       case 'assigned':
         return `${baseClass} naxatw-bg-green-500 naxatw-text-white`;
       case 'rejected':
-        return `${baseClass} naxatw-bg-red-500 naxatw-text-white`;
+        return `${baseClass} naxatw-bg-red naxatw-text-white`;
       case 'unmatched':
         return `${baseClass} naxatw-bg-yellow-500 naxatw-text-white`;
       case 'invalid_exif':
         return `${baseClass} naxatw-bg-orange-500 naxatw-text-white`;
       case 'duplicate':
-        return `${baseClass} naxatw-bg-grey-500 naxatw-text-white`;
+        return `${baseClass} naxatw-bg-gray-500 naxatw-text-white`;
       case 'classifying':
         return `${baseClass} naxatw-bg-blue-500 naxatw-text-white naxatw-animate-pulse`;
       case 'uploaded':
-        return `${baseClass} naxatw-bg-grey-400 naxatw-text-white`;
+        return `${baseClass} naxatw-bg-gray-400 naxatw-text-white`;
       case 'staged':
       default:
-        return `${baseClass} naxatw-bg-grey-300 naxatw-text-grey-700`;
+        return `${baseClass} naxatw-bg-gray-300 naxatw-text-gray-700`;
     }
   };
 
@@ -178,14 +224,28 @@ const ImageClassification = ({
   const computedStats = useMemo(() => {
     if (!batchStatus) return null;
 
+    const uploaded = (batchStatus.staged ?? 0) + (batchStatus.uploaded ?? 0);
+    const processing = batchStatus.classifying ?? 0;
+    const complete = batchStatus.assigned ?? 0;
+    const issues = (batchStatus.rejected ?? 0) + (batchStatus.unmatched ?? 0) + (batchStatus.invalid_exif ?? 0);
+    const duplicates = batchStatus.duplicate ?? 0;
+    const totalClassified = complete + issues + duplicates;
+    const issuePercentage = totalClassified > 0 ? (issues / totalClassified) * 100 : 0;
+
     return {
-      uploaded: (batchStatus.staged ?? 0) + (batchStatus.uploaded ?? 0),
-      processing: batchStatus.classifying ?? 0,
-      complete: batchStatus.assigned ?? 0,
-      issues: (batchStatus.rejected ?? 0) + (batchStatus.unmatched ?? 0) + (batchStatus.invalid_exif ?? 0),
-      duplicates: batchStatus.duplicate ?? 0,
+      uploaded,
+      processing,
+      complete,
+      issues,
+      duplicates,
+      totalClassified,
+      issuePercentage,
     };
   }, [batchStatus]);
+
+  // Check if classification is complete and has high issue rate
+  const isClassificationComplete = computedStats && computedStats.processing === 0 && computedStats.uploaded === 0 && computedStats.totalClassified > 0;
+  const hasHighIssueRate = isClassificationComplete && computedStats.issuePercentage >= 50;
 
   // Virtualization setup
   const parentRef = useRef<HTMLDivElement>(null);
@@ -267,13 +327,20 @@ const ImageClassification = ({
         </div>
       )}
 
-      {/* Progress Indicator - show when classifying and we have images */}
-      {isClassifying && imagesList.length > 0 && (
-        <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded naxatw-bg-blue-50 naxatw-p-4">
-          <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-blue-600 naxatw-border-t-transparent"></div>
-          <span className="naxatw-text-sm naxatw-text-blue-800">
-            Classifying images... This may take a few minutes.
-          </span>
+      {/* Warning for high issue rate */}
+      {hasHighIssueRate && computedStats && (
+        <div className="naxatw-flex naxatw-items-start naxatw-gap-3 naxatw-rounded naxatw-border naxatw-border-amber-300 naxatw-bg-amber-50 naxatw-p-4">
+          <span className="material-icons naxatw-text-amber-600">warning</span>
+          <div>
+            <p className="naxatw-font-semibold naxatw-text-amber-800">
+              Dataset Quality Warning
+            </p>
+            <p className="naxatw-text-sm naxatw-text-amber-700">
+              {computedStats.issuePercentage.toFixed(0)}% of your images ({computedStats.issues} out of {computedStats.totalClassified}) have issues.
+              This may indicate problems with your drone settings or capture conditions.
+              Please review the images with issues and consider re-capturing if necessary.
+            </p>
+          </div>
         </div>
       )}
 
@@ -541,6 +608,24 @@ const ImageClassification = ({
                     </h5>
                     <p className="naxatw-mt-2 naxatw-text-sm naxatw-text-green-700">
                       This image has been matched to a task and is ready for processing.
+                    </p>
+                  </div>
+                )}
+
+                {/* Mark as Good button for rejected/invalid images */}
+                {(selectedImage.status === 'rejected' || selectedImage.status === 'invalid_exif') && (
+                  <div className="naxatw-mt-4 naxatw-pt-4 naxatw-border-t naxatw-border-gray-200">
+                    <Button
+                      variant="ghost"
+                      className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700"
+                      onClick={() => acceptImageMutation.mutate(selectedImage.id)}
+                      disabled={acceptImageMutation.isPending}
+                      leftIcon="check"
+                    >
+                      {acceptImageMutation.isPending ? 'Processing...' : 'Mark as Good'}
+                    </Button>
+                    <p className="naxatw-mt-2 naxatw-text-xs naxatw-text-gray-500">
+                      If this image is valid and should be included, click to override the rejection.
                     </p>
                   </div>
                 )}

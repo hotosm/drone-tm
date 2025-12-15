@@ -64,10 +64,13 @@ const UppyFileUploader = ({
       },
     });
 
-    // Check if AwsS3 plugin is already added, if not add it
+    // Remove existing AwsS3 plugin and re-add with fresh configuration
     const pluginId = 'AwsS3';
-    if (!uppy.getPlugin(pluginId)) {
-      uppy.use(AwsS3, {
+    const existingPlugin = uppy.getPlugin(pluginId);
+    if (existingPlugin) {
+      uppy.removePlugin(existingPlugin);
+    }
+    uppy.use(AwsS3, {
         id: pluginId,
       limit: 4, // Upload 4 parts simultaneously
       retryDelays: [0, 1000, 3000, 5000],
@@ -195,7 +198,6 @@ const UppyFileUploader = ({
         }
       },
     });
-    }
 
     // Cleanup function
     return () => {
@@ -206,6 +208,10 @@ const UppyFileUploader = ({
 
 
   useEffect(() => {
+    // Reset batch ID when component mounts to ensure fresh state
+    batchIdRef.current = null;
+    notificationShownRef.current = false;
+
     // Generate batch ID when upload starts (for staging uploads only)
     const handleUpload = () => {
       if (staging && !batchIdRef.current) {

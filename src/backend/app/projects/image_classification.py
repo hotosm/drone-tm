@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta
@@ -9,11 +10,15 @@ from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 from app.models.enums import ImageStatus
 from app.s3 import get_obj_from_bucket, s3_client
 from app.utils import strip_presigned_url_for_local_dev
+
+# Number of concurrent workers for parallel classification
+CLASSIFICATION_CONCURRENCY = 10
 
 
 MIN_GIMBAL_ANGLE = 10.0
@@ -188,7 +193,7 @@ class ImageClassifier:
 
         # Check EXIF data
         if not exif_data:
-            issues.append("No EXIF data found")
+            issues.append("Image is missing camera information (EXIF data)")
             logs.append(
                 {"action": "EXIF Check", "details": "No EXIF data", "status": "error"}
             )
@@ -206,7 +211,7 @@ class ImageClassifier:
         longitude = exif_data.get("GPSLongitude")
 
         if latitude is None or longitude is None:
-            issues.append("No GPS coordinates in EXIF")
+            issues.append("Image is missing GPS location data")
             logs.append(
                 {
                     "action": "GPS Check",
@@ -243,7 +248,7 @@ class ImageClassifier:
         )
         if gimbal_angle is not None and gimbal_angle > MIN_GIMBAL_ANGLE:
             issues.append(
-                f"Gimbal angle {gimbal_angle:.1f}° too shallow (must be < {MIN_GIMBAL_ANGLE}°)"
+                f"Camera angle is too tilted ({gimbal_angle:.0f}°). Please capture images pointing straight down."
             )
             logs.append(
                 {
@@ -264,7 +269,10 @@ class ImageClassifier:
         # If there are any issues, reject the image with all reasons
         if issues:
             # Determine the primary status based on issue types
-            has_exif_issue = any("EXIF" in issue or "GPS" in issue for issue in issues)
+            has_exif_issue = any(
+                "camera information" in issue.lower() or "gps" in issue.lower()
+                for issue in issues
+            )
             rejection_reason = "; ".join(issues)
 
             status = (
@@ -303,12 +311,15 @@ class ImageClassifier:
 
         if not task_id:
             await ImageClassifier._update_image_status(
-                db, image_id, ImageStatus.UNMATCHED, "No matching task boundary"
+                db,
+                image_id,
+                ImageStatus.UNMATCHED,
+                "Image location is outside of all task areas",
             )
             logs.append(
                 {
                     "action": "UNMATCHED",
-                    "details": "No matching task boundary found",
+                    "details": "Image location is outside of all task areas",
                     "status": "warning",
                 }
             )
@@ -397,25 +408,27 @@ class ImageClassifier:
 
     @staticmethod
     async def classify_batch(
-        db: Connection, batch_id: uuid.UUID, project_id: uuid.UUID
+        db_pool: AsyncConnectionPool, batch_id: uuid.UUID, project_id: uuid.UUID
     ) -> dict:
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT id
-                FROM project_images
-                WHERE batch_id = %(batch_id)s
-                AND project_id = %(project_id)s
-                AND status = %(status)s
-                ORDER BY uploaded_at
-                """,
-                {
-                    "batch_id": str(batch_id),
-                    "project_id": str(project_id),
-                    "status": ImageStatus.STAGED.value,
-                },
-            )
-            images = await cur.fetchall()
+        # Use a connection just to fetch the list of images
+        async with db_pool.connection() as db:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT id
+                    FROM project_images
+                    WHERE batch_id = %(batch_id)s
+                    AND project_id = %(project_id)s
+                    AND status = %(status)s
+                    ORDER BY uploaded_at
+                    """,
+                    {
+                        "batch_id": str(batch_id),
+                        "project_id": str(project_id),
+                        "status": ImageStatus.STAGED.value,
+                    },
+                )
+                images = await cur.fetchall()
 
         if not images:
             return {
@@ -439,37 +452,65 @@ class ImageClassifier:
             "images": [],
         }
 
-        for image in images:
-            # image["id"] may already be a UUID object from the database
-            image_id = (
-                image["id"]
-                if isinstance(image["id"], uuid.UUID)
-                else uuid.UUID(image["id"])
-            )
+        # Use a semaphore to limit concurrency
+        semaphore = asyncio.Semaphore(CLASSIFICATION_CONCURRENCY)
+        # Lock for thread-safe counter updates
+        results_lock = asyncio.Lock()
 
-            async with db.cursor() as cur:
-                await cur.execute(
-                    "UPDATE project_images SET status = %(status)s WHERE id = %(image_id)s",
-                    {
-                        "status": ImageStatus.CLASSIFYING.value,
-                        "image_id": str(image_id),
-                    },
+        async def classify_with_commit(image_record: dict) -> dict:
+            """Classify a single image with its own connection for proper isolation."""
+            async with semaphore:
+                image_id = (
+                    image_record["id"]
+                    if isinstance(image_record["id"], uuid.UUID)
+                    else uuid.UUID(image_record["id"])
                 )
 
-            result = await ImageClassifier.classify_single_image(
-                db, image_id, project_id
-            )
+                # Each worker gets its own connection from the pool
+                async with db_pool.connection() as conn:
+                    # Update status to classifying
+                    async with conn.cursor() as cur:
+                        await cur.execute(
+                            "UPDATE project_images SET status = %(status)s WHERE id = %(image_id)s",
+                            {
+                                "status": ImageStatus.CLASSIFYING.value,
+                                "image_id": str(image_id),
+                            },
+                        )
+                    # Commit the classifying status so frontend can see progress
+                    await conn.commit()
 
-            if result["status"] == ImageStatus.ASSIGNED:
-                results["assigned"] += 1
-            elif result["status"] == ImageStatus.REJECTED:
-                results["rejected"] += 1
-            elif result["status"] == ImageStatus.UNMATCHED:
-                results["unmatched"] += 1
-            elif result["status"] == ImageStatus.INVALID_EXIF:
-                results["invalid"] += 1
+                    # Perform classification
+                    result = await ImageClassifier.classify_single_image(
+                        conn, image_id, project_id
+                    )
 
-            results["images"].append(result)
+                    # Commit the classification result immediately
+                    await conn.commit()
+
+                # Update counters thread-safely
+                async with results_lock:
+                    if result["status"] == ImageStatus.ASSIGNED:
+                        results["assigned"] += 1
+                    elif result["status"] == ImageStatus.REJECTED:
+                        results["rejected"] += 1
+                    elif result["status"] == ImageStatus.UNMATCHED:
+                        results["unmatched"] += 1
+                    elif result["status"] == ImageStatus.INVALID_EXIF:
+                        results["invalid"] += 1
+                    results["images"].append(result)
+
+                return result
+
+        # Process all images in parallel with controlled concurrency
+        tasks = [classify_with_commit(image) for image in images]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        log.info(
+            f"Parallel classification complete for batch {batch_id}: "
+            f"{results['assigned']} assigned, {results['rejected']} rejected, "
+            f"{results['unmatched']} unmatched, {results['invalid']} invalid"
+        )
 
         return results
 
@@ -560,6 +601,7 @@ class ImageClassifier:
                         's3_key', pi.s3_key,
                         'thumbnail_url', pi.thumbnail_url,
                         'status', pi.status,
+                        'rejection_reason', pi.rejection_reason,
                         'uploaded_at', pi.uploaded_at
                     ) ORDER BY pi.uploaded_at
                 ) as images
@@ -567,7 +609,7 @@ class ImageClassifier:
             LEFT JOIN tasks t ON pi.task_id = t.id
             WHERE pi.batch_id = %(batch_id)s
             AND pi.project_id = %(project_id)s
-            AND pi.status IN ('assigned', 'unmatched')
+            AND pi.status IN ('assigned', 'rejected', 'invalid_exif')
             GROUP BY pi.task_id, t.project_task_index
             ORDER BY t.project_task_index NULLS LAST
         """
@@ -607,4 +649,217 @@ class ImageClassifier:
             "task_groups": task_groups,
             "total_tasks": len(task_groups),
             "total_images": sum(group["image_count"] for group in task_groups),
+        }
+
+    @staticmethod
+    async def accept_image(
+        db: Connection,
+        image_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        # Get image location
+        query = """
+            SELECT
+                ST_X(location::geometry) as longitude,
+                ST_Y(location::geometry) as latitude
+            FROM project_images
+            WHERE id = %(image_id)s
+            AND project_id = %(project_id)s
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query, {"image_id": str(image_id), "project_id": str(project_id)}
+            )
+            result = await cur.fetchone()
+
+        if not result:
+            raise ValueError("Image not found")
+
+        latitude = result.get("latitude")
+        longitude = result.get("longitude")
+
+        if latitude is None or longitude is None:
+            raise ValueError("Image has no GPS coordinates")
+
+        # Find matching task
+        task_id = await ImageClassifier.find_matching_task(
+            db, project_id, latitude, longitude
+        )
+
+        if not task_id:
+            # Update status to unmatched instead of throwing an error
+            await ImageClassifier._update_image_status(
+                db,
+                image_id,
+                ImageStatus.UNMATCHED,
+                "Image location is outside of all task areas",
+            )
+            return {
+                "message": "Image does not fall within any task boundary",
+                "image_id": str(image_id),
+                "status": "unmatched",
+                "task_id": None,
+            }
+
+        # Update image status to assigned
+        await ImageClassifier._assign_image_to_task(db, image_id, task_id)
+
+        return {
+            "message": "Image accepted successfully",
+            "image_id": str(image_id),
+            "status": "assigned",
+            "task_id": str(task_id),
+        }
+
+    @staticmethod
+    async def delete_batch(
+        db: Connection,
+        batch_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        # Get count of images to be deleted
+        count_query = """
+            SELECT COUNT(*) as count
+            FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                count_query,
+                {"batch_id": str(batch_id), "project_id": str(project_id)},
+            )
+            result = await cur.fetchone()
+            image_count = result["count"] if result else 0
+
+        # Delete all images in the batch
+        delete_query = """
+            DELETE FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+        """
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                delete_query,
+                {"batch_id": str(batch_id), "project_id": str(project_id)},
+            )
+
+        log.info(
+            f"Deleted {image_count} images from batch {batch_id} in project {project_id}"
+        )
+
+        return {
+            "message": "Batch deleted successfully",
+            "batch_id": str(batch_id),
+            "deleted_count": image_count,
+        }
+
+    @staticmethod
+    async def get_batch_map_data(
+        db: Connection,
+        batch_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Get map data for batch review visualization.
+
+        Returns task geometries and image point locations as GeoJSON.
+        """
+        # Get all task IDs that have images in this batch
+        task_ids_query = """
+            SELECT DISTINCT task_id
+            FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+            AND task_id IS NOT NULL
+        """
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                task_ids_query,
+                {"batch_id": str(batch_id), "project_id": str(project_id)},
+            )
+            task_rows = await cur.fetchall()
+
+        task_ids = [str(row[0]) for row in task_rows if row[0]]
+
+        # Get task geometries as GeoJSON
+        tasks_geojson = {"type": "FeatureCollection", "features": []}
+        if task_ids:
+            tasks_query = """
+                SELECT
+                    id,
+                    project_task_index,
+                    ST_AsGeoJSON(outline)::json as geometry
+                FROM tasks
+                WHERE id = ANY(%(task_ids)s::uuid[])
+            """
+
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(tasks_query, {"task_ids": task_ids})
+                tasks = await cur.fetchall()
+
+            for task in tasks:
+                tasks_geojson["features"].append(
+                    {
+                        "type": "Feature",
+                        "geometry": task["geometry"],
+                        "properties": {
+                            "id": str(task["id"]),
+                            "task_index": task["project_task_index"],
+                        },
+                    }
+                )
+
+        # Get image locations as GeoJSON points
+        images_query = """
+            SELECT
+                id,
+                filename,
+                status,
+                task_id,
+                ST_X(location::geometry) as longitude,
+                ST_Y(location::geometry) as latitude
+            FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+            AND location IS NOT NULL
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                images_query,
+                {"batch_id": str(batch_id), "project_id": str(project_id)},
+            )
+            images = await cur.fetchall()
+
+        images_geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [img["longitude"], img["latitude"]],
+                    },
+                    "properties": {
+                        "id": str(img["id"]),
+                        "filename": img["filename"],
+                        "status": img["status"],
+                        "task_id": str(img["task_id"]) if img["task_id"] else None,
+                    },
+                }
+                for img in images
+                if img["longitude"] is not None and img["latitude"] is not None
+            ],
+        }
+
+        return {
+            "batch_id": str(batch_id),
+            "tasks": tasks_geojson,
+            "images": images_geojson,
+            "total_tasks": len(tasks_geojson["features"]),
+            "total_images": len(images_geojson["features"]),
         }

@@ -371,23 +371,123 @@ async def classify_image_batch(
         raise RuntimeError("Database pool not initialized in ARQ context")
 
     try:
-        async with db_pool.connection() as conn:
-            result = await ImageClassifier.classify_batch(
-                conn,
-                UUID(batch_id),
-                UUID(project_id),
-            )
+        # Pass the pool directly so classify_batch can get separate connections
+        # for each parallel worker
+        result = await ImageClassifier.classify_batch(
+            db_pool,
+            UUID(batch_id),
+            UUID(project_id),
+        )
 
-            log.info(
-                f"Batch classification complete: "
-                f"Total={result['total']}, Assigned={result['assigned']}, "
-                f"Rejected={result['rejected']}, Unmatched={result['unmatched']}"
-            )
+        log.info(
+            f"Batch classification complete: "
+            f"Total={result['total']}, Assigned={result['assigned']}, "
+            f"Rejected={result['rejected']}, Unmatched={result['unmatched']}"
+        )
 
-            return result
+        return result
 
     except Exception as e:
         log.error(f"Batch classification failed: {str(e)}")
+        raise
+
+
+async def delete_batch_images(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    batch_id: str,
+) -> Dict[str, Any]:
+    """Background task to delete all images in a batch from both database and S3.
+
+    Args:
+        ctx: ARQ context
+        project_id: UUID of the project
+        batch_id: UUID of the batch to delete
+
+    Returns:
+        dict: Deletion result with counts
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting delete_batch_images (Job ID: {job_id}): batch={batch_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            # Get all S3 keys for images and thumbnails in this batch
+            query = """
+                SELECT s3_key, thumbnail_url
+                FROM project_images
+                WHERE batch_id = %(batch_id)s
+                AND project_id = %(project_id)s
+            """
+
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    query,
+                    {"batch_id": batch_id, "project_id": project_id},
+                )
+                rows = await cur.fetchall()
+
+            # Collect all S3 keys to delete
+            s3_keys_to_delete = []
+            for row in rows:
+                s3_key, thumbnail_url = row
+                if s3_key:
+                    s3_keys_to_delete.append(s3_key)
+                if thumbnail_url:
+                    s3_keys_to_delete.append(thumbnail_url)
+
+            image_count = len(rows)
+            log.info(
+                f"Found {image_count} images and {len(s3_keys_to_delete)} S3 objects to delete"
+            )
+
+            # Delete from S3
+            deleted_s3_count = 0
+            if s3_keys_to_delete:
+                client = s3_client()
+                for key in s3_keys_to_delete:
+                    try:
+                        key = key.lstrip("/")
+                        client.remove_object(settings.S3_BUCKET_NAME, key)
+                        deleted_s3_count += 1
+                    except Exception as e:
+                        log.warning(f"Failed to delete S3 object {key}: {e}")
+
+            log.info(f"Deleted {deleted_s3_count} objects from S3")
+
+            # Delete from database
+            delete_query = """
+                DELETE FROM project_images
+                WHERE batch_id = %(batch_id)s
+                AND project_id = %(project_id)s
+            """
+
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    delete_query,
+                    {"batch_id": batch_id, "project_id": project_id},
+                )
+
+            await conn.commit()
+
+            log.info(
+                f"Batch deletion complete: {image_count} images, "
+                f"{deleted_s3_count} S3 objects deleted"
+            )
+
+            return {
+                "message": "Batch deleted successfully",
+                "batch_id": batch_id,
+                "deleted_images": image_count,
+                "deleted_s3_objects": deleted_s3_count,
+            }
+
+    except Exception as e:
+        log.error(f"Failed to delete batch (Job: {job_id}): {str(e)}")
         raise
 
 
@@ -402,6 +502,7 @@ class WorkerSettings:
         process_all_drone_images,
         process_uploaded_image,
         classify_image_batch,
+        delete_batch_images,
     ]
 
     queue_name = "default_queue"

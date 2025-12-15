@@ -193,3 +193,81 @@ async def get_batch_review(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to retrieve batch review data: {e}",
         )
+
+
+@router.post("/{project_id}/images/{image_id}/accept/", tags=["Image Classification"])
+async def accept_image(
+    project_id: UUID,
+    image_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    try:
+        result = await ImageClassifier.accept_image(db, image_id, project_id)
+        return result
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        log.error(f"Failed to accept image: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to accept image: {e}",
+        )
+
+
+@router.get("/{project_id}/batch/{batch_id}/map-data/", tags=["Image Classification"])
+async def get_batch_map_data(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get map data for batch review: task geometries and image point locations."""
+    try:
+        map_data = await ImageClassifier.get_batch_map_data(db, batch_id, project_id)
+        return map_data
+
+    except Exception as e:
+        log.error(f"Failed to get batch map data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch map data: {e}",
+        )
+
+
+@router.delete("/{project_id}/batch/{batch_id}/", tags=["Image Classification"])
+async def delete_batch(
+    project_id: UUID,
+    batch_id: UUID,
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    try:
+        # Enqueue the deletion job to run in background
+        job = await redis.enqueue_job(
+            "delete_batch_images",
+            str(project_id),
+            str(batch_id),
+            _queue_name="default_queue",
+        )
+
+        log.info(
+            f"Queued batch deletion job: {job.job_id} for batch: {batch_id}"
+        )
+
+        return {
+            "message": "Batch deletion started",
+            "job_id": job.job_id,
+            "batch_id": str(batch_id),
+        }
+
+    except Exception as e:
+        log.error(f"Failed to queue batch deletion: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to delete batch: {e}",
+        )

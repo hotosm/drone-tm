@@ -31,7 +31,8 @@ export interface TaskGroupImage {
   s3_key: string;
   thumbnail_url?: string;
   url?: string;
-  status: 'assigned' | 'unmatched';
+  status: 'assigned' | 'rejected' | 'invalid_exif';
+  rejection_reason?: string;
   uploaded_at: string;
 }
 
@@ -106,6 +107,53 @@ export const getBatchReview = async (
 ): Promise<BatchReviewData> => {
   const response = await authenticated(api).get(
     `/projects/${projectId}/batch/${batchId}/review/`,
+  );
+  return response.data;
+};
+
+/**
+ * Accept a rejected image - assigns to task if within boundary, otherwise marks as unmatched
+ */
+export const acceptImage = async (
+  projectId: string,
+  imageId: string,
+): Promise<{ message: string; image_id: string; status: string; task_id: string | null }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/images/${imageId}/accept/`,
+  );
+  return response.data;
+};
+
+/**
+ * Delete a batch and all its images from database and S3 storage
+ */
+export const deleteBatch = async (
+  projectId: string,
+  batchId: string,
+): Promise<{ message: string; batch_id: string; job_id: string }> => {
+  const response = await authenticated(api).delete(
+    `/projects/${projectId}/batch/${batchId}/`,
+  );
+  return response.data;
+};
+
+export interface BatchMapData {
+  batch_id: string;
+  tasks: GeoJSON.FeatureCollection;
+  images: GeoJSON.FeatureCollection;
+  total_tasks: number;
+  total_images: number;
+}
+
+/**
+ * Get map data for batch review (task geometries and image point locations)
+ */
+export const getBatchMapData = async (
+  projectId: string,
+  batchId: string,
+): Promise<BatchMapData> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/batch/${batchId}/map-data/`,
   );
   return response.data;
 };

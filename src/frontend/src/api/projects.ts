@@ -136,9 +136,9 @@ export const useGetBatchImagesQuery = (
   projectId: string,
   batchId: string,
   since?: string,
-  queryOptions?: Partial<UseQueryOptions>,
+  queryOptions?: Partial<UseQueryOptions<ImageClassificationResult[]>>,
 ) => {
-  return useQuery({
+  return useQuery<ImageClassificationResult[]>({
     queryKey: ['batch-images', projectId, batchId, since],
     queryFn: () => getBatchImages(projectId, batchId, since),
     enabled: !!projectId && !!batchId,
