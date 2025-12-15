@@ -1,3 +1,4 @@
+from enum import Enum
 import os
 import base64
 import secrets
@@ -8,6 +9,7 @@ import bcrypt
 from loguru import logger as log
 from pydantic import (
     BeforeValidator,
+    Field,
     EmailStr,
     TypeAdapter,
     ValidationInfo,
@@ -26,6 +28,68 @@ HttpUrlStr = Annotated[
         lambda value: str(TypeAdapter(HttpUrl).validate_python(value) if value else "")
     ),
 ]
+
+
+class MonitoringTypes(str, Enum):
+    """Configuration options for monitoring."""
+
+    NONE = ""
+    SENTRY = "sentry"
+
+
+class OtelSettings(BaseSettings):
+    """Inherited OpenTelemetry specific settings (monitoring).
+
+    These mostly set environment variables set by the OTEL SDK.
+    """
+
+    SITE_NAME: Optional[str] = Field(exclude=True)
+    LOG_LEVEL: Optional[str] = Field(exclude=True)
+
+    @computed_field
+    @property
+    def otel_log_level(self) -> Optional[str]:
+        """Set OpenTelemetry log level."""
+        if self.LOG_LEVEL:
+            log_level = self.LOG_LEVEL.lower()
+            # NOTE setting to DEBUG makes very verbose for every library
+            os.environ["OTEL_LOG_LEVEL"] = log_level
+        return log_level
+
+    @computed_field
+    @property
+    def otel_service_name(self) -> Optional[HttpUrlStr]:
+        """Set OpenTelemetry service name for traces."""
+        service_name = "unknown"
+        if self.SITE_NAME:
+            # Return name with underscores
+            service_name = self.SITE_NAME.lower().replace(" ", "-")
+            # Export to environment for OTEL instrumentation
+            os.environ["OTEL_SERVICE_NAME"] = service_name
+        return service_name
+
+    @computed_field
+    @property
+    def otel_python_excluded_urls(self) -> Optional[str]:
+        """Set excluded URLs for Python instrumentation."""
+        endpoints = "__lbheartbeat__,docs,openapi.json"
+        os.environ["OTEL_PYTHON_EXCLUDED_URLS"] = endpoints
+
+        return endpoints
+
+    @computed_field
+    @property
+    def otel_python_log_correlation(self) -> Optional[str]:
+        """Set log correlation for OpenTelemetry Python spans."""
+        value = "true"
+        os.environ["OTEL_PYTHON_LOG_CORRELATION"] = value
+        return value
+
+
+class SentrySettings(OtelSettings):
+    """Optional Sentry OpenTelemetry specific settings (monitoring)."""
+
+    SENTRY_DSN: HttpUrlStr
 
 
 class Settings(BaseSettings):
@@ -107,6 +171,17 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
+
+    MONITORING: Optional[MonitoringTypes] = None
+
+    @computed_field
+    @property
+    def monitoring_config(self) -> Optional[SentrySettings]:
+        """Get the monitoring configuration."""
+        if self.MONITORING == MonitoringTypes.SENTRY:
+            return SentrySettings()
+
+        return None
 
     # SMTP Configurations
     SMTP_TLS: bool = True

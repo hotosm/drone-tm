@@ -18,10 +18,19 @@ class DroneType(StrEnum):
     LITCHI = "LITCHI"
 
 
+# Battery life is calculated using a constant average speed of 11.5 m/s, using
+# the quoted max flight time and the speed of the drone used for that test from the manufacturer.
+# For any drones which are added that have a max speed of less than 11.5 m/s, it shouldn't be relevant
+# as they can't get to that speed anyway, so we can just use the estimated battery life at those drones'
+# maximum speeds.
+# Results were estimated based on simulating a moderate drag force on the drone during flight
+# at 11.5 m/s. TODO - Will need testing to see how realistic these speeds are.
 DRONE_SPECS = {
     DroneType.DJI_MINI_4_PRO: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
+        # Testing speed is in kmph
+        "max_battery_life_minutes": {"quoted_value": 34, "tested_value": 21.6},
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -30,6 +39,7 @@ DRONE_SPECS = {
     DroneType.DJI_AIR_3: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": {"quoted_value": 46, "tested_value": 28.8},
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -38,6 +48,7 @@ DRONE_SPECS = {
     DroneType.DJI_MINI_5_PRO: {
         # 1-inch CMOS
         # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": {"quoted_value": 36, "tested_value": 21.6},
         "sensor_height_mm": 9.6,
         "sensor_width_mm": 12.8,
         "equiv_focal_length_mm": 24,
@@ -46,6 +57,7 @@ DRONE_SPECS = {
     DroneType.POTENSIC_ATOM_2: {
         # 1/2-inch CMOS
         # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": {"quoted_value": 32, "tested_value": 18},
         "sensor_height_mm": 4.80,
         "sensor_width_mm": 6.40,
         "equiv_focal_length_mm": 26,
@@ -60,6 +72,7 @@ DRONE_SPECS = {
         "equiv_focal_length_mm": 24,
         "image_width_px": 4032,
     },
+    # TODO - need to find a way to calculate battery life for the Mavlink
     DroneType.MAVLINK: {
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,

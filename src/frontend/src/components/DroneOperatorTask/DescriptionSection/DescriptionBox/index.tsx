@@ -144,7 +144,7 @@ const DescriptionBox = () => {
                 value: taskWayPoints?.length,
               },
               {
-                name: 'Est. flight time',
+                name: 'Est. flight time*',
                 value: taskData?.flight_time_minutes
                   ? `${Number(taskData?.flight_time_minutes)?.toFixed(3)} minutes`
                   : null,
@@ -243,6 +243,11 @@ const DescriptionBox = () => {
             data={description?.data}
           />
         ))}
+        <p className="naxatw-text-[0.75rem] naxatw-text-[#212121]">
+          {/* TODO - we might need to change this value if a drone is added which cannot
+          achieve this speed */}
+          *This flight time was calculated using an average ground speed of 11.5 m/s.
+        </p>
       </div>
 
       {/* Drone Image Processing Workflow Modal */}

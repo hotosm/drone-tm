@@ -18,6 +18,8 @@ export const waypointModeOptions = [
   { label: 'Waypoints', value: 'waypoints' },
 ];
 
+export const waypointUpperLimit = 200;
+
 // FIXME we need a separate DroneType and OutputFormat
 // instead of this hack to reuse DroneType
 export const droneModelOptions = [

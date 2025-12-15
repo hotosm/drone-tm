@@ -8,6 +8,16 @@ from typing import Any, Dict
 import geojson
 import pyproj
 import shapely.wkb as wkblib
+from fastapi import BackgroundTasks, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from geojson import Feature, FeatureCollection
+from loguru import logger as log
+from minio.error import S3Error
+from psycopg import Connection
+from psycopg.rows import dict_row
+from shapely.geometry import shape
+from shapely.ops import transform
+
 from drone_flightplan import (
     add_elevation_from_dem,
     calculate_parameters,
@@ -24,9 +34,10 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from shapely.geometry import shape
 from shapely.ops import transform
+from drone_flightplan.enums import FlightMode
 
 from app.config import settings
-from app.models.enums import FlightMode, ImageProcessingStatus, OAMUploadStatus
+from app.models.enums import ImageProcessingStatus, OAMUploadStatus
 from app.projects import project_schemas
 from app.projects.image_processing import DroneImageProcessor
 from app.s3 import (
@@ -801,10 +812,10 @@ async def process_waypoints_and_waylines(
         # Generate waypoints and waylines
         waypoint_params["mode"] = FlightMode.WAYPOINTS
         points = create_waypoint(**waypoint_params)
-        count_data["waypoints"] = len(json.loads(points)["features"])
+        count_data["waypoints"] = len(json.loads(points["geojson"])["features"])
 
         waypoint_params["mode"] = FlightMode.WAYLINES
         lines = create_waypoint(**waypoint_params)
-        count_data["waylines"] = len(json.loads(lines)["features"])
+        count_data["waylines"] = len(json.loads(lines["geojson"])["features"])
 
     return count_data

@@ -13,6 +13,24 @@ export default function VectorLayerWithCluster({
   useEffect(() => {
     if (!map || !mapLoaded || !visibleOnMap || !sourceId) return;
 
+    // Ensure a basic OSM raster basemap is present so the map is never blank
+    // when failing to load vector tiles
+    if (!map.getSource('osm-raster')) {
+      map.addSource('osm-raster', {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '© OpenStreetMap contributors',
+      });
+    }
+    if (!map.getLayer('osm-raster')) {
+      map.addLayer({
+        id: 'osm-raster',
+        type: 'raster',
+        source: 'osm-raster',
+      });
+    }
+
     !map.getSource(sourceId) &&
       map.addSource(sourceId, {
         type: 'geojson',

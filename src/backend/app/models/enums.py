@@ -204,17 +204,6 @@ class EventType(StrEnum):
     IMAGE_PROCESSING_START = "image_processing_start"
 
 
-class FlightMode(StrEnum):
-    """The flight mode of the drone.
-    The flight mode can be:
-    - ``waylines``
-    - ``waypoints``
-    """
-
-    WAYLINES = "waylines"
-    WAYPOINTS = "waypoints"
-
-
 class ProjectCompletionStatus(StrEnum):
     """Enum to describe all possible project completion status."""
 

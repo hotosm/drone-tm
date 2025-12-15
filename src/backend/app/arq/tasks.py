@@ -15,7 +15,6 @@ from app.images.image_logic import (
     calculate_file_hash,
     check_duplicate_image,
     create_project_image,
-    extract_exif_data,
     mark_image_as_duplicate,
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut

@@ -13,7 +13,7 @@ from psycopg import Connection
 from psycopg_pool import AsyncConnectionPool
 
 from app.__version__ import __version__
-from app.config import settings
+from app.config import settings, MonitoringTypes
 from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
@@ -120,6 +120,24 @@ def get_application() -> FastAPI:
 async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
+
+    if (
+        settings.MONITORING == MonitoringTypes.SENTRY
+        and settings.monitoring_config.SENTRY_DSN
+    ):
+        try:
+            from app.monitoring import set_sentry_otel_tracer, instrument_app_otel
+
+            log.info("Adding Sentry OpenTelemetry monitoring config")
+            set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)
+            instrument_app_otel(app)
+        except ImportError:
+            log.warning(
+                """
+                Sentry monitoring is enabled, but dependencies are not installed.
+                Ensure that the MONITORING env variable is populated and try restarting the build process for the backend Docker image.
+                """
+            )
 
     async with AsyncConnectionPool(
         conninfo=settings.DTM_DB_URL.unicode_string()
