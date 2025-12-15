@@ -53,7 +53,7 @@ export default function VectorLayerWithCluster({
       });
 
     map.setGlyphs(
-      'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+      'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     );
 
     !map.getLayer('cluster-count') &&
