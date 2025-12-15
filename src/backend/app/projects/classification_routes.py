@@ -255,9 +255,7 @@ async def delete_batch(
             _queue_name="default_queue",
         )
 
-        log.info(
-            f"Queued batch deletion job: {job.job_id} for batch: {batch_id}"
-        )
+        log.info(f"Queued batch deletion job: {job.job_id} for batch: {batch_id}")
 
         return {
             "message": "Batch deletion started",

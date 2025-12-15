@@ -300,7 +300,11 @@ async def process_uploaded_image(
                 if "/images/" not in file_key:
                     # Fallback: add thumb_ prefix
                     parts = file_key.rsplit("/", 1)
-                    thumbnail_s3_key = f"{parts[0]}/thumb_{parts[1]}" if len(parts) > 1 else f"thumb_{file_key}"
+                    thumbnail_s3_key = (
+                        f"{parts[0]}/thumb_{parts[1]}"
+                        if len(parts) > 1
+                        else f"thumb_{file_key}"
+                    )
 
                 # Upload thumbnail to S3
                 log.info(f"Uploading thumbnail to S3: {thumbnail_s3_key}")
@@ -317,7 +321,9 @@ async def process_uploaded_image(
                 log.info(f"Thumbnail generated and uploaded: {thumbnail_s3_key}")
 
             except Exception as thumb_error:
-                log.warning(f"Failed to generate/upload thumbnail for {filename}: {thumb_error}")
+                log.warning(
+                    f"Failed to generate/upload thumbnail for {filename}: {thumb_error}"
+                )
                 # Continue even if thumbnail generation fails
                 thumbnail_s3_key = None
 

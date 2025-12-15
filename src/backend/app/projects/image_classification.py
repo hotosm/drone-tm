@@ -638,7 +638,9 @@ class ImageClassifier:
                 if image.get("s3_key"):
                     client = s3_client()
                     url = client.presigned_get_object(
-                        settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
+                        settings.S3_BUCKET_NAME,
+                        image["s3_key"],
+                        expires=timedelta(hours=1),
                     )
                     image["url"] = strip_presigned_url_for_local_dev(
                         url, strip_presign=False
