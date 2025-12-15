@@ -22,6 +22,7 @@ mod build 'tasks/build/Justfile'
 mod start 'tasks/start/Justfile'
 mod config 'tasks/config/Justfile'
 mod prep 'tasks/prep/Justfile'
+mod test 'tasks/test/Justfile'
 
 # List available commands
 [private]
