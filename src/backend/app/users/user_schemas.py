@@ -24,6 +24,7 @@ class AuthUser(BaseModel):
     name: str
     profile_img: Optional[str] = None
     role: str = None
+    is_superuser: bool = False
 
 
 class UserBase(BaseModel):

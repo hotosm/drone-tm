@@ -40,19 +40,10 @@ async def auth_user(db) -> AuthUser:
             name="admin",
             profile_img="",
             role=UserRole.PROJECT_CREATOR,
+            is_superuser = True
         ),
     )
-
-    await db.execute(
-        "UPDATE users SET is_superuser = true WHERE id = %s", (db_user.id,)
-    )
-    try:
-        await db.commit()
-    except AttributeError:
-        pass
-
     db_user.is_superuser = True
-
     return db_user
 
 
