@@ -220,12 +220,22 @@ async def process_task_metrics(db, tasks_data, project):
             except Exception:
                 points_with_elevation = points
 
-            placemarks = create_placemarks(
-                geojson.loads(points_with_elevation), parameters
-            )
+            if (
+                isinstance(points_with_elevation, dict)
+                and "geojson" in points_with_elevation
+            ):
+                points_str = points_with_elevation["geojson"]
+            else:
+                points_str = points_with_elevation
+
+            placemarks = create_placemarks(geojson.loads(points_str), parameters)
         else:
             points = create_waypoint(**waypoint_params)
-            placemarks = create_placemarks(geojson.loads(points), parameters)
+            if isinstance(points, dict) and "geojson" in points:
+                points_str = points["geojson"]
+            else:
+                points_str = points
+            placemarks = create_placemarks(geojson.loads(points_str), parameters)
 
         flight_metrics = calculate_flight_time_from_placemarks(placemarks)
         flight_time_minutes = flight_metrics.get("total_flight_time")

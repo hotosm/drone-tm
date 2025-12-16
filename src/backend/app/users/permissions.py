@@ -120,11 +120,11 @@ class HasObjectPermission(BasePermission):
     async def has_permission(
         self, user: Optional[DbUser], obj: Optional[Any] = None
     ) -> bool:
-        if not user or not obj:
-            return False
-
         if user.is_superuser:
             return True
+
+        if not user or not obj:
+            return False
 
         permissions = await self.get_user_permissions(user.id, obj)
         return self.permission_type in permissions
