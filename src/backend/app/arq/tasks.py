@@ -16,6 +16,7 @@ from app.images.image_logic import (
     check_duplicate_image,
     create_project_image,
     mark_image_as_duplicate,
+    extract_exif_data,
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import HTTPStatus, ImageStatus
