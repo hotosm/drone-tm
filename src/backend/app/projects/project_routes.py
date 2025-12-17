@@ -867,13 +867,17 @@ async def complete_upload(
         # NOTE: Each image is queued individually (not batched) to isolate failures.
         # If one image has corrupt EXIF data, others aren't affected. Redis/ARQ should
         # handle thousands of jobs, but monitor performance if queue length grows significantly.
+        # NOTE: _defer_by delays job execution by 2 seconds to allow S3/MinIO eventual
+        # consistency - the file may not be immediately readable after multipart upload completes.
         job = await redis.enqueue_job(
             "process_uploaded_image",
             str(data.project_id),
             data.file_key,
             data.filename,
             str(user.id),
+            str(data.batch_id) if data.batch_id else None,
             _queue_name="default_queue",
+            _defer_by=timedelta(seconds=2),
         )
 
         log.info(f"Queued image processing job: {job.job_id} for file: {data.filename}")

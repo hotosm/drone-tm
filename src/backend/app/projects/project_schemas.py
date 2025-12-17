@@ -743,6 +743,7 @@ class CompleteMultipartUploadRequest(BaseModel):
     parts: List[dict]  # List of {"PartNumber": int, "ETag": str}
     project_id: uuid.UUID
     filename: str
+    batch_id: Optional[uuid.UUID] = None  # Optional batch ID for grouping uploads
 
 
 class AbortMultipartUploadRequest(BaseModel):

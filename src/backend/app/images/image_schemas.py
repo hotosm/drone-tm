@@ -19,6 +19,7 @@ class ProjectImageBase(BaseModel):
         None  # Supports both {"lat": float, "lon": float} and GeoJSON
     )
     exif: Optional[dict[str, Any]] = None
+    thumbnail_url: Optional[str] = None  # S3 key for 200x200 thumbnail
 
     @field_validator("location", mode="before")
     @classmethod
@@ -51,6 +52,7 @@ class ProjectImageCreate(ProjectImageBase):
     task_id: Optional[UUID] = None
     uploaded_by: str  # User ID is a string (Google OAuth ID), not UUID
     status: ImageStatus = ImageStatus.STAGED
+    batch_id: Optional[UUID] = None  # For grouping uploaded images together
 
 
 class ProjectImageUpdate(BaseModel):
@@ -73,6 +75,8 @@ class ProjectImageOut(ProjectImageBase):
     classified_at: Optional[datetime]
     status: ImageStatus
     duplicate_of: Optional[UUID]
+    batch_id: Optional[UUID]
+    rejection_reason: Optional[str] = None
 
     class Config:
         """Pydantic config."""

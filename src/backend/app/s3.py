@@ -3,6 +3,7 @@ from io import BytesIO
 from typing import Any
 from urllib.parse import urljoin
 
+from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from minio import Minio
 from minio.commonconfig import CopySource
@@ -15,7 +16,7 @@ from app.utils import strip_presigned_url_for_local_dev
 
 def s3_client():
     """Return the initialised MinIO client with credentials."""
-    endpoint = settings.S3_ENDPOINT
+    endpoint = settings.S3_DOWNLOAD_ROOT
     minio_url, is_secure = is_connection_secure(endpoint)
 
     log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
@@ -167,6 +168,23 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
         if response:
             response.close()
             response.release_conn()
+
+
+async def async_get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
+    """Download an S3 object from a bucket and return it as a BytesIO object.
+
+    This async wrapper uses run_in_threadpool to handle the synchronous MinIO client
+    without blocking the event loop.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        s3_path (str): The path to the S3 object in the bucket.
+
+    Returns:
+        BytesIO: A BytesIO object containing the content of the downloaded S3 object.
+    """
+    # Use run_in_threadpool to handle the synchronous operation
+    return await run_in_threadpool(get_obj_from_bucket, bucket_name, s3_path)
 
 
 def get_image_dir_url(bucket_name: str, image_dir: str):
