@@ -21,7 +21,7 @@ export default function Navbar() {
             Tutorials
           </Link>
 
-          <a href="https://docs.dronetm.hotosm.org ">
+          <a href="https://docs.drone.hotosm.org ">
             <p className="naxatw-border-r naxatw-pr-3 hover:naxatw-underline">
               Documentation
             </p>
