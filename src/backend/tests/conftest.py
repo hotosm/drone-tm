@@ -40,7 +40,7 @@ async def auth_user(db) -> AuthUser:
             name="admin",
             profile_img="",
             role=UserRole.PROJECT_CREATOR,
-            is_superuser = True
+            is_superuser=True,
         ),
     )
     db_user.is_superuser = True

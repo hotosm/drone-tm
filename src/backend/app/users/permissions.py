@@ -122,10 +122,10 @@ class HasObjectPermission(BasePermission):
     ) -> bool:
         if not user:
             return False
-        
+
         if user.is_superuser:
             return True
-        
+
         if not obj:
             return False
 
