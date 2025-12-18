@@ -739,7 +739,7 @@ requires-dist = [
 
 [[package]]
 name = "drone-tm"
-version = "2025.4.0"
+version = "2025.5.0"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },

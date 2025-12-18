@@ -97,8 +97,10 @@ To get started with DroneTM:
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
 |✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.4.0][4] |
 |✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | Since [v2025.4.0][4] |
-|✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | TBC |
-|⚙️| 🖥️ support retries for dropped connections during photo uploads | |
+|✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | [v2025.5.0][5] |
+|✅| 📱 recommendations for user if they should use waypoint or wayline mode | [v2025.5.0][5] |
+|✅| 🖥️ support retries for dropped connections during photo uploads | TBC |
+|✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | TBC |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 |⚙️| 📱 entirely offline flightplan generation, directly on device | |
@@ -161,3 +163,4 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
 [4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
+[4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.5.0
