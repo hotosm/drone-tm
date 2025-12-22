@@ -91,45 +91,6 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 md:naxatw-grid-cols-3">
-        <div className="naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-p-4 naxatw-shadow-sm">
-          <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
-            <span className="material-icons naxatw-text-2xl naxatw-text-blue-500">grid_view</span>
-            <div>
-              <p className="naxatw-text-2xl naxatw-font-bold naxatw-text-gray-800">
-                {summary.total_tasks}
-              </p>
-              <p className="naxatw-text-sm naxatw-text-gray-500">Tasks</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-p-4 naxatw-shadow-sm">
-          <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
-            <span className="material-icons naxatw-text-2xl naxatw-text-green-500">photo_library</span>
-            <div>
-              <p className="naxatw-text-2xl naxatw-font-bold naxatw-text-gray-800">
-                {summary.total_images}
-              </p>
-              <p className="naxatw-text-sm naxatw-text-gray-500">Images</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-p-4 naxatw-shadow-sm">
-          <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
-            <span className="material-icons naxatw-text-2xl naxatw-text-purple-500">calculate</span>
-            <div>
-              <p className="naxatw-text-2xl naxatw-font-bold naxatw-text-gray-800">
-                {summary.total_tasks > 0 ? Math.round(summary.total_images / summary.total_tasks) : 0}
-              </p>
-              <p className="naxatw-text-sm naxatw-text-gray-500">Avg/Task</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Task List */}
       <div className="naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white">
         <div className="naxatw-border-b naxatw-border-gray-200 naxatw-px-4 naxatw-py-3">
