@@ -271,3 +271,67 @@ async def delete_batch(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to delete batch: {e}",
         )
+
+
+@router.get(
+    "/{project_id}/batch/{batch_id}/processing-summary/", tags=["Image Classification"]
+)
+async def get_batch_processing_summary(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get processing summary for batch - tasks and image counts ready for ODM."""
+    try:
+        summary = await ImageClassifier.get_batch_processing_summary(
+            db, batch_id, project_id
+        )
+        return summary
+
+    except Exception as e:
+        log.error(f"Failed to get batch processing summary: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch processing summary: {e}",
+        )
+
+
+@router.post("/{project_id}/batch/{batch_id}/process/", tags=["Image Classification"])
+async def process_batch(
+    project_id: UUID,
+    batch_id: UUID,
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Process a batch: move images to task folders and trigger ODM processing.
+
+    This endpoint:
+    1. Moves assigned images from user-uploads to their task folders in S3
+    2. Triggers ODM processing for each task with images
+    """
+    try:
+        # Enqueue the processing job to run in background
+        job = await redis.enqueue_job(
+            "process_batch_images",
+            str(project_id),
+            str(batch_id),
+            _queue_name="default_queue",
+        )
+
+        log.info(
+            f"Queued batch processing job: {job.job_id} for batch: {batch_id}"
+        )
+
+        return {
+            "message": "Batch processing started",
+            "job_id": job.job_id,
+            "batch_id": str(batch_id),
+        }
+
+    except Exception as e:
+        log.error(f"Failed to queue batch processing: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to start batch processing: {e}",
+        )

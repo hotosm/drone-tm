@@ -14,7 +14,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 from app.models.enums import ImageStatus
-from app.s3 import get_obj_from_bucket, s3_client
+from app.s3 import get_obj_from_bucket, s3_client, copy_file_within_bucket
 from app.utils import strip_presigned_url_for_local_dev
 
 # Number of concurrent workers for parallel classification
@@ -862,4 +862,185 @@ class ImageClassifier:
             "images": images_geojson,
             "total_tasks": len(tasks_geojson["features"]),
             "total_images": len(images_geojson["features"]),
+        }
+
+    @staticmethod
+    async def move_batch_images_to_tasks(
+        db: Connection,
+        batch_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Move assigned images from batch storage to their respective task folders.
+
+        After classification and review, images need to be moved from:
+        - Source: dtm-data/projects/{project_id}/user-uploads/{filename}
+        - Destination: dtm-data/projects/{project_id}/{task_id}/images/{filename}
+
+        This prepares the images for ODM processing.
+
+        Args:
+            db: Database connection
+            batch_id: The batch ID to process
+            project_id: The project ID
+
+        Returns:
+            dict: Summary of moved images per task
+        """
+        # Get all assigned images in this batch grouped by task
+        query = """
+            SELECT
+                id,
+                filename,
+                s3_key,
+                task_id
+            FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+            AND status = %(status)s
+            AND task_id IS NOT NULL
+            ORDER BY task_id, uploaded_at
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {
+                    "batch_id": str(batch_id),
+                    "project_id": str(project_id),
+                    "status": ImageStatus.ASSIGNED.value,
+                },
+            )
+            images = await cur.fetchall()
+
+        if not images:
+            return {
+                "batch_id": str(batch_id),
+                "message": "No assigned images to move",
+                "total_moved": 0,
+                "tasks": {},
+            }
+
+        # Group images by task
+        tasks_summary = {}
+        moved_count = 0
+        failed_count = 0
+
+        for image in images:
+            task_id = str(image["task_id"])
+            filename = image["filename"]
+            source_key = image["s3_key"]
+
+            # Construct destination path: dtm-data/projects/{project_id}/{task_id}/images/{filename}
+            dest_key = f"dtm-data/projects/{project_id}/{task_id}/images/{filename}"
+
+            # Copy file to task folder
+            success = await run_in_threadpool(
+                copy_file_within_bucket,
+                settings.S3_BUCKET_NAME,
+                source_key,
+                dest_key,
+            )
+
+            if success:
+                # Update the s3_key in database to point to new location
+                async with db.cursor() as update_cur:
+                    await update_cur.execute(
+                        """
+                        UPDATE project_images
+                        SET s3_key = %(new_s3_key)s
+                        WHERE id = %(image_id)s
+                        """,
+                        {
+                            "new_s3_key": dest_key,
+                            "image_id": str(image["id"]),
+                        },
+                    )
+
+                moved_count += 1
+
+                if task_id not in tasks_summary:
+                    tasks_summary[task_id] = {
+                        "task_id": task_id,
+                        "image_count": 0,
+                        "images": [],
+                    }
+                tasks_summary[task_id]["image_count"] += 1
+                tasks_summary[task_id]["images"].append(filename)
+
+                log.info(f"Moved image {filename} to task {task_id}")
+            else:
+                failed_count += 1
+                log.error(f"Failed to move image {filename} to task {task_id}")
+
+        log.info(
+            f"Batch {batch_id}: Moved {moved_count} images to {len(tasks_summary)} tasks, "
+            f"{failed_count} failed"
+        )
+
+        return {
+            "batch_id": str(batch_id),
+            "total_moved": moved_count,
+            "total_failed": failed_count,
+            "task_count": len(tasks_summary),
+            "tasks": tasks_summary,
+        }
+
+    @staticmethod
+    async def get_batch_processing_summary(
+        db: Connection,
+        batch_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Get a summary of assigned images for processing.
+
+        Returns task-grouped summary suitable for the Processing step UI.
+
+        Args:
+            db: Database connection
+            batch_id: The batch ID
+            project_id: The project ID
+
+        Returns:
+            dict: Summary with tasks and image counts ready for processing
+        """
+        query = """
+            SELECT
+                pi.task_id,
+                t.project_task_index,
+                COUNT(*) as image_count
+            FROM project_images pi
+            JOIN tasks t ON pi.task_id = t.id
+            WHERE pi.batch_id = %(batch_id)s
+            AND pi.project_id = %(project_id)s
+            AND pi.status = %(status)s
+            AND pi.task_id IS NOT NULL
+            GROUP BY pi.task_id, t.project_task_index
+            ORDER BY t.project_task_index
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {
+                    "batch_id": str(batch_id),
+                    "project_id": str(project_id),
+                    "status": ImageStatus.ASSIGNED.value,
+                },
+            )
+            task_groups = await cur.fetchall()
+
+        total_images = sum(group["image_count"] for group in task_groups)
+
+        return {
+            "batch_id": str(batch_id),
+            "total_tasks": len(task_groups),
+            "total_images": total_images,
+            "tasks": [
+                {
+                    "task_id": str(group["task_id"]),
+                    "task_index": group["project_task_index"],
+                    "image_count": group["image_count"],
+                }
+                for group in task_groups
+            ],
         }

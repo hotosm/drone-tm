@@ -157,3 +157,42 @@ export const getBatchMapData = async (
   );
   return response.data;
 };
+
+export interface ProcessingTask {
+  task_id: string;
+  task_index: number;
+  image_count: number;
+}
+
+export interface ProcessingSummary {
+  batch_id: string;
+  total_tasks: number;
+  total_images: number;
+  tasks: ProcessingTask[];
+}
+
+/**
+ * Get processing summary for a batch - tasks and image counts ready for ODM
+ */
+export const getProcessingSummary = async (
+  projectId: string,
+  batchId: string,
+): Promise<ProcessingSummary> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/batch/${batchId}/processing-summary/`,
+  );
+  return response.data;
+};
+
+/**
+ * Start batch processing - moves images to task folders and triggers ODM
+ */
+export const startBatchProcessing = async (
+  projectId: string,
+  batchId: string,
+): Promise<{ message: string; job_id: string; batch_id: string }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/batch/${batchId}/process/`,
+  );
+  return response.data;
+};

@@ -15,6 +15,7 @@ from app.images.image_logic import (
     calculate_file_hash,
     check_duplicate_image,
     create_project_image,
+    extract_exif_data,
     mark_image_as_duplicate,
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
@@ -391,6 +392,109 @@ async def classify_image_batch(
         raise
 
 
+async def process_batch_images(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    batch_id: str,
+) -> Dict[str, Any]:
+    """Background task to move batch images to task folders and trigger ODM processing.
+
+    This task:
+    1. Moves assigned images from user-uploads/ to {task_id}/images/ in S3
+    2. Triggers ODM processing for each task that has images
+
+    Args:
+        ctx: ARQ context
+        project_id: UUID of the project
+        batch_id: UUID of the batch to process
+
+    Returns:
+        dict: Processing result with task details
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting process_batch_images (Job ID: {job_id}): batch={batch_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            # Step 1: Move images to task folders
+            log.info(f"Moving batch {batch_id} images to task folders...")
+            move_result = await ImageClassifier.move_batch_images_to_tasks(
+                conn, UUID(batch_id), UUID(project_id)
+            )
+            await conn.commit()
+
+            log.info(
+                f"Moved {move_result['total_moved']} images to "
+                f"{move_result['task_count']} tasks"
+            )
+
+            if move_result["total_moved"] == 0:
+                return {
+                    "message": "No images to process",
+                    "batch_id": batch_id,
+                    "tasks_processed": 0,
+                }
+
+            # Step 2: Get the list of tasks to process
+            task_ids = list(move_result["tasks"].keys())
+
+            # Step 3: Trigger ODM processing for each task
+            # (We'll enqueue separate jobs for each task to parallelize)
+            redis = ctx.get("redis")
+            if not redis:
+                log.warning("Redis not available, cannot trigger ODM processing jobs")
+                return {
+                    "message": "Images moved but ODM processing not triggered",
+                    "batch_id": batch_id,
+                    "move_result": move_result,
+                }
+
+            odm_jobs = []
+            for task_id in task_ids:
+                # Get user_id from the first image in this task (for webhook)
+                task_images = move_result["tasks"][task_id]
+                log.info(
+                    f"Triggering ODM processing for task {task_id} "
+                    f"with {task_images['image_count']} images"
+                )
+
+                # Enqueue ODM processing job
+                # Note: We'll use a placeholder user_id for the webhook
+                # In production, you might want to track the actual user
+                job = await redis.enqueue_job(
+                    "process_drone_images",
+                    UUID(project_id),
+                    UUID(task_id),
+                    "batch-processor",  # user_id for webhook
+                    _queue_name="default_queue",
+                )
+                odm_jobs.append({
+                    "task_id": task_id,
+                    "job_id": job.job_id,
+                    "image_count": task_images["image_count"],
+                })
+
+            log.info(
+                f"Batch processing complete: {len(odm_jobs)} ODM jobs queued"
+            )
+
+            return {
+                "message": "Batch processing started",
+                "batch_id": batch_id,
+                "total_images_moved": move_result["total_moved"],
+                "tasks_processed": len(odm_jobs),
+                "odm_jobs": odm_jobs,
+            }
+
+    except Exception as e:
+        log.error(f"Failed to process batch (Job: {job_id}): {str(e)}")
+        raise
+
+
 async def delete_batch_images(
     ctx: Dict[Any, Any],
     project_id: str,
@@ -501,6 +605,7 @@ class WorkerSettings:
         process_all_drone_images,
         process_uploaded_image,
         classify_image_batch,
+        process_batch_images,
         delete_batch_images,
     ]
 
