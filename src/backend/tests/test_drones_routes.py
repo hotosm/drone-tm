@@ -6,7 +6,7 @@ from app.models.enums import HTTPStatus
 @pytest.mark.asyncio
 async def test_create_drone(client, drone_info):
     """Create a new project."""
-    response = await client.post("/api/drones/create-drone", json=drone_info)
+    response = await client.post("/drones/create-drone", json=drone_info)
     assert response.status_code == HTTPStatus.OK
 
     return response.json()

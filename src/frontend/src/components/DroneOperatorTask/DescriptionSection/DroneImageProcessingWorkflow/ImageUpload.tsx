@@ -2,12 +2,12 @@ import UppyFileUploader from '../UppyFileUploader';
 
 interface ImageUploadProps {
   projectId: string;
-  onUploadComplete?: (result: any) => void;
+  onUploadComplete?: (result: any, batchId?: string) => void;
 }
 
 const ImageUpload = ({ projectId, onUploadComplete }: ImageUploadProps) => {
   return (
-    <div className="naxatw-flex naxatw-flex-col naxatw-gap-6">
+    <div className="naxatw-flex naxatw-h-full naxatw-flex-col">
       {projectId ? (
         <UppyFileUploader
           projectId={projectId}
@@ -28,7 +28,7 @@ const ImageUpload = ({ projectId, onUploadComplete }: ImageUploadProps) => {
           staging={true}
         />
       ) : (
-        <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
+        <div className="naxatw-flex naxatw-flex-1 naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
           <p className="naxatw-text-gray-500">Project ID not found</p>
         </div>
       )}

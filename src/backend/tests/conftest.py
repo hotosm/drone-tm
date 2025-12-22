@@ -2,6 +2,7 @@ from typing import Any, AsyncGenerator
 
 import pytest
 import pytest_asyncio
+import uuid
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -12,7 +13,7 @@ from app.db.database import get_db
 from app.main import get_application
 from app.models.enums import UserRole
 from app.projects.project_schemas import DbProject, ProjectIn
-from app.users.user_deps import login_required
+from app.users.user_deps import login_required, login_dependency
 from app.users.user_schemas import AuthUser, DbUser
 
 
@@ -39,16 +40,19 @@ async def auth_user(db) -> AuthUser:
             name="admin",
             profile_img="",
             role=UserRole.PROJECT_CREATOR,
+            is_superuser=True,
         ),
     )
+    db_user.is_superuser = True
     return db_user
 
 
 @pytest_asyncio.fixture(scope="function")
 async def project_info():
     """Fixture to create project metadata for testing."""
+    unique_name = f"TEST_PROJECT_{uuid.uuid4()}"
     project_metadata = ProjectIn(
-        name="TEST 98982849249278787878778",
+        name=unique_name,
         description="",
         outline={
             "type": "FeatureCollection",
@@ -96,6 +100,10 @@ async def project_info():
 async def create_test_project(db, auth_user, project_info):
     """Fixture to create a test project and return its project_id."""
     project_id = await DbProject.create(db, project_info, auth_user.id)
+    try:
+        await db.commit()
+    except AttributeError:
+        pass
     return str(project_id)
 
 
@@ -138,6 +146,7 @@ async def client(app: FastAPI, db: AsyncConnection, auth_user: AuthUser):
     # Override server db connection
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[login_required] = lambda: auth_user
+    app.dependency_overrides[login_dependency] = lambda: auth_user
     async with LifespanManager(app) as manager:
         async with AsyncClient(
             transport=ASGITransport(app=manager.app),

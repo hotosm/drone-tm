@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import date, datetime
+from urllib.parse import urlparse
 from typing import Annotated, List, Optional, Union
 
 import geojson
@@ -624,6 +625,25 @@ class Pagination(BaseModel):
         return values
 
 
+def safe_url(callable_fn, *, label: str):
+    """
+    Check if a URL is valid & also avoid error if S3 pre-sign fails.
+    """
+    try:
+        url = callable_fn()
+        if not url:
+            return None
+
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"}:
+            raise ValueError(f"Invalid URL scheme: {url}")
+
+        return url
+    except Exception as e:
+        log.warning(f"Failed to generate {label} URL: {e}")
+        return None
+
+
 class ProjectInfo(BaseModel):
     """Out model for the project endpoint."""
 
@@ -659,37 +679,49 @@ class ProjectInfo(BaseModel):
 
     @model_validator(mode="after")
     def set_image_url(cls, values):
-        """Set image_url before rendering the model."""
         project_id = values.id
-        if project_id:
-            image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
-            values.image_url = generate_presigned_download_url(
-                settings.S3_BUCKET_NAME, image_dir, 5
-            )
+        if not project_id:
+            return values
+
+        image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
+
+        values.image_url = safe_url(
+            lambda: generate_presigned_download_url(
+                settings.S3_BUCKET_NAME,
+                image_dir,
+                5,
+            ),
+            label="image_url",
+        )
+
         return values
 
     @model_validator(mode="after")
     def set_assets_url(cls, values):
-        """Set assets_url before rendering the model."""
         project_id = values.id
-        if project_id:
-            values.assets_url = (
-                get_assets_url_for_project(project_id)
-                if values.image_processing_status == "SUCCESS"
-                else None
-            )
+        if not project_id or values.image_processing_status != "SUCCESS":
+            values.assets_url = None
+            return values
+
+        values.assets_url = safe_url(
+            lambda: get_assets_url_for_project(project_id),
+            label="assets_url",
+        )
+
         return values
 
     @model_validator(mode="after")
     def set_orthophoto_url(cls, values):
-        """Set orthophoto_url before rendering the model."""
         project_id = values.id
-        if project_id:
-            values.orthophoto_url = (
-                get_orthophoto_url_for_project(project_id)
-                if values.image_processing_status == "SUCCESS"
-                else None
-            )
+        if not project_id or values.image_processing_status != "SUCCESS":
+            values.orthophoto_url = None
+            return values
+
+        values.orthophoto_url = safe_url(
+            lambda: get_orthophoto_url_for_project(project_id),
+            label="orthophoto_url",
+        )
+
         return values
 
     @model_validator(mode="after")
@@ -743,6 +775,7 @@ class CompleteMultipartUploadRequest(BaseModel):
     parts: List[dict]  # List of {"PartNumber": int, "ETag": str}
     project_id: uuid.UUID
     filename: str
+    batch_id: Optional[uuid.UUID] = None  # Optional batch ID for grouping uploads
 
 
 class AbortMultipartUploadRequest(BaseModel):
