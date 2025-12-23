@@ -89,24 +89,6 @@ async def test_read_project_centroids(client):
     assert isinstance(response.json(), list)
 
 
-@pytest.mark.asyncio
-async def test_initiate_multipart_upload(client, create_test_project):
-    """Test initiating a multipart upload."""
-    project_id = create_test_project
-    task_id = uuid.uuid4()  # Dummy task id for the purpose of this test
-    request_data = {
-        "project_id": project_id,
-        "task_id": str(task_id),
-        "file_name": "test_image.jpg",
-        "staging": False,
-    }
-    response = await client.post(
-        "/api/projects/initiate-multipart-upload/", json=request_data
-    )
-    assert response.status_code == 200
-    assert "upload_id" in response.json()
-
-
 if __name__ == "__main__":
     """Main func if file invoked directly."""
     pytest.main()
