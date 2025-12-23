@@ -26,7 +26,7 @@ from app.users import user_routes
 from app.waypoints import waypoint_routes
 
 # Import auth initialization for Hanko SSO
-from hotosm_auth import AuthConfig
+from hotosm_auth import AuthConfig, create_admin_mappings_router_psycopg
 from hotosm_auth.integrations.fastapi import init_auth
 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -142,6 +142,17 @@ def get_application() -> FastAPI:
     _app.include_router(user_routes.router)
     _app.include_router(task_routes.router)
     _app.include_router(gcp_routes.router)
+
+    # Admin router for user mappings management (with user enrichment)
+    admin_router = create_admin_mappings_router_psycopg(
+        get_db,
+        app_name="drone-tm",
+        user_table="users",
+        user_id_column="id",
+        user_name_column="name",
+        user_email_column="email_address",
+    )
+    _app.include_router(admin_router)
 
     return _app
 
