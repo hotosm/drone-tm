@@ -1,12 +1,10 @@
-import uuid
-
 import pytest
 
 
 @pytest.mark.asyncio
-async def test_read_task(client):
-    task_id = uuid.uuid4()
-    response = await client.get(f"/api/tasks/{task_id}")
+async def test_list_tasks(client):
+    """Test listing tasks for the authenticated user."""
+    response = await client.get("/api/tasks/")
     assert response.status_code == 200
 
 

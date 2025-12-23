@@ -1,4 +1,5 @@
 import json
+import uuid
 from io import BytesIO
 
 import pytest
@@ -61,6 +62,49 @@ async def test_upload_project_task_boundaries(client, create_test_project):
     )
     assert response.status_code == 200
     return response.json()
+
+
+@pytest.mark.asyncio
+async def test_read_projects(client):
+    """Test reading all projects."""
+    response = await client.get("/api/projects/")
+    assert response.status_code == 200
+    assert "results" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_read_project(client, create_test_project):
+    """Test reading a single project."""
+    project_id = create_test_project
+    response = await client.get(f"/api/projects/{project_id}")
+    assert response.status_code == 200
+    assert response.json()["id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_read_project_centroids(client):
+    """Test reading project centroids."""
+    response = await client.get("/api/projects/centroids")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_initiate_multipart_upload(client, create_test_project):
+    """Test initiating a multipart upload."""
+    project_id = create_test_project
+    task_id = uuid.uuid4()  # Dummy task id for the purpose of this test
+    request_data = {
+        "project_id": project_id,
+        "task_id": str(task_id),
+        "file_name": "test_image.jpg",
+        "staging": False,
+    }
+    response = await client.post(
+        "/api/projects/initiate-multipart-upload/", json=request_data
+    )
+    assert response.status_code == 200
+    assert "upload_id" in response.json()
 
 
 if __name__ == "__main__":

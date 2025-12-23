@@ -2,28 +2,36 @@ from datetime import datetime, timedelta
 
 import jwt
 import pytest
-import pytest_asyncio
 from loguru import logger as log
 
 from app.config import settings
 from app.users.user_deps import create_reset_password_token
 
 
-@pytest_asyncio.fixture(scope="function")
-def token(auth_user):
-    """Create a reset password token for a given user."""
-    payload = {
-        "sub": auth_user.email_address,
-        "exp": datetime.utcnow()
-        + timedelta(minutes=settings.RESET_PASSWORD_TOKEN_EXPIRE_MINUTES),
-    }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+@pytest.mark.asyncio
+async def test_my_info(client):
+    """Test the /my-info/ endpoint to ensure a logged-in user can fetch their data."""
+    response = await client.get("/api/users/my-info/")
+    assert response.status_code == 200
+    user_info = response.json()
+
+    assert user_info["email_address"] == "admin@hotosm.org"
+
+
+@pytest.mark.asyncio
+async def test_refresh_token(client):
+    """Test the /refresh-token endpoint to ensure a new access token can be obtained."""
+    response = await client.get("/api/users/refresh-token")
+    assert response.status_code == 200
+    token_data = response.json()
+    assert "access_token" in token_data
+    assert "refresh_token" in token_data
 
 
 @pytest.mark.asyncio
 async def test_reset_password_success(client, auth_user):
     """Test successful password reset using a valid token."""
-    token = create_reset_password_token(auth_user.email_address)
+    token = create_reset_password_token(auth_user.email)
     new_password = "QPassword@12334"
 
     response = await client.post(
