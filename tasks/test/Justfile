@@ -27,16 +27,12 @@ default:
 # Test backend
 [no-cd]
 backend:
-    just build backend
-
-    # Start services
     {{docker}} compose -f compose.test.yaml build backend
 
-    {{docker}} compose -f compose.test.yaml up --detach db redis minio nodeodm
+    {{docker}} compose -f compose.test.yaml up --detach db redis minio nodeodm arq-worker
 
+    {{docker}} compose -f compose.test.yaml run --rm createbuckets
     {{docker}} compose -f compose.test.yaml run --rm migrations
-
-    {{docker}} compose -f compose.test.yaml up --detach
 
     {{docker}} compose -f compose.test.yaml run --rm backend pytest
 
