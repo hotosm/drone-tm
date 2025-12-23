@@ -1,5 +1,4 @@
 # compose.test.yaml
-
 name: dtm-test
 
 volumes:
@@ -13,13 +12,26 @@ networks:
 
 services:
   backend:
-    extends:
-      file: compose.yaml
-      service: backend
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     build:
       context: src/backend
+      dockerfile: Dockerfile
       args:
         INSTALL_TEST: "true"
+    ports:
+      - "8001:8000" # Avoid conflict with main backend on 8000
+    volumes:
+      - ${PROJECT_DIR:-.}/src/backend/pyproject.toml:/project/src/backend/pyproject.toml:ro
+      - ${PROJECT_DIR:-.}/src/backend/app:/project/src/backend/app:ro
+      - ${PROJECT_DIR:-.}/src/backend/tests:/project/src/backend/tests:ro
+      - ${PROJECT_DIR:-.}/src/backend/packages/drone-flightplan/drone_flightplan:/opt/python/lib/python3.11/site-packages/drone_flightplan:ro
+      - frontend-html:/project/src/backend/frontend_html
+    env_file: .env
+    extra_hosts:
+      - "localhost:host-gateway"
+    networks:
+      - dtm-network
+    restart: unless-stopped
     environment:
       MONITORING: ""
       LOG_LEVEL: "INFO"
@@ -38,31 +50,81 @@ services:
         condition: service_completed_successfully
 
   frontend:
-    extends:
-      file: compose.yaml
-      service: frontend
+    image: ghcr.io/hotosm/drone-tm/frontend:debug
+    build:
+      context: src/frontend
+      dockerfile: Dockerfile
+      target: development
+      args:
+        BASE_URL: ${BASE_URL}
+        COG_URL: ${COG_URL}
+        SITE_NAME: ${SITE_NAME}
     ports:
-      - "3040:3040"
+      - "3041:3040" # Avoid conflict with main frontend on 3040
     depends_on:
       backend:
         condition: service_started
+    env_file: .env
+    networks:
+      - dtm-network
+    volumes:
+      - ${PROJECT_DIR:-.}/src/frontend/public:/app/public
+      - ${PROJECT_DIR:-.}/src/frontend/src:/app/src
+      - ${PROJECT_DIR:-.}/src/frontend/components.json:/app/components.json
+      - ${PROJECT_DIR:-.}/src/frontend/index.html:/app/index.html
+      - ${PROJECT_DIR:-.}/src/frontend/postcss.config.js:/app/postcss.config.js
+      - ${PROJECT_DIR:-.}/src/frontend/tailwind.config.js:/app/tailwind.config.js
+      - ${PROJECT_DIR:-.}/src/frontend/vite.config.ts:/app/vite.config.ts
+      - frontend-html:/frontend_html
 
   db:
-    extends:
-      file: compose.yaml
-      service: db
+    image: postgis/postgis:16-3.4-alpine
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    env_file: .env
+    environment:
+      LANG: en-GB.utf8
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-GB"
+    ports:
+      - "5468:5432" # Avoid conflict with main db on 5467
+    networks:
+      - dtm-network
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-dtm} -d ${POSTGRES_DB:-dtm_db}
+      start_period: 5s
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   minio:
-    extends:
-      file: compose.yaml
-      service: minio
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
+    command: server /export --console-address 0.0.0.0:9090 --address 0.0.0.0:9000
+    volumes:
+      - minio-data:/export
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dtm_user}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-somelongpassword}
+    env_file:
+      - .env
+    ports:
+      - "9001:9000" # Avoid conflict with main minio on 9000
+      - "9091:9090" # Avoid conflict with main minio console on 9090
+    networks:
+      - dtm-network
+    restart: unless-stopped
 
   createbuckets:
-    extends:
-      file: compose.yaml
-      service: createbuckets
+    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
+    entrypoint: >
+      /bin/sh -c " mc config host add minio http://minio:9000 \$S3_ACCESS_KEY \$S3_SECRET_KEY; mc mb minio/\$S3_BUCKET_NAME; mc anonymous set download minio/\$S3_BUCKET_NAME/publicuploads/; exit 0; "
+    env_file:
+      - .env
     depends_on:
       - minio
+    networks:
+      - dtm-network
+    restart: "no"
 
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:debug
@@ -81,30 +143,41 @@ services:
         condition: service_healthy
 
   arq-worker:
-    extends:
-      file: compose.yaml
-      service: arq-worker
+    image: ghcr.io/hotosm/drone-tm/backend:debug
+    command: arq app.arq.tasks.WorkerSettings
+    depends_on:
+      - redis
+    env_file: .env
+    extra_hosts:
+      - "localhost:host-gateway"
+    networks:
+      - dtm-network
+    volumes:
+      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 20s
     environment:
       NODEODM_API_URL: http://nodeodm:3000
       S3_ENDPOINT_URL: http://minio:9000
       BACKEND_URL: http://backend:8000
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      nodeodm:
-        condition: service_started
 
   redis:
-    extends:
-      file: compose.yaml
-      service: redis
+    image: redis:7-alpine
+    networks:
+      - dtm-network
+    restart: unless-stopped
 
   nodeodm:
-    extends:
-      file: compose.yaml
-      service: nodeodm
+    image: docker.io/opendronemap/nodeodm:3.5.5
+    env_file: .env
     ports:
-      # Using 9901 to avoid collision with the inherited file's 9900
-      - "9901:3000"
+      - "9901:3000" # Internal port is 3000, avoid conflict with main on 9900
+    networks:
+      - dtm-network
+    restart: unless-stopped
+    oom_score_adj: 500
