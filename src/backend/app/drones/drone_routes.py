@@ -14,6 +14,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
 @router.get("/drone-altitude/{country}/")
 async def get_drone_altitude_by_country(
     country: str,

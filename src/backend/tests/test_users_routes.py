@@ -1,10 +1,6 @@
-from datetime import datetime, timedelta
-
-import jwt
 import pytest
 from loguru import logger as log
 
-from app.config import settings
 from app.users.user_deps import create_reset_password_token
 
 
