@@ -41,7 +41,7 @@ services:
       db:
         condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_started
       nodeodm:
@@ -113,6 +113,11 @@ services:
     networks:
       - dtm-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   createbuckets:
     image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
