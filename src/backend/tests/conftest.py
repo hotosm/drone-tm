@@ -31,20 +31,19 @@ async def db() -> AsyncConnection:
 
 @pytest_asyncio.fixture(scope="function")
 async def auth_user(db) -> AuthUser:
-    """Create a test user."""
-    db_user = await DbUser.get_or_create_user(
-        db,
-        AuthUser(
-            id="101039844375937810000",
-            email="admin@hotosm.org",
-            name="admin",
-            profile_img="",
-            role=UserRole.PROJECT_CREATOR,
-            is_superuser=True,
-        ),
+    """Create a test user and return the AuthUser model."""
+    user_to_create = AuthUser(
+        id="101039844375937810000",
+        email="admin@hotosm.org",
+        name="admin",
+        profile_img="",
+        role=UserRole.PROJECT_CREATOR.name,
+        is_superuser=True,
     )
-    db_user.is_superuser = True
-    return db_user
+    # Ensure the user exists in the DB for endpoints that need it
+    await DbUser.get_or_create_user(db, user_to_create)
+    # Return the AuthUser object, which has .role and .email, as expected by login_required
+    return user_to_create
 
 
 @pytest_asyncio.fixture(scope="function")
