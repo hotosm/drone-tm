@@ -1,5 +1,4 @@
 import json
-import uuid
 from io import BytesIO
 
 import pytest
