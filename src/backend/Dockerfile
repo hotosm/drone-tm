@@ -57,19 +57,18 @@ ARG INSTALL_TEST=false
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=uv.lock,target=uv.lock <<EOT
-    set -e
-    EXTRA_GROUPS=""
-    if [ "$MONITORING" = "sentry" ]; then
-        EXTRA_GROUPS="--group monitoring"
-    fi
-
-    if [ "$INSTALL_TEST" = "true" ]; then
-        EXTRA_GROUPS="$EXTRA_GROUPS --group test"
-    fi
-
-    uv sync --locked --no-editable --no-dev $EXTRA_GROUPS
-EOT
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    sh -c ' \
+        if [ "${MONITORING}" = "sentry" ] && [ "${INSTALL_TEST}" = "true" ]; then \
+            uv sync --locked --no-editable --no-dev --group monitoring --group test; \
+        elif [ "${MONITORING}" = "sentry" ]; then \
+            uv sync --locked --no-editable --no-dev --group monitoring; \
+        elif [ "${INSTALL_TEST}" = "true" ]; then \
+            uv sync --locked --no-editable --no-dev --group test; \
+        else \
+            uv sync --locked --no-editable --no-dev; \
+        fi \
+    '
 
 # Run stage (final stage)
 FROM python:$PYTHON_IMG_TAG-slim-trixie AS service
