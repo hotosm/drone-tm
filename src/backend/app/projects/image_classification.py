@@ -609,7 +609,7 @@ class ImageClassifier:
             LEFT JOIN tasks t ON pi.task_id = t.id
             WHERE pi.batch_id = %(batch_id)s
             AND pi.project_id = %(project_id)s
-            AND pi.status IN ('assigned', 'rejected', 'invalid_exif')
+            AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate')
             GROUP BY pi.task_id, t.project_task_index
             ORDER BY t.project_task_index NULLS LAST
         """
@@ -1043,4 +1043,179 @@ class ImageClassifier:
                 }
                 for group in task_groups
             ],
+        }
+
+    @staticmethod
+    async def get_task_verification_data(
+        db: Connection,
+        task_id: uuid.UUID,
+        batch_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Get task images and geometry for verification modal.
+
+        Args:
+            db: Database connection
+            task_id: The task ID to get data for
+            batch_id: The batch ID
+            project_id: The project ID
+
+        Returns:
+            dict: Task verification data including images, geometry, and coverage
+        """
+        # Get task geometry and index
+        task_query = """
+            SELECT
+                id,
+                project_task_index,
+                ST_AsGeoJSON(outline)::json as geometry
+            FROM tasks
+            WHERE id = %(task_id)s
+            AND project_id = %(project_id)s
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                task_query,
+                {"task_id": str(task_id), "project_id": str(project_id)},
+            )
+            task = await cur.fetchone()
+
+        if not task:
+            raise ValueError(f"Task {task_id} not found in project {project_id}")
+
+        # Get all assigned images for this task in the batch
+        images_query = """
+            SELECT
+                id,
+                filename,
+                s3_key,
+                thumbnail_url,
+                status,
+                rejection_reason,
+                ST_AsGeoJSON(location)::json as location
+            FROM project_images
+            WHERE task_id = %(task_id)s
+            AND batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+            AND status = %(status)s
+            ORDER BY uploaded_at
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                images_query,
+                {
+                    "task_id": str(task_id),
+                    "batch_id": str(batch_id),
+                    "project_id": str(project_id),
+                    "status": ImageStatus.ASSIGNED.value,
+                },
+            )
+            images = await cur.fetchall()
+
+        # Generate presigned URLs
+        for image in images:
+            if image.get("thumbnail_url"):
+                client = s3_client()
+                thumbnail_presigned = client.presigned_get_object(
+                    settings.S3_BUCKET_NAME,
+                    image["thumbnail_url"],
+                    expires=timedelta(hours=1),
+                )
+                image["thumbnail_url"] = strip_presigned_url_for_local_dev(
+                    thumbnail_presigned, strip_presign=False
+                )
+
+            if image.get("s3_key"):
+                client = s3_client()
+                url = client.presigned_get_object(
+                    settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
+                )
+                image["url"] = strip_presigned_url_for_local_dev(
+                    url, strip_presign=False
+                )
+
+        # Calculate coverage percentage using PostGIS
+        # Buffer each image point and calculate intersection with task polygon
+        coverage_query = """
+            WITH image_points AS (
+                SELECT location
+                FROM project_images
+                WHERE task_id = %(task_id)s
+                AND batch_id = %(batch_id)s
+                AND project_id = %(project_id)s
+                AND status = %(status)s
+                AND location IS NOT NULL
+            ),
+            task_polygon AS (
+                SELECT outline
+                FROM tasks
+                WHERE id = %(task_id)s
+            ),
+            buffered_points AS (
+                SELECT ST_Union(ST_Buffer(location::geography, 20)::geometry) as coverage
+                FROM image_points
+            )
+            SELECT
+                CASE
+                    WHEN (SELECT COUNT(*) FROM image_points) = 0 THEN 0
+                    ELSE LEAST(100, (
+                        ST_Area(
+                            ST_Intersection(
+                                (SELECT coverage FROM buffered_points),
+                                (SELECT outline FROM task_polygon)
+                            )::geography
+                        ) /
+                        NULLIF(ST_Area((SELECT outline FROM task_polygon)::geography), 0)
+                    ) * 100)
+                END as coverage_percentage
+        """
+
+        coverage_percentage = 0
+        try:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    coverage_query,
+                    {
+                        "task_id": str(task_id),
+                        "batch_id": str(batch_id),
+                        "project_id": str(project_id),
+                        "status": ImageStatus.ASSIGNED.value,
+                    },
+                )
+                coverage_result = await cur.fetchone()
+                if coverage_result and coverage_result.get("coverage_percentage"):
+                    coverage_percentage = float(coverage_result["coverage_percentage"])
+        except Exception as e:
+            log.warning(f"Could not calculate coverage: {e}")
+            coverage_percentage = 0
+
+        return {
+            "task_id": str(task_id),
+            "project_task_index": task["project_task_index"],
+            "image_count": len(images),
+            "images": [
+                {
+                    "id": str(img["id"]),
+                    "filename": img["filename"],
+                    "s3_key": img["s3_key"],
+                    "thumbnail_url": img.get("thumbnail_url"),
+                    "url": img.get("url"),
+                    "status": img["status"],
+                    "rejection_reason": img.get("rejection_reason"),
+                    "location": img.get("location"),
+                }
+                for img in images
+            ],
+            "task_geometry": {
+                "type": "Feature",
+                "geometry": task["geometry"],
+                "properties": {
+                    "id": str(task["id"]),
+                    "task_index": task["project_task_index"],
+                },
+            },
+            "coverage_percentage": coverage_percentage,
+            "is_verified": False,  # TODO: Add verified_at field to tasks table
         }

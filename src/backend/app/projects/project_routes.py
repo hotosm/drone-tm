@@ -193,27 +193,25 @@ async def create_project(
     image: UploadFile = File(None),
 ):
     """Create a project in the database."""
+    # Create project in database first
     project_id = await project_schemas.DbProject.create(db, project_info, user_data.id)
 
-    # Upload DEM and Image to S3
-    dem_url = (
-        await project_logic.upload_file_to_s3(project_id, dem, "dem.tif")
-        if dem
-        else None
-    )
-    (
-        await project_logic.upload_file_to_s3(project_id, image, "map_screenshot.png")
-        if image
-        else None
-    )
+    # Upload DEM and Image to S3 (only if project creation succeeded)
+    dem_url = None
+    try:
+        if dem:
+            dem_url = await project_logic.upload_file_to_s3(project_id, dem, "dem.tif")
+        if image:
+            await project_logic.upload_file_to_s3(
+                project_id, image, "map_screenshot.png"
+            )
+    except Exception as e:
+        log.error(f"Failed to upload files to S3 for project {project_id}: {e}")
+        # Continue - project is created, file upload failure is non-critical
 
-    # Update DEM and Image URLs in the database
-    await project_logic.update_url(db, project_id, dem_url)
-
-    if not project_id:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
-        )
+    # Update DEM URL in the database if uploaded
+    if dem_url:
+        await project_logic.update_url(db, project_id, dem_url)
 
     if project_info.requires_approval_from_regulator:
         regulator_emails = project_info.regulator_emails

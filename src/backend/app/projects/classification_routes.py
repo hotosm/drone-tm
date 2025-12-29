@@ -335,3 +335,146 @@ async def process_batch(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to start batch processing: {e}",
         )
+
+
+@router.get(
+    "/{project_id}/batch/{batch_id}/task/{task_id}/verification/",
+    tags=["Image Classification"],
+)
+async def get_task_verification_data(
+    project_id: UUID,
+    batch_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get task images and geometry for verification modal."""
+    try:
+        verification_data = await ImageClassifier.get_task_verification_data(
+            db, task_id, batch_id, project_id
+        )
+        return verification_data
+
+    except Exception as e:
+        log.error(f"Failed to get task verification data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve task verification data: {e}",
+        )
+
+
+@router.delete("/{project_id}/images/{image_id}/", tags=["Image Classification"])
+async def delete_image(
+    project_id: UUID,
+    image_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Delete a single image from a project."""
+    try:
+        # First verify the image belongs to this project
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT id, s3_key FROM project_images
+                WHERE id = %(image_id)s AND project_id = %(project_id)s
+                """,
+                {"image_id": str(image_id), "project_id": str(project_id)},
+            )
+            image = await cur.fetchone()
+
+            if not image:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail="Image not found in this project",
+                )
+
+            # Delete the image record
+            await cur.execute(
+                "DELETE FROM project_images WHERE id = %(image_id)s",
+                {"image_id": str(image_id)},
+            )
+
+        log.info(f"Deleted image {image_id} from project {project_id}")
+
+        return {
+            "message": "Image deleted successfully",
+            "image_id": str(image_id),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to delete image: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to delete image: {e}",
+        )
+
+
+@router.post(
+    "/{project_id}/tasks/{task_id}/mark-verified/", tags=["Image Classification"]
+)
+async def mark_task_verified(
+    project_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Mark a task as verified/fully flown after visual inspection.
+
+    This updates the task state to IMAGE_UPLOADED, indicating that the user
+    has verified that all required images are present and the task is ready
+    for processing.
+    """
+    from app.models.enums import State
+
+    try:
+        # Verify the task exists and belongs to this project
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT id, state FROM tasks
+                WHERE id = %(task_id)s AND project_id = %(project_id)s
+                """,
+                {"task_id": str(task_id), "project_id": str(project_id)},
+            )
+            task = await cur.fetchone()
+
+            if not task:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail="Task not found in this project",
+                )
+
+            # Update task state to IMAGE_UPLOADED
+            await cur.execute(
+                """
+                UPDATE tasks
+                SET state = %(state)s
+                WHERE id = %(task_id)s
+                """,
+                {
+                    "state": State.IMAGE_UPLOADED.name,
+                    "task_id": str(task_id),
+                },
+            )
+
+        log.info(
+            f"Task {task_id} marked as verified (IMAGE_UPLOADED) by user {user.id}"
+        )
+
+        return {
+            "message": "Task marked as fully flown",
+            "task_id": str(task_id),
+            "state": State.IMAGE_UPLOADED.name,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to mark task as verified: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to mark task as verified: {e}",
+        )

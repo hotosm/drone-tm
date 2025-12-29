@@ -31,7 +31,7 @@ export interface TaskGroupImage {
   s3_key: string;
   thumbnail_url?: string;
   url?: string;
-  status: 'assigned' | 'rejected' | 'invalid_exif';
+  status: 'assigned' | 'rejected' | 'invalid_exif' | 'duplicate';
   rejection_reason?: string;
   uploaded_at: string;
 }
@@ -193,6 +193,70 @@ export const startBatchProcessing = async (
 ): Promise<{ message: string; job_id: string; batch_id: string }> => {
   const response = await authenticated(api).post(
     `/projects/${projectId}/batch/${batchId}/process/`,
+  );
+  return response.data;
+};
+
+export interface TaskImageData {
+  id: string;
+  filename: string;
+  s3_key: string;
+  thumbnail_url?: string;
+  url?: string;
+  status: string;
+  rejection_reason?: string;
+  location?: {
+    type: string;
+    coordinates: [number, number];
+  };
+}
+
+export interface TaskVerificationData {
+  task_id: string;
+  project_task_index: number;
+  image_count: number;
+  images: TaskImageData[];
+  task_geometry: GeoJSON.Feature;
+  coverage_percentage?: number;
+  is_verified: boolean;
+}
+
+/**
+ * Get task images and geometry for verification modal
+ */
+export const getTaskVerificationData = async (
+  projectId: string,
+  batchId: string,
+  taskId: string,
+): Promise<TaskVerificationData> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/batch/${batchId}/task/${taskId}/verification/`,
+  );
+  return response.data;
+};
+
+/**
+ * Mark a task as verified (fully flown) after visual inspection
+ */
+export const markTaskAsVerified = async (
+  projectId: string,
+  taskId: string,
+): Promise<{ message: string; task_id: string }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/tasks/${taskId}/mark-verified/`,
+  );
+  return response.data;
+};
+
+/**
+ * Delete an image from a task
+ */
+export const deleteTaskImage = async (
+  projectId: string,
+  imageId: string,
+): Promise<{ message: string; image_id: string }> => {
+  const response = await authenticated(api).delete(
+    `/projects/${projectId}/images/${imageId}/`,
   );
   return response.data;
 };

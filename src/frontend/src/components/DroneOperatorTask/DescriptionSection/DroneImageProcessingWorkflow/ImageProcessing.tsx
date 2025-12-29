@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Button } from '@Components/RadixComponents/Button';
@@ -13,9 +13,13 @@ interface ImageProcessingProps {
   batchId: string;
 }
 
+// Minimum images required for ODM processing
+const MIN_IMAGES_FOR_ODM = 3;
+
 const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingJobId, setProcessingJobId] = useState<string | null>(null);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
 
   // Fetch processing summary
   const {
@@ -28,13 +32,58 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
     enabled: !!projectId && !!batchId,
   });
 
+  // Categorize tasks by processability
+  const { processableTasks, insufficientTasks } = useMemo(() => {
+    if (!summary?.tasks) {
+      return { processableTasks: [], insufficientTasks: [] };
+    }
+    return {
+      processableTasks: summary.tasks.filter(t => t.image_count >= MIN_IMAGES_FOR_ODM),
+      insufficientTasks: summary.tasks.filter(t => t.image_count < MIN_IMAGES_FOR_ODM),
+    };
+  }, [summary]);
+
+  // Initialize selected tasks with all processable tasks
+  useState(() => {
+    if (processableTasks.length > 0 && selectedTasks.size === 0) {
+      setSelectedTasks(new Set(processableTasks.map(t => t.task_id)));
+    }
+  });
+
+  // Update selected tasks when processable tasks change
+  useMemo(() => {
+    if (processableTasks.length > 0 && selectedTasks.size === 0) {
+      setSelectedTasks(new Set(processableTasks.map(t => t.task_id)));
+    }
+  }, [processableTasks]);
+
+  const handleTaskToggle = (taskId: string) => {
+    const newSelected = new Set(selectedTasks);
+    if (newSelected.has(taskId)) {
+      newSelected.delete(taskId);
+    } else {
+      newSelected.add(taskId);
+    }
+    setSelectedTasks(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTasks.size === processableTasks.length) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(new Set(processableTasks.map(t => t.task_id)));
+    }
+  };
+
   // Mutation to start processing
   const startProcessingMutation = useMutation({
     mutationFn: () => startBatchProcessing(projectId, batchId),
     onSuccess: (data) => {
       setIsProcessing(true);
       setProcessingJobId(data.job_id);
-      toast.success('Processing started! Images are being moved to task folders and ODM processing has been triggered.');
+      toast.success(
+        `Processing started for ${selectedTasks.size} task(s)! Images are being moved to task folders and ODM processing has been triggered.`
+      );
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Failed to start processing');
@@ -42,6 +91,10 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
   });
 
   const handleStartProcessing = () => {
+    if (selectedTasks.size === 0) {
+      toast.warning('Please select at least one task to process');
+      return;
+    }
     startProcessingMutation.mutate();
   };
 
@@ -79,6 +132,10 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
     );
   }
 
+  const selectedImageCount = processableTasks
+    .filter(t => selectedTasks.has(t.task_id))
+    .reduce((sum, t) => sum + t.image_count, 0);
+
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-6">
       {/* Header */}
@@ -87,67 +144,179 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
           Ready for Processing
         </h3>
         <p className="naxatw-text-sm naxatw-text-gray-500">
-          Review the summary below and start processing to generate orthophotos for each task.
+          Select tasks to process. Tasks need at least {MIN_IMAGES_FOR_ODM} images for ODM to generate orthophotos.
         </p>
       </div>
 
-      {/* Task List */}
-      <div className="naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white">
-        <div className="naxatw-border-b naxatw-border-gray-200 naxatw-px-4 naxatw-py-3">
-          <h4 className="naxatw-font-medium naxatw-text-gray-700">Tasks to Process</h4>
+      {/* Warning for insufficient tasks */}
+      {insufficientTasks.length > 0 && (
+        <div className="naxatw-rounded-lg naxatw-border naxatw-border-yellow-200 naxatw-bg-yellow-50 naxatw-p-4">
+          <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
+            <span className="material-icons naxatw-text-yellow-600">warning</span>
+            <div>
+              <p className="naxatw-font-medium naxatw-text-yellow-800">
+                {insufficientTasks.length} task(s) cannot be processed
+              </p>
+              <p className="naxatw-text-sm naxatw-text-yellow-700">
+                These tasks have fewer than {MIN_IMAGES_FOR_ODM} images. ODM requires at least {MIN_IMAGES_FOR_ODM} overlapping images to generate an orthophoto.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="naxatw-max-h-[300px] naxatw-overflow-y-auto">
-          <table className="naxatw-w-full">
-            <thead className="naxatw-sticky naxatw-top-0 naxatw-bg-gray-50">
-              <tr>
-                <th className="naxatw-px-4 naxatw-py-2 naxatw-text-left naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">
-                  Task
-                </th>
-                <th className="naxatw-px-4 naxatw-py-2 naxatw-text-right naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">
-                  Images
-                </th>
-                <th className="naxatw-px-4 naxatw-py-2 naxatw-text-center naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="naxatw-divide-y naxatw-divide-gray-100">
-              {summary.tasks.map((task) => (
-                <tr key={task.task_id} className="hover:naxatw-bg-gray-50">
-                  <td className="naxatw-px-4 naxatw-py-3">
-                    <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
-                      <span className="material-icons naxatw-text-lg naxatw-text-gray-400">
-                        crop_square
-                      </span>
-                      <span className="naxatw-font-medium naxatw-text-gray-700">
-                        Task #{task.task_index}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="naxatw-px-4 naxatw-py-3 naxatw-text-right">
-                    <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-2.5 naxatw-py-0.5 naxatw-text-sm naxatw-font-medium naxatw-text-blue-700">
-                      {task.image_count} images
-                    </span>
-                  </td>
-                  <td className="naxatw-px-4 naxatw-py-3 naxatw-text-center">
-                    {isProcessing ? (
-                      <span className="naxatw-inline-flex naxatw-items-center naxatw-gap-1 naxatw-text-sm naxatw-text-yellow-600">
-                        <span className="material-icons naxatw-animate-spin naxatw-text-base">sync</span>
-                        Processing
-                      </span>
-                    ) : (
-                      <span className="naxatw-inline-flex naxatw-items-center naxatw-gap-1 naxatw-text-sm naxatw-text-gray-500">
-                        <span className="material-icons naxatw-text-base">schedule</span>
-                        Pending
-                      </span>
-                    )}
-                  </td>
+      )}
+
+      {/* Processable Tasks */}
+      {processableTasks.length > 0 && (
+        <div className="naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white">
+          <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-border-b naxatw-border-gray-200 naxatw-px-4 naxatw-py-3">
+            <h4 className="naxatw-font-medium naxatw-text-gray-700">
+              Tasks Ready for Processing ({processableTasks.length})
+            </h4>
+            <label className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-text-sm">
+              <input
+                type="checkbox"
+                checked={selectedTasks.size === processableTasks.length && processableTasks.length > 0}
+                onChange={handleSelectAll}
+                disabled={isProcessing}
+                className="naxatw-h-4 naxatw-w-4 naxatw-rounded naxatw-border-gray-300 naxatw-text-red focus:naxatw-ring-red"
+              />
+              Select All
+            </label>
+          </div>
+          <div className="naxatw-max-h-[250px] naxatw-overflow-y-auto">
+            <table className="naxatw-w-full">
+              <thead className="naxatw-sticky naxatw-top-0 naxatw-bg-gray-50">
+                <tr>
+                  <th className="naxatw-w-12 naxatw-px-4 naxatw-py-2"></th>
+                  <th className="naxatw-px-4 naxatw-py-2 naxatw-text-left naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">
+                    Task
+                  </th>
+                  <th className="naxatw-px-4 naxatw-py-2 naxatw-text-right naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">
+                    Images
+                  </th>
+                  <th className="naxatw-px-4 naxatw-py-2 naxatw-text-center naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">
+                    Status
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="naxatw-divide-y naxatw-divide-gray-100">
+                {processableTasks.map((task) => (
+                  <tr
+                    key={task.task_id}
+                    className={`naxatw-cursor-pointer hover:naxatw-bg-gray-50 ${
+                      selectedTasks.has(task.task_id) ? 'naxatw-bg-red-50' : ''
+                    }`}
+                    onClick={() => !isProcessing && handleTaskToggle(task.task_id)}
+                  >
+                    <td className="naxatw-px-4 naxatw-py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedTasks.has(task.task_id)}
+                        onChange={() => handleTaskToggle(task.task_id)}
+                        disabled={isProcessing}
+                        onClick={(e) => e.stopPropagation()}
+                        className="naxatw-h-4 naxatw-w-4 naxatw-rounded naxatw-border-gray-300 naxatw-text-red focus:naxatw-ring-red"
+                      />
+                    </td>
+                    <td className="naxatw-px-4 naxatw-py-3">
+                      <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
+                        <span className="material-icons naxatw-text-lg naxatw-text-green-500">
+                          check_circle
+                        </span>
+                        <span className="naxatw-font-medium naxatw-text-gray-700">
+                          Task #{task.task_index}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="naxatw-px-4 naxatw-py-3 naxatw-text-right">
+                      <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-2.5 naxatw-py-0.5 naxatw-text-sm naxatw-font-medium naxatw-text-green-700">
+                        {task.image_count} images
+                      </span>
+                    </td>
+                    <td className="naxatw-px-4 naxatw-py-3 naxatw-text-center">
+                      {isProcessing && selectedTasks.has(task.task_id) ? (
+                        <span className="naxatw-inline-flex naxatw-items-center naxatw-gap-1 naxatw-text-sm naxatw-text-yellow-600">
+                          <span className="material-icons naxatw-animate-spin naxatw-text-base">sync</span>
+                          Processing
+                        </span>
+                      ) : (
+                        <span className="naxatw-inline-flex naxatw-items-center naxatw-gap-1 naxatw-text-sm naxatw-text-green-600">
+                          <span className="material-icons naxatw-text-base">check</span>
+                          Ready
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Insufficient Tasks (not selectable) */}
+      {insufficientTasks.length > 0 && (
+        <div className="naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-opacity-75">
+          <div className="naxatw-border-b naxatw-border-gray-200 naxatw-px-4 naxatw-py-3">
+            <h4 className="naxatw-font-medium naxatw-text-gray-500">
+              Tasks with Insufficient Images ({insufficientTasks.length})
+            </h4>
+          </div>
+          <div className="naxatw-max-h-[150px] naxatw-overflow-y-auto">
+            <table className="naxatw-w-full">
+              <thead className="naxatw-sticky naxatw-top-0 naxatw-bg-gray-50">
+                <tr>
+                  <th className="naxatw-w-12 naxatw-px-4 naxatw-py-2"></th>
+                  <th className="naxatw-px-4 naxatw-py-2 naxatw-text-left naxatw-text-sm naxatw-font-medium naxatw-text-gray-400">
+                    Task
+                  </th>
+                  <th className="naxatw-px-4 naxatw-py-2 naxatw-text-right naxatw-text-sm naxatw-font-medium naxatw-text-gray-400">
+                    Images
+                  </th>
+                  <th className="naxatw-px-4 naxatw-py-2 naxatw-text-center naxatw-text-sm naxatw-font-medium naxatw-text-gray-400">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="naxatw-divide-y naxatw-divide-gray-100">
+                {insufficientTasks.map((task) => (
+                  <tr key={task.task_id} className="naxatw-bg-gray-50">
+                    <td className="naxatw-px-4 naxatw-py-3">
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        disabled
+                        className="naxatw-h-4 naxatw-w-4 naxatw-rounded naxatw-border-gray-300 naxatw-opacity-50"
+                      />
+                    </td>
+                    <td className="naxatw-px-4 naxatw-py-3">
+                      <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
+                        <span className="material-icons naxatw-text-lg naxatw-text-yellow-500">
+                          warning
+                        </span>
+                        <span className="naxatw-font-medium naxatw-text-gray-500">
+                          Task #{task.task_index}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="naxatw-px-4 naxatw-py-3 naxatw-text-right">
+                      <span className="naxatw-rounded-full naxatw-bg-yellow-100 naxatw-px-2.5 naxatw-py-0.5 naxatw-text-sm naxatw-font-medium naxatw-text-yellow-700">
+                        {task.image_count} image{task.image_count !== 1 ? 's' : ''}
+                      </span>
+                    </td>
+                    <td className="naxatw-px-4 naxatw-py-3 naxatw-text-center">
+                      <span className="naxatw-inline-flex naxatw-items-center naxatw-gap-1 naxatw-text-sm naxatw-text-yellow-600">
+                        <span className="material-icons naxatw-text-base">block</span>
+                        Needs {MIN_IMAGES_FOR_ODM - task.image_count} more
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Processing Status */}
       {isProcessing && (
@@ -172,16 +341,28 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
 
       {/* Action Button */}
       {!isProcessing && (
-        <div className="naxatw-flex naxatw-justify-center">
+        <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2">
           <Button
             variant="ghost"
-            className="naxatw-bg-red naxatw-px-8 naxatw-text-white"
+            className="naxatw-bg-red naxatw-px-8 naxatw-text-white disabled:naxatw-opacity-50"
             onClick={handleStartProcessing}
-            disabled={startProcessingMutation.isPending}
+            disabled={startProcessingMutation.isPending || selectedTasks.size === 0}
             leftIcon={startProcessingMutation.isPending ? 'sync' : 'play_arrow'}
           >
-            {startProcessingMutation.isPending ? 'Starting...' : 'Start Processing'}
+            {startProcessingMutation.isPending
+              ? 'Starting...'
+              : `Process ${selectedTasks.size} Task${selectedTasks.size !== 1 ? 's' : ''} (${selectedImageCount} images)`}
           </Button>
+          {selectedTasks.size === 0 && processableTasks.length > 0 && (
+            <p className="naxatw-text-sm naxatw-text-gray-500">
+              Select at least one task to process
+            </p>
+          )}
+          {processableTasks.length === 0 && (
+            <p className="naxatw-text-sm naxatw-text-yellow-600">
+              No tasks have enough images for processing
+            </p>
+          )}
         </div>
       )}
 
@@ -194,6 +375,7 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
             <ul className="naxatw-mt-1 naxatw-list-inside naxatw-list-disc naxatw-space-y-1">
               <li>Images are moved from staging to their assigned task folders</li>
               <li>OpenDroneMap (ODM) processes each task to generate orthophotos</li>
+              <li>ODM requires at least {MIN_IMAGES_FOR_ODM} overlapping images per task</li>
               <li>Generated orthophotos will be available for viewing once complete</li>
             </ul>
           </div>
