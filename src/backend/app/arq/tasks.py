@@ -250,7 +250,7 @@ async def process_uploaded_image(
                     project_id=UUID(project_id),
                     s3_key=file_key,
                     filename=filename,
-                    user_id=UUID(uploaded_by),
+                    uploaded_by=uploaded_by,
                     status=ImageStatus.DUPLICATE,
                     hash_md5=file_hash,
                     batch_id=UUID(batch_id) if batch_id else None,
