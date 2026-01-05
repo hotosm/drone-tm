@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ARG for the base image
 ARG PYTHON_IMG_TAG=3.11
 

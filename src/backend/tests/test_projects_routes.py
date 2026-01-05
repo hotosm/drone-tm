@@ -63,6 +63,31 @@ async def test_upload_project_task_boundaries(client, create_test_project):
     return response.json()
 
 
+@pytest.mark.asyncio
+async def test_read_projects(client):
+    """Test reading all projects."""
+    response = await client.get("/api/projects/")
+    assert response.status_code == 200
+    assert "results" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_read_project(client, create_test_project):
+    """Test reading a single project."""
+    project_id = create_test_project
+    response = await client.get(f"/api/projects/{project_id}")
+    assert response.status_code == 200
+    assert response.json()["id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_read_project_centroids(client):
+    """Test reading project centroids."""
+    response = await client.get("/api/projects/centroids")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
 if __name__ == "__main__":
     """Main func if file invoked directly."""
     pytest.main()

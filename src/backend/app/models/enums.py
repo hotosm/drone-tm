@@ -22,34 +22,6 @@ class FinalOutput(StrEnum):
     DIGITAL_SURFACE_MODEL = "DIGITAL_SURFACE_MODEL"
 
 
-class TaskStatus(IntEnum):
-    """Enum describing available Task Statuses."""
-
-    READY = 0
-    LOCKED_FOR_MAPPING = 1
-    MAPPED = 2
-    LOCKED_FOR_VALIDATION = 3
-    VALIDATED = 4
-    INVALIDATED = 5
-    BAD = 6  # Task cannot be mapped
-    SPLIT = 7  # Task has been split
-
-
-class TaskAction(IntEnum):
-    """All possible task actions, recorded in task history."""
-
-    RELEASED_FOR_MAPPING = 0
-    LOCKED_FOR_MAPPING = 1
-    MARKED_MAPPED = 2
-    LOCKED_FOR_VALIDATION = 3
-    VALIDATED = 4
-    MARKED_INVALID = 5
-    MARKED_BAD = 6  # Task cannot be mapped
-    SPLIT_NEEDED = 7  # Task needs split
-    RECREATED = 8
-    COMMENT = 9
-
-
 class TaskSplitType(IntEnum):
     """Enum describing task splitting type."""
 
@@ -139,17 +111,21 @@ class UserRole(IntEnum):
 class State(IntEnum):
     """The state of a task.
 
+    This is determined from the most recent entry in `task_events`
+    for a given task.
+
     The state can be:
-    - ``request for mapping``
-    - ``unlocked to map``
-    - ``locked for mapping``
-    - ``unlocked to validate``
-    - ``locked for validation``
-    - ``unlocked done``
-    - ``Unflyable task``
-    - ``image uploaded``
-    - ``image processed``
-    - ``image processing failed``
+    - REQUEST_FOR_MAPPING: someone was request to map the task.
+    - UNLOCKED_TO_MAP: default status, ready to fly.
+    - LOCKED_FOR_MAPPING: locked by a user that is about to fly the task.
+    - ~UNLOCKED_TO_VALIDATE~: flying complete, requires validation (not used yet).
+    - ~LOCKED_FOR_VALIDATION~: currently being validated (not used yet).
+    - ~UNLOCKED_DONE~: task is complete and validated (currently not used).
+    - UNFLYABLE_TASK: not possibly to fly - marked bad.
+    - IMAGE_UPLOADED: imagery has been uploaded for the task.
+    - IMAGE_PROCESSING_FAILED: failed processing in ODM.
+    - IMAGE_PROCESSING_STARTED: started processing in ODM.
+    - IMAGE_PROCESSING_FINISHED: successful processing in ODM.
     """
 
     REQUEST_FOR_MAPPING = -1
