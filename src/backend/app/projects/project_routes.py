@@ -299,14 +299,29 @@ async def preview_split_by_square(
     return result
 
 
-@router.post("/generate-presigned-url/", tags=["Image Upload"])
+@router.post(
+    "/generate-presigned-url/",
+    tags=["Image Upload"],
+    deprecated=True,
+)
 async def generate_presigned_url(
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
     data: project_schemas.PresignedUrlRequest,
     replace_existing: bool = False,
 ):
-    """Generate a pre-signed URL for uploading an image to S3 Bucket.
+    """[DEPRECATED] Generate a pre-signed URL for uploading an image to S3 Bucket.
+
+    WARNING: This endpoint is deprecated and will be removed in a future release.
+    Use the new resumable multipart upload workflow instead:
+    - POST /projects/initiate-multipart-upload/
+    - POST /projects/sign-part-upload/
+    - POST /projects/complete-multipart-upload/
+
+    The new workflow supports large file uploads, resumable uploads, and better
+    integration with the Drone Image Processing Workflow.
+
+    ---
 
     This endpoint generates a pre-signed URL that allows users to upload an image to
     an S3 bucket. The URL expires after a specified duration.
@@ -319,6 +334,10 @@ async def generate_presigned_url(
     Returns:
         list: A list of dictionaries with the image name and the pre-signed URL to upload.
     """
+    log.warning(
+        f"Deprecated endpoint /generate-presigned-url/ called by user {user.id}. "
+        "This endpoint will be removed in a future release."
+    )
     try:
         # Initialize the S3 client
         client = s3_client()

@@ -166,27 +166,33 @@ const TaskVerificationModal = ({
     },
   });
 
-  const getPopupUI = useCallback(() => {
-    if (!popupData) return null;
+  const getPopupUI = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_properties: Record<string, any>) => {
+      if (!popupData) {
+        return <div>Loading...</div>;
+      }
 
-    return (
-      <div className="naxatw-flex naxatw-flex-col naxatw-gap-2 naxatw-max-w-[300px]">
-        <p className="naxatw-text-sm naxatw-font-medium naxatw-truncate">
-          {popupData.filename}
-        </p>
-        {(popupData.thumbnail_url || popupData.url) && (
-          <img
-            src={popupData.thumbnail_url || popupData.url}
-            alt={popupData.filename}
-            className="naxatw-w-full naxatw-h-auto naxatw-rounded"
-          />
-        )}
-        <p className="naxatw-text-xs naxatw-capitalize">
-          Status: {popupData.status?.replace('_', ' ')}
-        </p>
-      </div>
-    );
-  }, [popupData]);
+      return (
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-2 naxatw-max-w-[300px]">
+          <p className="naxatw-text-sm naxatw-font-medium naxatw-truncate">
+            {popupData.filename}
+          </p>
+          {(popupData.thumbnail_url || popupData.url) && (
+            <img
+              src={popupData.thumbnail_url || popupData.url}
+              alt={popupData.filename}
+              className="naxatw-w-full naxatw-h-auto naxatw-rounded"
+            />
+          )}
+          <p className="naxatw-text-xs naxatw-capitalize">
+            Status: {popupData.status?.replace('_', ' ')}
+          </p>
+        </div>
+      );
+    },
+    [popupData],
+  );
 
   const handleDeleteFromPopup = useCallback((data: Record<string, any>) => {
     if (data?.id) {

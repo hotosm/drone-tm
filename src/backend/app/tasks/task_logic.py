@@ -579,50 +579,25 @@ async def handle_event(
             )
 
         case EventType.IMAGE_UPLOAD:
-            current_task_state = await get_task_state(db, project_id, task_id)
-            if not current_task_state:
-                raise HTTPException(
-                    status_code=400, detail="Task is not ready for image upload."
-                )
-            state = current_task_state.get("state")
-            locked_user_id = current_task_state.get("user_id")
-
-            # Determine error conditions: Current State must be IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED or lokec for mapping.
-            if state not in (
-                State.IMAGE_UPLOADED.name,
-                State.IMAGE_PROCESSING_FAILED.name,
-                State.LOCKED_FOR_MAPPING.name,
-            ):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Task state does not match expected state for image upload.",
-                )
-
-            is_author = project["author_id"] == user_id
-            if not is_author and user_id != locked_user_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="You cannot upload an image for this task as it is locked by another user.",
-                )
-            # update the count of the task to image uploaded.
-            total_image_count = project_logic.get_project_info_from_s3(
-                project_id, task_id
-            ).image_count
-
-            await project_logic.update_task_field(
-                db, project_id, task_id, "total_image_uploaded", str(total_image_count)
+            # DEPRECATED: This event type is no longer used.
+            # Task status should only be updated via the "Mark Fully Flown" button
+            # in the verification workflow. Images are now uploaded to the staging area
+            # and classified to tasks without changing task status automatically.
+            #
+            # The new workflow is:
+            # 1. Upload images via the new resumable upload workflow (project-level)
+            # 2. Classify images to tasks
+            # 3. User verifies coverage and clicks "Mark Fully Flown" to set IMAGE_UPLOADED
+            #
+            # Keeping this case to avoid breaking existing API calls, but it now does nothing.
+            log.warning(
+                f"Deprecated IMAGE_UPLOAD event received for project {project_id}, "
+                f"task {task_id}. This event no longer updates task status."
             )
-
-            return await update_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                f"Task image uploaded by user {user_data.name}.",
-                State[state],
-                State.IMAGE_UPLOADED,
-                detail.updated_at,
-            )
+            return {
+                "message": "Image upload event received but task status was not changed. "
+                "Use the 'Mark Fully Flown' button to update task status after verifying coverage."
+            }
 
         case EventType.IMAGE_PROCESSING_START:
             current_task_state = await get_task_state(db, project_id, task_id)
