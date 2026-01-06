@@ -913,14 +913,25 @@ export class HankoAuth extends LitElement {
     }
 
     // Try to get user info from /me endpoint first (preferred)
+    // If that fails (e.g., NetworkError on first cross-origin request with mkcert),
+    // fall back to the Hanko SDK method
+    let userInfoRetrieved = false;
+
     try {
+      // Use AbortController with 5 second timeout to fail fast on connection issues
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const meResponse = await fetch(`${this.hankoUrl}/me`, {
         method: "GET",
         credentials: "include", // Include httpOnly cookies
         headers: {
           "Content-Type": "application/json",
         },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (meResponse.ok) {
         const userData = await meResponse.json();
@@ -932,22 +943,60 @@ export class HankoAuth extends LitElement {
           username: userData.username || null,
           emailVerified: false,
         };
+        userInfoRetrieved = true;
       } else {
-        this.log("⚠️ /me endpoint failed, trying SDK fallback");
-        // Fallback to SDK method
-        const user = await this._hanko.user.getCurrent();
+        this.log("⚠️ /me endpoint returned non-OK status, will try SDK fallback");
+      }
+    } catch (error) {
+      // NetworkError or timeout on cross-origin fetch is common with mkcert certs
+      this.log("⚠️ /me endpoint fetch failed (timeout or cross-origin TLS issue):", error);
+    }
+
+    // Fallback to SDK method if /me didn't work
+    if (!userInfoRetrieved) {
+      try {
+        this.log("🔄 Trying SDK fallback for user info...");
+        // Add timeout to SDK call in case it hangs
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("SDK timeout")), 5000)
+        );
+        const user = await Promise.race([
+          this._hanko.user.getCurrent(),
+          timeoutPromise,
+        ]) as any;
         this.user = {
           id: user.id,
           email: user.email,
           username: user.username,
           emailVerified: user.email_verified || false,
         };
+        userInfoRetrieved = true;
+        this.log("✅ User info retrieved via SDK fallback");
+      } catch (sdkError) {
+        this.log("⚠️ SDK fallback failed, trying JWT claims:", sdkError);
+        // Last resort: extract user info from JWT claims in the event
+        try {
+          const claims = event.detail?.claims;
+          if (claims?.sub) {
+            this.user = {
+              id: claims.sub,
+              email: claims.email || null,
+              username: null,
+              emailVerified: claims.email_verified || false,
+            };
+            userInfoRetrieved = true;
+            this.log("✅ User info extracted from JWT claims");
+          } else {
+            console.error("No user claims available in event");
+            this.user = null;
+            return;
+          }
+        } catch (claimsError) {
+          console.error("Failed to extract user info from claims:", claimsError);
+          this.user = null;
+          return;
+        }
       }
-    } catch (error) {
-      console.error("Failed to fetch user info:", error);
-      // If both fail, we can't get user data
-      this.user = null;
-      return;
     }
 
     this.log("✅ User state updated:", this.user);
