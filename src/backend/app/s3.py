@@ -16,7 +16,9 @@ from app.utils import strip_presigned_url_for_local_dev
 
 def s3_client():
     """Return the initialised MinIO client with credentials."""
-    endpoint = settings.S3_DOWNLOAD_ROOT
+    # Use S3_ENDPOINT for internal operations (Docker network: minio:9000)
+    # S3_DOWNLOAD_ROOT is only for generating presigned URLs for clients
+    endpoint = settings.S3_ENDPOINT
     minio_url, is_secure = is_connection_secure(endpoint)
 
     log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
