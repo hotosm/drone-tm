@@ -976,6 +976,8 @@ async def get_uploaded_parts(
         )
 
 
+# Endpoint not used in production but useful to keep around just for testing the
+# queue
 @router.post("/test/arq_task")
 async def test(redis_pool: ArqRedis = Depends(get_redis_pool)):
     try:
@@ -997,16 +999,3 @@ async def test(redis_pool: ArqRedis = Depends(get_redis_pool)):
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f"Failed to enqueue task: {str(e)}",
         )
-
-
-@router.post("/projects/{project_id}/count-tasks")
-async def start_task_count(
-    project_id: uuid.UUID, redis: ArqRedis = Depends(get_redis_pool)
-):
-    """Start an async task to count project tasks"""
-    job = await redis.enqueue_job(
-        "count_project_tasks",
-        str(project_id),
-        _queue_name="default_queue",
-    )
-    return {"job_id": job.job_id}

@@ -24,7 +24,7 @@
 | **Tech Stack** | | ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi) ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB) ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white) |
 | **Code Style** | | [![Backend Style](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json&labelColor=202235)](https://github.com/astral-sh/ruff) [![Frontend Style](https://img.shields.io/badge/code%20style-prettier-F7B93E?logo=Prettier)](https://github.com/prettier/prettier) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com) |
 | **Community** | | [![Slack](https://img.shields.io/badge/Slack-Join%20the%20community!-d63f3f?style=for-the-badge&logo=slack&logoColor=d63f3f)](https://slack.hotosm.org) |
-| **Other Info** | | [![docs](https://github.com/hotosm/field-tm/blob/dev/docs/images/docs_badge.svg?raw=true)](https://docs.dronetm.hotosm.org) [![license](https://img.shields.io/github/license/hotosm/drone-tm.svg)](https://github.com/hotosm/drone-tm/blob/main/LICENSE.md) [![license-translations](https://img.shields.io/badge/license-CC%20BY%204.0-orange.svg)](https://github.com/hotosm/drone-tm/blob/main/src/frontend/messages/LICENSE.md) |
+| **Other Info** | | [![docs](https://github.com/hotosm/field-tm/blob/dev/docs/images/docs_badge.svg?raw=true)](https://docs.drone.hotosm.org) [![license](https://img.shields.io/github/license/hotosm/drone-tm.svg)](https://github.com/hotosm/drone-tm/blob/main/LICENSE.md) [![license-translations](https://img.shields.io/badge/license-CC%20BY%204.0-orange.svg)](https://github.com/hotosm/drone-tm/blob/main/src/frontend/messages/LICENSE.md) |
 
 </div>
 
@@ -68,7 +68,7 @@ Our vision is to create a platform that is not only accessible and user-friendly
 ### Supported Drones
 
 To see a list of supported and unsupported drones, please visit
-the [FAQ](https://docs.dronetm.hotosm.org/about/faq/#q-what-drones-are-supported) page.
+the [FAQ](https://docs.drone.hotosm.org/about/faq/#q-what-drones-are-supported) page.
 
 ## Getting Started
 
@@ -97,8 +97,10 @@ To get started with DroneTM:
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
 |✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.4.0][4] |
 |✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | Since [v2025.4.0][4] |
-|✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | TBC |
-|⚙️| 🖥️ support retries for dropped connections during photo uploads | |
+|✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | [v2025.5.0][5] |
+|✅| 📱 recommendations for user if they should use waypoint or wayline mode | [v2025.5.0][5] |
+|✅| 🖥️ support retries for dropped connections during photo uploads | TBC |
+|✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | TBC |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 |⚙️| 📱 entirely offline flightplan generation, directly on device | |
@@ -161,3 +163,4 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
 [4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
+[4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.5.0

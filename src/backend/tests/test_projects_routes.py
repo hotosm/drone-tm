@@ -25,9 +25,9 @@ async def test_create_project_with_files(
 
 
 @pytest.mark.asyncio
-async def test_upload_project_task_boundaries(client, test_get_project):
+async def test_upload_project_task_boundaries(client, create_test_project):
     """Test to verify the upload of task boundaries."""
-    project_id = str(test_get_project.id)
+    project_id = create_test_project
     log.debug(f"Testing project ID: {project_id}")
     task_geojson = json.dumps(
         {
@@ -53,14 +53,39 @@ async def test_upload_project_task_boundaries(client, test_get_project):
         }
     ).encode("utf-8")
 
-    geojosn_files = {
+    geojson_files = {
         "geojson": ("file.geojson", BytesIO(task_geojson), "application/geo+json")
     }
     response = await client.post(
-        f"/api/projects/{project_id}/upload-task-boundaries/", files=geojosn_files
+        f"/projects/{project_id}/upload-task-boundaries", files=geojson_files
     )
     assert response.status_code == 200
     return response.json()
+
+
+@pytest.mark.asyncio
+async def test_read_projects(client):
+    """Test reading all projects."""
+    response = await client.get("/api/projects/")
+    assert response.status_code == 200
+    assert "results" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_read_project(client, create_test_project):
+    """Test reading a single project."""
+    project_id = create_test_project
+    response = await client.get(f"/api/projects/{project_id}")
+    assert response.status_code == 200
+    assert response.json()["id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_read_project_centroids(client):
+    """Test reading project centroids."""
+    response = await client.get("/api/projects/centroids")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
 
 
 if __name__ == "__main__":

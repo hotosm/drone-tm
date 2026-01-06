@@ -156,7 +156,7 @@ flight planning software to upload to their Drone.
       We have a few angles to improve drone support.
 
       See
-      [this document](https://docs.dronetm.hotosm.org/decisions/0002-flightplan-upload)
+      [this document](https://docs.drone.hotosm.org/decisions/0002-flightplan-upload)
       for more information.
 
 ### Q. What Drones Are Not Supported?

@@ -21,7 +21,6 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import (
     declarative_base,
-    object_session,
     relationship,
 )
 
@@ -35,7 +34,6 @@ from app.models.enums import (
     RegulatorApprovalStatus,
     State,
     TaskSplitType,
-    TaskStatus,
     UserRole,
 )
 from app.utils import timestamp
@@ -127,7 +125,6 @@ class DbProject(Base):
     side_overlap = cast(float, Column(Float, nullable=True))
     gsd_cm_px = cast(float, Column(Float, nullable=True))  # in cm_px
     altitude_from_ground = cast(float, Column(Float, nullable=True))
-    gsd_cm_px = cast(float, Column(Float, nullable=True))
     camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
     gimble_angles_degrees = cast(list, Column(ARRAY(SmallInteger), nullable=True))
     is_terrain_follow = cast(bool, Column(Boolean, default=False))
@@ -200,39 +197,6 @@ class DbProject(Base):
         Index("idx_geometry", outline, postgresql_using="gist"),
         {},
     )
-
-    @property
-    def tasks_mapped(self):
-        """Get the number of tasks mapped for a project."""
-        return (
-            object_session(self)
-            .query(DbTask)
-            .filter(DbTask.task_status == TaskStatus.MAPPED)
-            .with_parent(self)
-            .count()
-        )
-
-    @property
-    def tasks_validated(self):
-        """Get the number of tasks validated for a project."""
-        return (
-            object_session(self)
-            .query(DbTask)
-            .filter(DbTask.task_status == TaskStatus.VALIDATED)
-            .with_parent(self)
-            .count()
-        )
-
-    @property
-    def tasks_bad(self):
-        """Get the number of tasks marked bad for a project."""
-        return (
-            object_session(self)
-            .query(DbTask)
-            .filter(DbTask.task_status == TaskStatus.BAD)
-            .with_parent(self)
-            .count()
-        )
 
 
 class DbProjectImage(Base):
