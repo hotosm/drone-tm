@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import datetime
 
@@ -11,6 +12,9 @@ from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks.task_schemas import NewEvent, TaskStats
 from app.users.user_schemas import DbUser, AuthUser
 from app.utils import render_email_template, send_notification_email
+
+
+log = logging.getLogger(__name__)
 
 
 async def list_task_id_for_project(db: Connection, project_id: uuid.UUID):
