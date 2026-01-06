@@ -8,7 +8,6 @@ from psycopg.rows import class_row, dict_row
 
 from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State, UserRole
-from app.projects import project_logic
 from app.tasks.task_schemas import NewEvent, TaskStats
 from app.users.user_schemas import DbUser, AuthUser
 from app.utils import render_email_template, send_notification_email

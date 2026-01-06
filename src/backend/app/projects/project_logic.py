@@ -25,15 +25,6 @@ from drone_flightplan import (
     terrain_following_waylines,
     create_waypoint,
 )
-from fastapi import BackgroundTasks, HTTPException, UploadFile
-from fastapi.concurrency import run_in_threadpool
-from geojson import Feature, FeatureCollection
-from loguru import logger as log
-from minio.error import S3Error
-from psycopg import Connection
-from psycopg.rows import dict_row
-from shapely.geometry import shape
-from shapely.ops import transform
 from drone_flightplan.enums import FlightMode
 
 from app.config import settings

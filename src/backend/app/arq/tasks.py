@@ -15,7 +15,6 @@ from app.images.image_logic import (
     calculate_file_hash,
     check_duplicate_image,
     create_project_image,
-    mark_image_as_duplicate,
     extract_exif_data,
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
@@ -473,11 +472,13 @@ async def process_batch_images(
                         f"Skipping ODM for task {task_id}: only {image_count} images "
                         f"(minimum {MIN_IMAGES_FOR_ODM} required)"
                     )
-                    skipped_tasks.append({
-                        "task_id": task_id,
-                        "image_count": image_count,
-                        "reason": f"Insufficient images (need {MIN_IMAGES_FOR_ODM})",
-                    })
+                    skipped_tasks.append(
+                        {
+                            "task_id": task_id,
+                            "image_count": image_count,
+                            "reason": f"Insufficient images (need {MIN_IMAGES_FOR_ODM})",
+                        }
+                    )
                     continue
 
                 log.info(
@@ -495,11 +496,13 @@ async def process_batch_images(
                     "batch-processor",  # user_id for webhook
                     _queue_name="default_queue",
                 )
-                odm_jobs.append({
-                    "task_id": task_id,
-                    "job_id": job.job_id,
-                    "image_count": image_count,
-                })
+                odm_jobs.append(
+                    {
+                        "task_id": task_id,
+                        "job_id": job.job_id,
+                        "image_count": image_count,
+                    }
+                )
 
             log.info(
                 f"Batch processing complete: {len(odm_jobs)} ODM jobs queued, "

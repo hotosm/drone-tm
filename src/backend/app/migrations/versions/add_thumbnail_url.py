@@ -43,8 +43,6 @@ def upgrade():
 
 def downgrade():
     op.drop_index(
-        "idx_project_images_thumbnail_url",
-        table_name="project_images",
-        if_exists=True
+        "idx_project_images_thumbnail_url", table_name="project_images", if_exists=True
     )
     op.drop_column("project_images", "thumbnail_url")
