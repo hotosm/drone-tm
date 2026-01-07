@@ -49,7 +49,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     enabled: !!projectId && !!batchId,
   });
 
-  // Initialize map only after container is mounted
+  // Initialize map only once when component mounts
   useEffect(() => {
     if (!mapContainerRef.current || map) return;
 
@@ -76,7 +76,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     return () => {
       mapInstance.remove();
     };
-  }, [reviewData]); // Only run when reviewData is available (meaning component is rendered)
+  }, []); // Empty dependency - initialize map only once on mount
 
   // Add map controls when loaded
   useEffect(() => {
@@ -327,6 +327,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                     <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
                       {group.image_count} {group.image_count === 1 ? 'image' : 'images'}
                     </span>
+                    {group.is_verified && (
+                      <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-green-800">
+                        Fully Flown
+                      </span>
+                    )}
                   </FlexRow>
                 }
               >

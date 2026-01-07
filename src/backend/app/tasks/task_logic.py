@@ -205,6 +205,57 @@ async def update_task_state(
         return result
 
 
+async def update_task_state_system(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    comment: str,
+    initial_state: State,
+    final_state: State,
+    updated_at: datetime,
+):
+    """Update task state without user ownership check.
+
+    This is for system/background processes (like batch processing)
+    where we need to update state without a specific user context.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            WITH last AS (
+                SELECT te.*
+                FROM task_events te
+                WHERE te.project_id = %(project_id)s AND te.task_id = %(task_id)s
+                ORDER BY te.created_at DESC
+                LIMIT 1
+            ),
+            can_modify AS (
+                SELECT *
+                FROM last
+                WHERE state = %(initial_state)s
+            )
+            INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+            SELECT gen_random_uuid(), project_id, task_id, user_id, %(final_state)s, %(comment)s, %(updated_at)s, now()
+            FROM can_modify
+            RETURNING project_id, task_id, comment;
+            """,
+            {
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+                "comment": comment,
+                "initial_state": initial_state.name,
+                "final_state": final_state.name,
+                "updated_at": updated_at,
+            },
+        )
+        result = await cur.fetchone()
+        if result is None:
+            log.warning(
+                f"System update task state failed. Task {task_id} might not be in state {initial_state}."
+            )
+        return result
+
+
 async def request_mapping(
     db: Connection,
     project_id: uuid.UUID,

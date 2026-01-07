@@ -8,7 +8,7 @@ import { postUnflyableComment } from '@Services/droneOperator';
 import { toast } from 'react-toastify';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import UploadsBox from '../UploadsBox';
+// import UploadsBox from '../UploadsBox'; // Disabled - use Drone Upload Workflow instead
 
 interface IQuestionBoxProps {
   flyable: string;
@@ -126,7 +126,34 @@ const QuestionBox = ({
             </Button>
           </div>
         </motion.div>
-        {flyable === 'yes' && haveNoImages && <UploadsBox />}
+        {/* Image upload disabled - use the Drone Upload Workflow instead */}
+        {/* {flyable === 'yes' && haveNoImages && <UploadsBox />} */}
+        {flyable === 'yes' && haveNoImages && (
+          <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-blue-200 naxatw-bg-blue-50 naxatw-p-4">
+            <div className="naxatw-flex naxatw-items-start naxatw-gap-2">
+              <span className="material-icons naxatw-text-blue-600">info</span>
+              <div>
+                <p className="naxatw-font-medium naxatw-text-blue-800">
+                  Image Upload Has Moved
+                </p>
+                <p className="naxatw-text-sm naxatw-text-blue-600">
+                  To upload drone images, please use the Drone Upload Workflow
+                  from the Project Details page. This new workflow provides
+                  better image classification and processing capabilities.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              className="naxatw-w-fit naxatw-bg-blue-600 naxatw-text-white hover:naxatw-bg-blue-700"
+              leftIcon="arrow_forward"
+              iconClassname="naxatw-text-[1.125rem]"
+              onClick={() => navigate(`/projects/${projectId}`)}
+            >
+              Go to Project Details
+            </Button>
+          </div>
+        )}
       </div>
     </>
   );

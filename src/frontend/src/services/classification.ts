@@ -41,6 +41,7 @@ export interface TaskGroup {
   project_task_index: number | null;
   image_count: number;
   images: TaskGroupImage[];
+  is_verified?: boolean;
 }
 
 export interface BatchReviewData {
@@ -158,10 +159,18 @@ export const getBatchMapData = async (
   return response.data;
 };
 
+export type TaskProcessingState =
+  | 'IMAGE_UPLOADED'
+  | 'IMAGE_PROCESSING_STARTED'
+  | 'IMAGE_PROCESSING_FINISHED'
+  | 'IMAGE_PROCESSING_FAILED';
+
 export interface ProcessingTask {
   task_id: string;
   task_index: number;
   image_count: number;
+  state: TaskProcessingState;
+  failure_reason?: string | null;
 }
 
 export interface ProcessingSummary {

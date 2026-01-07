@@ -104,6 +104,13 @@ const DroneImageProcessingWorkflow = ({
     setShowAbortConfirmation(false);
   };
 
+  // Handle finish button - closes without showing abort confirmation
+  // Used when user has completed the workflow (on final step)
+  const handleFinish = () => {
+    dispatch(resetWorkflow());
+    onClose();
+  };
+
   // Handle upload complete - store batch ID and move to classification
   const handleUploadComplete = useCallback((result: any, uploadedBatchId?: string) => {
     if (uploadedBatchId) {
@@ -236,7 +243,7 @@ const DroneImageProcessingWorkflow = ({
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white"
                 leftIcon="check"
-                onClick={handleClose}
+                onClick={handleFinish}
               >
                 Finish
               </Button>

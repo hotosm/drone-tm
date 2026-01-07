@@ -595,11 +595,11 @@ async def odm_webhook_for_processing_a_single_task(
         )
 
     elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
-        await task_logic.update_task_state(
+        # Use system-level update since webhook may be called from batch processor
+        await task_logic.update_task_state_system(
             db,
             dtm_project_id,
             dtm_task_id,
-            dtm_user_id,
             "Image processing failed.",
             state_value,
             State.IMAGE_PROCESSING_FAILED,

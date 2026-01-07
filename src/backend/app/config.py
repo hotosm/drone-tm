@@ -153,6 +153,8 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = "http://localhost:3040"
     BACKEND_URL: str = "http://localhost:8000"
+    # Internal backend URL for Docker-internal services (webhooks from NodeODM, etc.)
+    BACKEND_URL_INTERNAL: str = "http://backend:8000"
     NODE_ODM_URL: Optional[str] = "http://nodeodm:9900"
     REDIS_DSN: str = "redis://redis:6379/0"
 

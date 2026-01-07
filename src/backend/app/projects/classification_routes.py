@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.db import database
-from app.models.enums import HTTPStatus
+from app.models.enums import HTTPStatus, State
 from app.projects.image_classification import ImageClassifier
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -419,18 +419,16 @@ async def mark_task_verified(
 ):
     """Mark a task as verified/fully flown after visual inspection.
 
-    This updates the task state to IMAGE_UPLOADED, indicating that the user
-    has verified that all required images are present and the task is ready
-    for processing.
+    This inserts a new task event with IMAGE_UPLOADED state, indicating that
+    the user has verified that all required images are present and the task
+    is ready for processing.
     """
-    from app.models.enums import State
-
     try:
-        # Verify the task exists and belongs to this project
         async with db.cursor() as cur:
+            # Verify the task exists and belongs to this project
             await cur.execute(
                 """
-                SELECT id, state FROM tasks
+                SELECT id FROM tasks
                 WHERE id = %(task_id)s AND project_id = %(project_id)s
                 """,
                 {"task_id": str(task_id), "project_id": str(project_id)},
@@ -443,16 +441,29 @@ async def mark_task_verified(
                     detail="Task not found in this project",
                 )
 
-            # Update task state to IMAGE_UPLOADED
+            # Insert a new task event to mark the task as IMAGE_UPLOADED
             await cur.execute(
                 """
-                UPDATE tasks
-                SET state = %(state)s
-                WHERE id = %(task_id)s
+                INSERT INTO task_events (
+                    event_id, project_id, task_id, user_id, state, comment, updated_at, created_at
+                )
+                VALUES (
+                    gen_random_uuid(),
+                    %(project_id)s,
+                    %(task_id)s,
+                    %(user_id)s,
+                    %(state)s,
+                    %(comment)s,
+                    NOW(),
+                    NOW()
+                )
                 """,
                 {
-                    "state": State.IMAGE_UPLOADED.name,
+                    "project_id": str(project_id),
                     "task_id": str(task_id),
+                    "user_id": str(user.id),
+                    "state": State.IMAGE_UPLOADED.name,
+                    "comment": "Task marked as verified via image classification workflow",
                 },
             )
 

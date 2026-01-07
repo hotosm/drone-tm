@@ -38,6 +38,8 @@ export default function VectorLayer({
 
   useEffect(() => {
     if (!map || !isMapLoaded || !geojson) return () => {};
+    // Ensure map style is loaded before accessing sources/layers
+    if (!map.getStyle()) return () => {};
 
     let isCancelled = false;
     const layerId = `${sourceId}-layer`;

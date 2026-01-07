@@ -589,11 +589,21 @@ class ImageClassifier:
         batch_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> dict:
+        # Query includes is_verified by checking if task has IMAGE_UPLOADED state
         query = """
+            WITH latest_task_state AS (
+                SELECT DISTINCT ON (task_id)
+                    task_id,
+                    state
+                FROM task_events
+                WHERE project_id = %(project_id)s
+                ORDER BY task_id, created_at DESC
+            )
             SELECT
                 pi.task_id,
                 t.project_task_index,
                 COUNT(*) as image_count,
+                COALESCE(lts.state = 'IMAGE_UPLOADED', false) as is_verified,
                 json_agg(
                     json_build_object(
                         'id', pi.id,
@@ -607,10 +617,11 @@ class ImageClassifier:
                 ) as images
             FROM project_images pi
             LEFT JOIN tasks t ON pi.task_id = t.id
+            LEFT JOIN latest_task_state lts ON pi.task_id = lts.task_id
             WHERE pi.batch_id = %(batch_id)s
             AND pi.project_id = %(project_id)s
             AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate')
-            GROUP BY pi.task_id, t.project_task_index
+            GROUP BY pi.task_id, t.project_task_index, lts.state
             ORDER BY t.project_task_index NULLS LAST
         """
 
@@ -879,6 +890,7 @@ class ImageClassifier:
         - Destination: dtm-data/projects/{project_id}/{task_id}/images/{filename}
 
         This prepares the images for ODM processing.
+        Only moves images for tasks that have been marked as fully flown (IMAGE_UPLOADED).
 
         Args:
             db: Database connection
@@ -889,18 +901,29 @@ class ImageClassifier:
             dict: Summary of moved images per task
         """
         # Get all assigned images in this batch grouped by task
+        # Only include images for tasks with IMAGE_UPLOADED state
         query = """
+            WITH latest_task_state AS (
+                SELECT DISTINCT ON (task_id)
+                    task_id,
+                    state
+                FROM task_events
+                WHERE project_id = %(project_id)s
+                ORDER BY task_id, created_at DESC
+            )
             SELECT
-                id,
-                filename,
-                s3_key,
-                task_id
-            FROM project_images
-            WHERE batch_id = %(batch_id)s
-            AND project_id = %(project_id)s
-            AND status = %(status)s
-            AND task_id IS NOT NULL
-            ORDER BY task_id, uploaded_at
+                pi.id,
+                pi.filename,
+                pi.s3_key,
+                pi.task_id
+            FROM project_images pi
+            JOIN latest_task_state lts ON pi.task_id = lts.task_id
+            WHERE pi.batch_id = %(batch_id)s
+            AND pi.project_id = %(project_id)s
+            AND pi.status = %(status)s
+            AND pi.task_id IS NOT NULL
+            AND lts.state = 'IMAGE_UPLOADED'
+            ORDER BY pi.task_id, pi.uploaded_at
         """
 
         async with db.cursor(row_factory=dict_row) as cur:
@@ -919,6 +942,8 @@ class ImageClassifier:
                 "batch_id": str(batch_id),
                 "message": "No assigned images to move",
                 "total_moved": 0,
+                "total_failed": 0,
+                "task_count": 0,
                 "tasks": {},
             }
 
@@ -996,6 +1021,8 @@ class ImageClassifier:
         """Get a summary of assigned images for processing.
 
         Returns task-grouped summary suitable for the Processing step UI.
+        Only includes tasks that have been marked as fully flown (IMAGE_UPLOADED state
+        or later processing states).
 
         Args:
             db: Database connection
@@ -1003,20 +1030,41 @@ class ImageClassifier:
             project_id: The project ID
 
         Returns:
-            dict: Summary with tasks and image counts ready for processing
+            dict: Summary with tasks, image counts, and processing status
         """
+        # Query includes tasks with IMAGE_UPLOADED or processing states
+        # This allows tracking processing progress
+        # Also includes the comment field for failure reasons
         query = """
+            WITH latest_task_state AS (
+                SELECT DISTINCT ON (task_id)
+                    task_id,
+                    state,
+                    comment
+                FROM task_events
+                WHERE project_id = %(project_id)s
+                ORDER BY task_id, created_at DESC
+            )
             SELECT
                 pi.task_id,
                 t.project_task_index,
+                lts.state as task_state,
+                lts.comment as state_comment,
                 COUNT(*) as image_count
             FROM project_images pi
             JOIN tasks t ON pi.task_id = t.id
+            JOIN latest_task_state lts ON pi.task_id = lts.task_id
             WHERE pi.batch_id = %(batch_id)s
             AND pi.project_id = %(project_id)s
             AND pi.status = %(status)s
             AND pi.task_id IS NOT NULL
-            GROUP BY pi.task_id, t.project_task_index
+            AND lts.state IN (
+                'IMAGE_UPLOADED',
+                'IMAGE_PROCESSING_STARTED',
+                'IMAGE_PROCESSING_FINISHED',
+                'IMAGE_PROCESSING_FAILED'
+            )
+            GROUP BY pi.task_id, t.project_task_index, lts.state, lts.comment
             ORDER BY t.project_task_index
         """
 
@@ -1042,6 +1090,10 @@ class ImageClassifier:
                     "task_id": str(group["task_id"]),
                     "task_index": group["project_task_index"],
                     "image_count": group["image_count"],
+                    "state": group["task_state"],
+                    "failure_reason": group["state_comment"]
+                    if group["task_state"] == "IMAGE_PROCESSING_FAILED"
+                    else None,
                 }
                 for group in task_groups
             ],
