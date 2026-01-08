@@ -25,7 +25,7 @@ export default function Navbar() {
             hanko-url={HANKO_API_URL}
             base-path={PORTAL_SSO_URL}
             redirect-after-login={hankoReturnUrl}
-            verify-session
+            redirect-after-logout={FRONTEND_URL}
           />
         </div>
       )}
