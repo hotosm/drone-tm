@@ -41,7 +41,7 @@ dependencies = [
     "opencv-python-headless==4.10.0.84",
     "numpy>=1.26.0,<2.0.0",
     "drone-flightplan",
-    "hotosm-auth @ git+https://github.com/LawalCoop/hot-auth-libs.git@v0.1.11#subdirectory=python",
+    "hotosm-auth @ git+https://github.com/LawalCoop/hot-auth-libs.git@v0.2.1#subdirectory=python",
 ]
 requires-python = ">=3.11"
 license = {text = "AGPL-3.0-only"}

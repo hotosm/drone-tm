@@ -79,7 +79,7 @@ def create_reset_password_token(email: str):
 # Override login_required with Hanko SSO when AUTH_PROVIDER=hanko
 # ==============================================================================
 if settings.AUTH_PROVIDER == "hanko":
-    from hotosm_auth.integrations.fastapi import CurrentUser, get_mapped_user_id
+    from hotosm_auth_fastapi import CurrentUser, get_mapped_user_id
     from app.users.hanko_helpers import lookup_user_by_email, create_drone_tm_user
 
     log.info("🔐 Using Hanko SSO authentication (overriding login_required)")

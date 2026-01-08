@@ -26,8 +26,8 @@ from app.users import user_routes
 from app.waypoints import waypoint_routes
 
 # Import auth initialization for Hanko SSO
-from hotosm_auth import AuthConfig, create_admin_mappings_router_psycopg
-from hotosm_auth.integrations.fastapi import init_auth
+from hotosm_auth import AuthConfig
+from hotosm_auth_fastapi import init_auth, create_admin_mappings_router_psycopg
 
 root = os.path.dirname(os.path.abspath(__file__))
 frontend_html = Jinja2Templates(directory="frontend_html")
