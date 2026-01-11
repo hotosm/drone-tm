@@ -21,7 +21,7 @@ from app.projects import project_logic
 from app.s3 import (
     add_file_to_bucket,
     copy_file_within_bucket,
-    generate_presigned_download_url,
+    generate_internal_presigned_download_url,
     get_file_from_bucket,
     list_objects_from_bucket,
 )
@@ -84,16 +84,24 @@ class DroneImageProcessor:
                 images.append(str(file))
         return images
 
-    async def download_image(self, session, url, save_path):
+    async def download_image(self, session, url, save_path) -> bool:
+        """Download a single image from URL to local path.
+
+        Returns:
+            bool: True if download succeeded, False otherwise
+        """
         try:
             async with session.get(url) as response:
                 if response.status == 200:
                     with open(save_path, "wb") as f:
                         f.write(await response.read())
+                    return True
                 else:
                     log.error(f"Failed to download {url}, status: {response.status}")
+                    return False
         except Exception as e:
             log.error(f"Error downloading {url}: {e}")
+            return False
 
     async def download_images_from_s3(
         self,
@@ -120,23 +128,19 @@ class DroneImageProcessor:
 
         accepted_file_extensions = (".jpg", ".jpeg", ".png", ".txt", ".laz")
 
-        s3_download_url = settings.S3_DOWNLOAD_ROOT
-        if s3_download_url:
-            object_urls = [
-                f"{s3_download_url}/{obj.object_name}"
-                for obj in objects
-                if obj.object_name.lower().endswith(accepted_file_extensions)
-            ]
-        else:
-            # generate pre-signed URL for each object
-            object_urls = [
-                generate_presigned_download_url(bucket_name, obj.object_name, 12)
-                for obj in objects
-                if obj.object_name.lower().endswith(accepted_file_extensions)
-            ]
+        # Use internal presigned URLs for worker downloads (uses S3_ENDPOINT like minio:9000)
+        # This is needed because S3_DOWNLOAD_ROOT (localhost) doesn't work inside Docker
+        object_urls = [
+            generate_internal_presigned_download_url(bucket_name, obj.object_name, 12)
+            for obj in objects
+            if obj.object_name.lower().endswith(accepted_file_extensions)
+        ]
 
         total_files = len(object_urls)
         log.info(f"{total_files} images found in S3 for task {task_id}")
+
+        successful_downloads = 0
+        failed_downloads = 0
 
         async with aiohttp.ClientSession() as session:
             for i in range(0, total_files, batch_size):
@@ -155,9 +159,20 @@ class DroneImageProcessor:
                     )
                     for j, url in enumerate(batch)
                 ]
-                await asyncio.gather(*tasks)
+                results = await asyncio.gather(*tasks)
+                successful_downloads += sum(1 for r in results if r)
+                failed_downloads += sum(1 for r in results if not r)
 
-        log.info(f"Completed downloading {total_files} images")
+        log.info(
+            f"Completed downloading {successful_downloads}/{total_files} images "
+            f"({failed_downloads} failed)"
+        )
+
+        if successful_downloads < 3:
+            log.error(
+                f"Only {successful_downloads} images downloaded successfully. "
+                f"ODM requires at least 3 images."
+            )
 
     def process_new_task(
         self,
@@ -445,17 +460,17 @@ async def process_assets_from_odm(
 
             log.info(f"Processing complete for project {dtm_project_id}")
 
-            if state and dtm_task_id and dtm_user_id:
+            if state and dtm_task_id:
                 # NOTE: This function uses a separate database connection pool because it is called by an internal server
                 # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
                 pool = await database.get_db_connection_pool()
                 async with pool as pool_instance:
                     async with pool_instance.connection() as conn:
-                        await task_logic.update_task_state(
+                        # Use system-level update since this may be called from batch processor
+                        await task_logic.update_task_state_system(
                             db=conn,
                             project_id=dtm_project_id,
                             task_id=dtm_task_id,
-                            user_id=dtm_user_id,
                             comment=message,
                             initial_state=state,
                             final_state=State.IMAGE_PROCESSING_FINISHED,

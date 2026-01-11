@@ -193,27 +193,25 @@ async def create_project(
     image: UploadFile = File(None),
 ):
     """Create a project in the database."""
+    # Create project in database first
     project_id = await project_schemas.DbProject.create(db, project_info, user_data.id)
 
-    # Upload DEM and Image to S3
-    dem_url = (
-        await project_logic.upload_file_to_s3(project_id, dem, "dem.tif")
-        if dem
-        else None
-    )
-    (
-        await project_logic.upload_file_to_s3(project_id, image, "map_screenshot.png")
-        if image
-        else None
-    )
+    # Upload DEM and Image to S3 (only if project creation succeeded)
+    dem_url = None
+    try:
+        if dem:
+            dem_url = await project_logic.upload_file_to_s3(project_id, dem, "dem.tif")
+        if image:
+            await project_logic.upload_file_to_s3(
+                project_id, image, "map_screenshot.png"
+            )
+    except Exception as e:
+        log.error(f"Failed to upload files to S3 for project {project_id}: {e}")
+        # Continue - project is created, file upload failure is non-critical
 
-    # Update DEM and Image URLs in the database
-    await project_logic.update_url(db, project_id, dem_url)
-
-    if not project_id:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="Project creation failed"
-        )
+    # Update DEM URL in the database if uploaded
+    if dem_url:
+        await project_logic.update_url(db, project_id, dem_url)
 
     if project_info.requires_approval_from_regulator:
         regulator_emails = project_info.regulator_emails
@@ -301,14 +299,29 @@ async def preview_split_by_square(
     return result
 
 
-@router.post("/generate-presigned-url/", tags=["Image Upload"])
+@router.post(
+    "/generate-presigned-url/",
+    tags=["Image Upload"],
+    deprecated=True,
+)
 async def generate_presigned_url(
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
     data: project_schemas.PresignedUrlRequest,
     replace_existing: bool = False,
 ):
-    """Generate a pre-signed URL for uploading an image to S3 Bucket.
+    """[DEPRECATED] Generate a pre-signed URL for uploading an image to S3 Bucket.
+
+    WARNING: This endpoint is deprecated and will be removed in a future release.
+    Use the new resumable multipart upload workflow instead:
+    - POST /projects/initiate-multipart-upload/
+    - POST /projects/sign-part-upload/
+    - POST /projects/complete-multipart-upload/
+
+    The new workflow supports large file uploads, resumable uploads, and better
+    integration with the Drone Image Processing Workflow.
+
+    ---
 
     This endpoint generates a pre-signed URL that allows users to upload an image to
     an S3 bucket. The URL expires after a specified duration.
@@ -321,6 +334,10 @@ async def generate_presigned_url(
     Returns:
         list: A list of dictionaries with the image name and the pre-signed URL to upload.
     """
+    log.warning(
+        f"Deprecated endpoint /generate-presigned-url/ called by user {user.id}. "
+        "This endpoint will be removed in a future release."
+    )
     try:
         # Initialize the S3 client
         client = s3_client()
@@ -578,11 +595,11 @@ async def odm_webhook_for_processing_a_single_task(
         )
 
     elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
-        await task_logic.update_task_state(
+        # Use system-level update since webhook may be called from batch processor
+        await task_logic.update_task_state_system(
             db,
             dtm_project_id,
             dtm_task_id,
-            dtm_user_id,
             "Image processing failed.",
             state_value,
             State.IMAGE_PROCESSING_FAILED,

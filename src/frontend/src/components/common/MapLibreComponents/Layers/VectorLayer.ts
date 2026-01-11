@@ -38,6 +38,8 @@ export default function VectorLayer({
 
   useEffect(() => {
     if (!map || !isMapLoaded || !geojson) return () => {};
+    // Ensure map style is loaded before accessing sources/layers
+    if (!map.getStyle()) return () => {};
 
     let isCancelled = false;
     const layerId = `${sourceId}-layer`;
@@ -265,14 +267,14 @@ export default function VectorLayer({
 
   useEffect(
     () => () => {
-      if (map?.getSource(sourceId)) {
-        if (map?.getLayer(imageId)) map?.removeLayer(imageId);
-        if (map?.getLayer(`${sourceId}-layer`))
-          map?.removeLayer(`${sourceId}-layer`);
-        map?.removeSource(sourceId);
+      if (map && isMapLoaded && map.getStyle() && map.getSource(sourceId)) {
+        if (map.getLayer(imageId)) map.removeLayer(imageId);
+        if (map.getLayer(`${sourceId}-layer`))
+          map.removeLayer(`${sourceId}-layer`);
+        map.removeSource(sourceId);
       }
     },
-    [map, sourceId, imageId],
+    [map, isMapLoaded, sourceId, imageId],
   );
 
   return null;
