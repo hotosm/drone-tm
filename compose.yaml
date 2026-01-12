@@ -160,6 +160,7 @@ services:
   # This container does the actual imagery processing (not persistent, scalable)
   nodeodm:
     image: docker.io/opendronemap/nodeodm:3.5.5
+    command: ["--port", "9900"]
     env_file: .env
     ports:
       - 9900:9900

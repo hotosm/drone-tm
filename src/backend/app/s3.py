@@ -31,6 +31,25 @@ def s3_client():
     )
 
 
+def s3_client_internal():
+    """Return MinIO client using internal Docker network endpoint (S3_ENDPOINT).
+
+    Use this for operations running inside Docker containers (workers, background tasks)
+    that need to access S3 via the internal network rather than localhost.
+    """
+    endpoint = settings.S3_ENDPOINT
+    minio_url, is_secure = is_connection_secure(endpoint)
+
+    log.debug(f"Connecting to MinIO (internal) at {minio_url} (secure={is_secure})")
+
+    return Minio(
+        minio_url,
+        access_key=settings.S3_ACCESS_KEY,
+        secret_key=settings.S3_SECRET_KEY,
+        secure=is_secure,
+    )
+
+
 def is_connection_secure(minio_url: str):
     """Determine from URL string if is http or https."""
     if minio_url.startswith("http://"):
@@ -259,6 +278,30 @@ def generate_presigned_download_url(
         bucket_name, object_name, expires=timedelta(hours=expires_hours)
     )
     return strip_presigned_url_for_local_dev(url)
+
+
+def generate_internal_presigned_download_url(
+    bucket_name: str, object_name: str, expires_hours: int = 2
+) -> str:
+    """Generate a presigned URL for downloading from S3 using internal Docker network.
+
+    Use this for worker/background tasks running inside Docker that need to download
+    files from S3. Unlike generate_presigned_download_url, this uses the internal
+    endpoint (S3_ENDPOINT like minio:9000) and preserves the signature.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_name (str): The S3 key/path of the object to download.
+        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
+
+    Returns:
+        str: The presigned URL for downloading the object (internal network accessible).
+    """
+    client = s3_client_internal()
+    url = client.presigned_get_object(
+        bucket_name, object_name, expires=timedelta(hours=expires_hours)
+    )
+    return url
 
 
 def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):

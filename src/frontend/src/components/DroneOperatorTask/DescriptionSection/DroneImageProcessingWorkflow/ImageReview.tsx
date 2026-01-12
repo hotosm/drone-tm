@@ -11,6 +11,7 @@ import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLaye
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
+import TaskVerificationModal from './TaskVerificationModal';
 
 interface ImageReviewProps {
   projectId: string;
@@ -30,6 +31,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [verificationModal, setVerificationModal] = useState<{
+    isOpen: boolean;
+    taskId: string;
+    taskIndex: number;
+  }>({ isOpen: false, taskId: '', taskIndex: 0 });
 
   const { data: reviewData, isLoading, error } = useQuery<BatchReviewData>({
     queryKey: ['batchReview', projectId, batchId],
@@ -43,7 +49,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     enabled: !!projectId && !!batchId,
   });
 
-  // Initialize map only after container is mounted
+  // Initialize map only once when component mounts
   useEffect(() => {
     if (!mapContainerRef.current || map) return;
 
@@ -70,7 +76,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     return () => {
       mapInstance.remove();
     };
-  }, [reviewData]); // Only run when reviewData is available (meaning component is rendered)
+  }, []); // Empty dependency - initialize map only once on mount
 
   // Add map controls when loaded
   useEffect(() => {
@@ -161,6 +167,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   }
 
   const isRejectedImage = selectedImage && (selectedImage.status === 'rejected' || selectedImage.status === 'invalid_exif');
+  const isDuplicateImage = selectedImage && selectedImage.status === 'duplicate';
 
   return (
     <FlexColumn className="naxatw-gap-4 naxatw-h-full">
@@ -320,9 +327,35 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                     <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
                       {group.image_count} {group.image_count === 1 ? 'image' : 'images'}
                     </span>
+                    {group.is_verified && (
+                      <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-green-800">
+                        Fully Flown
+                      </span>
+                    )}
                   </FlexRow>
                 }
               >
+                {/* Verify Task Button - Only for actual tasks, not rejected images group */}
+                {group.task_id && (
+                  <div className="naxatw-mb-4">
+                    <Button
+                      variant="ghost"
+                      className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700"
+                      leftIcon="map"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVerificationModal({
+                          isOpen: true,
+                          taskId: group.task_id!,
+                          taskIndex: group.project_task_index || 0,
+                        });
+                      }}
+                    >
+                      Verify Task on Map
+                    </Button>
+                  </div>
+                )}
+
                 {/* Image Grid - Only loaded when accordion is open */}
                 <div className="naxatw-grid naxatw-grid-cols-6 naxatw-gap-2">
                   {group.images.map((image) => (
@@ -331,7 +364,9 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                       className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border naxatw-transition-all hover:naxatw-shadow-md ${
                         image.status === 'rejected' || image.status === 'invalid_exif'
                           ? 'naxatw-border-red-300 hover:naxatw-border-red-500'
-                          : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
+                          : image.status === 'duplicate'
+                            ? 'naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60'
+                            : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
                       }`}
                       onClick={() => handleImageClick(image)}
                       title={image.filename}
@@ -345,6 +380,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                       {(image.status === 'rejected' || image.status === 'invalid_exif') && (
                         <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
                           Rejected
+                        </div>
+                      )}
+                      {image.status === 'duplicate' && (
+                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-gray-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
+                          Duplicate
                         </div>
                       )}
                       <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
@@ -383,8 +423,13 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                     Reason: {selectedImage.rejection_reason}
                   </p>
                 )}
+                {isDuplicateImage && (
+                  <p className="naxatw-text-sm naxatw-text-gray-300">
+                    This image is a duplicate of an existing image
+                  </p>
+                )}
               </div>
-              {isRejectedImage && (
+              {isRejectedImage && !isDuplicateImage && (
                 <Button
                   variant="ghost"
                   className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700"
@@ -399,6 +444,19 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
           </div>
         </div>
       )}
+
+      {/* Task Verification Modal */}
+      <TaskVerificationModal
+        isOpen={verificationModal.isOpen}
+        onClose={() => setVerificationModal({ isOpen: false, taskId: '', taskIndex: 0 })}
+        projectId={projectId}
+        batchId={batchId}
+        taskId={verificationModal.taskId}
+        taskIndex={verificationModal.taskIndex}
+        onVerified={() => {
+          queryClient.invalidateQueries({ queryKey: ['batchReview', projectId, batchId] });
+        }}
+      />
     </FlexColumn>
   );
 };

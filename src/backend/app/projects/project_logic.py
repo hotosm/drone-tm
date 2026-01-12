@@ -28,7 +28,7 @@ from drone_flightplan import (
 from drone_flightplan.enums import FlightMode
 
 from app.config import settings
-from app.models.enums import ImageProcessingStatus, OAMUploadStatus
+from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
 from app.projects.image_processing import DroneImageProcessor
 from app.s3 import (
@@ -482,6 +482,22 @@ async def process_drone_images(
     try:
         pool = ctx["db_pool"]
         async with pool.connection() as conn:
+            # Update task state to IMAGE_PROCESSING_STARTED
+            from app.tasks import task_logic
+            from app.utils import timestamp
+
+            await task_logic.update_task_state_system(
+                conn,
+                project_id,
+                task_id,
+                "ODM processing started",
+                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_STARTED,
+                timestamp(),
+            )
+            await conn.commit()
+            log.info(f"Task {task_id} state updated to IMAGE_PROCESSING_STARTED")
+
             # Initialize the processor with the database connection
             processor = DroneImageProcessor(
                 node_odm_url=settings.NODE_ODM_URL,
@@ -498,7 +514,8 @@ async def process_drone_images(
                 {"name": "orthophoto-resolution", "value": 5},
             ]
 
-            webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
+            # Use internal backend URL for Docker-internal webhooks
+            webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
 
             result = await processor.process_images_from_s3(
                 settings.S3_BUCKET_NAME,

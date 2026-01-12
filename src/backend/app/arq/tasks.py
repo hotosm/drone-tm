@@ -15,7 +15,6 @@ from app.images.image_logic import (
     calculate_file_hash,
     check_duplicate_image,
     create_project_image,
-    mark_image_as_duplicate,
     extract_exif_data,
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
@@ -237,35 +236,34 @@ async def process_uploaded_image(
             log.info(f"Calculating hash for: {filename}")
             file_hash = calculate_file_hash(file_content)
 
-            # Step 2: Check for duplicates
+            # Step 2: Check for duplicates - create record with DUPLICATE status
             duplicate_of_id = await check_duplicate_image(
                 db, UUID(project_id), file_hash
             )
             if duplicate_of_id:
-                log.info(f"Duplicate detected: {file_hash} -> {duplicate_of_id}")
-                # Create a new record marked as duplicate (so it shows in batch)
-                image_record = await _save_image_record(
-                    db=db,
-                    project_id=project_id,
-                    filename=filename,
-                    file_key=file_key,
-                    file_hash=file_hash,
-                    uploaded_by=uploaded_by,
-                    exif_dict=None,
-                    location=None,
-                    status=ImageStatus.DUPLICATE,
-                    batch_id=batch_id,
+                log.info(
+                    f"Duplicate detected: {filename} (hash: {file_hash}) "
+                    f"already exists as image {duplicate_of_id}"
                 )
-                # Mark with reference to original
-                await mark_image_as_duplicate(db, image_record.id, duplicate_of_id)
-
+                # Create a record with DUPLICATE status to track it in the UI
+                image_data = ProjectImageCreate(
+                    project_id=UUID(project_id),
+                    s3_key=file_key,
+                    filename=filename,
+                    uploaded_by=uploaded_by,
+                    status=ImageStatus.DUPLICATE,
+                    hash_md5=file_hash,
+                    batch_id=UUID(batch_id) if batch_id else None,
+                    duplicate_of=duplicate_of_id,
+                )
+                image = await create_project_image(db, image_data)
                 return {
-                    "image_id": str(image_record.id),
+                    "image_id": str(image.id),
                     "status": ImageStatus.DUPLICATE.value,
                     "has_gps": False,
                     "is_duplicate": True,
                     "duplicate_of": str(duplicate_of_id),
-                    "message": "Duplicate image detected",
+                    "message": "Duplicate of existing image",
                 }
 
             # Step 3: Extract EXIF (try-catch to handle failures gracefully)
@@ -398,6 +396,134 @@ async def classify_image_batch(
         raise
 
 
+async def process_batch_images(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    batch_id: str,
+) -> Dict[str, Any]:
+    """Background task to move batch images to task folders and trigger ODM processing.
+
+    This task:
+    1. Moves assigned images from user-uploads/ to {task_id}/images/ in S3
+    2. Triggers ODM processing for each task that has at least MIN_IMAGES_FOR_ODM images
+
+    Args:
+        ctx: ARQ context
+        project_id: UUID of the project
+        batch_id: UUID of the batch to process
+
+    Returns:
+        dict: Processing result with task details
+    """
+    # Minimum images required for ODM to process (needs overlapping images)
+    MIN_IMAGES_FOR_ODM = 3
+
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting process_batch_images (Job ID: {job_id}): batch={batch_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            # Step 1: Move images to task folders
+            log.info(f"Moving batch {batch_id} images to task folders...")
+            move_result = await ImageClassifier.move_batch_images_to_tasks(
+                conn, UUID(batch_id), UUID(project_id)
+            )
+            await conn.commit()
+
+            log.info(
+                f"Moved {move_result['total_moved']} images to "
+                f"{move_result['task_count']} tasks"
+            )
+
+            if move_result["total_moved"] == 0:
+                return {
+                    "message": "No images to process",
+                    "batch_id": batch_id,
+                    "tasks_processed": 0,
+                }
+
+            # Step 2: Get the list of tasks to process
+            task_ids = list(move_result["tasks"].keys())
+
+            # Step 3: Trigger ODM processing for each task
+            # (We'll enqueue separate jobs for each task to parallelize)
+            redis = ctx.get("redis")
+            if not redis:
+                log.warning("Redis not available, cannot trigger ODM processing jobs")
+                return {
+                    "message": "Images moved but ODM processing not triggered",
+                    "batch_id": batch_id,
+                    "move_result": move_result,
+                }
+
+            odm_jobs = []
+            skipped_tasks = []
+            for task_id in task_ids:
+                task_images = move_result["tasks"][task_id]
+                image_count = task_images["image_count"]
+
+                # Skip tasks with insufficient images for ODM
+                if image_count < MIN_IMAGES_FOR_ODM:
+                    log.warning(
+                        f"Skipping ODM for task {task_id}: only {image_count} images "
+                        f"(minimum {MIN_IMAGES_FOR_ODM} required)"
+                    )
+                    skipped_tasks.append(
+                        {
+                            "task_id": task_id,
+                            "image_count": image_count,
+                            "reason": f"Insufficient images (need {MIN_IMAGES_FOR_ODM})",
+                        }
+                    )
+                    continue
+
+                log.info(
+                    f"Triggering ODM processing for task {task_id} "
+                    f"with {image_count} images"
+                )
+
+                # Enqueue ODM processing job
+                # Note: We'll use a placeholder user_id for the webhook
+                # In production, you might want to track the actual user
+                job = await redis.enqueue_job(
+                    "process_drone_images",
+                    UUID(project_id),
+                    UUID(task_id),
+                    "batch-processor",  # user_id for webhook
+                    _queue_name="default_queue",
+                )
+                odm_jobs.append(
+                    {
+                        "task_id": task_id,
+                        "job_id": job.job_id,
+                        "image_count": image_count,
+                    }
+                )
+
+            log.info(
+                f"Batch processing complete: {len(odm_jobs)} ODM jobs queued, "
+                f"{len(skipped_tasks)} tasks skipped (insufficient images)"
+            )
+
+            return {
+                "message": "Batch processing started",
+                "batch_id": batch_id,
+                "total_images_moved": move_result["total_moved"],
+                "tasks_processed": len(odm_jobs),
+                "tasks_skipped": len(skipped_tasks),
+                "odm_jobs": odm_jobs,
+                "skipped_tasks": skipped_tasks,
+            }
+
+    except Exception as e:
+        log.error(f"Failed to process batch (Job: {job_id}): {str(e)}")
+        raise
+
+
 async def delete_batch_images(
     ctx: Dict[Any, Any],
     project_id: str,
@@ -508,6 +634,7 @@ class WorkerSettings:
         process_all_drone_images,
         process_uploaded_image,
         classify_image_batch,
+        process_batch_images,
         delete_batch_images,
     ]
 

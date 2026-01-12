@@ -320,35 +320,6 @@ async def check_duplicate_image(
     return result["id"] if result else None
 
 
-async def mark_image_as_duplicate(
-    db: Connection, image_id: UUID, duplicate_of: UUID
-) -> None:
-    """Mark an image as a duplicate of another image.
-
-    Args:
-        db: Database connection
-        image_id: ID of the image to mark as duplicate
-        duplicate_of: ID of the original image
-    """
-    sql = """
-        UPDATE project_images
-        SET status = %(status)s, duplicate_of = %(duplicate_of)s
-        WHERE id = %(image_id)s
-    """
-
-    async with db.cursor() as cur:
-        await cur.execute(
-            sql,
-            {
-                "status": ImageStatus.DUPLICATE.value,
-                "duplicate_of": str(duplicate_of),
-                "image_id": str(image_id),
-            },
-        )
-
-    log.info(f"Marked image {image_id} as duplicate of {duplicate_of}")
-
-
 async def get_images_by_project(
     db: Connection, project_id: UUID, status: Optional[ImageStatus] = None
 ) -> list[ProjectImageOut]:
