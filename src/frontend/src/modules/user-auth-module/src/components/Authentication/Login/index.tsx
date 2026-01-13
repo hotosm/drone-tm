@@ -22,7 +22,7 @@ const { BASE_URL } = process.env;
 
 // Auth provider configuration
 const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
-const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://dev.login.hotosm.org';
+const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 const initialState = {
@@ -120,7 +120,7 @@ export default function Login() {
             onClick={() => {
               // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
               const returnTo = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
-              window.location.href = `${PORTAL_SSO_URL}/app?return_to=${encodeURIComponent(returnTo)}`;
+              window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnTo)}`;
             }}
           >
             <span className="naxatw-text-body-btn">Login with HOTOSM SSO</span>

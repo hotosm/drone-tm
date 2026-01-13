@@ -36,8 +36,7 @@ jobs:
           docker build -t ghcr.io/${{ env.IMAGE_PREFIX }}/frontend:login-hanko \
             --target prod \
             --build-arg VITE_AUTH_PROVIDER=hanko \
-            --build-arg VITE_HANKO_API_URL=https://dev.login.hotosm.org \
-            --build-arg VITE_PORTAL_SSO_URL=https://dev.login.hotosm.org \
+            --build-arg VITE_HANKO_URL=https://dev.login.hotosm.org \
             --build-arg VITE_FRONTEND_URL=https://testlogin.dronetm.hotosm.org \
             --build-arg VITE_API_URL=https://testlogin.dronetm.hotosm.org/api \
             --build-arg BASE_URL=https://testlogin.dronetm.hotosm.org/api \

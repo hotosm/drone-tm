@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 
 // Auth configuration for SSO session verification
 const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
-const HANKO_API_URL = (import.meta as any).env.VITE_HANKO_API_URL || 'https://dev.login.hotosm.org';
-const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://dev.login.hotosm.org';
+const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 // Import Hanko web component for session verification
@@ -22,8 +21,8 @@ export default function Navbar() {
       {AUTH_PROVIDER === 'hanko' && (
         <div style={{ display: 'none' }}>
           <hotosm-auth
-            hanko-url={HANKO_API_URL}
-            base-path={PORTAL_SSO_URL}
+            hanko-url={HANKO_URL}
+            base-path={HANKO_URL}
             redirect-after-login={hankoReturnUrl}
             redirect-after-logout={FRONTEND_URL}
           />

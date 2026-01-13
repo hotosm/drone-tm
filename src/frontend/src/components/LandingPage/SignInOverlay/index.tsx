@@ -13,7 +13,7 @@ import { motion } from 'framer-motion';
 import { slideVariants } from '@Constants/animations';
 
 const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
-const PORTAL_SSO_URL = (import.meta as any).env.VITE_PORTAL_SSO_URL || 'https://dev.login.hotosm.org';
+const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 export default function SignInOverlay() {
@@ -64,7 +64,7 @@ export default function SignInOverlay() {
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'PROJECT_CREATOR'}`;
-                window.location.href = `${PORTAL_SSO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
+                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
               }
 
@@ -99,7 +99,7 @@ export default function SignInOverlay() {
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'DRONE_PILOT'}`;
-                window.location.href = `${PORTAL_SSO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
+                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
               }
 
