@@ -819,7 +819,7 @@ requires-dist = [
     { name = "geoalchemy2", specifier = "==0.14.2" },
     { name = "geojson", specifier = "==3.1.0" },
     { name = "geojson-pydantic", specifier = "==1.1.0" },
-    { name = "hotosm-auth", git = "https://github.com/hotosm/login.git?subdirectory=auth-libs%2Fpython&rev=auth-libs-v0.2.2" },
+    { name = "hotosm-auth", git = "https://github.com/hotosm/login.git?subdirectory=auth-libs%2Fpython&rev=auth-libs-v0.2.3" },
     { name = "itsdangerous", specifier = "==2.2.0" },
     { name = "jinja2", specifier = "==3.1.4" },
     { name = "loguru", specifier = "==0.7.2" },
@@ -1298,8 +1298,8 @@ wheels = [
 
 [[package]]
 name = "hotosm-auth"
-version = "0.2.2"
-source = { git = "https://github.com/hotosm/login.git?subdirectory=auth-libs%2Fpython&rev=auth-libs-v0.2.2#4fc4b599d6730c46ef8212fff145d34c84a87328" }
+version = "0.2.3"
+source = { git = "https://github.com/hotosm/login.git?subdirectory=auth-libs%2Fpython&rev=auth-libs-v0.2.3#162c84a2e8d4fd099ab1b920ce21f65884739cea" }
 dependencies = [
     { name = "cryptography" },
     { name = "httpx" },
