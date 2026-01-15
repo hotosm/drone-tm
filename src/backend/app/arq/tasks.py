@@ -147,6 +147,7 @@ async def _save_image_record(
     status: ImageStatus = ImageStatus.STAGED,
     batch_id: Optional[str] = None,
     thumbnail_url: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> ProjectImageOut:
     """Save image record to database.
 
@@ -177,6 +178,7 @@ async def _save_image_record(
         status=status,
         batch_id=UUID(batch_id) if batch_id else None,
         thumbnail_url=thumbnail_url,
+        rejection_reason=rejection_reason,
     )
 
     image_record = await create_project_image(db, image_data)
@@ -269,6 +271,7 @@ async def process_uploaded_image(
             # Step 3: Extract EXIF (try-catch to handle failures gracefully)
             exif_dict = None
             location = None
+            rejection_reason = None
 
             try:
                 log.info(f"Extracting EXIF from: {filename}")
@@ -281,9 +284,18 @@ async def process_uploaded_image(
                     log.debug(f"EXIF tags: {list(exif_dict.keys())[:10]}")
                 else:
                     log.warning(f"No EXIF data in: {filename}")
+                    log.debug(
+                        f"Invalid EXIF for {filename}: extract_exif_data returned None "
+                        f"(file_key={file_key}, bytes={len(file_content)})"
+                    )
+                    rejection_reason = "No EXIF data found"
 
             except Exception as exif_error:
                 log.error(f"EXIF extraction failed for {filename}: {exif_error}")
+                log.opt(exception=True).debug(
+                    f"EXIF extraction exception for {filename}: {type(exif_error).__name__}: {exif_error}"
+                )
+                rejection_reason = f"EXIF extraction failed: {exif_error}"
 
             # Step 4: Generate and upload thumbnail
             thumbnail_s3_key = None
@@ -342,6 +354,9 @@ async def process_uploaded_image(
                 status=status,
                 batch_id=batch_id,
                 thumbnail_url=thumbnail_s3_key,
+                rejection_reason=rejection_reason
+                if status == ImageStatus.INVALID_EXIF
+                else None,
             )
 
             log.info(

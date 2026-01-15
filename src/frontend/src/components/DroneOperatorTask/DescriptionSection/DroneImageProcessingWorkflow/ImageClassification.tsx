@@ -578,7 +578,7 @@ const ImageClassification = ({
                       Missing GPS Data
                     </h5>
                     <p className="naxatw-mt-2 naxatw-text-sm naxatw-text-orange-700">
-                      The image does not contain valid GPS coordinates in its EXIF metadata.
+                      The image does not contain valid EXIF metadata (GPS coordinates may be wrong).
                     </p>
                   </div>
                 )}
