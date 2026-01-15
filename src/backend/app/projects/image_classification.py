@@ -1,7 +1,7 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import cv2
@@ -14,8 +14,11 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 from app.models.enums import ImageStatus
-from app.s3 import get_obj_from_bucket, s3_client, copy_file_within_bucket
-from app.utils import strip_presigned_url_for_local_dev
+from app.s3 import (
+    copy_file_within_bucket,
+    generate_presigned_get_url,
+    get_obj_from_bucket,
+)
 
 # Number of concurrent workers for parallel classification
 CLASSIFICATION_CONCURRENCY = 10
@@ -555,25 +558,14 @@ class ImageClassifier:
         # Generate presigned URLs for each image (keep signature for authentication)
         for image in images:
             if image.get("s3_key"):
-                client = s3_client()
-                url = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
-                )
-                # Keep presigned params (strip_presign=False) so signature is preserved
-                image["url"] = strip_presigned_url_for_local_dev(
-                    url, strip_presign=False
+                image["url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
                 )
 
             # Generate presigned URL for thumbnail if available
             if image.get("thumbnail_url"):
-                client = s3_client()
-                thumbnail_presigned = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME,
-                    image["thumbnail_url"],
-                    expires=timedelta(hours=1),
-                )
-                image["thumbnail_url"] = strip_presigned_url_for_local_dev(
-                    thumbnail_presigned, strip_presign=False
+                image["thumbnail_url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
                 )
 
             # Add has_gps field for frontend display
@@ -635,26 +627,14 @@ class ImageClassifier:
         for group in task_groups:
             for image in group["images"]:
                 if image.get("thumbnail_url"):
-                    client = s3_client()
-                    thumbnail_presigned = client.presigned_get_object(
-                        settings.S3_BUCKET_NAME,
-                        image["thumbnail_url"],
-                        expires=timedelta(hours=1),
-                    )
-                    image["thumbnail_url"] = strip_presigned_url_for_local_dev(
-                        thumbnail_presigned, strip_presign=False
+                    image["thumbnail_url"] = generate_presigned_get_url(
+                        settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
                     )
 
                 # Generate presigned URL for full image
                 if image.get("s3_key"):
-                    client = s3_client()
-                    url = client.presigned_get_object(
-                        settings.S3_BUCKET_NAME,
-                        image["s3_key"],
-                        expires=timedelta(hours=1),
-                    )
-                    image["url"] = strip_presigned_url_for_local_dev(
-                        url, strip_presign=False
+                    image["url"] = generate_presigned_get_url(
+                        settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
                     )
 
         return {
@@ -1171,23 +1151,13 @@ class ImageClassifier:
         # Generate presigned URLs
         for image in images:
             if image.get("thumbnail_url"):
-                client = s3_client()
-                thumbnail_presigned = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME,
-                    image["thumbnail_url"],
-                    expires=timedelta(hours=1),
-                )
-                image["thumbnail_url"] = strip_presigned_url_for_local_dev(
-                    thumbnail_presigned, strip_presign=False
+                image["thumbnail_url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
                 )
 
             if image.get("s3_key"):
-                client = s3_client()
-                url = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
-                )
-                image["url"] = strip_presigned_url_for_local_dev(
-                    url, strip_presign=False
+                image["url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
                 )
 
         # Calculate coverage percentage using PostGIS

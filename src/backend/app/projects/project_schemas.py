@@ -33,10 +33,10 @@ from app.models.enums import (
     UserRole,
 )
 from app.s3 import (
-    generate_presigned_download_url,
-    generate_static_url,
+    generate_presigned_get_url,
     get_assets_url_for_project,
     get_orthophoto_url_for_project,
+    maybe_presign_s3_key,
 )
 from app.utils import (
     merge_multipolygon,
@@ -207,7 +207,8 @@ class TaskOut(BaseModel):
         """Set image_url before rendering the model."""
         assets_url = values.assets_url
         if assets_url:
-            values.assets_url = generate_static_url(settings.S3_BUCKET_NAME, assets_url)
+            # `assets_url` is typically stored as an S3 key in the DB.
+            values.assets_url = maybe_presign_s3_key(assets_url, 2)
 
         return values
 
@@ -686,7 +687,7 @@ class ProjectInfo(BaseModel):
         image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
 
         values.image_url = safe_url(
-            lambda: generate_presigned_download_url(
+            lambda: generate_presigned_get_url(
                 settings.S3_BUCKET_NAME,
                 image_dir,
                 5,

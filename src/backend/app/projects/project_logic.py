@@ -33,7 +33,7 @@ from app.projects import project_schemas
 from app.projects.image_processing import DroneImageProcessor
 from app.s3 import (
     add_obj_to_bucket,
-    generate_presigned_download_url,
+    generate_presigned_get_url,
     get_file_from_bucket,
     get_object_metadata,
     list_objects_from_bucket,
@@ -109,10 +109,10 @@ async def upload_file_to_s3(
         file.content_type,
     )
 
-    # Construct the S3 URL for the file
-    file_url = f"{settings.S3_DOWNLOAD_ROOT}/{settings.S3_BUCKET_NAME}{file_path}"
-
-    return file_url
+    # Return a browser-usable URL.
+    return generate_presigned_get_url(
+        settings.S3_BUCKET_NAME, file_path, expires_hours=2
+    )
 
 
 async def update_project_oam_status(
@@ -621,7 +621,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL
-            presigned_url = generate_presigned_download_url(
+            presigned_url = generate_presigned_get_url(
                 settings.S3_BUCKET_NAME, assets_path, expires_hours=2
             )
         except S3Error as e:

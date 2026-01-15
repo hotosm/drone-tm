@@ -1,7 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
 from typing import Any
-from urllib.parse import urljoin
 
 from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
@@ -14,31 +13,17 @@ from app.config import settings
 from app.utils import strip_presigned_url_for_local_dev
 
 
+def _normalize_object_name(object_name: str) -> str:
+    """Normalize an S3 object key for SDK calls (no leading slash)."""
+    return object_name.lstrip("/")
+
+
 def s3_client():
-    """Return the initialised MinIO client with credentials."""
-    endpoint = settings.S3_DOWNLOAD_ROOT
-    minio_url, is_secure = is_connection_secure(endpoint)
-
-    log.debug(f"Connecting to MinIO server at {minio_url} (secure={is_secure})")
-
-    return Minio(
-        minio_url,
-        access_key=settings.S3_ACCESS_KEY,
-        secret_key=settings.S3_SECRET_KEY,
-        secure=is_secure,
-    )
-
-
-def s3_client_internal():
-    """Return MinIO client using internal Docker network endpoint (S3_ENDPOINT).
-
-    Use this for operations running inside Docker containers (workers, background tasks)
-    that need to access S3 via the internal network rather than localhost.
-    """
+    """S3 API client (use `S3_ENDPOINT`)."""
     endpoint = settings.S3_ENDPOINT
     minio_url, is_secure = is_connection_secure(endpoint)
 
-    log.debug(f"Connecting to MinIO (internal) at {minio_url} (secure={is_secure})")
+    log.debug(f"Connecting to S3 at {minio_url} (secure={is_secure})")
 
     return Minio(
         minio_url,
@@ -46,6 +31,80 @@ def s3_client_internal():
         secret_key=settings.S3_SECRET_KEY,
         secure=is_secure,
     )
+
+
+def s3_presign_client():
+    """S3 client used to sign URLs the browser will call."""
+    endpoint = settings.S3_ENDPOINT
+    if settings.DEBUG and settings.S3_DOWNLOAD_ROOT:
+        endpoint = settings.S3_DOWNLOAD_ROOT
+
+    minio_url, is_secure = is_connection_secure(endpoint)
+    log.debug(f"Creating presign client at {minio_url} (secure={is_secure})")
+
+    return Minio(
+        minio_url,
+        access_key=settings.S3_ACCESS_KEY,
+        secret_key=settings.S3_SECRET_KEY,
+        secure=is_secure,
+    )
+
+
+def generate_presigned_put_url(
+    bucket_name: str,
+    object_name: str,
+    expires_hours: int = 1,
+) -> str:
+    """Presigned PUT (browser)."""
+    object_name = _normalize_object_name(object_name)
+    client = s3_presign_client()
+    url = client.get_presigned_url(
+        "PUT",
+        bucket_name,
+        object_name,
+        expires=timedelta(hours=expires_hours),
+    )
+    # Preserve query params so signatures work with private buckets.
+    return strip_presigned_url_for_local_dev(url, strip_presign=False)
+
+
+def generate_presigned_get_url(
+    bucket_name: str,
+    object_name: str,
+    expires_hours: int = 2,
+) -> str:
+    """Presigned GET (browser)."""
+    object_name = _normalize_object_name(object_name)
+    client = s3_presign_client()
+    url = client.presigned_get_object(
+        bucket_name, object_name, expires=timedelta(hours=expires_hours)
+    )
+    return strip_presigned_url_for_local_dev(url, strip_presign=False)
+
+
+def generate_presigned_get_url_internal(
+    bucket_name: str,
+    object_name: str,
+    expires_hours: int = 2,
+) -> str:
+    """Presigned GET for in-container callers (workers)."""
+    object_name = _normalize_object_name(object_name)
+    client = s3_client()
+    return client.presigned_get_object(
+        bucket_name, object_name, expires=timedelta(hours=expires_hours)
+    )
+
+
+def maybe_presign_s3_key(value: str | None, expires_hours: int = 2) -> str | None:
+    """If `value` looks like an S3 key, return a presigned GET URL; else return as-is.
+
+    This centralizes URL behavior for DB fields that store raw S3 keys (common in this repo).
+    """
+    if not value:
+        return None
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    return generate_presigned_get_url(settings.S3_BUCKET_NAME, value, expires_hours)
 
 
 def is_connection_secure(minio_url: str):
@@ -255,61 +314,6 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return objects
 
 
-def generate_presigned_download_url(
-    bucket_name: str, object_name: str, expires_hours: int = 2
-) -> str:
-    """Generate a presigned URL for downloading an object from S3 (GET request).
-
-    This generates a temporary URL that allows unauthenticated access to download
-    a specific object from S3. Commonly used for assets, orthophotos, and processed outputs.
-
-    Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The S3 key/path of the object to download.
-        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
-
-    Returns:
-        str: The presigned URL for downloading the object.
-    """
-    client = s3_client()
-    url = client.presigned_get_object(
-        bucket_name, object_name, expires=timedelta(hours=expires_hours)
-    )
-    return strip_presigned_url_for_local_dev(url)
-
-
-def generate_internal_presigned_download_url(
-    bucket_name: str, object_name: str, expires_hours: int = 2
-) -> str:
-    """Generate a presigned URL for downloading from S3 using internal Docker network.
-
-    Use this for worker/background tasks running inside Docker that need to download
-    files from S3. Unlike generate_presigned_download_url, this uses the internal
-    endpoint (S3_ENDPOINT like minio:9000) and preserves the signature.
-
-    Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The S3 key/path of the object to download.
-        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
-
-    Returns:
-        str: The presigned URL for downloading the object (internal network accessible).
-    """
-    client = s3_client_internal()
-    url = client.presigned_get_object(
-        bucket_name, object_name, expires=timedelta(hours=expires_hours)
-    )
-    return url
-
-
-def get_presigned_url(bucket_name: str, object_name: str, expires: int = 2):
-    """Deprecated: Use generate_presigned_download_url instead.
-
-    This function is maintained for backwards compatibility.
-    """
-    return generate_presigned_download_url(bucket_name, object_name, expires)
-
-
 def get_object_metadata(bucket_name: str, object_name: str):
     """Get object metadata from an S3 bucket.
 
@@ -324,26 +328,14 @@ def get_object_metadata(bucket_name: str, object_name: str):
     return client.stat_object(bucket_name, object_name)
 
 
-def generate_static_url(bucket_name: str, s3_path: str):
-    """Generate a static URL for an S3 object."""
-    minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
-    protocol = "https" if is_secure else "http"
-    base_url = f"{protocol}://{minio_url}/{bucket_name}/"
-    return urljoin(base_url, s3_path)
-
-
 def get_assets_url_for_project(project_id: str):
-    """Get the assets URL for a project."""
+    """Browser URL for project assets.zip."""
     project_assets_path = f"dtm-data/projects/{project_id}/assets.zip"
-    s3_download_root = settings.S3_DOWNLOAD_ROOT
-    if s3_download_root:
-        url = urljoin(s3_download_root, project_assets_path)
-        return strip_presigned_url_for_local_dev(url)
-    return get_presigned_url(settings.S3_BUCKET_NAME, project_assets_path, 3)
+    return generate_presigned_get_url(settings.S3_BUCKET_NAME, project_assets_path, 3)
 
 
 def get_orthophoto_url_for_project(project_id: str):
-    """Get the orthophoto URL for a project."""
+    """Browser URL for orthophoto."""
     project_orthophoto_path = (
         f"dtm-data/projects/{project_id}/orthophoto/odm_orthophoto.tif"
     )
@@ -352,11 +344,9 @@ def get_orthophoto_url_for_project(project_id: str):
         log.warning("Orthophoto not found in S3 bucket")
         return None
 
-    s3_download_root = settings.S3_DOWNLOAD_ROOT
-    if s3_download_root:
-        url = urljoin(s3_download_root, project_orthophoto_path)
-        return strip_presigned_url_for_local_dev(url)
-    return get_presigned_url(settings.S3_BUCKET_NAME, project_orthophoto_path, 3)
+    return generate_presigned_get_url(
+        settings.S3_BUCKET_NAME, project_orthophoto_path, 3
+    )
 
 
 def copy_file_within_bucket(
@@ -417,7 +407,7 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
     Returns:
         str: The upload ID for the multipart upload session.
     """
-    object_name = object_name.lstrip("/")
+    object_name = _normalize_object_name(object_name)
     client = s3_client()
 
     try:
@@ -459,9 +449,9 @@ def generate_presigned_multipart_upload_url(
     Raises:
         S3Error: If there's an error communicating with S3.
     """
-    object_name = object_name.lstrip("/")
+    object_name = _normalize_object_name(object_name)
 
-    client = s3_client()
+    client = s3_presign_client()
 
     try:
         url = client.get_presigned_url(
@@ -475,7 +465,8 @@ def generate_presigned_multipart_upload_url(
             },
         )
         log.debug(f"Generated presigned URL for part {part_number} of {object_name}")
-        return url
+        # For multipart, we must keep all query params (signature, uploadId, partNumber).
+        return strip_presigned_url_for_local_dev(url, strip_presign=False)
     except S3Error as e:
         log.error(f"Error generating presigned URL for part upload: {e}")
         raise
@@ -514,7 +505,7 @@ def complete_multipart_upload(
     Returns:
         bool: True if the multipart upload was completed successfully.
     """
-    object_name = object_name.lstrip("/")
+    object_name = _normalize_object_name(object_name)
     client = s3_client()
 
     try:
@@ -557,7 +548,7 @@ def abort_multipart_upload(bucket_name: str, object_name: str, upload_id: str) -
     Returns:
         bool: True if the upload was aborted successfully.
     """
-    object_name = object_name.lstrip("/")
+    object_name = _normalize_object_name(object_name)
     client = s3_client()
 
     try:
@@ -585,7 +576,7 @@ def list_parts(bucket_name: str, object_name: str, upload_id: str) -> list[dict]
     Returns:
         list[dict]: List of uploaded parts with part number and ETag.
     """
-    object_name = object_name.lstrip("/")
+    object_name = _normalize_object_name(object_name)
     client = s3_client()
 
     try:
