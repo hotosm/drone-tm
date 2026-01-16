@@ -71,8 +71,8 @@ const UppyFileUploader = ({
       uppy.removePlugin(existingPlugin);
     }
     uppy.use(AwsS3, {
-        id: pluginId,
-      limit: 4, // Upload 4 parts simultaneously
+      id: pluginId,
+      limit: 2, // Upload 2 files simultaneously
       retryDelays: [0, 1000, 3000, 5000],
       shouldUseMultipart: true,
       createMultipartUpload: async file => {
