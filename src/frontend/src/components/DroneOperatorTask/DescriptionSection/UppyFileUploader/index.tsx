@@ -72,7 +72,12 @@ const UppyFileUploader = ({
     }
     uppy.use(AwsS3, {
       id: pluginId,
-      limit: 2, // Upload 2 files simultaneously
+      // Limit files uploaded simultaneously.
+      // Note this is a limit for the number of files, not connections.
+      // ~5–15 MB files, part size 5MB, gives 1-3 parts per file.
+      // 2 files × 2 parts = 4 concurrent PUTs, which is enough
+      // to saturate the bandwidth in many places
+      limit: 2,
       retryDelays: [0, 1000, 3000, 5000],
       shouldUseMultipart: true,
       createMultipartUpload: async file => {
