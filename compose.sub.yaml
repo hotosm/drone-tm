@@ -52,7 +52,7 @@ services:
       # BAD_BEHAVIOUR disabled as it's difficult to work with...
       USE_BAD_BEHAVIOR: no
       USE_LIMIT_REQ: yes
-      # Default 2r/s --> 10r/s for S3 multipart success
+      # Default 2r/s --> 20r/s for simultaneous S3 multipart uploads
       LIMIT_REQ_RATE: 10r/s
       USE_MODSECURITY: no
       USE_GZIP: yes
