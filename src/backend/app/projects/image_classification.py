@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from math import cos, radians, sqrt
-from typing import Optional
+from typing import Optional, Any
 import re
 
 import cv2
@@ -25,11 +25,14 @@ from app.s3 import (
 
 
 # Number of concurrent workers for parallel classification
-CLASSIFICATION_CONCURRENCY = 10
+CLASSIFICATION_CONCURRENCY = 6
 
 # Hard timeout per image to avoid a single stuck S3 read / decode hanging the whole batch.
 # If exceeded, the image is marked as REJECTED with a generic "Classification failed".
 CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS = 120
+
+# Buffer radius in meters for coverage calculation
+COVERAGE_BUFFER_METERS = 20.0
 
 
 @dataclass(frozen=True)
@@ -52,8 +55,8 @@ class QualityThresholds:
     very_dark_mean_threshold: float = 40.0
     very_bright_mean_threshold: float = 215.0
 
-    # AOI sanity check (rough): if image is > ~1° away from project centroid, it's likely wrong project.
-    far_from_project_degrees: float = 1.0
+    # AOI sanity check (rough): if image is > ~100km away from project centroid, it's likely wrong project.
+    far_from_project_km: float = 100.0
 
 
 Q = QualityThresholds()
@@ -61,7 +64,7 @@ Q = QualityThresholds()
 
 class ImageClassifier:
     @staticmethod
-    def _to_float(value) -> Optional[float]:
+    def _to_float(value: Any) -> Optional[float]:
         if value is None:
             return None
         if isinstance(value, (int, float)):
@@ -74,7 +77,7 @@ class ImageClassifier:
         return None
 
     @staticmethod
-    def _parse_gps(value: object) -> Optional[float]:
+    def _parse_gps(value: Any) -> Optional[float]:
         """Parse EXIF GPS values into decimal degrees."""
         if value is None:
             return None
@@ -176,7 +179,7 @@ class ImageClassifier:
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     @staticmethod
-    def analyze_exposure(image_bytes: bytes) -> dict:
+    def analyze_exposure(image_bytes: bytes) -> dict[str, float]:
         """Return simple exposure stats to detect junk frames."""
         gray = ImageClassifier._decode_gray(image_bytes)
         p5, p95 = np.percentile(gray, [5, 95])
@@ -207,7 +210,9 @@ class ImageClassifier:
             and dynamic_range <= Q.low_dynamic_range_threshold
         ):
             issues.append(
-                "Image appears mostly black (lens cap or severe underexposure)"
+                f"Image appears mostly black (lens cap or severe underexposure): "
+                f"mean={mean_luma:.0f}, std={std_luma:.0f}, range={dynamic_range:.0f}, "
+                f"black_ratio={black_ratio:.0%}"
             )
 
         if (
@@ -217,7 +222,11 @@ class ImageClassifier:
             white_ratio >= Q.saturation_ratio_threshold
             and dynamic_range <= Q.low_dynamic_range_threshold
         ):
-            issues.append("Image appears overexposed (mostly white / blown highlights)")
+            issues.append(
+                f"Image appears overexposed (mostly white / blown highlights): "
+                f"mean={mean_luma:.0f}, std={std_luma:.0f}, range={dynamic_range:.0f}, "
+                f"white_ratio={white_ratio:.0%}"
+            )
 
         metrics = {
             "mean": mean_luma,
@@ -264,7 +273,7 @@ class ImageClassifier:
         image_id: uuid.UUID,
         project_id: uuid.UUID,
         project_centroid: Optional[tuple[float, float]] = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
@@ -295,62 +304,7 @@ class ImageClassifier:
         s3_key = image.get("s3_key")
         sharpness_score = None
 
-        # Download image first for quality analysis
-        image_bytes = None
-        try:
-            log.info(f"Downloading image from S3: {s3_key}")
-            file_obj = await run_in_threadpool(
-                get_obj_from_bucket, settings.S3_BUCKET_NAME, s3_key
-            )
-            image_bytes = file_obj.read()
-            log.debug(
-                f"Image download ok: image_id={image_id} size_mb={len(image_bytes) / 1024 / 1024:.2f}"
-            )
-        except Exception as e:
-            log.error(f"Failed to download image from S3: {e}", exc_info=True)
-
-        # Check sharpness first (if image bytes available)
-        if image_bytes:
-            try:
-                gray = ImageClassifier._decode_gray(image_bytes)
-                laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-                sharpness_score = float(laplacian.var())
-                if sharpness_score < Q.min_sharpness:
-                    issues.append(
-                        f"Blurry (sharpness: {sharpness_score:.1f}, min: {Q.min_sharpness})"
-                    )
-                    log.debug(
-                        f"Sharpness check FAILED: image_id={image_id} score={sharpness_score:.1f} min={Q.min_sharpness}"
-                    )
-                else:
-                    log.debug(
-                        f"Sharpness check passed: image_id={image_id} score={sharpness_score:.1f}"
-                    )
-
-                exposure_issues, exposure_metrics = ImageClassifier._exposure_issues(
-                    gray
-                )
-
-                # Debug-only: emit the raw metrics to logs for tuning.
-                log.debug(
-                    "Image quality metrics | "
-                    f"id={image_id} file={s3_key} "
-                    f"sharpness={sharpness_score:.1f} "
-                    f"mean={exposure_metrics['mean']:.1f} std={exposure_metrics['std']:.1f} "
-                    f"range(p95-p5)={exposure_metrics['dynamic_range']:.0f} "
-                    f"black={exposure_metrics['black_ratio']:.0%} "
-                    f"white={exposure_metrics['white_ratio']:.0%}"
-                )
-
-                for issue in exposure_issues:
-                    issues.append(issue)
-                    log.debug(
-                        f"Exposure check FAILED: image_id={image_id} issue={issue}"
-                    )
-            except Exception as e:
-                log.warning(f"Could not calculate sharpness: {e}")
-
-        # Check EXIF data
+        # Check EXIF data FIRST before downloading image
         if not exif_data:
             issues.append("Image is missing camera information (EXIF data)")
             log.debug(f"EXIF check FAILED: image_id={image_id} no exif")
@@ -398,12 +352,11 @@ class ImageClassifier:
         # Merge drone metadata for quality checks
         quality_check_data = {**exif_data, **drone_metadata}
 
-        # Horizon detection is not needed when gimbal pitch metadata is present.
-        gimbal_angle_raw = (
-            quality_check_data.get("GimbalPitchDegree")
-            or quality_check_data.get("FlightPitchDegree")
-            or quality_check_data.get("pitch")
-        )
+        # Check gimbal pitch (camera angle, not aircraft pitch)
+        # Only use GimbalPitchDegree - FlightPitchDegree is aircraft attitude, not camera angle
+        gimbal_angle_raw = quality_check_data.get(
+            "GimbalPitchDegree"
+        ) or quality_check_data.get("pitch")
         gimbal_angle = ImageClassifier._to_float(gimbal_angle_raw)
         if gimbal_angle_raw is not None and gimbal_angle is None:
             log.debug(
@@ -420,6 +373,66 @@ class ImageClassifier:
             log.debug(
                 f"Gimbal check passed: image_id={image_id} angle={gimbal_angle:.1f}"
             )
+
+        # Only download image if we haven't already found critical issues (EXIF/GPS)
+        image_bytes = None
+        if not issues:
+            try:
+                log.info(f"Downloading image from S3: {s3_key}")
+                file_obj = await run_in_threadpool(
+                    get_obj_from_bucket, settings.S3_BUCKET_NAME, s3_key
+                )
+                image_bytes = file_obj.read()
+                log.debug(
+                    f"Image download ok: image_id={image_id} size_mb={len(image_bytes) / 1024 / 1024:.2f}"
+                )
+            except Exception as e:
+                log.error(f"Failed to download image from S3: {e}", exc_info=True)
+                issues.append(f"Failed to download image: {str(e)[:100]}")
+
+        # Check sharpness and exposure if image bytes available
+        if image_bytes:
+            try:
+                # Use the calculate_sharpness method
+                sharpness_score = ImageClassifier.calculate_sharpness(image_bytes)
+                if sharpness_score < Q.min_sharpness:
+                    issues.append(
+                        f"Blurry (sharpness: {sharpness_score:.1f}, min: {Q.min_sharpness})"
+                    )
+                    log.debug(
+                        f"Sharpness check FAILED: image_id={image_id} score={sharpness_score:.1f} min={Q.min_sharpness}"
+                    )
+                else:
+                    log.debug(
+                        f"Sharpness check passed: image_id={image_id} score={sharpness_score:.1f}"
+                    )
+
+                # Check exposure issues
+                gray = ImageClassifier._decode_gray(image_bytes)
+                exposure_issues, exposure_metrics = ImageClassifier._exposure_issues(
+                    gray
+                )
+
+                # Debug-only: emit the raw metrics to logs for tuning.
+                log.debug(
+                    "Image quality metrics | "
+                    f"id={image_id} file={s3_key} "
+                    f"sharpness={sharpness_score:.1f} "
+                    f"mean={exposure_metrics['mean']:.1f} std={exposure_metrics['std']:.1f} "
+                    f"range(p95-p5)={exposure_metrics['dynamic_range']:.0f} "
+                    f"black={exposure_metrics['black_ratio']:.0%} "
+                    f"white={exposure_metrics['white_ratio']:.0%}"
+                )
+
+                # Add exposure issues (which now include metrics in the message)
+                for issue in exposure_issues:
+                    issues.append(issue)
+                    log.debug(
+                        f"Exposure check FAILED: image_id={image_id} issue={issue}"
+                    )
+            except Exception as e:
+                log.warning(f"Could not calculate quality metrics: {e}")
+                issues.append(f"Quality analysis failed: {str(e)[:100]}")
 
         # If there are any issues, reject the image with all reasons
         if issues:
@@ -466,23 +479,14 @@ class ImageClassifier:
             rejection_reason = "Image location is outside of all task areas"
             if project_centroid is not None:
                 c_lat, c_lon = project_centroid
-                if (
-                    abs(latitude - c_lat) > Q.far_from_project_degrees
-                    or abs(longitude - c_lon) > Q.far_from_project_degrees
-                ):
-                    rejection_reason = (
-                        "Image appears >100km from project AOI (likely wrong project)"
-                    )
-                    log.debug(
-                        f"AOI sanity: image_id={image_id} centroid_delta_lat={abs(latitude - c_lat):.2f} centroid_delta_lon={abs(longitude - c_lon):.2f}"
-                    )
-                else:
-                    km_approx = ImageClassifier._rough_distance_km(
-                        c_lat, c_lon, latitude, longitude
-                    )
-                    log.debug(
-                        f"AOI sanity: image_id={image_id} approx_dist_km={km_approx:.0f}"
-                    )
+                km_approx = ImageClassifier._rough_distance_km(
+                    c_lat, c_lon, latitude, longitude
+                )
+                if km_approx > Q.far_from_project_km:
+                    rejection_reason = f"Image {km_approx:.0f}km from project center (likely wrong project)"
+                log.debug(
+                    f"AOI sanity: image_id={image_id} approx_dist_km={km_approx:.0f}"
+                )
             await ImageClassifier._update_image_status(
                 db,
                 image_id,
@@ -514,7 +518,7 @@ class ImageClassifier:
         status: ImageStatus,
         rejection_reason: Optional[str] = None,
         sharpness_score: Optional[float] = None,
-    ):
+    ) -> None:
         query = """
             UPDATE project_images
             SET status = %(status)s,
@@ -542,7 +546,7 @@ class ImageClassifier:
         image_id: uuid.UUID,
         task_id: uuid.UUID,
         sharpness_score: Optional[float] = None,
-    ):
+    ) -> None:
         query = """
             UPDATE project_images
             SET status = %(status)s,
@@ -567,8 +571,8 @@ class ImageClassifier:
     @staticmethod
     async def classify_batch(
         db_pool: AsyncConnectionPool, batch_id: uuid.UUID, project_id: uuid.UUID
-    ) -> dict:
-        # Use a connection just to fetch the list of images
+    ) -> dict[str, Any]:
+        # Use UPDATE SKIP LOCKED to ensure no race conditions
         async with db_pool.connection() as db:
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
@@ -579,6 +583,7 @@ class ImageClassifier:
                     AND project_id = %(project_id)s
                     AND status = %(status)s
                     ORDER BY uploaded_at
+                    FOR UPDATE SKIP LOCKED
                     """,
                     {
                         "batch_id": str(batch_id),
@@ -600,7 +605,7 @@ class ImageClassifier:
                 "images": [],
             }
 
-        results = {
+        results: dict[str, Any] = {
             "batch_id": str(batch_id),
             "total": len(images),
             "assigned": 0,
@@ -645,11 +650,12 @@ class ImageClassifier:
             if not msg:
                 return "Classification failed"
             # Avoid dumping huge stack-like content into the UI.
+            # Truncate at word boundary if too long
             if len(msg) > 240:
-                msg = msg[:240] + "…"
+                msg = msg[:240].rsplit(" ", 1)[0] + "…"
             return f"Classification failed: {msg}"
 
-        async def classify_with_commit(image_record: dict) -> dict:
+        async def classify_with_commit(image_record: dict[str, Any]) -> dict[str, Any]:
             """Classify a single image with its own connection for proper isolation."""
             async with semaphore:
                 image_id = (
@@ -660,20 +666,20 @@ class ImageClassifier:
 
                 # Each worker gets its own connection from the pool
                 async with db_pool.connection() as conn:
-                    # Update status to classifying
-                    async with conn.cursor() as cur:
-                        await cur.execute(
-                            "UPDATE project_images SET status = %(status)s WHERE id = %(image_id)s",
-                            {
-                                "status": ImageStatus.CLASSIFYING.value,
-                                "image_id": str(image_id),
-                            },
-                        )
-                    # Commit the classifying status so frontend can see progress
-                    await conn.commit()
-
                     try:
-                        # Perform classification
+                        # Update status to classifying
+                        async with conn.cursor() as cur:
+                            await cur.execute(
+                                "UPDATE project_images SET status = %(status)s WHERE id = %(image_id)s",
+                                {
+                                    "status": ImageStatus.CLASSIFYING.value,
+                                    "image_id": str(image_id),
+                                },
+                            )
+                        # Commit the classifying status so frontend can see progress
+                        await conn.commit()
+
+                        # Perform classification with timeout
                         result = await asyncio.wait_for(
                             ImageClassifier.classify_single_image(
                                 conn, image_id, project_id, project_centroid
@@ -682,6 +688,7 @@ class ImageClassifier:
                         )
                         # Commit the classification result immediately
                         await conn.commit()
+
                     except asyncio.TimeoutError:
                         # Never leave an image stuck in CLASSIFYING.
                         log.warning(
@@ -689,18 +696,26 @@ class ImageClassifier:
                             f"{CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS}s"
                         )
                         reason = "Classification failed (timed out)"
-                        await ImageClassifier._update_image_status(
-                            conn,
-                            image_id,
-                            ImageStatus.REJECTED,
-                            reason,
-                        )
-                        await conn.commit()
+                        try:
+                            await ImageClassifier._update_image_status(
+                                conn,
+                                image_id,
+                                ImageStatus.REJECTED,
+                                reason,
+                            )
+                            await conn.commit()
+                        except Exception as rollback_err:
+                            log.error(
+                                f"Failed to update status after timeout for {image_id}: {rollback_err}"
+                            )
+                            await conn.rollback()
+
                         result = {
                             "image_id": str(image_id),
                             "status": ImageStatus.REJECTED,
                             "reason": reason,
                         }
+
                     except Exception as e:
                         # Never leave an image stuck in CLASSIFYING.
                         log.error(
@@ -708,13 +723,20 @@ class ImageClassifier:
                             exc_info=True,
                         )
                         reason = _format_classification_failure_reason(e)
-                        await ImageClassifier._update_image_status(
-                            conn,
-                            image_id,
-                            ImageStatus.REJECTED,
-                            reason,
-                        )
-                        await conn.commit()
+                        try:
+                            await ImageClassifier._update_image_status(
+                                conn,
+                                image_id,
+                                ImageStatus.REJECTED,
+                                reason,
+                            )
+                            await conn.commit()
+                        except Exception as rollback_err:
+                            log.error(
+                                f"Failed to update status after crash for {image_id}: {rollback_err}"
+                            )
+                            await conn.rollback()
+
                         result = {
                             "image_id": str(image_id),
                             "status": ImageStatus.REJECTED,

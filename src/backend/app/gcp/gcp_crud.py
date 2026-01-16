@@ -20,6 +20,8 @@ async def calculate_bounding_box(
     focal_ratio: float,
     fnumber: float,
     altitude: float,
+    # NOTE should we record sensor width & height from manufacturer specs,
+    # or could we just determine from the imagery EXIF?
     sensor_width: float = 6.17,  # FIXME These are drone specific
     sensor_height: float = 4.55,  # FIXME These are drone specific
 ) -> List[float]:
