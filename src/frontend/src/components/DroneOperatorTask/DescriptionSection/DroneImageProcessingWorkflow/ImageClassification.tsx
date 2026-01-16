@@ -314,7 +314,7 @@ const ImageClassification = ({
         <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-5">
           <div className="naxatw-text-center">
             {renderValue(computedStats.uploaded, isClassifying, 'naxatw-text-gray-500')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Uploaded</div>
+            <div className="naxatw-text-sm naxatw-text-gray-600">Pending</div>
           </div>
           <div className="naxatw-text-center">
             {renderValue(computedStats.processing, isClassifying, 'naxatw-text-blue-600')}
