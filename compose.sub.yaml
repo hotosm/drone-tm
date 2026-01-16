@@ -47,10 +47,13 @@ services:
       USE_BACKUP: no
       USE_METRICS: no
       # USE_ANTIBOT: yes
+      # S3 supports HTTP/1.1, which has a default of 10 conn limit
       USE_LIMIT_CONN: yes
       # BAD_BEHAVIOUR disabled as it's difficult to work with...
       USE_BAD_BEHAVIOR: no
       USE_LIMIT_REQ: yes
+      # Default 2r/s --> 10r/s for S3 multipart success
+      LIMIT_REQ_RATE: 10r/s
       USE_MODSECURITY: no
       USE_GZIP: yes
       # On client, brotli is preferred over gzip if both are enabled
