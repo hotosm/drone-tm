@@ -5,6 +5,7 @@ import hashlib
 import json
 import shutil
 import tempfile
+import math
 from typing import Any, Optional
 from uuid import UUID
 from datetime import datetime, timezone
@@ -380,23 +381,34 @@ async def get_images_by_project(
 
 
 def _calculate_angular_difference(
-        baseline: float, current_azimuth: float
+        degree1: float, degree2: float
         ) -> float: 
     """
    Calculates the shortest angular difference between two angles. 
 
-   Ensures the difference accounts for degree wrap-around.
+   Ensures the difference accounts for 360-degree wrap-around.
 
    Returns: 
         float: Absolute difference in degrees (0 to 180)
     """
-    angular_difference = abs(baseline - current_azimuth)
+    angular_difference = abs(degree1 - degree2)
     if angular_difference > 180:
         angular_difference = 360 - angular_difference 
     return angular_difference
 
+def _calculate_circular_mean(
+        degree1: float, degree2: float
+    ) -> float: 
+    """
+    Calcultes the mean between two angles, accounting for 360-degree wrap around. 
+    """
+    rad1 = math.radians(degree1)
+    rad2 = math.radians(degree2)
+    x = math.cos(rad1) + math.cos(rad2)
+    y = math.sin(rad1) + math.sin(rad2)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
 
-def _confirm_turn_made(
+def _confirm_stable_heading(
         project_list: list, image_index: int, steps: int
         ) -> bool:
     """
@@ -481,10 +493,14 @@ async def mark_and_remove_flight_tail_imagery(
     images and follows a three-step validation process:
 
     1. Baseline Calculation: Maintains a running average of the transit trajectory to account for any minor movement.
+
     2. Change in Direction (45-degrees): Triggers a change in direction when flight trajectory shifts more than 
-    45-degrees from the established baseline.
+        45-degrees from the established baseline.
+        Note: This 45-degree threshold may require tuning based on environmental conditions (e.g., high wind) 
+            or specific mission types (e.g., terrain following).
+
     3. Confirmation of Turn: Inspects a 5-image look-ahead or look-behind window to verify that the trajectory change
-    is sustained and not a result of external factors (wind, wobble, etc). 
+        is sustained and not a result of external factors (wind, wobble, etc). 
 
     Args: 
         db: Database connection
@@ -535,56 +551,60 @@ async def mark_and_remove_flight_tail_imagery(
     search_limit = min(limit, project_length - 1)
 
     takeoff_loop = range(search_limit)
+    takeoff_mission_start_idx = None
     takeoff_baseline = None
     takeoff_tails_indices = []
 
     landing_loop = range(project_length - 1, project_length - search_limit, -1)
+    landing_mission_start_idx = None
     landing_baseline = None
     landing_tails_indices = []
 
     # 1. Check for flight tails that occur during takeoff.
     for i in takeoff_loop: 
-        # Stationary images are flagged as tails as they provide unreliable azimuths.
         if project_image_results[i]['distance_moved'] < 1.0:
-            takeoff_tails_indices.append(i)
             continue 
 
         current_azimuth = project_image_results[i]['azimuth']
         if takeoff_baseline is None: 
             takeoff_baseline = current_azimuth
-            takeoff_tails_indices.append(i)
             continue
         
         azimuth_difference = _calculate_angular_difference(takeoff_baseline, current_azimuth)
-        # A 45-degree change in baseline indicates a change in direction during the flight.
+        # A 45-degree change in baseline suggests a change in direction during the flight.
+        # Note: This threshold may need tuning for environmental conditions or specific mission types. 
         if azimuth_difference < 45:
-            takeoff_tails_indices.append(i)
-            takeoff_baseline = (takeoff_baseline + current_azimuth) / 2 
+            takeoff_baseline = _calculate_circular_mean(takeoff_baseline, current_azimuth)
 
         elif azimuth_difference > 45:
-            if _confirm_turn_made(project_image_results, i, 1):
+            if _confirm_stable_heading(project_image_results, i, 1):
+                takeoff_mission_start_idx = i 
                 break
+    
+    if takeoff_mission_start_idx is not None: 
+        takeoff_tails_indices = list(range(takeoff_mission_start_idx))
 
      # 2. Check for flight tails that occur during landing.
     for i in landing_loop: 
         if project_image_results[i]['distance_moved'] < 1.0:
-            landing_tails_indices.append(i)
             continue 
 
         current_azimuth = project_image_results[i]['azimuth']
         if landing_baseline is None: 
             landing_baseline = current_azimuth
-            landing_tails_indices.append(i)
             continue
 
         azimuth_difference = _calculate_angular_difference(landing_baseline, current_azimuth)
         if azimuth_difference < 45:
-            landing_tails_indices.append(i)
-            landing_baseline = (landing_baseline + current_azimuth) / 2 
+            landing_baseline = _calculate_circular_mean(landing_baseline, current_azimuth)
 
         elif azimuth_difference > 45:
-            if _confirm_turn_made(project_image_results, i, -1):
+            if _confirm_stable_heading(project_image_results, i, -1):
+                landing_mission_start_idx = i 
                 break
+    
+    if landing_mission_start_idx is not None: 
+        landing_tails_indices = list(range(landing_mission_start_idx + 1, project_length))
 
     # 3. Aggregate flight tail images and flag detected images
     all_tail_indices = takeoff_tails_indices + landing_tails_indices
