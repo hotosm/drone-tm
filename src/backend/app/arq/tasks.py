@@ -443,12 +443,12 @@ async def process_batch_images(
 
     try:
         async with db_pool.connection() as conn:
-            # Identify and flag tails as REJECTED in database 
+            # Identify and flag tails as REJECTED in database
             log.info(f"Inspecting batch {batch_id} for flightplan tails...")
             await mark_and_remove_flight_tail_imagery(
                 conn, UUID(project_id), UUID(batch_id)
             )
-            await conn.commit() 
+            await conn.commit()
 
             # Step 1: Move images to task folders
             log.info(f"Moving batch {batch_id} images to task folders...")
