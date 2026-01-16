@@ -38,6 +38,7 @@ from app.s3 import (
     abort_multipart_upload,
     add_file_to_bucket,
     complete_multipart_upload,
+    generate_presigned_put_url,
     generate_presigned_multipart_upload_url,
     initiate_multipart_upload,
     list_parts,
@@ -355,36 +356,14 @@ async def generate_presigned_url(
                     f"dtm-data/projects/{data.project_id}/{data.task_id}/images/"
                 )
                 try:
-                    # List objects to delete
-                    paginator = client.get_paginator("list_objects_v2")
-                    pages = paginator.paginate(
-                        Bucket=settings.S3_BUCKET_NAME, Prefix=image_dir.lstrip("/")
-                    )
-
-                    # Collect all objects to delete
-                    objects_to_delete = []
-                    for page in pages:
-                        if "Contents" in page:
-                            for obj in page["Contents"]:
-                                objects_to_delete.append({"Key": obj["Key"]})
-
-                    # Delete objects if any exist
-                    if objects_to_delete:
-                        response = client.delete_objects(
-                            Bucket=settings.S3_BUCKET_NAME,
-                            Delete={"Objects": objects_to_delete, "Quiet": True},
-                        )
-
-                        # Handle deletion errors, if any
-                        if "Errors" in response:
-                            for error in response["Errors"]:
-                                log.error(
-                                    f"Error occurred when deleting object: {error}"
-                                )
-                                raise HTTPException(
-                                    status_code=HTTPStatus.BAD_REQUEST,
-                                    detail=f"Failed to delete existing image: {error}",
-                                )
+                    # Delete objects under the prefix (MinIO SDK).
+                    # This endpoint is deprecated, so we keep the implementation simple.
+                    for obj in client.list_objects(
+                        settings.S3_BUCKET_NAME,
+                        prefix=image_dir.lstrip("/"),
+                        recursive=True,
+                    ):
+                        client.remove_object(settings.S3_BUCKET_NAME, obj.object_name)
 
                 except Exception as e:
                     raise HTTPException(
@@ -393,14 +372,10 @@ async def generate_presigned_url(
                     )
 
             # Generate a new pre-signed URL for the image upload
-            presigned_client = s3_client()
-            url = presigned_client.generate_presigned_url(
-                "put_object",
-                Params={
-                    "Bucket": settings.S3_BUCKET_NAME,
-                    "Key": image_path.lstrip("/"),
-                },
-                ExpiresIn=data.expiry * 3600,  # Convert hours to seconds
+            url = generate_presigned_put_url(
+                settings.S3_BUCKET_NAME,
+                image_path,
+                expires_hours=data.expiry,
             )
             urls.append({"image_name": image, "url": url})
 

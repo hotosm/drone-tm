@@ -217,7 +217,6 @@ const UppyFileUploader = ({
       if (staging && !batchIdRef.current) {
         // Generate a UUID v4 for the batch
         batchIdRef.current = crypto.randomUUID();
-        console.log('Generated batch ID:', batchIdRef.current);
       }
       // Reset notification flag when new upload starts
       notificationShownRef.current = false;

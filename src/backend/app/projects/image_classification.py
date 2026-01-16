@@ -1,31 +1,125 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
+from math import cos, radians, sqrt
 from typing import Optional
+import re
 
 import cv2
 import numpy as np
-from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
+from fastapi.concurrency import run_in_threadpool
 from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 from app.models.enums import ImageStatus
-from app.s3 import get_obj_from_bucket, s3_client, copy_file_within_bucket
-from app.utils import strip_presigned_url_for_local_dev
+from app.s3 import (
+    copy_file_within_bucket,
+    generate_presigned_get_url,
+    get_obj_from_bucket,
+)
+
 
 # Number of concurrent workers for parallel classification
 CLASSIFICATION_CONCURRENCY = 10
 
+# Hard timeout per image to avoid a single stuck S3 read / decode hanging the whole batch.
+# If exceeded, the image is marked as REJECTED with a generic "Classification failed".
+CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS = 120
 
-MIN_GIMBAL_ANGLE = 10.0
-MIN_SHARPNESS_SCORE = 100.0
+
+@dataclass(frozen=True)
+class QualityThresholds:
+    """Tuning values for image quality checks."""
+
+    # Accept images that point mostly down
+    # DJI gimbal pitch is typically ~-90 (down), 0 (horizon), >0 (up)
+    max_gimbal_pitch_deg: float = -20.0
+
+    # Blurry detection (Laplacian variance)
+    min_sharpness: float = 100.0
+
+    # Lens-cap / underexposed / overexposed detection (simple luminance stats).
+    black_pixel_threshold: int = 20
+    white_pixel_threshold: int = 235
+    saturation_ratio_threshold: float = 0.90
+    low_dynamic_range_threshold: float = 25
+    low_stddev_threshold: float = 15.0
+    very_dark_mean_threshold: float = 40.0
+    very_bright_mean_threshold: float = 215.0
+
+    # AOI sanity check (rough): if image is > ~1° away from project centroid, it's likely wrong project.
+    far_from_project_degrees: float = 1.0
+
+
+Q = QualityThresholds()
 
 
 class ImageClassifier:
+    @staticmethod
+    def _to_float(value) -> Optional[float]:
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value.strip())
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _parse_gps(value: object) -> Optional[float]:
+        """Parse EXIF GPS values into decimal degrees."""
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        if not isinstance(value, str):
+            return None
+
+        s = value.strip()
+        # Fast path: plain float string
+        try:
+            return float(s)
+        except ValueError:
+            pass
+
+        # DMS like: 8 deg 17' 58.73" S
+        direction = 1.0
+        if s.endswith(("S", "W")):
+            direction = -1.0
+            s = s[:-1].strip()
+        elif s.endswith(("N", "E")):
+            s = s[:-1].strip()
+
+        m = re.match(
+            r"(\d+(?:\.\d+)?)\s*(?:deg|°)?\s*(\d+(?:\.\d+)?)?['\s]*(\d+(?:\.\d+)?)?",
+            s,
+        )
+        if not m:
+            return None
+
+        deg = float(m.group(1))
+        minutes = float(m.group(2)) if m.group(2) else 0.0
+        seconds = float(m.group(3)) if m.group(3) else 0.0
+        return direction * (deg + minutes / 60.0 + seconds / 3600.0)
+
+    @staticmethod
+    def _rough_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Cheap distance approximation (km) for sanity checks."""
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        mean_lat = (lat1 + lat2) / 2.0
+        km_lat = dlat * 111.0
+        km_lon = dlon * 111.0 * cos(radians(mean_lat))
+        return float(sqrt(km_lat * km_lat + km_lon * km_lon))
+
     @staticmethod
     def calculate_sharpness(image_bytes: bytes) -> float:
         """Calculate image sharpness using Laplacian variance method.
@@ -74,6 +168,67 @@ class ImageClassifier:
             raise ValueError(f"Failed to calculate sharpness: {e}") from e
 
     @staticmethod
+    def _decode_gray(image_bytes: bytes) -> np.ndarray:
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("Failed to decode image")
+        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    @staticmethod
+    def analyze_exposure(image_bytes: bytes) -> dict:
+        """Return simple exposure stats to detect junk frames."""
+        gray = ImageClassifier._decode_gray(image_bytes)
+        p5, p95 = np.percentile(gray, [5, 95])
+        dynamic_range = float(p95 - p5)
+        black_ratio = float(np.mean(gray < Q.black_pixel_threshold))
+        white_ratio = float(np.mean(gray > Q.white_pixel_threshold))
+        return {
+            "dynamic_range": dynamic_range,
+            "black_ratio": black_ratio,
+            "white_ratio": white_ratio,
+        }
+
+    @staticmethod
+    def _exposure_issues(gray: np.ndarray) -> tuple[list[str], dict[str, float]]:
+        p5, p95 = np.percentile(gray, [5, 95])
+        dynamic_range = float(p95 - p5)
+        black_ratio = float(np.mean(gray < Q.black_pixel_threshold))
+        white_ratio = float(np.mean(gray > Q.white_pixel_threshold))
+        mean_luma = float(np.mean(gray))
+        std_luma = float(np.std(gray))
+
+        issues: list[str] = []
+        if (
+            mean_luma <= Q.very_dark_mean_threshold
+            and std_luma <= Q.low_stddev_threshold
+        ) or (
+            black_ratio >= Q.saturation_ratio_threshold
+            and dynamic_range <= Q.low_dynamic_range_threshold
+        ):
+            issues.append(
+                "Image appears mostly black (lens cap or severe underexposure)"
+            )
+
+        if (
+            mean_luma >= Q.very_bright_mean_threshold
+            and std_luma <= Q.low_stddev_threshold
+        ) or (
+            white_ratio >= Q.saturation_ratio_threshold
+            and dynamic_range <= Q.low_dynamic_range_threshold
+        ):
+            issues.append("Image appears overexposed (mostly white / blown highlights)")
+
+        metrics = {
+            "mean": mean_luma,
+            "std": std_luma,
+            "dynamic_range": dynamic_range,
+            "black_ratio": black_ratio,
+            "white_ratio": white_ratio,
+        }
+        return issues, metrics
+
+    @staticmethod
     async def find_matching_task(
         db: Connection, project_id: uuid.UUID, latitude: float, longitude: float
     ) -> Optional[uuid.UUID]:
@@ -108,11 +263,19 @@ class ImageClassifier:
         db: Connection,
         image_id: uuid.UUID,
         project_id: uuid.UUID,
+        project_centroid: Optional[tuple[float, float]] = None,
     ) -> dict:
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """
-                SELECT id, exif, location, status, s3_key
+                SELECT
+                    id,
+                    exif,
+                    location,
+                    ST_Y(location::geometry) AS lat,
+                    ST_X(location::geometry) AS lon,
+                    status,
+                    s3_key
                 FROM project_images
                 WHERE id = %(image_id)s AND project_id = %(project_id)s
                 """,
@@ -123,11 +286,10 @@ class ImageClassifier:
             if not image:
                 return {
                     "image_id": str(image_id),
-                    "status": "error",
-                    "message": "Image not found",
+                    "status": ImageStatus.REJECTED,
+                    "reason": "Image not found",
                 }
 
-        logs = []
         issues = []
         exif_data = image.get("exif") or {}
         s3_key = image.get("s3_key")
@@ -141,91 +303,87 @@ class ImageClassifier:
                 get_obj_from_bucket, settings.S3_BUCKET_NAME, s3_key
             )
             image_bytes = file_obj.read()
-            logs.append(
-                {
-                    "action": "Image Download",
-                    "details": f"Downloaded {len(image_bytes) / 1024 / 1024:.2f} MB",
-                    "status": "success",
-                }
+            log.debug(
+                f"Image download ok: image_id={image_id} size_mb={len(image_bytes) / 1024 / 1024:.2f}"
             )
         except Exception as e:
-            log.error(f"Failed to download image from S3: {e}")
-            logs.append(
-                {
-                    "action": "Image Download",
-                    "details": f"Failed to download: {str(e)}",
-                    "status": "warning",
-                }
-            )
+            log.error(f"Failed to download image from S3: {e}", exc_info=True)
 
         # Check sharpness first (if image bytes available)
         if image_bytes:
             try:
-                sharpness_score = ImageClassifier.calculate_sharpness(image_bytes)
-                if sharpness_score < MIN_SHARPNESS_SCORE:
+                gray = ImageClassifier._decode_gray(image_bytes)
+                laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+                sharpness_score = float(laplacian.var())
+                if sharpness_score < Q.min_sharpness:
                     issues.append(
-                        f"Blurry (sharpness: {sharpness_score:.1f}, min: {MIN_SHARPNESS_SCORE})"
+                        f"Blurry (sharpness: {sharpness_score:.1f}, min: {Q.min_sharpness})"
                     )
-                    logs.append(
-                        {
-                            "action": "Sharpness Check",
-                            "details": f"Score: {sharpness_score:.1f} - FAILED",
-                            "status": "error",
-                        }
+                    log.debug(
+                        f"Sharpness check FAILED: image_id={image_id} score={sharpness_score:.1f} min={Q.min_sharpness}"
                     )
                 else:
-                    logs.append(
-                        {
-                            "action": "Sharpness Check",
-                            "details": f"Score: {sharpness_score:.1f} - Passed",
-                            "status": "success",
-                        }
+                    log.debug(
+                        f"Sharpness check passed: image_id={image_id} score={sharpness_score:.1f}"
+                    )
+
+                exposure_issues, exposure_metrics = ImageClassifier._exposure_issues(
+                    gray
+                )
+
+                # Debug-only: emit the raw metrics to logs for tuning.
+                log.debug(
+                    "Image quality metrics | "
+                    f"id={image_id} file={s3_key} "
+                    f"sharpness={sharpness_score:.1f} "
+                    f"mean={exposure_metrics['mean']:.1f} std={exposure_metrics['std']:.1f} "
+                    f"range(p95-p5)={exposure_metrics['dynamic_range']:.0f} "
+                    f"black={exposure_metrics['black_ratio']:.0%} "
+                    f"white={exposure_metrics['white_ratio']:.0%}"
+                )
+
+                for issue in exposure_issues:
+                    issues.append(issue)
+                    log.debug(
+                        f"Exposure check FAILED: image_id={image_id} issue={issue}"
                     )
             except Exception as e:
                 log.warning(f"Could not calculate sharpness: {e}")
-                logs.append(
-                    {
-                        "action": "Sharpness Check",
-                        "details": f"Could not analyze: {str(e)}",
-                        "status": "warning",
-                    }
-                )
 
         # Check EXIF data
         if not exif_data:
             issues.append("Image is missing camera information (EXIF data)")
-            logs.append(
-                {"action": "EXIF Check", "details": "No EXIF data", "status": "error"}
-            )
+            log.debug(f"EXIF check FAILED: image_id={image_id} no exif")
         else:
-            logs.append(
-                {
-                    "action": "EXIF Check",
-                    "details": "EXIF data present",
-                    "status": "success",
-                }
-            )
+            log.debug(f"EXIF check passed: image_id={image_id}")
 
         # Extract GPS coordinates from stored EXIF data
-        latitude = exif_data.get("GPSLatitude")
-        longitude = exif_data.get("GPSLongitude")
+        latitude = image.get("lat")
+        longitude = image.get("lon")
+
+        # Fallback: parse from EXIF strings (e.g. "8 deg 17' 58.73\" S")
+        if latitude is None or longitude is None:
+            latitude = ImageClassifier._parse_gps(exif_data.get("GPSLatitude"))
+            longitude = ImageClassifier._parse_gps(exif_data.get("GPSLongitude"))
+
+        # Validate numeric ranges
+        if latitude is not None and longitude is not None:
+            if abs(float(latitude)) > 90 or abs(float(longitude)) > 180:
+                issues.append(
+                    f"Invalid GPS coordinates (out of range): lat={latitude}, lon={longitude}"
+                )
+                log.debug(
+                    f"GPS check FAILED (out of range): image_id={image_id} lat={latitude} lon={longitude}"
+                )
+                latitude = None
+                longitude = None
 
         if latitude is None or longitude is None:
             issues.append("Image is missing GPS location data")
-            logs.append(
-                {
-                    "action": "GPS Check",
-                    "details": "No coordinates found",
-                    "status": "error",
-                }
-            )
+            log.debug(f"GPS check FAILED: image_id={image_id} no coordinates")
         else:
-            logs.append(
-                {
-                    "action": "GPS Check",
-                    "details": f"Location: {latitude:.4f}, {longitude:.4f}",
-                    "status": "success",
-                }
+            log.debug(
+                f"GPS check passed: image_id={image_id} lat={latitude:.6f} lon={longitude:.6f}"
             )
 
         # Parse UserComment for drone metadata (pitch, yaw, etc.)
@@ -240,30 +398,27 @@ class ImageClassifier:
         # Merge drone metadata for quality checks
         quality_check_data = {**exif_data, **drone_metadata}
 
-        # Check gimbal angle - look for DJI XMP field or UserComment pitch
-        gimbal_angle = (
+        # Horizon detection is not needed when gimbal pitch metadata is present.
+        gimbal_angle_raw = (
             quality_check_data.get("GimbalPitchDegree")
             or quality_check_data.get("FlightPitchDegree")
             or quality_check_data.get("pitch")
         )
-        if gimbal_angle is not None and gimbal_angle > MIN_GIMBAL_ANGLE:
-            issues.append(
-                f"Camera angle is too tilted ({gimbal_angle:.0f}°). Please capture images pointing straight down."
+        gimbal_angle = ImageClassifier._to_float(gimbal_angle_raw)
+        if gimbal_angle_raw is not None and gimbal_angle is None:
+            log.debug(
+                f"Unparsable gimbal pitch: image_id={image_id} value={gimbal_angle_raw!r}"
             )
-            logs.append(
-                {
-                    "action": "Gimbal Check",
-                    "details": f"Angle: {gimbal_angle:.1f}° - FAILED",
-                    "status": "error",
-                }
+        elif gimbal_angle is not None and gimbal_angle > Q.max_gimbal_pitch_deg:
+            issues.append(
+                f"Camera must point down (gimbal pitch <= {Q.max_gimbal_pitch_deg:.0f}°), got {gimbal_angle:.0f}°"
+            )
+            log.debug(
+                f"Gimbal check FAILED: image_id={image_id} angle={gimbal_angle:.1f} max={Q.max_gimbal_pitch_deg:.0f}"
             )
         elif gimbal_angle is not None:
-            logs.append(
-                {
-                    "action": "Gimbal Check",
-                    "details": f"Angle: {gimbal_angle:.1f}° - Passed",
-                    "status": "success",
-                }
+            log.debug(
+                f"Gimbal check passed: image_id={image_id} angle={gimbal_angle:.1f}"
             )
 
         # If there are any issues, reject the image with all reasons
@@ -282,71 +437,74 @@ class ImageClassifier:
             await ImageClassifier._update_image_status(
                 db, image_id, status, rejection_reason, sharpness_score
             )
-            logs.append(
-                {"action": "REJECTED", "details": rejection_reason, "status": "error"}
+            log.info(
+                f"Image rejected: image_id={image_id} status={status.value} reason={rejection_reason}"
             )
             return {
                 "image_id": str(image_id),
                 "status": status,
                 "reason": rejection_reason,
                 "sharpness_score": sharpness_score,
-                "logs": logs,
             }
 
         # All checks passed
         quality_details = (
-            f"Gimbal: {gimbal_angle:.1f}°" if gimbal_angle else "Gimbal: N/A"
+            f"Gimbal: {gimbal_angle:.1f}°"
+            if gimbal_angle is not None
+            else "Gimbal: N/A"
         )
         if sharpness_score is not None:
             quality_details += f", Sharpness: {sharpness_score:.1f}"
         quality_details += " - All checks passed"
-
-        logs.append(
-            {"action": "Quality Check", "details": quality_details, "status": "success"}
-        )
+        log.debug(f"Quality check passed: image_id={image_id} {quality_details}")
 
         task_id = await ImageClassifier.find_matching_task(
             db, project_id, latitude, longitude
         )
 
         if not task_id:
+            rejection_reason = "Image location is outside of all task areas"
+            if project_centroid is not None:
+                c_lat, c_lon = project_centroid
+                if (
+                    abs(latitude - c_lat) > Q.far_from_project_degrees
+                    or abs(longitude - c_lon) > Q.far_from_project_degrees
+                ):
+                    rejection_reason = (
+                        "Image appears >100km from project AOI (likely wrong project)"
+                    )
+                    log.debug(
+                        f"AOI sanity: image_id={image_id} centroid_delta_lat={abs(latitude - c_lat):.2f} centroid_delta_lon={abs(longitude - c_lon):.2f}"
+                    )
+                else:
+                    km_approx = ImageClassifier._rough_distance_km(
+                        c_lat, c_lon, latitude, longitude
+                    )
+                    log.debug(
+                        f"AOI sanity: image_id={image_id} approx_dist_km={km_approx:.0f}"
+                    )
             await ImageClassifier._update_image_status(
                 db,
                 image_id,
                 ImageStatus.UNMATCHED,
-                "Image location is outside of all task areas",
+                rejection_reason,
             )
-            logs.append(
-                {
-                    "action": "UNMATCHED",
-                    "details": "Image location is outside of all task areas",
-                    "status": "warning",
-                }
-            )
+            log.info(f"Image unmatched: image_id={image_id} reason={rejection_reason}")
             return {
                 "image_id": str(image_id),
                 "status": ImageStatus.UNMATCHED,
-                "logs": logs,
             }
 
         await ImageClassifier._assign_image_to_task(
             db, image_id, task_id, sharpness_score
         )
-
-        logs.append(
-            {
-                "action": "ASSIGNED",
-                "details": f"Matched to task {str(task_id)[:8]}...",
-                "status": "success",
-            }
-        )
+        log.info(f"Image assigned: image_id={image_id} task_id={task_id}")
 
         return {
             "image_id": str(image_id),
             "status": ImageStatus.ASSIGNED,
             "task_id": str(task_id),
             "sharpness_score": sharpness_score,
-            "logs": logs,
         }
 
     @staticmethod
@@ -452,10 +610,44 @@ class ImageClassifier:
             "images": [],
         }
 
+        # Fetch project centroid once for cheap sanity checks.
+        project_centroid: Optional[tuple[float, float]] = None
+        async with db_pool.connection() as db:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT
+                        ST_Y(centroid::geometry) AS lat,
+                        ST_X(centroid::geometry) AS lon
+                    FROM projects
+                    WHERE id = %(project_id)s
+                    AND centroid IS NOT NULL
+                    LIMIT 1;
+                    """,
+                    {"project_id": str(project_id)},
+                )
+                row = await cur.fetchone()
+        if row and row.get("lat") is not None and row.get("lon") is not None:
+            try:
+                project_centroid = (float(row["lat"]), float(row["lon"]))
+            except Exception:
+                project_centroid = None
+
         # Use a semaphore to limit concurrency
         semaphore = asyncio.Semaphore(CLASSIFICATION_CONCURRENCY)
         # Lock for thread-safe counter updates
         results_lock = asyncio.Lock()
+
+        def _format_classification_failure_reason(exc: BaseException) -> str:
+            """Return a user-facing rejection_reason for unexpected classification failures."""
+            # Prefer a generic message; include details only if we have something meaningful.
+            msg = str(exc).strip()
+            if not msg:
+                return "Classification failed"
+            # Avoid dumping huge stack-like content into the UI.
+            if len(msg) > 240:
+                msg = msg[:240] + "…"
+            return f"Classification failed: {msg}"
 
         async def classify_with_commit(image_record: dict) -> dict:
             """Classify a single image with its own connection for proper isolation."""
@@ -480,13 +672,54 @@ class ImageClassifier:
                     # Commit the classifying status so frontend can see progress
                     await conn.commit()
 
-                    # Perform classification
-                    result = await ImageClassifier.classify_single_image(
-                        conn, image_id, project_id
-                    )
-
-                    # Commit the classification result immediately
-                    await conn.commit()
+                    try:
+                        # Perform classification
+                        result = await asyncio.wait_for(
+                            ImageClassifier.classify_single_image(
+                                conn, image_id, project_id, project_centroid
+                            ),
+                            timeout=CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS,
+                        )
+                        # Commit the classification result immediately
+                        await conn.commit()
+                    except asyncio.TimeoutError:
+                        # Never leave an image stuck in CLASSIFYING.
+                        log.warning(
+                            f"Classification timed out for image {image_id} after "
+                            f"{CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS}s"
+                        )
+                        reason = "Classification failed (timed out)"
+                        await ImageClassifier._update_image_status(
+                            conn,
+                            image_id,
+                            ImageStatus.REJECTED,
+                            reason,
+                        )
+                        await conn.commit()
+                        result = {
+                            "image_id": str(image_id),
+                            "status": ImageStatus.REJECTED,
+                            "reason": reason,
+                        }
+                    except Exception as e:
+                        # Never leave an image stuck in CLASSIFYING.
+                        log.error(
+                            f"Classification crashed for image {image_id}: {e}",
+                            exc_info=True,
+                        )
+                        reason = _format_classification_failure_reason(e)
+                        await ImageClassifier._update_image_status(
+                            conn,
+                            image_id,
+                            ImageStatus.REJECTED,
+                            reason,
+                        )
+                        await conn.commit()
+                        result = {
+                            "image_id": str(image_id),
+                            "status": ImageStatus.REJECTED,
+                            "reason": reason,
+                        }
 
                 # Update counters thread-safely
                 async with results_lock:
@@ -555,25 +788,14 @@ class ImageClassifier:
         # Generate presigned URLs for each image (keep signature for authentication)
         for image in images:
             if image.get("s3_key"):
-                client = s3_client()
-                url = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
-                )
-                # Keep presigned params (strip_presign=False) so signature is preserved
-                image["url"] = strip_presigned_url_for_local_dev(
-                    url, strip_presign=False
+                image["url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
                 )
 
             # Generate presigned URL for thumbnail if available
             if image.get("thumbnail_url"):
-                client = s3_client()
-                thumbnail_presigned = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME,
-                    image["thumbnail_url"],
-                    expires=timedelta(hours=1),
-                )
-                image["thumbnail_url"] = strip_presigned_url_for_local_dev(
-                    thumbnail_presigned, strip_presign=False
+                image["thumbnail_url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
                 )
 
             # Add has_gps field for frontend display
@@ -635,26 +857,14 @@ class ImageClassifier:
         for group in task_groups:
             for image in group["images"]:
                 if image.get("thumbnail_url"):
-                    client = s3_client()
-                    thumbnail_presigned = client.presigned_get_object(
-                        settings.S3_BUCKET_NAME,
-                        image["thumbnail_url"],
-                        expires=timedelta(hours=1),
-                    )
-                    image["thumbnail_url"] = strip_presigned_url_for_local_dev(
-                        thumbnail_presigned, strip_presign=False
+                    image["thumbnail_url"] = generate_presigned_get_url(
+                        settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
                     )
 
                 # Generate presigned URL for full image
                 if image.get("s3_key"):
-                    client = s3_client()
-                    url = client.presigned_get_object(
-                        settings.S3_BUCKET_NAME,
-                        image["s3_key"],
-                        expires=timedelta(hours=1),
-                    )
-                    image["url"] = strip_presigned_url_for_local_dev(
-                        url, strip_presign=False
+                    image["url"] = generate_presigned_get_url(
+                        settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
                     )
 
         return {
@@ -1171,23 +1381,13 @@ class ImageClassifier:
         # Generate presigned URLs
         for image in images:
             if image.get("thumbnail_url"):
-                client = s3_client()
-                thumbnail_presigned = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME,
-                    image["thumbnail_url"],
-                    expires=timedelta(hours=1),
-                )
-                image["thumbnail_url"] = strip_presigned_url_for_local_dev(
-                    thumbnail_presigned, strip_presign=False
+                image["thumbnail_url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
                 )
 
             if image.get("s3_key"):
-                client = s3_client()
-                url = client.presigned_get_object(
-                    settings.S3_BUCKET_NAME, image["s3_key"], expires=timedelta(hours=1)
-                )
-                image["url"] = strip_presigned_url_for_local_dev(
-                    url, strip_presign=False
+                image["url"] = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
                 )
 
         # Calculate coverage percentage using PostGIS

@@ -1,7 +1,9 @@
 """Business logic for project images."""
 
+import functools
 import hashlib
 import json
+import shutil
 import tempfile
 from typing import Any, Optional
 from uuid import UUID
@@ -14,6 +16,17 @@ from psycopg.types.json import Json
 
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.models.enums import ImageStatus
+
+
+@functools.lru_cache(maxsize=1)
+def _exiftool_path() -> str:
+    """Return path to `exiftool` binary or raise with a clear message."""
+    path = shutil.which("exiftool")
+    if not path:
+        raise RuntimeError(
+            "exiftool binary not found (pyexiftool requires exiftool installed in the container)"
+        )
+    return path
 
 
 def _sanitize_string(s: str) -> str:
@@ -70,6 +83,10 @@ def extract_exif_data(
         - location_dict: GPS coordinates as {"lat": float, "lon": float} or None
     """
     try:
+        # Fail fast with a clear error if exiftool is missing in the container.
+        # (Common in dev if only the host has exiftool installed.)
+        _ = _exiftool_path()
+
         # Write bytes to a temp file since exiftool works with files
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=True) as tmp_file:
             tmp_file.write(image_bytes)
@@ -80,7 +97,7 @@ def extract_exif_data(
                 metadata_list = et.get_metadata(tmp_file.name)
 
             if not metadata_list:
-                log.warning("No EXIF data found in image")
+                log.debug("EXIF extraction returned no metadata (empty list)")
                 return None, None
 
             # exiftool returns a list, get first item
@@ -124,7 +141,11 @@ def extract_exif_data(
         return exif_dict, location
 
     except Exception as e:
-        log.error(f"Error extracting EXIF data: {e}")
+        # Keep this at debug to avoid noisy logs during batch uploads, but include
+        # the full exception for troubleshooting.
+        log.opt(exception=True).debug(
+            f"EXIF extraction failed: {type(e).__name__}: {e}"
+        )
         return None, None
 
 
@@ -261,10 +282,10 @@ async def create_project_image(
     sql = f"""
         INSERT INTO project_images (
             project_id, task_id, filename, s3_key, hash_md5,
-            location, exif, uploaded_by, status, batch_id, thumbnail_url
+            location, exif, uploaded_by, status, batch_id, thumbnail_url, rejection_reason
         ) VALUES (
             %(project_id)s, %(task_id)s, %(filename)s, %(s3_key)s, %(hash_md5)s,
-            {location_sql}, %(exif)s, %(uploaded_by)s, %(status)s, %(batch_id)s, %(thumbnail_url)s
+            {location_sql}, %(exif)s, %(uploaded_by)s, %(status)s, %(batch_id)s, %(thumbnail_url)s, %(rejection_reason)s
         )
         RETURNING id, project_id, task_id, filename, s3_key, hash_md5,
                   ST_AsGeoJSON(location)::json as location, exif, uploaded_by,
@@ -285,6 +306,7 @@ async def create_project_image(
                 "status": image_data.status.value,
                 "batch_id": str(image_data.batch_id) if image_data.batch_id else None,
                 "thumbnail_url": image_data.thumbnail_url,
+                "rejection_reason": image_data.rejection_reason,
             },
         )
         result = await cur.fetchone()

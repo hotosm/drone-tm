@@ -53,6 +53,7 @@ class ProjectImageCreate(ProjectImageBase):
     uploaded_by: str  # User ID is a string (Google OAuth ID), not UUID
     status: ImageStatus = ImageStatus.STAGED
     batch_id: Optional[UUID] = None  # For grouping uploaded images together
+    rejection_reason: Optional[str] = None
 
 
 class ProjectImageUpdate(BaseModel):

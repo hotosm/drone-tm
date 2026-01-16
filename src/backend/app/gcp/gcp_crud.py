@@ -8,7 +8,7 @@ from pyproj import Transformer
 from shapely.geometry import Point, Polygon
 
 from app.config import settings
-from app.s3 import generate_presigned_download_url
+from app.s3 import generate_presigned_get_url
 from app.waypoints import waypoint_schemas
 
 
@@ -20,8 +20,8 @@ async def calculate_bounding_box(
     focal_ratio: float,
     fnumber: float,
     altitude: float,
-    sensor_width: float = 6.17,  # These are drone specific
-    sensor_height: float = 4.55,  # These are drone specific
+    sensor_width: float = 6.17,  # FIXME These are drone specific
+    sensor_height: float = 4.55,  # FIXME These are drone specific
 ) -> List[float]:
     """Calculate the geographic bounding box of an image taken by a drone.
 
@@ -297,7 +297,7 @@ async def find_images_in_a_project_for_point(
         s3_images_json_path_for_task = (
             f"dtm-data/projects/{project_id}/{task_id_str}/images.json"
         )
-        s3_images_json_url = generate_presigned_download_url(
+        s3_images_json_url = generate_presigned_get_url(
             settings.S3_BUCKET_NAME, s3_images_json_path_for_task
         )
 
@@ -314,7 +314,7 @@ async def find_images_in_a_project_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        generate_presigned_download_url(
+        generate_presigned_get_url(
             settings.S3_BUCKET_NAME,
             f"dtm-data/projects/{project_id}/{image}",
         )
@@ -345,7 +345,7 @@ async def find_images_in_a_task_for_point(
     s3_images_json_path = f"dtm-data/projects/{project_id}/{task_id}/images.json"
 
     # Generate pre-signed URL for the `images.json` file
-    s3_images_json_url = generate_presigned_download_url(
+    s3_images_json_url = generate_presigned_get_url(
         settings.S3_BUCKET_NAME, s3_images_json_path
     )
 
@@ -364,7 +364,7 @@ async def find_images_in_a_task_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        generate_presigned_download_url(
+        generate_presigned_get_url(
             settings.S3_BUCKET_NAME,
             f"dtm-data/projects/{project_id}/{task_id}/images/{image}",
         )
