@@ -47,13 +47,28 @@ services:
       USE_BACKUP: no
       USE_METRICS: no
       # USE_ANTIBOT: yes
-      # S3 supports HTTP/1.1, which has a default of 10 conn limit
       USE_LIMIT_CONN: yes
+      # S3 supports HTTP/1.1, increase from default 10 for multipart requests
+      # Multipart uploads + API polling can exceed defaults; increase headroom
+      LIMIT_CONN_MAX_HTTP1: 50
       # BAD_BEHAVIOUR disabled as it's difficult to work with...
       USE_BAD_BEHAVIOR: no
       USE_LIMIT_REQ: yes
       # Default 2r/s --> 20r/s for simultaneous S3 multipart uploads
-      LIMIT_REQ_RATE: 10r/s
+      # Global default (all URLs). Keep moderate and override the hot upload endpoints below.
+      LIMIT_REQ_RATE: 5r/s
+      # Uppy AwsS3 multipart signing is bursty: one request per part (and parts can be pipelined),
+      # so these endpoint need a much higher per-IP budget to avoid 429 during legitimate uploads
+      LIMIT_REQ_URL_1: /api/projects/sign-part-upload/
+      LIMIT_REQ_RATE_1: 50r/s
+      LIMIT_REQ_URL_2: /api/projects/initiate-multipart-upload/
+      LIMIT_REQ_RATE_2: 20r/s
+      LIMIT_REQ_URL_3: /api/projects/complete-multipart-upload/
+      LIMIT_REQ_RATE_3: 15r/s
+      LIMIT_REQ_URL_4: /api/projects/list-parts/
+      LIMIT_REQ_RATE_4: 50r/s
+      LIMIT_REQ_URL_5: /api/projects/abort-multipart-upload/
+      LIMIT_REQ_RATE_5: 50r/s
       USE_MODSECURITY: no
       USE_GZIP: yes
       # On client, brotli is preferred over gzip if both are enabled
