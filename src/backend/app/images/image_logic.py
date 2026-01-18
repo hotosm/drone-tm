@@ -5,8 +5,10 @@ import hashlib
 import json
 import shutil
 import tempfile
+import math
 from typing import Any, Optional
 from uuid import UUID
+from datetime import datetime, timezone
 
 import exiftool
 from loguru import logger as log
@@ -376,3 +378,241 @@ async def get_images_by_project(
         results = await cur.fetchall()
 
     return [ProjectImageOut(**row) for row in results]
+
+
+def _calculate_angular_difference(degree1: float, degree2: float) -> float:
+    """
+    Calculates the shortest angular difference between two angles.
+
+    Ensures the difference accounts for 360-degree wrap-around.
+
+    Returns:
+         float: Absolute difference in degrees (0 to 180)
+    """
+    angular_difference = abs(degree1 - degree2)
+    if angular_difference > 180:
+        angular_difference = 360 - angular_difference
+    return angular_difference
+
+
+def _calculate_circular_mean(degree1: float, degree2: float) -> float:
+    """
+    Calculates the mean between two angles, accounting for 360-degree wrap around.
+    """
+    rad1 = math.radians(degree1)
+    rad2 = math.radians(degree2)
+    x = math.cos(rad1) + math.cos(rad2)
+    y = math.sin(rad1) + math.sin(rad2)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def _confirm_stable_heading(project_list: list, image_index: int, steps: int) -> bool:
+    """
+    Confirms if a suspected change in the flight trajectory is sustained.
+
+    Inspects a 5-image look-ahead or look-behind window to confirm the drone has committed to a new stable direction
+    within a 10-degree tolerance.
+
+    Args:
+        project_list: List of project images
+        image_index: The starting index of the suspected turn
+        steps: Direction of search (1: Forward, -1: Backwards)
+
+    Returns:
+        bool: True if the path is stable, False if otherwise.
+    """
+    set_image_azimuth = project_list[image_index]["azimuth"]
+    list_length = len(project_list)
+
+    if steps > 0:
+        # Look forward in the flight mission
+        bound = min(image_index + 6, list_length)
+        for i in range(image_index + 1, bound, steps):
+            next_image_azimuth = project_list[i]["azimuth"]
+            azimuth_difference = _calculate_angular_difference(
+                set_image_azimuth, next_image_azimuth
+            )
+            if azimuth_difference > 10:
+                return False
+        return True
+
+    else:
+        # Look backwards and "into" the flight mission from the landing waypoint
+        bound = max(image_index - 6, -1)
+        for i in range(image_index - 1, bound, steps):
+            next_image_azimuth = project_list[i]["azimuth"]
+            azimuth_difference = _calculate_angular_difference(
+                set_image_azimuth, next_image_azimuth
+            )
+            if azimuth_difference > 10:
+                return False
+        return True
+
+
+async def _flag_flight_tail_images(
+    db: Connection, project_list: list, flight_tail_list: list
+) -> None:
+    """
+    Updates the status of identified flight tail images to REJECTED with a specified comment.
+    """
+    if not flight_tail_list:
+        return None
+
+    flight_tails_ids = [project_list[i]["id"] for i in flight_tail_list]
+
+    params = {
+        "status": ImageStatus.REJECTED.value,
+        "reason": "Flight tail detection: Image identified as flightplan transit (takeoff/landing tail).",
+        "time": datetime.now(timezone.utc),
+        "ids": flight_tails_ids,
+    }
+
+    sql = """
+    UPDATE project_images
+    SET status =  %(status)s,
+        rejection_reason = %(reason)s,
+        classified_at = %(time)s
+    WHERE id = ANY(%(ids)s)
+    """
+
+    async with db.cursor() as cur:
+        await cur.execute(sql, params)
+
+
+async def mark_and_remove_flight_tail_imagery(
+    db: Connection, project_id: UUID, batch_id: UUID
+) -> None:
+    """
+    Identifies and flags flight tail imagery taken during takeoff and landing to prevent photogrammetric distortion.
+
+    This function inspects the transit phases of a flight trajectory by analyzing azimuthal shifts between consecutive
+    images and follows a three-step validation process:
+
+    1. Baseline Calculation: Maintains a running average of the transit trajectory to account for any minor movement.
+
+    2. Change in Direction (45-degrees): Triggers a change in direction when flight trajectory shifts more than
+        45-degrees from the established baseline.
+        Note: This 45-degree threshold may require tuning based on environmental conditions (e.g., high wind)
+            or specific mission types (e.g., terrain following).
+
+    3. Confirmation of Turn: Inspects a 5-image look-ahead or look-behind window to verify that the trajectory change
+        is sustained and not a result of external factors (wind, wobble, etc).
+
+    Args:
+        db: Database connection
+        project_id: Project ID
+        batch_id: Batch ID
+
+    Returns:
+        None. Updates the status of identified tail images to ImageStatus.REJECTED in the database.
+    """
+    params = {
+        "project_id": project_id,
+        "status": ImageStatus.UPLOADED.value,
+        "batch_id": batch_id,
+    }
+
+    sql = """
+        WITH trajectory_data AS (
+            SELECT
+                id,
+                location,
+                uploaded_at,
+                LAG(location) OVER (ORDER BY uploaded_at ASC) as previous_location
+            FROM project_images
+            WHERE project_id = %(project_id)s
+                AND status =  %(status)s
+                AND batch_id = %(batch_id)s
+        )
+        SELECT
+            id,
+            location,
+            uploaded_at,
+            previous_location,
+            degrees(ST_Azimuth(previous_location, location)) AS azimuth,
+            ST_Distance(previous_location, location) AS distance_moved
+        WHERE previous_location IS NOT NULL
+        FROM trajectory_data
+        ORDER BY uploaded_at ASC;
+    """
+
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(sql, params)
+        project_image_results = await cur.fetchall()
+
+    project_length = len(project_image_results)
+
+    # Sets search limit based on batch size.
+    limit = min(max(30, project_length // 3), 60)
+    search_limit = min(limit, project_length - 1)
+
+    takeoff_loop = range(search_limit)
+    takeoff_mission_start_idx = None
+    takeoff_baseline = None
+    takeoff_tails_indices = []
+
+    landing_loop = range(project_length - 1, project_length - search_limit, -1)
+    landing_mission_start_idx = None
+    landing_baseline = None
+    landing_tails_indices = []
+
+    # 1. Check for flight tails that occur during takeoff.
+    for i in takeoff_loop:
+        if project_image_results[i]["distance_moved"] < 1.0:
+            continue
+
+        current_azimuth = project_image_results[i]["azimuth"]
+        if takeoff_baseline is None:
+            takeoff_baseline = current_azimuth
+            continue
+
+        azimuth_difference = _calculate_angular_difference(
+            takeoff_baseline, current_azimuth
+        )
+        # A 45-degree change in baseline suggests a change in direction during the flight.
+        # Note: This threshold may need tuning for environmental conditions or specific mission types.
+        if azimuth_difference < 45:
+            takeoff_baseline = _calculate_circular_mean(
+                takeoff_baseline, current_azimuth
+            )
+
+        elif azimuth_difference > 45:
+            if _confirm_stable_heading(project_image_results, i, 1):
+                takeoff_mission_start_idx = i
+                break
+
+    if takeoff_mission_start_idx is not None:
+        takeoff_tails_indices = list(range(takeoff_mission_start_idx))
+
+    # 2. Check for flight tails that occur during landing.
+    for i in landing_loop:
+        if project_image_results[i]["distance_moved"] < 1.0:
+            continue
+
+        current_azimuth = project_image_results[i]["azimuth"]
+        if landing_baseline is None:
+            landing_baseline = current_azimuth
+            continue
+
+        azimuth_difference = _calculate_angular_difference(
+            landing_baseline, current_azimuth
+        )
+        if azimuth_difference < 45:
+            landing_baseline = _calculate_circular_mean(
+                landing_baseline, current_azimuth
+            )
+
+        elif azimuth_difference > 45:
+            if _confirm_stable_heading(project_image_results, i, -1):
+                landing_mission_start_idx = i
+                break
+
+    if landing_mission_start_idx is not None:
+        landing_tails_indices = list(
+            range(landing_mission_start_idx + 1, project_length)
+        )
+
+    # 3. Aggregate flight tail images and flag detected images
+    all_tail_indices = takeoff_tails_indices + landing_tails_indices
+    if all_tail_indices:
+        await _flag_flight_tail_images(db, project_image_results, all_tail_indices)
