@@ -95,8 +95,11 @@ kubectl exec -it "$POD_NAME" -- \
 
 ```bash
 docker run --rm -it --entrypoint=sh -v "/home/YOURUSER/rclone.conf:/config/rclone/rclone.conf" rclone/rclone:latest
-
 rclone sync --checksum --verbose dronetm-naxa:dronetm/dtm-data dronetm-prod:dronetm-prod
+
+# Or alternative
+docker run --rm -i -v "/home/ubuntu/rclone.conf:/config/rclone/rclone.conf" rclone/rclone:latest sync --checksum --verbose dronetm-naxa:dronetm/dtm-data dronetm-prod:dron
+etm-prod
 ```
 
 ## 6. Update env vars, hardcoded vars, etc
