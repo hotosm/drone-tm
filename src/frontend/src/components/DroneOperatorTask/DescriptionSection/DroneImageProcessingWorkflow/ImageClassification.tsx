@@ -322,7 +322,7 @@ const ImageClassification = ({
           </div>
           <div className="naxatw-text-center">
             {renderValue(computedStats.complete, isClassifying, 'naxatw-text-green-600')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Complete</div>
+            <div className="naxatw-text-sm naxatw-text-gray-600">No Issues</div>
           </div>
           <div className="naxatw-text-center">
             {renderValue(computedStats.issues, isClassifying, 'naxatw-text-orange-600')}

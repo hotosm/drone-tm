@@ -202,10 +202,14 @@ async def process_uploaded_image(
     uploaded_by: str,
     batch_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Background task to process uploaded image: extract EXIF, calculate hash, save to DB.
+    """Process an uploaded image after it lands in S3 (ARQ worker).
 
-    This function ALWAYS saves the image record, even if EXIF extraction fails,
-    so that all uploaded images can be reviewed during the classification phase.
+    Pipeline invariants:
+    - We always create a `project_images` row so the UI can show every upload.
+    - Upload-time metadata problems (missing/invalid EXIF/GPS) are recorded here as
+      `status=invalid_exif` with a user-facing `rejection_reason`.
+    - Classification later only selects `status=staged` rows; it must not have to
+      rediscover upload-time failures.
 
     Args:
         ctx: ARQ context
@@ -239,7 +243,8 @@ async def process_uploaded_image(
             log.info(f"Calculating hash for: {filename}")
             file_hash = calculate_file_hash(file_content)
 
-            # Step 2: Check for duplicates - create record with DUPLICATE status
+            # Check for duplicates - create record with DUPLICATE status
+            # Downstream the EXIF extraction and processing is skipped
             duplicate_of_id = await check_duplicate_image(
                 db, UUID(project_id), file_hash
             )
@@ -270,13 +275,16 @@ async def process_uploaded_image(
                 }
 
             # Step 3: Extract EXIF (try-catch to handle failures gracefully)
+            # Extract EXIF/GPS. If GPS fields exist but are invalid/out of range, we treat
+            # it as upload-time invalid_exif so it cannot be classified/assigned.
             exif_dict = None
             location = None
+            gps_error = None
             rejection_reason = None
 
             try:
                 log.info(f"Extracting EXIF from: {filename}")
-                exif_dict, location = extract_exif_data(file_content)
+                exif_dict, location, gps_error = extract_exif_data(file_content)
 
                 if exif_dict:
                     log.info(
@@ -290,6 +298,8 @@ async def process_uploaded_image(
                         f"(file_key={file_key}, bytes={len(file_content)})"
                     )
                     rejection_reason = "No EXIF data found"
+                if gps_error and not rejection_reason:
+                    rejection_reason = gps_error
 
             except Exception as exif_error:
                 log.error(f"EXIF extraction failed for {filename}: {exif_error}")
@@ -298,7 +308,8 @@ async def process_uploaded_image(
                 )
                 rejection_reason = f"EXIF extraction failed: {exif_error}"
 
-            # Step 4: Generate and upload thumbnail
+            # Step 4: Generate and upload thumbnail of image (for quick UI display)
+            # Thumbnails are best-effort: failure should not fail the upload record.
             thumbnail_s3_key = None
             try:
                 log.info(f"Generating thumbnail for: {filename}")
@@ -340,7 +351,15 @@ async def process_uploaded_image(
                 thumbnail_s3_key = None
 
             # Step 5: Determine status
-            status = ImageStatus.STAGED if exif_dict else ImageStatus.INVALID_EXIF
+            # If GPS was present but invalid, reject immediately so it cannot be
+            # classified/assigned (and therefore cannot be included in flight-tail detection).
+            # Status ownership: upload-time failures become INVALID_EXIF; otherwise the
+            # image enters the classification pool as STAGED.
+            status = (
+                ImageStatus.INVALID_EXIF
+                if (not exif_dict or gps_error)
+                else ImageStatus.STAGED
+            )
 
             # Step 6: Save image record (ALWAYS save, even if EXIF/thumbnail failed)
             image_record = await _save_image_record(
@@ -399,6 +418,42 @@ async def classify_image_batch(
             UUID(project_id),
         )
 
+        # Post-classification: detect tails per task area (requires task_id assignment).
+        # NOTE we must attempt tail removal after binning into task areas, else
+        # tails will be misidentified across the entire batch of images.
+        try:
+            async with db_pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        """
+                        SELECT DISTINCT task_id
+                        FROM project_images
+                        WHERE project_id = %(project_id)s
+                          AND batch_id = %(batch_id)s
+                          AND status = 'assigned'
+                          AND task_id IS NOT NULL
+                        """,
+                        {"project_id": project_id, "batch_id": batch_id},
+                    )
+                    rows = await cur.fetchall()
+
+                task_ids = [row[0] for row in rows if row and row[0] is not None]
+                if task_ids:
+                    log.info(
+                        f"Inspecting batch {batch_id} for flightplan tails (per task): "
+                        f"{len(task_ids)} tasks"
+                    )
+                for task_id in task_ids:
+                    await mark_and_remove_flight_tail_imagery(
+                        conn, UUID(project_id), UUID(batch_id), UUID(str(task_id))
+                    )
+                if task_ids:
+                    await conn.commit()
+        except Exception as tail_err:
+            log.warning(
+                f"Flight tail detection failed for batch {batch_id} (post-classification): {tail_err}"
+            )
+
         log.info(
             f"Batch classification complete: "
             f"Total={result['total']}, Assigned={result['assigned']}, "
@@ -443,13 +498,6 @@ async def process_batch_images(
 
     try:
         async with db_pool.connection() as conn:
-            # Identify and flag tails as REJECTED in database
-            log.info(f"Inspecting batch {batch_id} for flightplan tails...")
-            await mark_and_remove_flight_tail_imagery(
-                conn, UUID(project_id), UUID(batch_id)
-            )
-            await conn.commit()
-
             # Step 1: Move images to task folders
             log.info(f"Moving batch {batch_id} images to task folders...")
             move_result = await ImageClassifier.move_batch_images_to_tasks(

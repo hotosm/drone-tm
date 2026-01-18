@@ -284,6 +284,7 @@ class ImageClassifier:
                     ST_Y(location::geometry) AS lat,
                     ST_X(location::geometry) AS lon,
                     status,
+                    rejection_reason,
                     s3_key
                 FROM project_images
                 WHERE id = %(image_id)s AND project_id = %(project_id)s
@@ -298,6 +299,24 @@ class ImageClassifier:
                     "status": ImageStatus.REJECTED,
                     "reason": "Image not found",
                 }
+
+        # If upload-time checks already decided this image is unusable (e.g., invalid GPS),
+        # don't run the rest of classification. Preserve the existing status + reason.
+        if image.get("status") in [
+            ImageStatus.REJECTED.value,
+            ImageStatus.INVALID_EXIF.value,
+        ]:
+            existing_reason = image.get("rejection_reason") or "Previously rejected"
+            existing_status = ImageStatus(image.get("status"))
+            log.info(
+                f"Skipping classification for pre-rejected image: "
+                f"image_id={image_id} status={existing_status.value} reason={existing_reason}"
+            )
+            return {
+                "image_id": str(image_id),
+                "status": existing_status,  # Return original status
+                "reason": existing_reason,
+            }
 
         issues = []
         exif_data = image.get("exif") or {}

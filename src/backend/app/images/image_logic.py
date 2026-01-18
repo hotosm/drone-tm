@@ -70,7 +70,7 @@ def _sanitize_exif_value(value: Any) -> Any:
 
 def extract_exif_data(
     image_bytes: bytes,
-) -> tuple[Optional[dict[str, Any]], Optional[dict[str, float]]]:
+) -> tuple[Optional[dict[str, Any]], Optional[dict[str, float]], Optional[str]]:
     """Extract EXIF data and GPS coordinates from image bytes using exiftool.
 
     This uses pyexiftool which provides comprehensive metadata extraction,
@@ -80,9 +80,10 @@ def extract_exif_data(
         image_bytes: Image file content as bytes
 
     Returns:
-        Tuple of (exif_dict, location_dict)
+        Tuple of (exif_dict, location_dict, gps_error)
         - exif_dict: All EXIF/XMP data as a dictionary
         - location_dict: GPS coordinates as {"lat": float, "lon": float} or None
+        - gps_error: user-facing message when GPS fields exist but are invalid
     """
     try:
         # Fail fast with a clear error if exiftool is missing in the container.
@@ -100,7 +101,7 @@ def extract_exif_data(
 
             if not metadata_list:
                 log.debug("EXIF extraction returned no metadata (empty list)")
-                return None, None
+                return None, None, None
 
             # exiftool returns a list, get first item
             raw_metadata = metadata_list[0]
@@ -121,7 +122,7 @@ def extract_exif_data(
             exif_dict[simple_key] = _sanitize_exif_value(value)
 
         # Extract GPS coordinates
-        location = _extract_gps_from_exif(exif_dict)
+        location, gps_error = _extract_gps_from_exif(exif_dict)
 
         # Log EXIF data for debugging
         log.debug(f"Extracted EXIF data with {len(exif_dict)} tags")
@@ -140,7 +141,7 @@ def extract_exif_data(
                     log.warning(f"Removing non-serializable field: {key}")
                     del exif_dict[key]
 
-        return exif_dict, location
+        return exif_dict, location, gps_error
 
     except Exception as e:
         # Keep this at debug to avoid noisy logs during batch uploads, but include
@@ -148,10 +149,12 @@ def extract_exif_data(
         log.opt(exception=True).debug(
             f"EXIF extraction failed: {type(e).__name__}: {e}"
         )
-        return None, None
+        return None, None, None
 
 
-def _extract_gps_from_exif(exif_dict: dict) -> Optional[dict[str, float]]:
+def _extract_gps_from_exif(
+    exif_dict: dict,
+) -> tuple[Optional[dict[str, float]], Optional[str]]:
     """Extract GPS coordinates from exiftool metadata.
 
     Exiftool provides GPS coordinates in multiple formats. This function
@@ -161,7 +164,9 @@ def _extract_gps_from_exif(exif_dict: dict) -> Optional[dict[str, float]]:
         exif_dict: Exiftool metadata dictionary
 
     Returns:
-        Dictionary with lat/lon or None
+        Tuple of (location, gps_error)
+        - location: {"lat": float, "lon": float} if valid and available, else None
+        - gps_error: user-facing reason if GPS was present but invalid, else None
     """
     try:
         # Try direct decimal coordinates first (exiftool often provides these)
@@ -176,7 +181,16 @@ def _extract_gps_from_exif(exif_dict: dict) -> Optional[dict[str, float]]:
                 lon = _parse_gps_string(lon)
 
             if lat is not None and lon is not None:
-                return {"lat": float(lat), "lon": float(lon)}
+                lat_f = float(lat)
+                lon_f = float(lon)
+                # Basic sanity: reject impossible coordinates so they don't poison
+                # task-matching or any trajectory-based heuristics.
+                if not (-90.0 <= lat_f <= 90.0 and -180.0 <= lon_f <= 180.0):
+                    return (
+                        None,
+                        f"Invalid GPS coordinates (out of range): lat={lat_f}, lon={lon_f}",
+                    )
+                return {"lat": lat_f, "lon": lon_f}, None
 
         # Try composite GPS position
         gps_position = exif_dict.get("GPSPosition")
@@ -187,15 +201,20 @@ def _extract_gps_from_exif(exif_dict: dict) -> Optional[dict[str, float]]:
                 try:
                     lat = float(parts[0])
                     lon = float(parts[1])
-                    return {"lat": lat, "lon": lon}
+                    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+                        return (
+                            None,
+                            f"Invalid GPS coordinates (out of range): lat={lat}, lon={lon}",
+                        )
+                    return {"lat": lat, "lon": lon}, None
                 except ValueError:
                     pass
 
-        return None
+        return None, None
 
     except Exception as e:
         log.error(f"Error parsing GPS coordinates: {e}")
-        return None
+        return None, None
 
 
 def _parse_gps_string(gps_str: str) -> Optional[float]:
@@ -365,9 +384,23 @@ async def get_images_by_project(
         params["status"] = status.value
 
     sql = f"""
-        SELECT id, project_id, task_id, filename, s3_key, hash_md5,
-               ST_AsGeoJSON(location)::json as location, exif, uploaded_by,
-               uploaded_at, classified_at, status, duplicate_of
+        SELECT
+            id,
+            project_id,
+            task_id,
+            filename,
+            s3_key,
+            hash_md5,
+            batch_id,
+            ST_AsGeoJSON(location)::json as location,
+            exif,
+            uploaded_by,
+            uploaded_at,
+            classified_at,
+            status,
+            duplicate_of,
+            rejection_reason,
+            thumbnail_url
         FROM project_images
         WHERE project_id = %(project_id)s{status_filter}
         ORDER BY uploaded_at DESC
@@ -395,15 +428,26 @@ def _calculate_angular_difference(degree1: float, degree2: float) -> float:
     return angular_difference
 
 
-def _calculate_circular_mean(degree1: float, degree2: float) -> float:
-    """
-    Calculates the mean between two angles, accounting for 360-degree wrap around.
-    """
+def _circular_mean_pair(degree1: float, degree2: float) -> float:
+    """Circular mean of exactly two 0..360 degree values (pair-wise update helper)."""
     rad1 = math.radians(degree1)
     rad2 = math.radians(degree2)
     x = math.cos(rad1) + math.cos(rad2)
     y = math.sin(rad1) + math.sin(rad2)
     return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def _circular_mean_list(degrees: list[float]) -> float:
+    """Circular mean for a list of 0..360 degree values."""
+    if not degrees:
+        raise ValueError("degrees must be non-empty")
+    x = 0.0
+    y = 0.0
+    for d in degrees:
+        r = math.radians(float(d))
+        x += math.cos(r)
+        y += math.sin(r)
+    return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
 
 
 def _confirm_stable_heading(project_list: list, image_index: int, steps: int) -> bool:
@@ -421,6 +465,8 @@ def _confirm_stable_heading(project_list: list, image_index: int, steps: int) ->
     Returns:
         bool: True if the path is stable, False if otherwise.
     """
+    # Optional robustness: some callers attach per-row flags/metrics.
+    MIN_DISTANCE_METERS = 5.0
     set_image_azimuth = project_list[image_index]["azimuth"]
     list_length = len(project_list)
 
@@ -428,6 +474,10 @@ def _confirm_stable_heading(project_list: list, image_index: int, steps: int) ->
         # Look forward in the flight mission
         bound = min(image_index + 6, list_length)
         for i in range(image_index + 1, bound, steps):
+            if project_list[i].get("distance_moved", 9999) < MIN_DISTANCE_METERS:
+                continue
+            if project_list[i].get("vertical_candidate"):
+                continue
             next_image_azimuth = project_list[i]["azimuth"]
             azimuth_difference = _calculate_angular_difference(
                 set_image_azimuth, next_image_azimuth
@@ -440,6 +490,10 @@ def _confirm_stable_heading(project_list: list, image_index: int, steps: int) ->
         # Look backwards and "into" the flight mission from the landing waypoint
         bound = max(image_index - 6, -1)
         for i in range(image_index - 1, bound, steps):
+            if project_list[i].get("distance_moved", 9999) < MIN_DISTANCE_METERS:
+                continue
+            if project_list[i].get("vertical_candidate"):
+                continue
             next_image_azimuth = project_list[i]["azimuth"]
             azimuth_difference = _calculate_angular_difference(
                 set_image_azimuth, next_image_azimuth
@@ -467,12 +521,16 @@ async def _flag_flight_tail_images(
         "ids": flight_tails_ids,
     }
 
+    # Tail detection is intentionally low precedence: it should never overwrite an earlier
+    # quality/metadata rejection reason. Only touch rows that are still "clean".
     sql = """
     UPDATE project_images
-    SET status =  %(status)s,
+    SET status = %(status)s,
         rejection_reason = %(reason)s,
         classified_at = %(time)s
     WHERE id = ANY(%(ids)s)
+      AND status = 'assigned'
+      AND rejection_reason IS NULL
     """
 
     async with db.cursor() as cur:
@@ -480,7 +538,7 @@ async def _flag_flight_tail_images(
 
 
 async def mark_and_remove_flight_tail_imagery(
-    db: Connection, project_id: UUID, batch_id: UUID
+    db: Connection, project_id: UUID, batch_id: UUID, task_id: UUID
 ) -> None:
     """
     Identifies and flags flight tail imagery taken during takeoff and landing to prevent photogrammetric distortion.
@@ -508,111 +566,304 @@ async def mark_and_remove_flight_tail_imagery(
     """
     params = {
         "project_id": project_id,
-        "status": ImageStatus.UPLOADED.value,
         "batch_id": batch_id,
+        "task_id": task_id,
+        "status": ImageStatus.ASSIGNED.value,
     }
 
     sql = """
-        WITH trajectory_data AS (
+        WITH ordered AS (
             SELECT
                 id,
                 location,
                 uploaded_at,
-                LAG(location) OVER (ORDER BY uploaded_at ASC) as previous_location
+                COALESCE(
+                    to_timestamp(exif->>'DateTimeOriginal', 'YYYY:MM:DD HH24:MI:SS')::timestamptz,
+                    uploaded_at
+                ) AS sort_ts,
+                NULLIF(exif->>'FlightYawDegree', '')::double precision AS yaw_deg,
+                NULLIF(regexp_replace(COALESCE(exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m
             FROM project_images
             WHERE project_id = %(project_id)s
-                AND status =  %(status)s
-                AND batch_id = %(batch_id)s
+              AND batch_id = %(batch_id)s
+              AND task_id = %(task_id)s
+              AND status = %(status)s
+              AND rejection_reason IS NULL
+              AND location IS NOT NULL
+        ),
+        base AS (
+            SELECT
+                id,
+                location,
+                uploaded_at,
+                sort_ts,
+                yaw_deg,
+                altitude_m,
+                LAG(sort_ts, 1, sort_ts) OVER (ORDER BY sort_ts ASC) AS prev_sort_ts,
+                LAG(location, 1, location) OVER (ORDER BY sort_ts ASC) AS prev_location,
+                LAG(yaw_deg, 1, yaw_deg) OVER (ORDER BY sort_ts ASC) AS prev_yaw_deg,
+                LAG(altitude_m, 1, altitude_m) OVER (ORDER BY sort_ts ASC) AS prev_altitude_m
+            FROM ordered
+        ),
+        segmented AS (
+            SELECT
+                id,
+                location,
+                uploaded_at,
+                sort_ts,
+                yaw_deg,
+                altitude_m,
+                prev_sort_ts,
+                prev_location,
+                prev_yaw_deg,
+                prev_altitude_m,
+                ST_Distance(prev_location::geography, location::geography) AS step_m,
+                GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0) AS step_s,
+                SUM(
+                    CASE
+                        WHEN EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)) > 600 THEN 1
+                        WHEN ST_Distance(prev_location::geography, location::geography) > 1000 THEN 1
+                        WHEN GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0) > 0
+                             AND (ST_Distance(prev_location::geography, location::geography) /
+                                  GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0)) > 50
+                          THEN 1
+                        ELSE 0
+                    END
+                ) OVER (ORDER BY sort_ts ASC) AS segment_id
+            FROM base
+        ),
+        trajectory_data AS (
+            SELECT
+                id,
+                uploaded_at,
+                sort_ts,
+                segment_id,
+                yaw_deg,
+                altitude_m,
+                LAG(sort_ts, 1, sort_ts) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_sort_ts,
+                LAG(location, 1, location) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_location,
+                LAG(yaw_deg, 1, yaw_deg) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_yaw_deg,
+                LAG(altitude_m, 1, altitude_m) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_altitude_m,
+                location,
+                ROW_NUMBER() OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) as row_num
+            FROM segmented
         )
         SELECT
             id,
-            location,
             uploaded_at,
-            previous_location,
-            degrees(ST_Azimuth(previous_location, location)) AS azimuth,
-            ST_Distance(previous_location, location) AS distance_moved
-        WHERE previous_location IS NOT NULL
+            sort_ts,
+            previous_sort_ts,
+            segment_id,
+            row_num,
+            CASE
+                WHEN row_num = 1 THEN NULL
+                ELSE mod(degrees(ST_Azimuth(previous_location::geometry, location::geometry)) + 360.0, 360.0)
+            END AS azimuth,
+            CASE
+                WHEN row_num = 1 THEN NULL
+                ELSE ST_Distance(previous_location::geography, location::geography)
+            END AS distance_moved,
+            yaw_deg,
+            previous_yaw_deg,
+            altitude_m,
+            previous_altitude_m
         FROM trajectory_data
-        ORDER BY uploaded_at ASC;
+        ORDER BY sort_ts ASC;
     """
 
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(sql, params)
         project_image_results = await cur.fetchall()
 
-    project_length = len(project_image_results)
+    log.info(
+        f"Tail detection for task {task_id}: "
+        f"Found {len(project_image_results)} assigned images with valid GPS"
+    )
 
-    # Sets search limit based on batch size.
-    limit = min(max(30, project_length // 3), 60)
-    search_limit = min(limit, project_length - 1)
+    # Group by segment
+    segments_map: dict[int, list[dict]] = {}
+    for row in project_image_results:
+        seg_id = int(row.get("segment_id") or 0)
+        segments_map.setdefault(seg_id, []).append(row)
+    segments = list(segments_map.values())
 
-    takeoff_loop = range(search_limit)
-    takeoff_mission_start_idx = None
-    takeoff_baseline = None
-    takeoff_tails_indices = []
+    log.info(
+        f"Tail detection for task {task_id}: "
+        f"Split into {len(segments)} time-contiguous segments"
+    )
 
-    landing_loop = range(project_length - 1, project_length - search_limit, -1)
-    landing_mission_start_idx = None
-    landing_baseline = None
-    landing_tails_indices = []
+    MIN_DISTANCE_METERS = 5.0
+    BASELINE_SAMPLE_COUNT = 5  # Increased from 3 for more stable baseline
+    ALT_RATE_THRESHOLD_MPS = 2.0
+    LOW_LATERAL_FOR_VERTICAL_METERS = 10.0
+    MAX_TAIL_FRACTION = 0.25
+    # We require a minimum segment size so the baseline heading estimate is stable.
+    MIN_SEGMENT_SIZE = 20
+    MIN_SEARCH_IMAGES = 10  # Minimum images to search for tails
 
-    # 1. Check for flight tails that occur during takeoff.
-    for i in takeoff_loop:
-        if project_image_results[i]["distance_moved"] < 1.0:
-            continue
-
-        current_azimuth = project_image_results[i]["azimuth"]
-        if takeoff_baseline is None:
-            takeoff_baseline = current_azimuth
-            continue
-
-        azimuth_difference = _calculate_angular_difference(
-            takeoff_baseline, current_azimuth
+    for idx, segment in enumerate(segments):
+        log.debug(
+            f"Segment {idx}: {len(segment)} images, "
+            f"time range: {segment[0]['sort_ts']} to {segment[-1]['sort_ts']}"
         )
-        # A 45-degree change in baseline suggests a change in direction during the flight.
-        # Note: This threshold may need tuning for environmental conditions or specific mission types.
-        if azimuth_difference < 45:
-            takeoff_baseline = _calculate_circular_mean(
-                takeoff_baseline, current_azimuth
-            )
+        segment_length = len(segment)
 
-        elif azimuth_difference > 45:
-            if _confirm_stable_heading(project_image_results, i, 1):
-                takeoff_mission_start_idx = i
+        # Skip small segments entirely - they're too short for reliable tail detection
+        if segment_length < MIN_SEGMENT_SIZE:
+            log.debug(
+                f"Skipping tail detection for segment with {segment_length} images "
+                f"(minimum required: {MIN_SEGMENT_SIZE})"
+            )
+            continue
+
+        # Mark vertical candidates
+        for i, row in enumerate(segment):
+            row["vertical_candidate"] = False
+            # Skip first image (no previous data)
+            if i == 0:
+                continue
+
+            alt = row.get("altitude_m")
+            prev_alt = row.get("previous_altitude_m")
+            ts = row.get("sort_ts")
+            prev_ts = row.get("previous_sort_ts")
+            dist = float(row.get("distance_moved") or 0.0)
+
+            if alt is None or prev_alt is None or ts is None or prev_ts is None:
+                continue
+            try:
+                dt = (ts - prev_ts).total_seconds()
+                if dt <= 0:
+                    continue
+                alt_rate = abs(float(alt) - float(prev_alt)) / dt
+                if (
+                    alt_rate >= ALT_RATE_THRESHOLD_MPS
+                    and dist <= LOW_LATERAL_FOR_VERTICAL_METERS
+                ):
+                    row["vertical_candidate"] = True
+            except Exception:
+                continue
+
+        # Determine search limits - search fewer images for tail detection
+        search_limit = min(
+            MIN_SEARCH_IMAGES, segment_length // 4
+        )  # Search max 25% of segment
+
+        takeoff_tails_indices = []
+        landing_tails_indices = []
+
+        # TAKEOFF DETECTION
+        takeoff_baseline = None
+        takeoff_baseline_samples: list[float] = []
+
+        # Find first valid baseline
+        baseline_start_idx = None
+        for i in range(search_limit):
+            if i == 0:  # Skip first image (no azimuth)
+                continue
+            if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
+                continue
+            if segment[i].get("vertical_candidate"):
+                continue
+            if segment[i].get("azimuth") is None:
+                continue
+
+            takeoff_baseline_samples.append(segment[i]["azimuth"])
+            if len(takeoff_baseline_samples) == 1:
+                baseline_start_idx = i
+
+            if len(takeoff_baseline_samples) >= BASELINE_SAMPLE_COUNT:
+                takeoff_baseline = _circular_mean_list(takeoff_baseline_samples)
                 break
 
-    if takeoff_mission_start_idx is not None:
-        takeoff_tails_indices = list(range(takeoff_mission_start_idx))
+        # Only proceed if we have a valid baseline
+        if takeoff_baseline is not None and baseline_start_idx is not None:
+            for i in range(baseline_start_idx + BASELINE_SAMPLE_COUNT, search_limit):
+                if i == 0 or segment[i].get("azimuth") is None:
+                    continue
+                if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
+                    continue
+                if segment[i].get("vertical_candidate"):
+                    continue
 
-    # 2. Check for flight tails that occur during landing.
-    for i in landing_loop:
-        if project_image_results[i]["distance_moved"] < 1.0:
-            continue
+                current_azimuth = segment[i]["azimuth"]
+                azimuth_difference = _calculate_angular_difference(
+                    takeoff_baseline, current_azimuth
+                )
 
-        current_azimuth = project_image_results[i]["azimuth"]
-        if landing_baseline is None:
-            landing_baseline = current_azimuth
-            continue
+                if azimuth_difference < 45:
+                    # Still in baseline trajectory
+                    takeoff_baseline = _circular_mean_pair(
+                        takeoff_baseline, current_azimuth
+                    )
+                elif azimuth_difference > 60:  # Increased threshold from 45 to 60
+                    # Potential turn detected - confirm it
+                    if _confirm_stable_heading(segment, i, 1):
+                        takeoff_tails_indices = list(range(i))
+                        break
 
-        azimuth_difference = _calculate_angular_difference(
-            landing_baseline, current_azimuth
-        )
-        if azimuth_difference < 45:
-            landing_baseline = _calculate_circular_mean(
-                landing_baseline, current_azimuth
-            )
+        # LANDING DETECTION (similar logic, working backwards)
+        landing_baseline = None
+        landing_baseline_samples: list[float] = []
+        landing_start_idx = None
 
-        elif azimuth_difference > 45:
-            if _confirm_stable_heading(project_image_results, i, -1):
-                landing_mission_start_idx = i
+        landing_search_start = segment_length - 1
+        landing_search_end = max(segment_length - search_limit, 0)
+
+        for i in range(landing_search_start, landing_search_end, -1):
+            if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
+                continue
+            if segment[i].get("vertical_candidate"):
+                continue
+            if segment[i].get("azimuth") is None:
+                continue
+
+            landing_baseline_samples.append(segment[i]["azimuth"])
+            if len(landing_baseline_samples) == 1:
+                landing_start_idx = i
+
+            if len(landing_baseline_samples) >= BASELINE_SAMPLE_COUNT:
+                landing_baseline = _circular_mean_list(landing_baseline_samples)
                 break
 
-    if landing_mission_start_idx is not None:
-        landing_tails_indices = list(
-            range(landing_mission_start_idx + 1, project_length)
-        )
+        if landing_baseline is not None and landing_start_idx is not None:
+            for i in range(
+                landing_start_idx - BASELINE_SAMPLE_COUNT, landing_search_end, -1
+            ):
+                if segment[i].get("azimuth") is None:
+                    continue
+                if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
+                    continue
+                if segment[i].get("vertical_candidate"):
+                    continue
 
-    # 3. Aggregate flight tail images and flag detected images
-    all_tail_indices = takeoff_tails_indices + landing_tails_indices
-    if all_tail_indices:
-        await _flag_flight_tail_images(db, project_image_results, all_tail_indices)
+                current_azimuth = segment[i]["azimuth"]
+                azimuth_difference = _calculate_angular_difference(
+                    landing_baseline, current_azimuth
+                )
+
+                if azimuth_difference < 45:
+                    landing_baseline = _circular_mean_pair(
+                        landing_baseline, current_azimuth
+                    )
+                elif azimuth_difference > 60:  # Increased threshold
+                    if _confirm_stable_heading(segment, i, -1):
+                        landing_tails_indices = list(range(i + 1, segment_length))
+                        break
+
+        # Apply safety checks
+        all_tail_indices = takeoff_tails_indices + landing_tails_indices
+        if all_tail_indices:
+            tail_fraction = len(all_tail_indices) / segment_length
+            if tail_fraction <= MAX_TAIL_FRACTION:
+                log.info(
+                    f"Detected {len(all_tail_indices)} tail images "
+                    f"({tail_fraction:.1%} of segment): "
+                    f"takeoff={len(takeoff_tails_indices)}, landing={len(landing_tails_indices)}"
+                )
+                await _flag_flight_tail_images(db, segment, all_tail_indices)
+            else:
+                log.warning(
+                    f"Skipping tail flagging: {tail_fraction:.1%} exceeds safety threshold "
+                    f"of {MAX_TAIL_FRACTION:.1%}"
+                )
