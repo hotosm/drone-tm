@@ -9,9 +9,8 @@ from psycopg.rows import class_row, dict_row
 from pydantic import BaseModel, model_validator
 from pydantic.functional_validators import field_validator
 
-from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State
-from app.s3 import generate_static_url, is_connection_secure
+from app.s3 import maybe_presign_s3_key
 
 
 class Geometry(BaseModel):
@@ -208,19 +207,9 @@ class UserTasksOut(BaseModel):
     @model_validator(mode="after")
     def set_urls(cls, values):
         """Set and format certificate and registration URLs."""
-        bucket_name = settings.S3_BUCKET_NAME
-        endpoint, is_secure = is_connection_secure(settings.S3_ENDPOINT)
-        protocol = "https" if is_secure else "http"
-
-        def format_url(url):
-            if url:
-                url = url if url.startswith("/") else f"/{url}"
-                return f"{protocol}://{endpoint}/{bucket_name}{url}"
-            return url
-
-        values.certificate_url = format_url(values.certificate_url)
-        values.registration_certificate_url = format_url(
-            values.registration_certificate_url
+        values.certificate_url = maybe_presign_s3_key(values.certificate_url, 2)
+        values.registration_certificate_url = maybe_presign_s3_key(
+            values.registration_certificate_url, 2
         )
 
         return values
@@ -317,7 +306,8 @@ class TaskDetailsOut(BaseModel):
         """Set image_url before rendering the model."""
         assets_url = values.assets_url
         if assets_url:
-            values.assets_url = generate_static_url(settings.S3_BUCKET_NAME, assets_url)
+            # `assets_url` is stored as an S3 key in the DB; return a browser-usable URL.
+            values.assets_url = maybe_presign_s3_key(assets_url, 2)
 
         return values
 

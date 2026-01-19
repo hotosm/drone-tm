@@ -30,6 +30,10 @@ services:
       - ${PROJECT_DIR:-.}/src/backend/packages/drone-flightplan/drone_flightplan:/opt/python/lib/python3.11/site-packages/drone_flightplan:ro
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
+    environment:
+      # In dev the browser can't resolve docker DNS names like `minio`,
+      # so presigned URLs must use a host-accessible base.
+      S3_DOWNLOAD_ROOT: ${S3_DOWNLOAD_ROOT:-http://localhost:9000}
     extra_hosts:
       - "localhost:host-gateway"
     networks:
@@ -133,7 +137,7 @@ services:
 
   arq-worker:
     image: ghcr.io/hotosm/drone-tm/backend:debug
-    command: arq app.arq.tasks.WorkerSettings
+    command: arq --watch /project/src/backend/app app.arq.tasks.WorkerSettings
     depends_on:
       - redis
     env_file: .env

@@ -135,12 +135,20 @@ const ImageClassification = ({
   // Stop polling when classification is complete
   useEffect(() => {
     if (batchStatus && isPolling) {
-      const classified = (batchStatus.assigned ?? 0) + (batchStatus.rejected ?? 0) +
-                        (batchStatus.unmatched ?? 0) + (batchStatus.invalid_exif ?? 0) +
-                        (batchStatus.duplicate ?? 0);
-      const toClassify = (batchStatus.uploaded ?? 0) + (batchStatus.classifying ?? 0);
+      const total = batchStatus.total ?? 0;
+      const classified =
+        (batchStatus.assigned ?? 0) +
+        (batchStatus.rejected ?? 0) +
+        (batchStatus.unmatched ?? 0) +
+        (batchStatus.invalid_exif ?? 0) +
+        (batchStatus.duplicate ?? 0);
+      const remaining =
+        (batchStatus.staged ?? 0) +
+        (batchStatus.uploaded ?? 0) +
+        (batchStatus.classifying ?? 0);
 
-      if (classified > 0 && toClassify === 0) {
+      // Only show "complete" once ALL images in the batch are in a terminal state.
+      if (total > 0 && classified === total && remaining === 0) {
         setIsPolling(false);
         dispatch(completeClassification());
         toast.success('Classification complete! Review the results below.');
@@ -306,7 +314,7 @@ const ImageClassification = ({
         <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-5">
           <div className="naxatw-text-center">
             {renderValue(computedStats.uploaded, isClassifying, 'naxatw-text-gray-500')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Uploaded</div>
+            <div className="naxatw-text-sm naxatw-text-gray-600">Pending</div>
           </div>
           <div className="naxatw-text-center">
             {renderValue(computedStats.processing, isClassifying, 'naxatw-text-blue-600')}
@@ -314,7 +322,7 @@ const ImageClassification = ({
           </div>
           <div className="naxatw-text-center">
             {renderValue(computedStats.complete, isClassifying, 'naxatw-text-green-600')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Complete</div>
+            <div className="naxatw-text-sm naxatw-text-gray-600">No Issues</div>
           </div>
           <div className="naxatw-text-center">
             {renderValue(computedStats.issues, isClassifying, 'naxatw-text-orange-600')}
@@ -578,7 +586,7 @@ const ImageClassification = ({
                       Missing GPS Data
                     </h5>
                     <p className="naxatw-mt-2 naxatw-text-sm naxatw-text-orange-700">
-                      The image does not contain valid GPS coordinates in its EXIF metadata.
+                      The image does not contain valid EXIF metadata (GPS coordinates may be wrong).
                     </p>
                   </div>
                 )}
