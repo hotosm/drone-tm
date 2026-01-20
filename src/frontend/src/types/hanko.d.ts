@@ -1,3 +1,6 @@
+// Module declaration for @hotosm/hanko-auth
+declare module '@hotosm/hanko-auth';
+
 // Type declarations for HOTOSM Auth web component
 declare namespace JSX {
   interface IntrinsicElements {
