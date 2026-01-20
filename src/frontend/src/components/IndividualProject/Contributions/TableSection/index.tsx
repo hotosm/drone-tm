@@ -69,7 +69,7 @@ const contributionsDataColumns = [
               taskId: rowData.task_id,
               source: {
                 type: 'raster',
-                url: `cog://${COG_URL}/dtm-data/projects/${id}/${rowData?.task_id}/orthophoto/odm_orthophoto.tif`,
+                url: `cog://${COG_URL}/projects/${id}/${rowData?.task_id}/orthophoto/odm_orthophoto.tif`,
                 tileSize: 256,
               },
             },

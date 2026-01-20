@@ -346,15 +346,11 @@ async def generate_presigned_url(
 
         # Process each image in the request
         for image in data.image_name:
-            image_path = (
-                f"dtm-data/projects/{data.project_id}/{data.task_id}/images/{image}"
-            )
+            image_path = f"projects/{data.project_id}/{data.task_id}/images/{image}"
 
             # If replace_existing is True, delete the image first
             if replace_existing:
-                image_dir = (
-                    f"dtm-data/projects/{data.project_id}/{data.task_id}/images/"
-                )
+                image_dir = f"projects/{data.project_id}/{data.task_id}/images/"
                 try:
                     # Delete objects under the prefix (MinIO SDK).
                     # This endpoint is deprecated, so we keep the implementation simple.
@@ -489,7 +485,7 @@ async def process_all_imagery(
         with open(gcp_file_path, "wb") as f:
             f.write(await gcp_file.read())
 
-        s3_path = f"dtm-data/projects/{project.id}/gcp/gcp_list.txt"
+        s3_path = f"projects/{project.id}/gcp/gcp_list.txt"
         add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
 
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
@@ -773,9 +769,7 @@ async def initiate_upload(
         # Determine file path based on staging flag
         if data.staging:
             # Upload to staging directory
-            file_key = (
-                f"dtm-data/projects/{data.project_id}/user-uploads/{data.file_name}"
-            )
+            file_key = f"projects/{data.project_id}/user-uploads/{data.file_name}"
         else:
             # Upload to task directory (original behavior)
             if not data.task_id:
@@ -783,7 +777,9 @@ async def initiate_upload(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="task_id is required when staging=False",
                 )
-            file_key = f"dtm-data/projects/{data.project_id}/{data.task_id}/images/{data.file_name}"
+            file_key = (
+                f"projects/{data.project_id}/{data.task_id}/images/{data.file_name}"
+            )
 
         upload_id = initiate_multipart_upload(settings.S3_BUCKET_NAME, file_key)
 

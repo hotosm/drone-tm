@@ -32,7 +32,7 @@ const TaskOrthophotoPreview = () => {
   const orthophotoSource: RasterSourceSpecification = useMemo(
     () => ({
       type: 'raster',
-      url: `cog://${COG_URL}/dtm-data/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
+      url: `cog://${COG_URL}/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
       tileSize: 256,
     }),
 

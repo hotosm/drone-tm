@@ -159,7 +159,7 @@ async def get_task_waypoint(
         try:
             get_file_from_bucket(
                 settings.S3_BUCKET_NAME,
-                f"dtm-data/projects/{project_id}/dem.tif",
+                f"projects/{project_id}/dem.tif",
                 dem_path,
             )
             # TODO: Do this with inmemory data

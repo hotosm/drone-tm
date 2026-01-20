@@ -117,7 +117,7 @@ class DroneImageProcessor:
         :param task_id: Optional specific task ID
         :param batch_size: Number of images to download concurrently
         """
-        prefix = f"dtm-data/projects/{self.project_id}/{task_id}"
+        prefix = f"projects/{self.project_id}/{task_id}"
         objects = list_objects_from_bucket(bucket_name, prefix)
 
         if not objects:
@@ -223,7 +223,7 @@ class DroneImageProcessor:
                 await self.download_images_from_s3(bucket_name, temp_dir, self.task_id)
                 images_list = self.list_images(temp_dir)
             else:
-                gcp_list_file = f"dtm-data/projects/{self.project_id}/gcp/gcp_list.txt"
+                gcp_list_file = f"projects/{self.project_id}/gcp/gcp_list.txt"
                 gcp_file_path = os.path.join(temp_dir, "gcp_list.txt")
 
                 # Check and add the GCP file to the images list if it exists
@@ -326,7 +326,7 @@ class DroneImageProcessor:
             path_to_download = self.download_results(task, output_path=output_file_path)
 
             # Upload the results into s3
-            s3_path = f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
+            s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
             add_file_to_bucket(bucket_name, path_to_download, s3_path)
             # now update the task as completed in Db.
             # Call the async function using asyncio
@@ -427,7 +427,7 @@ async def process_assets_from_odm(
 
             # Construct the S3 path dynamically to avoid empty segments
             task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-            s3_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}assets.zip"
+            s3_path = f"projects/{dtm_project_id}/{task_segment}assets.zip"
             log.info(f"Uploading {assets_path} to S3 path: {s3_path}")
             add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
@@ -442,14 +442,16 @@ async def process_assets_from_odm(
                 raise FileNotFoundError("Orthophoto file is missing")
 
             reproject_to_web_mercator(orthophoto_path, orthophoto_path)
-            s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
+            s3_ortho_path = (
+                f"projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
+            )
             log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
             add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
             images_json_path = os.path.join(output_file_path, "images.json")
             if os.path.exists(images_json_path):
                 s3_images_json_path = (
-                    f"dtm-data/projects/{dtm_project_id}/{task_segment}images.json"
+                    f"projects/{dtm_project_id}/{task_segment}images.json"
                 )
                 log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
                 add_file_to_bucket(
@@ -480,7 +482,9 @@ async def process_assets_from_odm(
                             f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
                         )
 
-                        s3_path_url = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+                        s3_path_url = (
+                            f"projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+                        )
                         # update the task table
                         await project_logic.update_task_field(
                             conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
@@ -493,7 +497,7 @@ async def process_assets_from_odm(
                         )
 
                         if len(tasks) == 1:
-                            project_ortho_path = f"dtm-data/projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
+                            project_ortho_path = f"projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
                             log.info(
                                 f"Copying orthophoto to project level: {project_ortho_path}"
                             )
@@ -505,7 +509,7 @@ async def process_assets_from_odm(
                             )
 
                             project_assets_path = (
-                                f"dtm-data/projects/{dtm_project_id}/assets.zip"
+                                f"projects/{dtm_project_id}/assets.zip"
                             )
                             log.info(
                                 f"Copying assets to project level: {project_assets_path}"

@@ -297,7 +297,7 @@ async def find_images_in_a_project_for_point(
     for task_id in task_id_list:
         task_id_str = str(task_id[0])
         s3_images_json_path_for_task = (
-            f"dtm-data/projects/{project_id}/{task_id_str}/images.json"
+            f"projects/{project_id}/{task_id_str}/images.json"
         )
         s3_images_json_url = generate_presigned_get_url(
             settings.S3_BUCKET_NAME, s3_images_json_path_for_task
@@ -318,7 +318,7 @@ async def find_images_in_a_project_for_point(
     presigned_urls = [
         generate_presigned_get_url(
             settings.S3_BUCKET_NAME,
-            f"dtm-data/projects/{project_id}/{image}",
+            f"projects/{project_id}/{image}",
         )
         for image in images_list
     ]
@@ -344,7 +344,7 @@ async def find_images_in_a_task_for_point(
         List[str]: A list of pre-signed URLs for matching images.
     """
     # S3 path for the `images.json` file provided by ODM
-    s3_images_json_path = f"dtm-data/projects/{project_id}/{task_id}/images.json"
+    s3_images_json_path = f"projects/{project_id}/{task_id}/images.json"
 
     # Generate pre-signed URL for the `images.json` file
     s3_images_json_url = generate_presigned_get_url(
@@ -368,7 +368,7 @@ async def find_images_in_a_task_for_point(
     presigned_urls = [
         generate_presigned_get_url(
             settings.S3_BUCKET_NAME,
-            f"dtm-data/projects/{project_id}/{task_id}/images/{image}",
+            f"projects/{project_id}/{task_id}/images/{image}",
         )
         for image in matching_images
     ]

@@ -173,8 +173,8 @@ class DbUserProfile(BaseUserProfile):
         result = {}
 
         file_paths = {
-            "certificate_file": f"dtm-data/users/{user_id}/certificate/{profile.certificate_file}",
-            "registration_file": f"dtm-data/users/{user_id}/registration/{profile.registration_file}",
+            "certificate_file": f"users/{user_id}/certificate/{profile.certificate_file}",
+            "registration_file": f"users/{user_id}/registration/{profile.registration_file}",
         }
 
         for file_type, s3_path in file_paths.items():

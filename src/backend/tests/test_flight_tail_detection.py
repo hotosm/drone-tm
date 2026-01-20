@@ -49,7 +49,7 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
     async with db.cursor() as cur:
         for i, (lon, lat) in enumerate(points):
             filename = f"img_{i:03d}.jpg"
-            s3_key = f"dtm-data/projects/{project_id}/user-uploads/{filename}"
+            s3_key = f"projects/{project_id}/user-uploads/{filename}"
             hash_md5 = hashlib.md5(filename.encode("utf-8")).hexdigest()
             uploaded_at = now + timedelta(seconds=i)
 
@@ -155,7 +155,7 @@ async def test_flight_tail_does_not_override_existing_rejection_reason(
     async with db.cursor() as cur:
         for i, (lon, lat) in enumerate(points):
             filename = f"img_{i:03d}.jpg"
-            s3_key = f"dtm-data/projects/{project_id}/user-uploads/{filename}"
+            s3_key = f"projects/{project_id}/user-uploads/{filename}"
             hash_md5 = hashlib.md5(filename.encode("utf-8")).hexdigest()
             uploaded_at = now + timedelta(seconds=i)
 
@@ -297,7 +297,7 @@ async def test_multi_flight_batch_does_not_create_false_tails(
     async with db.cursor() as cur:
         for insert_idx, (orig_idx, dt, lon, lat) in enumerate(rows):
             filename = f"sample_{orig_idx:03d}.jpg"
-            s3_key = f"dtm-data/projects/{project_id}/user-uploads/{filename}"
+            s3_key = f"projects/{project_id}/user-uploads/{filename}"
             hash_md5 = hashlib.md5(filename.encode("utf-8")).hexdigest()
             uploaded_at = now + timedelta(seconds=uploaded_order[insert_idx])
 

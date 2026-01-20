@@ -330,15 +330,13 @@ def get_object_metadata(bucket_name: str, object_name: str):
 
 def get_assets_url_for_project(project_id: str):
     """Browser URL for project assets.zip."""
-    project_assets_path = f"dtm-data/projects/{project_id}/assets.zip"
+    project_assets_path = f"projects/{project_id}/assets.zip"
     return generate_presigned_get_url(settings.S3_BUCKET_NAME, project_assets_path, 3)
 
 
 def get_orthophoto_url_for_project(project_id: str):
     """Browser URL for orthophoto."""
-    project_orthophoto_path = (
-        f"dtm-data/projects/{project_id}/orthophoto/odm_orthophoto.tif"
-    )
+    project_orthophoto_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
 
     if not check_file_exists(settings.S3_BUCKET_NAME, project_orthophoto_path):
         log.warning("Orthophoto not found in S3 bucket")

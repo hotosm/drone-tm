@@ -95,7 +95,7 @@ async def upload_file_to_s3(
         str: The S3 URL for the uploaded file.
     """
     # Define the S3 file path
-    file_path = f"dtm-data/projects/{project_id}/{file_name}"
+    file_path = f"projects/{project_id}/{file_name}"
 
     # Read the file bytes
     file_bytes = await file.read()
@@ -210,7 +210,7 @@ async def process_task_metrics(db, tasks_data, project):
             try:
                 get_file_from_bucket(
                     settings.S3_BUCKET_NAME,
-                    f"dtm-data/projects/{project.id}/dem.tif",
+                    f"projects/{project.id}/dem.tif",
                     dem_path,
                 )
                 outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
@@ -376,7 +376,7 @@ async def create_tasks_from_geojson(
 #                 try:
 #                     get_file_from_bucket(
 #                         settings.S3_BUCKET_NAME,
-#                         f"dtm-data/projects/{project.id}/dem.tif",
+#                         f"projects/{project.id}/dem.tif",
 #                         dem_path,
 #                     )
 #                     # TODO: Do this with inmemory data
@@ -603,7 +603,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     """Helper function to get the number of images and the URL to download the assets."""
     try:
         # Prefix for the images
-        images_prefix = f"dtm-data/projects/{project_id}/{task_id}/images/"
+        images_prefix = f"projects/{project_id}/{task_id}/images/"
 
         # List and count the images
         objects = list_objects_from_bucket(
@@ -617,7 +617,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
         # Generate a presigned URL for the assets ZIP file
         try:
             # Check if the object exists
-            assets_path = f"dtm-data/projects/{project_id}/{task_id}/assets.zip"
+            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL

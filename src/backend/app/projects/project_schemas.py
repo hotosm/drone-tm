@@ -684,7 +684,7 @@ class ProjectInfo(BaseModel):
         if not project_id:
             return values
 
-        image_dir = f"dtm-data/projects/{project_id}/map_screenshot.png"
+        image_dir = f"projects/{project_id}/map_screenshot.png"
 
         values.image_url = safe_url(
             lambda: generate_presigned_get_url(
