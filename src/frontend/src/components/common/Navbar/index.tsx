@@ -11,8 +11,7 @@ const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 if (AUTH_PROVIDER === 'hanko') {
-  // Dynamically import web component
-  import('@AuthLibs/web-component/dist/hanko-auth.esm.js');
+  import('@hotosm/hanko-auth');
 }
 
 export default function Navbar() {
