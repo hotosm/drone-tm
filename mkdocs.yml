@@ -87,5 +87,6 @@ nav:
           - Pre-Commit: https://docs.hotosm.org/dev-guide/repo-management/pre-commit/
           - Versioning: https://docs.hotosm.org/dev-guide/repo-management/version-control/#creating-releases
       - Setup: dev/setup.md
+      - Testing: dev/testing.md
       - Migrate to Kubernetes: dev/migrate-k8s.md
   - Timeline: timeline.md

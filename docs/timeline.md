@@ -58,5 +58,3 @@ In reverse chronological order, with most recent events first.
 > </div>
 
 <!-- markdownlint-restore -->
-
-[1]: https://docs.google.com/document/d/118XdCzDeNPgMUXpDJbkFKxCuHOSkYoXwqc2c8cPPJ60/edit?usp=sharing

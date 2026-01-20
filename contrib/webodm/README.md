@@ -1,4 +1,4 @@
-# WebODM Now!
+# WebODM Now
 
 Give me a WebODM instance quickly.
 

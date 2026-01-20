@@ -29,6 +29,7 @@ Just is required too:
 - If you only plan on using the backend then everything should be
   configured for you.
 - Else, if you set up Google OAuth credentials, set the variables here:
+
   ```dotenv
   GOOGLE_CLIENT_ID="YOUR_CLIENT_ID"
   GOOGLE_CLIENT_SECRET="YOUR_CLIENT_SECRET"
@@ -40,13 +41,16 @@ Just is required too:
 - At present, only Sentry is configured as the backend for logging with OpenTelemetry. By default
   logging in non-production environments is disabled.
 - To set it up and work with it, you will need these two ENV variables set correctly:
+
   ```
   MONITORING="sentry"
   SENTRY_DSN="<sentry dsn url here>"
   ```
+
   Then make sure to rebuild your backend Docker image: `docker compose build backend` so that Docker
   now knows to install the extra set of dependencies.
   You should see a success message if it worked correctly.
+
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
   is recommended to leave the setting as is.
 
@@ -70,6 +74,3 @@ Web ODM: [http://localhost:9900](http://localhost:9900)
 - Default password: `password`
 
 > Note the ports may be different if you changed them in the dotenv file.
-
-[1]: https://docs.docker.com/engine/install/#other-linux-distros "Docker Install Guide"
-[2]: https://docs.docker.com/compose/install/#scenario-two-install-the-compose-plugin "Docker Compose Install Guide"
