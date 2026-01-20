@@ -1,4 +1,4 @@
-{{- if and .Values.backend.enabled .Values.podDisruptionBudget.backend.enabled }}
+{{- if .Values.podDisruptionBudget.backend.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

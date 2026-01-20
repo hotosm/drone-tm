@@ -100,6 +100,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     EXTRA_CORS_ORIGINS: Optional[Union[str, list[str]]] = []
+    FRONTEND_WEB_APP_PORT: int = 3040
 
     @field_validator("EXTRA_CORS_ORIGINS", mode="before")
     @classmethod
@@ -110,16 +111,46 @@ class Settings(BaseSettings):
     ) -> Union[list[str], str]:
         """Build and validate CORS origins list.
 
-        By default, the provided frontend URLs are included in the origins list.
-        If this variable used, the provided urls are appended to the list.
+        By default, the deployment origin derived from DOMAIN + DEBUG is included.
+        If EXTRA_CORS_ORIGINS is set, the provided URLs are appended.
         """
-        default_origins = []
+        # Always include the public origin so the frontend can call the API.
+        domain = info.data.get("DOMAIN")
+        debug = bool(info.data.get("DEBUG"))
+        port = info.data.get("FRONTEND_WEB_APP_PORT") or 3040
+
+        default_origins: list[str] = []
+
+        if domain:
+            scheme = "http" if debug else "https"
+            default_origins.append(f"{scheme}://{domain}")
+
+        # Dev-friendly defaults: include localhost + 127.0.0.1 for the frontend port.
+        # This helps when DOMAIN is set but you still access via a different host alias.
+        if debug:
+            default_origins.extend(
+                [
+                    f"http://localhost:{port}",
+                    f"http://127.0.0.1:{port}",
+                ]
+            )
+
+        # Final fallback (no DOMAIN set)
+        if not default_origins:
+            default_origins = [
+                f"http://localhost:{port}",
+                f"http://127.0.0.1:{port}",
+            ]
+
+        # De-dup while preserving order
+        seen: set[str] = set()
+        default_origins = [o for o in default_origins if not (o in seen or seen.add(o))]
 
         if val is None:
             return default_origins
 
         if isinstance(val, str):
-            default_origins += [i.strip() for i in val.split(",")]
+            default_origins += [i.strip() for i in val.split(",") if i.strip()]
             return default_origins
 
         elif isinstance(val, list):
@@ -163,7 +194,7 @@ class Settings(BaseSettings):
             scheme = "http" if self.DEBUG else "https"
             return f"{scheme}://{self.DOMAIN}"
         # Local dev default (frontend dev server)
-        return "http://localhost:3040"
+        return f"http://localhost:{self.FRONTEND_WEB_APP_PORT}"
 
     # Internal backend URL for Docker-internal services (webhooks from NodeODM, etc.)
     BACKEND_URL_INTERNAL: str = "http://backend:8000"

@@ -19,15 +19,6 @@ Development environment configuration:
   - Ingress disabled (uses port-forward)
   - Optional in-cluster Postgres for local testing
 
-## Environment-Specific Configuration
-
-Environment-specific configurations (staging, production) are managed in the k8s-infra repository through ArgoCD applications. This approach:
-
-- **Eliminates duplication** between chart repo and k8s-infra repo
-- **Centralizes environment config** in the infrastructure repository
-- **Maintains separation of concerns** between application and infrastructure
-- **Enables GitOps** workflow for environment management
-
 ## Usage Examples
 
 ### Local Development
@@ -40,22 +31,12 @@ helm install drone-tm ./chart -f values-local.yaml
 helm upgrade drone-tm ./chart -f values-local.yaml
 ```
 
-### Staging/Production Deployment
-
-Staging and production deployments are managed through ArgoCD applications in the k8s-infra repository. The environment-specific configurations are embedded directly in the ArgoCD Application manifests, eliminating the need for separate values files.
-
-To modify environment-specific settings:
-
-1. Edit the ArgoCD Application manifest in k8s-infra repository
-2. Update the `values` section in the `helm` configuration
-3. ArgoCD will automatically sync the changes to the cluster
-
 ## Dependencies
 
 This chart includes the following subcharts:
 
-- **PostgreSQL**: Database with PostGIS extension
 - **Redis**: Caching and task queue
+- **PostgreSQL**: Database with PostGIS extension (optional)
 
 ## Configuration
 
@@ -69,6 +50,17 @@ Key configuration areas:
 - **PostgreSQL**: Database configuration
 - **Redis**: Cache and queue configuration
 
+## Environment Variables
+
+- Can be set via the `env` or `extraEnvFrom` keys.
+- They will be included in the backend, migration, and arq worker containers.
+
+### Setting The Frontend API_URL
+
+- Typically baked into images.
+- We have opted for a config to allow dynamic injection of env vars into the frontend build.
+- Simply update the frontend section in `values.yaml` with your required variables.
+
 ## Secrets
 
 Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / ExternalSecrets in GitOps setups):
@@ -78,26 +70,15 @@ Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / 
 
 Your Secret should include (at minimum):
 
-- `DOMAIN` (e.g. `drone-tm.example.com`)
-- `DEBUG` (`False` in production)
-- Database: `POSTGRES_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-- Redis: `REDIS_DSN`
-- S3: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME`
-- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SECRET_KEY`
+- Database: `POSTGRES_PASSWORD`
+- S3: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
+- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SECRET_KEY`.
+- Redis: (provided automatically by the chart; no `REDIS_DSN` needed)
 
-> Note: `API_URL` is a **frontend build-time** variable baked into the frontend image; Helm does not inject it at runtime.
+### Creating Sealed Secrets
 
-## Monitoring
+```bash
+kubectl create secret ... from all specified secret vars above (generic)
 
-Health checks are configured for all services:
-
-- **Liveness Probe**: Ensures containers are running
-- **Readiness Probe**: Ensures containers are ready to serve traffic
-
-## Resources
-
-Resource limits and requests are configured per environment:
-
-- **Development**: Minimal resources for local testing
-- **Staging**: Moderate resources for testing
-- **Production**: High resources with autoscaling
+kubeseal secret.yaml > sealed-secret.yaml
+```

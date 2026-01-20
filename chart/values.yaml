@@ -3,16 +3,46 @@
 # Declare variables to be passed into your templates.
 
 global:
-  # Used by some dependencies (e.g. Bitnami charts) to set PVC storage class.
   storageClass: ""
 
-# The chart does NOT create secrets.
-# Provide a pre-created Secret (e.g. from SealedSecrets) containing the app env vars.
+# Env + secret config for app + migrations + arq worker
 existingSecret:
-  # If empty, defaults to "<release>-drone-tm-secrets"
-  # This Secret should include your backend env (DB/S3/Redis/Google/etc).
-  # For public URLs the backend now derives links from `DOMAIN` (+ `DEBUG`).
   name: ""
+# Your Secret should include (at minimum):
+# - SECRET_KEY
+# - GOOGLE_CLIENT_ID
+# - GOOGLE_CLIENT_SECRET
+# - POSTGRES_PASSWORD
+# - S3_ACCESS_KEY
+# - S3_SECRET_KEY
+#
+# Optional (depending on features you use):
+# - SMTP_PASSWORD (if email enabled)
+# - SENTRY_DSN (if MONITORING=sentry)
+extraEnvFrom: []
+env: {}
+# # See an exhaustive list of env var options in the documentation.
+# env:
+#   # --- Required ---
+#   DOMAIN: "drone-tm.example.com"
+#   DEBUG: "False"
+#   LOG_LEVEL: "INFO"
+#   POSTGRES_HOST: "your-postgres-host"
+#   POSTGRES_DB: "dtm_db"
+#   POSTGRES_USER: "dtm"
+#   S3_ENDPOINT: "https://s3.amazonaws.com"
+#   S3_BUCKET_NAME: "your-bucket"
+#   # REDIS_DSN is provided automatically by the chart (Bitnami Redis subchart)
+#   # and does not need to be configured manually
+#
+#   # --- Optional ---
+#   # EXTRA_CORS_ORIGINS: '["https://drone-tm.example.com"]'
+#   # MONITORING: "sentry"
+#   # SMTP_HOST: "smtp.gmail.com"
+#   # SMTP_PORT: "587"
+#   # SMTP_USER: "noreply@example.com"
+#   # EMAILS_FROM_EMAIL: "noreply@example.com"
+#   # EMAILS_FROM_NAME: "Drone Tasking Manager"
 
 # Single ingress for both UI (`/`) and API (`/api`) routes, pointing at the backend service.
 ingress:
@@ -21,6 +51,9 @@ ingress:
   labels: {}
   annotations: {}
   tls: []
+    # - hosts:
+    #     - drone.hotosm.org
+    #   secretName: drone-tm-tls
   hosts:
     - host: drone-tm.localhost
       paths:
@@ -31,7 +64,6 @@ ingress:
 
 # Main application services
 backend:
-  enabled: true
   image:
     repository: ghcr.io/hotosm/drone-tm/backend
     tag: ""
@@ -45,11 +77,11 @@ backend:
 
   resources: {}
     # limits:
-    #   cpu: 1000m
-    #   memory: 1Gi
+    #   cpu: 9000m
+    #   memory: 1.5Gi
     # requests:
-    #   cpu: 500m
-    #   memory: 512Mi
+    #   cpu: 100m
+    #   memory: 256Mi
 
   livenessProbe:
     httpGet:
@@ -70,10 +102,8 @@ backend:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
 
-  # Optional extra envFrom (e.g. additional Secret/ConfigMap refs)
-  extraEnvFrom: []
-
 migrations:
+  # Uses the same envFrom + env as backend
   enabled: true
   backoffLimit: 3
 
@@ -86,6 +116,7 @@ frontendAssets:
     pullPolicy: IfNotPresent
 
 worker:
+  # Uses the same envFrom + env as backend
   enabled: true
   image:
     repository: ghcr.io/hotosm/drone-tm/backend
@@ -95,8 +126,12 @@ worker:
   replicaCount: 1
 
   resources: {}
-
-  extraEnvFrom: []
+    # limits:
+    #   cpu: 2000m
+    #   memory: 2Gi
+    # requests:
+    #   cpu: 500m
+    #   memory: 512Mi
 
   livenessProbe:
     exec:
@@ -115,6 +150,12 @@ worker:
     initialDelaySeconds: 5
     periodSeconds: 5
 
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+
 podDisruptionBudget:
   backend:
     enabled: false
@@ -126,13 +167,11 @@ podDisruptionBudget:
 # Subchart configurations
 # https://github.com/bitnami/charts/blob/main/bitnami/redis/values.yaml
 redis:
-  enabled: true
   image:
     registry: docker.io
     repository: bitnami/redis
     tag: 7.2-debian-13
   auth:
-    # In-cluster Redis not exposed publicly, so no auth required
     enabled: false
   architecture: standalone
   master:

@@ -1,4 +1,3 @@
-{{- if .Values.backend.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,12 +50,12 @@ spec:
             - name: http
               containerPort: {{ .Values.backend.service.port }}
               protocol: TCP
-          envFrom:
-            - secretRef:
-                name: {{ include "drone-tm.secretName" . }}
-            {{- with .Values.backend.extraEnvFrom }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- $extraEnvFrom := (.Values.extraEnvFrom | default list) -}}
+          {{- include "drone-tm.renderEnvFrom" (dict "root" . "extraEnvFrom" $extraEnvFrom) | nindent 10 }}
+          env:
+            - name: REDIS_DSN
+              value: "redis://{{ include "drone-tm.redis.masterServiceFQDN" . }}:6379/0"
+            {{- include "drone-tm.renderEnvOmit" (dict "env" (.Values.env | default dict) "omit" (dict "REDIS_DSN" true)) | nindent 12 }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
           livenessProbe:
@@ -85,4 +84,3 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-{{- end }}
