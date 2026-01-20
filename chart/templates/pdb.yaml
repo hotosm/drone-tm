@@ -29,4 +29,3 @@ spec:
       {{- include "drone-tm.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: worker
 {{- end }}
-

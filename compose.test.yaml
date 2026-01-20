@@ -86,7 +86,6 @@ services:
     environment:
       NODEODM_API_URL: http://nodeodm:3000
       S3_ENDPOINT_URL: http://minio:9000
-      BACKEND_URL: http://backend:8000
     depends_on:
       db:
         condition: service_healthy

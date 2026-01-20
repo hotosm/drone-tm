@@ -1,8 +1,8 @@
 # Development values for drone-tm
-# Use with: helm install drone-tm ./charts/drone-tm -f values-local.yaml
+# Use with: helm install drone-tm ./chart -f values-local.yaml
 
-global:
-  domain: drone-tm.localhost
+ingress:
+  enabled: false
 
 # Development backend configuration
 backend:
@@ -14,21 +14,7 @@ backend:
     requests:
       cpu: 250m
       memory: 256Mi
-  ingress:
-    enabled: false
-
-# Development frontend configuration
-frontend:
-  replicaCount: 1
-  resources:
-    limits:
-      cpu: 250m
-      memory: 256Mi
-    requests:
-      cpu: 125m
-      memory: 128Mi
-  ingress:
-    enabled: false
+# (UI is served by backend; no separate frontend deployment)
 
 # Development worker configuration
 worker:

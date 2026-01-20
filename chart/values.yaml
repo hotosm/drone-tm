@@ -3,16 +3,31 @@
 # Declare variables to be passed into your templates.
 
 global:
-  domain: drone-tm.localhost
+  # Used by some dependencies (e.g. Bitnami charts) to set PVC storage class.
   storageClass: ""
-  ingress:
-    className: ""
 
 # The chart does NOT create secrets.
 # Provide a pre-created Secret (e.g. from SealedSecrets) containing the app env vars.
 existingSecret:
   # If empty, defaults to "<release>-drone-tm-secrets"
+  # This Secret should include your backend env (DB/S3/Redis/Google/etc).
+  # For public URLs the backend now derives links from `DOMAIN` (+ `DEBUG`).
   name: ""
+
+# Single ingress for both UI (`/`) and API (`/api`) routes, pointing at the backend service.
+ingress:
+  enabled: true
+  className: ""
+  labels: {}
+  annotations: {}
+  tls: []
+  hosts:
+    - host: drone-tm.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+        - path: /api
+          pathType: Prefix
 
 # Main application services
 backend:
@@ -27,18 +42,6 @@ backend:
   service:
     type: ClusterIP
     port: 8000
-
-  ingress:
-    enabled: true
-    className: ""
-    annotations:
-      kubernetes.io/ingress.class: nginx
-    tls: []
-    hosts:
-      - host: api.drone-tm.localhost
-        paths:
-          - path: /
-            pathType: Prefix
 
   resources: {}
     # limits:
@@ -73,20 +76,6 @@ backend:
 migrations:
   enabled: true
   backoffLimit: 3
-
-frontend:
-  # UI ingress routes to the backend service (backend serves the SPA templates from /frontend_html)
-  ingress:
-    enabled: true
-    className: ""
-    annotations:
-      kubernetes.io/ingress.class: nginx
-    tls: []
-    hosts:
-      - host: drone-tm.localhost
-        paths:
-          - path: /
-            pathType: Prefix
 
 frontendAssets:
   # Uses the frontend image as an initContainer to populate backend templates (the frontend image exits after syncing).
@@ -143,7 +132,7 @@ redis:
     repository: bitnami/redis
     tag: 7.2-debian-13
   auth:
-    # In-cluster Redis not exposed publicaly, so no auth required
+    # In-cluster Redis not exposed publicly, so no auth required
     enabled: false
   architecture: standalone
   master:

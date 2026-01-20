@@ -580,7 +580,7 @@ async def process_all_drone_images(
                 {"name": "dsm", "value": True},
                 {"name": "orthophoto-resolution", "value": 5},
             ]
-            webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
+            webhook_url = f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
             await processor.process_images_for_all_tasks(
                 settings.S3_BUCKET_NAME,
                 name_prefix=f"DTM-Task-{project_id}",

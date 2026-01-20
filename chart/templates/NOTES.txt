@@ -1,18 +1,11 @@
 1. Get the application URL by running these commands:
-{{- if .Values.frontend.ingress.enabled }}
-{{- range $host := .Values.frontend.ingress.hosts }}
-  http{{ if $.Values.frontend.ingress.tls }}s{{ end }}://{{ $host.host }}
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}
 {{- end }}
 {{- end }}
 
-{{- if .Values.backend.ingress.enabled }}
-2. API endpoint:
-{{- range $host := .Values.backend.ingress.hosts }}
-  http{{ if $.Values.backend.ingress.tls }}s{{ end }}://{{ $host.host }}
-{{- end }}
-{{- end }}
-
-3. Database connection:
+2. Database connection:
 {{- if .Values.postgresql.enabled }}
    - PostgreSQL is deployed as part of this chart
    - Host: {{ include "drone-tm.fullname" . }}-postgresql
@@ -23,8 +16,8 @@
    - Using external PostgreSQL database
 {{- end }}
 
-4. S3 Storage:
+3. S3 Storage:
    - Using AWS S3 / external S3-compatible storage (configure via Secret: {{ include "drone-tm.secretName" . }})
 
-5. Secrets:
+4. Secrets:
    - Backend/worker env vars are sourced from Secret: {{ include "drone-tm.secretName" . }}

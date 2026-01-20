@@ -28,11 +28,15 @@ Just is required too:
   `just config generate-dotenv`
 - If you only plan on using the backend then everything should be
   configured for you.
-- Else, if you set up Google OAuth credentials, set the variables here:
+- The current setup expects:
+  - `DOMAIN` for public URLs (backend derives its public base URL automatically)
+  - `API_URL` for the frontend to reach the backend API (must include `/api`)
+- If you set up Google OAuth credentials, set the variables here:
 
   ```dotenv
   GOOGLE_CLIENT_ID="YOUR_CLIENT_ID"
   GOOGLE_CLIENT_SECRET="YOUR_CLIENT_SECRET"
+  # Redirect URI must match your Google OAuth app config
   GOOGLE_LOGIN_REDIRECT_URI="http://localhost:3040/auth"
   ```
 

@@ -18,7 +18,7 @@ import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
 import { isSafeRedirect } from '@Utils/url';
 
-const { BASE_URL } = process.env;
+const { API_URL } = process.env;
 
 const initialState = {
   username: '',
@@ -46,7 +46,7 @@ export default function Login() {
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('refresh', res.data.refresh_token);
       toast.success('Logged In Successfully');
-      const userDetailsUrl = `${BASE_URL}/users/my-info/`;
+      const userDetailsUrl = `${API_URL}/users/my-info/`;
       const response2 = await fetch(userDetailsUrl, {
         credentials: 'include',
         headers: { 'access-token': res.data.access_token },

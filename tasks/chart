@@ -188,7 +188,7 @@ show:
 clean:
   #!/usr/bin/env bash
   set -e
-  
+
   cd {{justfile_directory()}}
   rm -f drone-tm-*.tgz
   rm -rf ./chart/charts/

@@ -64,7 +64,7 @@ docs:
 _install-curl:
   #!/usr/bin/env bash
   set -e
-  
+
   if ! command -v curl &> /dev/null; then
       echo "📦 Installing curl..."
       if command -v apt-get &> /dev/null; then

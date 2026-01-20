@@ -47,8 +47,8 @@ services:
       dockerfile: Dockerfile
       target: development
       args:
-        # For some reason BASE_URL was misused as the API url, so we are stuck with it for now
-        BASE_URL: ${BASE_URL}
+        # API base URL used by the frontend (should include `/api`)
+        API_URL: ${API_URL}
         COG_URL: ${COG_URL}
         SITE_NAME: ${SITE_NAME}
     ports:

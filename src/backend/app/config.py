@@ -126,7 +126,6 @@ class Settings(BaseSettings):
             default_origins += val
             return default_origins
 
-    API_PREFIX: str = ""
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
     POSTGRES_HOST: Optional[str] = "db"
@@ -151,8 +150,21 @@ class Settings(BaseSettings):
         )
         return pg_url
 
-    FRONTEND_URL: str = "http://localhost:3040"
-    BACKEND_URL: str = "http://localhost:8000"
+    # Minimal config:
+    # - DOMAIN: host[:port] (no scheme), e.g. "drone-tm.example.com" or "localhost:3040"
+    #   If unset, defaults to "http" when DEBUG else "https".
+    DOMAIN: Optional[str] = None
+
+    @computed_field
+    @property
+    def PUBLIC_BASE_URL(self) -> HttpUrlStr:
+        """Public origin of the deployment (scheme + host), derived from DOMAIN + DEBUG."""
+        if self.DOMAIN:
+            scheme = "http" if self.DEBUG else "https"
+            return f"{scheme}://{self.DOMAIN}"
+        # Local dev default (frontend dev server)
+        return "http://localhost:3040"
+
     # Internal backend URL for Docker-internal services (webhooks from NodeODM, etc.)
     BACKEND_URL_INTERNAL: str = "http://backend:8000"
     NODE_ODM_URL: Optional[str] = "http://nodeodm:9900"

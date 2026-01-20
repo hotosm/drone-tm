@@ -61,9 +61,9 @@ This chart includes the following subcharts:
 
 Key configuration areas:
 
-- **Global**: Domain, storage class, ingress class
+- **Global**: Storage class (used by some dependency charts for PVCs)
+- **Ingress**: Single ingress that routes both `/` (UI) and `/api` (API) to the backend service
 - **Backend**: API server configuration
-- **Frontend**: UI ingress configuration (routes to backend)
 - **FrontendAssets**: Init container that syncs built frontend assets into `frontend_html` for the backend to serve
 - **Worker**: Background task processing
 - **PostgreSQL**: Database configuration
@@ -75,6 +75,17 @@ Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / 
 
 - This chart **does not create secrets**.
 - Provide a pre-created Secret and set `existingSecret.name` (or leave it empty to default to `<release>-drone-tm-secrets`).
+
+Your Secret should include (at minimum):
+
+- `DOMAIN` (e.g. `drone-tm.example.com`)
+- `DEBUG` (`False` in production)
+- Database: `POSTGRES_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- Redis: `REDIS_DSN`
+- S3: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME`
+- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SECRET_KEY`
+
+> Note: `API_URL` is a **frontend build-time** variable baked into the frontend image; Helm does not inject it at runtime.
 
 ## Monitoring
 

@@ -68,6 +68,7 @@ repos:
       - id: check-yaml
         name: YAML File check
         description: Checks if YAML File is valid and there are not any indention errors.
+        exclude: ^chart/(?:.*/)*.*$
 
       - id: check-added-large-files
         name: check for added large files
