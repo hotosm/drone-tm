@@ -5,7 +5,7 @@ import { Flex } from '@Components/common/Layouts';
 import { toast } from 'react-toastify';
 import { UserProfileDetailsType } from './types';
 
-const { BASE_URL } = process.env;
+const { API_URL } = process.env;
 
 function GoogleAuth() {
   const navigate = useNavigate();
@@ -22,8 +22,8 @@ function GoogleAuth() {
 
     const loginRedirect = async () => {
       if (authcode) {
-        const callbackUrl = `${BASE_URL}/users/callback/?code=${authcode}&state=${state}&role=${signedInAs}`;
-        const userDetailsUrl = `${BASE_URL}/users/my-info/`;
+        const callbackUrl = `${API_URL}/users/callback/?code=${authcode}&state=${state}&role=${signedInAs}`;
+        const userDetailsUrl = `${API_URL}/users/my-info/`;
 
         const completeLogin = async () => {
           // fetch callback api

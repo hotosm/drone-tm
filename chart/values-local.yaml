@@ -1,0 +1,64 @@
+# Development values for drone-tm
+# Use with: helm install drone-tm ./chart -f values-local.yaml
+
+ingress:
+  enabled: false
+
+# Development backend configuration
+backend:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+# (UI is served by backend; no separate frontend deployment)
+
+# Development worker configuration
+worker:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Development database configuration
+postgresql:
+  enabled: true
+  auth:
+    existingSecret: drone-tm-local-secrets
+  primary:
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    persistence:
+      size: 10Gi
+
+# Development Redis configuration
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  architecture: standalone
+  master:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    persistence:
+      size: 5Gi
+
+existingSecret:
+  name: drone-tm-local-secrets

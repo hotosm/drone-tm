@@ -25,7 +25,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - certs:/data
-      - frontend-html:/var/www/html/${FRONTEND_HOST}:ro
+      - frontend-html:/var/www/html/${DOMAIN}:ro
     environment:
       # General
       BUNKERWEB_INSTANCES: proxy:5000
@@ -37,7 +37,7 @@ services:
       # Avoid running ModSec rules on internal service calls
       API_WHITELIST_IP: 127.0.0.0/8 10.20.30.0/24
       WHITELIST_IP: 10.20.30.0/24
-      WHITELIST_URI: ${FRONTEND_URL}
+      WHITELIST_URI: https://${DOMAIN}
       MULTISITE: yes
       USE_REVERSE_PROXY: yes
       REVERSE_PROXY_INTERCEPT_ERRORS: no
@@ -77,10 +77,10 @@ services:
       EMAIL_LETS_ENCRYPT: ${CERT_EMAIL}
       # USE_LETS_ENCRYPT_STAGING: yes
       # Reverse proxy configs
-      SERVER_NAME: ${FRONTEND_HOST}
-      ${FRONTEND_HOST}_REVERSE_PROXY_HOST: http://backend:8000
-      ${FRONTEND_HOST}_REVERSE_PROXY_URL: /api
-      ${FRONTEND_HOST}_ERRORS=404: /index.html
+      SERVER_NAME: ${DOMAIN}
+      ${DOMAIN}_REVERSE_PROXY_HOST: http://backend:8000
+      ${DOMAIN}_REVERSE_PROXY_URL: /api
+      ${DOMAIN}_ERRORS=404: /index.html
     ports:
       - 80:8080
       - 443:8443
@@ -135,8 +135,7 @@ services:
       dockerfile: Dockerfile
       target: prod
       args:
-        # For some reason BASE_URL was misused as the API url, so we are stuck with it for now
-        BASE_URL: ${BASE_URL}
+        API_URL: https://${DOMAIN}/api
         COG_URL: ${COG_URL}
         SITE_NAME: ${SITE_NAME}
     volumes:

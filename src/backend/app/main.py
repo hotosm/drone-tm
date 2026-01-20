@@ -103,6 +103,7 @@ class CORSHeaderMiddleware(BaseHTTPMiddleware):
 
 def get_application() -> FastAPI:
     """Get the FastAPI app instance, with settings."""
+    api_prefix = "/api"
     _app = FastAPI(
         title=settings.APP_NAME,
         description="HOTOSM Drone Tasking Manager",
@@ -112,11 +113,10 @@ def get_application() -> FastAPI:
             "url": "https://raw.githubusercontent.com/hotosm/drone-tm/main/LICENSE.md",
         },
         debug=settings.DEBUG,
-        docs_url=f"{settings.API_PREFIX}/docs",
-        openapi_url=f"{settings.API_PREFIX}/openapi.json",
-        redoc_url=f"{settings.API_PREFIX}/redoc",
+        docs_url=f"{api_prefix}/docs",
+        openapi_url=f"{api_prefix}/openapi.json",
+        redoc_url=f"{api_prefix}/redoc",
         lifespan=lifespan,
-        root_path=f"{settings.API_PREFIX}/api",
         # NOTE REST APIs should not have trailing slashes
         redirect_slashes=False,
     )
@@ -135,13 +135,14 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["Content-Disposition"],
     )
-    _app.include_router(drone_routes.router)
-    _app.include_router(project_routes.router)
-    _app.include_router(classification_routes.router)
-    _app.include_router(waypoint_routes.router)
-    _app.include_router(user_routes.router)
-    _app.include_router(task_routes.router)
-    _app.include_router(gcp_routes.router)
+    # All API routes live under `/api/*` so Kubernetes ingress can route `/api` without rewrites.
+    _app.include_router(drone_routes.router, prefix=api_prefix)
+    _app.include_router(project_routes.router, prefix=api_prefix)
+    _app.include_router(classification_routes.router, prefix=api_prefix)
+    _app.include_router(waypoint_routes.router, prefix=api_prefix)
+    _app.include_router(user_routes.router, prefix=api_prefix)
+    _app.include_router(task_routes.router, prefix=api_prefix)
+    _app.include_router(gcp_routes.router, prefix=api_prefix)
 
     # Admin router for user mappings management (with user enrichment)
     admin_router = create_admin_mappings_router_psycopg(
@@ -212,7 +213,7 @@ async def home(request: Request):
         )
     except Exception:
         """Fall back if tempalate missing. Redirect home to docs."""
-        return RedirectResponse("/docs")
+        return RedirectResponse("/api/docs")
 
 
 @api.get("/__lbheartbeat__")

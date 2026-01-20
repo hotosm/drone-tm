@@ -17,7 +17,7 @@ ENTRYPOINT ["/bin/sh", "-c", "pnpm run start --host 0.0.0.0;"]
 
 # Generate frontend build files
 FROM base AS build
-ARG BASE_URL
+ARG API_URL
 ARG COG_URL
 ARG SITE_NAME
 ARG VITE_AUTH_PROVIDER
@@ -25,7 +25,7 @@ ARG VITE_HANKO_URL
 ARG VITE_FRONTEND_URL
 ARG VITE_API_URL
 ENV \
-    BASE_URL=${BASE_URL} \
+    API_URL=${API_URL} \
     COG_URL=${COG_URL} \
     SITE_NAME=${SITE_NAME} \
     VITE_AUTH_PROVIDER=${VITE_AUTH_PROVIDER} \

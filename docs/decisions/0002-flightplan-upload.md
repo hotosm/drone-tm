@@ -76,7 +76,7 @@ Two pipelines are available via QGIS plugins currently:
 
 - [https://github.com/pdfinn/flightplan2litchimission](https://github.com/pdfinn/flightplan2litchimission)
 
-2. [https://github.com/OpenGeoOne/qgis-drone-flight-planner](https://github.com/OpenGeoOne/qgis-drone-flight-planner)
+1. [https://github.com/OpenGeoOne/qgis-drone-flight-planner](https://github.com/OpenGeoOne/qgis-drone-flight-planner)
 
 Overall, it looks quite simple to dump a Litchi waypoint CSV (we could add this as an output option to drone-flightplan),
 to then import into the Litchi mobile app.

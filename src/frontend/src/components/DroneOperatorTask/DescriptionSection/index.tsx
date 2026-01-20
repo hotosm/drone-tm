@@ -11,7 +11,7 @@ import MapSection from '../MapSection/MapSection';
 import DescriptionBox from './DescriptionBox';
 import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from '@Utils/adb';
 
-const { BASE_URL } = process.env;
+const { API_URL } = process.env;
 
 const DroneOperatorDescriptionBox = () => {
   const { taskId, projectId } = useParams();
@@ -40,7 +40,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadFlightPlanKmz = () => {
     fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
+      `${API_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
       { method: 'POST' },
     )
       .then(response => {
@@ -72,7 +72,7 @@ const DroneOperatorDescriptionBox = () => {
   const sendFlightPlanViaAdb = async () => {
     try {
       const response = await fetch(
-        `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
+        `${API_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
         { method: 'POST' },
       );
 
@@ -115,7 +115,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadTaskAreaKml = () => {
     fetch(
-      `${BASE_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=kml`,
+      `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=kml`,
       { method: 'GET', headers: { 'Access-token': Token || '' } },
     )
       .then(response => {
@@ -142,7 +142,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadTaskAreaGeojson = () => {
     fetch(
-      `${BASE_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=geojson`,
+      `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=geojson`,
       { method: 'GET', headers: { 'Access-token': Token || '' } },
     )
       .then(response => {

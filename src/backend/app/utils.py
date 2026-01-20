@@ -450,7 +450,7 @@ def test_email(email_to: str, subject: str = "Test email") -> None:
 
 
 async def send_reset_password_email(email: str, token: str):
-    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    reset_link = f"{settings.PUBLIC_BASE_URL}/reset-password?token={token}"
 
     context = {
         "reset_link": reset_link,
@@ -541,7 +541,7 @@ async def send_project_approval_email_to_regulator(
 ):
     for email in emails:
         encoded_email = base64.urlsafe_b64encode(email.encode()).decode()
-        project_link = f"{settings.FRONTEND_URL}/projects/{project_id}/approval/?token={encoded_email}"
+        project_link = f"{settings.PUBLIC_BASE_URL}/projects/{project_id}/approval/?token={encoded_email}"
         context = {
             "project_link": project_link,
             "project_name": project_name,

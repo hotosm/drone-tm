@@ -1,15 +1,9 @@
-name: Build and Deploy
+name: 🔧 Build Tag & Release Images
 
 on:
-  # Push includes PR merge
-  push:
-    branches:
-      - main
-      - staging
-      - dev
-    paths:
-      # Workflow is triggered only if src changes
-      - src/**
+  # All releases
+  release:
+    types: [published]
   # Allow manual trigger
   workflow_dispatch:
 
@@ -22,7 +16,7 @@ jobs:
       image_name: ghcr.io/${{ github.repository }}/backend
       dockerfile: Dockerfile
       scan_image: false
-    secrets: inherit
+      multi_arch: true
 
   extra-vars:
     runs-on: ubuntu-latest
@@ -69,22 +63,9 @@ jobs:
       build_target: prod
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
+      multi_arch: true
       extra_build_args: |
         API_URL=${{ needs.extra-vars.outputs.API_URL }}
         COG_URL=${{ needs.extra-vars.outputs.COG_URL }}
         SITE_NAME=${{ needs.extra-vars.outputs.SITE_NAME }}
-      scan_image: false
-    secrets: inherit
-
-  deploy_to_vm:
-    name: Deploy to VM
-    needs:
-      - frontend-build
-      - backend-build
-    uses: hotosm/gh-workflows/.github/workflows/remote_deploy_just.yml@3.4.1
-    with:
-      environment: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
-      # Note we set build="false", as we already built in the step above
-      command: start prod ${{ github.ref_name }} "false"
-      example_env_file_path: .env.example
     secrets: inherit

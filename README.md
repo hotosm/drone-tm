@@ -153,8 +153,8 @@ For now, all other drones have a compromise of some kind.
 
 DroneTM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
 
-- **Fork the Repository**: https://github.com/hotosm/drone-tm
-- **Report Issues**: https://github.com/hotosm/drone-tm/issues
+- **Fork the Repository**: <https://github.com/hotosm/drone-tm>
+- **Report Issues**: <https://github.com/hotosm/drone-tm/issues>
 - **Contribute Code**: Submit pull requests for new features or bug fixes.
 
 Join us in transforming aerial mapping through community-powered drones and create a resilient future for all.
@@ -163,4 +163,3 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
 [4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
-[4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.5.0

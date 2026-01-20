@@ -405,7 +405,7 @@ async def handle_event(
                         "project_id": project_id,
                         "project_name": project["name"],
                         "description": project["description"],
-                        "FRONTEND_URL": settings.FRONTEND_URL,
+                        "FRONTEND_URL": settings.PUBLIC_BASE_URL,
                     },
                 )
                 background_tasks.add_task(
@@ -441,7 +441,7 @@ async def handle_event(
                     "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
-                    "FRONTEND_URL": settings.FRONTEND_URL,
+                    "FRONTEND_URL": settings.PUBLIC_BASE_URL,
                 },
             )
 

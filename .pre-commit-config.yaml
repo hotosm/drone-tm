@@ -68,6 +68,7 @@ repos:
       - id: check-yaml
         name: YAML File check
         description: Checks if YAML File is valid and there are not any indention errors.
+        exclude: ^chart/(?:.*/)*.*$
 
       - id: check-added-large-files
         name: check for added large files
@@ -79,7 +80,7 @@ repos:
 
   # Deps: ensure Python uv lockfile is up to date
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.21
+    rev: 0.9.26
     hooks:
       - id: uv-lock
         files: src/backend/pyproject.toml
@@ -87,7 +88,7 @@ repos:
 
   # Versioning: Commit messages & changelog
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.11.1
+    rev: v4.12.0
     hooks:
       - id: commitizen
         stages: [commit-msg]
@@ -95,7 +96,7 @@ repos:
   # Lint / autoformat: Python code
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.14.10"
+    rev: "v0.14.13"
     hooks:
       # Run the linter
       - id: ruff
@@ -130,3 +131,23 @@ repos:
             "!src/backend/tests/test_data/**",
             "!src/frontend/**",
           ]
+
+  # # Lint: Markdown
+  # - repo: https://github.com/igorshubovych/markdownlint-cli
+  #   rev: v0.47.0
+  #   hooks:
+  #     - id: markdownlint
+  #       args:
+  #         [
+  #           --fix,
+  #           --disable,
+  #           MD059,
+  #           --ignore,
+  #           CHANGELOG.md,
+  #           --ignore,
+  #           .github,
+  #           --ignore,
+  #           src/backend/packages/drone-flightplan/CHANGELOG.md,
+  #           --ignore,
+  #           src/backend/packages/drone-flightplan/LICENSE.md,
+  #         ]

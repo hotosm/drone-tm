@@ -33,7 +33,7 @@ import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import DroneImageProcessingWorkflow from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
 
 // eslint-disable-next-line camelcase
-const { BASE_URL } = process.env;
+const { API_URL } = process.env;
 
 // function to render the content based on active tab
 const getActiveTabContent = (
@@ -165,7 +165,7 @@ const IndividualProject = () => {
 
   const downloadProjectTaskGeojson = () => {
     fetch(
-      `${BASE_URL}/projects/${projectData?.id}/download-boundaries?split_area=true&export_type=geojson`,
+      `${API_URL}/projects/${projectData?.id}/download-boundaries?split_area=true&export_type=geojson`,
       { method: 'GET', headers: { 'Access-token': Token || '' } },
     )
       .then(response => {
@@ -273,7 +273,7 @@ const IndividualProject = () => {
               finalButtonText="Start Final Processing"
               // handleProcessingStart={handleStartProcessingClick}
               // eslint-disable-next-line camelcase
-              rawImageUrl={`${BASE_URL}/gcp/find-project-images/?project_id=${id}`}
+              rawImageUrl={`${API_URL}/gcp/find-project-images/?project_id=${id}`}
             />
           </div>
         ) : (

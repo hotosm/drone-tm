@@ -3,7 +3,7 @@
 1. Do not use npm to install packages, use pnpm. If you want to run `npm install`
 then delete the `pnpm-lock.yaml` file and install the packages using npm.
 
-2. Create a .env file and copy .env.example to .env
+2. Create a `.env` file and set `API_URL` (see repo root `.env.example`)
 
 3. Run `pnpm dev` to start the development server.
 

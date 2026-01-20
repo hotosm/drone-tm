@@ -1,0 +1,31 @@
+{{- if and .Values.backend.enabled .Values.podDisruptionBudget.backend.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "drone-tm.backend.fullname" . }}
+  labels:
+    {{- include "drone-tm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.backend.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "drone-tm.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+---
+{{- end }}
+{{- if and .Values.worker.enabled .Values.podDisruptionBudget.worker.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "drone-tm.worker.fullname" . }}
+  labels:
+    {{- include "drone-tm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.worker.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "drone-tm.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+{{- end }}

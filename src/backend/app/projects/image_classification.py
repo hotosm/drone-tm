@@ -1137,8 +1137,8 @@ class ImageClassifier:
         """Move assigned images from batch storage to their respective task folders.
 
         After classification and review, images need to be moved from:
-        - Source: dtm-data/projects/{project_id}/user-uploads/{filename}
-        - Destination: dtm-data/projects/{project_id}/{task_id}/images/{filename}
+        - Source: projects/{project_id}/user-uploads/{filename}
+        - Destination: projects/{project_id}/{task_id}/images/{filename}
 
         This prepares the images for ODM processing.
         Only moves images for tasks that have been marked as fully flown (IMAGE_UPLOADED).
@@ -1208,8 +1208,8 @@ class ImageClassifier:
             filename = image["filename"]
             source_key = image["s3_key"]
 
-            # Construct destination path: dtm-data/projects/{project_id}/{task_id}/images/{filename}
-            dest_key = f"dtm-data/projects/{project_id}/{task_id}/images/{filename}"
+            # Construct destination path: projects/{project_id}/{task_id}/images/{filename}
+            dest_key = f"projects/{project_id}/{task_id}/images/{filename}"
 
             # Copy file to task folder
             success = await run_in_threadpool(
