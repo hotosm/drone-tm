@@ -1,0 +1,89 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "drone-tm.backend.fullname" . }}
+  labels:
+    {{- include "drone-tm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "drone-tm.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "drone-tm.labels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "drone-tm.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.frontendAssets.enabled }}
+      initContainers:
+        - name: frontend-assets
+          image: "{{ .Values.frontendAssets.image.repository }}:{{ .Values.frontendAssets.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.frontendAssets.image.pullPolicy }}
+          volumeMounts:
+            - name: frontend-html
+              mountPath: /frontend_html
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-backend
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.service.port }}
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "drone-tm.secretName" . }}
+            {{- with .Values.backend.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+          {{- if .Values.frontendAssets.enabled }}
+          volumeMounts:
+            - name: frontend-html
+              mountPath: /project/src/backend/frontend_html
+          {{- end }}
+      {{- if .Values.frontendAssets.enabled }}
+      volumes:
+        - name: frontend-html
+          emptyDir: {}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+

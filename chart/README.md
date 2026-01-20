@@ -13,12 +13,11 @@ Default values for the chart. Contains all configurable parameters with sensible
 Development environment configuration:
 
 - **Purpose**: Local development and testing
-- **Usage**: `helm install drone-tm ./charts/drone-tm -f values-local.yaml`
+- **Usage**: `helm install drone-tm ./chart -f values-local.yaml`
 - **Features**:
   - Minimal resource allocation
   - Ingress disabled (uses port-forward)
-  - ODM processing enabled for testing
-  - Local storage classes
+  - Optional in-cluster Postgres for local testing
 
 ## Environment-Specific Configuration
 
@@ -35,10 +34,10 @@ Environment-specific configurations (staging, production) are managed in the k8s
 
 ```bash
 # Install with development values
-helm install drone-tm ./charts/drone-tm -f values-local.yaml
+helm install drone-tm ./chart -f values-local.yaml
 
 # Upgrade with development values
-helm upgrade drone-tm ./charts/drone-tm -f values-local.yaml
+helm upgrade drone-tm ./chart -f values-local.yaml
 ```
 
 ### Staging/Production Deployment
@@ -56,7 +55,6 @@ To modify environment-specific settings:
 This chart includes the following subcharts:
 
 - **PostgreSQL**: Database with PostGIS extension
-- **MinIO**: S3-compatible object storage
 - **Redis**: Caching and task queue
 
 ## Configuration
@@ -65,18 +63,18 @@ Key configuration areas:
 
 - **Global**: Domain, storage class, ingress class
 - **Backend**: API server configuration
-- **Frontend**: Web application configuration
+- **Frontend**: UI ingress configuration (routes to backend)
+- **FrontendAssets**: Init container that syncs built frontend assets into `frontend_html` for the backend to serve
 - **Worker**: Background task processing
-- **ODM**: Optional OpenDroneMap processing
 - **PostgreSQL**: Database configuration
-- **MinIO**: Object storage configuration
 - **Redis**: Cache and queue configuration
 
 ## Secrets
 
-Secrets are managed through Kubernetes secrets and should be created separately:
+Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / ExternalSecrets in GitOps setups):
 
-- `drone-tm-secrets`: Contains database, S3, Redis, and application secrets
+- This chart **does not create secrets**.
+- Provide a pre-created Secret and set `existingSecret.name` (or leave it empty to default to `<release>-drone-tm-secrets`).
 
 ## Monitoring
 

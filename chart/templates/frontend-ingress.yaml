@@ -1,6 +1,7 @@
-{{- if and .Values.frontend.enabled .Values.frontend.ingress.enabled -}}
+{{- if .Values.frontend.ingress.enabled -}}
 {{- $fullName := include "drone-tm.frontend.fullname" . -}}
-{{- $svcPort := .Values.frontend.service.port -}}
+{{- $svcName := include "drone-tm.backend.fullname" . -}}
+{{- $svcPort := .Values.backend.service.port -}}
 {{- if and .Values.global.ingress.className (not (hasKey .Values.frontend.ingress.annotations "kubernetes.io/ingress.class")) }}
   {{- $_ := set .Values.frontend.ingress.annotations "kubernetes.io/ingress.class" .Values.global.ingress.className}}
 {{- end }}
@@ -48,11 +49,11 @@ spec:
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
               service:
-                name: {{ $fullName }}
+                name: {{ $svcName }}
                 port:
                   number: {{ $svcPort }}
               {{- else }}
-              serviceName: {{ $fullName }}
+              serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
               {{- end }}
           {{- end }}

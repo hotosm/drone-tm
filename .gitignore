@@ -73,8 +73,9 @@ envsubst
 # Scripts
 **/openapi.json
 
-# Chart dependencies
+# Helm
 chart/charts
+drone-tm-*.tgz
 
 #Backend Template
 src/backend/templates/*

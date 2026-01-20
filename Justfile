@@ -18,11 +18,12 @@
 
 set dotenv-load
 
-mod build 'tasks/build/Justfile'
-mod start 'tasks/start/Justfile'
-mod config 'tasks/config/Justfile'
-mod prep 'tasks/prep/Justfile'
-mod test 'tasks/test/Justfile'
+mod build 'tasks/build'
+mod start 'tasks/start'
+mod config 'tasks/config'
+mod prep 'tasks/prep'
+mod test 'tasks/test'
+mod chart 'tasks/chart'
 
 # List available commands
 [private]
@@ -57,6 +58,28 @@ docs:
   cd {{justfile_directory()}}/src/backend
   uv sync --group docs
   uv run mkdocs serve --config-file ../../mkdocs.yml --dev-addr 0.0.0.0:3000
+
+# Install curl if missing
+[private]
+_install-curl:
+  #!/usr/bin/env bash
+  set -e
+  
+  if ! command -v curl &> /dev/null; then
+      echo "📦 Installing curl..."
+      if command -v apt-get &> /dev/null; then
+          sudo apt-get update -qq && sudo apt-get install -y curl
+      elif command -v yum &> /dev/null; then
+          sudo yum install -y curl
+      elif command -v apk &> /dev/null; then
+          sudo apk add --no-cache curl
+      else
+          echo "❌ Error: curl is not installed and no package manager found"
+          echo "   Please install curl manually"
+          exit 1
+      fi
+      echo "✓ curl installed"
+  fi
 
 # Echo to terminal with blue colour
 [no-cd]

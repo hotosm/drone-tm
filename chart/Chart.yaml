@@ -2,7 +2,7 @@ apiVersion: v2
 name: drone-tm
 description: Drone Tasking Manager - coordinated drone mapping
 version: "0.1.0"
-appVersion: "2025.3.2"
+appVersion: "2025.5.0"
 maintainers:
   - email: sysadmin@hotosm.org
     name: HOTOSM
@@ -14,11 +14,6 @@ dependencies:
     repository: oci://registry-1.docker.io/bitnamicharts
     condition: postgresql.enabled
     alias: postgresql
-  - name: minio
-    version: 5.1.0
-    repository: https://charts.min.io
-    condition: minio.enabled
-    alias: minio
   - name: redis
     version: 18.1.0
     repository: oci://registry-1.docker.io/bitnamicharts

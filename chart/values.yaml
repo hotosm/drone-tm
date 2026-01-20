@@ -8,12 +8,18 @@ global:
   ingress:
     className: ""
 
+# The chart does NOT create secrets.
+# Provide a pre-created Secret (e.g. from SealedSecrets) containing the app env vars.
+existingSecret:
+  # If empty, defaults to "<release>-drone-tm-secrets"
+  name: ""
+
 # Main application services
 backend:
   enabled: true
   image:
     repository: ghcr.io/hotosm/drone-tm/backend
-    tag: "2025.3.2"
+    tag: ""
     pullPolicy: IfNotPresent
 
   replicaCount: 1
@@ -44,13 +50,13 @@ backend:
 
   livenessProbe:
     httpGet:
-      path: /health
+      path: /__lbheartbeat__
       port: http
     initialDelaySeconds: 30
     periodSeconds: 10
   readinessProbe:
     httpGet:
-      path: /health
+      path: /__lbheartbeat__
       port: http
     initialDelaySeconds: 5
     periodSeconds: 5
@@ -61,39 +67,15 @@ backend:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
 
-  extraEnvFrom:
-    - secretRef:
-        name: drone-tm-secrets
+  # Optional extra envFrom (e.g. additional Secret/ConfigMap refs)
+  extraEnvFrom: []
 
-  # Database configuration
-  database:
-    host: ""
-    port: 5432
-    name: ""
-    user: ""
-    password: ""
-
-  # S3 configuration
-  s3:
-    endpoint: ""
-    accessKey: ""
-    secretKey: ""
-    bucket: ""
-    region: ""
+migrations:
+  enabled: true
+  backoffLimit: 3
 
 frontend:
-  enabled: true
-  image:
-    repository: ghcr.io/hotosm/drone-tm/frontend
-    tag: "2025.3.2"
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
-  service:
-    type: ClusterIP
-    port: 3040
-
+  # UI ingress routes to the backend service (backend serves the SPA templates from /frontend_html)
   ingress:
     enabled: true
     className: ""
@@ -106,26 +88,26 @@ frontend:
           - path: /
             pathType: Prefix
 
-  resources: {}
-
-  extraEnvFrom:
-    - secretRef:
-        name: drone-tm-secrets
+frontendAssets:
+  # Uses the frontend image as an initContainer to populate backend templates (the frontend image exits after syncing).
+  enabled: true
+  image:
+    repository: ghcr.io/hotosm/drone-tm/frontend
+    tag: ""
+    pullPolicy: IfNotPresent
 
 worker:
   enabled: true
   image:
     repository: ghcr.io/hotosm/drone-tm/backend
-    tag: "2025.3.2"
+    tag: ""
     pullPolicy: IfNotPresent
 
   replicaCount: 1
 
   resources: {}
 
-  extraEnvFrom:
-    - secretRef:
-        name: drone-tm-secrets
+  extraEnvFrom: []
 
   livenessProbe:
     exec:
@@ -144,57 +126,47 @@ worker:
     initialDelaySeconds: 5
     periodSeconds: 5
 
-# ODM processing (optional)
-odm:
-  enabled: false
-
-  nodeodm:
-    enabled: true
-    image:
-      repository: docker.io/opendronemap/nodeodm
-      tag: "3.5.5"
-    replicaCount: 1
-    service:
-      type: ClusterIP
-      port: 3000
-    resources: {}
-
-  webodm:
-    enabled: true
-    image:
-      repository: docker.io/opendronemap/webodm_webapp
-      tag: "2.8.3"
-    replicaCount: 1
-    service:
-      type: ClusterIP
-      port: 8000
-    ingress:
-      enabled: false
-      className: ""
-      annotations: {}
-      hosts: []
-    resources: {}
-
+podDisruptionBudget:
+  backend:
+    enabled: false
+    minAvailable: 1
   worker:
-    enabled: true
-    image:
-      repository: docker.io/opendronemap/webodm_webapp
-      tag: "2.8.3"
-    replicaCount: 1
-    resources: {}
+    enabled: false
+    minAvailable: 1
 
 # Subchart configurations
-postgresql:
+# https://github.com/bitnami/charts/blob/main/bitnami/redis/values.yaml
+redis:
   enabled: true
   image:
     registry: docker.io
+    repository: bitnami/redis
+    tag: 7.2-debian-13
+  auth:
+    # In-cluster Redis not exposed publicaly, so no auth required
+    enabled: false
+  architecture: standalone
+  master:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+# https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
+postgresql:
+  enabled: false
+  image:
+    registry: docker.io
     repository: bitnami/postgresql
-    tag: 16-debian-12
+    tag: 16-debian-13
   auth:
     enablePostgresUser: false
     username: dtm
     database: dtm_db
-    existingSecret: drone-tm-secrets
+    existingSecret: ""
     secretKeys:
       userPasswordKey: POSTGRES_PASSWORD
   initdb:
@@ -209,53 +181,6 @@ postgresql:
       requests:
         cpu: 500m
         memory: 500Mi
-
-minio:
-  enabled: true
-  mode: standalone
-  replicas: 1
-  image:
-    repository: quay.io/minio/minio
-    tag: RELEASE.2024-08-03T04-33-23Z
-  environment:
-    MINIO_BROWSER: "off"
-  mountPath: /mnt/data
-  resources:
-    requests:
-      memory: 200Mi
-  auth:
-    rootUser: dtm_user
-    existingSecret: drone-tm-secrets
-    existingSecretKey: S3_SECRET_KEY
-  defaultBuckets: "dtm-bucket"
-  ingress:
-    enabled: false
-    ingressClassName: ~
-    annotations: {}
-    path: /
-    hosts: []
-    tls: []
-
-redis:
-  enabled: true
-  image:
-    registry: docker.io
-    repository: bitnami/redis
-    tag: 7.2-debian-12
-  auth:
-    enabled: true
-    existingSecret: drone-tm-secrets
-    secretKeys:
-      passwordKey: REDIS_PASSWORD
-  architecture: standalone
-  master:
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
 
 # Kubernetes resources
 serviceAccount:

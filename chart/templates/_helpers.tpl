@@ -83,16 +83,8 @@ Create the name of the worker service
 {{- end }}
 
 {{/*
-Create the name of the ODM services
+Name of the main app Secret containing env vars
 */}}
-{{- define "drone-tm.odm.nodeodm.fullname" -}}
-{{- printf "%s-odm-nodeodm" (include "drone-tm.fullname" .) }}
-{{- end }}
-
-{{- define "drone-tm.odm.webodm.fullname" -}}
-{{- printf "%s-odm-webodm" (include "drone-tm.fullname" .) }}
-{{- end }}
-
-{{- define "drone-tm.odm.worker.fullname" -}}
-{{- printf "%s-odm-worker" (include "drone-tm.fullname" .) }}
+{{- define "drone-tm.secretName" -}}
+{{- default (printf "%s-secrets" (include "drone-tm.fullname" .)) .Values.existingSecret.name -}}
 {{- end }}
