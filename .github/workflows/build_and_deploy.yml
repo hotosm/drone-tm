@@ -29,7 +29,7 @@ jobs:
     environment:
       name: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
     outputs:
-      BASE_URL: ${{ steps.vars_and_secrets_to_env.outputs.BASE_URL }}
+      API_URL: ${{ steps.vars_and_secrets_to_env.outputs.API_URL }}
       COG_URL: ${{ steps.vars_and_secrets_to_env.outputs.COG_URL }}
       SITE_NAME: ${{ steps.vars_and_secrets_to_env.outputs.SITE_NAME }}
     steps:
@@ -48,9 +48,9 @@ jobs:
       - name: Extract relevant vars
         id: vars_and_secrets_to_env
         run: |
-          BASE_URL=$(grep '^BASE_URL=' .env | cut -d '=' -f2-)
-          echo $BASE_URL
-          echo "BASE_URL=${BASE_URL}" >> "$GITHUB_OUTPUT"
+          API_URL=$(grep '^API_URL=' .env | cut -d '=' -f2-)
+          echo $API_URL
+          echo "API_URL=${API_URL}" >> "$GITHUB_OUTPUT"
 
           COG_URL=$(grep '^COG_URL=' .env | cut -d '=' -f2-)
           echo "COG_URL=${COG_URL}" >> "$GITHUB_OUTPUT"
@@ -70,7 +70,7 @@ jobs:
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
       extra_build_args: |
-        BASE_URL=${{ needs.extra-vars.outputs.BASE_URL }}
+        API_URL=${{ needs.extra-vars.outputs.API_URL }}
         COG_URL=${{ needs.extra-vars.outputs.COG_URL }}
         SITE_NAME=${{ needs.extra-vars.outputs.SITE_NAME }}
       scan_image: false
