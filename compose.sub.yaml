@@ -136,7 +136,6 @@ services:
       target: prod
     volumes:
       - frontend-html:/frontend_html
-    env_file: .env
     network_mode: none
     restart: "on-failure:2"
 

@@ -196,16 +196,26 @@ class Settings(BaseSettings):
         # Local dev default (frontend dev server)
         return f"http://localhost:{self.FRONTEND_WEB_APP_PORT}"
 
-    # Internal backend URL for Docker-internal services (webhooks from NodeODM, etc.)
+    # Internal backend URL for Docker-internal services (webhooks from ODM, etc.)
     BACKEND_URL_INTERNAL: str = "http://backend:8000"
-    NODE_ODM_URL: Optional[str] = "http://nodeodm:9900"
+    # ODM (NodeODM) API endpoint
+    ODM_ENDPOINT: Optional[str] = "http://nodeodm:9900"
     REDIS_DSN: str = "redis://redis:6379/0"
 
-    S3_ENDPOINT: str = "http://minio:9000"
+    # - S3_ENDPOINT_UPLOAD: endpoint used for presigned uploads (browser calls this; can be S3 TA).
+    # - S3_ENDPOINT_DOWNLOAD: endpoint used for browser downloads/display (can be CloudFront).
     S3_ACCESS_KEY: Optional[str] = ""
     S3_SECRET_KEY: Optional[str] = ""
     S3_BUCKET_NAME: str = "dtm-bucket"
-    S3_DOWNLOAD_ROOT: Optional[str] = None
+    # Browser-facing endpoints (optional; derived from INTERNAL if unset).
+    S3_ENDPOINT_UPLOAD: Optional[str] = None
+    S3_ENDPOINT_DOWNLOAD: Optional[str] = None
+
+    def model_post_init(self, __context) -> None:
+        """Derive S3 endpoint defaults."""
+        # Download endpoint: defaults to UPLOAD unless explicitly set
+        if not self.S3_ENDPOINT_DOWNLOAD:
+            self.S3_ENDPOINT_DOWNLOAD = self.S3_ENDPOINT_UPLOAD
 
     JAXA_AUTH_TOKEN: Optional[str] = ""
 
@@ -237,6 +247,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     EMAILS_FROM_EMAIL: Optional[EmailStr] = None
     EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
+
+    @field_validator("EMAILS_FROM_EMAIL", mode="before")
+    @classmethod
+    def empty_email_to_none(cls, v):
+        """Treat empty strings from env files as unset for optional EmailStr fields."""
+        if v == "" or v is None:
+            return None
+        return v
 
     @computed_field
     @property

@@ -416,7 +416,11 @@ async def send_notification_email(email_to, subject, html_content):
             html_content="<h1>Hello, this is a test email.</h1>"
         )
     """
-    assert settings.emails_enabled, "no provided configuration for email variables"
+    if not settings.emails_enabled:
+        log.warning(
+            "Email disabled (missing SMTP config); skipping send_notification_email"
+        )
+        return
 
     message = MIMEText(html_content, "html")
     message["Subject"] = subject
@@ -450,6 +454,12 @@ def test_email(email_to: str, subject: str = "Test email") -> None:
 
 
 async def send_reset_password_email(email: str, token: str):
+    if not settings.emails_enabled:
+        log.warning(
+            "Email disabled (missing SMTP config); skipping send_reset_password_email"
+        )
+        return
+
     reset_link = f"{settings.PUBLIC_BASE_URL}/reset-password?token={token}"
 
     context = {
@@ -542,10 +552,12 @@ async def send_project_approval_email_to_regulator(
     for email in emails:
         encoded_email = base64.urlsafe_b64encode(email.encode()).decode()
         project_link = f"{settings.PUBLIC_BASE_URL}/projects/{project_id}/approval/?token={encoded_email}"
+        logo_url = f"{settings.PUBLIC_BASE_URL}/static/DTM-logo-black.svg"
         context = {
             "project_link": project_link,
             "project_name": project_name,
             "creator_name": creator_name,
+            "logo_url": logo_url,
         }
 
         html_content = render_email_template(
@@ -602,8 +614,8 @@ def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
 def strip_presigned_url_for_local_dev(url: str, strip_presign: bool = True) -> str:
     """Helper for local development handling docker URL + pre-signing.
 
-    For local dev only, we need to iterate through and replace S3_ENDPOINT
-    with S3_DOWNLOAD_ROOT, due to internal docker name used for S3 URL.
+    For local dev only, we need to iterate through and replace the docker-internal MinIO base
+    with S3_ENDPOINT_DOWNLOAD, due to internal docker name used for S3 URL.
     The bucket is also public in local dev, so we remove pre-signed portion
     of URL, giving us direct access without a signature mismatch.
 
@@ -618,18 +630,17 @@ def strip_presigned_url_for_local_dev(url: str, strip_presign: bool = True) -> s
     if not settings.DEBUG:
         return url
 
-    if not settings.S3_DOWNLOAD_ROOT:
+    if not settings.S3_ENDPOINT_DOWNLOAD:
         return url
 
-    host_accessible_url = url.replace(settings.S3_ENDPOINT, settings.S3_DOWNLOAD_ROOT)
-
+    # IMPORTANT: Do not rewrite the host/path for signed URLs; it will break signatures.
+    # We only support stripping the query params (signature) for local-dev public buckets.
     if not strip_presign:
-        # Keep all query parameters intact (needed for multipart uploads)
-        return host_accessible_url
+        return url
 
     try:
         # Remove presigned query parameters to avoid signature mismatch
-        split_url_on_presign_vars = host_accessible_url.split("?")
+        split_url_on_presign_vars = url.split("?")
         return split_url_on_presign_vars[0]
     except Exception as e:
         log.debug(f"Failed to convert S3 URL for local development: {e}")

@@ -11,7 +11,7 @@ FROM base AS development
 COPY ./package.json pnpm-lock.yaml .
 RUN corepack prepare pnpm@9.15.5 --activate && corepack enable && corepack install
 RUN pnpm install
-ENTRYPOINT ["/bin/sh", "-c", "pnpm run start --host 0.0.0.0;"]
+ENTRYPOINT ["/bin/sh", "-c", "pnpm run start"]
 
 
 

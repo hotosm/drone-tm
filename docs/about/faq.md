@@ -57,7 +57,7 @@ However, the Mini 4 Pro has 2 main drawbacks:
    expensive drone can do in a day.
 
 For the former drawback, we specifically developed our
-[Drone Tasking Manager](dronetm.org) to work well with the Mini 4 Pro because it's
+[Drone Tasking Manager](https://drone.hotosm.org) to work well with the Mini 4 Pro because it's
 such an effective, accessible, and affordable option for communities. As far as we
 know our DroneTM is the only way to use the Mini 4 Pro for serious professional
 mapping, but it does work, and it actually works pretty well.

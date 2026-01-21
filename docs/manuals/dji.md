@@ -41,7 +41,7 @@
 
 ## 3. Loading A Flightplan
 
-See [tutorial videos](https://dronetm.org/tutorials) on the DroneTM platform!
+See [tutorial videos](https://drone.hotosm.org/tutorials) on the DroneTM platform!
 
 !!! important
 

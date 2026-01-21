@@ -19,8 +19,8 @@ from app.config import settings
 from app.models.enums import ImageStatus
 from app.s3 import (
     copy_file_within_bucket,
-    generate_presigned_get_url,
     get_obj_from_bucket,
+    maybe_presign_s3_key,
 )
 
 
@@ -826,17 +826,15 @@ class ImageClassifier:
             await cur.execute(query, params)
             images = await cur.fetchall()
 
-        # Generate presigned URLs for each image (keep signature for authentication)
+        # Generate browser-facing URLs for each image (CloudFront-friendly if configured)
         for image in images:
             if image.get("s3_key"):
-                image["url"] = generate_presigned_get_url(
-                    settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
-                )
+                image["url"] = maybe_presign_s3_key(image["s3_key"], expires_hours=1)
 
             # Generate presigned URL for thumbnail if available
             if image.get("thumbnail_url"):
-                image["thumbnail_url"] = generate_presigned_get_url(
-                    settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
+                image["thumbnail_url"] = maybe_presign_s3_key(
+                    image["thumbnail_url"], expires_hours=1
                 )
 
             # Add has_gps field for frontend display
@@ -894,18 +892,18 @@ class ImageClassifier:
             )
             task_groups = await cur.fetchall()
 
-        # Generate presigned URLs for thumbnails
+        # Generate browser-facing URLs for thumbnails (CloudFront-friendly if configured)
         for group in task_groups:
             for image in group["images"]:
                 if image.get("thumbnail_url"):
-                    image["thumbnail_url"] = generate_presigned_get_url(
-                        settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
+                    image["thumbnail_url"] = maybe_presign_s3_key(
+                        image["thumbnail_url"], expires_hours=1
                     )
 
                 # Generate presigned URL for full image
                 if image.get("s3_key"):
-                    image["url"] = generate_presigned_get_url(
-                        settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
+                    image["url"] = maybe_presign_s3_key(
+                        image["s3_key"], expires_hours=1
                     )
 
         return {
@@ -1419,17 +1417,15 @@ class ImageClassifier:
             )
             images = await cur.fetchall()
 
-        # Generate presigned URLs
+        # Generate browser-facing URLs (CloudFront-friendly if configured)
         for image in images:
             if image.get("thumbnail_url"):
-                image["thumbnail_url"] = generate_presigned_get_url(
-                    settings.S3_BUCKET_NAME, image["thumbnail_url"], expires_hours=1
+                image["thumbnail_url"] = maybe_presign_s3_key(
+                    image["thumbnail_url"], expires_hours=1
                 )
 
             if image.get("s3_key"):
-                image["url"] = generate_presigned_get_url(
-                    settings.S3_BUCKET_NAME, image["s3_key"], expires_hours=1
-                )
+                image["url"] = maybe_presign_s3_key(image["s3_key"], expires_hours=1)
 
         # Calculate coverage percentage using PostGIS
         # Buffer each image point and calculate intersection with task polygon

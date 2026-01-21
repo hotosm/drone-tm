@@ -22,8 +22,9 @@ services:
     environment:
       MONITORING: ""
       LOG_LEVEL: "INFO"
-      NODEODM_API_URL: http://nodeodm:3000
-      S3_ENDPOINT: http://minio:9000
+      ODM_ENDPOINT: http://nodeodm:3000
+      S3_ENDPOINT_UPLOAD: http://localhost:9000
+      S3_ENDPOINT_DOWNLOAD: http://localhost:9000
     depends_on:
       db:
         condition: service_healthy
@@ -66,7 +67,7 @@ services:
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:debug
     volumes:
-      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - ./src/backend:/project/src/backend
     env_file:
       - .env
     environment:
@@ -84,8 +85,9 @@ services:
       file: compose.yaml
       service: arq-worker
     environment:
-      NODEODM_API_URL: http://nodeodm:3000
-      S3_ENDPOINT: http://minio:9000
+      ODM_ENDPOINT: http://nodeodm:3000
+      S3_ENDPOINT_UPLOAD: http://localhost:9000
+      S3_ENDPOINT_DOWNLOAD: http://localhost:9000
     depends_on:
       db:
         condition: service_healthy

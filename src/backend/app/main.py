@@ -124,6 +124,11 @@ def get_application() -> FastAPI:
     if os.path.isdir(assets_dir):
         _app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
+    # Serve backend static assets (e.g. stable email logos) at a predictable URL.
+    static_dir = os.path.join(root, "static")
+    if os.path.isdir(static_dir):
+        _app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
     return _app
 
 

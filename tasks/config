@@ -66,7 +66,10 @@ generate-dotenv branch="main":
     just _echo-yellow "'.env' file already exists. Skipping dotenv generation to avoid overwriting."
   else
     # Generate a .env file from .env.example, substituting values from environment
-    ./envsubst -i .env.example | grep -vE '^\s*#|^\s*$' > .env
+    # NOTE: We run envsubst twice so defaults that reference other vars like:
+    #   VITE_API_URL=${VITE_API_URL:-http://localhost:$BACKEND_WEB_APP_PORT/api}
+    # can be fully resolved in a second pass.
+    ./envsubst -i .env.example | ./envsubst | grep -vE '^\s*#|^\s*$' > .env
   fi
 
   # Re-export .env to the environment, with cleaned variables
