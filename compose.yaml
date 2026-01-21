@@ -46,16 +46,13 @@ services:
       context: src/frontend
       dockerfile: Dockerfile
       target: development
-      args:
-        # API base URL used by the frontend (should include `/api`)
-        API_URL: ${API_URL}
-        COG_URL: ${COG_URL}
-        SITE_NAME: ${SITE_NAME}
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:
       - minio
     env_file: .env
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}/api}
     networks:
       - dtm-network
     volumes:
@@ -123,13 +120,15 @@ services:
     volumes:
       - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
     depends_on:
-      - backend
-      - db
+      backend:
+        condition: service_started
+      db:
+        condition: service_healthy
     env_file:
       - .env
     networks:
       - dtm-network
-    entrypoint: ["alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
     restart: "no"
 
   arq-worker:

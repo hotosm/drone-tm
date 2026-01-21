@@ -89,4 +89,5 @@ nav:
       - Setup: dev/setup.md
       - Testing: dev/testing.md
       - Migrate to Kubernetes: dev/migrate-k8s.md
+      - Frontend Env Injection: dev/runtime-frontend-config.md
   - Timeline: timeline.md

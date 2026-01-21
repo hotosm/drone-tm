@@ -8,8 +8,7 @@ import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { RasterSourceSpecification } from 'maplibre-gl';
 import { useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
-
-const { COG_URL } = process.env;
+import { useGetTaskAssetsInfo } from '@Api/tasks';
 
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
@@ -20,6 +19,12 @@ const TaskOrthophotoPreview = () => {
   const projectId = pathname?.[2];
   const taskId = pathname?.[4] || taskIdFromRedux;
 
+  const { data: taskAssetsInformation }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
+    { enabled: !!(projectId && taskId) } as any,
+  );
+
   const { map, isMapLoaded } = useMapLibreGLMap({
     containerId: 'orthophoto-map',
     mapOptions: {
@@ -29,15 +34,12 @@ const TaskOrthophotoPreview = () => {
     disableRotation: true,
   });
 
-  const orthophotoSource: RasterSourceSpecification = useMemo(
-    () => ({
-      type: 'raster',
-      url: `cog://${COG_URL}/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
-      tileSize: 256,
-    }),
+  const orthophotoSource: RasterSourceSpecification | null = useMemo(() => {
+    const signed = taskAssetsInformation?.orthophoto_url;
+    if (signed) return { type: 'raster', url: `cog://${signed}`, tileSize: 256 };
 
-    [projectId, taskId],
-  );
+    return null;
+  }, [taskAssetsInformation?.orthophoto_url]);
 
   useEffect(() => {
     return () => {
@@ -57,7 +59,7 @@ const TaskOrthophotoPreview = () => {
         }}
       >
         <BaseLayerSwitcherUI />
-        {isMapLoaded && (
+        {isMapLoaded && orthophotoSource && (
           <COGOrthophotoViewer
             id="task-orthophoto"
             source={orthophotoSource}

@@ -75,6 +75,7 @@ class AssetsInfo(BaseModel):
     task_id: str
     image_count: int
     assets_url: Optional[str]
+    orthophoto_url: Optional[str] = None
     state: Optional[UserRole] = None
 
 

@@ -88,3 +88,75 @@ Name of the main app Secret containing env vars
 {{- define "drone-tm.secretName" -}}
 {{- default (printf "%s-secrets" (include "drone-tm.fullname" .)) .Values.existingSecret.name -}}
 {{- end }}
+
+{{/*
+Redis service DNS (Bitnami redis subchart, master service).
+
+Bitnami Redis names the master Service:
+  {{ printf "%s-master" (include "common.names.fullname" .) }}
+
+And common.names.fullname expands to:
+  <release>-redis   (unless <release> already contains "redis")
+*/}}
+{{- define "drone-tm.redis.fullname" -}}
+{{- $name := "redis" -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end }}
+
+{{- define "drone-tm.redis.masterServiceName" -}}
+{{- printf "%s-master" (include "drone-tm.redis.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{- define "drone-tm.redis.masterServiceFQDN" -}}
+{{- printf "%s.%s.svc.cluster.local" (include "drone-tm.redis.masterServiceName" .) .Release.Namespace -}}
+{{- end }}
+
+{{/*
+Render a map of env key/value pairs into a Kubernetes env: list.
+Intended for NON-secret values defined in values.yaml.
+*/}}
+{{- define "drone-tm.renderEnv" -}}
+{{- $env := . -}}
+{{- range $k := (keys $env | sortAlpha) }}
+- name: {{ $k | quote }}
+  value: {{ index $env $k | toString | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Render env map while omitting keys present in .omit (a map of key->true).
+Pass dict:
+  - env: map
+  - omit: map
+*/}}
+{{- define "drone-tm.renderEnvOmit" -}}
+{{- $env := (.env | default dict) -}}
+{{- $omit := (.omit | default dict) -}}
+{{- range $k := (keys $env | sortAlpha) }}
+{{- if not (hasKey $omit $k) }}
+- name: {{ $k | quote }}
+  value: {{ index $env $k | toString | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+DRY envFrom block: always includes existingSecret plus optional extra refs.
+Pass dict:
+  - root: the root context (.)
+  - extraEnvFrom: list (optional)
+*/}}
+{{- define "drone-tm.renderEnvFrom" -}}
+{{- $root := .root -}}
+{{- $extra := (.extraEnvFrom | default list) -}}
+envFrom:
+  - secretRef:
+      name: {{ include "drone-tm.secretName" $root }}
+  {{- with $extra }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}

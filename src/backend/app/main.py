@@ -6,7 +6,8 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger as log
 from psycopg import Connection
@@ -18,13 +19,15 @@ from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
+from app.public_routes import router as public_router
 from app.projects import classification_routes, project_routes
 from app.tasks import task_routes
 from app.users import user_routes
 from app.waypoints import waypoint_routes
 
 root = os.path.dirname(os.path.abspath(__file__))
-frontend_html = Jinja2Templates(directory="frontend_html")
+FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
+frontend_html = Jinja2Templates(directory=FRONTEND_DIR)
 
 
 class InterceptHandler(logging.Handler):
@@ -113,6 +116,13 @@ def get_application() -> FastAPI:
     _app.include_router(user_routes.router, prefix=api_prefix)
     _app.include_router(task_routes.router, prefix=api_prefix)
     _app.include_router(gcp_routes.router, prefix=api_prefix)
+    _app.include_router(public_router, prefix=api_prefix)
+
+    # Serve built frontend static assets when present (mountable within k8s).
+    # This ensures `/assets/*` resolves even though ingress points `/` at the backend service.
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    if os.path.isdir(assets_dir):
+        _app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     return _app
 
@@ -164,6 +174,24 @@ async def home(request: Request):
     except Exception:
         """Fall back if tempalate missing. Redirect home to docs."""
         return RedirectResponse("/api/docs")
+
+
+@api.get("/config.js")
+async def runtime_config_js():
+    """Return runtime-injected frontend config (written by frontend initContainer)."""
+    config_path = os.path.join(FRONTEND_DIR, "config.js")
+    if os.path.isfile(config_path):
+        return FileResponse(config_path, media_type="application/javascript")
+    return JSONResponse(status_code=404, content={"detail": "Not found"})
+
+
+@api.get("/favicon.ico")
+async def favicon():
+    """Serve favicon if present in the built frontend."""
+    favicon_path = os.path.join(FRONTEND_DIR, "favicon.ico")
+    if os.path.isfile(favicon_path):
+        return FileResponse(favicon_path)
+    return JSONResponse(status_code=404, content={"detail": "Not found"})
 
 
 @api.get("/__lbheartbeat__")

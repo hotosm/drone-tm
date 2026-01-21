@@ -636,11 +636,46 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 log.error(f"An error occurred while accessing assets file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
+        # Generate a presigned URL for the orthophoto (task-level preferred; fallback to project-level)
+        orthophoto_url = None
+        try:
+            task_ortho_path = (
+                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
+            )
+            project_ortho_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
+
+            # Prefer per-task orthophoto if it exists
+            try:
+                get_object_metadata(settings.S3_BUCKET_NAME, task_ortho_path)
+                orthophoto_url = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, task_ortho_path, expires_hours=12
+                )
+            except S3Error as e:
+                if e.code != "NoSuchKey":
+                    raise
+
+                # Fallback to project-level orthophoto if present (e.g. single-task projects)
+                try:
+                    get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_path)
+                    orthophoto_url = generate_presigned_get_url(
+                        settings.S3_BUCKET_NAME, project_ortho_path, expires_hours=12
+                    )
+                except S3Error as e2:
+                    if e2.code == "NoSuchKey":
+                        orthophoto_url = None
+                    else:
+                        raise
+        except Exception as e:
+            # Do not fail the whole endpoint if orthophoto is missing; just omit it.
+            log.warning(f"Unable to generate orthophoto_url: {e}")
+            orthophoto_url = None
+
         return project_schemas.AssetsInfo(
             project_id=str(project_id),
             task_id=str(task_id),
             image_count=image_count,
             assets_url=presigned_url,
+            orthophoto_url=orthophoto_url,
         )
     except Exception as e:
         log.exception(f"An error occurred while retrieving assets info: {e}")

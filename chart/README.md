@@ -19,15 +19,6 @@ Development environment configuration:
   - Ingress disabled (uses port-forward)
   - Optional in-cluster Postgres for local testing
 
-## Environment-Specific Configuration
-
-Environment-specific configurations (staging, production) are managed in the k8s-infra repository through ArgoCD applications. This approach:
-
-- **Eliminates duplication** between chart repo and k8s-infra repo
-- **Centralizes environment config** in the infrastructure repository
-- **Maintains separation of concerns** between application and infrastructure
-- **Enables GitOps** workflow for environment management
-
 ## Usage Examples
 
 ### Local Development
@@ -40,22 +31,12 @@ helm install drone-tm ./chart -f values-local.yaml
 helm upgrade drone-tm ./chart -f values-local.yaml
 ```
 
-### Staging/Production Deployment
-
-Staging and production deployments are managed through ArgoCD applications in the k8s-infra repository. The environment-specific configurations are embedded directly in the ArgoCD Application manifests, eliminating the need for separate values files.
-
-To modify environment-specific settings:
-
-1. Edit the ArgoCD Application manifest in k8s-infra repository
-2. Update the `values` section in the `helm` configuration
-3. ArgoCD will automatically sync the changes to the cluster
-
 ## Dependencies
 
 This chart includes the following subcharts:
 
-- **PostgreSQL**: Database with PostGIS extension
 - **Redis**: Caching and task queue
+- **PostgreSQL**: Database with PostGIS extension (optional)
 
 ## Configuration
 
@@ -69,6 +50,18 @@ Key configuration areas:
 - **PostgreSQL**: Database configuration
 - **Redis**: Cache and queue configuration
 
+## Environment Variables
+
+- Can be set via the `env` or `extraEnvFrom` keys.
+- They will be included in the backend, migration, and arq worker containers.
+
+### Overriding The Frontend API_URL
+
+- The VITE_API_URL baked into builds / images has been removed.
+- Now instead we have a dynamic config.json that is injected into the frontend at runtime.
+- By default the frontend will load from an API at `${DOMAIN}/api`.
+- To override this, simply update the `frontend.runtimeEnv` section in `values.yaml`.
+
 ## Secrets
 
 Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / ExternalSecrets in GitOps setups):
@@ -78,26 +71,42 @@ Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / 
 
 Your Secret should include (at minimum):
 
-- `DOMAIN` (e.g. `drone-tm.example.com`)
-- `DEBUG` (`False` in production)
-- Database: `POSTGRES_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-- Redis: `REDIS_DSN`
-- S3: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME`
-- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SECRET_KEY`
+- Database: `POSTGRES_PASSWORD`
+- S3: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
+- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JAXA_AUTH_TOKEN`, `SECRET_KEY`.
+- Redis: (provided automatically by the chart; no `REDIS_DSN` needed)
 
-> Note: `API_URL` is a **frontend build-time** variable baked into the frontend image; Helm does not inject it at runtime.
+### Creating a Kubernetes Secret
 
-## Monitoring
+Create a Secret in the same namespace as your Helm release:
 
-Health checks are configured for all services:
+```bash
+kubectl -n <namespace> create secret generic drone-tm-prod-secrets \
+  --from-literal=POSTGRES_PASSWORD='<postgres password>' \
+  --from-literal=S3_ACCESS_KEY='<aws access key id>' \
+  --from-literal=S3_SECRET_KEY='<aws secret access key>' \
+  --from-literal=SECRET_KEY='<fastapi secret key>' \
+  --from-literal=GOOGLE_CLIENT_ID='<google oauth client id>' \
+  --from-literal=GOOGLE_CLIENT_SECRET='<google oauth client secret>' \
+  --from-literal=GOOGLE_LOGIN_REDIRECT_URI='https://<your-domain>/auth' \
+  --from-literal=SMTP_PASSWORD='<smtp password>' \
+  --from-literal=JAXA_AUTH_TOKEN='<smtp password>' \
+  --from-literal=SENTRY_DSN='<sentry dsn>'
+```
 
-- **Liveness Probe**: Ensures containers are running
-- **Readiness Probe**: Ensures containers are ready to serve traffic
+Then reference it from Helm values:
 
-## Resources
+```bash
+helm upgrade --install drone-tm ./chart \
+  -n <namespace> \
+  --set existingSecret.name=drone-tm-prod-secrets
+```
 
-Resource limits and requests are configured per environment:
+### Creating Sealed Secrets
 
-- **Development**: Minimal resources for local testing
-- **Staging**: Moderate resources for testing
-- **Production**: High resources with autoscaling
+```bash
+# Create secret above with:
+  --dry-run=client -o yaml > secret.yaml
+
+kubeseal -n <namespace> -o yaml < secret.yaml > sealed-secret.yaml
+```

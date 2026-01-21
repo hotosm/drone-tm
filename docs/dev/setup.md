@@ -30,7 +30,7 @@ Just is required too:
   configured for you.
 - The current setup expects:
   - `DOMAIN` for public URLs (backend derives its public base URL automatically)
-  - `API_URL` for the frontend to reach the backend API (must include `/api`)
+  - `VITE_API_URL` for the frontend to reach the backend API (must include `/api`)
 - If you set up Google OAuth credentials, set the variables here:
 
   ```dotenv
