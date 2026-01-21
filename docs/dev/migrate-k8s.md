@@ -112,6 +112,9 @@ For DroneTM production, these public paths are used for static resources:
 - `https://d2ymfcf63vwwpt.cloudfront.net/tutorials/`
 - `https://d2ymfcf63vwwpt.cloudfront.net/publicuploads/`
 
+The same security credentials generated should work for both
+the new cloudfront and accelerate endpoints.
+
 ### Enable intelligent tiering storage
 
 `https://raw.githubusercontent.com/hotosm/k8s-infra/main/scripts/add-s3-intelligent-tiering.sh`
