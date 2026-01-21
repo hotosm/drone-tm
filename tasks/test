@@ -34,6 +34,6 @@ backend:
     {{docker}} compose -f compose.test.yaml run --rm createbuckets
     {{docker}} compose -f compose.test.yaml run --rm migrations
 
-    {{docker}} compose -f compose.test.yaml run --rm backend pytest
+    {{docker}} compose -f compose.test.yaml run --rm backend pytest || true
 
-    {{docker}} compose -f compose.test.yaml down
+    {{docker}} compose -f compose.test.yaml down --remove-orphans

@@ -66,7 +66,7 @@ services:
     oom_score_adj: 0
     labels:
       traefik.enable: "true"
-      traefik.http.routers.webodm.rule: "Host(`${WO_HOST:-webodm.dronetm.hotosm.org}`)"
+      traefik.http.routers.webodm.rule: "Host(`${WO_HOST:-webodm.drone.hotosm.org}`)"
       traefik.http.routers.webodm.entrypoints: https
       traefik.http.routers.webodm.tls: "true"
       traefik.http.routers.webodm.tls.certresolver: letsencrypt
