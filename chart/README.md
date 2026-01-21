@@ -55,11 +55,12 @@ Key configuration areas:
 - Can be set via the `env` or `extraEnvFrom` keys.
 - They will be included in the backend, migration, and arq worker containers.
 
-### Setting The Frontend API_URL
+### Overriding The Frontend API_URL
 
-- Typically baked into images.
-- We have opted for a config to allow dynamic injection of env vars into the frontend build.
-- Simply update the frontend section in `values.yaml` with your required variables.
+- The VITE_API_URL baked into builds / images has been removed.
+- Now instead we have a dynamic config.json that is injected into the frontend at runtime.
+- By default the frontend will load from an API at `${DOMAIN}/api`.
+- To override this, simply update the `frontend.runtimeEnv` section in `values.yaml`.
 
 ## Secrets
 
@@ -72,13 +73,40 @@ Your Secret should include (at minimum):
 
 - Database: `POSTGRES_PASSWORD`
 - S3: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
-- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SECRET_KEY`.
+- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JAXA_AUTH_TOKEN`, `SECRET_KEY`.
 - Redis: (provided automatically by the chart; no `REDIS_DSN` needed)
+
+### Creating a Kubernetes Secret
+
+Create a Secret in the same namespace as your Helm release:
+
+```bash
+kubectl -n <namespace> create secret generic drone-tm-prod-secrets \
+  --from-literal=POSTGRES_PASSWORD='<postgres password>' \
+  --from-literal=S3_ACCESS_KEY='<aws access key id>' \
+  --from-literal=S3_SECRET_KEY='<aws secret access key>' \
+  --from-literal=SECRET_KEY='<fastapi secret key>' \
+  --from-literal=GOOGLE_CLIENT_ID='<google oauth client id>' \
+  --from-literal=GOOGLE_CLIENT_SECRET='<google oauth client secret>' \
+  --from-literal=GOOGLE_LOGIN_REDIRECT_URI='https://<your-domain>/auth' \
+  --from-literal=SMTP_PASSWORD='<smtp password>' \
+  --from-literal=JAXA_AUTH_TOKEN='<smtp password>' \
+  --from-literal=SENTRY_DSN='<sentry dsn>'
+```
+
+Then reference it from Helm values:
+
+```bash
+helm upgrade --install drone-tm ./chart \
+  -n <namespace> \
+  --set existingSecret.name=drone-tm-prod-secrets
+```
 
 ### Creating Sealed Secrets
 
 ```bash
-kubectl create secret ... from all specified secret vars above (generic)
+# Create secret above with:
+  --dry-run=client -o yaml > secret.yaml
 
-kubeseal secret.yaml > sealed-secret.yaml
+kubeseal -n <namespace> -o yaml < secret.yaml > sealed-secret.yaml
 ```

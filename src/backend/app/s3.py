@@ -343,7 +343,7 @@ def get_orthophoto_url_for_project(project_id: str):
         return None
 
     return generate_presigned_get_url(
-        settings.S3_BUCKET_NAME, project_orthophoto_path, 3
+        settings.S3_BUCKET_NAME, project_orthophoto_path, 12
     )
 
 

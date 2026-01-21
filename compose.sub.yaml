@@ -134,10 +134,6 @@ services:
       context: src/frontend
       dockerfile: Dockerfile
       target: prod
-      args:
-        API_URL: https://${DOMAIN}/api
-        COG_URL: ${COG_URL}
-        SITE_NAME: ${SITE_NAME}
     volumes:
       - frontend-html:/frontend_html
     env_file: .env
@@ -168,7 +164,7 @@ services:
       - .env
     networks:
       - dtm-network
-    entrypoint: ["alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
     restart: "no"
 
   arq-worker:

@@ -2,7 +2,9 @@
 import axios, { AxiosInstance } from 'axios';
 import { toast } from 'react-toastify';
 
-const { API_URL } = process.env;
+import { getRuntimeConfig } from '@/runtimeConfig';
+
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 export const api = axios.create({
   baseURL: API_URL,

@@ -3,7 +3,7 @@ import os
 import base64
 import secrets
 from functools import lru_cache
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Optional, Union
 
 import bcrypt
 from loguru import logger as log
@@ -43,7 +43,6 @@ class OtelSettings(BaseSettings):
     These mostly set environment variables set by the OTEL SDK.
     """
 
-    SITE_NAME: Optional[str] = Field(exclude=True)
     LOG_LEVEL: Optional[str] = Field(exclude=True)
 
     @computed_field
@@ -61,9 +60,9 @@ class OtelSettings(BaseSettings):
     def otel_service_name(self) -> Optional[HttpUrlStr]:
         """Set OpenTelemetry service name for traces."""
         service_name = "unknown"
-        if self.SITE_NAME:
-            # Return name with underscores
-            service_name = self.SITE_NAME.lower().replace(" ", "-")
+        if self.DOMAIN:
+            # Return domain with underscores
+            service_name = self.FMTM_DOMAIN.replace(".", "_")
             # Export to environment for OTEL instrumentation
             os.environ["OTEL_SERVICE_NAME"] = service_name
         return service_name
@@ -168,7 +167,9 @@ class Settings(BaseSettings):
 
     @field_validator("DTM_DB_URL", mode="after")
     @classmethod
-    def assemble_db_connection(cls, v: Optional[str], info: ValidationInfo) -> Any:
+    def assemble_db_connection(
+        cls, v: Optional[str], info: ValidationInfo
+    ) -> PostgresDsn:
         """Build Postgres connection from environment variables."""
         if isinstance(v, str):
             return v
@@ -181,9 +182,7 @@ class Settings(BaseSettings):
         )
         return pg_url
 
-    # Minimal config:
-    # - DOMAIN: host[:port] (no scheme), e.g. "drone-tm.example.com" or "localhost:3040"
-    #   If unset, defaults to "http" when DEBUG else "https".
+    # DOMAIN: host[:port] (no scheme), e.g. "drone-tm.example.com" or "localhost:3040"
     DOMAIN: Optional[str] = None
 
     @computed_field
@@ -191,6 +190,7 @@ class Settings(BaseSettings):
     def PUBLIC_BASE_URL(self) -> HttpUrlStr:
         """Public origin of the deployment (scheme + host), derived from DOMAIN + DEBUG."""
         if self.DOMAIN:
+            # Domain set unset, defaults to "http" when DEBUG else "https".
             scheme = "http" if self.DEBUG else "https"
             return f"{scheme}://{self.DOMAIN}"
         # Local dev default (frontend dev server)

@@ -73,7 +73,7 @@ services:
       MONITORING: ""
     networks:
       - dtm-network
-    entrypoint: ["alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
     restart: "no"
     depends_on:
       db:

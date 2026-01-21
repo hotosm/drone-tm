@@ -17,13 +17,6 @@ ENTRYPOINT ["/bin/sh", "-c", "pnpm run start --host 0.0.0.0;"]
 
 # Generate frontend build files
 FROM base AS build
-ARG API_URL
-ARG COG_URL
-ARG SITE_NAME
-ENV \
-    API_URL=${API_URL} \
-    COG_URL=${COG_URL} \
-    SITE_NAME=${SITE_NAME}
 COPY ./package.json pnpm-lock.yaml .
 RUN corepack prepare pnpm@9.15.5 --activate && corepack enable && corepack install
 RUN pnpm install

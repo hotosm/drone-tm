@@ -114,6 +114,12 @@ frontendAssets:
     repository: ghcr.io/hotosm/drone-tm/frontend
     tag: ""
     pullPolicy: IfNotPresent
+  # Runtime config injected into `/config.js` at pod start by the frontend initContainer.
+  # Defaults are chosen so the app works across domains without rebuilds:
+  # - VITE_API_URL defaults to `/api` (same-origin, path-based)
+  runtimeEnv: {}
+  # runtimeEnv:
+  #   VITE_API_URL: "/api"
 
 worker:
   # Uses the same envFrom + env as backend

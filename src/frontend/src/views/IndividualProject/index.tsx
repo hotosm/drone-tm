@@ -31,9 +31,10 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import DroneImageProcessingWorkflow from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
 // eslint-disable-next-line camelcase
-const { API_URL } = process.env;
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 // function to render the content based on active tab
 const getActiveTabContent = (

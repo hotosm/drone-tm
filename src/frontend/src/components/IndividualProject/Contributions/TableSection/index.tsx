@@ -8,8 +8,6 @@ import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-const { COG_URL } = process.env;
-
 const contributionsDataColumns = [
   {
     header: 'User',
@@ -56,6 +54,7 @@ const contributionsDataColumns = [
       );
 
       const handleViewResult = () => {
+        if (!rowData?.orthophoto_url) return;
         let newVisibleList: Record<string, any>[] = [];
         if (currentOrthophoto) {
           newVisibleList = visibleOrthophotoList.filter(
@@ -69,7 +68,7 @@ const contributionsDataColumns = [
               taskId: rowData.task_id,
               source: {
                 type: 'raster',
-                url: `cog://${COG_URL}/projects/${id}/${rowData?.task_id}/orthophoto/odm_orthophoto.tif`,
+                url: `cog://${rowData?.orthophoto_url}`,
                 tileSize: 256,
               },
             },
