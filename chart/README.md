@@ -81,7 +81,7 @@ Your Secret should include (at minimum):
 Create a Secret in the same namespace as your Helm release:
 
 ```bash
-kubectl -n <namespace> create secret generic drone-tm-prod-secrets \
+kubectl --namespace drone create secret generic drone-tm-prod-secrets \
   --from-literal=POSTGRES_PASSWORD='<postgres password>' \
   --from-literal=S3_ACCESS_KEY='<aws access key id>' \
   --from-literal=S3_SECRET_KEY='<aws secret access key>' \
@@ -98,7 +98,7 @@ Then reference it from Helm values:
 
 ```bash
 helm upgrade --install drone-tm ./chart \
-  -n <namespace> \
+  --namespace drone \
   --set existingSecret.name=drone-tm-prod-secrets
 ```
 
@@ -108,5 +108,5 @@ helm upgrade --install drone-tm ./chart \
 # Create secret above with:
   --dry-run=client -o yaml > secret.yaml
 
-kubeseal -n <namespace> -o yaml < secret.yaml > sealed-secret.yaml
+kubeseal --namespace drone -o yaml < secret.yaml > sealed-secret.yaml
 ```

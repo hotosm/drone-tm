@@ -19,7 +19,6 @@ spec:
         app.kubernetes.io/component: migrations
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: {{ include "drone-tm.serviceAccountName" . }}
       containers:
         - name: migrations
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag | default .Chart.AppVersion }}"
