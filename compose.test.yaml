@@ -25,17 +25,6 @@ services:
       ODM_ENDPOINT: http://nodeodm:3000
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
-    depends_on:
-      db:
-        condition: service_healthy
-      minio:
-        condition: service_started
-      redis:
-        condition: service_started
-      nodeodm:
-        condition: service_started
-      migrations:
-        condition: service_completed_successfully
 
   frontend:
     extends:
@@ -43,9 +32,6 @@ services:
       service: frontend
     ports:
       - "3040:3040"
-    depends_on:
-      backend:
-        condition: service_started
 
   db:
     extends:
@@ -61,8 +47,6 @@ services:
     extends:
       file: compose.yaml
       service: createbuckets
-    depends_on:
-      - minio
 
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:debug
@@ -76,9 +60,6 @@ services:
       - dtm-network
     command: ["alembic", "upgrade", "head"]
     restart: "no"
-    depends_on:
-      db:
-        condition: service_healthy
 
   arq-worker:
     extends:
@@ -88,13 +69,6 @@ services:
       ODM_ENDPOINT: http://nodeodm:3000
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      nodeodm:
-        condition: service_started
 
   redis:
     extends:

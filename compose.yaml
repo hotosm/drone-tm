@@ -19,7 +19,14 @@ services:
       args:
         - MONITORING=${MONITORING}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nodeodm:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
       # For minio
@@ -52,7 +59,10 @@ services:
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:
-      - minio
+      backend:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}/api}
     networks:
@@ -100,6 +110,12 @@ services:
       - .env
     network_mode: service:backend
     restart: unless-stopped
+    healthcheck:
+      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   createbuckets:
     image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
@@ -108,7 +124,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     network_mode: service:backend
     restart: "no"
 
@@ -117,8 +134,6 @@ services:
     volumes:
       - ./src/backend:/project/src/backend
     depends_on:
-      backend:
-        condition: service_started
       db:
         condition: service_healthy
     env_file:
@@ -132,7 +147,12 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:debug
     command: arq --watch /project/src/backend/app app.arq.tasks.WorkerSettings
     depends_on:
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nodeodm:
+        condition: service_started
     volumes:
       - ./src/backend:/project/src/backend
     env_file: .env
