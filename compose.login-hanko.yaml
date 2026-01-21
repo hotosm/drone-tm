@@ -122,7 +122,7 @@ services:
 
   arq-worker:
     image: ghcr.io/hotosm/drone-tm/backend:login-hanko
-    command: python -m app.worker
+    command: arq app.arq.tasks.WorkerSettings
     restart: unless-stopped
     depends_on:
       - db
