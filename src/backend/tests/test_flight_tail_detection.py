@@ -1,5 +1,9 @@
 import hashlib
 import uuid
+import json
+import shapely.wkb as wkblib
+
+from shapely.geometry import box
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -19,6 +23,29 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
     batch_id = uuid.uuid4()
     task_id = uuid.uuid4()
 
+    # Project box
+    geom = box(115.4, -8.4, 115.6, -8.2)
+    outline_wkb = wkblib.dumps(geom, hex=True)
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+
     base_lon = 85.0
     base_lat = 27.0
 
@@ -26,21 +53,26 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
     # - takeoff transit: moving north (azimuth ~0)
     # - mission: moving east (azimuth ~90)
     # - landing transit: moving south (azimuth ~180)
+
+    # To pass the 25% safety fraction and the search_limit,
+    # we need a longer mission (Total ~52 images)
     points: list[tuple[float, float]] = []
 
     # Use ~11m steps so distance-based filtering (MIN_DISTANCE_METERS) doesn't discard points.
     # NOTE: tail detection requires >= 20 images per segment.
-    for i in range(8):
+
+    # We need at least 5 images for baseline, turn happens at index 6
+    for i in range(6):
         points.append((base_lon, base_lat + i * 0.0001))
 
-    # 10 points east
+    # 40 points east
     east_start_lon, east_start_lat = points[-1]
-    for i in range(1, 11):
+    for i in range(1, 41):
         points.append((east_start_lon + i * 0.0001, east_start_lat))
 
-    # 8 points south
+    # 6 points south
     south_start_lon, south_start_lat = points[-1]
-    for i in range(1, 9):
+    for i in range(1, 7):
         points.append((south_start_lon, south_start_lat - i * 0.0001))
 
     now = datetime.now(timezone.utc)
@@ -111,7 +143,7 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
             WHERE project_id = %(project_id)s
               AND batch_id = %(batch_id)s
               AND status = 'rejected'
-              AND rejection_reason ILIKE 'Flight tail detection:%'
+              AND rejection_reason ILIKE 'Flight tail detection:%%'
             """,
             {"project_id": str(project_id), "batch_id": str(batch_id)},
         )
@@ -132,6 +164,29 @@ async def test_flight_tail_does_not_override_existing_rejection_reason(
     project_id = uuid.UUID(create_test_project)
     batch_id = uuid.uuid4()
     task_id = uuid.uuid4()
+
+    # Project box
+    geom = box(115.4, -8.4, 115.6, -8.2)
+    outline_wkb = wkblib.dumps(geom, hex=True)
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
 
     base_lon = 85.0
     base_lat = 27.0
@@ -246,6 +301,29 @@ async def test_multi_flight_batch_does_not_create_false_tails(
     batch_id = uuid.uuid4()
     task_id = uuid.uuid4()
 
+    # Project box
+    geom = box(115.4, -8.4, 115.6, -8.2)
+    outline_wkb = wkblib.dumps(geom, hex=True)
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+
     # Helper: convert DMS like '8 deg 17\' 42.56" S' to decimal degrees.
     def dms_to_decimal(dms: str) -> float:
         s = dms.strip().replace("°", " deg ")
@@ -339,7 +417,7 @@ async def test_multi_flight_batch_does_not_create_false_tails(
                     "task_id": str(task_id),
                     "lon": lon,
                     "lat": lat,
-                    "exif": {"DateTimeOriginal": dt},
+                    "exif": json.dumps({"DateTimeOriginal": dt}),
                     "uploaded_by": auth_user.id,
                     "uploaded_at": uploaded_at,
                 },
@@ -358,10 +436,245 @@ async def test_multi_flight_batch_does_not_create_false_tails(
             WHERE project_id = %(project_id)s
               AND batch_id = %(batch_id)s
               AND status = 'rejected'
-              AND rejection_reason ILIKE 'Flight tail detection:%'
+              AND rejection_reason ILIKE 'Flight tail detection:%%'
             """,
             {"project_id": str(project_id), "batch_id": str(batch_id)},
         )
         rejected_count = (await cur.fetchone())[0]
 
     assert rejected_count == 0
+
+
+@pytest.mark.asyncio
+async def test_vertical_takeoff_tail(db, create_test_project, auth_user):
+    """Verifies detection of high-altitude takeoff tails."""
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+
+    # Project box
+    geom = box(115.4, -8.4, 115.6, -8.2)
+    outline_wkb = wkblib.dumps(geom, hex=True)
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+
+    async with db.cursor() as cur:
+        for i in range(52):
+            is_vertical = i < 6
+            ts = datetime.now(timezone.utc) + timedelta(seconds=i)
+            lat = -8.301 if is_vertical else -8.301 + (i * 0.0001)
+            alt = 100 + (i * 10 if is_vertical else 50)
+
+            file_name = f"flight_takeoff_{i:03d}.jpg"
+            s3_key = f"dtm-data/projects/{project_id}/user-uploads/{file_name}"
+            hash_md5 = hashlib.md5(file_name.encode("utf-8")).hexdigest()
+
+            exif_data = json.dumps(
+                {
+                    "AbsoluteAltitude": str(alt),
+                    "DateTimeOriginal": ts.strftime("%Y:%m:%d %H:%M:%S"),
+                }
+            )
+
+            await cur.execute(
+                """
+                    INSERT INTO project_images (
+                        project_id,
+                        filename,
+                        s3_key,
+                        hash_md5,
+                        batch_id,
+                        task_id,
+                        location,
+                        uploaded_by,
+                        status,
+                        uploaded_at,
+                        exif
+                    )
+                    VALUES (
+                        %(project_id)s,
+                        %(filename)s,
+                        %(s3_key)s,
+                        %(hash_md5)s,
+                        %(batch_id)s,
+                        %(task_id)s,
+                        ST_SetSRID(ST_MakePoint(115.46, %(lat)s), 4326),
+                        %(uploaded_by)s,
+                        'assigned',
+                        %(uploaded_at)s,
+                        %(exif)s
+                    )
+                    """,
+                {
+                    "project_id": project_id,
+                    "filename": file_name,
+                    "s3_key": s3_key,
+                    "hash_md5": hash_md5,
+                    "batch_id": batch_id,
+                    "task_id": task_id,
+                    "lat": lat,
+                    "uploaded_by": auth_user.id,
+                    "uploaded_at": ts,
+                    "exif": exif_data,
+                },
+            )
+        await db.commit()
+
+        await mark_and_remove_flight_tail_imagery(db, project_id, batch_id, task_id)
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                "SELECT count(*) FROM project_images WHERE status = 'rejected' AND rejection_reason ILIKE 'Flight tail detection:%%'"
+            )
+            assert (await cur.fetchone())[0] >= 6
+
+
+@pytest.mark.asyncio
+async def test_multi_batch_rejections(db, create_test_project, auth_user):
+    """Verifies that in a batch with multiple segments tails are caught for each flight segment."""
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    now = datetime.now(timezone.utc)
+
+    # Project box
+    geom = box(115.4, -8.4, 115.6, -8.2)
+    outline_wkb = wkblib.dumps(geom, hex=True)
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+
+    # Creating two different flight segments separated by a 2 hour gap.
+    segments = [
+        {"start": now, "label": "flight_A"},
+        {"start": now + timedelta(hours=2), "label": "flight_B"},
+    ]
+
+    async with db.cursor() as cur:
+        for seg in segments:
+            for i in range(60):
+                ts = seg["start"] + timedelta(seconds=i * 2)
+
+                # Creating a path:
+                # 0-5: Vertical and moving up in altitude
+                # 6-12: Moving NORTH (azimuth 0)
+                # 13-60: Mission then moves EAST (azimuth 90)
+
+                is_vertical = i < 6
+                is_transit = 6 <= i < 13
+
+                if is_vertical:
+                    lat, lon = -8.301, 115.46
+                    alt = 100 + (i * 10)
+                elif is_transit:
+                    lat, lon = -8.301 + (i * 0.0002), 115.46
+                    alt = 200
+                else:
+                    lat, lon = -8.301 + (13 * 0.0002), 115.46 + ((i - 13) * 0.0002)
+                    alt = 200
+
+                file_name = f"flight_takeoff_{i:03d}.jpg"
+                s3_key = f"dtm-data/projects/{project_id}/user-uploads/{file_name}"
+                hash_md5 = hashlib.md5(file_name.encode("utf-8")).hexdigest()
+
+                exif_data = json.dumps(
+                    {
+                        "DateTimeOriginal": ts.strftime("%Y:%m:%d %H:%M:%S"),
+                        "AbsoluteAltitude": str(alt),
+                    }
+                )
+
+                await cur.execute(
+                    """
+                    INSERT INTO project_images (
+                        project_id,
+                        filename,
+                        s3_key,
+                        hash_md5,
+                        batch_id,
+                        task_id,
+                        location,
+                        uploaded_by,
+                        status,
+                        uploaded_at,
+                        exif
+                    )
+                    VALUES (
+                        %(project_id)s,
+                        %(filename)s,
+                        %(s3_key)s,
+                        %(hash_md5)s,
+                        %(batch_id)s,
+                        %(task_id)s,
+                        ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), 4326),
+                        %(uploaded_by)s,
+                        'assigned',
+                        %(uploaded_at)s,
+                        %(exif)s
+                    )
+                    """,
+                    {
+                        "project_id": project_id,
+                        "filename": file_name,
+                        "s3_key": s3_key,
+                        "hash_md5": hash_md5,
+                        "batch_id": batch_id,
+                        "task_id": task_id,
+                        "lon": lon,
+                        "lat": lat,
+                        "uploaded_by": auth_user.id,
+                        "uploaded_at": ts,
+                        "exif": exif_data,
+                    },
+                )
+    await db.commit()
+
+    await mark_and_remove_flight_tail_imagery(db, project_id, batch_id, task_id)
+    await db.commit()
+
+    # Verify rejection occurs in both flight segments
+    async with db.cursor() as cur:
+        # Check Flight A rejections.
+        await cur.execute(
+            "SELECT COUNT(*) FROM project_images WHERE status = 'rejected' AND filename LIKE 'flight_A%%'"
+        )
+        assert (await cur.fetchone())[0] >= 5
+
+        # Check Flight B rejections.
+        await cur.execute(
+            "SELECT COUNT(*) FROM project_images WHERE status = 'rejected' AND filename LIKE 'flight_B%%'"
+        )
+        assert (await cur.fetchone())[0] >= 5
