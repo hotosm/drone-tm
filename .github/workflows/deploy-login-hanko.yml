@@ -39,6 +39,7 @@ jobs:
             --build-arg VITE_HANKO_URL=https://dev.login.hotosm.org \
             --build-arg VITE_FRONTEND_URL=https://testlogin.dronetm.hotosm.org \
             --build-arg VITE_API_URL=https://testlogin.dronetm.hotosm.org/api \
+            --build-arg API_URL=https://testlogin.dronetm.hotosm.org/api \
             --build-arg BASE_URL=https://testlogin.dronetm.hotosm.org/api \
             --build-arg SITE_NAME="Drone TM Test" \
             ./src/frontend
