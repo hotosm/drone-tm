@@ -106,6 +106,8 @@ migrations:
   # Uses the same envFrom + env as backend
   enabled: true
   backoffLimit: 3
+  # Optional extra annotations for the migrations Job.
+  annotations: {}
 
 frontendAssets:
   # Uses the frontend image as an initContainer to populate backend templates (the frontend image exits after syncing).

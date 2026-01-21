@@ -6,6 +6,9 @@ metadata:
   labels:
     {{- include "drone-tm.labels" . | nindent 4 }}
     app.kubernetes.io/component: worker
+  annotations:
+    # Argo CD: Deployments should start after migrations (see `migrations-job.yaml`).
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   replicas: {{ .Values.worker.replicaCount }}
   selector:

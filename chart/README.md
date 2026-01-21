@@ -62,6 +62,33 @@ Key configuration areas:
 - By default the frontend will load from an API at `${DOMAIN}/api`.
 - To override this, simply update the `frontend.runtimeEnv` section in `values.yaml`.
 
+## Argo CD + SealedSecrets ordering (migrations)
+
+This chart supports Argo CD out of the box:
+
+- The ServiceAccount is annotated with a low **sync wave** (wave `-10`) so it is created early.
+- The migrations Job is annotated as an **Argo CD Sync hook** (wave `5`) so it runs after core inputs are applied
+  (e.g., a `SealedSecret`), but before Deployments (wave `10`).
+
+If you need to add extra Argo annotations, use `migrations.annotations`.
+
+### Important: SealedSecret vs migrations hook ordering
+
+This chart expects the application Secret to already exist (it is referenced via `envFrom`).
+
+If you manage secrets via **SealedSecrets** in GitOps:
+
+- A `SealedSecret` is a *normal* resource, applied during ArgoCD's **Sync** phase (unless you explicitly annotate it as a hook).
+- A `PreSync` migrations hook runs **before** the Sync phase.
+
+So, if your `SealedSecret` is applied in the same ArgoCD Application, migrations should not be `PreSync` (it can run before the `SealedSecret` is applied).
+
+Recommended fixes:
+
+- **Preferred**: Deploy the `SealedSecret` (and ensure it becomes healthy / the `Secret` exists) in a separate ArgoCD Application with a lower
+  `argocd.argoproj.io/sync-wave` than the app chart.
+- **Alternative**: Keep everything in one Application and use sync-waves so `SealedSecret` (default wave `0`) → migrations (wave `5`) → Deployments (wave `10`) are ordered.
+
 ## Secrets
 
 Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / ExternalSecrets in GitOps setups):
