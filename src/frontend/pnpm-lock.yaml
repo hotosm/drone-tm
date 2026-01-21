@@ -21,8 +21,8 @@ importers:
         specifier: ^0.0.9
         version: 0.0.9(@floating-ui/utils@0.2.9)(@shoelace-style/shoelace@2.20.0(@floating-ui/utils@0.2.9)(@types/react@19.0.8))(@types/react@19.0.8)(ol@7.5.2)
       '@hotosm/hanko-auth':
-        specifier: ^0.3.3
-        version: 0.3.3(@awesome.me/webawesome@3.0.0-beta.1(@floating-ui/utils@0.2.9))
+        specifier: ^0.3.4
+        version: 0.3.4(@awesome.me/webawesome@3.0.0-beta.1(@floating-ui/utils@0.2.9))
       '@hotosm/ui':
         specifier: 0.2.0-b6
         version: 0.2.0-b6(@floating-ui/utils@0.2.9)(@types/react@19.0.8)
@@ -1125,8 +1125,8 @@ packages:
       '@shoelace-style/shoelace': ^2.17.1
       ol: ^7.5.0
 
-  '@hotosm/hanko-auth@0.3.3':
-    resolution: {integrity: sha512-4jUSv5dgYFoJvfCTICvW2kykbV+9M99iZnyszfdB6flF3Fp6nlcJ3/dKdl5YnTokYxvdKzo2pueqDEp7n3s5NQ==}
+  '@hotosm/hanko-auth@0.3.4':
+    resolution: {integrity: sha512-MohftHHybiKLSKJL11X1qpQPCN613b4LV3uZaqiofZWL+obg3HNFqSLJZPZL/6e2EBMptJatewmx65Hw/LMhzw==}
     peerDependencies:
       '@awesome.me/webawesome': ^3.0.0-beta.1
 
@@ -5603,7 +5603,7 @@ snapshots:
       - '@floating-ui/utils'
       - '@types/react'
 
-  '@hotosm/hanko-auth@0.3.3(@awesome.me/webawesome@3.0.0-beta.1(@floating-ui/utils@0.2.9))':
+  '@hotosm/hanko-auth@0.3.4(@awesome.me/webawesome@3.0.0-beta.1(@floating-ui/utils@0.2.9))':
     dependencies:
       '@awesome.me/webawesome': 3.0.0-beta.1(@floating-ui/utils@0.2.9)
       '@teamhanko/hanko-elements': 1.5.2
