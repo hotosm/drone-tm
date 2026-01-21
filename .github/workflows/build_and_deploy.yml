@@ -26,8 +26,6 @@ jobs:
 
   frontend-build:
     uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.1
-    needs:
-      - extra-vars
     with:
       context: ./src/frontend
       build_target: prod
