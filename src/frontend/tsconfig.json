@@ -3,6 +3,7 @@
     "allowJs": false,
     "allowSyntheticDefaultImports": true,
     "baseUrl": "./src/",
+    "types": ["vite/client"],
     "checkJs": false,
     "downlevelIteration": true,
     "esModuleInterop": false,
@@ -19,6 +20,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "paths": {
+      "@/*": ["*"],
       "@Api/*": ["api/*"],
       "@Assets/*": ["assets/*"],
       "@Components/*": ["components/*"],

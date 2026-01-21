@@ -115,6 +115,14 @@ const MapSection = ({ className }: { className?: string }) => {
     disableRotation: true,
   });
 
+  const {
+    data: taskAssetsInformation,
+    // isFetching: taskAssetsInfoLoading,
+  }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
+  );
+
   const orthophotoSource: RasterSourceSpecification | null = useMemo(() => {
     const signed = taskAssetsInformation?.orthophoto_url;
     if (signed) {
@@ -171,14 +179,6 @@ const MapSection = ({ className }: { className?: string }) => {
       );
     }
   }, [taskWayPointsData]);
-
-  const {
-    data: taskAssetsInformation,
-    // isFetching: taskAssetsInfoLoading,
-  }: Record<string, any> = useGetTaskAssetsInfo(
-    projectId as string,
-    taskId as string,
-  );
 
   const { mutate: postWaypoint, isPending: isUpdatingTakeOffPoint } =
     useMutation<any, any, any, unknown>({
