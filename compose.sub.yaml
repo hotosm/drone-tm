@@ -92,7 +92,10 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     volumes:
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
@@ -136,7 +139,6 @@ services:
       target: prod
     volumes:
       - frontend-html:/frontend_html
-    env_file: .env
     network_mode: none
     restart: "on-failure:2"
 
@@ -158,8 +160,8 @@ services:
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     depends_on:
-      - backend
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env
     networks:
@@ -171,7 +173,8 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     command: arq app.arq.tasks.WorkerSettings
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     env_file: .env
     networks:
       - dtm-network

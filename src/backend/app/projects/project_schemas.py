@@ -21,7 +21,6 @@ from pydantic.functional_serializers import PlainSerializer
 from pydantic.functional_validators import AfterValidator
 from slugify import slugify
 
-from app.config import settings
 from app.models.enums import (
     FinalOutput,
     HTTPStatus,
@@ -33,7 +32,6 @@ from app.models.enums import (
     UserRole,
 )
 from app.s3 import (
-    generate_presigned_get_url,
     get_assets_url_for_project,
     get_orthophoto_url_for_project,
     maybe_presign_s3_key,
@@ -688,11 +686,7 @@ class ProjectInfo(BaseModel):
         image_dir = f"projects/{project_id}/map_screenshot.png"
 
         values.image_url = safe_url(
-            lambda: generate_presigned_get_url(
-                settings.S3_BUCKET_NAME,
-                image_dir,
-                5,
-            ),
+            lambda: maybe_presign_s3_key(image_dir, 5),
             label="image_url",
         )
 

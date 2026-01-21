@@ -19,23 +19,33 @@ services:
       args:
         - MONITORING=${MONITORING}
     depends_on:
-      - db
-      - minio
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nodeodm:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
+      # For minio
+      - 9000:9000
+      - 9090:9090
     volumes:
-      - ${PROJECT_DIR:-.}/src/backend/pyproject.toml:/project/src/backend/pyproject.toml:ro
-      - ${PROJECT_DIR:-.}/src/backend/app:/project/src/backend/app:ro
-      - ${PROJECT_DIR:-.}/src/backend/tests:/project/src/backend/tests:ro
-      - ${PROJECT_DIR:-.}/src/backend/packages/drone-flightplan/drone_flightplan:/opt/python/lib/python3.11/site-packages/drone_flightplan:ro
+      - ./src/backend/pyproject.toml:/project/src/backend/pyproject.toml:ro
+      - ./src/backend/app:/project/src/backend/app:ro
+      - ./src/backend/tests:/project/src/backend/tests:ro
+      - ./src/backend/packages/drone-flightplan/drone_flightplan:/opt/python/lib/python3.11/site-packages/drone_flightplan:ro
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
     environment:
       # In dev the browser can't resolve docker DNS names like `minio`,
       # so presigned URLs must use a host-accessible base.
-      S3_DOWNLOAD_ROOT: ${S3_DOWNLOAD_ROOT:-http://localhost:9000}
-    extra_hosts:
-      - "localhost:host-gateway"
+      S3_ENDPOINT_UPLOAD: ${S3_ENDPOINT_UPLOAD:-http://localhost:9000}
+      # In dev, use the host-exposed MinIO port for presigned URLs.
+      # (Path-rewriting proxies like `/s3` break S3 presigned signatures.)
+      S3_ENDPOINT_DOWNLOAD: ${S3_ENDPOINT_DOWNLOAD:-http://localhost:9000}
     networks:
       - dtm-network
     restart: unless-stopped
@@ -49,20 +59,22 @@ services:
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:
-      - minio
-    env_file: .env
+      backend:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}/api}
     networks:
       - dtm-network
     volumes:
-      - ${PROJECT_DIR:-.}/src/frontend/public:/app/public
-      - ${PROJECT_DIR:-.}/src/frontend/src:/app/src
-      - ${PROJECT_DIR:-.}/src/frontend/components.json:/app/components.json
-      - ${PROJECT_DIR:-.}/src/frontend/index.html:/app/index.html
-      - ${PROJECT_DIR:-.}/src/frontend/postcss.config.js:/app/postcss.config.js
-      - ${PROJECT_DIR:-.}/src/frontend/tailwind.config.js:/app/tailwind.config.js
-      - ${PROJECT_DIR:-.}/src/frontend/vite.config.ts:/app/vite.config.ts
+      - ./src/frontend/public:/app/public
+      - ./src/frontend/src:/app/src
+      - ./src/frontend/components.json:/app/components.json
+      - ./src/frontend/index.html:/app/index.html
+      - ./src/frontend/postcss.config.js:/app/postcss.config.js
+      - ./src/frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./src/frontend/vite.config.ts:/app/vite.config.ts
       - frontend-html:/frontend_html
 
   # If error, please upgrade the db with `contrib/pg-upgrade/compose.yaml`
@@ -96,32 +108,32 @@ services:
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-somelongpassword}
     env_file:
       - .env
-    ports:
-      - 9000:9000
-      - 9090:9090
-    networks:
-      - dtm-network
+    network_mode: service:backend
     restart: unless-stopped
+    healthcheck:
+      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
 
   createbuckets:
     image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
     entrypoint: >
-      /bin/sh -c " mc config host add minio http://minio:9000 \$S3_ACCESS_KEY \$S3_SECRET_KEY; mc mb minio/\$S3_BUCKET_NAME; mc anonymous set download minio/\$S3_BUCKET_NAME/publicuploads/; exit 0; "
+      /bin/sh -c " mc config host add minio http://localhost:9000 \$S3_ACCESS_KEY \$S3_SECRET_KEY; mc mb minio/\$S3_BUCKET_NAME; mc anonymous set download minio/\$S3_BUCKET_NAME/publicuploads/; mc anonymous set download minio/\$S3_BUCKET_NAME/tutorials/; exit 0; "
     env_file:
       - .env
     depends_on:
-      - minio
-    networks:
-      - dtm-network
+      minio:
+        condition: service_healthy
+    network_mode: service:backend
     restart: "no"
 
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:debug
     volumes:
-      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - ./src/backend:/project/src/backend
     depends_on:
-      backend:
-        condition: service_started
       db:
         condition: service_healthy
     env_file:
@@ -135,14 +147,16 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:debug
     command: arq --watch /project/src/backend/app app.arq.tasks.WorkerSettings
     depends_on:
-      - redis
-    env_file: .env
-    extra_hosts:
-      - "localhost:host-gateway"
-    networks:
-      - dtm-network
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nodeodm:
+        condition: service_started
     volumes:
-      - ${PROJECT_DIR:-.}/src/backend:/project/src/backend
+      - ./src/backend:/project/src/backend
+    env_file: .env
+    network_mode: service:backend
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]

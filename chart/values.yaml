@@ -30,7 +30,10 @@ env: {}
 #   POSTGRES_HOST: "your-postgres-host"
 #   POSTGRES_DB: "dtm_db"
 #   POSTGRES_USER: "dtm"
-#   S3_ENDPOINT: "https://s3.amazonaws.com"
+#   # Optional: for better upload UX (S3 Transfer Acceleration)
+#   # S3_ENDPOINT_UPLOAD: "https://your-bucket.s3-accelerate.amazonaws.com"
+#   # Optional: for cheaper/faster repeated downloads (CloudFront)
+#   # S3_ENDPOINT_DOWNLOAD: "https://your-cloudfront-domain.example.com"
 #   S3_BUCKET_NAME: "your-bucket"
 #   # REDIS_DSN is provided automatically by the chart (Bitnami Redis subchart)
 #   # and does not need to be configured manually

@@ -10,7 +10,7 @@ rclone sync /app /frontend_html
 # This enables changing API/COG endpoints without rebuilding the frontend image.
 cat > /frontend_html/config.js <<EOF
 window.__RUNTIME_CONFIG__ = {
-  VITE_API_URL: "${VITE_API_URL:-/api}"
+  VITE_API_URL: "${VITE_API_URL:-/api}",
 };
 EOF
 

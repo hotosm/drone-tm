@@ -10,7 +10,6 @@ from minio.datatypes import Part
 from minio.error import S3Error
 
 from app.config import settings
-from app.utils import strip_presigned_url_for_local_dev
 
 
 def _normalize_object_name(object_name: str) -> str:
@@ -18,12 +17,39 @@ def _normalize_object_name(object_name: str) -> str:
     return object_name.lstrip("/")
 
 
-def s3_client():
-    """S3 API client (use `S3_ENDPOINT`)."""
-    endpoint = settings.S3_ENDPOINT
-    minio_url, is_secure = is_connection_secure(endpoint)
+def _parse_endpoint(endpoint: str) -> tuple[str, bool]:
+    """Parse endpoint URL and determine if connection should be secure.
 
-    log.debug(f"Connecting to S3 at {minio_url} (secure={is_secure})")
+    Args:
+        endpoint: Full URL string (e.g. "https://s3.amazonaws.com" or "http://localhost:9000")
+
+    Returns:
+        tuple: (stripped_url, is_secure)
+
+    Raises:
+        ValueError: If endpoint doesn't start with http:// or https://
+    """
+    if endpoint.startswith("http://"):
+        return endpoint[7:], False
+    elif endpoint.startswith("https://"):
+        return endpoint[8:], True
+    else:
+        raise ValueError(
+            "The S3 endpoint is set incorrectly. It must start with http:// or https://"
+        )
+
+
+def _create_client(endpoint: str) -> Minio:
+    """Create a MinIO client for the given endpoint.
+
+    Args:
+        endpoint: Full URL string for the S3-compatible endpoint
+
+    Returns:
+        Minio: Configured MinIO client instance
+    """
+    minio_url, is_secure = _parse_endpoint(endpoint)
+    log.debug(f"Creating S3 client at {minio_url} (secure={is_secure})")
 
     return Minio(
         minio_url,
@@ -33,21 +59,59 @@ def s3_client():
     )
 
 
-def s3_presign_client():
-    """S3 client used to sign URLs the browser will call."""
-    endpoint = settings.S3_ENDPOINT
-    if settings.DEBUG and settings.S3_DOWNLOAD_ROOT:
-        endpoint = settings.S3_DOWNLOAD_ROOT
+def s3_client() -> Minio:
+    """S3 client for backend/worker operations.
 
-    minio_url, is_secure = is_connection_secure(endpoint)
-    log.debug(f"Creating presign client at {minio_url} (secure={is_secure})")
+    Uses S3_ENDPOINT_UPLOAD for all backend operations.
 
-    return Minio(
-        minio_url,
-        access_key=settings.S3_ACCESS_KEY,
-        secret_key=settings.S3_SECRET_KEY,
-        secure=is_secure,
-    )
+    Returns:
+        Minio: Client configured for internal backend operations
+    """
+    return _create_client(settings.S3_ENDPOINT_UPLOAD)
+
+
+def _presign_client_for_upload() -> Minio:
+    """S3 client for generating presigned upload URLs.
+
+    Uses S3_ENDPOINT_UPLOAD (e.g., S3 Transfer Acceleration in production,
+    localhost:9000 in development).
+
+    Returns:
+        Minio: Client configured for presigning upload operations
+    """
+    return _create_client(settings.S3_ENDPOINT_UPLOAD)
+
+
+def _presign_client_for_download() -> Minio:
+    """S3 client for generating presigned download URLs.
+
+    Uses S3_ENDPOINT_DOWNLOAD (e.g., CloudFront in production,
+    localhost:9000 in development).
+
+    Returns:
+        Minio: Client configured for presigning download operations
+    """
+    return _create_client(settings.S3_ENDPOINT_DOWNLOAD)
+
+
+def build_browser_object_url(bucket_name: str, object_name: str) -> str:
+    """Browser-facing URL for an object (no signing), using S3_ENDPOINT_DOWNLOAD.
+
+    Note: S3_ENDPOINT_DOWNLOAD is treated as a URL prefix to the object key (not the bucket).
+    This supports CDNs like CloudFront where objects are served at `https://cdn/<key>`.
+    For direct S3 access, prefer setting S3_ENDPOINT_DOWNLOAD to a bucket-hosted base
+    (e.g. `https://<bucket>.s3.amazonaws.com`) so `<key>` resolves correctly.
+
+    Args:
+        bucket_name: Name of the S3 bucket
+        object_name: Path to the object in the bucket
+
+    Returns:
+        str: Full browser-accessible URL to the object
+    """
+    object_name = _normalize_object_name(object_name)
+    base = settings.S3_ENDPOINT_DOWNLOAD.rstrip("/")
+    return f"{base}/{object_name}"
 
 
 def generate_presigned_put_url(
@@ -55,17 +119,26 @@ def generate_presigned_put_url(
     object_name: str,
     expires_hours: int = 1,
 ) -> str:
-    """Presigned PUT (browser)."""
+    """Generate a presigned PUT URL for browser uploads.
+
+    Uses S3_ENDPOINT_UPLOAD (e.g., S3 Transfer Acceleration or localhost:9000).
+
+    Args:
+        bucket_name: Name of the S3 bucket
+        object_name: Path where the object will be stored
+        expires_hours: Hours until the URL expires (default: 1)
+
+    Returns:
+        str: Presigned URL for PUT operation
+    """
     object_name = _normalize_object_name(object_name)
-    client = s3_presign_client()
-    url = client.get_presigned_url(
+    client = _presign_client_for_upload()
+    return client.get_presigned_url(
         "PUT",
         bucket_name,
         object_name,
         expires=timedelta(hours=expires_hours),
     )
-    # Preserve query params so signatures work with private buckets.
-    return strip_presigned_url_for_local_dev(url, strip_presign=False)
 
 
 def generate_presigned_get_url(
@@ -73,67 +146,61 @@ def generate_presigned_get_url(
     object_name: str,
     expires_hours: int = 2,
 ) -> str:
-    """Presigned GET (browser)."""
-    object_name = _normalize_object_name(object_name)
-    client = s3_presign_client()
-    url = client.presigned_get_object(
-        bucket_name, object_name, expires=timedelta(hours=expires_hours)
-    )
-    return strip_presigned_url_for_local_dev(url, strip_presign=False)
+    """Generate a presigned GET URL for browser downloads.
 
+    Uses S3_ENDPOINT_DOWNLOAD (e.g., CloudFront or localhost:9000).
 
-def generate_presigned_get_url_internal(
-    bucket_name: str,
-    object_name: str,
-    expires_hours: int = 2,
-) -> str:
-    """Presigned GET for in-container callers (workers)."""
+    Args:
+        bucket_name: Name of the S3 bucket
+        object_name: Path to the object in the bucket
+        expires_hours: Hours until the URL expires (default: 2)
+
+    Returns:
+        str: Presigned URL for GET operation
+    """
     object_name = _normalize_object_name(object_name)
-    client = s3_client()
+    client = _presign_client_for_download()
     return client.presigned_get_object(
         bucket_name, object_name, expires=timedelta(hours=expires_hours)
     )
 
 
 def maybe_presign_s3_key(value: str | None, expires_hours: int = 2) -> str | None:
-    """If `value` looks like an S3 key, return a presigned GET URL; else return as-is.
+    """Convert an S3 key to a presigned/direct URL if needed.
 
     This centralizes URL behavior for DB fields that store raw S3 keys (common in this repo).
+
+    In production, if download endpoint differs from upload endpoint (e.g., CloudFront vs S3),
+    uses direct URL for CDN caching. Otherwise uses presigned URLs.
+
+    Args:
+        value: S3 key or existing URL (or None)
+        expires_hours: Hours until presigned URL expires (default: 2)
+
+    Returns:
+        str | None: Presigned URL, direct URL, or None if value is None
     """
     if not value:
         return None
+
+    # Already a full URL - return as-is
     if value.startswith("http://") or value.startswith("https://"):
         return value
+
+    # If download endpoint differs from upload (e.g., CloudFront vs S3),
+    # use direct URL for CDN caching. Otherwise use presigned URLs.
+    if settings.S3_ENDPOINT_DOWNLOAD != settings.S3_ENDPOINT_UPLOAD:
+        return build_browser_object_url(settings.S3_BUCKET_NAME, value)
+
     return generate_presigned_get_url(settings.S3_BUCKET_NAME, value, expires_hours)
-
-
-def is_connection_secure(minio_url: str):
-    """Determine from URL string if is http or https."""
-    if minio_url.startswith("http://"):
-        secure = False
-        stripped_url = minio_url[len("http://") :]
-        log.warning("S3 URL is insecure (ignore if on devserver)")
-
-    elif minio_url.startswith("https://"):
-        secure = True
-        stripped_url = minio_url[len("https://") :]
-
-    else:
-        err = (
-            "The S3_ENDPOINT is set incorrectly. It must start with http:// or https://"
-        )
-        log.error(err)
-        raise ValueError(err)
-
-    return stripped_url, secure
 
 
 def check_file_exists(bucket_name: str, object_name: str) -> bool:
     """Check if a file exists in the S3 bucket.
 
     Args:
-        bucket_name (str): The name of the S3 bucket
-        object_name (str): The path to the object in the bucket
+        bucket_name: The name of the S3 bucket
+        object_name: The path to the object in the bucket
 
     Returns:
         bool: True if file exists, False otherwise
@@ -150,14 +217,10 @@ def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
     """Upload a file from the filesystem to an S3 bucket.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        file_path (str): The path to the file on the local filesystem.
-        s3_path (str): The path in the S3 bucket where the file will be stored.
+        bucket_name: The name of the S3 bucket
+        file_path: The path to the file on the local filesystem
+        s3_path: The path in the S3 bucket where the file will be stored
     """
-    # Ensure s3_path starts with a forward slash
-    # if not s3_path.startswith("/"):
-    #     s3_path = f"/{s3_path}"
-
     client = s3_client()
     client.fput_object(bucket_name, s3_path, file_path)
 
@@ -172,19 +235,15 @@ def add_obj_to_bucket(
     """Upload a BytesIO object to an S3 bucket.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        file_obj (BytesIO): A BytesIO object containing the data to be uploaded.
-        s3_path (str): The path in the S3 bucket where the data will be stored.
-        content_type (str, optional): The content type of the uploaded file.
-            Default application/octet-stream.
-        kwargs (dict[str, Any]): Any other arguments to pass to client.put_object.
-
+        bucket_name: The name of the S3 bucket
+        file_obj: A BytesIO object containing the data to be uploaded
+        s3_path: The path in the S3 bucket where the data will be stored
+        content_type: The content type of the uploaded file (default: application/octet-stream)
+        kwargs: Any other arguments to pass to client.put_object
     """
-    # Strip "/" from start of s3_path (not required by put_object)
-    if s3_path.startswith("/"):
-        s3_path = s3_path.lstrip("/")
-
+    s3_path = _normalize_object_name(s3_path)
     client = s3_client()
+
     # Set BytesIO object to start, prior to .read()
     file_obj.seek(0)
 
@@ -201,14 +260,10 @@ def get_file_from_bucket(bucket_name: str, s3_path: str, file_path: str):
     """Download a file from an S3 bucket and save it to the local filesystem.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        s3_path (str): The path to the file in the S3 bucket.
-        file_path (str): The path on the local filesystem where the S3
-            file will be saved.
+        bucket_name: The name of the S3 bucket
+        s3_path: The path to the file in the S3 bucket
+        file_path: The path on the local filesystem where the S3 file will be saved
     """
-    # Ensure s3_path starts with a forward slash
-    # if not s3_path.startswith("/"):
-    #     s3_path = f"/{s3_path}"
     try:
         client = s3_client()
         client.fget_object(bucket_name, s3_path, file_path)
@@ -224,16 +279,12 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
     """Download an S3 object from a bucket and return it as a BytesIO object.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        s3_path (str): The path to the S3 object in the bucket.
+        bucket_name: The name of the S3 bucket
+        s3_path: The path to the S3 object in the bucket
 
     Returns:
-        BytesIO: A BytesIO object containing the content of the downloaded S3 object.
+        BytesIO: A BytesIO object containing the content of the downloaded S3 object
     """
-    # Ensure s3_path starts with a forward slash
-    # if not s3_path.startswith("/"):
-    #     s3_path = f"/{s3_path}"
-
     client = s3_client()
     response = None
     try:
@@ -249,19 +300,18 @@ def get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
 
 
 async def async_get_obj_from_bucket(bucket_name: str, s3_path: str) -> BytesIO:
-    """Download an S3 object from a bucket and return it as a BytesIO object.
+    """Download an S3 object from a bucket and return it as a BytesIO object (async).
 
     This async wrapper uses run_in_threadpool to handle the synchronous MinIO client
     without blocking the event loop.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        s3_path (str): The path to the S3 object in the bucket.
+        bucket_name: The name of the S3 bucket
+        s3_path: The path to the S3 object in the bucket
 
     Returns:
-        BytesIO: A BytesIO object containing the content of the downloaded S3 object.
+        BytesIO: A BytesIO object containing the content of the downloaded S3 object
     """
-    # Use run_in_threadpool to handle the synchronous operation
     return await run_in_threadpool(get_obj_from_bucket, bucket_name, s3_path)
 
 
@@ -269,32 +319,24 @@ def get_image_dir_url(bucket_name: str, image_dir: str):
     """Generate the full URL for the image directory in an S3 bucket.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        image_dir (str): The directory path within the bucket where images are stored.
+        bucket_name: The name of the S3 bucket
+        image_dir: The directory path within the bucket where images are stored
 
     Returns:
-        str: The full URL to access the image directory.
+        str | None: The full URL to access the image directory, or None if empty
     """
-    minio_url, is_secure = is_connection_secure(settings.S3_ENDPOINT)
-
-    # Ensure image_dir starts with a forward slash
+    # Normalize the path
     if not image_dir.startswith("/"):
         image_dir = f"/{image_dir}"
 
-    # Construct the full URL
-    protocol = "https" if is_secure else "http"
-
-    url = f"{protocol}://{minio_url}/{bucket_name}{image_dir}"
-
-    minio_client = s3_client()
+    client = s3_client()
     try:
         # List objects with a prefix to check if the directory exists
-        objects = minio_client.list_objects(bucket_name, prefix=image_dir.lstrip("/"))
+        objects = client.list_objects(bucket_name, prefix=image_dir.lstrip("/"))
         if any(objects):
-            return url
+            return build_browser_object_url(bucket_name, image_dir.lstrip("/"))
         else:
             return None
-
     except Exception as e:
         log.error(f"Error checking directory existence: {str(e)}")
 
@@ -303,48 +345,59 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     """List all objects in a bucket with a specified prefix.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        prefix (str): The prefix to filter objects by.
+        bucket_name: The name of the S3 bucket
+        prefix: The prefix to filter objects by
 
     Returns:
-        list: A list of objects in the bucket with the specified prefix.
+        list: A list of objects in the bucket with the specified prefix
     """
     client = s3_client()
-    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
-    return objects
+    return client.list_objects(bucket_name, prefix=prefix, recursive=True)
 
 
 def get_object_metadata(bucket_name: str, object_name: str):
     """Get object metadata from an S3 bucket.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The name of the object in the bucket.
+        bucket_name: The name of the S3 bucket
+        object_name: The name of the object in the bucket
 
     Returns:
-        dict: A dictionary containing metadata about the object.
+        dict: A dictionary containing metadata about the object
     """
     client = s3_client()
     return client.stat_object(bucket_name, object_name)
 
 
 def get_assets_url_for_project(project_id: str):
-    """Browser URL for project assets.zip."""
+    """Generate browser URL for project assets.zip.
+
+    Args:
+        project_id: The unique identifier for the project
+
+    Returns:
+        str: URL to download the assets (presigned or direct/CDN depending on config)
+    """
     project_assets_path = f"projects/{project_id}/assets.zip"
-    return generate_presigned_get_url(settings.S3_BUCKET_NAME, project_assets_path, 3)
+    return maybe_presign_s3_key(project_assets_path, expires_hours=3)  # type: ignore[return-value]
 
 
 def get_orthophoto_url_for_project(project_id: str):
-    """Browser URL for orthophoto."""
+    """Generate browser URL for project orthophoto.
+
+    Args:
+        project_id: The unique identifier for the project
+
+    Returns:
+        str | None: URL to download the orthophoto, or None if not found
+    """
     project_orthophoto_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
 
     if not check_file_exists(settings.S3_BUCKET_NAME, project_orthophoto_path):
         log.warning("Orthophoto not found in S3 bucket")
         return None
 
-    return generate_presigned_get_url(
-        settings.S3_BUCKET_NAME, project_orthophoto_path, 12
-    )
+    return maybe_presign_s3_key(project_orthophoto_path, expires_hours=12)
 
 
 def copy_file_within_bucket(
@@ -353,17 +406,17 @@ def copy_file_within_bucket(
     """Copy a file from one path to another within the same bucket.
 
     Args:
-        bucket_name (str): The name of the bucket.
-        source_path (str): The current path of the object.
-        destination_path (str): The new path where the object will be copied.
+        bucket_name: The name of the bucket
+        source_path: The current path of the object
+        destination_path: The new path where the object will be copied
 
     Returns:
-        bool: True if the copy was successful, False otherwise.
+        bool: True if the copy was successful, False otherwise
     """
     try:
-        # Remove leading slash if present
-        source_path = source_path.lstrip("/")
-        destination_path = destination_path.lstrip("/")
+        # Normalize paths
+        source_path = _normalize_object_name(source_path)
+        destination_path = _normalize_object_name(destination_path)
 
         client = s3_client()
 
@@ -374,10 +427,8 @@ def copy_file_within_bucket(
             log.warning(f"Source file not found: {source_path} in bucket {bucket_name}")
             return False
 
-        # Create CopySource object
+        # Create CopySource object and copy
         copy_source = CopySource(bucket_name, source_path)
-
-        # Copy the object within the same bucket
         result = client.copy_object(bucket_name, destination_path, copy_source)
 
         log.debug(
@@ -399,11 +450,11 @@ def initiate_multipart_upload(bucket_name: str, object_name: str) -> str:
     """Initiate a multipart upload and return the upload ID.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The path in the S3 bucket where the file will be stored.
+        bucket_name: The name of the S3 bucket
+        object_name: The path in the S3 bucket where the file will be stored
 
     Returns:
-        str: The upload ID for the multipart upload session.
+        str: The upload ID for the multipart upload session
     """
     object_name = _normalize_object_name(object_name)
     client = s3_client()
@@ -429,27 +480,27 @@ def generate_presigned_multipart_upload_url(
     part_number: int,
     expires_hours: int = 2,
 ) -> str:
-    """Generate a presigned URL for uploading a single part in a multipart upload (PUT request).
+    """Generate a presigned URL for uploading a single part in a multipart upload.
 
     This is used by the frontend (Uppy) to upload large files in chunks. Each chunk/part
     gets its own presigned URL. This endpoint is called frequently during active uploads.
+    Uses S3_ENDPOINT_UPLOAD.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The S3 key/path where the file will be stored.
-        upload_id (str): The upload ID from initiate_multipart_upload.
-        part_number (int): The part number (1-10000) for this chunk.
-        expires_hours (int, optional): Hours until the URL expires. Defaults to 2.
+        bucket_name: The name of the S3 bucket
+        object_name: The S3 key/path where the file will be stored
+        upload_id: The upload ID from initiate_multipart_upload
+        part_number: The part number (1-10000) for this chunk
+        expires_hours: Hours until the URL expires (default: 2)
 
     Returns:
-        str: The presigned URL for uploading this specific part.
+        str: The presigned URL for uploading this specific part
 
     Raises:
-        S3Error: If there's an error communicating with S3.
+        S3Error: If there's an error communicating with S3
     """
     object_name = _normalize_object_name(object_name)
-
-    client = s3_presign_client()
+    client = _presign_client_for_upload()
 
     try:
         url = client.get_presigned_url(
@@ -463,8 +514,7 @@ def generate_presigned_multipart_upload_url(
             },
         )
         log.debug(f"Generated presigned URL for part {part_number} of {object_name}")
-        # For multipart, we must keep all query params (signature, uploadId, partNumber).
-        return strip_presigned_url_for_local_dev(url, strip_presign=False)
+        return url
     except S3Error as e:
         log.error(f"Error generating presigned URL for part upload: {e}")
         raise
@@ -473,35 +523,19 @@ def generate_presigned_multipart_upload_url(
         raise
 
 
-def get_presigned_upload_part_url(
-    bucket_name: str,
-    object_name: str,
-    upload_id: str,
-    part_number: int,
-    expires: int = 2,
-) -> str:
-    """Deprecated: Use generate_presigned_multipart_upload_url instead.
-
-    This function is maintained for backwards compatibility.
-    """
-    return generate_presigned_multipart_upload_url(
-        bucket_name, object_name, upload_id, part_number, expires
-    )
-
-
 def complete_multipart_upload(
     bucket_name: str, object_name: str, upload_id: str, parts: list[dict]
 ) -> bool:
     """Complete a multipart upload by combining all uploaded parts.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The path in the S3 bucket where the file is stored.
-        upload_id (str): The upload ID from initiate_multipart_upload.
-        parts (list[dict]): List of parts with 'PartNumber' and 'ETag' keys.
+        bucket_name: The name of the S3 bucket
+        object_name: The path in the S3 bucket where the file is stored
+        upload_id: The upload ID from initiate_multipart_upload
+        parts: List of parts with 'PartNumber' and 'ETag' keys
 
     Returns:
-        bool: True if the multipart upload was completed successfully.
+        bool: True if the multipart upload was completed successfully
     """
     object_name = _normalize_object_name(object_name)
     client = s3_client()
@@ -539,12 +573,12 @@ def abort_multipart_upload(bucket_name: str, object_name: str, upload_id: str) -
     """Abort a multipart upload and clean up uploaded parts.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The path in the S3 bucket.
-        upload_id (str): The upload ID from initiate_multipart_upload.
+        bucket_name: The name of the S3 bucket
+        object_name: The path in the S3 bucket
+        upload_id: The upload ID from initiate_multipart_upload
 
     Returns:
-        bool: True if the upload was aborted successfully.
+        bool: True if the upload was aborted successfully
     """
     object_name = _normalize_object_name(object_name)
     client = s3_client()
@@ -567,12 +601,12 @@ def list_parts(bucket_name: str, object_name: str, upload_id: str) -> list[dict]
     """List all uploaded parts for a multipart upload.
 
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_name (str): The path in the S3 bucket.
-        upload_id (str): The upload ID from initiate_multipart_upload.
+        bucket_name: The name of the S3 bucket
+        object_name: The path in the S3 bucket
+        upload_id: The upload ID from initiate_multipart_upload
 
     Returns:
-        list[dict]: List of uploaded parts with part number and ETag.
+        list[dict]: List of uploaded parts with part number and ETag
     """
     object_name = _normalize_object_name(object_name)
     client = s3_client()

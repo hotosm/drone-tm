@@ -21,7 +21,7 @@ from app.projects import project_logic
 from app.s3 import (
     add_file_to_bucket,
     copy_file_within_bucket,
-    generate_presigned_get_url_internal,
+    generate_presigned_get_url,
     get_file_from_bucket,
     list_objects_from_bucket,
 )
@@ -128,10 +128,8 @@ class DroneImageProcessor:
 
         accepted_file_extensions = (".jpg", ".jpeg", ".png", ".txt", ".laz")
 
-        # Use internal presigned URLs for worker downloads (uses S3_ENDPOINT like minio:9000)
-        # This is needed because S3_DOWNLOAD_ROOT (localhost) doesn't work inside Docker
         object_urls = [
-            generate_presigned_get_url_internal(bucket_name, obj.object_name, 12)
+            generate_presigned_get_url(bucket_name, obj.object_name, 12)
             for obj in objects
             if obj.object_name.lower().endswith(accepted_file_extensions)
         ]

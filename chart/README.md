@@ -99,9 +99,16 @@ Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / 
 Your Secret should include (at minimum):
 
 - Database: `POSTGRES_PASSWORD`
-- S3: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
+- S3 credentials: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
 - Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JAXA_AUTH_TOKEN`, `SECRET_KEY`.
 - Redis: (provided automatically by the chart; no `REDIS_DSN` needed)
+
+You will also typically want to set these **non-secret** environment variables via Helm values
+(`env` or `extraEnvFrom`), depending on your S3/CDN setup:
+
+- `S3_BUCKET_NAME`
+- `S3_ENDPOINT_UPLOAD` (presigned uploads; can be S3 Transfer Acceleration)
+- `S3_ENDPOINT_DOWNLOAD` (browser downloads/display; can be CloudFront)
 
 ### Creating a Kubernetes Secret
 

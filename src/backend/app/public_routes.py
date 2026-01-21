@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from app.models.enums import HTTPStatus
-from app.s3 import generate_presigned_get_url
-from app.config import settings
+from app.s3 import maybe_presign_s3_key
 
 router = APIRouter(tags=["Public"])
 
@@ -25,11 +24,7 @@ async def get_public_presigned_url(
         )
 
     try:
-        return {
-            "url": generate_presigned_get_url(
-                settings.S3_BUCKET_NAME, key, expires_hours=expires_hours
-            )
-        }
+        return {"url": maybe_presign_s3_key(key, expires_hours=expires_hours)}
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
