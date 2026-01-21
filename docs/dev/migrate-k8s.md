@@ -100,6 +100,8 @@ Then set:
 
 ### Add CloudFront in front of S3 (recommended for downloads)
 
+`https://raw.githubusercontent.com/hotosm/k8s-infra/main/scripts/add-s3-cloudfront.sh`
+
 Create a CloudFront distribution with the S3 bucket as origin (see your infra repo workflow).
 Then set:
 
@@ -109,6 +111,12 @@ For DroneTM production, these public paths are used for static resources:
 
 - `https://d2ymfcf63vwwpt.cloudfront.net/tutorials/`
 - `https://d2ymfcf63vwwpt.cloudfront.net/publicuploads/`
+
+### Enable intelligent tiering storage
+
+`https://raw.githubusercontent.com/hotosm/k8s-infra/main/scripts/add-s3-intelligent-tiering.sh`
+
+This will massively reduce storage cost for infrequently accessed data.
 
 ## 5. Transfer the S3 content
 

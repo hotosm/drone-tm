@@ -11,3 +11,4 @@ from the projects inception.
 - [0000 - HOTOSM Context and Alignment](./0000-hotosm.md)
 - [0001 - FastAPI for Backend API](./0001-fastapi.md)
 - [0002 - Flightplan Upload Options](./0002-flightplan-upload.md)
+- [0003 - Storage And Processing Options](./0003-aws-storage-processing.md)
