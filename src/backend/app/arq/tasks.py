@@ -23,6 +23,7 @@ from app.models.enums import HTTPStatus, ImageStatus
 from app.projects.project_logic import process_all_drone_images, process_drone_images
 from app.s3 import async_get_obj_from_bucket, s3_client
 from app.projects.image_classification import ImageClassifier
+from app.jaxa.upload_dem import download_and_upload_dem
 
 
 THUMBNAIL_SIZE = (200, 200)
@@ -707,6 +708,7 @@ class WorkerSettings:
         classify_image_batch,
         process_batch_images,
         delete_batch_images,
+        download_and_upload_dem,
     ]
 
     queue_name = "default_queue"

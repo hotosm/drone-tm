@@ -14,12 +14,15 @@ base_dir = Path(__file__).resolve().parent
 class TifSpider(scrapy.Spider):
     name = "tif_spider"
     allowed_domains = ["eorc.jaxa.jp"]
-    merged_file_path = None
 
-    def __init__(self, coordinates, *args, **kwargs):
+    def __init__(self, coordinates, output_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tif_files = []
         self.coordinates = coordinates.split(",")
+        self.output_path = output_path
+        # Use project-specific temp directory based on output path
+        self.temp_dir = Path(output_path).parent / "tiles"
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
 
     headers = {
         "authority": "www.eorc.jaxa.jp",
@@ -51,41 +54,44 @@ class TifSpider(scrapy.Spider):
             )
 
         for url in urls:
-            yield scrapy.Request(url=url, callback=self.parse)
+            yield scrapy.Request(url=url, callback=self.parse, headers=self.headers)
 
     def parse(self, response):
-        temp_dir = "/tmp/tif_processing"
-        os.makedirs(temp_dir, exist_ok=True)
         try:
             with zipfile.ZipFile(io.BytesIO(response.body)) as zip_file:
                 for file_name in zip_file.namelist():
                     if file_name.endswith("DSM.tif"):
                         # Save .tif file into the temp directory
-                        temp_path = os.path.join(temp_dir, os.path.basename(file_name))
+                        temp_path = str(self.temp_dir / os.path.basename(file_name))
                         with zip_file.open(file_name) as tif_file:
                             with open(temp_path, "wb") as out_file:
                                 out_file.write(tif_file.read())
                         self.tif_files.append(temp_path)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.error(f"Error parsing {response.url}: {e}")
 
     def closed(self, reason):
         if self.tif_files:
-            self.merged_file_path = self.merge_tiles()
+            self.merge_tiles()
+        else:
+            self.logger.warning("No TIF files were downloaded")
 
+    def merge_tiles(self):
+        try:
+            vrt_file = str(self.temp_dir / "merged.vrt")
+            gdal.BuildVRT(vrt_file, self.tif_files)
+            gdal.Translate(self.output_path, vrt_file)
 
-def merge_tiles(self):
-    vrt_file = "/tmp/merged.vrt"
-    gdal.BuildVRT(vrt_file, self.tif_files)
-    output_file = str(base_dir / "merged.tif")
+            # Cleanup files
+            for file in self.tif_files:
+                if os.path.exists(file):
+                    os.remove(file)
+            if os.path.exists(vrt_file):
+                os.remove(vrt_file)
+            if self.temp_dir.exists():
+                self.temp_dir.rmdir()
 
-    gdal.Translate(output_file, vrt_file)
-
-    # Cleanup files under /tmp
-    for file in self.tif_files:
-        os.remove(file)
-    os.remove(vrt_file)
-    temp_dir = "/tmp/tif_processing"
-    if os.path.exists(temp_dir):
-        os.rmdir(temp_dir)
-    return output_file
+            self.logger.info(f"Successfully merged tiles to {self.output_path}")
+        except Exception as e:
+            self.logger.error(f"Error merging tiles: {e}")
+            raise
