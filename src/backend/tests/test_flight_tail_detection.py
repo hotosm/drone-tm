@@ -589,12 +589,12 @@ async def test_multi_batch_rejections(db, create_test_project, auth_user):
                 ts = seg["start"] + timedelta(seconds=i * 2)
 
                 # Creating a path:
-                # 0-5: Vertical and moving up in altitude
-                # 6-12: Moving NORTH (azimuth 0)
-                # 13-60: Mission then moves EAST (azimuth 90)
+                # 0-3: Vertical and moving up in altitude
+                # 4-8: Moving NORTH (azimuth 0)
+                # 9: Mission moving EAST (azimuth 90)
 
-                is_vertical = i < 6
-                is_transit = 6 <= i < 13
+                is_vertical = i < 4
+                is_transit = 4 <= i < 9
 
                 if is_vertical:
                     lat, lon = -8.301, 115.46
@@ -603,10 +603,10 @@ async def test_multi_batch_rejections(db, create_test_project, auth_user):
                     lat, lon = -8.301 + (i * 0.0002), 115.46
                     alt = 200
                 else:
-                    lat, lon = -8.301 + (13 * 0.0002), 115.46 + ((i - 13) * 0.0002)
+                    lat, lon = -8.301 + (8 * 0.0002), 115.46 + ((i - 8) * 0.0002)
                     alt = 200
 
-                file_name = f"flight_takeoff_{i:03d}.jpg"
+                file_name = f"{seg['label']}_{i:03d}.jpg"
                 s3_key = f"dtm-data/projects/{project_id}/user-uploads/{file_name}"
                 hash_md5 = hashlib.md5(file_name.encode("utf-8")).hexdigest()
 
