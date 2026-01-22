@@ -10,6 +10,7 @@ import '@Assets/css/index.css';
 import '@Assets/css/tailwind.css';
 import { store, persistor } from './store';
 import App from './App';
+import { getRuntimeConfig } from './runtimeConfig';
 
 // Import Web Awesome components needed by hanko-auth web component
 import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
@@ -41,7 +42,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <hot-tracking
           style={{ position: 'fixed', bottom: '0%' }}
           site-id="35"
-          domain="dronetm.org"
+          domain="drone.hotosm.org"
         />
       </PersistGate>
     </Provider>

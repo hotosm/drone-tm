@@ -11,23 +11,17 @@ FROM base AS development
 COPY ./package.json pnpm-lock.yaml .
 RUN corepack prepare pnpm@9.15.5 --activate && corepack enable && corepack install
 RUN pnpm install
-ENTRYPOINT ["/bin/sh", "-c", "pnpm run start --host 0.0.0.0;"]
+ENTRYPOINT ["/bin/sh", "-c", "pnpm run start"]
 
 
 
 # Generate frontend build files
 FROM base AS build
-ARG API_URL
-ARG COG_URL
-ARG SITE_NAME
 ARG VITE_AUTH_PROVIDER
 ARG VITE_HANKO_URL
 ARG VITE_FRONTEND_URL
 ARG VITE_API_URL
 ENV \
-    API_URL=${API_URL} \
-    COG_URL=${COG_URL} \
-    SITE_NAME=${SITE_NAME} \
     VITE_AUTH_PROVIDER=${VITE_AUTH_PROVIDER} \
     VITE_HANKO_URL=${VITE_HANKO_URL} \
     VITE_FRONTEND_URL=${VITE_FRONTEND_URL} \

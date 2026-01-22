@@ -92,7 +92,10 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     volumes:
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
@@ -134,13 +137,8 @@ services:
       context: src/frontend
       dockerfile: Dockerfile
       target: prod
-      args:
-        API_URL: https://${DOMAIN}/api
-        COG_URL: ${COG_URL}
-        SITE_NAME: ${SITE_NAME}
     volumes:
       - frontend-html:/frontend_html
-    env_file: .env
     network_mode: none
     restart: "on-failure:2"
 
@@ -162,20 +160,21 @@ services:
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     depends_on:
-      - backend
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env
     networks:
       - dtm-network
-    entrypoint: ["alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
     restart: "no"
 
   arq-worker:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     command: arq app.arq.tasks.WorkerSettings
     depends_on:
-      - redis
+      dragonfly:
+        condition: service_healthy
     env_file: .env
     networks:
       - dtm-network
@@ -187,8 +186,8 @@ services:
       retries: 2
       start_period: 20s
 
-  redis:
-    image: redis:7-alpine
+  dragonfly:
+    image: ghcr.io/dragonflydb/dragonfly:v1.36.0
     networks:
       - dtm-network
     restart: unless-stopped

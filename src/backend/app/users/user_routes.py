@@ -179,8 +179,13 @@ async def callback(
     google_auth=Depends(init_google_auth),
 ):
     """Performs token exchange between Google and DTM API"""
-    # Enforce https callback url
-    callback_url = str(request.url).replace("http://", "https://")
+    # Build the OAuth authorization_response using the *registered* redirect URI.
+    # The frontend receives `code`/`state` at GOOGLE_LOGIN_REDIRECT_URI, then forwards them here.
+    # OAuth libraries expect the authorization_response to match the registered redirect URI,
+    # not this backend endpoint.
+    code = request.query_params.get("code")
+    state = request.query_params.get("state")
+    callback_url = f"{settings.GOOGLE_LOGIN_REDIRECT_URI}?code={code}&state={state}"
     access_token = google_auth.callback(callback_url, role).get("access_token")
 
     user_data = google_auth.deserialize_access_token(access_token)

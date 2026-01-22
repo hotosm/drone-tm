@@ -102,15 +102,14 @@ To get started with DroneTM:
 |✅| 🖥️ support retries for dropped connections during photo uploads | TBC |
 |✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | TBC |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
+|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 |⚙️| 📱 entirely offline flightplan generation, directly on device | |
 | | 📱 allow modification and division of flightplans by user before flight | |
-| | 🖥️ pre-filtering and validation of obvious photo issues prior to upload | |
 | | 🖥️ user access management for each part of the UI | |
 | | 🖥️ improved user feedback and retry capabilities during imagery processing | |
 | | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
-|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 | | 🖥️ better usage of 3D model data collected by drones | |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally | |
 <!-- prettier-ignore-end -->

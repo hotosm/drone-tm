@@ -33,7 +33,7 @@ from app.projects import project_schemas
 from app.projects.image_processing import DroneImageProcessor
 from app.s3 import (
     add_obj_to_bucket,
-    generate_presigned_get_url,
+    maybe_presign_s3_key,
     get_file_from_bucket,
     get_object_metadata,
     list_objects_from_bucket,
@@ -110,9 +110,7 @@ async def upload_file_to_s3(
     )
 
     # Return a browser-usable URL.
-    return generate_presigned_get_url(
-        settings.S3_BUCKET_NAME, file_path, expires_hours=2
-    )
+    return maybe_presign_s3_key(file_path, expires_hours=2)
 
 
 async def update_project_oam_status(
@@ -500,7 +498,7 @@ async def process_drone_images(
 
             # Initialize the processor with the database connection
             processor = DroneImageProcessor(
-                node_odm_url=settings.NODE_ODM_URL,
+                node_odm_url=settings.ODM_ENDPOINT,
                 project_id=project_id,
                 task_id=task_id,
                 user_id=user_id,
@@ -567,7 +565,7 @@ async def process_all_drone_images(
         async with pool.connection() as conn:
             # Initialize the processor
             processor = DroneImageProcessor(
-                node_odm_url=settings.NODE_ODM_URL,
+                node_odm_url=settings.ODM_ENDPOINT,
                 project_id=project_id,
                 task_id=None,
                 user_id=user_id,
@@ -621,9 +619,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL
-            presigned_url = generate_presigned_get_url(
-                settings.S3_BUCKET_NAME, assets_path, expires_hours=2
-            )
+            presigned_url = maybe_presign_s3_key(assets_path, expires_hours=2)
         except S3Error as e:
             if e.code == "NoSuchKey":
                 # The object does not exist
@@ -636,11 +632,44 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 log.error(f"An error occurred while accessing assets file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
+        # Generate a presigned URL for the orthophoto (task-level preferred; fallback to project-level)
+        orthophoto_url = None
+        try:
+            task_ortho_path = (
+                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
+            )
+            project_ortho_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
+
+            # Prefer per-task orthophoto if it exists
+            try:
+                get_object_metadata(settings.S3_BUCKET_NAME, task_ortho_path)
+                orthophoto_url = maybe_presign_s3_key(task_ortho_path, expires_hours=12)
+            except S3Error as e:
+                if e.code != "NoSuchKey":
+                    raise
+
+                # Fallback to project-level orthophoto if present (e.g. single-task projects)
+                try:
+                    get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_path)
+                    orthophoto_url = maybe_presign_s3_key(
+                        project_ortho_path, expires_hours=12
+                    )
+                except S3Error as e2:
+                    if e2.code == "NoSuchKey":
+                        orthophoto_url = None
+                    else:
+                        raise
+        except Exception as e:
+            # Do not fail the whole endpoint if orthophoto is missing; just omit it.
+            log.warning(f"Unable to generate orthophoto_url: {e}")
+            orthophoto_url = None
+
         return project_schemas.AssetsInfo(
             project_id=str(project_id),
             task_id=str(task_id),
             image_count=image_count,
             assets_url=presigned_url,
+            orthophoto_url=orthophoto_url,
         )
     except Exception as e:
         log.exception(f"An error occurred while retrieving assets info: {e}")

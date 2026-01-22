@@ -24,55 +24,13 @@ jobs:
       scan_image: false
     secrets: inherit
 
-  extra-vars:
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.ref_name == 'dev' && 'develop' || github.ref_name }}
-    outputs:
-      API_URL: ${{ steps.vars_and_secrets_to_env.outputs.API_URL }}
-      COG_URL: ${{ steps.vars_and_secrets_to_env.outputs.COG_URL }}
-      SITE_NAME: ${{ steps.vars_and_secrets_to_env.outputs.SITE_NAME }}
-    steps:
-      - name: Vars to Env File
-        env:
-          VARS_CONTEXT: ${{ toJson(vars) }}
-        run: |
-          # Parse JSON with multiline strings
-          to_envs() { jq -r "to_entries[] | \"\(.key)=\(.value)\""; }
-
-          # Create .env file from VARS_CONTEXT
-          if [ "${VARS_CONTEXT}" != "null" ]; then
-            echo "${VARS_CONTEXT}" | to_envs > .env
-          fi
-
-      - name: Extract relevant vars
-        id: vars_and_secrets_to_env
-        run: |
-          API_URL=$(grep '^API_URL=' .env | cut -d '=' -f2-)
-          echo $API_URL
-          echo "API_URL=${API_URL}" >> "$GITHUB_OUTPUT"
-
-          COG_URL=$(grep '^COG_URL=' .env | cut -d '=' -f2-)
-          echo "COG_URL=${COG_URL}" >> "$GITHUB_OUTPUT"
-          echo $COG_URL
-
-          SITE_NAME=$(grep '^SITE_NAME=' .env | cut -d '=' -f2-)
-          echo "SITE_NAME=${SITE_NAME}" >> "$GITHUB_OUTPUT"
-          echo $SITE_NAME
-
   frontend-build:
     uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.1
-    needs:
-      - extra-vars
     with:
       context: ./src/frontend
       build_target: prod
       image_name: ghcr.io/${{ github.repository }}/frontend
       dockerfile: Dockerfile
-      extra_build_args: |
-        API_URL=${{ needs.extra-vars.outputs.API_URL }}
-        COG_URL=${{ needs.extra-vars.outputs.COG_URL }}
-        SITE_NAME=${{ needs.extra-vars.outputs.SITE_NAME }}
       scan_image: false
     secrets: inherit
 

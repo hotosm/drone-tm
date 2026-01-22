@@ -8,7 +8,7 @@ from pyproj import Transformer
 from shapely.geometry import Point, Polygon
 
 from app.config import settings
-from app.s3 import generate_presigned_get_url
+from app.s3 import generate_presigned_get_url, maybe_presign_s3_key
 from app.waypoints import waypoint_schemas
 
 
@@ -299,6 +299,7 @@ async def find_images_in_a_project_for_point(
         s3_images_json_path_for_task = (
             f"projects/{project_id}/{task_id_str}/images.json"
         )
+        # Backend downloads must use the internal endpoint (not the browser download endpoint).
         s3_images_json_url = generate_presigned_get_url(
             settings.S3_BUCKET_NAME, s3_images_json_path_for_task
         )
@@ -316,11 +317,7 @@ async def find_images_in_a_project_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        generate_presigned_get_url(
-            settings.S3_BUCKET_NAME,
-            f"projects/{project_id}/{image}",
-        )
-        for image in images_list
+        maybe_presign_s3_key(f"projects/{project_id}/{image}") for image in images_list
     ]
 
     return presigned_urls
@@ -347,6 +344,7 @@ async def find_images_in_a_task_for_point(
     s3_images_json_path = f"projects/{project_id}/{task_id}/images.json"
 
     # Generate pre-signed URL for the `images.json` file
+    # Backend downloads must use the internal endpoint (not the browser download endpoint).
     s3_images_json_url = generate_presigned_get_url(
         settings.S3_BUCKET_NAME, s3_images_json_path
     )
@@ -366,10 +364,7 @@ async def find_images_in_a_task_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        generate_presigned_get_url(
-            settings.S3_BUCKET_NAME,
-            f"projects/{project_id}/{task_id}/images/{image}",
-        )
+        maybe_presign_s3_key(f"projects/{project_id}/{task_id}/images/{image}")
         for image in matching_images
     ]
 

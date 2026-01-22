@@ -62,8 +62,6 @@ import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 import Icon from '@Components/common/Icon';
 
-const { COG_URL } = process.env;
-
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
@@ -117,14 +115,22 @@ const MapSection = ({ className }: { className?: string }) => {
     disableRotation: true,
   });
 
-  const orthophotoSource: RasterSourceSpecification = useMemo(
-    () => ({
-      type: 'raster',
-      url: `cog://${COG_URL}/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
-      tileSize: 256,
-    }),
-    [projectId, taskId],
+  const {
+    data: taskAssetsInformation,
+    // isFetching: taskAssetsInfoLoading,
+  }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
   );
+
+  const orthophotoSource: RasterSourceSpecification | null = useMemo(() => {
+    const signed = taskAssetsInformation?.orthophoto_url;
+    if (signed) {
+      return { type: 'raster', url: `cog://${signed}`, tileSize: 256 };
+    }
+
+    return null;
+  }, [taskAssetsInformation?.orthophoto_url]);
 
   const { data: taskWayPointsData, isLoading: taskWayPointsLoading }: any =
     useGetTaskWaypointQuery(
@@ -173,14 +179,6 @@ const MapSection = ({ className }: { className?: string }) => {
       );
     }
   }, [taskWayPointsData]);
-
-  const {
-    data: taskAssetsInformation,
-    // isFetching: taskAssetsInfoLoading,
-  }: Record<string, any> = useGetTaskAssetsInfo(
-    projectId as string,
-    taskId as string,
-  );
 
   const { mutate: postWaypoint, isPending: isUpdatingTakeOffPoint } =
     useMutation<any, any, any, unknown>({
@@ -842,7 +840,7 @@ const MapSection = ({ className }: { className?: string }) => {
         {/* Update take off end */}
 
         {/* Ortho-photo visualization */}
-        {taskAssetsInformation?.assets_url && (
+        {taskAssetsInformation?.orthophoto_url && orthophotoSource && (
           <COGOrthophotoViewer
             id="task-orthophoto"
             source={orthophotoSource}

@@ -83,10 +83,43 @@ kubectl exec -it "$POD_NAME" -- \
 
 ## 4. Create a new S3 bucket
 
-- Clone the hotosm/k8s-infra repo, or just copy out `scripts/create-s3-bucket.sh`.
+- Clone the hotosm/k8s-infra repo, or just copy out `scripts/create-s3-bucket.sh` from:
+  `https://raw.githubusercontent.com/hotosm/k8s-infra/main/scripts/create-s3-bucket.sh`
 - Login to AWS SSO `aws sso login --profile admin --use-device-code`.
 - Create a bucket: `bash create-s3-bucket.sh dronetm-prod`
 - Save the creds printed to terminal.
+
+### Enable S3 Transfer Acceleration (recommended for uploads)
+
+After bucket creation, enable Transfer Acceleration on the bucket to improve upload UX
+(especially for large imagery uploads). This is not currently scripted.
+
+Then set:
+
+- `S3_ENDPOINT_UPLOAD=https://<your-bucket>.s3-accelerate.amazonaws.com`
+
+### Add CloudFront in front of S3 (recommended for downloads)
+
+`https://raw.githubusercontent.com/hotosm/k8s-infra/main/scripts/add-s3-cloudfront.sh`
+
+Create a CloudFront distribution with the S3 bucket as origin (see your infra repo workflow).
+Then set:
+
+- `S3_ENDPOINT_DOWNLOAD=https://<your-cloudfront-domain>/`
+
+For DroneTM production, these public paths are used for static resources:
+
+- `https://d2ymfcf63vwwpt.cloudfront.net/tutorials/`
+- `https://d2ymfcf63vwwpt.cloudfront.net/publicuploads/`
+
+The same security credentials generated should work for both
+the new cloudfront and accelerate endpoints.
+
+### Enable intelligent tiering storage
+
+`https://raw.githubusercontent.com/hotosm/k8s-infra/main/scripts/add-s3-intelligent-tiering.sh`
+
+This will massively reduce storage cost for infrequently accessed data.
 
 ## 5. Transfer the S3 content
 

@@ -57,7 +57,7 @@ async def test_upload_project_task_boundaries(client, create_test_project):
         "geojson": ("file.geojson", BytesIO(task_geojson), "application/geo+json")
     }
     response = await client.post(
-        f"/projects/{project_id}/upload-task-boundaries", files=geojson_files
+        f"/api/projects/{project_id}/upload-task-boundaries", files=geojson_files
     )
     assert response.status_code == 200
     return response.json()

@@ -26,11 +26,17 @@ Just is required too:
 
 - There is an example `.env.example` file that `.env` can be generated from using this command:
   `just config generate-dotenv`
+  - The generator runs the repo’s `./envsubst` twice so defaults that reference other vars
+    (e.g. `$BACKEND_WEB_APP_PORT`) resolve correctly.
 - If you only plan on using the backend then everything should be
   configured for you.
 - The current setup expects:
   - `DOMAIN` for public URLs (backend derives its public base URL automatically)
-  - `API_URL` for the frontend to reach the backend API (must include `/api`)
+  - `VITE_API_URL` for the frontend to reach the backend API (must include `/api`)
+- S3 endpoints:
+  - `S3_ENDPOINT_UPLOAD`: used by browser presigned uploads (often `http://localhost:9000` in dev)
+  - `S3_ENDPOINT_DOWNLOAD`: used by browser downloads/display
+    - In dev, defaults to `http://localhost:9000` (downloads via a path-rewriting proxy will break presigned signatures).
 - If you set up Google OAuth credentials, set the variables here:
 
   ```dotenv

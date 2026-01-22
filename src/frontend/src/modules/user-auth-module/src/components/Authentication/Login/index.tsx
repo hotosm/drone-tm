@@ -17,8 +17,9 @@ import { signInGoogle, signInUser } from '@Services/common';
 import { setUserState } from '@UserModule/store/actions/user';
 import googleIcon from '@Assets/images/google-icon.svg';
 import { isSafeRedirect } from '@Utils/url';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
-const { API_URL } = process.env;
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 // Auth provider configuration
 const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';

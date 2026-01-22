@@ -521,7 +521,7 @@ async def odm_webhook_for_processing_whole_project(
         log.info(f"Project {dtm_project_id}: Processing status {status['code']}")
         background_tasks.add_task(
             image_processing.process_assets_from_odm,
-            node_odm_url=settings.NODE_ODM_URL,
+            node_odm_url=settings.ODM_ENDPOINT,
             dtm_project_id=dtm_project_id,
             odm_task_id=odm_task_id,
             odm_status_code=status["code"],
@@ -555,7 +555,7 @@ async def odm_webhook_for_processing_a_single_task(
     if status["code"] == 40:
         background_tasks.add_task(
             image_processing.process_assets_from_odm,
-            node_odm_url=settings.NODE_ODM_URL,
+            node_odm_url=settings.ODM_ENDPOINT,
             dtm_project_id=dtm_project_id,
             odm_task_id=odm_task_id,
             state=state_value,
@@ -578,7 +578,7 @@ async def odm_webhook_for_processing_a_single_task(
         )
         background_tasks.add_task(
             image_processing.process_assets_from_odm,
-            node_odm_url=settings.NODE_ODM_URL,
+            node_odm_url=settings.ODM_ENDPOINT,
             dtm_project_id=dtm_project_id,
             odm_task_id=odm_task_id,
             state=state_value,

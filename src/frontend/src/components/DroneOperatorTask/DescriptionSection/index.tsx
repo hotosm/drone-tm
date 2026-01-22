@@ -10,8 +10,9 @@ import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import MapSection from '../MapSection/MapSection';
 import DescriptionBox from './DescriptionBox';
 import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from '@Utils/adb';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
-const { API_URL } = process.env;
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 const DroneOperatorDescriptionBox = () => {
   const { taskId, projectId } = useParams();

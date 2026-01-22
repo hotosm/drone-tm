@@ -657,7 +657,10 @@ async def mark_and_remove_flight_tail_imagery(
             row_num,
             CASE
                 WHEN row_num = 1 THEN NULL
-                ELSE mod(degrees(ST_Azimuth(previous_location::geometry, location::geometry)) + 360.0, 360.0)
+                ELSE mod(
+                    (degrees(ST_Azimuth(previous_location::geometry, location::geometry)) + 360.0)::numeric,
+                    360::numeric
+                )::double precision
             END AS azimuth,
             CASE
                 WHEN row_num = 1 THEN NULL

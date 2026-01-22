@@ -26,7 +26,7 @@ const MobileAppDownload = () => {
             <div className="naxatw-flex naxatw-justify-center sm:naxatw-justify-start">
               <Link
                 className="naxatw-group naxatw-flex naxatw-h-[60px] naxatw-items-center naxatw-justify-center naxatw-gap-4 !naxatw-rounded-full naxatw-bg-black !naxatw-px-8 naxatw-text-white"
-                to="https://dronetm-prod.s3-accelerate.amazonaws.com/publicuploads/DroneTM.apk"
+                to="https://d2ymfcf63vwwpt.cloudfront.net/publicuploads/DroneTM.apk"
               >
                 <span className="naxatw-text-base naxatw-font-medium group-hover:naxatw-underline">
                   Download APK
