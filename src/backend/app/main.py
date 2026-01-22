@@ -63,7 +63,7 @@ def get_logger():
         if logger_name == "urllib3":
             # Don't hook urllib3, called on each OTEL trace
             continue
-        if logger_name == "psycopg_pool.pool_async":
+        if logger_name == "psycopg_pool":
             # Every time a connection is created it's logged...
             continue
 
