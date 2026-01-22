@@ -11,7 +11,7 @@ import {
 import Modal from '@Components/common/Modal';
 import { Button } from '@Components/RadixComponents/Button';
 import StepSwitcher from '@Components/common/StepSwitcher';
-import { deleteBatch } from '@Services/classification';
+import { deleteBatch, finalizeBatch } from '@Services/classification';
 import ImageUpload from './ImageUpload';
 import ImageClassification from './ImageClassification';
 import ImageReview from './ImageReview';
@@ -45,6 +45,23 @@ const DroneImageProcessingWorkflow = ({
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to delete batch');
+    },
+  });
+
+  // Mutation to finalize batch (move images without processing)
+  const finalizeBatchMutation = useMutation({
+    mutationFn: () => finalizeBatch(projectId, batchId!),
+    onSuccess: (data) => {
+      if (data.total_moved > 0) {
+        toast.success(`Moved ${data.total_moved} images to ${data.task_count} task(s)`);
+      }
+      dispatch(resetWorkflow());
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to finalize batch');
+      dispatch(resetWorkflow());
+      onClose();
     },
   });
 
@@ -104,11 +121,14 @@ const DroneImageProcessingWorkflow = ({
     setShowAbortConfirmation(false);
   };
 
-  // Handle finish button - closes without showing abort confirmation
-  // Used when user has completed the workflow (on final step)
+  // Handle finish button - finalizes batch (moves images) and closes
   const handleFinish = () => {
-    dispatch(resetWorkflow());
-    onClose();
+    if (batchId) {
+      finalizeBatchMutation.mutate();
+    } else {
+      dispatch(resetWorkflow());
+      onClose();
+    }
   };
 
   // Handle upload complete - store batch ID and move to classification

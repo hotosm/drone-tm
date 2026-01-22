@@ -194,6 +194,19 @@ export const getProcessingSummary = async (
 };
 
 /**
+ * Finalize batch - moves images to task folders without triggering ODM
+ */
+export const finalizeBatch = async (
+  projectId: string,
+  batchId: string,
+): Promise<{ message: string; batch_id: string; total_moved: number; task_count: number }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/batch/${batchId}/finalize/`,
+  );
+  return response.data;
+};
+
+/**
  * Start batch processing - moves images to task folders and triggers ODM
  */
 export const startBatchProcessing = async (

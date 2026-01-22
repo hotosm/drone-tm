@@ -1196,10 +1196,11 @@ class ImageClassifier:
                 "tasks": {},
             }
 
-        # Group images by task
+        # Group images by task and move only those still in user-uploads
         tasks_summary = {}
         moved_count = 0
         failed_count = 0
+        already_moved_count = 0
 
         for image in images:
             task_id = str(image["task_id"])
@@ -1208,6 +1209,22 @@ class ImageClassifier:
 
             # Construct destination path: projects/{project_id}/{task_id}/images/{filename}
             dest_key = f"projects/{project_id}/{task_id}/images/{filename}"
+
+            # Initialize task summary if needed
+            if task_id not in tasks_summary:
+                tasks_summary[task_id] = {
+                    "task_id": task_id,
+                    "image_count": 0,
+                    "images": [],
+                }
+
+            # Check if image is already in the correct location
+            if source_key == dest_key:
+                # Image already moved, just count it
+                already_moved_count += 1
+                tasks_summary[task_id]["image_count"] += 1
+                tasks_summary[task_id]["images"].append(filename)
+                continue
 
             # Copy file to task folder
             success = await run_in_threadpool(
@@ -1233,13 +1250,6 @@ class ImageClassifier:
                     )
 
                 moved_count += 1
-
-                if task_id not in tasks_summary:
-                    tasks_summary[task_id] = {
-                        "task_id": task_id,
-                        "image_count": 0,
-                        "images": [],
-                    }
                 tasks_summary[task_id]["image_count"] += 1
                 tasks_summary[task_id]["images"].append(filename)
 
@@ -1249,13 +1259,15 @@ class ImageClassifier:
                 log.error(f"Failed to move image {filename} to task {task_id}")
 
         log.info(
-            f"Batch {batch_id}: Moved {moved_count} images to {len(tasks_summary)} tasks, "
-            f"{failed_count} failed"
+            f"Batch {batch_id}: Moved {moved_count} images, "
+            f"{already_moved_count} already in place, {failed_count} failed, "
+            f"{len(tasks_summary)} tasks total"
         )
 
         return {
             "batch_id": str(batch_id),
             "total_moved": moved_count,
+            "total_already_moved": already_moved_count,
             "total_failed": failed_count,
             "task_count": len(tasks_summary),
             "tasks": tasks_summary,

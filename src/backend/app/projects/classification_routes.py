@@ -294,6 +294,39 @@ async def get_batch_processing_summary(
         )
 
 
+@router.post("/{project_id}/batch/{batch_id}/finalize/", tags=["Image Classification"])
+async def finalize_batch(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Finalize a batch: move images to task folders without triggering ODM."""
+    try:
+        move_result = await ImageClassifier.move_batch_images_to_tasks(
+            db, batch_id, project_id
+        )
+
+        log.info(
+            f"Finalized batch {batch_id}: moved {move_result['total_moved']} images "
+            f"to {move_result['task_count']} tasks"
+        )
+
+        return {
+            "message": "Batch finalized successfully",
+            "batch_id": str(batch_id),
+            "total_moved": move_result["total_moved"],
+            "task_count": move_result["task_count"],
+        }
+
+    except Exception as e:
+        log.error(f"Failed to finalize batch: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to finalize batch: {e}",
+        )
+
+
 @router.post("/{project_id}/batch/{batch_id}/process/", tags=["Image Classification"])
 async def process_batch(
     project_id: UUID,
@@ -301,12 +334,7 @@ async def process_batch(
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
-    """Process a batch: move images to task folders and trigger ODM processing.
-
-    This endpoint:
-    1. Moves assigned images from user-uploads to their task folders in S3
-    2. Triggers ODM processing for each task with images
-    """
+    """Process a batch: move images to task folders and trigger ODM processing."""
     try:
         # Enqueue the processing job to run in background
         job = await redis.enqueue_job(
