@@ -54,7 +54,7 @@ class TifSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
-        temp_dir = os.path.join(os.getcwd(), "temp")
+        temp_dir = "/tmp/tif_processing"
         os.makedirs(temp_dir, exist_ok=True)
         try:
             with zipfile.ZipFile(io.BytesIO(response.body)) as zip_file:
@@ -73,13 +73,19 @@ class TifSpider(scrapy.Spider):
         if self.tif_files:
             self.merged_file_path = self.merge_tiles()
 
-    def merge_tiles(self):
-        vrt_file = "merged.vrt"
-        gdal.BuildVRT(vrt_file, self.tif_files)
-        output_file = str(base_dir / "merged.tif")
 
-        gdal.Translate(output_file, vrt_file)
-        for file in self.tif_files:
-            os.remove(file)
-        os.remove(vrt_file)
-        return output_file
+def merge_tiles(self):
+    vrt_file = "/tmp/merged.vrt"
+    gdal.BuildVRT(vrt_file, self.tif_files)
+    output_file = str(base_dir / "merged.tif")
+
+    gdal.Translate(output_file, vrt_file)
+
+    # Cleanup files under /tmp
+    for file in self.tif_files:
+        os.remove(file)
+    os.remove(vrt_file)
+    temp_dir = "/tmp/tif_processing"
+    if os.path.exists(temp_dir):
+        os.rmdir(temp_dir)
+    return output_file

@@ -70,16 +70,20 @@ spec:
             {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
-          {{- if .Values.frontendAssets.enabled }}
           volumeMounts:
+            {{- if .Values.frontendAssets.enabled }}
             - name: frontend-html
               mountPath: /project/src/backend/frontend_html
-          {{- end }}
-      {{- if .Values.frontendAssets.enabled }}
+            {{- end }}
+            - name: temp-storage
+              mountPath: /tmp
       volumes:
+        {{- if .Values.frontendAssets.enabled }}
         - name: frontend-html
           emptyDir: {}
-      {{- end }}
+        {{- end }}
+        - name: temp-storage
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
