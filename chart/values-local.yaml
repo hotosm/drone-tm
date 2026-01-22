@@ -43,22 +43,21 @@ postgresql:
     persistence:
       size: 10Gi
 
-# Development Redis configuration
-redis:
+# Development DragonflyDB configuration
+dragonfly:
   enabled: true
-  auth:
+  replicaCount: 1
+  storage:
     enabled: false
-  architecture: standalone
-  master:
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 250m
-        memory: 256Mi
-    persistence:
-      size: 5Gi
+    storageClassName: ""
+    requests: 2Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
 
 existingSecret:
   name: drone-tm-local-secrets

@@ -70,10 +70,10 @@ services:
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
 
-  redis:
+  dragonfly:
     extends:
       file: compose.yaml
-      service: redis
+      service: dragonfly
 
   nodeodm:
     extends:

@@ -2,8 +2,8 @@ dependencies:
 - name: postgresql
   repository: oci://registry-1.docker.io/bitnamicharts
   version: 15.2.2
-- name: redis
-  repository: oci://registry-1.docker.io/bitnamicharts
-  version: 18.1.0
-digest: sha256:3892a1c7d801e82c2466392de20084c59985bf25bb2899abcb97821e4fb30403
-generated: "2026-01-21T00:50:30.96085642Z"
+- name: dragonfly
+  repository: oci://ghcr.io/dragonflydb/dragonfly/helm
+  version: v1.36.0
+digest: sha256:05e84148ad47e52b5bf6a749e9f55c2f5d5518c2220d1a163a936e9f0b8a7e8e
+generated: "2026-01-22T00:10:15.994950595Z"

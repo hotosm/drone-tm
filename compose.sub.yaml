@@ -173,7 +173,7 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     command: arq app.arq.tasks.WorkerSettings
     depends_on:
-      redis:
+      dragonfly:
         condition: service_healthy
     env_file: .env
     networks:
@@ -186,8 +186,8 @@ services:
       retries: 2
       start_period: 20s
 
-  redis:
-    image: redis:7-alpine
+  dragonfly:
+    image: ghcr.io/dragonflydb/dragonfly:v1.36.0
     networks:
       - dtm-network
     restart: unless-stopped

@@ -33,7 +33,7 @@ async def startup(ctx: Dict[Any, Any]) -> None:
     log.info("Starting ARQ worker")
 
     # Initialize Redis
-    ctx["redis"] = await create_pool(RedisSettings.from_dsn(settings.REDIS_DSN))
+    ctx["redis"] = await create_pool(RedisSettings.from_dsn(settings.DRAGONFLY_DSN))
     await log_redis_info(ctx["redis"], log.info)
 
     # Initialize Database pool
@@ -697,7 +697,7 @@ async def delete_batch_images(
 class WorkerSettings:
     """ARQ worker configuration"""
 
-    redis_settings = RedisSettings.from_dsn(settings.REDIS_DSN)
+    redis_settings = RedisSettings.from_dsn(settings.DRAGONFLY_DSN)
     functions = [
         sleep_task,
         count_project_tasks,
@@ -721,7 +721,7 @@ class WorkerSettings:
 async def get_redis_pool() -> ArqRedis:
     """Redis connection dependency"""
     try:
-        return await create_pool(RedisSettings.from_dsn(settings.REDIS_DSN))
+        return await create_pool(RedisSettings.from_dsn(settings.DRAGONFLY_DSN))
     except Exception as e:
         log.error(f"Redis connection failed: {str(e)}")
         raise HTTPException(

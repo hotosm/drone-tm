@@ -200,7 +200,7 @@ class Settings(BaseSettings):
     BACKEND_URL_INTERNAL: str = "http://backend:8000"
     # ODM (NodeODM) API endpoint
     ODM_ENDPOINT: Optional[str] = "http://nodeodm:9900"
-    REDIS_DSN: str = "redis://redis:6379/0"
+    DRAGONFLY_DSN: str = "redis://localhost:6379/0"
 
     # - S3_ENDPOINT_UPLOAD: endpoint used for presigned uploads (browser calls this; can be S3 TA).
     # - S3_ENDPOINT_DOWNLOAD: endpoint used for browser downloads/display (can be CloudFront).

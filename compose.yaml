@@ -21,8 +21,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_started
       nodeodm:
         condition: service_started
       migrations:
@@ -49,6 +47,12 @@ services:
     networks:
       - dtm-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/__lbheartbeat__"]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   frontend:
     image: ghcr.io/hotosm/drone-tm/frontend:debug
@@ -147,9 +151,9 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:debug
     command: arq --watch /project/src/backend/app app.arq.tasks.WorkerSettings
     depends_on:
-      db:
+      backend:
         condition: service_healthy
-      redis:
+      dragonfly:
         condition: service_started
       nodeodm:
         condition: service_started
@@ -165,10 +169,9 @@ services:
       retries: 2
       start_period: 20s
 
-  redis:
-    image: redis:7-alpine
-    networks:
-      - dtm-network
+  dragonfly:
+    image: ghcr.io/dragonflydb/dragonfly:v1.36.0
+    network_mode: service:backend
     restart: unless-stopped
 
   # This container does the actual imagery processing (not persistent, scalable)

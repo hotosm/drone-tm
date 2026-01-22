@@ -1,7 +1,7 @@
 apiVersion: v2
 name: drone-tm
 description: Drone Tasking Manager - coordinated drone mapping
-version: "0.1.2"
+version: "0.1.3"
 appVersion: "2025.5.0"
 maintainers:
   - email: sysadmin@hotosm.org
@@ -14,7 +14,7 @@ dependencies:
     repository: oci://registry-1.docker.io/bitnamicharts
     condition: postgresql.enabled
     alias: postgresql
-  - name: redis
-    version: 18.1.0
-    repository: oci://registry-1.docker.io/bitnamicharts
-    alias: redis
+  - name: dragonfly
+    version: v1.36.0
+    repository: oci://ghcr.io/dragonflydb/dragonfly/helm
+    alias: dragonfly
