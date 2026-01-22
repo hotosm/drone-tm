@@ -41,6 +41,6 @@ spec:
           {{- $env := (.Values.env | default dict) -}}
           {{- if $env }}
           env:
-            {{- include "drone-tm.renderEnvOmit" (dict "env" $env "omit" (dict "REDIS_DSN" true)) | nindent 12 }}
+            {{- include "drone-tm.renderEnvOmit" (dict "env" $env "omit" (dict "DRAGONFLY_DSN" true)) | nindent 12 }}
           {{- end }}
 {{- end }}

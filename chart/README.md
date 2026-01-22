@@ -35,7 +35,7 @@ helm upgrade drone-tm ./chart -f values-local.yaml
 
 This chart includes the following subcharts:
 
-- **Redis**: Caching and task queue
+- **DragonflyDB**: Caching and task queue
 - **PostgreSQL**: Database with PostGIS extension (optional)
 
 ## Configuration
@@ -48,7 +48,7 @@ Key configuration areas:
 - **FrontendAssets**: Init container that syncs built frontend assets into `frontend_html` for the backend to serve
 - **Worker**: Background task processing
 - **PostgreSQL**: Database configuration
-- **Redis**: Cache and queue configuration
+- **DragonflyDB**: Cache and queue configuration
 
 ## Environment Variables
 
@@ -101,7 +101,7 @@ Your Secret should include (at minimum):
 - Database: `POSTGRES_PASSWORD`
 - S3 credentials: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
 - Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JAXA_AUTH_TOKEN`, `SECRET_KEY`.
-- Redis: (provided automatically by the chart; no `REDIS_DSN` needed)
+- DragonflyDB: (provided automatically by the chart; no `DRAGONFLY_DSN` needed)
 
 You will also typically want to set these **non-secret** environment variables via Helm values
 (`env` or `extraEnvFrom`), depending on your S3/CDN setup:

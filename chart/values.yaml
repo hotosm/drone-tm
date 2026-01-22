@@ -35,7 +35,7 @@ env: {}
 #   # Optional: for cheaper/faster repeated downloads (CloudFront)
 #   # S3_ENDPOINT_DOWNLOAD: "https://your-cloudfront-domain.example.com"
 #   S3_BUCKET_NAME: "your-bucket"
-#   # REDIS_DSN is provided automatically by the chart (Bitnami Redis subchart)
+#   # DRAGONFLY_DSN is provided automatically by the chart (DragonflyDB subchart)
 #   # and does not need to be configured manually
 #
 #   # --- Optional ---
@@ -176,23 +176,21 @@ podDisruptionBudget:
     minAvailable: 1
 
 # Subchart configurations
-# https://github.com/bitnami/charts/blob/main/bitnami/redis/values.yaml
-redis:
-  image:
-    registry: docker.io
-    repository: bitnami/redis
-    tag: 7.2-debian-13
-  auth:
+# https://github.com/dragonflydb/dragonfly/blob/main/contrib/charts/dragonfly/values.yaml
+dragonfly:
+  enabled: true
+  replicaCount: 1
+  storage:
     enabled: false
-  architecture: standalone
-  master:
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
+    storageClassName: ""
+    requests: 2Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
 
 # https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
 postgresql:

@@ -90,16 +90,13 @@ Name of the main app Secret containing env vars
 {{- end }}
 
 {{/*
-Redis service DNS (Bitnami redis subchart, master service).
+DragonflyDB service DNS.
 
-Bitnami Redis names the master Service:
-  {{ printf "%s-master" (include "common.names.fullname" .) }}
-
-And common.names.fullname expands to:
-  <release>-redis   (unless <release> already contains "redis")
+DragonflyDB Helm chart names the service:
+  {{ .Release.Name }}-dragonfly
 */}}
-{{- define "drone-tm.redis.fullname" -}}
-{{- $name := "redis" -}}
+{{- define "drone-tm.dragonfly.fullname" -}}
+{{- $name := "dragonfly" -}}
 {{- if contains $name .Release.Name -}}
 {{- .Release.Name | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -107,12 +104,12 @@ And common.names.fullname expands to:
 {{- end -}}
 {{- end }}
 
-{{- define "drone-tm.redis.masterServiceName" -}}
-{{- printf "%s-master" (include "drone-tm.redis.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- define "drone-tm.dragonfly.serviceName" -}}
+{{- include "drone-tm.dragonfly.fullname" . | trunc 63 | trimSuffix "-" -}}
 {{- end }}
 
-{{- define "drone-tm.redis.masterServiceFQDN" -}}
-{{- printf "%s.%s.svc.cluster.local" (include "drone-tm.redis.masterServiceName" .) .Release.Namespace -}}
+{{- define "drone-tm.dragonfly.serviceFQDN" -}}
+{{- printf "%s.%s.svc.cluster.local" (include "drone-tm.dragonfly.serviceName" .) .Release.Namespace -}}
 {{- end }}
 
 {{/*
