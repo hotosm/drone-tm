@@ -92,10 +92,11 @@ RUN set -ex \
     "nano" \
     "curl" \
     "gettext-base" \
+    "media-types" \
+    "procps" \
+    "postgresql-client" \
     "libpcre2-16-0" \
     "libpq5" \
-    "media-types" \
-    "postgresql-client" \
     "libglib2.0-0t64" \
     "libspatialindex-c8" \
     "libproj25" \
