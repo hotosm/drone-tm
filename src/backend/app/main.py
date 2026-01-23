@@ -168,7 +168,7 @@ def get_application() -> FastAPI:
         user_name_column="name",
         user_email_column="email_address",
     )
-    _app.include_router(admin_router)
+    _app.include_router(admin_router, prefix="/api")
 
     return _app
 
