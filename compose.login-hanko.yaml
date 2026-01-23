@@ -54,7 +54,7 @@ services:
       - FRONTEND_URL=https://testlogin.dronetm.hotosm.org
       - BACKEND_URL=https://testlogin.dronetm.hotosm.org/api
       - EXTRA_CORS_ORIGINS=["https://testlogin.dronetm.hotosm.org","https://portal.hotosm.org","https://dev.login.hotosm.org"]
-      - ADMIN_EMAILS=hernangigena@gmail.com
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     networks:
       - hotosm-test
       - internal
