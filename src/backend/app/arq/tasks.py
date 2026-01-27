@@ -18,11 +18,11 @@ from app.images.image_logic import (
     extract_exif_data,
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
-from app.images.image_logic import mark_and_remove_flight_tail_imagery
+from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
 from app.models.enums import HTTPStatus, ImageStatus
 from app.projects.project_logic import process_all_drone_images, process_drone_images
 from app.s3 import async_get_obj_from_bucket, s3_client
-from app.projects.image_classification import ImageClassifier
+from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
 
 

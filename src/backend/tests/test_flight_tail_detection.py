@@ -10,7 +10,7 @@ import pytest
 
 from psycopg.rows import dict_row
 
-from app.images.image_logic import mark_and_remove_flight_tail_imagery
+from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
 
 
 @pytest.mark.asyncio

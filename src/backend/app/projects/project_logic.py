@@ -30,7 +30,7 @@ from drone_flightplan.enums import FlightMode
 from app.config import settings
 from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
-from app.projects.image_processing import DroneImageProcessor
+from app.images.image_processing import DroneImageProcessor
 from app.s3 import (
     add_obj_to_bucket,
     maybe_presign_s3_key,

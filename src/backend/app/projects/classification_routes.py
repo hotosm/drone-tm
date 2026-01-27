@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.arq.tasks import get_redis_pool
 from app.db import database
 from app.models.enums import HTTPStatus, State
-from app.projects.image_classification import ImageClassifier
+from app.images.image_classification import ImageClassifier
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 

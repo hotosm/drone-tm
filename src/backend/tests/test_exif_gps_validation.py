@@ -1,7 +1,7 @@
 import pytest
 
 from app.images import image_logic
-from app.projects.image_classification import ImageClassifier
+from app.images.image_classification import ImageClassifier
 
 
 def test_extract_gps_from_exif_valid_range_returns_location():
