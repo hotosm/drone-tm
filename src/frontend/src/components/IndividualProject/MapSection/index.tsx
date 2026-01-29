@@ -46,7 +46,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
   const [showTaskArea, setShowTaskArea] = useState(true);
-  const [showTaskIndex, setShowTaskIndex] = useState(false);
+  const [selectedTaskIndex, setSelectedTaskIndex] = useState<number | null>(null);
 
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
@@ -152,6 +152,18 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
   }, [map, bbox]);
 
+  // Update selected task index when selectedTaskId changes
+  useEffect(() => {
+    if (!selectedTaskId || !tasksData) {
+      setSelectedTaskIndex(null);
+      return;
+    }
+    const task = tasksData.find(
+      (t: Record<string, any>) => t.id === selectedTaskId,
+    );
+    setSelectedTaskIndex(task?.project_task_index || null);
+  }, [selectedTaskId, tasksData]);
+
   // end zoom to layer
 
   const getPopupUI = useCallback(
@@ -225,10 +237,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const handleZoomToExtent = () => {
     if (!bbox) return;
     map?.fitBounds(bbox as LngLatBoundsLike, { padding: 25, duration: 500 });
-  };
-
-  const handleToggleTaskIndex = () => {
-    setShowTaskIndex(prev => !prev);
   };
 
   const handleToggleTaskArea = () => {
@@ -324,16 +332,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                   false
                 }
                 image={lock}
-                imageLayoutOptions={{
-                  ...(showTaskIndex
-                    ? {
-                        'text-field': ['get', 'project_task_index'],
-                        'text-size': 12,
-                        'text-font': ['Open Sans Regular'],
-                        'text-offset': [0, 1.5],
-                      }
-                    : {}),
-                }}
               />
             );
           })}
@@ -397,28 +395,13 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                 />
               </button>
             </ToolTip>
-            <ToolTip
-              message={showTaskIndex ? 'Hide Task Index' : 'Show Task Index'}
-              className="naxatw-mt-[-4px]"
-            >
-              <button
-                className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-p-[0.315rem]"
-                onClick={() => handleToggleTaskIndex()}
-              >
-                <Icon
-                  name="numbers"
-                  iconSymbolType="material-icons"
-                  className="!naxatw-text-xl !naxatw-text-black"
-                />
-              </button>
-            </ToolTip>
           </div>
         </div>
         {/*  additional controls */}
         <AsyncPopup
           map={map as Map}
           popupUI={getPopupUI}
-          title={`Task #${selectedTaskId}`}
+          title={selectedTaskIndex !== null ? `Task #${selectedTaskIndex}` : `Task #${selectedTaskId}`}
           showPopup={(feature: Record<string, any>) => {
             if (!userDetails) return false;
 
@@ -440,6 +423,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
               }),
             );
             dispatch(setProjectState({ selectedTaskId: properties.id }));
+            setSelectedTaskIndex(properties?.project_task_index || null);
             setLockedUser({
               id: properties?.locked_user_id || userDetails?.id || '',
               name: properties?.locked_user_name || userDetails?.name || '',
