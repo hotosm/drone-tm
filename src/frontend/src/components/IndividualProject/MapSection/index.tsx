@@ -91,9 +91,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         projectData?.requires_approval_from_manager_for_locking &&
         userDetails?.id !== projectData?.author_id
       ) {
-        toast.success('Task Requested for Mapping');
+        toast.success('Task Requested for Flight');
       } else {
-        toast.success('Task Locked for Mapping');
+        toast.success('Task Locked for Flight');
         setLockedUser({ name: userDetails?.name, id: userDetails?.id });
       }
     },
@@ -176,11 +176,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           return 'Unable to proceed, local regulators rejected the project';
         switch (taskStatus) {
           case 'UNLOCKED_TO_MAP':
-            return 'This task is available for mapping';
+            return 'This task is available for flying';
           case 'REQUEST_FOR_MAPPING':
-            return `This task is Requested for mapping ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is requested for flying ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'LOCKED_FOR_MAPPING':
-            return `This task is locked for mapping ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is locked for flying ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
           case 'UNFLYABLE_TASK':
             return 'This task is not flyable';
           case 'IMAGE_UPLOADED':

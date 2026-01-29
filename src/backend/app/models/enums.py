@@ -150,13 +150,13 @@ class EventType(StrEnum):
     Possible values are:
 
     - ``request`` -- Request a task to be mapped.
-    - ``map`` -- Set to *locked for mapping*, i.e. mapping in progress.
+    - ``map`` -- Set to *locked to fly*, i.e. flight in progress.
     - ``finish`` -- Set to *unlocked to validate*, i.e. is mapped.
     - ``validate`` -- Request recent task ready to be validate.
     - ``good`` -- Set the state to *unlocked done*.
     - ``bad`` -- Set the state *unlocked to map* again, to be mapped once again.
     - ``split`` -- Set the state *unlocked done* then generate additional subdivided task areas.
-    - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked for mapping* passing in the required user id.
+    - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked to fly* passing in the required user id.
     - ``comment`` -- Keep the state the same, but simply add a comment.
     - ``unlock`` -- Unlock a task state by unlocking it if it's locked.
     - ``image_upload`` -- Set the state to *image uploaded* when the task image is uploaded.
