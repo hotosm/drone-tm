@@ -89,6 +89,28 @@ kubectl exec -it "$POD_NAME" -- \
 - Create a bucket: `bash create-s3-bucket.sh dronetm-prod`
 - Save the creds printed to terminal.
 
+Ensure there is also a correct CORS policy for the domain:
+
+```bash
+[
+    {
+        "AllowedHeaders": ["*"],
+        "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE",
+            "HEAD"
+        ],
+        "AllowedOrigins": [
+            "https://drone.hotosm.org"
+        ],
+        "ExposeHeaders": ["ETag", "x-amz-request-id", "x-amz-id-2"],
+		"MaxAgeSeconds": 3000
+    }
+]
+```
+
 ### Enable S3 Transfer Acceleration (recommended for uploads)
 
 After bucket creation, enable Transfer Acceleration on the bucket to improve upload UX
