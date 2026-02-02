@@ -21,10 +21,12 @@ const DescriptionSection = ({
   page = 'project-approval',
   projectData,
   isProjectDataLoading = false,
+  onOpenWorkflow,
 }: {
   projectData: Record<string, any>;
   page?: 'project-description' | 'project-approval';
   isProjectDataLoading?: boolean;
+  onOpenWorkflow?: () => void;
 }) => {
   const dispatch = useDispatch();
 
@@ -63,6 +65,19 @@ const DescriptionSection = ({
 
   return (
     <div className="naxatw-mt-4 naxatw-flex naxatw-flex-col naxatw-gap-3">
+      {page === 'project-description' && onOpenWorkflow && (
+        <div className="naxatw-flex naxatw-justify-center naxatw-py-4">
+          <Button
+            variant="ghost"
+            className="naxatw-w-full naxatw-bg-[#D73F3F] naxatw-py-4 naxatw-text-base naxatw-font-semibold naxatw-text-white hover:naxatw-bg-[#B83535]"
+            leftIcon="cloud_upload"
+            iconClassname="naxatw-text-2xl"
+            onClick={onOpenWorkflow}
+          >
+            Upload & Process Drone Imagery
+          </Button>
+        </div>
+      )}
       {page === 'project-approval' && (
         <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
           Description
