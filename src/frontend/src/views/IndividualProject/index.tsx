@@ -204,15 +204,6 @@ const IndividualProject = () => {
             ]}
           />
           <div className="naxatw-flex naxatw-gap-5">
-            <Button
-              variant="ghost"
-              className="naxatw-border naxatw-border-[#D73F3F] naxatw-bg-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-white"
-              leftIcon="upload"
-              iconClassname="naxatw-text-[1.125rem]"
-              onClick={() => setIsWorkflowModalOpen(true)}
-            >
-              Drone Image Processing Workflow
-            </Button>
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
