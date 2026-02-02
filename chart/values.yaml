@@ -86,18 +86,25 @@ backend:
     #   cpu: 100m
     #   memory: 256Mi
 
+  # Is process alive?
   livenessProbe:
     httpGet:
       path: /__lbheartbeat__
       port: http
     initialDelaySeconds: 30
     periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  # Can it serve real traffic?
   readinessProbe:
     httpGet:
-      path: /__lbheartbeat__
+      path: /__heartbeat__
       port: http
-    initialDelaySeconds: 5
-    periodSeconds: 5
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
 
   autoscaling:
     enabled: false
@@ -144,22 +151,29 @@ worker:
     #   cpu: 500m
     #   memory: 512Mi
 
+  # Is process alive?
   livenessProbe:
     exec:
       command:
-        - arq
-        - app.arq.tasks.WorkerSettings
-        - --check
+        - sh
+        - -c
+        - pgrep -f "arq app.arq.tasks.WorkerSettings" >/dev/null
     initialDelaySeconds: 30
     periodSeconds: 30
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  # Can it serve real traffic?
   readinessProbe:
     exec:
       command:
         - arq
         - app.arq.tasks.WorkerSettings
         - --check
-    initialDelaySeconds: 5
-    periodSeconds: 5
+    initialDelaySeconds: 15
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
 
   autoscaling:
     enabled: false

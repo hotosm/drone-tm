@@ -493,7 +493,7 @@ class DbUser(BaseModel):
 
             result = await cur.fetchone()
             if result is None:
-                raise ValueError("No user requested for mapping")
+                raise ValueError("No user requested for flight")
             return result["user_id"]
 
 

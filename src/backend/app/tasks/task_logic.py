@@ -379,7 +379,7 @@ async def handle_event(
                 )
             else:
                 state_after = State.REQUEST_FOR_MAPPING
-                message = "Request for mapping"
+                message = "Request for flight"
 
             # Perform the mapping request
             data = await request_mapping(
@@ -411,7 +411,7 @@ async def handle_event(
                 background_tasks.add_task(
                     send_notification_email,
                     author["email_address"],
-                    "Request for mapping",
+                    "Request for flight",
                     html_content,
                 )
 
@@ -457,7 +457,7 @@ async def handle_event(
                 project_id,
                 task_id,
                 requested_user_id,
-                "Request accepted for mapping",
+                "Request accepted for flying",
                 State.REQUEST_FOR_MAPPING,
                 State.LOCKED_FOR_MAPPING,
                 detail.updated_at,
@@ -502,7 +502,7 @@ async def handle_event(
                 project_id,
                 task_id,
                 requested_user_id,
-                "Request for mapping rejected",
+                "Request for flight rejected",
                 State.REQUEST_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
                 detail.updated_at,

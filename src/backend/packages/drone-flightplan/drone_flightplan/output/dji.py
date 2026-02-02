@@ -312,7 +312,7 @@ def create_placemark(placemark, final_index: int):
     # )
     # wpml_waypoint_heading_path_mode.text = "followBadArc"
 
-    # Ensure the drone turns in straight lines for mapping, not curves
+    # Ensure the drone turns in straight lines for flight, not curves
     wpml_waypoint_turn_param = ET.SubElement(placemark_el, "wpml:waypointTurnParam")
     wpml_waypoint_turn_mode = ET.SubElement(
         wpml_waypoint_turn_param, "wpml:waypointTurnMode"

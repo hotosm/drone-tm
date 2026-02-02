@@ -30,7 +30,7 @@ from shapely.ops import unary_union
 from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.db import database
-from app.jaxa.upload_dem import upload_dem_file
+from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
 from app.projects import image_processing, project_deps, project_logic, project_schemas
 from app.projects.oam import upload_to_oam
@@ -189,6 +189,7 @@ async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Annotated[Connection, Depends(database.get_db)],
     background_tasks: BackgroundTasks,
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user_data: Annotated[AuthUser, Depends(login_required)],
     dem: UploadFile = File(None),
     image: UploadFile = File(None),
@@ -226,7 +227,7 @@ async def create_project(
 
     if project_info.is_terrain_follow and not dem:
         geometry = project_info.outline["features"][0]["geometry"]
-        background_tasks.add_task(upload_dem_file, geometry, project_id)
+        background_tasks.add_task(enqueue_dem_download, geometry, project_id, redis)
 
     return {"message": "Project successfully created", "project_id": project_id}
 

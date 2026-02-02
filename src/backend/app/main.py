@@ -48,6 +48,14 @@ class InterceptHandler(logging.Handler):
         logger_opt.log(logging.getLevelName(record.levelno), record.getMessage())
 
 
+def healthcheck_log_filter(record):
+    """Logging on every healthcheck ping is too verbose. Omit."""
+    msg = record["message"]
+    if "/__heartbeat__" in msg or "/__lbheartbeat__" in msg:
+        return False  # Skip this log
+    return True
+
+
 def get_logger():
     """Override FastAPI logger with custom loguru."""
     # Hook all other loggers into ours
@@ -60,6 +68,9 @@ def get_logger():
             continue
         if logger_name == "urllib3":
             # Don't hook urllib3, called on each OTEL trace
+            continue
+        if logger_name == "psycopg_pool":
+            # Every time a connection is created it's logged...
             continue
 
         if logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"]:
@@ -80,6 +91,7 @@ def get_logger():
         colorize=True,
         backtrace=True,  # More detailed tracebacks
         catch=True,  # Prevent app crashes
+        filter=healthcheck_log_filter,
     )
 
 
