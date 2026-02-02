@@ -294,6 +294,7 @@ const IndividualProject = () => {
                   projectData as Record<string, any>,
                   isProjectDataFetching,
                   handleTableRowClick,
+                  () => setIsWorkflowModalOpen(true),
                 )}
               </div>
               <div className="naxatw-absolute naxatw-bottom-0 naxatw-flex naxatw-w-full naxatw-justify-center">
