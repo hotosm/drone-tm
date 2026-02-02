@@ -43,6 +43,7 @@ const getActiveTabContent = (
   isProjectDataLoading: boolean,
   // eslint-disable-next-line no-unused-vars
   handleTableRowClick: (rowData: any) => {},
+  onOpenWorkflow?: () => void,
 ) => {
   if (activeTab === 'about')
     return (
@@ -50,6 +51,7 @@ const getActiveTabContent = (
         projectData={data}
         isProjectDataLoading={isProjectDataLoading}
         page="project-description"
+        onOpenWorkflow={onOpenWorkflow}
       />
     );
   if (activeTab === 'tasks')
