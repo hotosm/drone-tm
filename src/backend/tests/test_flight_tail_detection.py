@@ -678,3 +678,58 @@ async def test_multi_batch_rejections(db, create_test_project, auth_user):
             "SELECT COUNT(*) FROM project_images WHERE status = 'rejected' AND filename LIKE 'flight_B%%'"
         )
         assert (await cur.fetchone())[0] >= 5
+
+
+@pytest.mark.asyncio
+async def test_project_turn_detected_freetown(db, load_freetown_into_db):
+    tail_metadata = []
+    for i in range(8):  # Takeoff North
+        tail_metadata.append(
+            {
+                "SourceFile": f"t_{i}.jpg",
+                "GPSLatitude": f"8 deg 28' {8.0 + (i * 0.3)}\" N",
+                "GPSLongitude": "13 deg 11' 49.2\" W",
+                "AbsoluteAltitude": "100",
+                "DateTimeOriginal": f"2024:01:01 12:00:{i:02d}",
+                "FlightYawDegree": "0",
+            }
+        )
+    for i in range(8, 40):  # Mission East
+        tail_metadata.append(
+            {
+                "SourceFile": f"m_{i}.jpg",
+                "GPSLatitude": "8 deg 28' 15.0\" N",
+                "GPSLongitude": f"13 deg 11' {49.2 + ((i - 8) * 0.3)}\" W",
+                "AbsoluteAltitude": "100",
+                "DateTimeOriginal": f"2024:01:01 12:05:{i:02d}",
+                "FlightYawDegree": "90",
+            }
+        )
+    project_id, batch_id, task_id = await load_freetown_into_db(
+        manual_metadata=tail_metadata
+    )
+    await mark_and_remove_flight_tail_imagery(db, project_id, batch_id, task_id)
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT count(*)
+            FROM project_images
+            WHERE status = 'rejected'
+            """
+        )
+        assert (await cur.fetchone())[0] >= 7
+
+
+@pytest.mark.asyncio
+async def test_freetown_tail_removal(db, load_freetown_into_db):
+    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=False)
+    await mark_and_remove_flight_tail_imagery(db, project_id, batch_id, task_id)
+    async with db.cursor() as cur:
+        await cur.execute(
+            """SELECT count(*)
+            FROM project_images
+            WHERE status = 'rejected'
+            """
+        )
+        count = (await cur.fetchone())[0]
+    assert count >= 30
