@@ -7,7 +7,11 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 from app.models.enums import ImageStatus
-from app.utils import calculate_angular_difference, circular_mean_pair, circular_mean_list
+from app.utils import (
+    calculate_angular_difference,
+    circular_mean_pair,
+    circular_mean_list,
+)
 
 
 def _confirm_stable_heading(project_list: list, image_index: int, steps: int) -> bool:

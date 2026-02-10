@@ -7,7 +7,6 @@ import shutil
 import tempfile
 from typing import Any, Optional
 from uuid import UUID
-from datetime import datetime, timezone
 
 import exiftool
 from loguru import logger as log
