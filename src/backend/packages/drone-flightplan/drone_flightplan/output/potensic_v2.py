@@ -71,7 +71,7 @@ def create_potensic_json(
 
     # 2. Create global.json with params
     global_json = {
-        "finishAction": "BACK",
+        "finishAction": "RETURN",
         "globalHeight": 0,
         "globalHeightType": 0,
         "isOrder": True,
