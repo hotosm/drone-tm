@@ -53,6 +53,7 @@ import { mapLayerIDs } from '@Constants/droneOperator';
 import { Button } from '@Components/RadixComponents/Button';
 import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 import SwitchTab from '@Components/common/SwitchTab';
+import Select from '@Components/common/FormUI/Select';
 import ToolTip from '@Components/RadixComponents/ToolTip';
 import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
@@ -895,15 +896,16 @@ const MapSection = ({ className }: { className?: string }) => {
         />
 
         <div className="flex gap-3 lg:gap-6 naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-10 lg:naxatw-right-64">
-          <SwitchTab
-            activeClassName="naxatw-bg-red naxatw-text-white"
+          <Select
             options={droneModelOptions}
             labelKey="label"
             valueKey="value"
-            selectedValue={droneModel}
-            onChange={(value: Record<string, any>) => {
-              dispatch(setDroneModel(value.value));
+            selectedOption={droneModel}
+            onChange={(value: string | number) => {
+              dispatch(setDroneModel(value));
             }}
+            className="naxatw-w-40 naxatw-bg-[#F4F7FE]"
+            placeholder="Select model"
           />
 
           <SwitchTab
