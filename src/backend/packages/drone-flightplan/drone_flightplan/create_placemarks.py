@@ -60,6 +60,7 @@ def main(args_list: list[str] | None = None):
     # NOTE this is passed as a json string via cmd line, not as a json file
     parser.add_argument(
         "--parameters",
+        required=True,
         type=json_to_dict,
         help="The drone flight parameters in a json. Including ground_speed and altitude_above_ground_level.",
     )
@@ -68,8 +69,6 @@ def main(args_list: list[str] | None = None):
 
     args = parser.parse_args(args_list)
 
-    if args.parameters is None:
-        raise ValueError("The parameters json must be included via command line")
     if "altitude_above_ground_level" not in args.parameters:
         raise ValueError(
             "altitude_above_ground_level is missing in the parameters json"
@@ -80,7 +79,9 @@ def main(args_list: list[str] | None = None):
     inpointsfile = open(args.waypoints_geojson, "r")
     points = inpointsfile.read()
 
-    placemark_data = create_placemarks(geojson.loads(points), args.parameters)
+    placemark_data = create_placemarks(
+        geojson.loads(json.loads(points).get("geojson")), args.parameters
+    )
 
     with open(args.outfile, "w") as f:
         f.write(geojson.dumps(placemark_data, indent=2))
