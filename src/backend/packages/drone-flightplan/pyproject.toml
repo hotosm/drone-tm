@@ -5,6 +5,7 @@ version = "0.4.1"
 description = "Generate an optimized flight plan for aerial mapping with drones."
 authors = [
     {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
+    {name = "Sam Woodcock", email = "sam.woodcock@hotosm.org"},
 ]
 dependencies = [
     "geojson>=3.0.0",
