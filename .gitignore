@@ -83,3 +83,6 @@ src/backend/frontend_html
 
 # precommit
 .ruff_cache/
+
+# Flightplan test files
+*.json

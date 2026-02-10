@@ -12,6 +12,7 @@ class DroneType(StrEnum):
     DJI_MINI_4_PRO = "DJI_MINI_4_PRO"
     DJI_AIR_3 = "DJI_AIR_3"
     DJI_MINI_5_PRO = "DJI_MINI_5_PRO"
+    POTENSIC_ATOM_1 = "POTENSIC_ATOM_1"
     POTENSIC_ATOM_2 = "POTENSIC_ATOM_2"
     MAVLINK = "MAVLINK"
     QGROUNDCONTROL = "QGROUNDCONTROL"
@@ -54,10 +55,23 @@ DRONE_SPECS = {
         "equiv_focal_length_mm": 24,
         "image_width_px": 4032,  # at 12MP
     },
+    DroneType.POTENSIC_ATOM_1: {
+        # 1/3-inch CMOS
+        # 4:3 (or 16:9 cropped)
+        "max_battery_life_minutes": {"quoted_value": 32, "tested_value": 18},
+        "sensor_height_mm": 4.80,
+        "sensor_width_mm": 6.40,
+        "equiv_focal_length_mm": 26,
+        # FIXME check actual files to confirm image_width_px
+        # FIXME, then re-calc constant in dict below
+        "image_width_px": 4608,
+    },
     DroneType.POTENSIC_ATOM_2: {
         # 1/2-inch CMOS
         # 4:3 (or 16:9 cropped)
-        "max_battery_life_minutes": {"quoted_value": 32, "tested_value": 18},
+        # FIXME untested max battery life, so using 80% of
+        # FIXME quoted value to be conservative
+        "max_battery_life_minutes": {"quoted_value": 32, "tested_value": 25},
         "sensor_height_mm": 4.80,
         "sensor_width_mm": 6.40,
         "equiv_focal_length_mm": 26,
@@ -141,11 +155,17 @@ DRONE_PARAMS = {
         "GSD_TO_AGL_CONST": 27.95,
         "OUTPUT_FORMAT": "DJI_WMPL",
     },
-    DroneType.POTENSIC_ATOM_2: {
+    DroneType.POTENSIC_ATOM_1: {
         "VERTICAL_FOV": 0.93,
         "HORIZONTAL_FOV": 1.17,
         "GSD_TO_AGL_CONST": 34.61,
         "OUTPUT_FORMAT": "POTENSIC_SQLITE",
+    },
+    DroneType.POTENSIC_ATOM_2: {
+        "VERTICAL_FOV": 0.93,
+        "HORIZONTAL_FOV": 1.17,
+        "GSD_TO_AGL_CONST": 34.61,
+        "OUTPUT_FORMAT": "POTENSIC_JSON",
     },
     # FIXME these params can vary widely. We need a way for user to input
     # FIXME the current values are simply for testing different output formats

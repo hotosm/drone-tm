@@ -1,6 +1,7 @@
 import argparse
 import logging
 import math
+import json
 
 from drone_flightplan.drone_type import (
     DroneType,
@@ -15,6 +16,15 @@ log = logging.getLogger(__name__)
 
 
 def print_drone_calcs():
+    """Re-calculate drone constants in drone_type.py.
+
+    cd src/backend
+    uv sync
+    uv --project packages/drone-flightplan --directory packages/drone-flightplan run \
+        python -c \
+        'from drone_flightplan.calculate_parameters import print_drone_calcs; \
+        print_drone_calcs()'
+    """
     for drone in DroneType:
         print("-----------------------------------------")
         print(f"-------------{drone.name}---------------")
@@ -178,8 +188,9 @@ def calculate_parameters(
         in [DroneType.DJI_MINI_5_PRO, DroneType.DJI_MINI_4_PRO, DroneType.DJI_AIR_3]
     ):
         ground_speed = 11.5
-    elif drone_type == DroneType.POTENSIC_ATOM_2:
-        # This seems to be the max speed for the Potensic Atom 2
+    elif drone_type == DroneType.POTENSIC_ATOM_1:
+        # NOTE This seems to be the max speed for the Potensic Atom 1
+        # upon testing. This value could be updated if reported otherwise
         ground_speed = 8.0
     else:
         # FIXME what should be the default?
@@ -261,7 +272,9 @@ def main():
     for key, value in results.items():
         log.info(f"{key}: {value}")
 
-    return results
+    log.info("")
+    log.info("Params JSON:")
+    return json.dumps(results)
 
 
 if __name__ == "__main__":
