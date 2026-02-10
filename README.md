@@ -125,7 +125,10 @@ To get started with DroneTM:
 We currently recommend the **DJI Mini 5 Pro** or **Mini 4 Pro**, as the
 drones with the best waypoint support, and high quality cameras on board.
 
-For now, all other drones have a compromise of some kind.
+The **Potensic Atom 2** is also a solid choice, for a lower pricetag,
+but similar quality.
+
+For now, most other drones have a compromise of some kind.
 
 <!-- prettier-ignore-start -->
 | Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
@@ -146,7 +149,7 @@ For now, all other drones have a compromise of some kind.
 <!-- prettier-ignore-end -->
 
 > [!Note]
-> ❔ in theory should work, but untested in the field
+> ❔ in theory should work, but untested in the field (please help confirm these!)
 >
 > 🤔 works with some limitations, such as lack of terrain following
 
