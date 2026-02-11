@@ -120,7 +120,6 @@ const DescriptionSection = ({
         </div>
       </div>
 
-      {/* Prominent Drone Image Processing Workflow Button */}
       {page === 'project-description' && onOpenWorkflow && (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-rounded-lg naxatw-border-2 naxatw-border-red-200 naxatw-bg-red-50 naxatw-p-6">
           <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
