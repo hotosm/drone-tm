@@ -43,6 +43,8 @@ const getActiveTabContent = (
   isProjectDataLoading: boolean,
   // eslint-disable-next-line no-unused-vars
   handleTableRowClick: (rowData: any) => {},
+  // eslint-disable-next-line no-unused-vars
+  onOpenWorkflow?: () => void,
 ) => {
   if (activeTab === 'about')
     return (
@@ -50,6 +52,7 @@ const getActiveTabContent = (
         projectData={data}
         isProjectDataLoading={isProjectDataLoading}
         page="project-description"
+        onOpenWorkflow={onOpenWorkflow}
       />
     );
   if (activeTab === 'tasks')
@@ -202,15 +205,6 @@ const IndividualProject = () => {
             ]}
           />
           <div className="naxatw-flex naxatw-gap-5">
-            <Button
-              variant="ghost"
-              className="naxatw-border naxatw-border-[#D73F3F] naxatw-bg-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-white"
-              leftIcon="upload"
-              iconClassname="naxatw-text-[1.125rem]"
-              onClick={() => setIsWorkflowModalOpen(true)}
-            >
-              Drone Image Processing Workflow
-            </Button>
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
@@ -301,6 +295,7 @@ const IndividualProject = () => {
                   projectData as Record<string, any>,
                   isProjectDataFetching,
                   handleTableRowClick,
+                  () => setIsWorkflowModalOpen(true),
                 )}
               </div>
               <div className="naxatw-absolute naxatw-bottom-0 naxatw-flex naxatw-w-full naxatw-justify-center">

@@ -242,6 +242,34 @@ const DescriptionBox = () => {
         </p>
       </div>
 
+      {/* Prominent Drone Image Processing Workflow Button */}
+      {taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' && (
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-rounded-lg naxatw-border-2 naxatw-border-red-200 naxatw-bg-red-50 naxatw-p-6">
+          <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
+            <span className="material-icons naxatw-text-2xl naxatw-text-red-600">
+              cloud_upload
+            </span>
+            <div className="naxatw-flex-1">
+              <p className="naxatw-mb-1 naxatw-text-base naxatw-font-semibold naxatw-text-red-900">
+                Ready to process drone imagery?
+              </p>
+              <p className="naxatw-mb-3 naxatw-text-sm naxatw-text-red-700">
+                Upload your drone images, classify them for quality, review results, and start processing.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            className="naxatw-w-full naxatw-bg-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-white hover:naxatw-bg-red-700"
+            leftIcon="settings"
+            iconClassname="naxatw-text-xl"
+            onClick={() => setIsWorkflowModalOpen(true)}
+          >
+            Drone Image Processing Workflow
+          </Button>
+        </div>
+      )}
+
       {/* Drone Image Processing Workflow Modal */}
       <DroneImageProcessingWorkflow
         isOpen={isWorkflowModalOpen}
@@ -330,31 +358,6 @@ const DescriptionBox = () => {
             />
           ) : (
             <>
-              {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
-                (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                  taskAssetsInformation?.image_count > 0)) && (
-                <div className="">
-                  <Button
-                    variant="ghost"
-                    className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-                    leftIcon="play_arrow"
-                    iconClassname="naxatw-text-[1.125rem]"
-                    onClick={() => startImageryProcess()}
-                    disabled={imageProcessingStarting || statusUpdating}
-                  >
-                    Start Processing
-                  </Button>
-                  {taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                    taskAssetsInformation?.image_count > 0 && (
-                      <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs naxatw-text-yellow-600">
-                        Note: Some images may not have been uploaded due to an
-                        issue during the upload process. However, you can
-                        proceed with processing for the successfully uploaded
-                        images.
-                      </p>
-                    )}
-                </div>
-              )}
               {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
                 <div className="">
                   <Button
