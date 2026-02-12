@@ -101,8 +101,8 @@ const ImageClassification = ({
   });
 
   // Query for batch status (summary counts) - poll every 10 seconds to handle race conditions
-  const { 
-    data: batchStatus, 
+  const {
+    data: batchStatus,
     isLoading: isLoadingStatus,
     isError: isErrorStatus,
     error: errorStatus
@@ -116,7 +116,7 @@ const ImageClassification = ({
   );
 
   // Query for batch images - fetch immediately and poll every 10 seconds to handle race conditions
-  const { 
+  const {
     data: newImages,
     isError: isErrorImages,
     error: errorImages
