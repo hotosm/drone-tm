@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
@@ -11,6 +11,7 @@ import {
 import Modal from '@Components/common/Modal';
 import { Button } from '@Components/RadixComponents/Button';
 import StepSwitcher from '@Components/common/StepSwitcher';
+import ToolTip from '@Components/RadixComponents/ToolTip';
 import { deleteBatch } from '@Services/classification';
 import ImageUpload from './ImageUpload';
 import ImageClassification from './ImageClassification';
@@ -29,7 +30,7 @@ const DroneImageProcessingWorkflow = ({
   projectId,
 }: IDroneImageProcessingWorkflowProps) => {
   const dispatch = useTypedDispatch();
-  const { currentStep, batchId, isClassifying } = useTypedSelector(
+  const { currentStep, batchId, isClassifying, isClassificationComplete } = useTypedSelector(
     (state) => state.imageProcessingWorkflow
   );
   const [showAbortConfirmation, setShowAbortConfirmation] = useState(false);
@@ -120,18 +121,34 @@ const DroneImageProcessingWorkflow = ({
     }
   }, [dispatch]);
 
-  // Should proceed to the next step
-  const handleNextButton = () => {
-    // Disable Next button on step 1 if no batch ID
-    if (currentStep === 1 && !batchId) {
-      return true;
+  // Logic for Next button state and tooltip
+  const navigationInfo = useMemo(() => {
+    // Step 1: Image Upload
+    if (currentStep === 1) {
+      if (!batchId) {
+        return { disabled: true, reason: 'Please upload images first' };
+      }
     }
-    // Disable Next button if currently classifying
-    if (isClassifying) {
-      return true;
+
+    // Step 2: Image Classification
+    if (currentStep === 2) {
+      if (isClassifying) {
+        return { disabled: true, reason: 'Classification in progress...' };
+      }
+      if (!isClassificationComplete) {
+        return { disabled: true, reason: 'Please start and complete classification first' };
+      }
     }
-    return false;
-  }
+
+    // Step 3: Image Review
+    if (currentStep === 3) {
+      if (!isClassificationComplete) {
+        return { disabled: true, reason: 'Please complete classification first' };
+      }
+    }
+
+    return { disabled: false, reason: '' };
+  }, [currentStep, batchId, isClassifying, isClassificationComplete]);
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -229,15 +246,19 @@ const DroneImageProcessingWorkflow = ({
               Cancel
             </Button>
             {currentStep < steps.length ? (
-              <Button
-                variant="ghost"
-                className="naxatw-bg-red naxatw-text-white"
-                onClick={handleNext}
-                disabled={handleNextButton()}
-                rightIcon="chevron_right"
-              >
-                Next
-              </Button>
+              <ToolTip message={navigationInfo.disabled ? navigationInfo.reason : undefined} side="top">
+                <div className="naxatw-inline-block">
+                  <Button
+                    variant="ghost"
+                    className="naxatw-bg-red naxatw-text-white"
+                    onClick={handleNext}
+                    disabled={navigationInfo.disabled}
+                    rightIcon="chevron_right"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </ToolTip>
             ) : (
               <Button
                 variant="ghost"
