@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 import pytest
 
 from app.models.enums import ImageStatus
-from app.projects.image_classification import ImageClassifier, QualityThresholds
+from app.images.image_classification import ImageClassifier, QualityThresholds
 
 
 def test_classifier_exposure_detects_lens_cap():

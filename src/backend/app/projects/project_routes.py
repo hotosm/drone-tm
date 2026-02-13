@@ -5,6 +5,7 @@ from datetime import timedelta
 from typing import Annotated, Dict, List, Optional
 from uuid import UUID
 
+from app.images import image_processing
 import geojson
 from arq import ArqRedis
 from fastapi import (
@@ -32,7 +33,7 @@ from app.config import settings
 from app.db import database
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
-from app.projects import image_processing, project_deps, project_logic, project_schemas
+from app.projects import project_deps, project_logic, project_schemas
 from app.projects.oam import upload_to_oam
 from app.s3 import (
     abort_multipart_upload,

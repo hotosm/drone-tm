@@ -1,5 +1,9 @@
 from typing import Any, AsyncGenerator
 
+import os
+import csv
+import json
+import hashlib
 import pytest
 import pytest_asyncio
 import uuid
@@ -15,6 +19,11 @@ from app.models.enums import UserRole
 from app.projects.project_schemas import DbProject, ProjectIn
 from app.users.user_deps import login_required, login_dependency
 from app.users.user_schemas import AuthUser, DbUser
+
+from datetime import datetime, timedelta, timezone
+
+
+FREETOWN_DATASET_DIR = os.path.join(os.path.dirname(__file__), "freetown_dataset")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -153,3 +162,207 @@ async def client(app: FastAPI, db: AsyncConnection, auth_user: AuthUser):
             follow_redirects=True,
         ) as ac:
             yield ac
+
+
+@pytest_asyncio.fixture(scope="function")
+async def freetown_aoi():
+    """Loads Freetown geojson AOI"""
+    with open(os.path.join(FREETOWN_DATASET_DIR, "aoi.geojson")) as f:
+        data = json.load(f)
+    if data.get("type") == "FeatureCollection":
+        return data["features"][0]["geometry"]
+    elif data.get("type") == "Feature":
+        return data["geometry"]
+
+    return data
+
+
+@pytest_asyncio.fixture(scope="function")
+async def freetown_dataset_loader():
+    """Returns helper function that loads in Freetown metadata with or without gaps applied depending on the
+    parameters passed in."""
+
+    def _loader(apply_gaps=True):
+        metadata = []
+        gap_filenames = set()
+
+        if apply_gaps:
+            gap_file = os.path.join(
+                FREETOWN_DATASET_DIR, "images-to-delete-for-gaps.txt"
+            )
+            if os.path.exists(gap_file):
+                with open(gap_file, "r") as f:
+                    gap_filenames = {
+                        line.strip().split("/")[-1] for line in f if "DJI_" in line
+                    }
+
+        csv_path = os.path.join(FREETOWN_DATASET_DIR, "image_metadata.csv")
+        with open(csv_path, encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                file_name = row["SourceFile"].split("/")[-1]
+                if apply_gaps and file_name in gap_filenames:
+                    continue
+                metadata.append(row)
+        return metadata
+
+    return _loader
+
+
+@pytest_asyncio.fixture(scope="function")
+async def load_freetown_into_db(
+    db, auth_user, freetown_dataset_loader, freetown_aoi, create_test_project
+):
+    """Returns helper function that applies Freetown metadata into the db."""
+
+    def dms_to_decimal(dms: str) -> float:
+        if not dms or not isinstance(dms, str):
+            return 0.0
+        # Clean the string: remove backslashes and unify degree symbols
+        s = dms.strip().replace("\\", "").replace("°", " deg ")
+        parts = s.split()
+        try:
+            deg = float(parts[0])
+            minutes = float(parts[2].replace("'", ""))
+            seconds = float(parts[3].replace('"', ""))
+            hemi = parts[4].upper()
+
+            value = deg + minutes / 60.0 + seconds / 3600.0
+            if hemi in ("S", "W"):
+                value *= -1
+            return value
+        except (ValueError, IndexError):
+            return 0.0
+
+    async def _apply_to_db(apply_gaps=False, manual_metadata=None):
+        project_id = uuid.UUID(create_test_project)
+        batch_id = uuid.uuid4()
+        task_id = uuid.uuid4()
+        flight_uuid = uuid.uuid4()
+
+        metadata = (
+            manual_metadata
+            if manual_metadata is not None
+            else freetown_dataset_loader(apply_gaps=apply_gaps)
+        )
+        now = datetime.now(timezone.utc)
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO drones (
+                    model,
+                    manufacturer,
+                    created
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    CURRENT_TIMESTAMP
+                )
+                ON CONFLICT (model) DO UPDATE SET model = EXCLUDED.model
+                RETURNING id
+                """,
+                ("DJI Air 3", "DJI"),
+            )
+
+            drone_id = (await cur.fetchone())[0]
+
+            await cur.execute(
+                """
+                INSERT INTO tasks (
+                    id,
+                    project_id,
+                    outline
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)
+                )
+                """,
+                (task_id, project_id, json.dumps(freetown_aoi)),
+            )
+
+            await cur.execute(
+                """
+                INSERT INTO drone_flights (
+                    flight_id,
+                    drone_id,
+                    task_id,
+                    user_id,
+                    created_at
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    CURRENT_TIMESTAMP
+                    )
+                """,
+                (flight_uuid, drone_id, task_id, auth_user.id),
+            )
+
+            for i, row in enumerate(metadata):
+                file_name = row["SourceFile"].split("/")[-1]
+                s3_key = f"projects/{project_id}/user-uploads/{file_name}"
+                hash_md5 = hashlib.md5(file_name.encode("utf-8")).hexdigest()
+                uploaded_at = now + timedelta(seconds=i)
+
+                lat = dms_to_decimal(row.get("GPSLatitude"))
+                lon = dms_to_decimal(row.get("GPSLongitude"))
+
+                exif_data = {
+                    "DateTimeOriginal": row.get("DateTimeOriginal"),
+                    "AbsoluteAltitude": row.get("AbsoluteAltitude"),
+                    "FlightYawDegree": row.get("FlightYawDegree"),
+                }
+
+                await cur.execute(
+                    """
+                    INSERT INTO project_images (
+                        project_id,
+                        filename,
+                        s3_key,
+                        hash_md5,
+                        batch_id,
+                        task_id,
+                        location,
+                        exif,
+                        status,
+                        uploaded_at,
+                        uploaded_by
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        ST_SetSRID(ST_MakePoint(%s, %s), 4326),
+                        %s,
+                        'assigned',
+                        %s,
+                        %s
+                    )
+                    """,
+                    (
+                        project_id,
+                        file_name,
+                        s3_key,
+                        hash_md5,
+                        batch_id,
+                        task_id,
+                        lon,
+                        lat,
+                        json.dumps(exif_data),
+                        uploaded_at,
+                        auth_user.id,
+                    ),
+                )
+
+        await db.commit()
+        return project_id, batch_id, task_id
+
+    return _apply_to_db
