@@ -13,7 +13,8 @@ from drone_flightplan.waypoints import create_waypoint
 from drone_flightplan.drone_type import DroneType, DRONE_PARAMS, drone_type_arg
 from drone_flightplan.enums import FlightMode, flight_mode_arg
 from drone_flightplan.output.dji import create_wpml
-from drone_flightplan.output.potensic import create_potensic_sqlite
+from drone_flightplan.output.potensic_v1 import create_potensic_sqlite
+from drone_flightplan.output.potensic_v2 import create_potensic_json
 from drone_flightplan.output.mavlink import create_mavlink_plan
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
 from drone_flightplan.output.litchi import create_litchi_csv
@@ -47,6 +48,10 @@ def create_flightplan(
     Returns:
         Drone Flightplan in kmz format
     """
+    # If the user says 30o clockwise rotation, we actually rotate 330o anticlockwise
+    rotation_angle = 360 - rotation_angle
+    generate_3d = False  # TODO: For 3d imagery support, drone_flightplan package needs to be updated
+
     parameters = calculate_parameters(
         forward_overlap,
         side_overlap,
@@ -56,41 +61,51 @@ def create_flightplan(
         drone_type,
     )
 
-    # FIXME we need the commented out params to also be passed
-    waypoints = create_waypoint(
+    waypoint_params = dict(
         project_area=aoi,
         agl=agl,
         gsd=gsd,
         forward_overlap=forward_overlap,
         side_overlap=side_overlap,
         rotation_angle=rotation_angle,
-        # generate_3d: bool = False,
-        # no_fly_zones: dict = None,
+        generate_3d=generate_3d,
         take_off_point=take_off_point,
-        mode=flight_mode,
         drone_type=drone_type,
-        # gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
-        # auto_rotation: bool = True,
+        mode=flight_mode,
     )
+    waypoint_data = create_waypoint(**waypoint_params)
+    points_geojson = waypoint_data["geojson"]
 
-    # Add elevation data to the waypoints
+    # ---- Terrain follow support ----
     if dem:
-        # TODO: Do this with inmemory data
         outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-        add_elevation_from_dem(dem, waypoints, outfile_with_elevation)
+        add_elevation_from_dem(dem, points_geojson, outfile_with_elevation)
 
-        inpointsfile = open(outfile_with_elevation, "r")
-        waypoints = inpointsfile.read()
+        with open(outfile_with_elevation, "r") as f:
+            points_geojson = f.read()
 
-    # calculate the placemark data
-    placemarks = create_placemarks(geojson.loads(waypoints), parameters)
+        # If user asked for WAYLINES, convert after terrain-following
+        if flight_mode == FlightMode.WAYLINES:
+            placemarks = create_placemarks(geojson.loads(points_geojson), parameters)
+            from drone_flightplan.terrain_following_waylines import waypoints2waylines
+
+            placemarks = waypoints2waylines(placemarks, 5)
+        else:
+            placemarks = create_placemarks(geojson.loads(points_geojson), parameters)
+    else:
+        placemarks = create_placemarks(geojson.loads(points_geojson), parameters)
+
+    # ---- Create flightplans / output formats ----
 
     # create flightplan files
     output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
+
     if output_format == "DJI_WMPL":
         outpath = create_wpml(placemarks, outfile)
     elif output_format == "POTENSIC_SQLITE":
         outpath = create_potensic_sqlite(placemarks, outfile)
+    elif output_format == "POTENSIC_JSON":
+        outpath = create_potensic_json(placemarks, outfile)
     elif output_format == "MAVLINK_PLAN":
         outpath = create_mavlink_plan(placemarks, outfile)
     elif output_format == "QGROUNDCONTROL":
@@ -98,10 +113,9 @@ def create_flightplan(
     elif output_format == "LITCHI":
         outpath = create_litchi_csv(placemarks, outfile, flight_mode=flight_mode)
     else:
-        log.error(f"Unsupported output format: {output_format}")
-        return
+        raise ValueError(f"Unsupported output format: {output_format}")
 
-    log.info(f"Flight plan generated in the path {outpath}")
+    log.info(f"Flight plan generated: {outpath}")
     return outpath
 
 

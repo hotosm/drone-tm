@@ -1,5 +1,67 @@
 # CHANGELOG
 
+## drone-flightplan-1.0.0 (2026-02-10)
+
+### BREAKING CHANGE
+
+- Switch from minio to boto3
+
+### Feat
+
+- support Potensic Atom 2 Waypoint Missions (JSON Format) (#726)
+- add helm chart for k8s migration (#591)
+- **backend**: add opentelemetry instrumentation for arq worker
+- **backend**: removing flight tails from uploaded imagery (#698)
+- **backend**: photo upload upgrade fixes, plus additional classification and validation criteria for image uploads (#697)
+- triggering processing workflow after new photo upload method (#691)
+- classification workflow for imagery upload (#668)
+- **backend**: add Sentry OTEL traces to prod (#675)
+- improvements to imagery upload step using s3 multipart, per project file dump (#678)
+- **frontend**: add a tooltip recommending the usage of waylines when a high number of waypoints are present (#670)
+- **backend**: Public endpoints for accessing list of centroids and single project (#663) (#672)
+- **frontend**: add sorting to contributions table and pretty task ID to map (#660)
+- **drone-flightplan**: add support for Litchi CSV export + QGroundControl `.plan` JSON export (#646)
+
+### Fix
+
+- **frontend**: start to reword mapping --> flying #494
+- **frontend**: display the task index on task click, not the uuid
+- **backend**: correctly remove psycopg_pool verbose logs
+- **backend**: hide verbose logs, move tif spider to arq worker job
+- **backend**: ensure tif spider code is self-contained and uses /tmp, bump chart --> 0.1.5
+- **frontend**: build issue after logic update
+- **backend**: merge together classification & flight tail removal logic, fix up
+- **backend**: decrease max concurrent file uploads to s3 --> 2
+- **backend**: various image classification logic fixes, typing, ordering, race conditions
+- **backend**: avoid error if s3 url pre-signing fails on project get
+- **backend**: pre-commit issues / import errors
+- **backend**: ensure existing tests all pass (#689)
+- **frontend**: revert to maplibre demotiles for basemap
+- **frontend**: add osm raster tile fallback on vector tile failure
+- **backend**: OTEL follow up part 2 (#681)
+- **hotfix**: missed import from removed FlightPlan enum
+- **backend**: conflicting FlightPlan enum, remove DroneTM version (#679)
+- **drone-flightplan**: suggest task split to user if flight time exceeds 80% of battery life (#664)
+- **frontend**: remove unused prop and modify interfaces to fix build errors (#674)
+- **backend**: implement cleanup of successful / failed NodeODM tasks (#658)
+- **frontend**: task and individual project page console errors (#666)
+- **frontend**: redirect to pages behind the login (#659)
+- correct forgot password functionality (#661)
+- **frontend**: use an anchor tag for correct semantics (#655)
+- **frontend**: remove horizontal padding from app container
+- **mapper**: mobile optimised layout, fixes #652
+
+### Refactor
+
+- tweaks to urls remaining as dronetm.hotosm.org
+- various fixes, refactors, doc updates, mostly affecting s3 local dev usage
+- remove dtm-data prefix from s3, replace all hardcoded to accelerate endpoint
+- consolidate env vars to simplify deploy, update chart + compose to match
+- rename Uploaded --> Pending for image classification process
+- cleanup confusing unused code, swap frontend map legend order
+- typo stepSwticherData --> stepSwitcherData
+- replace all refs to 'develop' branch --> 'dev'
+
 ## drone-flightplan-0.4.1 (2025-10-16)
 
 - capture edges on flightplan rotation

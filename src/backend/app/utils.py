@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import geojson
+import math
 import requests
 import shapely
 from aiosmtplib import send as send_email
@@ -645,3 +646,40 @@ def strip_presigned_url_for_local_dev(url: str, strip_presign: bool = True) -> s
     except Exception as e:
         log.debug(f"Failed to convert S3 URL for local development: {e}")
         return url
+
+
+def calculate_angular_difference(degree1: float, degree2: float) -> float:
+    """
+    Calculates the shortest angular difference between two angles.
+
+    Ensures the difference accounts for 360-degree wrap-around.
+
+    Returns:
+         float: Absolute difference in degrees (0 to 180)
+    """
+    angular_difference = abs(degree1 - degree2)
+    if angular_difference > 180:
+        angular_difference = 360 - angular_difference
+    return angular_difference
+
+
+def circular_mean_pair(degree1: float, degree2: float) -> float:
+    """Circular mean of exactly two 0..360 degree values (pair-wise update helper)."""
+    rad1 = math.radians(degree1)
+    rad2 = math.radians(degree2)
+    x = math.cos(rad1) + math.cos(rad2)
+    y = math.sin(rad1) + math.sin(rad2)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def circular_mean_list(degrees: list[float]) -> float:
+    """Circular mean for a list of 0..360 degree values."""
+    if not degrees:
+        raise ValueError("degrees must be non-empty")
+    x = 0.0
+    y = 0.0
+    for d in degrees:
+        r = math.radians(float(d))
+        x += math.cos(r)
+        y += math.sin(r)
+    return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0

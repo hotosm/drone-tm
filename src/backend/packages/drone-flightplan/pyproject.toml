@@ -1,10 +1,11 @@
 
 [project]
 name = "drone-flightplan"
-version = "0.4.1"
+version = "1.0.0"
 description = "Generate an optimized flight plan for aerial mapping with drones."
 authors = [
     {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
+    {name = "Sam Woodcock", email = "sam.woodcock@hotosm.org"},
 ]
 dependencies = [
     "geojson>=3.0.0",
@@ -14,7 +15,7 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "AGPL-3.0-only"}
+license = {text = "GPL-3.0-only"}
 
 [project.urls]
 homepage = "https://github.com/hotosm/drone-tm/tree/dev/src/backend/packages/drone-flightplan"
@@ -37,7 +38,7 @@ packages = ["drone_flightplan"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.4.1"
+version = "1.0.0"
 version_provider = "uv"
 version_files = [
     "pyproject.toml:version",

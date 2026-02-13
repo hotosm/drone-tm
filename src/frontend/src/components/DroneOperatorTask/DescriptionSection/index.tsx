@@ -84,8 +84,11 @@ const DroneOperatorDescriptionBox = () => {
       const blob = await response.blob();
 
       // TODO improve this logic to be more generic
-      if (droneModel === 'POTENSIC_ATOM_2') {
+      if (droneModel === 'POTENSIC_ATOM_1') {
         await sendPotensicProFileViaAdb(blob);
+      // TODO add handling to send Potensic JSON to device too
+      // if (droneModel === 'POTENSIC_ATOM_2') {
+      //   await sendPotensicEveFileViaAdb(blob);
       } else {
         await sendDjiGoFileViaAdb(blob);
       }

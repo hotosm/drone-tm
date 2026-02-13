@@ -1,5 +1,6 @@
 import argparse
 import logging
+import json
 from math import sqrt, degrees, atan2
 from typing import Optional
 
@@ -848,7 +849,7 @@ def main():
     )
 
     with open(args.output_file_path, "w") as f:
-        f.write(coordinates)
+        json.dump(coordinates, f, indent=2)
 
     return coordinates
 

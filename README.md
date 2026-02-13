@@ -95,12 +95,13 @@ To get started with DroneTM:
 |✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) | Since [v2024.11.0][1] |
 |✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) | Since [v2025.3.1][3] |
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
-|✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.4.0][4] |
+|✅| 📱 flight plans working on Potensic Atom 1 | Since [v2025.4.0][4] |
 |✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | Since [v2025.4.0][4] |
 |✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | [v2025.5.0][5] |
 |✅| 📱 recommendations for user if they should use waypoint or wayline mode | [v2025.5.0][5] |
-|✅| 🖥️ support retries for dropped connections during photo uploads | TBC |
-|✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | TBC |
+|✅| 🖥️ support retries for dropped connections during photo uploads | Since [v2025.6.0][5] |
+|✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | Since [v2025.6.0][5] |
+|✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.6.0][5] |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
 |⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
@@ -124,7 +125,10 @@ To get started with DroneTM:
 We currently recommend the **DJI Mini 5 Pro** or **Mini 4 Pro**, as the
 drones with the best waypoint support, and high quality cameras on board.
 
-For now, all other drones have a compromise of some kind.
+The **Potensic Atom 2** is also a solid choice, for a lower pricetag,
+but similar quality.
+
+For now, most other drones have a compromise of some kind.
 
 <!-- prettier-ignore-start -->
 | Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
@@ -140,11 +144,12 @@ For now, all other drones have a compromise of some kind.
 | DJI Mini SE (version 1 only) | ✅ | ❌ | ✅ | Litchi |
 | DJI Mini 2 | ✅ | ❌ | ✅ | Litchi |
 | DJI Air 2S | ❌ | ❔ | ✅ | Litchi, DroneDeploy |
-| Potensic Atom 2 | ✅ | 🤔 | ❌ | None |
+| Potensic Atom 1 | ✅ | 🤔 | ❌ | None |
+| Potensic Atom 2 | ✅ | ✅ | ❌ | None |
 <!-- prettier-ignore-end -->
 
 > [!Note]
-> ❔ in theory should work, but untested in the field
+> ❔ in theory should work, but untested in the field (please help confirm these!)
 >
 > 🤔 works with some limitations, such as lack of terrain following
 
@@ -162,3 +167,4 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
 [4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
+[5]: https://github.com/hotosm/drone-tm/releases/tag/v2025.6.0
