@@ -18,7 +18,14 @@ declare module 'react' {
         'osm-required'?: string | boolean;
         'auto-connect'?: string | boolean;
         'verify-session'?: string | boolean;
+        display?: 'bar' | string;
+        'button-variant'?: 'filled' | 'outline' | 'plain' | string;
+        'button-color'?: 'primary' | 'neutral' | 'danger' | string;
       };
+      'hotosm-tool-menu': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      >;
     }
   }
 }
