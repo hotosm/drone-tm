@@ -3,12 +3,15 @@ import { NavLink, useLocation } from 'react-router-dom';
 import dtmLogo from '@Assets/images/DTM-logo-black.svg';
 import UserProfile from '../UserProfile';
 import { FlexRow } from '../Layouts';
+import '@hotosm/tool-menu';
 // import Icon from '../Icon';
 
 // Import Hanko web component when using SSO
 const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
-const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
-const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
+const HANKO_URL =
+  (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
+const FRONTEND_URL =
+  (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 if (AUTH_PROVIDER === 'hanko') {
   import('@hotosm/hanko-auth');
@@ -27,7 +30,7 @@ export default function Navbar() {
   const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
 
   return (
-    <nav className="naxatw-h-[3.5rem] naxatw-border-b naxatw-border-grey-300 naxatw-pb-2 naxatw-pt-4">
+    <nav className="naxatw-min-h-[3.3rem] naxatw-border-b naxatw-border-grey-300 naxatw-pb-0 naxatw-pt-2">
       <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-px-16">
         <a
           className="naxatw-cursor-pointer"
@@ -51,7 +54,7 @@ export default function Navbar() {
                     isActive || pathname.includes('project')
                       ? 'naxatw-border-b-2 naxatw-border-red'
                       : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
-                  } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
+                  } -naxatw-mb-[1.4rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
                 }
               >
                 Projects
@@ -63,7 +66,7 @@ export default function Navbar() {
                     isActive
                       ? 'naxatw-border-b-2 naxatw-border-red'
                       : 'hover:naxatw-border-b-2 hover:naxatw-border-grey-900'
-                  } -naxatw-mb-[1.2rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
+                  } -naxatw-mb-[1.4rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`
                 }
               >
                 Dashboard
@@ -77,10 +80,13 @@ export default function Navbar() {
                   base-path={HANKO_URL}
                   redirect-after-login={hankoReturnUrl}
                   redirect-after-logout={FRONTEND_URL}
+                  button-variant="filled"
+                  button-color="danger"
                 />
               ) : (
                 <UserProfile />
               )}
+              <hotosm-tool-menu></hotosm-tool-menu>
             </FlexRow>
           </>
         )}
