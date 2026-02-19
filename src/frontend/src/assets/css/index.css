@@ -98,3 +98,6 @@ body {
   > div.react-pdf__Page__annotations.annotationLayer {
   height: 0px !important;
 }
+hotosm-auth {
+  --font-family: var(--hot-font-sans);
+}
