@@ -15,7 +15,7 @@ import {
 } from '@Services/createproject';
 import MapSection from './MapSection';
 
-export default function GenerateTask({ formProps }: { formProps: any }) {
+export default function GenerateTasks({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
   const [error, setError] = useState('');
   const isTerrainFollow = useTypedSelector(
@@ -133,7 +133,7 @@ export default function GenerateTask({ formProps }: { formProps: any }) {
             return mutate(payload);
           }}
         >
-          Generate Task
+          Generate Tasks
         </Button>
         {!projectWaypointCountIsLoading && projectWayPoints && (
           <p className="naxatw-mt-4 naxatw-text-sm naxatw-font-semibold">

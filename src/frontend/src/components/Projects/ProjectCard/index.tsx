@@ -9,7 +9,6 @@ interface IProjectCardProps {
   imageUrl: string | null;
   totalTasks: number;
   status: string;
-  slug: string;
   completedTask: number;
 }
 
@@ -20,7 +19,6 @@ export default function ProjectCard({
   imageUrl,
   totalTasks,
   status,
-  slug,
   completedTask,
 }: IProjectCardProps) {
   const navigate = useNavigate();
@@ -49,7 +47,7 @@ export default function ProjectCard({
       </p>
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-2">
         <p className="naxatw-mt-2 naxatw-line-clamp-1 naxatw-flex-grow naxatw-text-body-sm">
-          ID:#{slug}
+          ID:#{id}
         </p>
         <div className="naxatw-flex naxatw-w-20 naxatw-items-center naxatw-justify-end">
           {status === 'not-started' ? (
