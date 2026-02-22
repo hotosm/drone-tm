@@ -1,5 +1,6 @@
 import json
 import uuid
+import pytest
 
 from app.waypoints import waypoint_routes
 
@@ -39,6 +40,7 @@ async def _setup_terrain_follow_task(db, project_id: str) -> str:
     return task_id
 
 
+@pytest.mark.asyncio
 async def test_terrain_follow_missing_dem_returns_409(
     client, db, create_test_project, monkeypatch
 ):
@@ -56,6 +58,7 @@ async def test_terrain_follow_missing_dem_returns_409(
     assert payload["detail"]["code"] == "MISSING_TERRAIN_DEM"
 
 
+@pytest.mark.asyncio
 async def test_terrain_follow_missing_dem_can_override(
     client, db, create_test_project, monkeypatch
 ):
@@ -80,6 +83,7 @@ async def test_terrain_follow_missing_dem_can_override(
     assert response.content == b"dummy-kmz"
 
 
+@pytest.mark.asyncio
 async def test_terrain_follow_dem_present_in_s3_downloads_before_generation(
     client, db, create_test_project, monkeypatch
 ):
