@@ -280,10 +280,10 @@ rclone lsd s3upload:
 
 ```bash
 # Windows
-rclone copy "C:\Path\To\Folder" s3upload:BUCKET_NAME --progress --transfers 1 --s3-upload-concurrency 1 --retries 10
+rclone copy "C:\Path\To\FolderName" s3upload:BUCKET_NAME/FolderName --progress --transfers 1 --s3-upload-concurrency 1 --retries 10
 
 # Linux
-rclone copy /path/to/folder s3upload:BUCKET_NAME --progress --transfers 1 --s3-upload-concurrency 1 --retries 10
+rclone copy /path/to/foldername s3upload:BUCKET_NAME/foldername --progress --transfers 1 --s3-upload-concurrency 1 --retries 10
 ```
 
 **If the internet disconnects**:
