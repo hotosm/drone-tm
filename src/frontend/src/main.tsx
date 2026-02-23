@@ -12,12 +12,6 @@ import { store, persistor } from './store';
 import App from './App';
 import { getRuntimeConfig } from './runtimeConfig';
 
-// Import Web Awesome components needed by hanko-auth web component
-import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
-import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
-import '@awesome.me/webawesome/dist/components/button/button.js';
-import '@awesome.me/webawesome/dist/components/icon/icon.js';
-
 // Workaround required, as @hotosm/gcp-editor already imports all components
 if (!customElements.get('hot-tracking')) {
   import('@hotosm/ui/dist/hotosm-ui');
