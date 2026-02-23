@@ -1,11 +1,11 @@
 import { FlexColumn } from '@Components/common/Layouts';
 import { taskGenerationGuidelines } from '@Constants/createProject';
 
-export default function GenerateTask() {
+export default function GenerateTasks() {
   return (
     <FlexColumn gap={2} className="naxatw-animate-fade-up">
       <div>
-        <p className="naxatw-text-body-btn">Generate task</p>
+        <p className="naxatw-text-body-btn">Generate tasks</p>
         <p className="naxatw-text-body-md">
           Split the task into smaller chunks based on the given dimensions to
           ensure more efficient and precise data collection and analysis.

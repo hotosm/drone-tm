@@ -7,9 +7,10 @@ export const getTaskWaypoint = (
   droneModel: string,
   rotationAngle: number,
   gimbalAngle: string,
+  allowMissingDem = false,
 ) =>
   authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
+    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`,
   );
 
 export const getIndividualTask = (taskId: string) =>
@@ -18,10 +19,19 @@ export const getIndividualTask = (taskId: string) =>
 // TODO refactor this out and replace with getTaskWaypoint?
 // This is used to update the take off point
 export const postTaskWaypoint = (payload: Record<string, any>) => {
-  const { taskId, projectId, mode, rotationAngle, droneModel, takeOffPoint, gimbalAngle } = payload;
+  const {
+    taskId,
+    projectId,
+    mode,
+    rotationAngle,
+    droneModel,
+    takeOffPoint,
+    gimbalAngle,
+    allowMissingDem = false,
+  } = payload;
 
   return authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
+    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`,
     takeOffPoint,
     {
       headers: { 'Content-Type': 'application/json' },
