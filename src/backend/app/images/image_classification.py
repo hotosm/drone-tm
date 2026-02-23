@@ -300,28 +300,54 @@ class ImageClassifier:
                     "reason": "Image not found",
                 }
 
+        issues = []
+        exif_data = image.get("exif") or {}
+        s3_key = image.get("s3_key")
+        sharpness_score = None
+
+        # Extract GPS coordinates from stored EXIF data or parse from strings
+        latitude = image.get("lat")
+        longitude = image.get("lon")
+        if latitude is None or longitude is None:
+            latitude = ImageClassifier._parse_gps(exif_data.get("GPSLatitude"))
+            longitude = ImageClassifier._parse_gps(exif_data.get("GPSLongitude"))
+
+        # Try to find matching task early so we can associate rejected images with tasks
+        task_id = None
+        if latitude is not None and longitude is not None:
+            task_id = await ImageClassifier.find_matching_task(
+                db, project_id, latitude, longitude
+            )
+
         # If upload-time checks already decided this image is unusable (e.g., invalid GPS),
-        # don't run the rest of classification. Preserve the existing status + reason.
+        # don't run the rest of classification but associate with task if possible.
         if image.get("status") in [
             ImageStatus.REJECTED.value,
             ImageStatus.INVALID_EXIF.value,
         ]:
             existing_reason = image.get("rejection_reason") or "Previously rejected"
             existing_status = ImageStatus(image.get("status"))
+
+            # Update task_id if found
+            if task_id:
+                await ImageClassifier._update_image_status(
+                    db,
+                    image_id,
+                    existing_status,
+                    existing_reason,
+                    task_id=task_id,
+                )
+
             log.info(
-                f"Skipping classification for pre-rejected image: "
-                f"image_id={image_id} status={existing_status.value} reason={existing_reason}"
+                f"Skipping rest of classification for pre-rejected image: "
+                f"image_id={image_id} status={existing_status.value} reason={existing_reason} task_id={task_id}"
             )
             return {
                 "image_id": str(image_id),
                 "status": existing_status,  # Return original status
                 "reason": existing_reason,
+                "task_id": str(task_id) if task_id else None,
             }
-
-        issues = []
-        exif_data = image.get("exif") or {}
-        s3_key = image.get("s3_key")
-        sharpness_score = None
 
         # Check EXIF data FIRST before downloading image
         if not exif_data:
@@ -329,15 +355,6 @@ class ImageClassifier:
             log.debug(f"EXIF check FAILED: image_id={image_id} no exif")
         else:
             log.debug(f"EXIF check passed: image_id={image_id}")
-
-        # Extract GPS coordinates from stored EXIF data
-        latitude = image.get("lat")
-        longitude = image.get("lon")
-
-        # Fallback: parse from EXIF strings (e.g. "8 deg 17' 58.73\" S")
-        if latitude is None or longitude is None:
-            latitude = ImageClassifier._parse_gps(exif_data.get("GPSLatitude"))
-            longitude = ImageClassifier._parse_gps(exif_data.get("GPSLongitude"))
 
         # Validate numeric ranges
         if latitude is not None and longitude is not None:
@@ -357,13 +374,6 @@ class ImageClassifier:
         else:
             log.debug(
                 f"GPS check passed: image_id={image_id} lat={latitude:.6f} lon={longitude:.6f}"
-            )
-
-        # Try to find matching task early so we can associate rejected images with tasks
-        task_id = None
-        if latitude is not None and longitude is not None:
-            task_id = await ImageClassifier.find_matching_task(
-                db, project_id, latitude, longitude
             )
 
         # Parse UserComment for drone metadata (pitch, yaw, etc.)
