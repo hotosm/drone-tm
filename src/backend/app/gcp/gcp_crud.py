@@ -8,7 +8,7 @@ from pyproj import Transformer
 from shapely.geometry import Point, Polygon
 
 from app.config import settings
-from app.s3 import get_presigned_url
+from app.s3 import generate_presigned_get_url, maybe_presign_s3_key
 from app.waypoints import waypoint_schemas
 
 
@@ -20,8 +20,10 @@ async def calculate_bounding_box(
     focal_ratio: float,
     fnumber: float,
     altitude: float,
-    sensor_width: float = 6.17,  # These are drone specific
-    sensor_height: float = 4.55,  # These are drone specific
+    # NOTE should we record sensor width & height from manufacturer specs,
+    # or could we just determine from the imagery EXIF?
+    sensor_width: float = 6.17,  # FIXME These are drone specific
+    sensor_height: float = 4.55,  # FIXME These are drone specific
 ) -> List[float]:
     """Calculate the geographic bounding box of an image taken by a drone.
 
@@ -295,9 +297,10 @@ async def find_images_in_a_project_for_point(
     for task_id in task_id_list:
         task_id_str = str(task_id[0])
         s3_images_json_path_for_task = (
-            f"dtm-data/projects/{project_id}/{task_id_str}/images.json"
+            f"projects/{project_id}/{task_id_str}/images.json"
         )
-        s3_images_json_url = get_presigned_url(
+        # Backend downloads must use the internal endpoint (not the browser download endpoint).
+        s3_images_json_url = generate_presigned_get_url(
             settings.S3_BUCKET_NAME, s3_images_json_path_for_task
         )
 
@@ -314,11 +317,7 @@ async def find_images_in_a_project_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        get_presigned_url(
-            settings.S3_BUCKET_NAME,
-            f"dtm-data/projects/{project_id}/{image}",
-        )
-        for image in images_list
+        maybe_presign_s3_key(f"projects/{project_id}/{image}") for image in images_list
     ]
 
     return presigned_urls
@@ -342,10 +341,13 @@ async def find_images_in_a_task_for_point(
         List[str]: A list of pre-signed URLs for matching images.
     """
     # S3 path for the `images.json` file provided by ODM
-    s3_images_json_path = f"dtm-data/projects/{project_id}/{task_id}/images.json"
+    s3_images_json_path = f"projects/{project_id}/{task_id}/images.json"
 
     # Generate pre-signed URL for the `images.json` file
-    s3_images_json_url = get_presigned_url(settings.S3_BUCKET_NAME, s3_images_json_path)
+    # Backend downloads must use the internal endpoint (not the browser download endpoint).
+    s3_images_json_url = generate_presigned_get_url(
+        settings.S3_BUCKET_NAME, s3_images_json_path
+    )
 
     # Fetch bounding boxes from the `images.json` file
     bbox_list = await calculate_bbox_from_images_file(
@@ -362,10 +364,7 @@ async def find_images_in_a_task_for_point(
 
     # Generate pre-signed URLs for the matching images
     presigned_urls = [
-        get_presigned_url(
-            settings.S3_BUCKET_NAME,
-            f"dtm-data/projects/{project_id}/{task_id}/images/{image}",
-        )
+        maybe_presign_s3_key(f"projects/{project_id}/{task_id}/images/{image}")
         for image in matching_images
     ]
 

@@ -21,8 +21,8 @@ from app.projects import project_logic
 from app.s3 import (
     add_file_to_bucket,
     copy_file_within_bucket,
+    generate_presigned_get_url,
     get_file_from_bucket,
-    get_presigned_url,
     list_objects_from_bucket,
 )
 from app.tasks import task_logic
@@ -84,16 +84,24 @@ class DroneImageProcessor:
                 images.append(str(file))
         return images
 
-    async def download_image(self, session, url, save_path):
+    async def download_image(self, session, url, save_path) -> bool:
+        """Download a single image from URL to local path.
+
+        Returns:
+            bool: True if download succeeded, False otherwise
+        """
         try:
             async with session.get(url) as response:
                 if response.status == 200:
                     with open(save_path, "wb") as f:
                         f.write(await response.read())
+                    return True
                 else:
                     log.error(f"Failed to download {url}, status: {response.status}")
+                    return False
         except Exception as e:
             log.error(f"Error downloading {url}: {e}")
+            return False
 
     async def download_images_from_s3(
         self,
@@ -109,7 +117,7 @@ class DroneImageProcessor:
         :param task_id: Optional specific task ID
         :param batch_size: Number of images to download concurrently
         """
-        prefix = f"dtm-data/projects/{self.project_id}/{task_id}"
+        prefix = f"projects/{self.project_id}/{task_id}"
         objects = list_objects_from_bucket(bucket_name, prefix)
 
         if not objects:
@@ -120,23 +128,17 @@ class DroneImageProcessor:
 
         accepted_file_extensions = (".jpg", ".jpeg", ".png", ".txt", ".laz")
 
-        s3_download_url = settings.S3_DOWNLOAD_ROOT
-        if s3_download_url:
-            object_urls = [
-                f"{s3_download_url}/{obj.object_name}"
-                for obj in objects
-                if obj.object_name.lower().endswith(accepted_file_extensions)
-            ]
-        else:
-            # generate pre-signed URL for each object
-            object_urls = [
-                get_presigned_url(bucket_name, obj.object_name, 12)
-                for obj in objects
-                if obj.object_name.lower().endswith(accepted_file_extensions)
-            ]
+        object_urls = [
+            generate_presigned_get_url(bucket_name, obj.object_name, 12)
+            for obj in objects
+            if obj.object_name.lower().endswith(accepted_file_extensions)
+        ]
 
         total_files = len(object_urls)
         log.info(f"{total_files} images found in S3 for task {task_id}")
+
+        successful_downloads = 0
+        failed_downloads = 0
 
         async with aiohttp.ClientSession() as session:
             for i in range(0, total_files, batch_size):
@@ -155,9 +157,20 @@ class DroneImageProcessor:
                     )
                     for j, url in enumerate(batch)
                 ]
-                await asyncio.gather(*tasks)
+                results = await asyncio.gather(*tasks)
+                successful_downloads += sum(1 for r in results if r)
+                failed_downloads += sum(1 for r in results if not r)
 
-        log.info(f"Completed downloading {total_files} images")
+        log.info(
+            f"Completed downloading {successful_downloads}/{total_files} images "
+            f"({failed_downloads} failed)"
+        )
+
+        if successful_downloads < 3:
+            log.error(
+                f"Only {successful_downloads} images downloaded successfully. "
+                f"ODM requires at least 3 images."
+            )
 
     def process_new_task(
         self,
@@ -208,7 +221,7 @@ class DroneImageProcessor:
                 await self.download_images_from_s3(bucket_name, temp_dir, self.task_id)
                 images_list = self.list_images(temp_dir)
             else:
-                gcp_list_file = f"dtm-data/projects/{self.project_id}/gcp/gcp_list.txt"
+                gcp_list_file = f"projects/{self.project_id}/gcp/gcp_list.txt"
                 gcp_file_path = os.path.join(temp_dir, "gcp_list.txt")
 
                 # Check and add the GCP file to the images list if it exists
@@ -311,7 +324,7 @@ class DroneImageProcessor:
             path_to_download = self.download_results(task, output_path=output_file_path)
 
             # Upload the results into s3
-            s3_path = f"dtm-data/projects/{self.project_id}/{self.task_id}/assets.zip"
+            s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
             add_file_to_bucket(bucket_name, path_to_download, s3_path)
             # now update the task as completed in Db.
             # Call the async function using asyncio
@@ -412,7 +425,7 @@ async def process_assets_from_odm(
 
             # Construct the S3 path dynamically to avoid empty segments
             task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-            s3_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}assets.zip"
+            s3_path = f"projects/{dtm_project_id}/{task_segment}assets.zip"
             log.info(f"Uploading {assets_path} to S3 path: {s3_path}")
             add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
 
@@ -427,14 +440,16 @@ async def process_assets_from_odm(
                 raise FileNotFoundError("Orthophoto file is missing")
 
             reproject_to_web_mercator(orthophoto_path, orthophoto_path)
-            s3_ortho_path = f"dtm-data/projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
+            s3_ortho_path = (
+                f"projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
+            )
             log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
             add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
 
             images_json_path = os.path.join(output_file_path, "images.json")
             if os.path.exists(images_json_path):
                 s3_images_json_path = (
-                    f"dtm-data/projects/{dtm_project_id}/{task_segment}images.json"
+                    f"projects/{dtm_project_id}/{task_segment}images.json"
                 )
                 log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
                 add_file_to_bucket(
@@ -445,17 +460,17 @@ async def process_assets_from_odm(
 
             log.info(f"Processing complete for project {dtm_project_id}")
 
-            if state and dtm_task_id and dtm_user_id:
+            if state and dtm_task_id:
                 # NOTE: This function uses a separate database connection pool because it is called by an internal server
                 # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
                 pool = await database.get_db_connection_pool()
                 async with pool as pool_instance:
                     async with pool_instance.connection() as conn:
-                        await task_logic.update_task_state(
+                        # Use system-level update since this may be called from batch processor
+                        await task_logic.update_task_state_system(
                             db=conn,
                             project_id=dtm_project_id,
                             task_id=dtm_task_id,
-                            user_id=dtm_user_id,
                             comment=message,
                             initial_state=state,
                             final_state=State.IMAGE_PROCESSING_FINISHED,
@@ -465,7 +480,9 @@ async def process_assets_from_odm(
                             f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
                         )
 
-                        s3_path_url = f"dtm-data/projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+                        s3_path_url = (
+                            f"projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
+                        )
                         # update the task table
                         await project_logic.update_task_field(
                             conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
@@ -478,7 +495,7 @@ async def process_assets_from_odm(
                         )
 
                         if len(tasks) == 1:
-                            project_ortho_path = f"dtm-data/projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
+                            project_ortho_path = f"projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
                             log.info(
                                 f"Copying orthophoto to project level: {project_ortho_path}"
                             )
@@ -490,7 +507,7 @@ async def process_assets_from_odm(
                             )
 
                             project_assets_path = (
-                                f"dtm-data/projects/{dtm_project_id}/assets.zip"
+                                f"projects/{dtm_project_id}/assets.zip"
                             )
                             log.info(
                                 f"Copying assets to project level: {project_assets_path}"

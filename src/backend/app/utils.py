@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import geojson
+import math
 import requests
 import shapely
 from aiosmtplib import send as send_email
@@ -416,7 +417,11 @@ async def send_notification_email(email_to, subject, html_content):
             html_content="<h1>Hello, this is a test email.</h1>"
         )
     """
-    assert settings.emails_enabled, "no provided configuration for email variables"
+    if not settings.emails_enabled:
+        log.warning(
+            "Email disabled (missing SMTP config); skipping send_notification_email"
+        )
+        return
 
     message = MIMEText(html_content, "html")
     message["Subject"] = subject
@@ -450,7 +455,13 @@ def test_email(email_to: str, subject: str = "Test email") -> None:
 
 
 async def send_reset_password_email(email: str, token: str):
-    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    if not settings.emails_enabled:
+        log.warning(
+            "Email disabled (missing SMTP config); skipping send_reset_password_email"
+        )
+        return
+
+    reset_link = f"{settings.PUBLIC_BASE_URL}/reset-password?token={token}"
 
     context = {
         "reset_link": reset_link,
@@ -541,11 +552,13 @@ async def send_project_approval_email_to_regulator(
 ):
     for email in emails:
         encoded_email = base64.urlsafe_b64encode(email.encode()).decode()
-        project_link = f"{settings.FRONTEND_URL}/projects/{project_id}/approval/?token={encoded_email}"
+        project_link = f"{settings.PUBLIC_BASE_URL}/projects/{project_id}/approval/?token={encoded_email}"
+        logo_url = f"{settings.PUBLIC_BASE_URL}/static/DTM-logo-black.svg"
         context = {
             "project_link": project_link,
             "project_name": project_name,
             "creator_name": creator_name,
+            "logo_url": logo_url,
         }
 
         html_content = render_email_template(
@@ -599,31 +612,74 @@ def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
     }
 
 
-def strip_presigned_url_for_local_dev(url: str) -> str:
+def strip_presigned_url_for_local_dev(url: str, strip_presign: bool = True) -> str:
     """Helper for local development handling docker URL + pre-signing.
 
-    For local dev only, we need to iterate through and replace S3_ENDPOINT
-    with S3_DOWNLOAD_ROOT, due to internal docker name used for S3 URL.
+    For local dev only, we need to iterate through and replace the docker-internal MinIO base
+    with S3_ENDPOINT_DOWNLOAD, due to internal docker name used for S3 URL.
     The bucket is also public in local dev, so we remove pre-signed portion
     of URL, giving us direct access without a signature mismatch.
 
     Args:
         url: The S3 presigned URL to convert
+        strip_presign: If True, removes signature query params. If False, preserves all query params.
+                       Set to False for multipart uploads where uploadId/partNumber must be kept.
 
     Returns:
-        str: URL accessible from browser (localhost) without signature
+        str: URL accessible from browser (localhost), with or without signature
     """
     if not settings.DEBUG:
         return url
 
-    if not settings.S3_DOWNLOAD_ROOT:
+    if not settings.S3_ENDPOINT_DOWNLOAD:
         return url
 
-    host_accessible_url = url.replace(settings.S3_ENDPOINT, settings.S3_DOWNLOAD_ROOT)
+    # IMPORTANT: Do not rewrite the host/path for signed URLs; it will break signatures.
+    # We only support stripping the query params (signature) for local-dev public buckets.
+    if not strip_presign:
+        return url
+
     try:
         # Remove presigned query parameters to avoid signature mismatch
-        split_url_on_presign_vars = host_accessible_url.split("?")
+        split_url_on_presign_vars = url.split("?")
         return split_url_on_presign_vars[0]
     except Exception as e:
         log.debug(f"Failed to convert S3 URL for local development: {e}")
         return url
+
+
+def calculate_angular_difference(degree1: float, degree2: float) -> float:
+    """
+    Calculates the shortest angular difference between two angles.
+
+    Ensures the difference accounts for 360-degree wrap-around.
+
+    Returns:
+         float: Absolute difference in degrees (0 to 180)
+    """
+    angular_difference = abs(degree1 - degree2)
+    if angular_difference > 180:
+        angular_difference = 360 - angular_difference
+    return angular_difference
+
+
+def circular_mean_pair(degree1: float, degree2: float) -> float:
+    """Circular mean of exactly two 0..360 degree values (pair-wise update helper)."""
+    rad1 = math.radians(degree1)
+    rad2 = math.radians(degree2)
+    x = math.cos(rad1) + math.cos(rad2)
+    y = math.sin(rad1) + math.sin(rad2)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def circular_mean_list(degrees: list[float]) -> float:
+    """Circular mean for a list of 0..360 degree values."""
+    if not degrees:
+        raise ValueError("degrees must be non-empty")
+    x = 0.0
+    y = 0.0
+    for d in degrees:
+        r = math.radians(float(d))
+        x += math.cos(r)
+        y += math.sin(r)
+    return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0

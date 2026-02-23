@@ -22,34 +22,6 @@ class FinalOutput(StrEnum):
     DIGITAL_SURFACE_MODEL = "DIGITAL_SURFACE_MODEL"
 
 
-class TaskStatus(IntEnum):
-    """Enum describing available Task Statuses."""
-
-    READY = 0
-    LOCKED_FOR_MAPPING = 1
-    MAPPED = 2
-    LOCKED_FOR_VALIDATION = 3
-    VALIDATED = 4
-    INVALIDATED = 5
-    BAD = 6  # Task cannot be mapped
-    SPLIT = 7  # Task has been split
-
-
-class TaskAction(IntEnum):
-    """All possible task actions, recorded in task history."""
-
-    RELEASED_FOR_MAPPING = 0
-    LOCKED_FOR_MAPPING = 1
-    MARKED_MAPPED = 2
-    LOCKED_FOR_VALIDATION = 3
-    VALIDATED = 4
-    MARKED_INVALID = 5
-    MARKED_BAD = 6  # Task cannot be mapped
-    SPLIT_NEEDED = 7  # Task needs split
-    RECREATED = 8
-    COMMENT = 9
-
-
 class TaskSplitType(IntEnum):
     """Enum describing task splitting type."""
 
@@ -139,17 +111,21 @@ class UserRole(IntEnum):
 class State(IntEnum):
     """The state of a task.
 
+    This is determined from the most recent entry in `task_events`
+    for a given task.
+
     The state can be:
-    - ``request for mapping``
-    - ``unlocked to map``
-    - ``locked for mapping``
-    - ``unlocked to validate``
-    - ``locked for validation``
-    - ``unlocked done``
-    - ``Unflyable task``
-    - ``image uploaded``
-    - ``image processed``
-    - ``image processing failed``
+    - REQUEST_FOR_MAPPING: someone was request to map the task.
+    - UNLOCKED_TO_MAP: default status, ready to fly.
+    - LOCKED_FOR_MAPPING: locked by a user that is about to fly the task.
+    - ~UNLOCKED_TO_VALIDATE~: flying complete, requires validation (not used yet).
+    - ~LOCKED_FOR_VALIDATION~: currently being validated (not used yet).
+    - ~UNLOCKED_DONE~: task is complete and validated (currently not used).
+    - UNFLYABLE_TASK: not possibly to fly - marked bad.
+    - IMAGE_UPLOADED: imagery has been uploaded for the task.
+    - IMAGE_PROCESSING_FAILED: failed processing in ODM.
+    - IMAGE_PROCESSING_STARTED: started processing in ODM.
+    - IMAGE_PROCESSING_FINISHED: successful processing in ODM.
     """
 
     REQUEST_FOR_MAPPING = -1
@@ -174,13 +150,13 @@ class EventType(StrEnum):
     Possible values are:
 
     - ``request`` -- Request a task to be mapped.
-    - ``map`` -- Set to *locked for mapping*, i.e. mapping in progress.
+    - ``map`` -- Set to *locked to fly*, i.e. flight in progress.
     - ``finish`` -- Set to *unlocked to validate*, i.e. is mapped.
     - ``validate`` -- Request recent task ready to be validate.
     - ``good`` -- Set the state to *unlocked done*.
     - ``bad`` -- Set the state *unlocked to map* again, to be mapped once again.
     - ``split`` -- Set the state *unlocked done* then generate additional subdivided task areas.
-    - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked for mapping* passing in the required user id.
+    - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked to fly* passing in the required user id.
     - ``comment`` -- Keep the state the same, but simply add a comment.
     - ``unlock`` -- Unlock a task state by unlocking it if it's locked.
     - ``image_upload`` -- Set the state to *image uploaded* when the task image is uploaded.
@@ -219,3 +195,18 @@ class OAMUploadStatus(StrEnum):
     UPLOADING = "uploading"
     UPLOADED = "uploaded"
     FAILED = "failed"
+
+
+class ImageStatus(StrEnum):
+    """Enum to describe the status of uploaded project images."""
+
+    STAGED = (
+        "staged"  # Files uploaded but not yet committed (multipart upload in progress)
+    )
+    UPLOADED = "uploaded"  # Successfully uploaded to S3, pending classification
+    CLASSIFYING = "classifying"  # Currently being classified
+    ASSIGNED = "assigned"  # Assigned to a task after successful classification
+    REJECTED = "rejected"  # Failed quality checks (blur, gimbal angle, etc.)
+    UNMATCHED = "unmatched"  # GPS coordinates don't match any task boundary
+    INVALID_EXIF = "invalid_exif"  # EXIF data is missing or unreadable
+    DUPLICATE = "duplicate"  # Duplicate image (same hash as existing image)

@@ -6,7 +6,8 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger as log
 from psycopg import Connection
@@ -18,13 +19,15 @@ from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
-from app.projects import project_routes
+from app.public_routes import router as public_router
+from app.projects import classification_routes, project_routes
 from app.tasks import task_routes
 from app.users import user_routes
 from app.waypoints import waypoint_routes
 
 root = os.path.dirname(os.path.abspath(__file__))
-frontend_html = Jinja2Templates(directory="frontend_html")
+FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
+frontend_html = Jinja2Templates(directory=FRONTEND_DIR)
 
 
 class InterceptHandler(logging.Handler):
@@ -39,6 +42,14 @@ class InterceptHandler(logging.Handler):
         logger_opt.log(logging.getLevelName(record.levelno), record.getMessage())
 
 
+def healthcheck_log_filter(record):
+    """Logging on every healthcheck ping is too verbose. Omit."""
+    msg = record["message"]
+    if "/__heartbeat__" in msg or "/__lbheartbeat__" in msg:
+        return False  # Skip this log
+    return True
+
+
 def get_logger():
     """Override FastAPI logger with custom loguru."""
     # Hook all other loggers into ours
@@ -51,6 +62,9 @@ def get_logger():
             continue
         if logger_name == "urllib3":
             # Don't hook urllib3, called on each OTEL trace
+            continue
+        if logger_name == "psycopg_pool":
+            # Every time a connection is created it's logged...
             continue
 
         if logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"]:
@@ -71,11 +85,13 @@ def get_logger():
         colorize=True,
         backtrace=True,  # More detailed tracebacks
         catch=True,  # Prevent app crashes
+        filter=healthcheck_log_filter,
     )
 
 
 def get_application() -> FastAPI:
     """Get the FastAPI app instance, with settings."""
+    api_prefix = "/api"
     _app = FastAPI(
         title=settings.APP_NAME,
         description="HOTOSM Drone Tasking Manager",
@@ -85,11 +101,10 @@ def get_application() -> FastAPI:
             "url": "https://raw.githubusercontent.com/hotosm/drone-tm/main/LICENSE.md",
         },
         debug=settings.DEBUG,
-        docs_url=f"{settings.API_PREFIX}/docs",
-        openapi_url=f"{settings.API_PREFIX}/openapi.json",
-        redoc_url=f"{settings.API_PREFIX}/redoc",
+        docs_url=f"{api_prefix}/docs",
+        openapi_url=f"{api_prefix}/openapi.json",
+        redoc_url=f"{api_prefix}/redoc",
         lifespan=lifespan,
-        root_path=f"{settings.API_PREFIX}/api",
         # NOTE REST APIs should not have trailing slashes
         redirect_slashes=False,
     )
@@ -105,12 +120,26 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["Content-Disposition"],
     )
-    _app.include_router(drone_routes.router)
-    _app.include_router(project_routes.router)
-    _app.include_router(waypoint_routes.router)
-    _app.include_router(user_routes.router)
-    _app.include_router(task_routes.router)
-    _app.include_router(gcp_routes.router)
+    # All API routes live under `/api/*` so Kubernetes ingress can route `/api` without rewrites.
+    _app.include_router(drone_routes.router, prefix=api_prefix)
+    _app.include_router(project_routes.router, prefix=api_prefix)
+    _app.include_router(classification_routes.router, prefix=api_prefix)
+    _app.include_router(waypoint_routes.router, prefix=api_prefix)
+    _app.include_router(user_routes.router, prefix=api_prefix)
+    _app.include_router(task_routes.router, prefix=api_prefix)
+    _app.include_router(gcp_routes.router, prefix=api_prefix)
+    _app.include_router(public_router, prefix=api_prefix)
+
+    # Serve built frontend static assets when present (mountable within k8s).
+    # This ensures `/assets/*` resolves even though ingress points `/` at the backend service.
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    if os.path.isdir(assets_dir):
+        _app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    # Serve backend static assets (e.g. stable email logos) at a predictable URL.
+    static_dir = os.path.join(root, "static")
+    if os.path.isdir(static_dir):
+        _app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     return _app
 
@@ -161,7 +190,25 @@ async def home(request: Request):
         )
     except Exception:
         """Fall back if tempalate missing. Redirect home to docs."""
-        return RedirectResponse("/docs")
+        return RedirectResponse("/api/docs")
+
+
+@api.get("/config.js")
+async def runtime_config_js():
+    """Return runtime-injected frontend config (written by frontend initContainer)."""
+    config_path = os.path.join(FRONTEND_DIR, "config.js")
+    if os.path.isfile(config_path):
+        return FileResponse(config_path, media_type="application/javascript")
+    return JSONResponse(status_code=404, content={"detail": "Not found"})
+
+
+@api.get("/favicon.ico")
+async def favicon():
+    """Serve favicon if present in the built frontend."""
+    favicon_path = os.path.join(FRONTEND_DIR, "favicon.ico")
+    if os.path.isfile(favicon_path):
+        return FileResponse(favicon_path)
+    return JSONResponse(status_code=404, content={"detail": "Not found"})
 
 
 @api.get("/__lbheartbeat__")

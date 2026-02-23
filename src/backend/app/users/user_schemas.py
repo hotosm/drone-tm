@@ -13,7 +13,7 @@ from pydantic.functional_validators import field_validator
 from app.config import settings, get_password_hash
 from app.models.enums import HTTPStatus, State, UserRole
 from app.config import encrypt_token
-from app.s3 import is_connection_secure, s3_client
+from app.s3 import generate_presigned_put_url, maybe_presign_s3_key
 
 
 class AuthUser(BaseModel):
@@ -24,6 +24,7 @@ class AuthUser(BaseModel):
     name: str
     profile_img: Optional[str] = None
     role: str = None
+    is_superuser: bool = False
 
 
 class UserBase(BaseModel):
@@ -110,19 +111,9 @@ class BaseUserProfile(BaseModel):
     @model_validator(mode="after")
     def set_urls(cls, values):
         """Set and format certificate and registration URLs."""
-        bucket_name = settings.S3_BUCKET_NAME
-        endpoint, is_secure = is_connection_secure(settings.S3_ENDPOINT)
-        protocol = "https" if is_secure else "http"
-
-        def format_url(url):
-            if url:
-                url = url if url.startswith("/") else f"/{url}"
-                return f"{protocol}://{endpoint}/{bucket_name}{url}"
-            return url
-
-        values.certificate_url = format_url(values.certificate_url)
-        values.registration_certificate_url = format_url(
-            values.registration_certificate_url
+        values.certificate_url = maybe_presign_s3_key(values.certificate_url, 2)
+        values.registration_certificate_url = maybe_presign_s3_key(
+            values.registration_certificate_url, 2
         )
 
         return values
@@ -182,17 +173,16 @@ class DbUserProfile(BaseUserProfile):
         result = {}
 
         file_paths = {
-            "certificate_file": f"dtm-data/users/{user_id}/certificate/{profile.certificate_file}",
-            "registration_file": f"dtm-data/users/{user_id}/registration/{profile.registration_file}",
+            "certificate_file": f"users/{user_id}/certificate/{profile.certificate_file}",
+            "registration_file": f"users/{user_id}/registration/{profile.registration_file}",
         }
 
         for file_type, s3_path in file_paths.items():
             file_name = getattr(profile, file_type, None)
             if file_name:
                 try:
-                    client = s3_client()
-                    presigned_url = client.get_presigned_url(
-                        "PUT", settings.S3_BUCKET_NAME, s3_path
+                    presigned_url = generate_presigned_put_url(
+                        settings.S3_BUCKET_NAME, s3_path, expires_hours=1
                     )
                     result[file_type] = {
                         "presigned_url": presigned_url,
@@ -496,7 +486,7 @@ class DbUser(BaseModel):
 
             result = await cur.fetchone()
             if result is None:
-                raise ValueError("No user requested for mapping")
+                raise ValueError("No user requested for flight")
             return result["user_id"]
 
 

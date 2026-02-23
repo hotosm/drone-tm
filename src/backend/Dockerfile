@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ARG for the base image
 ARG PYTHON_IMG_TAG=3.11
 
@@ -52,6 +53,8 @@ COPY packages /project/packages
 
 ARG MONITORING
 
+ARG INSTALL_TEST=false
+
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
@@ -61,6 +64,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "$MONITORING" = "sentry" ]; then
         EXTRA_GROUPS="--group monitoring"
     fi
+
+    if [ "$INSTALL_TEST" = "true" ]; then
+        EXTRA_GROUPS="$EXTRA_GROUPS --group test"
+    fi
+
     uv sync --locked --no-editable --no-dev $EXTRA_GROUPS
 EOT
 
@@ -84,15 +92,17 @@ RUN set -ex \
     "nano" \
     "curl" \
     "gettext-base" \
+    "media-types" \
+    "procps" \
+    "postgresql-client" \
     "libpcre2-16-0" \
     "libpq5" \
-    "media-types" \
-    "postgresql-client" \
     "libglib2.0-0t64" \
     "libspatialindex-c8" \
     "libproj25" \
     "libgeos-c1t64" \
     "libgdal36" \
+    "libimage-exiftool-perl" \
     && rm -rf /var/lib/apt/lists/*
 
 # Retrieve global Python packages and dependencies from the build stage

@@ -53,16 +53,16 @@ import { mapLayerIDs } from '@Constants/droneOperator';
 import { Button } from '@Components/RadixComponents/Button';
 import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 import SwitchTab from '@Components/common/SwitchTab';
+import Select from '@Components/common/FormUI/Select';
 import ToolTip from '@Components/RadixComponents/ToolTip';
 import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
 import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
+import Modal from '@Components/common/Modal';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
 import GetCoordinatesOnClick from './GetCoordinatesOnClick';
 import ShowInfo from './ShowInfo';
 import Icon from '@Components/common/Icon';
-
-const { COG_URL } = process.env;
 
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
@@ -75,6 +75,9 @@ const MapSection = ({ className }: { className?: string }) => {
   const [dragging, setDragging] = useState(false);
   const [isRotationEnabled, setIsRotationEnabled] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
+  const [allowMissingDem, setAllowMissingDem] = useState(false);
+  const [demWarningShown, setDemWarningShown] = useState(false);
+  const [showMissingDemModal, setShowMissingDemModal] = useState(false);
   const [initialWaypointData, setInitialWaypointData] = useState<Record<
     string,
     any
@@ -117,16 +120,29 @@ const MapSection = ({ className }: { className?: string }) => {
     disableRotation: true,
   });
 
-  const orthophotoSource: RasterSourceSpecification = useMemo(
-    () => ({
-      type: 'raster',
-      url: `cog://${COG_URL}/dtm-data/projects/${projectId}/${taskId}/orthophoto/odm_orthophoto.tif`,
-      tileSize: 256,
-    }),
-    [projectId, taskId],
+  const {
+    data: taskAssetsInformation,
+    // isFetching: taskAssetsInfoLoading,
+  }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
   );
 
-  const { data: taskWayPointsData, isLoading: taskWayPointsLoading }: any =
+  const orthophotoSource: RasterSourceSpecification | null = useMemo(() => {
+    const signed = taskAssetsInformation?.orthophoto_url;
+    if (signed) {
+      return { type: 'raster', url: `cog://${signed}`, tileSize: 256 };
+    }
+
+    return null;
+  }, [taskAssetsInformation?.orthophoto_url]);
+
+  const {
+    data: taskWayPointsData,
+    isLoading: taskWayPointsLoading,
+    isError: isTaskWaypointsError,
+    error: taskWaypointsError,
+  }: any =
     useGetTaskWaypointQuery(
       projectId as string,
       taskId as string,
@@ -161,7 +177,31 @@ const MapSection = ({ className }: { className?: string }) => {
           return modifiedTaskWayPointsData;
         },
       },
+      allowMissingDem,
     );
+
+  useEffect(() => {
+    if (!isTaskWaypointsError) {
+      setDemWarningShown(false);
+      return;
+    }
+
+    if (demWarningShown) {
+      return;
+    }
+
+    const detail = taskWaypointsError?.response?.data?.detail;
+    const code = detail?.code;
+
+    if (code === 'MISSING_TERRAIN_DEM') {
+      setDemWarningShown(true);
+      setShowMissingDemModal(true);
+      return;
+    }
+
+    const message = detail?.message || detail || taskWaypointsError?.message;
+    toast.error(message || 'Failed to generate task waypoints.');
+  }, [isTaskWaypointsError, taskWaypointsError, demWarningShown]);
 
   useEffect(() => {
     if (taskWayPointsData?.battery_warning) {
@@ -173,14 +213,6 @@ const MapSection = ({ className }: { className?: string }) => {
       );
     }
   }, [taskWayPointsData]);
-
-  const {
-    data: taskAssetsInformation,
-    // isFetching: taskAssetsInfoLoading,
-  }: Record<string, any> = useGetTaskAssetsInfo(
-    projectId as string,
-    taskId as string,
-  );
 
   const { mutate: postWaypoint, isPending: isUpdatingTakeOffPoint } =
     useMutation<any, any, any, unknown>({
@@ -599,6 +631,7 @@ const MapSection = ({ className }: { className?: string }) => {
       mode: waypointMode,
       rotationAngle: finalRotationAngle,
       droneModel: droneModel,
+      allowMissingDem,
       takeOffPoint: {
         longitude: lng,
         latitude: lat,
@@ -628,6 +661,49 @@ const MapSection = ({ className }: { className?: string }) => {
     <div
       className={`naxatw-relative naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
     >
+      <Modal
+        show={showMissingDemModal}
+        title="No DEM Found"
+        className="naxatw-w-[92vw] naxatw-max-w-[32rem]"
+        onClose={() => {
+          setShowMissingDemModal(false);
+          toast.warn('Mission generation canceled because no DEM was found.');
+        }}
+      >
+        <div className="naxatw-space-y-4">
+          <p className="naxatw-text-sm naxatw-text-[#7A7676]">
+            This task has terrain-follow enabled, but no DEM is available. For
+            safety, mission generation is blocked by default.
+          </p>
+          <p className="naxatw-text-sm naxatw-text-[#7A7676]">
+            If you understand the risk, you can still generate the mission
+            without a DEM.
+          </p>
+          <div className="naxatw-flex naxatw-justify-end naxatw-gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMissingDemModal(false);
+                toast.warn(
+                  'Mission generation canceled because no DEM was found.',
+                );
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="naxatw-bg-red"
+              onClick={() => {
+                setShowMissingDemModal(false);
+                setAllowMissingDem(true);
+              }}
+            >
+              Generate anyway
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <MapContainer
         map={map}
         isMapLoaded={isMapLoaded}
@@ -842,7 +918,7 @@ const MapSection = ({ className }: { className?: string }) => {
         {/* Update take off end */}
 
         {/* Ortho-photo visualization */}
-        {taskAssetsInformation?.assets_url && (
+        {taskAssetsInformation?.orthophoto_url && orthophotoSource && (
           <COGOrthophotoViewer
             id="task-orthophoto"
             source={orthophotoSource}
@@ -897,15 +973,16 @@ const MapSection = ({ className }: { className?: string }) => {
         />
 
         <div className="flex gap-3 lg:gap-6 naxatw-absolute naxatw-right-3 naxatw-top-3 naxatw-z-10 lg:naxatw-right-64">
-          <SwitchTab
-            activeClassName="naxatw-bg-red naxatw-text-white"
+          <Select
             options={droneModelOptions}
             labelKey="label"
             valueKey="value"
-            selectedValue={droneModel}
-            onChange={(value: Record<string, any>) => {
-              dispatch(setDroneModel(value.value));
+            selectedOption={droneModel}
+            onChange={(value: string | number) => {
+              dispatch(setDroneModel(value));
             }}
+            className="naxatw-w-40 naxatw-bg-[#F4F7FE]"
+            placeholder="Select model"
           />
 
           <SwitchTab

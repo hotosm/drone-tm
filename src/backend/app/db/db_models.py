@@ -5,6 +5,7 @@ from geoalchemy2 import Geometry, WKBElement
 from sqlalchemy import (
     ARRAY,
     Boolean,
+    CHAR,
     Column,
     DateTime,
     Enum,
@@ -15,24 +16,24 @@ from sqlalchemy import (
     LargeBinary,
     SmallInteger,
     String,
+    Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import (
     declarative_base,
-    object_session,
     relationship,
 )
 
 from app.models.enums import (
     FinalOutput,
     ImageProcessingStatus,
+    ImageStatus,
     OAMUploadStatus,
     ProjectStatus,
     ProjectVisibility,
     RegulatorApprovalStatus,
     State,
     TaskSplitType,
-    TaskStatus,
     UserRole,
 )
 from app.utils import timestamp
@@ -124,7 +125,6 @@ class DbProject(Base):
     side_overlap = cast(float, Column(Float, nullable=True))
     gsd_cm_px = cast(float, Column(Float, nullable=True))  # in cm_px
     altitude_from_ground = cast(float, Column(Float, nullable=True))
-    gsd_cm_px = cast(float, Column(Float, nullable=True))
     camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
     gimble_angles_degrees = cast(list, Column(ARRAY(SmallInteger), nullable=True))
     is_terrain_follow = cast(bool, Column(Boolean, default=False))
@@ -198,38 +198,73 @@ class DbProject(Base):
         {},
     )
 
-    @property
-    def tasks_mapped(self):
-        """Get the number of tasks mapped for a project."""
-        return (
-            object_session(self)
-            .query(DbTask)
-            .filter(DbTask.task_status == TaskStatus.MAPPED)
-            .with_parent(self)
-            .count()
-        )
 
-    @property
-    def tasks_validated(self):
-        """Get the number of tasks validated for a project."""
-        return (
-            object_session(self)
-            .query(DbTask)
-            .filter(DbTask.task_status == TaskStatus.VALIDATED)
-            .with_parent(self)
-            .count()
-        )
+class DbProjectImage(Base):
+    """Describes an uploaded image for a project."""
 
-    @property
-    def tasks_bad(self):
-        """Get the number of tasks marked bad for a project."""
-        return (
-            object_session(self)
-            .query(DbTask)
-            .filter(DbTask.task_status == TaskStatus.BAD)
-            .with_parent(self)
-            .count()
-        )
+    __tablename__ = "project_images"
+
+    id = cast(str, Column(UUID(as_uuid=True), primary_key=True))
+    project_id = cast(
+        str,
+        Column(
+            UUID(as_uuid=True),
+            ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    task_id = cast(
+        str,
+        Column(
+            UUID(as_uuid=True),
+            ForeignKey("tasks.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+    filename = cast(str, Column(Text, nullable=False))
+    s3_key = cast(str, Column(Text, nullable=False))
+    hash_md5 = cast(str, Column(CHAR(32), nullable=False))
+    batch_id = cast(str, Column(UUID(as_uuid=True), nullable=True))
+    location = cast(WKBElement, Column(Geometry("POINT", srid=4326), nullable=True))
+    exif = cast(dict, Column(JSONB, nullable=True))
+    uploaded_by = cast(
+        str, Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    )
+    uploaded_at = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
+    classified_at = cast(datetime, Column(DateTime, nullable=True))
+    status = cast(
+        ImageStatus,
+        Column(Enum(ImageStatus), default=ImageStatus.UPLOADED, nullable=False),
+    )
+    rejection_reason = cast(str, Column(Text, nullable=True))
+    sharpness_score = cast(float, Column(Float, nullable=True))
+    duplicate_of = cast(
+        str,
+        Column(
+            UUID(as_uuid=True),
+            ForeignKey("project_images.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+
+    # Relationships
+    project = relationship(DbProject, backref="images")
+    task = relationship(DbTask, backref="images")
+    uploader = relationship(
+        DbUser, foreign_keys=[uploaded_by], backref="uploaded_images"
+    )
+
+    __table_args__ = (
+        Index("idx_project_images_project_id", "project_id"),
+        Index("idx_project_images_task_id", "task_id"),
+        Index("idx_project_images_status", "status"),
+        Index("idx_project_images_batch_id", "batch_id"),
+        Index("idx_project_images_hash_md5", "hash_md5"),
+        Index("idx_project_images_uploaded_by", "uploaded_by"),
+        Index("idx_project_images_location", location, postgresql_using="gist"),
+        Index("idx_project_images_batch_status", "batch_id", "status"),
+        {},
+    )
 
 
 class TaskEvent(Base):

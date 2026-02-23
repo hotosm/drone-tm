@@ -24,7 +24,7 @@
 | **Tech Stack** | | ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi) ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB) ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white) |
 | **Code Style** | | [![Backend Style](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json&labelColor=202235)](https://github.com/astral-sh/ruff) [![Frontend Style](https://img.shields.io/badge/code%20style-prettier-F7B93E?logo=Prettier)](https://github.com/prettier/prettier) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com) |
 | **Community** | | [![Slack](https://img.shields.io/badge/Slack-Join%20the%20community!-d63f3f?style=for-the-badge&logo=slack&logoColor=d63f3f)](https://slack.hotosm.org) |
-| **Other Info** | | [![docs](https://github.com/hotosm/field-tm/blob/dev/docs/images/docs_badge.svg?raw=true)](https://docs.dronetm.hotosm.org) [![license](https://img.shields.io/github/license/hotosm/drone-tm.svg)](https://github.com/hotosm/drone-tm/blob/main/LICENSE.md) [![license-translations](https://img.shields.io/badge/license-CC%20BY%204.0-orange.svg)](https://github.com/hotosm/drone-tm/blob/main/src/frontend/messages/LICENSE.md) |
+| **Other Info** | | [![docs](https://github.com/hotosm/field-tm/blob/dev/docs/images/docs_badge.svg?raw=true)](https://docs.drone.hotosm.org) [![license](https://img.shields.io/github/license/hotosm/drone-tm.svg)](https://github.com/hotosm/drone-tm/blob/main/LICENSE.md) [![license-translations](https://img.shields.io/badge/license-CC%20BY%204.0-orange.svg)](https://github.com/hotosm/drone-tm/blob/main/src/frontend/messages/LICENSE.md) |
 
 </div>
 
@@ -68,7 +68,7 @@ Our vision is to create a platform that is not only accessible and user-friendly
 ### Supported Drones
 
 To see a list of supported and unsupported drones, please visit
-the [FAQ](https://docs.dronetm.hotosm.org/about/faq/#q-what-drones-are-supported) page.
+the [FAQ](https://docs.drone.hotosm.org/about/faq/#q-what-drones-are-supported) page.
 
 ## Getting Started
 
@@ -95,22 +95,22 @@ To get started with DroneTM:
 |✅| 🖥️ automated Digital Elevation Model inclusion (no manual upload required) | Since [v2024.11.0][1] |
 |✅| 🖥️ automated uploading of final imagery to OpenAerialMap (+ credit to user that uploads) | Since [v2025.3.1][3] |
 |✅| 📱 allow adjustments to the flight plan orientation based on field conditions | Since [v2025.1.0][2] |
-|✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.4.0][4] |
+|✅| 📱 flight plans working on Potensic Atom 1 | Since [v2025.4.0][4] |
 |✅| 📱 improved experience copying flightplans onto controllers (via WebADB) | Since [v2025.4.0][4] |
 |✅| 🖥️ flightplan generation in Litchi CSV and QGroundControl .plan formats | [v2025.5.0][5] |
 |✅| 📱 recommendations for user if they should use waypoint or wayline mode | [v2025.5.0][5] |
-|✅| 🖥️ support retries for dropped connections during photo uploads | TBC |
-|✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | TBC |
+|✅| 🖥️ support retries for dropped connections during photo uploads | Since [v2025.6.0][5] |
+|✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | Since [v2025.6.0][5] |
+|✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.6.0][5] |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
+|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 |⚙️| 📱 entirely offline flightplan generation, directly on device | |
 | | 📱 allow modification and division of flightplans by user before flight | |
-| | 🖥️ pre-filtering and validation of obvious photo issues prior to upload | |
 | | 🖥️ user access management for each part of the UI | |
 | | 🖥️ improved user feedback and retry capabilities during imagery processing | |
 | | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
-|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 | | 🖥️ better usage of 3D model data collected by drones | |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally | |
 <!-- prettier-ignore-end -->
@@ -125,7 +125,10 @@ To get started with DroneTM:
 We currently recommend the **DJI Mini 5 Pro** or **Mini 4 Pro**, as the
 drones with the best waypoint support, and high quality cameras on board.
 
-For now, all other drones have a compromise of some kind.
+The **Potensic Atom 2** is also a solid choice, for a lower pricetag,
+but similar quality.
+
+For now, most other drones have a compromise of some kind.
 
 <!-- prettier-ignore-start -->
 | Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
@@ -141,11 +144,12 @@ For now, all other drones have a compromise of some kind.
 | DJI Mini SE (version 1 only) | ✅ | ❌ | ✅ | Litchi |
 | DJI Mini 2 | ✅ | ❌ | ✅ | Litchi |
 | DJI Air 2S | ❌ | ❔ | ✅ | Litchi, DroneDeploy |
-| Potensic Atom 2 | ✅ | 🤔 | ❌ | None |
+| Potensic Atom 1 | ✅ | 🤔 | ❌ | None |
+| Potensic Atom 2 | ✅ | ✅ | ❌ | None |
 <!-- prettier-ignore-end -->
 
 > [!Note]
-> ❔ in theory should work, but untested in the field
+> ❔ in theory should work, but untested in the field (please help confirm these!)
 >
 > 🤔 works with some limitations, such as lack of terrain following
 
@@ -153,8 +157,8 @@ For now, all other drones have a compromise of some kind.
 
 DroneTM is an open-source project, and we welcome contributions from the community. Whether you're a developer, a drone pilot, or just passionate about mapping, you can get involved:
 
-- **Fork the Repository**: https://github.com/hotosm/drone-tm
-- **Report Issues**: https://github.com/hotosm/drone-tm/issues
+- **Fork the Repository**: <https://github.com/hotosm/drone-tm>
+- **Report Issues**: <https://github.com/hotosm/drone-tm/issues>
 - **Contribute Code**: Submit pull requests for new features or bug fixes.
 
 Join us in transforming aerial mapping through community-powered drones and create a resilient future for all.
@@ -163,4 +167,4 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [2]: https://github.com/hotosm/drone-tm/releases/tag/v2025.1.0
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
 [4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
-[4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.5.0
+[5]: https://github.com/hotosm/drone-tm/releases/tag/v2025.6.0

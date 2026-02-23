@@ -1,0 +1,486 @@
+from datetime import datetime
+from typing import Annotated, Optional
+from uuid import UUID
+
+from arq import ArqRedis
+from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger as log
+from psycopg import Connection
+from pydantic import BaseModel
+
+from app.arq.tasks import get_redis_pool
+from app.db import database
+from app.models.enums import HTTPStatus, State
+from app.images.image_classification import ImageClassifier
+from app.users.user_deps import login_required
+from app.users.user_schemas import AuthUser
+
+
+router = APIRouter(
+    prefix="/projects",
+    responses={404: {"description": "Not found"}},
+)
+
+
+class StartClassificationRequest(BaseModel):
+    batch_id: UUID
+    project_id: UUID
+
+
+class ClassificationStatusResponse(BaseModel):
+    batch_id: str
+    total: int
+    assigned: int
+    rejected: int
+    unmatched: int
+    invalid: int
+    images: list[dict]
+
+
+@router.post("/{project_id}/classify-batch/", tags=["Image Classification"])
+async def start_batch_classification(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    log.info(
+        f"Received classification request: project_id={project_id}, batch_id={batch_id}"
+    )
+
+    # First check if there are any images in the batch with status 'staged'
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT COUNT(*) as count
+            FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+            AND status = 'staged'
+            """,
+            {"batch_id": str(batch_id), "project_id": str(project_id)},
+        )
+        result = await cur.fetchone()
+        image_count = result[0] if result else 0
+
+    log.info(
+        f"Found {image_count} staged images for project_id={project_id}, batch_id={batch_id}"
+    )
+
+    # If no images to classify, return early without creating a job
+    if image_count == 0:
+        log.warning(
+            f"No images to classify for batch: {batch_id}, project: {project_id}"
+        )
+        return {
+            "message": "No images available for classification",
+            "batch_id": str(batch_id),
+            "image_count": 0,
+        }
+
+    # Enqueue the classification job
+    job = await redis.enqueue_job(
+        "classify_image_batch",
+        str(project_id),
+        str(batch_id),
+        _queue_name="default_queue",
+    )
+
+    log.info(
+        f"Queued batch classification job: {job.job_id} for batch: {batch_id} ({image_count} images)"
+    )
+
+    return {
+        "message": "Batch classification started",
+        "job_id": job.job_id,
+        "batch_id": str(batch_id),
+        "image_count": image_count,
+    }
+
+
+@router.get("/{project_id}/batch/{batch_id}/images/", tags=["Image Classification"])
+async def get_batch_images(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+    last_timestamp: Optional[str] = Query(
+        None, description="ISO 8601 timestamp to get updates since"
+    ),
+):
+    try:
+        timestamp = datetime.fromisoformat(last_timestamp) if last_timestamp else None
+
+        images = await ImageClassifier.get_batch_images(
+            db, batch_id, project_id, timestamp
+        )
+
+        return {"batch_id": str(batch_id), "images": images, "count": len(images)}
+
+    except Exception as e:
+        log.error(f"Failed to get batch images: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch images: {e}",
+        )
+
+
+@router.get("/{project_id}/batch/{batch_id}/status/", tags=["Image Classification"])
+async def get_batch_status(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    try:
+        query = """
+            SELECT
+                status,
+                COUNT(*) as count
+            FROM project_images
+            WHERE batch_id = %(batch_id)s
+            AND project_id = %(project_id)s
+            GROUP BY status
+        """
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                query, {"batch_id": str(batch_id), "project_id": str(project_id)}
+            )
+            results = await cur.fetchall()
+
+        status_counts = {status: count for status, count in results}
+
+        return {
+            "batch_id": str(batch_id),
+            "total": sum(status_counts.values()),
+            "staged": status_counts.get("staged", 0),
+            "uploaded": status_counts.get("uploaded", 0),
+            "classifying": status_counts.get("classifying", 0),
+            "assigned": status_counts.get("assigned", 0),
+            "rejected": status_counts.get("rejected", 0),
+            "unmatched": status_counts.get("unmatched", 0),
+            "invalid_exif": status_counts.get("invalid_exif", 0),
+            "duplicate": status_counts.get("duplicate", 0),
+        }
+
+    except Exception as e:
+        log.error(f"Failed to get batch status: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch status: {e}",
+        )
+
+
+@router.get("/{project_id}/batch/{batch_id}/review/", tags=["Image Classification"])
+async def get_batch_review(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    try:
+        review_data = await ImageClassifier.get_batch_review_data(
+            db, batch_id, project_id
+        )
+        return review_data
+
+    except Exception as e:
+        log.error(f"Failed to get batch review data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch review data: {e}",
+        )
+
+
+@router.post("/{project_id}/images/{image_id}/accept/", tags=["Image Classification"])
+async def accept_image(
+    project_id: UUID,
+    image_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    try:
+        result = await ImageClassifier.accept_image(db, image_id, project_id)
+        return result
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        log.error(f"Failed to accept image: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to accept image: {e}",
+        )
+
+
+@router.get("/{project_id}/batch/{batch_id}/map-data/", tags=["Image Classification"])
+async def get_batch_map_data(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get map data for batch review: task geometries and image point locations."""
+    try:
+        map_data = await ImageClassifier.get_batch_map_data(db, batch_id, project_id)
+        return map_data
+
+    except Exception as e:
+        log.error(f"Failed to get batch map data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch map data: {e}",
+        )
+
+
+@router.delete("/{project_id}/batch/{batch_id}/", tags=["Image Classification"])
+async def delete_batch(
+    project_id: UUID,
+    batch_id: UUID,
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    try:
+        # Enqueue the deletion job to run in background
+        job = await redis.enqueue_job(
+            "delete_batch_images",
+            str(project_id),
+            str(batch_id),
+            _queue_name="default_queue",
+        )
+
+        log.info(f"Queued batch deletion job: {job.job_id} for batch: {batch_id}")
+
+        return {
+            "message": "Batch deletion started",
+            "job_id": job.job_id,
+            "batch_id": str(batch_id),
+        }
+
+    except Exception as e:
+        log.error(f"Failed to queue batch deletion: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to delete batch: {e}",
+        )
+
+
+@router.get(
+    "/{project_id}/batch/{batch_id}/processing-summary/", tags=["Image Classification"]
+)
+async def get_batch_processing_summary(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get processing summary for batch - tasks and image counts ready for ODM."""
+    try:
+        summary = await ImageClassifier.get_batch_processing_summary(
+            db, batch_id, project_id
+        )
+        return summary
+
+    except Exception as e:
+        log.error(f"Failed to get batch processing summary: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve batch processing summary: {e}",
+        )
+
+
+@router.post("/{project_id}/batch/{batch_id}/process/", tags=["Image Classification"])
+async def process_batch(
+    project_id: UUID,
+    batch_id: UUID,
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Process a batch: move images to task folders and trigger ODM processing.
+
+    This endpoint:
+    1. Moves assigned images from user-uploads to their task folders in S3
+    2. Triggers ODM processing for each task with images
+    """
+    try:
+        # Enqueue the processing job to run in background
+        job = await redis.enqueue_job(
+            "process_batch_images",
+            str(project_id),
+            str(batch_id),
+            _queue_name="default_queue",
+        )
+
+        log.info(f"Queued batch processing job: {job.job_id} for batch: {batch_id}")
+
+        return {
+            "message": "Batch processing started",
+            "job_id": job.job_id,
+            "batch_id": str(batch_id),
+        }
+
+    except Exception as e:
+        log.error(f"Failed to queue batch processing: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to start batch processing: {e}",
+        )
+
+
+@router.get(
+    "/{project_id}/batch/{batch_id}/task/{task_id}/verification/",
+    tags=["Image Classification"],
+)
+async def get_task_verification_data(
+    project_id: UUID,
+    batch_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get task images and geometry for verification modal."""
+    try:
+        verification_data = await ImageClassifier.get_task_verification_data(
+            db, task_id, batch_id, project_id
+        )
+        return verification_data
+
+    except Exception as e:
+        log.error(f"Failed to get task verification data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve task verification data: {e}",
+        )
+
+
+@router.delete("/{project_id}/images/{image_id}/", tags=["Image Classification"])
+async def delete_image(
+    project_id: UUID,
+    image_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Delete a single image from a project."""
+    try:
+        # First verify the image belongs to this project
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT id, s3_key FROM project_images
+                WHERE id = %(image_id)s AND project_id = %(project_id)s
+                """,
+                {"image_id": str(image_id), "project_id": str(project_id)},
+            )
+            image = await cur.fetchone()
+
+            if not image:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail="Image not found in this project",
+                )
+
+            # Delete the image record
+            await cur.execute(
+                "DELETE FROM project_images WHERE id = %(image_id)s",
+                {"image_id": str(image_id)},
+            )
+
+        log.info(f"Deleted image {image_id} from project {project_id}")
+
+        return {
+            "message": "Image deleted successfully",
+            "image_id": str(image_id),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to delete image: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to delete image: {e}",
+        )
+
+
+@router.post(
+    "/{project_id}/tasks/{task_id}/mark-verified/", tags=["Image Classification"]
+)
+async def mark_task_verified(
+    project_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Mark a task as verified/fully flown after visual inspection.
+
+    This inserts a new task event with IMAGE_UPLOADED state, indicating that
+    the user has verified that all required images are present and the task
+    is ready for processing.
+    """
+    try:
+        async with db.cursor() as cur:
+            # Verify the task exists and belongs to this project
+            await cur.execute(
+                """
+                SELECT id FROM tasks
+                WHERE id = %(task_id)s AND project_id = %(project_id)s
+                """,
+                {"task_id": str(task_id), "project_id": str(project_id)},
+            )
+            task = await cur.fetchone()
+
+            if not task:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail="Task not found in this project",
+                )
+
+            # Insert a new task event to mark the task as IMAGE_UPLOADED
+            await cur.execute(
+                """
+                INSERT INTO task_events (
+                    event_id, project_id, task_id, user_id, state, comment, updated_at, created_at
+                )
+                VALUES (
+                    gen_random_uuid(),
+                    %(project_id)s,
+                    %(task_id)s,
+                    %(user_id)s,
+                    %(state)s,
+                    %(comment)s,
+                    NOW(),
+                    NOW()
+                )
+                """,
+                {
+                    "project_id": str(project_id),
+                    "task_id": str(task_id),
+                    "user_id": str(user.id),
+                    "state": State.IMAGE_UPLOADED.name,
+                    "comment": "Task marked as verified via image classification workflow",
+                },
+            )
+
+        log.info(
+            f"Task {task_id} marked as verified (IMAGE_UPLOADED) by user {user.id}"
+        )
+
+        return {
+            "message": "Task marked as fully flown",
+            "task_id": str(task_id),
+            "state": State.IMAGE_UPLOADED.name,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to mark task as verified: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to mark task as verified: {e}",
+        )

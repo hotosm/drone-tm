@@ -1,0 +1,40 @@
+name: Test Backend
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "src/backend/**"
+      - "tasks/test/**"
+      - ".github/workflows/test.yml"
+
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - "src/backend/**"
+      - "tasks/test/**"
+      - ".github/workflows/test.yml"
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Just
+        uses: extractions/setup-just@v2
+        with:
+          just-version: 1.40.0
+
+      - name: Configure Test Environment
+        run: |
+          cp .env.example .env
+
+      - name: Run Backend Tests
+        run: just test backend

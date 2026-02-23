@@ -2,7 +2,10 @@ import json
 from io import BytesIO
 
 import pytest
+from fastapi import HTTPException
 from loguru import logger as log
+
+from app.projects import project_routes
 
 
 @pytest.mark.asyncio
@@ -25,9 +28,9 @@ async def test_create_project_with_files(
 
 
 @pytest.mark.asyncio
-async def test_upload_project_task_boundaries(client, test_get_project):
+async def test_upload_project_task_boundaries(client, create_test_project):
     """Test to verify the upload of task boundaries."""
-    project_id = str(test_get_project.id)
+    project_id = create_test_project
     log.debug(f"Testing project ID: {project_id}")
     task_geojson = json.dumps(
         {
@@ -53,14 +56,58 @@ async def test_upload_project_task_boundaries(client, test_get_project):
         }
     ).encode("utf-8")
 
-    geojosn_files = {
+    geojson_files = {
         "geojson": ("file.geojson", BytesIO(task_geojson), "application/geo+json")
     }
     response = await client.post(
-        f"/api/projects/{project_id}/upload-task-boundaries/", files=geojosn_files
+        f"/api/projects/{project_id}/upload-task-boundaries", files=geojson_files
     )
     assert response.status_code == 200
     return response.json()
+
+
+@pytest.mark.asyncio
+async def test_read_projects(client):
+    """Test reading all projects."""
+    response = await client.get("/api/projects/")
+    assert response.status_code == 200
+    assert "results" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_read_project(client, create_test_project):
+    """Test reading a single project."""
+    project_id = create_test_project
+    response = await client.get(f"/api/projects/{project_id}")
+    assert response.status_code == 200
+    assert response.json()["id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_read_project_centroids(client):
+    """Test reading project centroids."""
+    response = await client.get("/api/projects/centroids")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_create_terrain_follow_project_succeeds_when_redis_unavailable(
+    client, project_info, monkeypatch
+):
+    project_info.is_terrain_follow = True
+    project_info_json = json.dumps(project_info.model_dump())
+
+    async def fake_get_redis_pool():
+        raise HTTPException(status_code=500, detail="Background worker unavailable")
+
+    monkeypatch.setattr(project_routes, "get_redis_pool", fake_get_redis_pool)
+
+    response = await client.post(
+        "/api/projects/",
+        files={"project_info": (None, project_info_json, "application/json")},
+    )
+    assert response.status_code == 200
 
 
 if __name__ == "__main__":

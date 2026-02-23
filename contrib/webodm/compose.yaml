@@ -66,7 +66,7 @@ services:
     oom_score_adj: 0
     labels:
       traefik.enable: "true"
-      traefik.http.routers.webodm.rule: "Host(`${WO_HOST:-webodm.dronetm.hotosm.org}`)"
+      traefik.http.routers.webodm.rule: "Host(`${WO_HOST:-webodm.drone.hotosm.org}`)"
       traefik.http.routers.webodm.entrypoints: https
       traefik.http.routers.webodm.tls: "true"
       traefik.http.routers.webodm.tls.certresolver: letsencrypt
@@ -91,9 +91,9 @@ services:
     restart: unless-stopped
     oom_score_adj: 250
 
-  # Redis broker to manage job queue
+  # DragonflyDB broker to manage job queue
   odm-broker:
-    image: docker.io/redis:8.0.0
+    image: ghcr.io/dragonflydb/dragonfly:v1.36.0
     container_name: odm-broker
     networks:
       - net

@@ -1,0 +1,259 @@
+# Default values for drone-tm
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  storageClass: ""
+
+# Env + secret config for app + migrations + arq worker
+existingSecret:
+  name: ""
+# Your Secret should include (at minimum):
+# - SECRET_KEY
+# - GOOGLE_CLIENT_ID
+# - GOOGLE_CLIENT_SECRET
+# - POSTGRES_PASSWORD
+# - S3_ACCESS_KEY
+# - S3_SECRET_KEY
+#
+# Optional (depending on features you use):
+# - SMTP_PASSWORD (if email enabled)
+# - SENTRY_DSN (if MONITORING=sentry)
+extraEnvFrom: []
+env: {}
+# # See an exhaustive list of env var options in the documentation.
+# env:
+#   # --- Required ---
+#   DOMAIN: "drone-tm.example.com"
+#   DEBUG: "False"
+#   LOG_LEVEL: "INFO"
+#   POSTGRES_HOST: "your-postgres-host"
+#   POSTGRES_DB: "dtm_db"
+#   POSTGRES_USER: "dtm"
+#   # Optional: for better upload UX (S3 Transfer Acceleration)
+#   # S3_ENDPOINT_UPLOAD: "https://your-bucket.s3-accelerate.amazonaws.com"
+#   # Optional: for cheaper/faster repeated downloads (CloudFront)
+#   # S3_ENDPOINT_DOWNLOAD: "https://your-cloudfront-domain.example.com"
+#   S3_BUCKET_NAME: "your-bucket"
+#   # DRAGONFLY_DSN is provided automatically by the chart (DragonflyDB subchart)
+#   # and does not need to be configured manually
+#
+#   # --- Optional ---
+#   # EXTRA_CORS_ORIGINS: '["https://drone-tm.example.com"]'
+#   # MONITORING: "sentry"
+#   # SMTP_HOST: "smtp.gmail.com"
+#   # SMTP_PORT: "587"
+#   # SMTP_USER: "noreply@example.com"
+#   # EMAILS_FROM_EMAIL: "noreply@example.com"
+#   # EMAILS_FROM_NAME: "Drone Tasking Manager"
+
+# Single ingress for both UI (`/`) and API (`/api`) routes, pointing at the backend service.
+ingress:
+  enabled: true
+  className: ""
+  labels: {}
+  annotations: {}
+  tls: []
+    # - hosts:
+    #     - drone.hotosm.org
+    #   secretName: drone-tm-tls
+  hosts:
+    - host: drone-tm.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+        - path: /api
+          pathType: Prefix
+
+# Main application services
+backend:
+  image:
+    repository: ghcr.io/hotosm/drone-tm/backend
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  resources: {}
+    # limits:
+    #   cpu: 9000m
+    #   memory: 1.5Gi
+    # requests:
+    #   cpu: 100m
+    #   memory: 256Mi
+
+  # Is process alive?
+  livenessProbe:
+    httpGet:
+      path: /__lbheartbeat__
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  # Can it serve real traffic?
+  readinessProbe:
+    httpGet:
+      path: /__heartbeat__
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+
+migrations:
+  # Uses the same envFrom + env as backend
+  enabled: true
+  backoffLimit: 3
+  # Optional extra annotations for the migrations Job.
+  annotations: {}
+
+frontendAssets:
+  # Uses the frontend image as an initContainer to populate backend templates (the frontend image exits after syncing).
+  enabled: true
+  image:
+    repository: ghcr.io/hotosm/drone-tm/frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Runtime config injected into `/config.js` at pod start by the frontend initContainer.
+  # Defaults are chosen so the app works across domains without rebuilds:
+  # - VITE_API_URL defaults to `/api` (same-origin, path-based)
+  runtimeEnv: {}
+  # runtimeEnv:
+  #   VITE_API_URL: "/api"
+
+worker:
+  # Uses the same envFrom + env as backend
+  enabled: true
+  image:
+    repository: ghcr.io/hotosm/drone-tm/backend
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  resources: {}
+    # limits:
+    #   cpu: 2000m
+    #   memory: 2Gi
+    # requests:
+    #   cpu: 500m
+    #   memory: 512Mi
+
+  # Is process alive?
+  livenessProbe:
+    exec:
+      command:
+        - sh
+        - -c
+        - pgrep -f "arq app.arq.tasks.WorkerSettings" >/dev/null
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  # Can it serve real traffic?
+  readinessProbe:
+    exec:
+      command:
+        - arq
+        - app.arq.tasks.WorkerSettings
+        - --check
+    initialDelaySeconds: 15
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  backend:
+    enabled: false
+    minAvailable: 1
+  worker:
+    enabled: false
+    minAvailable: 1
+
+# Subchart configurations
+# https://github.com/dragonflydb/dragonfly/blob/main/contrib/charts/dragonfly/values.yaml
+dragonfly:
+  enabled: true
+  replicaCount: 1
+  storage:
+    enabled: false
+    storageClassName: ""
+    requests: 2Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
+postgresql:
+  enabled: false
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: 16-debian-13
+  auth:
+    enablePostgresUser: false
+    username: dtm
+    database: dtm_db
+    existingSecret: ""
+    secretKeys:
+      userPasswordKey: POSTGRES_PASSWORD
+  initdb:
+    scripts:
+      01-enable-postgis.sql: |
+        CREATE EXTENSION IF NOT EXISTS postgis;
+  primary:
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+
+# Kubernetes resources
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

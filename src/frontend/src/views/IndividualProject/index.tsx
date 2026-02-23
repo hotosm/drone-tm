@@ -30,9 +30,11 @@ import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import DroneImageProcessingWorkflow from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
 // eslint-disable-next-line camelcase
-const { BASE_URL } = process.env;
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 // function to render the content based on active tab
 const getActiveTabContent = (
@@ -84,6 +86,7 @@ const IndividualProject = () => {
   const [showProjectDeletePrompt, setShowProjectDeletePrompt] = useState(false);
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const Token = localStorage.getItem('token');
 
   const individualProjectActiveTab = useTypedSelector(
@@ -163,7 +166,7 @@ const IndividualProject = () => {
 
   const downloadProjectTaskGeojson = () => {
     fetch(
-      `${BASE_URL}/projects/${projectData?.id}/download-boundaries?split_area=true&export_type=geojson`,
+      `${API_URL}/projects/${projectData?.id}/download-boundaries?split_area=true&export_type=geojson`,
       { method: 'GET', headers: { 'Access-token': Token || '' } },
     )
       .then(response => {
@@ -199,6 +202,15 @@ const IndividualProject = () => {
             ]}
           />
           <div className="naxatw-flex naxatw-gap-5">
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-bg-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-white"
+              leftIcon="upload"
+              iconClassname="naxatw-text-[1.125rem]"
+              onClick={() => setIsWorkflowModalOpen(true)}
+            >
+              Drone Image Processing Workflow
+            </Button>
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
@@ -262,7 +274,7 @@ const IndividualProject = () => {
               finalButtonText="Start Final Processing"
               // handleProcessingStart={handleStartProcessingClick}
               // eslint-disable-next-line camelcase
-              rawImageUrl={`${BASE_URL}/gcp/find-project-images/?project_id=${id}`}
+              rawImageUrl={`${API_URL}/gcp/find-project-images/?project_id=${id}`}
             />
           </div>
         ) : (
@@ -342,6 +354,12 @@ const IndividualProject = () => {
           setShowUnlockDialog={setShowProjectDeletePrompt}
         />
       </ProjectPromptDialog>
+
+      <DroneImageProcessingWorkflow
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
+        projectId={id as string}
+      />
     </>
   );
 };

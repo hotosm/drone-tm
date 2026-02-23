@@ -26,12 +26,23 @@ Just is required too:
 
 - There is an example `.env.example` file that `.env` can be generated from using this command:
   `just config generate-dotenv`
+  - The generator runs the repo’s `./envsubst` twice so defaults that reference other vars
+    (e.g. `$BACKEND_WEB_APP_PORT`) resolve correctly.
 - If you only plan on using the backend then everything should be
   configured for you.
-- Else, if you set up Google OAuth credentials, set the variables here:
+- The current setup expects:
+  - `DOMAIN` for public URLs (backend derives its public base URL automatically)
+  - `VITE_API_URL` for the frontend to reach the backend API (must include `/api`)
+- S3 endpoints:
+  - `S3_ENDPOINT_UPLOAD`: used by browser presigned uploads (often `http://localhost:9000` in dev)
+  - `S3_ENDPOINT_DOWNLOAD`: used by browser downloads/display
+    - In dev, defaults to `http://localhost:9000` (downloads via a path-rewriting proxy will break presigned signatures).
+- If you set up Google OAuth credentials, set the variables here:
+
   ```dotenv
   GOOGLE_CLIENT_ID="YOUR_CLIENT_ID"
   GOOGLE_CLIENT_SECRET="YOUR_CLIENT_SECRET"
+  # Redirect URI must match your Google OAuth app config
   GOOGLE_LOGIN_REDIRECT_URI="http://localhost:3040/auth"
   ```
 
@@ -44,9 +55,11 @@ Just is required too:
   MONITORING="sentry"
   SENTRY_DSN="<sentry dsn url here>"
   ```
+
   Then make sure to rebuild your backend Docker image: `docker compose build backend` so that Docker
   now knows to install the extra set of dependencies.
   You should see a success message if it worked correctly.
+
 - `LOG_LEVEL` is set to `info` by default. Setting it to `debug` makes the logs very verbose, so it
   is recommended to leave the setting as is.
 
@@ -70,6 +83,3 @@ Web ODM: [http://localhost:9900](http://localhost:9900)
 - Default password: `password`
 
 > Note the ports may be different if you changed them in the dotenv file.
-
-[1]: https://docs.docker.com/engine/install/#other-linux-distros "Docker Install Guide"
-[2]: https://docs.docker.com/compose/install/#scenario-two-install-the-compose-plugin "Docker Compose Install Guide"

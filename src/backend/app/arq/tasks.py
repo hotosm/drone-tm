@@ -1,15 +1,32 @@
 import asyncio
-from typing import Any, Dict
+import io
+from typing import Any, Dict, Optional, Tuple
+from uuid import UUID
 
 from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings, log_redis_info
 from fastapi import HTTPException
 from loguru import logger as log
+from PIL import Image
 
 from app.config import settings
 from app.db.database import get_db_connection_pool
-from app.models.enums import HTTPStatus
+from app.images.image_logic import (
+    calculate_file_hash,
+    check_duplicate_image,
+    create_project_image,
+    extract_exif_data,
+)
+from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
+from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
+from app.models.enums import HTTPStatus, ImageStatus
 from app.projects.project_logic import process_all_drone_images, process_drone_images
+from app.s3 import async_get_obj_from_bucket, s3_client
+from app.images.image_classification import ImageClassifier
+from app.jaxa.upload_dem import download_and_upload_dem
+
+
+THUMBNAIL_SIZE = (200, 200)
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
@@ -17,7 +34,7 @@ async def startup(ctx: Dict[Any, Any]) -> None:
     log.info("Starting ARQ worker")
 
     # Initialize Redis
-    ctx["redis"] = await create_pool(RedisSettings.from_dsn(settings.REDIS_DSN))
+    ctx["redis"] = await create_pool(RedisSettings.from_dsn(settings.DRAGONFLY_DSN))
     await log_redis_info(ctx["redis"], log.info)
 
     # Initialize Database pool
@@ -38,6 +55,51 @@ async def shutdown(ctx: Dict[Any, Any]) -> None:
     if db_pool := ctx.get("db_pool"):
         await db_pool.close()
         log.info("Database connection pool closed")
+
+
+def generate_thumbnail(
+    image_bytes: bytes, size: Tuple[int, int] = THUMBNAIL_SIZE
+) -> bytes:
+    """Generate thumbnail from image bytes.
+
+    Args:
+        image_bytes: Original image bytes
+        size: Thumbnail size (width, height), defaults to 200x200
+
+    Returns:
+        Thumbnail image bytes in JPEG format
+
+    Raises:
+        ValueError: If image cannot be decoded
+    """
+    try:
+        # Open image from bytes
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # Convert RGBA to RGB if necessary (for PNG with transparency)
+        if image.mode in ("RGBA", "LA", "P"):
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            if image.mode == "P":
+                image = image.convert("RGBA")
+            background.paste(
+                image,
+                mask=image.split()[-1] if image.mode in ("RGBA", "LA") else None,
+            )
+            image = background
+
+        # Generate thumbnail maintaining aspect ratio
+        image.thumbnail(size, Image.Resampling.LANCZOS)
+
+        # Save to bytes
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=85, optimize=True)
+        output.seek(0)
+
+        return output.getvalue()
+
+    except Exception as e:
+        log.error(f"Error generating thumbnail: {e}")
+        raise ValueError(f"Failed to generate thumbnail: {e}") from e
 
 
 async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
@@ -75,15 +137,578 @@ async def count_project_tasks(ctx: Dict[Any, Any], project_id: str) -> Dict[str,
         raise
 
 
+async def _save_image_record(
+    db,
+    project_id: str,
+    filename: str,
+    file_key: str,
+    file_hash: str,
+    uploaded_by: str,
+    exif_dict: Optional[dict] = None,
+    location: Optional[dict] = None,
+    status: ImageStatus = ImageStatus.STAGED,
+    batch_id: Optional[str] = None,
+    thumbnail_url: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
+) -> ProjectImageOut:
+    """Save image record to database.
+
+    Args:
+        db: Database connection
+        project_id: Project UUID
+        filename: Original filename
+        file_key: S3 key
+        file_hash: MD5 hash
+        uploaded_by: User ID
+        exif_dict: EXIF data (optional)
+        location: GPS location (optional)
+        status: Image status (STAGED, INVALID_EXIF, etc.)
+        batch_id: Batch UUID for grouping uploads (optional)
+        thumbnail_url: S3 key for thumbnail (optional)
+
+    Returns:
+        ProjectImageOut: Saved image record
+    """
+    image_data = ProjectImageCreate(
+        project_id=UUID(project_id),
+        filename=filename,
+        s3_key=file_key,
+        hash_md5=file_hash,
+        location=location,
+        exif=exif_dict,
+        uploaded_by=uploaded_by,
+        status=status,
+        batch_id=UUID(batch_id) if batch_id else None,
+        thumbnail_url=thumbnail_url,
+        rejection_reason=rejection_reason,
+    )
+
+    image_record = await create_project_image(db, image_data)
+    await db.commit()
+
+    log.info(
+        f"Saved: {filename} | Status: {status} | "
+        f"GPS: {location is not None} | EXIF: {exif_dict is not None} | "
+        f"BatchID: {batch_id}"
+    )
+
+    return image_record
+
+
+async def process_uploaded_image(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    file_key: str,
+    filename: str,
+    uploaded_by: str,
+    batch_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Process an uploaded image after it lands in S3 (ARQ worker).
+
+    Pipeline invariants:
+    - We always create a `project_images` row so the UI can show every upload.
+    - Upload-time metadata problems (missing/invalid EXIF/GPS) are recorded here as
+      `status=invalid_exif` with a user-facing `rejection_reason`.
+    - Classification later only selects `status=staged` rows; it must not have to
+      rediscover upload-time failures.
+
+    Args:
+        ctx: ARQ context
+        project_id: UUID of the project
+        file_key: S3 key of the uploaded file
+        filename: Original filename
+        uploaded_by: User ID who uploaded
+
+    Returns:
+        dict: Processing result with image_id and status
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        f"Starting process_uploaded_image (Job ID: {job_id}): {filename} | "
+        f"BatchID received: {batch_id}"
+    )
+
+    try:
+        # Get database connection from pool
+        db_pool = ctx.get("db_pool")
+        if not db_pool:
+            raise Exception("Database pool not initialized")
+
+        async with db_pool.connection() as db:
+            log.info(f"Downloading file from S3: {file_key}")
+            file_obj = await async_get_obj_from_bucket(
+                settings.S3_BUCKET_NAME, file_key
+            )
+            file_content = file_obj.read()
+
+            log.info(f"Calculating hash for: {filename}")
+            file_hash = calculate_file_hash(file_content)
+
+            # Check for duplicates - create record with DUPLICATE status
+            # Downstream the EXIF extraction and processing is skipped
+            duplicate_of_id = await check_duplicate_image(
+                db, UUID(project_id), file_hash
+            )
+            if duplicate_of_id:
+                log.info(
+                    f"Duplicate detected: {filename} (hash: {file_hash}) "
+                    f"already exists as image {duplicate_of_id}"
+                )
+                # Create a record with DUPLICATE status to track it in the UI
+                image_data = ProjectImageCreate(
+                    project_id=UUID(project_id),
+                    s3_key=file_key,
+                    filename=filename,
+                    uploaded_by=uploaded_by,
+                    status=ImageStatus.DUPLICATE,
+                    hash_md5=file_hash,
+                    batch_id=UUID(batch_id) if batch_id else None,
+                    duplicate_of=duplicate_of_id,
+                )
+                image = await create_project_image(db, image_data)
+                return {
+                    "image_id": str(image.id),
+                    "status": ImageStatus.DUPLICATE.value,
+                    "has_gps": False,
+                    "is_duplicate": True,
+                    "duplicate_of": str(duplicate_of_id),
+                    "message": "Duplicate of existing image",
+                }
+
+            # Step 3: Extract EXIF (try-catch to handle failures gracefully)
+            # Extract EXIF/GPS. If GPS fields exist but are invalid/out of range, we treat
+            # it as upload-time invalid_exif so it cannot be classified/assigned.
+            exif_dict = None
+            location = None
+            gps_error = None
+            rejection_reason = None
+
+            try:
+                log.info(f"Extracting EXIF from: {filename}")
+                exif_dict, location, gps_error = extract_exif_data(file_content)
+
+                if exif_dict:
+                    log.info(
+                        f" EXIF: {len(exif_dict)} tags | GPS: {location is not None}"
+                    )
+                    log.debug(f"EXIF tags: {list(exif_dict.keys())[:10]}")
+                else:
+                    log.warning(f"No EXIF data in: {filename}")
+                    log.debug(
+                        f"Invalid EXIF for {filename}: extract_exif_data returned None "
+                        f"(file_key={file_key}, bytes={len(file_content)})"
+                    )
+                    rejection_reason = "No EXIF data found"
+                if gps_error and not rejection_reason:
+                    rejection_reason = gps_error
+
+            except Exception as exif_error:
+                log.error(f"EXIF extraction failed for {filename}: {exif_error}")
+                log.opt(exception=True).debug(
+                    f"EXIF extraction exception for {filename}: {type(exif_error).__name__}: {exif_error}"
+                )
+                rejection_reason = f"EXIF extraction failed: {exif_error}"
+
+            # Step 4: Generate and upload thumbnail of image (for quick UI display)
+            # Thumbnails are best-effort: failure should not fail the upload record.
+            thumbnail_s3_key = None
+            try:
+                log.info(f"Generating thumbnail for: {filename}")
+                # Generate thumbnail (run in threadpool since PIL is CPU-bound)
+                thumbnail_bytes = await asyncio.to_thread(
+                    generate_thumbnail, file_content
+                )
+
+                # Create thumbnail S3 key (store in thumbnails/ subdirectory)
+                thumbnail_s3_key = file_key.replace("/images/", "/thumbnails/", 1)
+                if "/images/" not in file_key:
+                    # Fallback: add thumb_ prefix
+                    parts = file_key.rsplit("/", 1)
+                    thumbnail_s3_key = (
+                        f"{parts[0]}/thumb_{parts[1]}"
+                        if len(parts) > 1
+                        else f"thumb_{file_key}"
+                    )
+
+                # Upload thumbnail to S3
+                log.info(f"Uploading thumbnail to S3: {thumbnail_s3_key}")
+                client = s3_client()
+                thumbnail_s3_key = thumbnail_s3_key.lstrip("/")
+                client.put_object(
+                    settings.S3_BUCKET_NAME,
+                    thumbnail_s3_key,
+                    io.BytesIO(thumbnail_bytes),
+                    len(thumbnail_bytes),
+                    content_type="image/jpeg",
+                )
+
+                log.info(f"Thumbnail generated and uploaded: {thumbnail_s3_key}")
+
+            except Exception as thumb_error:
+                log.warning(
+                    f"Failed to generate/upload thumbnail for {filename}: {thumb_error}"
+                )
+                # Continue even if thumbnail generation fails
+                thumbnail_s3_key = None
+
+            # Step 5: Determine status
+            # If GPS was present but invalid, reject immediately so it cannot be
+            # classified/assigned (and therefore cannot be included in flight-tail detection).
+            # Status ownership: upload-time failures become INVALID_EXIF; otherwise the
+            # image enters the classification pool as STAGED.
+            status = (
+                ImageStatus.INVALID_EXIF
+                if (not exif_dict or gps_error)
+                else ImageStatus.STAGED
+            )
+
+            # Step 6: Save image record (ALWAYS save, even if EXIF/thumbnail failed)
+            image_record = await _save_image_record(
+                db=db,
+                project_id=project_id,
+                filename=filename,
+                file_key=file_key,
+                file_hash=file_hash,
+                uploaded_by=uploaded_by,
+                exif_dict=exif_dict,
+                location=location,
+                status=status,
+                batch_id=batch_id,
+                thumbnail_url=thumbnail_s3_key,
+                rejection_reason=rejection_reason
+                if status == ImageStatus.INVALID_EXIF
+                else None,
+            )
+
+            log.info(
+                f"Completed (Job: {job_id}): "
+                f"ID={image_record.id} | Status={status} | "
+                f"EXIF={'Yes' if exif_dict else 'No'} | GPS={'Yes' if location else 'No'}"
+            )
+
+            return {
+                "image_id": str(image_record.id),
+                "status": image_record.status,
+                "has_gps": location is not None,
+                "is_duplicate": False,
+            }
+
+    except Exception as e:
+        log.error(f"Failed (Job: {job_id}): {str(e)}")
+        raise
+
+
+async def classify_image_batch(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    batch_id: str,
+) -> Dict:
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting batch classification job {job_id} for batch {batch_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        # Pass the pool directly so classify_batch can get separate connections
+        # for each parallel worker
+        result = await ImageClassifier.classify_batch(
+            db_pool,
+            UUID(batch_id),
+            UUID(project_id),
+        )
+
+        # Post-classification: detect tails per task area (requires task_id assignment).
+        # NOTE we must attempt tail removal after binning into task areas, else
+        # tails will be misidentified across the entire batch of images.
+        try:
+            async with db_pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        """
+                        SELECT DISTINCT task_id
+                        FROM project_images
+                        WHERE project_id = %(project_id)s
+                          AND batch_id = %(batch_id)s
+                          AND status = 'assigned'
+                          AND task_id IS NOT NULL
+                        """,
+                        {"project_id": project_id, "batch_id": batch_id},
+                    )
+                    rows = await cur.fetchall()
+
+                task_ids = [row[0] for row in rows if row and row[0] is not None]
+                if task_ids:
+                    log.info(
+                        f"Inspecting batch {batch_id} for flightplan tails (per task): "
+                        f"{len(task_ids)} tasks"
+                    )
+                for task_id in task_ids:
+                    await mark_and_remove_flight_tail_imagery(
+                        conn, UUID(project_id), UUID(batch_id), UUID(str(task_id))
+                    )
+                if task_ids:
+                    await conn.commit()
+        except Exception as tail_err:
+            log.warning(
+                f"Flight tail detection failed for batch {batch_id} (post-classification): {tail_err}"
+            )
+
+        log.info(
+            f"Batch classification complete: "
+            f"Total={result['total']}, Assigned={result['assigned']}, "
+            f"Rejected={result['rejected']}, Unmatched={result['unmatched']}"
+        )
+
+        return result
+
+    except Exception as e:
+        log.error(f"Batch classification failed: {str(e)}")
+        raise
+
+
+async def process_batch_images(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    batch_id: str,
+) -> Dict[str, Any]:
+    """Background task to move batch images to task folders and trigger ODM processing.
+
+    This task:
+    1. Moves assigned images from user-uploads/ to {task_id}/images/ in S3
+    2. Triggers ODM processing for each task that has at least MIN_IMAGES_FOR_ODM images
+
+    Args:
+        ctx: ARQ context
+        project_id: UUID of the project
+        batch_id: UUID of the batch to process
+
+    Returns:
+        dict: Processing result with task details
+    """
+    # Minimum images required for ODM to process (needs overlapping images)
+    MIN_IMAGES_FOR_ODM = 3
+
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting process_batch_images (Job ID: {job_id}): batch={batch_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            # Step 1: Move images to task folders
+            log.info(f"Moving batch {batch_id} images to task folders...")
+            move_result = await ImageClassifier.move_batch_images_to_tasks(
+                conn, UUID(batch_id), UUID(project_id)
+            )
+            await conn.commit()
+
+            log.info(
+                f"Moved {move_result['total_moved']} images to "
+                f"{move_result['task_count']} tasks"
+            )
+
+            if move_result["total_moved"] == 0:
+                return {
+                    "message": "No images to process",
+                    "batch_id": batch_id,
+                    "tasks_processed": 0,
+                }
+
+            # Step 2: Get the list of tasks to process
+            task_ids = list(move_result["tasks"].keys())
+
+            # Step 3: Trigger ODM processing for each task
+            # (We'll enqueue separate jobs for each task to parallelize)
+            redis = ctx.get("redis")
+            if not redis:
+                log.warning("Redis not available, cannot trigger ODM processing jobs")
+                return {
+                    "message": "Images moved but ODM processing not triggered",
+                    "batch_id": batch_id,
+                    "move_result": move_result,
+                }
+
+            odm_jobs = []
+            skipped_tasks = []
+            for task_id in task_ids:
+                task_images = move_result["tasks"][task_id]
+                image_count = task_images["image_count"]
+
+                # Skip tasks with insufficient images for ODM
+                if image_count < MIN_IMAGES_FOR_ODM:
+                    log.warning(
+                        f"Skipping ODM for task {task_id}: only {image_count} images "
+                        f"(minimum {MIN_IMAGES_FOR_ODM} required)"
+                    )
+                    skipped_tasks.append(
+                        {
+                            "task_id": task_id,
+                            "image_count": image_count,
+                            "reason": f"Insufficient images (need {MIN_IMAGES_FOR_ODM})",
+                        }
+                    )
+                    continue
+
+                log.info(
+                    f"Triggering ODM processing for task {task_id} "
+                    f"with {image_count} images"
+                )
+
+                # Enqueue ODM processing job
+                # Note: We'll use a placeholder user_id for the webhook
+                # In production, you might want to track the actual user
+                job = await redis.enqueue_job(
+                    "process_drone_images",
+                    UUID(project_id),
+                    UUID(task_id),
+                    "batch-processor",  # user_id for webhook
+                    _queue_name="default_queue",
+                )
+                odm_jobs.append(
+                    {
+                        "task_id": task_id,
+                        "job_id": job.job_id,
+                        "image_count": image_count,
+                    }
+                )
+
+            log.info(
+                f"Batch processing complete: {len(odm_jobs)} ODM jobs queued, "
+                f"{len(skipped_tasks)} tasks skipped (insufficient images)"
+            )
+
+            return {
+                "message": "Batch processing started",
+                "batch_id": batch_id,
+                "total_images_moved": move_result["total_moved"],
+                "tasks_processed": len(odm_jobs),
+                "tasks_skipped": len(skipped_tasks),
+                "odm_jobs": odm_jobs,
+                "skipped_tasks": skipped_tasks,
+            }
+
+    except Exception as e:
+        log.error(f"Failed to process batch (Job: {job_id}): {str(e)}")
+        raise
+
+
+async def delete_batch_images(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    batch_id: str,
+) -> Dict[str, Any]:
+    """Background task to delete all images in a batch from both database and S3.
+
+    Args:
+        ctx: ARQ context
+        project_id: UUID of the project
+        batch_id: UUID of the batch to delete
+
+    Returns:
+        dict: Deletion result with counts
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting delete_batch_images (Job ID: {job_id}): batch={batch_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            # Get all S3 keys for images and thumbnails in this batch
+            query = """
+                SELECT s3_key, thumbnail_url
+                FROM project_images
+                WHERE batch_id = %(batch_id)s
+                AND project_id = %(project_id)s
+            """
+
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    query,
+                    {"batch_id": batch_id, "project_id": project_id},
+                )
+                rows = await cur.fetchall()
+
+            # Collect all S3 keys to delete
+            s3_keys_to_delete = []
+            for row in rows:
+                s3_key, thumbnail_url = row
+                if s3_key:
+                    s3_keys_to_delete.append(s3_key)
+                if thumbnail_url:
+                    s3_keys_to_delete.append(thumbnail_url)
+
+            image_count = len(rows)
+            log.info(
+                f"Found {image_count} images and {len(s3_keys_to_delete)} S3 objects to delete"
+            )
+
+            # Delete from S3
+            deleted_s3_count = 0
+            if s3_keys_to_delete:
+                client = s3_client()
+                for key in s3_keys_to_delete:
+                    try:
+                        key = key.lstrip("/")
+                        client.remove_object(settings.S3_BUCKET_NAME, key)
+                        deleted_s3_count += 1
+                    except Exception as e:
+                        log.warning(f"Failed to delete S3 object {key}: {e}")
+
+            log.info(f"Deleted {deleted_s3_count} objects from S3")
+
+            # Delete from database
+            delete_query = """
+                DELETE FROM project_images
+                WHERE batch_id = %(batch_id)s
+                AND project_id = %(project_id)s
+            """
+
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    delete_query,
+                    {"batch_id": batch_id, "project_id": project_id},
+                )
+
+            await conn.commit()
+
+            log.info(
+                f"Batch deletion complete: {image_count} images, "
+                f"{deleted_s3_count} S3 objects deleted"
+            )
+
+            return {
+                "message": "Batch deleted successfully",
+                "batch_id": batch_id,
+                "deleted_images": image_count,
+                "deleted_s3_objects": deleted_s3_count,
+            }
+
+    except Exception as e:
+        log.error(f"Failed to delete batch (Job: {job_id}): {str(e)}")
+        raise
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
-    redis_settings = RedisSettings.from_dsn(settings.REDIS_DSN)
+    redis_settings = RedisSettings.from_dsn(settings.DRAGONFLY_DSN)
     functions = [
         sleep_task,
         count_project_tasks,
         process_drone_images,
         process_all_drone_images,
+        process_uploaded_image,
+        classify_image_batch,
+        process_batch_images,
+        delete_batch_images,
+        download_and_upload_dem,
     ]
 
     queue_name = "default_queue"
@@ -98,7 +723,7 @@ class WorkerSettings:
 async def get_redis_pool() -> ArqRedis:
     """Redis connection dependency"""
     try:
-        return await create_pool(RedisSettings.from_dsn(settings.REDIS_DSN))
+        return await create_pool(RedisSettings.from_dsn(settings.DRAGONFLY_DSN))
     except Exception as e:
         log.error(f"Redis connection failed: {str(e)}")
         raise HTTPException(

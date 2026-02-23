@@ -19,7 +19,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Sign+Up+and+Log+In',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Sign+Up+and+Log+In.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Sign+Up+and+Log+In.mp4',
     title: 'How to Sign Up and Log In',
     description: '',
     thumbnail: signUpAndLogin,
@@ -27,7 +27,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Project+Creation',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Project+Creation.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Project+Creation.mp4',
     title: 'How To Create Projects',
     description: '',
     thumbnail: projectCreation,
@@ -35,7 +35,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Workflow+for+Drone+Operators',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Workflow+for+Drone+Operators.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Workflow+for+Drone+Operators.mp4',
     title: 'Workflow for Drone Operators',
     description: '',
     thumbnail: workflowForDroneOperator,
@@ -43,7 +43,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Flight+Plan+Loading+on+RC',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Flight+Plan+Loading+on+RC.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Flight+Plan+Loading+on+RC.mp4',
     title: 'How to Load Flight Plan on RC of Drone and Start the Flight',
     description: '',
     thumbnail: flightPlanLoadOnRc,
@@ -51,7 +51,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Flight+Plan+Replacement+on+RC+By+App',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Flight+Plan+Replacement+on+RC+By+App.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Flight+Plan+Replacement+on+RC+By+App.mp4',
     title: 'How to Replace the Flight Plan on RC of Drone using Mobile App (Option 2)',
     description: '',
     thumbnail: flightPlanReplacementOnRcByApp,
@@ -59,7 +59,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Flight+Plan+Replacement+on+RC+By+Laptop',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Flight+Plan+Replacement+on+RC+By+Laptop.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Flight+Plan+Replacement+on+RC+By+Laptop.mp4',
     title: 'How to Replace the Flight Plan on RC of Drone using Laptop (Option 1)',
     description: '',
     thumbnail: flightPlanReplacementOnRcByLaptop,
@@ -67,7 +67,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Image+Processing',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Image+Processing.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Image+Processing.mp4',
     title: 'How to Upload Raw images and Start Processing',
     description: '',
     thumbnail: imageProcessing,
@@ -76,7 +76,7 @@ export const videoTutorialData: IVideoTutorialItems[] = [
   {
     id: 'Viewing+Final+Output',
     videoUrl:
-      'https://dronetm.s3.ap-south-1.amazonaws.com/dtm-data/tutorials/Viewing+Final+Output.mp4',
+      'https://d2ymfcf63vwwpt.cloudfront.net/tutorials/Viewing+Final+Output.mp4',
     title: 'How to Visualize Final Output',
     description: '',
     thumbnail: viewingFinalOutput,

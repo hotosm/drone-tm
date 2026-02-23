@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import datetime
 
@@ -8,10 +9,12 @@ from psycopg.rows import class_row, dict_row
 
 from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State, UserRole
-from app.projects import project_logic
 from app.tasks.task_schemas import NewEvent, TaskStats
 from app.users.user_schemas import DbUser, AuthUser
 from app.utils import render_email_template, send_notification_email
+
+
+log = logging.getLogger(__name__)
 
 
 async def list_task_id_for_project(db: Connection, project_id: uuid.UUID):
@@ -202,6 +205,57 @@ async def update_task_state(
         return result
 
 
+async def update_task_state_system(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    comment: str,
+    initial_state: State,
+    final_state: State,
+    updated_at: datetime,
+):
+    """Update task state without user ownership check.
+
+    This is for system/background processes (like batch processing)
+    where we need to update state without a specific user context.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            WITH last AS (
+                SELECT te.*
+                FROM task_events te
+                WHERE te.project_id = %(project_id)s AND te.task_id = %(task_id)s
+                ORDER BY te.created_at DESC
+                LIMIT 1
+            ),
+            can_modify AS (
+                SELECT *
+                FROM last
+                WHERE state = %(initial_state)s
+            )
+            INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+            SELECT gen_random_uuid(), project_id, task_id, user_id, %(final_state)s, %(comment)s, %(updated_at)s, now()
+            FROM can_modify
+            RETURNING project_id, task_id, comment;
+            """,
+            {
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+                "comment": comment,
+                "initial_state": initial_state.name,
+                "final_state": final_state.name,
+                "updated_at": updated_at,
+            },
+        )
+        result = await cur.fetchone()
+        if result is None:
+            log.warning(
+                f"System update task state failed. Task {task_id} might not be in state {initial_state}."
+            )
+        return result
+
+
 async def request_mapping(
     db: Connection,
     project_id: uuid.UUID,
@@ -325,7 +379,7 @@ async def handle_event(
                 )
             else:
                 state_after = State.REQUEST_FOR_MAPPING
-                message = "Request for mapping"
+                message = "Request for flight"
 
             # Perform the mapping request
             data = await request_mapping(
@@ -351,13 +405,13 @@ async def handle_event(
                         "project_id": project_id,
                         "project_name": project["name"],
                         "description": project["description"],
-                        "FRONTEND_URL": settings.FRONTEND_URL,
+                        "FRONTEND_URL": settings.PUBLIC_BASE_URL,
                     },
                 )
                 background_tasks.add_task(
                     send_notification_email,
                     author["email_address"],
-                    "Request for mapping",
+                    "Request for flight",
                     html_content,
                 )
 
@@ -387,7 +441,7 @@ async def handle_event(
                     "project_id": project_id,
                     "project_name": project["name"],
                     "description": project["description"],
-                    "FRONTEND_URL": settings.FRONTEND_URL,
+                    "FRONTEND_URL": settings.PUBLIC_BASE_URL,
                 },
             )
 
@@ -403,7 +457,7 @@ async def handle_event(
                 project_id,
                 task_id,
                 requested_user_id,
-                "Request accepted for mapping",
+                "Request accepted for flying",
                 State.REQUEST_FOR_MAPPING,
                 State.LOCKED_FOR_MAPPING,
                 detail.updated_at,
@@ -448,7 +502,7 @@ async def handle_event(
                 project_id,
                 task_id,
                 requested_user_id,
-                "Request for mapping rejected",
+                "Request for flight rejected",
                 State.REQUEST_FOR_MAPPING,
                 State.UNLOCKED_TO_MAP,
                 detail.updated_at,
@@ -579,50 +633,25 @@ async def handle_event(
             )
 
         case EventType.IMAGE_UPLOAD:
-            current_task_state = await get_task_state(db, project_id, task_id)
-            if not current_task_state:
-                raise HTTPException(
-                    status_code=400, detail="Task is not ready for image upload."
-                )
-            state = current_task_state.get("state")
-            locked_user_id = current_task_state.get("user_id")
-
-            # Determine error conditions: Current State must be IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED or lokec for mapping.
-            if state not in (
-                State.IMAGE_UPLOADED.name,
-                State.IMAGE_PROCESSING_FAILED.name,
-                State.LOCKED_FOR_MAPPING.name,
-            ):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Task state does not match expected state for image upload.",
-                )
-
-            is_author = project["author_id"] == user_id
-            if not is_author and user_id != locked_user_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="You cannot upload an image for this task as it is locked by another user.",
-                )
-            # update the count of the task to image uploaded.
-            total_image_count = project_logic.get_project_info_from_s3(
-                project_id, task_id
-            ).image_count
-
-            await project_logic.update_task_field(
-                db, project_id, task_id, "total_image_uploaded", str(total_image_count)
+            # DEPRECATED: This event type is no longer used.
+            # Task status should only be updated via the "Mark Fully Flown" button
+            # in the verification workflow. Images are now uploaded to the staging area
+            # and classified to tasks without changing task status automatically.
+            #
+            # The new workflow is:
+            # 1. Upload images via the new resumable upload workflow (project-level)
+            # 2. Classify images to tasks
+            # 3. User verifies coverage and clicks "Mark Fully Flown" to set IMAGE_UPLOADED
+            #
+            # Keeping this case to avoid breaking existing API calls, but it now does nothing.
+            log.warning(
+                f"Deprecated IMAGE_UPLOAD event received for project {project_id}, "
+                f"task {task_id}. This event no longer updates task status."
             )
-
-            return await update_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                f"Task image uploaded by user {user_data.name}.",
-                State[state],
-                State.IMAGE_UPLOADED,
-                detail.updated_at,
-            )
+            return {
+                "message": "Image upload event received but task status was not changed. "
+                "Use the 'Mark Fully Flown' button to update task status after verifying coverage."
+            }
 
         case EventType.IMAGE_PROCESSING_START:
             current_task_state = await get_task_state(db, project_id, task_id)

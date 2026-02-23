@@ -57,7 +57,7 @@ However, the Mini 4 Pro has 2 main drawbacks:
    expensive drone can do in a day.
 
 For the former drawback, we specifically developed our
-[Drone Tasking Manager](dronetm.org) to work well with the Mini 4 Pro because it's
+[Drone Tasking Manager](https://drone.hotosm.org) to work well with the Mini 4 Pro because it's
 such an effective, accessible, and affordable option for communities. As far as we
 know our DroneTM is the only way to use the Mini 4 Pro for serious professional
 mapping, but it does work, and it actually works pretty well.
@@ -156,7 +156,7 @@ flight planning software to upload to their Drone.
       We have a few angles to improve drone support.
 
       See
-      [this document](https://docs.dronetm.hotosm.org/decisions/0002-flightplan-upload)
+      [this document](https://docs.drone.hotosm.org/decisions/0002-flightplan-upload)
       for more information.
 
 ### Q. What Drones Are Not Supported?
@@ -222,7 +222,7 @@ a priority for now.
 2. Go to the 'S3' tab.
 3. Click 'Advanced'.
 4. Enter credentials:
-   - Endpoint: https://some-bucket-name.s3.amazonaws.com
+   - Endpoint: <https://some-bucket-name.s3.amazonaws.com>
      - Replace `some-bucket-name` with the name provided by your manager.
    - Region: us-east-1
    - Access key: provided by manager

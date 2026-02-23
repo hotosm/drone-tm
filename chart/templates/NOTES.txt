@@ -1,0 +1,23 @@
+1. Get the application URL by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- end }}
+
+2. Database connection:
+{{- if .Values.postgresql.enabled }}
+   - PostgreSQL is deployed as part of this chart
+   - Host: {{ include "drone-tm.fullname" . }}-postgresql
+   - Port: 5432
+   - Database: {{ .Values.postgresql.auth.database }}
+   - User: {{ .Values.postgresql.auth.username }}
+{{- else }}
+   - Using external PostgreSQL database
+{{- end }}
+
+3. S3 Storage:
+   - Using AWS S3 / external S3-compatible storage (configure via Secret: {{ include "drone-tm.secretName" . }})
+
+4. Secrets:
+   - Backend/worker env vars are sourced from Secret: {{ include "drone-tm.secretName" . }}

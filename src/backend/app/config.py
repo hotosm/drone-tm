@@ -3,7 +3,7 @@ import os
 import base64
 import secrets
 from functools import lru_cache
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Optional, Union
 
 import bcrypt
 from loguru import logger as log
@@ -64,6 +64,9 @@ class OtelSettings(BaseSettings):
         if self.SITE_NAME:
             # Return name with underscores
             service_name = self.SITE_NAME.lower().replace(" ", "-")
+        if self.DOMAIN:
+            # Return domain with underscores
+            service_name = self.FMTM_DOMAIN.replace(".", "_")
             # Export to environment for OTEL instrumentation
             os.environ["OTEL_SERVICE_NAME"] = service_name
         return service_name
@@ -100,6 +103,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     EXTRA_CORS_ORIGINS: Optional[Union[str, list[str]]] = []
+    FRONTEND_WEB_APP_PORT: int = 3040
 
     @field_validator("EXTRA_CORS_ORIGINS", mode="before")
     @classmethod
@@ -110,23 +114,52 @@ class Settings(BaseSettings):
     ) -> Union[list[str], str]:
         """Build and validate CORS origins list.
 
-        By default, the provided frontend URLs are included in the origins list.
-        If this variable used, the provided urls are appended to the list.
+        By default, the deployment origin derived from DOMAIN + DEBUG is included.
+        If EXTRA_CORS_ORIGINS is set, the provided URLs are appended.
         """
-        default_origins = []
+        # Always include the public origin so the frontend can call the API.
+        domain = info.data.get("DOMAIN")
+        debug = bool(info.data.get("DEBUG"))
+        port = info.data.get("FRONTEND_WEB_APP_PORT") or 3040
+
+        default_origins: list[str] = []
+
+        if domain:
+            scheme = "http" if debug else "https"
+            default_origins.append(f"{scheme}://{domain}")
+
+        # Dev-friendly defaults: include localhost + 127.0.0.1 for the frontend port.
+        # This helps when DOMAIN is set but you still access via a different host alias.
+        if debug:
+            default_origins.extend(
+                [
+                    f"http://localhost:{port}",
+                    f"http://127.0.0.1:{port}",
+                ]
+            )
+
+        # Final fallback (no DOMAIN set)
+        if not default_origins:
+            default_origins = [
+                f"http://localhost:{port}",
+                f"http://127.0.0.1:{port}",
+            ]
+
+        # De-dup while preserving order
+        seen: set[str] = set()
+        default_origins = [o for o in default_origins if not (o in seen or seen.add(o))]
 
         if val is None:
             return default_origins
 
         if isinstance(val, str):
-            default_origins += [i.strip() for i in val.split(",")]
+            default_origins += [i.strip() for i in val.split(",") if i.strip()]
             return default_origins
 
         elif isinstance(val, list):
             default_origins += val
             return default_origins
 
-    API_PREFIX: str = ""
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
     POSTGRES_HOST: Optional[str] = "db"
@@ -138,7 +171,9 @@ class Settings(BaseSettings):
 
     @field_validator("DTM_DB_URL", mode="after")
     @classmethod
-    def assemble_db_connection(cls, v: Optional[str], info: ValidationInfo) -> Any:
+    def assemble_db_connection(
+        cls, v: Optional[str], info: ValidationInfo
+    ) -> PostgresDsn:
         """Build Postgres connection from environment variables."""
         if isinstance(v, str):
             return v
@@ -151,18 +186,40 @@ class Settings(BaseSettings):
         )
         return pg_url
 
-    FRONTEND_URL: str = "http://localhost:3040"
-    BACKEND_URL: str = "http://localhost:8000"
-    NODE_ODM_URL: Optional[str] = "http://nodeodm:9900"
-    REDIS_DSN: str = "redis://redis:6379/0"
+    # DOMAIN: host[:port] (no scheme), e.g. "drone-tm.example.com" or "localhost:3040"
+    DOMAIN: Optional[str] = None
 
-    S3_ENDPOINT: str = "http://minio:9000"
+    @computed_field
+    @property
+    def PUBLIC_BASE_URL(self) -> HttpUrlStr:
+        """Public origin of the deployment (scheme + host), derived from DOMAIN + DEBUG."""
+        if self.DOMAIN:
+            # Domain set unset, defaults to "http" when DEBUG else "https".
+            scheme = "http" if self.DEBUG else "https"
+            return f"{scheme}://{self.DOMAIN}"
+        # Local dev default (frontend dev server)
+        return f"http://localhost:{self.FRONTEND_WEB_APP_PORT}"
+
+    # Internal backend URL for Docker-internal services (webhooks from ODM, etc.)
+    BACKEND_URL_INTERNAL: str = "http://backend:8000"
+    # ODM (NodeODM) API endpoint
+    ODM_ENDPOINT: Optional[str] = "http://nodeodm:9900"
+    DRAGONFLY_DSN: str = "redis://localhost:6379/0"
+
+    # - S3_ENDPOINT_UPLOAD: endpoint used for presigned uploads (browser calls this; can be S3 TA).
+    # - S3_ENDPOINT_DOWNLOAD: endpoint used for browser downloads/display (can be CloudFront).
     S3_ACCESS_KEY: Optional[str] = ""
     S3_SECRET_KEY: Optional[str] = ""
     S3_BUCKET_NAME: str = "dtm-bucket"
-    S3_DOWNLOAD_ROOT: Optional[str] = None
+    # Browser-facing endpoints (optional; derived from INTERNAL if unset).
+    S3_ENDPOINT_UPLOAD: Optional[str] = None
+    S3_ENDPOINT_DOWNLOAD: Optional[str] = None
 
-    JAXA_AUTH_TOKEN: Optional[str] = ""
+    def model_post_init(self, __context) -> None:
+        """Derive S3 endpoint defaults."""
+        # Download endpoint: defaults to UPLOAD unless explicitly set
+        if not self.S3_ENDPOINT_DOWNLOAD:
+            self.S3_ENDPOINT_DOWNLOAD = self.S3_ENDPOINT_UPLOAD
 
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 60 * 24 * 1  # 1 day
@@ -192,6 +249,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     EMAILS_FROM_EMAIL: Optional[EmailStr] = None
     EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
+
+    @field_validator("EMAILS_FROM_EMAIL", mode="before")
+    @classmethod
+    def empty_email_to_none(cls, v):
+        """Treat empty strings from env files as unset for optional EmailStr fields."""
+        if v == "" or v is None:
+            return None
+        return v
 
     @computed_field
     @property

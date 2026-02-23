@@ -1,22 +1,29 @@
 /* eslint-disable no-nested-ternary */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTypedSelector } from '@Store/hooks';
 import { toast } from 'react-toastify';
 import { useGetIndividualTaskQuery } from '@Api/tasks';
 import { Button } from '@Components/RadixComponents/Button';
+import Modal from '@Components/common/Modal';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import MapSection from '../MapSection/MapSection';
 import DescriptionBox from './DescriptionBox';
 import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from '@Utils/adb';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
-const { BASE_URL } = process.env;
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 const DroneOperatorDescriptionBox = () => {
   const { taskId, projectId } = useParams();
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
+  const [showMissingDemModal, setShowMissingDemModal] =
+    useState<boolean>(false);
+  const missingDemResolveRef = useRef<((proceed: boolean) => void) | null>(
+    null,
+  );
   const { width } = useWindowDimensions();
   const Token = localStorage.getItem('token');
   const waypointMode = useTypedSelector(
@@ -38,21 +45,60 @@ const DroneOperatorDescriptionBox = () => {
     state => state.droneOperatorTask.rotatedFlightPlan,
   );
 
-  const downloadFlightPlanKmz = () => {
-    fetch(
-      `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
-      { method: 'POST' },
-    )
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Network response was ${response.statusText}`);
+  const buildFlightPlanUrl = (allowMissingDem = false) =>
+    `${API_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`;
+
+  const askMissingDemOverride = async (): Promise<boolean> =>
+    new Promise(resolve => {
+      missingDemResolveRef.current = resolve;
+      setShowMissingDemModal(true);
+    });
+
+  useEffect(
+    () => () => {
+      missingDemResolveRef.current?.(false);
+      missingDemResolveRef.current = null;
+    },
+    [],
+  );
+
+  const fetchFlightPlanFile = async (
+    allowMissingDem = false,
+  ): Promise<{ filename: string; blob: Blob }> => {
+    const response = await fetch(buildFlightPlanUrl(allowMissingDem), {
+      method: 'POST',
+    });
+
+    if (response.status === 409) {
+      let payload: any = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (payload?.detail?.code === 'MISSING_TERRAIN_DEM') {
+        const shouldProceed = await askMissingDemOverride();
+        if (!shouldProceed) {
+          throw new Error('Mission generation canceled because no DEM was found.');
         }
-        const disposition = response.headers.get('content-disposition');
-        console.log(disposition)
-        const match = disposition?.match(/filename="?([^"]+)"?/i);
-        const filename = match?.[1] ?? `${taskId}.kmz`;
-        return response.blob().then(blob => ({ filename, blob }));
-      })
+        return fetchFlightPlanFile(true);
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const disposition = response.headers.get('content-disposition');
+    const match = disposition?.match(/filename="?([^"]+)"?/i);
+    const filename = match?.[1] ?? `${taskId}.kmz`;
+    const blob = await response.blob();
+    return { filename, blob };
+  };
+
+  const downloadFlightPlanKmz = () => {
+    fetchFlightPlanFile()
       .then(({ filename, blob }) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -63,28 +109,19 @@ const DroneOperatorDescriptionBox = () => {
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch(error =>
-        toast.error(`There was an error while downloading file
-        ${error}`),
-      );
+      .catch(error => toast.error(`${error}`));
   };
 
   const sendFlightPlanViaAdb = async () => {
     try {
-      const response = await fetch(
-        `${BASE_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}`,
-        { method: 'POST' },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Network response was ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
+      const { blob } = await fetchFlightPlanFile();
 
       // TODO improve this logic to be more generic
-      if (droneModel === 'POTENSIC_ATOM_2') {
+      if (droneModel === 'POTENSIC_ATOM_1') {
         await sendPotensicProFileViaAdb(blob);
+      // TODO add handling to send Potensic JSON to device too
+      // if (droneModel === 'POTENSIC_ATOM_2') {
+      //   await sendPotensicEveFileViaAdb(blob);
       } else {
         await sendDjiGoFileViaAdb(blob);
       }
@@ -115,7 +152,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadTaskAreaKml = () => {
     fetch(
-      `${BASE_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=kml`,
+      `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=kml`,
       { method: 'GET', headers: { 'Access-token': Token || '' } },
     )
       .then(response => {
@@ -142,7 +179,7 @@ const DroneOperatorDescriptionBox = () => {
 
   const downloadTaskAreaGeojson = () => {
     fetch(
-      `${BASE_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=geojson`,
+      `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=geojson`,
       { method: 'GET', headers: { 'Access-token': Token || '' } },
     )
       .then(response => {
@@ -169,6 +206,50 @@ const DroneOperatorDescriptionBox = () => {
 
   return (
     <>
+      <Modal
+        show={showMissingDemModal}
+        title="No DEM Found"
+        className="naxatw-w-[92vw] naxatw-max-w-[32rem]"
+        onClose={() => {
+          setShowMissingDemModal(false);
+          missingDemResolveRef.current?.(false);
+          missingDemResolveRef.current = null;
+        }}
+      >
+        <div className="naxatw-space-y-4">
+          <p className="naxatw-text-sm naxatw-text-[#7A7676]">
+            This task has terrain-follow enabled, but no DEM is available. For
+            safety, mission generation is blocked by default.
+          </p>
+          <p className="naxatw-text-sm naxatw-text-[#7A7676]">
+            If you understand the risk, you can still generate the mission
+            without a DEM.
+          </p>
+          <div className="naxatw-flex naxatw-justify-end naxatw-gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMissingDemModal(false);
+                missingDemResolveRef.current?.(false);
+                missingDemResolveRef.current = null;
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="naxatw-bg-red"
+              onClick={() => {
+                setShowMissingDemModal(false);
+                missingDemResolveRef.current?.(true);
+                missingDemResolveRef.current = null;
+              }}
+            >
+              Generate anyway
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-3 lg:naxatw-gap-5">
         <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-self-stretch">
           <p className="naxatw-text-[0.875rem] naxatw-font-normal naxatw-leading-normal naxatw-text-[#484848]">

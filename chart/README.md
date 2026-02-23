@@ -1,0 +1,145 @@
+# Drone Task Manager Helm Chart
+
+This Helm chart deploys the Drone Task Manager application and its dependencies.
+
+## Values Files
+
+### `values.yaml`
+
+Default values for the chart. Contains all configurable parameters with sensible defaults.
+
+### `values-local.yaml`
+
+Development environment configuration:
+
+- **Purpose**: Local development and testing
+- **Usage**: `helm install drone-tm ./chart -f values-local.yaml`
+- **Features**:
+  - Minimal resource allocation
+  - Ingress disabled (uses port-forward)
+  - Optional in-cluster Postgres for local testing
+
+## Usage Examples
+
+### Local Development
+
+```bash
+# Install with development values
+helm install drone-tm ./chart -f values-local.yaml
+
+# Upgrade with development values
+helm upgrade drone-tm ./chart -f values-local.yaml
+```
+
+## Dependencies
+
+This chart includes the following subcharts:
+
+- **DragonflyDB**: Caching and task queue
+- **PostgreSQL**: Database with PostGIS extension (optional)
+
+## Configuration
+
+Key configuration areas:
+
+- **Global**: Storage class (used by some dependency charts for PVCs)
+- **Ingress**: Single ingress that routes both `/` (UI) and `/api` (API) to the backend service
+- **Backend**: API server configuration
+- **FrontendAssets**: Init container that syncs built frontend assets into `frontend_html` for the backend to serve
+- **Worker**: Background task processing
+- **PostgreSQL**: Database configuration
+- **DragonflyDB**: Cache and queue configuration
+
+## Environment Variables
+
+- Can be set via the `env` or `extraEnvFrom` keys.
+- They will be included in the backend, migration, and arq worker containers.
+
+### Overriding The Frontend API_URL
+
+- The VITE_API_URL baked into builds / images has been removed.
+- Now instead we have a dynamic config.json that is injected into the frontend at runtime.
+- By default the frontend will load from an API at `${DOMAIN}/api`.
+- To override this, simply update the `frontend.runtimeEnv` section in `values.yaml`.
+
+## Argo CD + SealedSecrets ordering (migrations)
+
+This chart supports Argo CD out of the box:
+
+- The ServiceAccount is annotated with a low **sync wave** (wave `-10`) so it is created early.
+- The migrations Job is annotated as an **Argo CD Sync hook** (wave `5`) so it runs after core inputs are applied
+  (e.g., a `SealedSecret`), but before Deployments (wave `10`).
+
+If you need to add extra Argo annotations, use `migrations.annotations`.
+
+### Important: SealedSecret vs migrations hook ordering
+
+This chart expects the application Secret to already exist (it is referenced via `envFrom`).
+
+If you manage secrets via **SealedSecrets** in GitOps:
+
+- A `SealedSecret` is a *normal* resource, applied during ArgoCD's **Sync** phase (unless you explicitly annotate it as a hook).
+- A `PreSync` migrations hook runs **before** the Sync phase.
+
+So, if your `SealedSecret` is applied in the same ArgoCD Application, migrations should not be `PreSync` (it can run before the `SealedSecret` is applied).
+
+Recommended fixes:
+
+- **Preferred**: Deploy the `SealedSecret` (and ensure it becomes healthy / the `Secret` exists) in a separate ArgoCD Application with a lower
+  `argocd.argoproj.io/sync-wave` than the app chart.
+- **Alternative**: Keep everything in one Application and use sync-waves so `SealedSecret` (default wave `0`) → migrations (wave `5`) → Deployments (wave `10`) are ordered.
+
+## Secrets
+
+Secrets are managed through Kubernetes Secrets (recommended via SealedSecrets / ExternalSecrets in GitOps setups):
+
+- This chart **does not create secrets**.
+- Provide a pre-created Secret and set `existingSecret.name` (or leave it empty to default to `<release>-drone-tm-secrets`).
+
+Your Secret should include (at minimum):
+
+- Database: `POSTGRES_PASSWORD`
+- S3 credentials: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
+- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SECRET_KEY`.
+- DragonflyDB: (provided automatically by the chart; no `DRAGONFLY_DSN` needed)
+
+You will also typically want to set these **non-secret** environment variables via Helm values
+(`env` or `extraEnvFrom`), depending on your S3/CDN setup:
+
+- `S3_BUCKET_NAME`
+- `S3_ENDPOINT_UPLOAD` (presigned uploads; can be S3 Transfer Acceleration)
+- `S3_ENDPOINT_DOWNLOAD` (browser downloads/display; can be CloudFront)
+
+### Creating a Kubernetes Secret
+
+Create a Secret in the same namespace as your Helm release:
+
+```bash
+kubectl --namespace drone create secret generic drone-tm-prod-secrets \
+  --from-literal=POSTGRES_PASSWORD='<postgres password>' \
+  --from-literal=S3_ACCESS_KEY='<aws access key id>' \
+  --from-literal=S3_SECRET_KEY='<aws secret access key>' \
+  --from-literal=SECRET_KEY='<fastapi secret key>' \
+  --from-literal=GOOGLE_CLIENT_ID='<google oauth client id>' \
+  --from-literal=GOOGLE_CLIENT_SECRET='<google oauth client secret>' \
+  --from-literal=GOOGLE_LOGIN_REDIRECT_URI='https://<your-domain>/auth' \
+  --from-literal=SMTP_PASSWORD='<smtp password>' \
+  --from-literal=SENTRY_DSN='<sentry dsn>'
+```
+
+Then reference it from Helm values:
+
+```bash
+helm upgrade --install drone-tm ./chart \
+  --namespace drone \
+  --set existingSecret.name=drone-tm-prod-secrets
+```
+
+### Creating Sealed Secrets
+
+```bash
+# Create secret above with:
+  --dry-run=client -o yaml > secret.yaml
+
+kubeseal --namespace drone -o yaml < secret.yaml > sealed-secret.yaml
+```

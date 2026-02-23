@@ -4,8 +4,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Flex } from '@Components/common/Layouts';
 import { toast } from 'react-toastify';
 import { UserProfileDetailsType } from './types';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
-const { BASE_URL } = process.env;
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 function GoogleAuth() {
   const navigate = useNavigate();
@@ -22,12 +23,16 @@ function GoogleAuth() {
 
     const loginRedirect = async () => {
       if (authcode) {
-        const callbackUrl = `${BASE_URL}/users/callback/?code=${authcode}&state=${state}&role=${signedInAs}`;
-        const userDetailsUrl = `${BASE_URL}/users/my-info/`;
+        const callbackUrl = `${API_URL}/users/callback/?code=${authcode}&state=${state}&role=${signedInAs}`;
+        const userDetailsUrl = `${API_URL}/users/my-info/`;
 
         const completeLogin = async () => {
           // fetch callback api
           const response = await fetch(callbackUrl, { credentials: 'include' });
+          if (!response.ok) {
+            const msg = await response.text();
+            throw new Error(`Google callback failed (${response.status}): ${msg}`);
+          }
           const token = await response.json();
           localStorage.setItem('token', token.access_token);
           localStorage.setItem('refresh', token.refresh_token);
@@ -37,6 +42,10 @@ function GoogleAuth() {
             credentials: 'include',
             headers: { 'access-token': token.access_token },
           });
+          if (!response2.ok) {
+            const msg2 = await response2.text();
+            throw new Error(`Fetching my-info failed (${response2.status}): ${msg2}`);
+          }
 
           const userDetails = await response2.json();
           // stringify the response and set it to local storage
@@ -61,8 +70,15 @@ function GoogleAuth() {
             navigate('/complete-profile');
           }
         };
-        await completeLogin();
-        toast.success('Logged In Successfully');
+        try {
+          await completeLogin();
+          toast.success('Logged In Successfully');
+        } catch (e: any) {
+          console.error(e);
+          toast.error(e?.message || 'Login failed. Please try again.');
+          navigate('/', { replace: true });
+          return;
+        }
       }
       setIsReadyToRedirect(true);
     };

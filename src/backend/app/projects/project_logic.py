@@ -12,7 +12,7 @@ from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from geojson import Feature, FeatureCollection
 from loguru import logger as log
-from minio import S3Error
+from minio.error import S3Error
 from psycopg import Connection
 from psycopg.rows import dict_row
 from shapely.geometry import shape
@@ -28,14 +28,14 @@ from drone_flightplan import (
 from drone_flightplan.enums import FlightMode
 
 from app.config import settings
-from app.models.enums import ImageProcessingStatus, OAMUploadStatus
+from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
-from app.projects.image_processing import DroneImageProcessor
+from app.images.image_processing import DroneImageProcessor
 from app.s3 import (
     add_obj_to_bucket,
+    maybe_presign_s3_key,
     get_file_from_bucket,
     get_object_metadata,
-    get_presigned_url,
     list_objects_from_bucket,
 )
 from app.tasks.task_splitter import split_by_square
@@ -95,7 +95,7 @@ async def upload_file_to_s3(
         str: The S3 URL for the uploaded file.
     """
     # Define the S3 file path
-    file_path = f"dtm-data/projects/{project_id}/{file_name}"
+    file_path = f"projects/{project_id}/{file_name}"
 
     # Read the file bytes
     file_bytes = await file.read()
@@ -109,10 +109,8 @@ async def upload_file_to_s3(
         file.content_type,
     )
 
-    # Construct the S3 URL for the file
-    file_url = f"{settings.S3_DOWNLOAD_ROOT}/{settings.S3_BUCKET_NAME}{file_path}"
-
-    return file_url
+    # Return a browser-usable URL.
+    return maybe_presign_s3_key(file_path, expires_hours=2)
 
 
 async def update_project_oam_status(
@@ -210,7 +208,7 @@ async def process_task_metrics(db, tasks_data, project):
             try:
                 get_file_from_bucket(
                     settings.S3_BUCKET_NAME,
-                    f"dtm-data/projects/{project.id}/dem.tif",
+                    f"projects/{project.id}/dem.tif",
                     dem_path,
                 )
                 outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
@@ -220,12 +218,22 @@ async def process_task_metrics(db, tasks_data, project):
             except Exception:
                 points_with_elevation = points
 
-            placemarks = create_placemarks(
-                geojson.loads(points_with_elevation), parameters
-            )
+            if (
+                isinstance(points_with_elevation, dict)
+                and "geojson" in points_with_elevation
+            ):
+                points_str = points_with_elevation["geojson"]
+            else:
+                points_str = points_with_elevation
+
+            placemarks = create_placemarks(geojson.loads(points_str), parameters)
         else:
             points = create_waypoint(**waypoint_params)
-            placemarks = create_placemarks(geojson.loads(points), parameters)
+            if isinstance(points, dict) and "geojson" in points:
+                points_str = points["geojson"]
+            else:
+                points_str = points
+            placemarks = create_placemarks(geojson.loads(points_str), parameters)
 
         flight_metrics = calculate_flight_time_from_placemarks(placemarks)
         flight_time_minutes = flight_metrics.get("total_flight_time")
@@ -366,7 +374,7 @@ async def create_tasks_from_geojson(
 #                 try:
 #                     get_file_from_bucket(
 #                         settings.S3_BUCKET_NAME,
-#                         f"dtm-data/projects/{project.id}/dem.tif",
+#                         f"projects/{project.id}/dem.tif",
 #                         dem_path,
 #                     )
 #                     # TODO: Do this with inmemory data
@@ -472,9 +480,25 @@ async def process_drone_images(
     try:
         pool = ctx["db_pool"]
         async with pool.connection() as conn:
+            # Update task state to IMAGE_PROCESSING_STARTED
+            from app.tasks import task_logic
+            from app.utils import timestamp
+
+            await task_logic.update_task_state_system(
+                conn,
+                project_id,
+                task_id,
+                "ODM processing started",
+                State.IMAGE_UPLOADED,
+                State.IMAGE_PROCESSING_STARTED,
+                timestamp(),
+            )
+            await conn.commit()
+            log.info(f"Task {task_id} state updated to IMAGE_PROCESSING_STARTED")
+
             # Initialize the processor with the database connection
             processor = DroneImageProcessor(
-                node_odm_url=settings.NODE_ODM_URL,
+                node_odm_url=settings.ODM_ENDPOINT,
                 project_id=project_id,
                 task_id=task_id,
                 user_id=user_id,
@@ -488,7 +512,8 @@ async def process_drone_images(
                 {"name": "orthophoto-resolution", "value": 5},
             ]
 
-            webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
+            # Use internal backend URL for Docker-internal webhooks
+            webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
 
             result = await processor.process_images_from_s3(
                 settings.S3_BUCKET_NAME,
@@ -540,7 +565,7 @@ async def process_all_drone_images(
         async with pool.connection() as conn:
             # Initialize the processor
             processor = DroneImageProcessor(
-                node_odm_url=settings.NODE_ODM_URL,
+                node_odm_url=settings.ODM_ENDPOINT,
                 project_id=project_id,
                 task_id=None,
                 user_id=user_id,
@@ -553,7 +578,7 @@ async def process_all_drone_images(
                 {"name": "dsm", "value": True},
                 {"name": "orthophoto-resolution", "value": 5},
             ]
-            webhook_url = f"{settings.BACKEND_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
+            webhook_url = f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
             await processor.process_images_for_all_tasks(
                 settings.S3_BUCKET_NAME,
                 name_prefix=f"DTM-Task-{project_id}",
@@ -576,7 +601,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
     """Helper function to get the number of images and the URL to download the assets."""
     try:
         # Prefix for the images
-        images_prefix = f"dtm-data/projects/{project_id}/{task_id}/images/"
+        images_prefix = f"projects/{project_id}/{task_id}/images/"
 
         # List and count the images
         objects = list_objects_from_bucket(
@@ -590,13 +615,11 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
         # Generate a presigned URL for the assets ZIP file
         try:
             # Check if the object exists
-            assets_path = f"dtm-data/projects/{project_id}/{task_id}/assets.zip"
+            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
             get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
 
             # If it exists, generate the presigned URL
-            presigned_url = get_presigned_url(
-                settings.S3_BUCKET_NAME, assets_path, expires=2
-            )
+            presigned_url = maybe_presign_s3_key(assets_path, expires_hours=2)
         except S3Error as e:
             if e.code == "NoSuchKey":
                 # The object does not exist
@@ -609,11 +632,44 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 log.error(f"An error occurred while accessing assets file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
+        # Generate a presigned URL for the orthophoto (task-level preferred; fallback to project-level)
+        orthophoto_url = None
+        try:
+            task_ortho_path = (
+                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
+            )
+            project_ortho_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
+
+            # Prefer per-task orthophoto if it exists
+            try:
+                get_object_metadata(settings.S3_BUCKET_NAME, task_ortho_path)
+                orthophoto_url = maybe_presign_s3_key(task_ortho_path, expires_hours=12)
+            except S3Error as e:
+                if e.code != "NoSuchKey":
+                    raise
+
+                # Fallback to project-level orthophoto if present (e.g. single-task projects)
+                try:
+                    get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_path)
+                    orthophoto_url = maybe_presign_s3_key(
+                        project_ortho_path, expires_hours=12
+                    )
+                except S3Error as e2:
+                    if e2.code == "NoSuchKey":
+                        orthophoto_url = None
+                    else:
+                        raise
+        except Exception as e:
+            # Do not fail the whole endpoint if orthophoto is missing; just omit it.
+            log.warning(f"Unable to generate orthophoto_url: {e}")
+            orthophoto_url = None
+
         return project_schemas.AssetsInfo(
             project_id=str(project_id),
             task_id=str(task_id),
             image_count=image_count,
             assets_url=presigned_url,
+            orthophoto_url=orthophoto_url,
         )
     except Exception as e:
         log.exception(f"An error occurred while retrieving assets info: {e}")

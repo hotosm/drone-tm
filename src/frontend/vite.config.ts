@@ -12,6 +12,11 @@ export default defineConfig({
         })
       : undefined,
   ],
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext',
+    },
+  },
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
@@ -35,13 +40,12 @@ export default defineConfig({
     },
   },
   build: {
+    target: 'esnext',
     sourcemap: process.env.NODE_ENV === 'development',
   },
   define: {
     'process.env': {
-      BASE_URL: process.env.BASE_URL,
-      SITE_NAME: process.env.SITE_NAME,
-      COG_URL: process.env.COG_URL,
+      VITE_API_URL: process.env.VITE_API_URL,
     },
   },
   server: {

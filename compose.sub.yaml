@@ -25,7 +25,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - certs:/data
-      - frontend-html:/var/www/html/${FRONTEND_HOST}:ro
+      - frontend-html:/var/www/html/${DOMAIN}:ro
     environment:
       # General
       BUNKERWEB_INSTANCES: proxy:5000
@@ -37,7 +37,7 @@ services:
       # Avoid running ModSec rules on internal service calls
       API_WHITELIST_IP: 127.0.0.0/8 10.20.30.0/24
       WHITELIST_IP: 10.20.30.0/24
-      WHITELIST_URI: ${FRONTEND_URL}
+      WHITELIST_URI: https://${DOMAIN}
       MULTISITE: yes
       USE_REVERSE_PROXY: yes
       REVERSE_PROXY_INTERCEPT_ERRORS: no
@@ -48,9 +48,27 @@ services:
       USE_METRICS: no
       # USE_ANTIBOT: yes
       USE_LIMIT_CONN: yes
+      # S3 supports HTTP/1.1, increase from default 10 for multipart requests
+      # Multipart uploads + API polling can exceed defaults; increase headroom
+      LIMIT_CONN_MAX_HTTP1: 50
       # BAD_BEHAVIOUR disabled as it's difficult to work with...
       USE_BAD_BEHAVIOR: no
       USE_LIMIT_REQ: yes
+      # Default 2r/s --> 20r/s for simultaneous S3 multipart uploads
+      # Global default (all URLs). Keep moderate and override the hot upload endpoints below.
+      LIMIT_REQ_RATE: 5r/s
+      # Uppy AwsS3 multipart signing is bursty: one request per part (and parts can be pipelined),
+      # so these endpoint need a much higher per-IP budget to avoid 429 during legitimate uploads
+      LIMIT_REQ_URL_1: /api/projects/sign-part-upload/
+      LIMIT_REQ_RATE_1: 50r/s
+      LIMIT_REQ_URL_2: /api/projects/initiate-multipart-upload/
+      LIMIT_REQ_RATE_2: 20r/s
+      LIMIT_REQ_URL_3: /api/projects/complete-multipart-upload/
+      LIMIT_REQ_RATE_3: 15r/s
+      LIMIT_REQ_URL_4: /api/projects/list-parts/
+      LIMIT_REQ_RATE_4: 50r/s
+      LIMIT_REQ_URL_5: /api/projects/abort-multipart-upload/
+      LIMIT_REQ_RATE_5: 50r/s
       USE_MODSECURITY: no
       USE_GZIP: yes
       # On client, brotli is preferred over gzip if both are enabled
@@ -59,10 +77,10 @@ services:
       EMAIL_LETS_ENCRYPT: ${CERT_EMAIL}
       # USE_LETS_ENCRYPT_STAGING: yes
       # Reverse proxy configs
-      SERVER_NAME: ${FRONTEND_HOST}
-      ${FRONTEND_HOST}_REVERSE_PROXY_HOST: http://backend:8000
-      ${FRONTEND_HOST}_REVERSE_PROXY_URL: /api
-      ${FRONTEND_HOST}_ERRORS=404: /index.html
+      SERVER_NAME: ${DOMAIN}
+      ${DOMAIN}_REVERSE_PROXY_HOST: http://backend:8000
+      ${DOMAIN}_REVERSE_PROXY_URL: /api
+      ${DOMAIN}_ERRORS=404: /index.html
     ports:
       - 80:8080
       - 443:8443
@@ -74,7 +92,10 @@ services:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     volumes:
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
@@ -116,14 +137,8 @@ services:
       context: src/frontend
       dockerfile: Dockerfile
       target: prod
-      args:
-        # For some reason BASE_URL was misused as the API url, so we are stuck with it for now
-        BASE_URL: ${BASE_URL}
-        COG_URL: ${COG_URL}
-        SITE_NAME: ${SITE_NAME}
     volumes:
       - frontend-html:/frontend_html
-    env_file: .env
     network_mode: none
     restart: "on-failure:2"
 
@@ -145,23 +160,23 @@ services:
   migrations:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     depends_on:
-      - backend
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env
     networks:
       - dtm-network
-    entrypoint: ["alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
     restart: "no"
 
   arq-worker:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
     command: arq app.arq.tasks.WorkerSettings
     depends_on:
-      - redis
+      dragonfly:
+        condition: service_healthy
     env_file: .env
-    networks:
-      - dtm-network
+    network_mode: service:backend
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]
@@ -170,8 +185,7 @@ services:
       retries: 2
       start_period: 20s
 
-  redis:
-    image: redis:7-alpine
-    networks:
-      - dtm-network
+  dragonfly:
+    image: ghcr.io/dragonflydb/dragonfly:v1.36.0
+    network_mode: service:backend
     restart: unless-stopped

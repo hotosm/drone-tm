@@ -2,10 +2,12 @@
 import axios, { AxiosInstance } from 'axios';
 import { toast } from 'react-toastify';
 
-const { BASE_URL } = process.env;
+import { getRuntimeConfig } from '@/runtimeConfig';
+
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_URL,
   timeout: 5 * 60 * 1000,
   headers: {
     accept: 'application/json',
@@ -39,7 +41,7 @@ api.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const response = await axios.get(`${BASE_URL}/users/refresh-token`, {
+          const response = await axios.get(`${API_URL}/users/refresh-token`, {
             headers: { 'access-token': refreshToken },
           });
           const newAccessToken = response.data.access_token;

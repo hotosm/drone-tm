@@ -72,7 +72,7 @@ const RequestLogs = () => {
                   <div>
                     The <strong>Task# {task.project_task_index}</strong> from{' '}
                     <strong>{task?.project_name}</strong> project is requested
-                    for Mapping.
+                    for flight.
                   </div>
                   <div className="naxatw-flex naxatw-gap-1">
                     {task?.certificate_url && (

@@ -2,34 +2,29 @@ import os
 import shutil
 import uuid
 import logging
-import traceback
 from typing import Annotated
 
 import geojson
-from drone_flightplan import (
-    add_elevation_from_dem,
-    calculate_parameters,
-    create_flightplan,
-    create_placemarks,
-    terrain_following_waylines,
-    create_waypoint,
-)
-from drone_flightplan.output.dji import create_wpml
-from drone_flightplan.output.potensic import create_potensic_sqlite
-from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
-from drone_flightplan.output.litchi import create_litchi_csv
-from drone_flightplan.drone_type import DroneType, DRONE_PARAMS
-from drone_flightplan.enums import GimbalAngle, FlightMode
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from psycopg import Connection
 from shapely.geometry import shape
 
+from drone_flightplan import (
+    calculate_parameters,
+    create_flightplan,
+    create_placemarks,
+    create_waypoint,
+)
+from drone_flightplan.drone_type import DroneType, DRONE_PARAMS
+from drone_flightplan.enums import GimbalAngle, FlightMode
+from drone_flightplan.output.dji import create_wpml
+
 from app.config import settings
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.projects import project_deps
-from app.s3 import get_file_from_bucket
+from app.s3 import check_file_exists, get_file_from_bucket
 from app.tasks.task_logic import (
     get_take_off_point_from_db,
     get_task_geojson,
@@ -51,11 +46,12 @@ router = APIRouter(
 
 
 @router.post("/task/{task_id}/")
-async def get_task_waypoint(
+async def get_task_flightplan(
     db: Annotated[Connection, Depends(database.get_db)],
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
+    allow_missing_dem: bool = False,
     mode: FlightMode = FlightMode.WAYLINES,
     rotation_angle: float = 0,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
@@ -63,9 +59,6 @@ async def get_task_waypoint(
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ):
     """Retrieve task waypoints and download a flight plan.
-
-    FIXME why do we do all steps manually here, when we have create_flightplan
-    FIXME helper available?
 
     Args:
         project_id (uuid.UUID): The UUID of the project.
@@ -76,10 +69,10 @@ async def get_task_waypoint(
         geojson or FileResponse: If `download` is False, returns waypoints as a GeoJSON object.
                                 If `download` is True, returns a KMZ file as a download response.
     """
-    rotation_angle = 360 - rotation_angle
+    # Load task and project
     task_geojson = await get_task_geojson(db, task_id)
+
     features = task_geojson.get("features") or []
-    # Prevent failure if cannot extract
     project_task_index = next(
         (
             f.get("properties", {}).get("project_task_id")
@@ -88,152 +81,193 @@ async def get_task_waypoint(
         ),
         "unknown",
     )
+
     project = await project_deps.get_project_by_id(project_id, db)
 
-    # create a takeoff point in this format ["lon","lat"]
     if take_off_point:
         take_off_point = [take_off_point.longitude, take_off_point.latitude]
 
-        # Validate that the take-off point is within a 1000 buffer of the task boundary
         if not check_point_within_buffer(take_off_point, task_geojson, 1000):
             raise HTTPException(
                 status_code=400,
                 detail="Take off point should be within 1km of the boundary",
             )
 
-        # Update take_off_point in tasks table
         geojson_point = {"type": "Point", "coordinates": take_off_point}
         await update_take_off_point_in_db(db, task_id, geojson_point)
-
     else:
-        # Retrieve the take-off point from the database if not explicitly provided
         take_off_point_from_db = await get_take_off_point_from_db(db, task_id)
 
         if take_off_point_from_db:
             take_off_point = take_off_point_from_db["coordinates"]
         else:
-            # Use the centroid of the task polygon as the default take-off point
             task_polygon = shape(task_geojson["features"][0]["geometry"])
             task_centroid = task_polygon.centroid
             take_off_point = [task_centroid.x, task_centroid.y]
 
-    forward_overlap = project.front_overlap if project.front_overlap else 70
-    side_overlap = project.side_overlap if project.side_overlap else 70
-    generate_3d = (
-        False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
-    )
-
+    # Flight params from project
+    forward_overlap = project.front_overlap or 70
+    side_overlap = project.side_overlap or 70
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
 
-    parameters = calculate_parameters(
-        forward_overlap,
-        side_overlap,
-        altitude,
-        gsd,
-        2,  # Image Interval is set to 2
-        drone_type,
-    )
-
-    # Common parameters for create_waypoint
-    waypoint_params = {
-        "project_area": task_geojson,
-        "agl": altitude,
-        "gsd": gsd,
-        "forward_overlap": forward_overlap,
-        "side_overlap": side_overlap,
-        "rotation_angle": rotation_angle,
-        "generate_3d": generate_3d,
-        "take_off_point": take_off_point,
-        "drone_type": drone_type,
-        "gimbal_angle": gimbal_angle,
-    }
-
+    # For terrain-follow, DEM availability is based on S3 object existence.
+    # Local disk is only used as a transient download location for generation.
+    dem_path = None
     if project.is_terrain_follow:
-        dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+        dem_object_key = f"projects/{project_id}/dem.tif"
+        has_dem = check_file_exists(settings.S3_BUCKET_NAME, dem_object_key)
 
-        waypoint_params["mode"] = FlightMode.WAYPOINTS
-        waypoint_data = create_waypoint(**waypoint_params)
-        points = waypoint_data["geojson"]
+        if not has_dem:
+            if not allow_missing_dem:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "MISSING_TERRAIN_DEM",
+                        "message": (
+                            "Terrain-follow mission generation is blocked because no "
+                            "DEM is available for this project."
+                        ),
+                        "allow_missing_dem_param": "allow_missing_dem=true",
+                    },
+                )
 
-        try:
-            get_file_from_bucket(
+            log.warning(
+                "DEM missing for terrain-follow project (%s). "
+                "Proceeding because allow_missing_dem=true.",
+                project_id,
+            )
+        else:
+            dem_path = f"/tmp/{uuid.uuid4()}.tif"
+            dem_downloaded = get_file_from_bucket(
                 settings.S3_BUCKET_NAME,
-                f"dtm-data/projects/{project_id}/dem.tif",
+                dem_object_key,
                 dem_path,
             )
-            # TODO: Do this with inmemory data
-            outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+            if (
+                dem_downloaded is False
+                or not os.path.exists(dem_path)
+                or os.path.getsize(dem_path) <= 0
+            ):
+                if os.path.exists(dem_path):
+                    os.remove(dem_path)
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "Terrain-follow mission generation failed because DEM "
+                        "download from storage failed."
+                    ),
+                )
 
-            inpointsfile = open(outfile_with_elevation, "r")
-            points_with_elevation = inpointsfile.read()
+    # Generate flighplan
+    outfile = f"/tmp/{uuid.uuid4()}"
 
-        except Exception as e:
-            log.warning(traceback.format_exc())
-            log.warning(f"Exception: {e}")
-            log.warning("Error adding elevation to waypoints from DEM file!")
-            log.warning("Continuing, but the flightplan will not follow terrain.")
-            points_with_elevation = points
+    try:
+        outpath = create_flightplan(
+            aoi=task_geojson,
+            forward_overlap=forward_overlap,
+            side_overlap=side_overlap,
+            agl=altitude,
+            gsd=gsd,
+            image_interval=2,
+            dem=dem_path,
+            outfile=outfile,
+            flight_mode=mode,
+            rotation_angle=rotation_angle,
+            take_off_point=take_off_point,
+            drone_type=drone_type,
+        )
+    finally:
+        if dem_path and os.path.exists(dem_path):
+            os.remove(dem_path)
 
-        placemarks = create_placemarks(geojson.loads(points_with_elevation), parameters)
-
-        # Create a flight plan with terrain follow in waylines mode
-        if mode == FlightMode.WAYLINES:
-            placemarks = terrain_following_waylines.waypoints2waylines(placemarks, 5)
-
-    else:
-        waypoint_params["mode"] = FlightMode(mode.value)
-        waypoint_data = create_waypoint(**waypoint_params)
-        points = waypoint_data["geojson"]
-        placemarks = create_placemarks(geojson.loads(points), parameters)
-
+    # If the user needs a download, wrap in correct response
     if download:
         output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
-        outfile = outfile = f"/tmp/{uuid.uuid4()}"
 
         if output_format == "DJI_WMPL":
-            outpath = create_wpml(placemarks, outfile)
             return FileResponse(
                 outpath,
                 media_type="application/vnd.google-earth.kmz",
-                # Sets content-disposition header
-                filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.kmz",
+                filename=(
+                    f"task-{project_task_index}-{mode.name}-project-{project_id}.kmz"
+                ),
             )
+
         elif output_format == "POTENSIC_SQLITE":
-            outpath = create_potensic_sqlite(placemarks, outfile)
             return FileResponse(
-                # NOTE potensic file is always named map.db
                 outpath,
                 media_type="application/vnd.sqlite3",
                 filename="map.db",
             )
+
+        elif output_format == "POTENSIC_JSON":
+            return FileResponse(
+                outpath,
+                media_type="application/zip",
+                filename=(
+                    f"task-{project_task_index}-{mode.name}-project-{project_id}.zip"
+                ),
+            )
+
         elif output_format == "QGROUNDCONTROL":
-            outpath = create_qgroundcontrol_plan(placemarks, outfile)
             return FileResponse(
                 outpath,
                 media_type="application/json",
-                filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.plan",
+                filename=(
+                    f"task-{project_task_index}-{mode.name}-project-{project_id}.plan"
+                ),
             )
+
         elif output_format == "LITCHI":
-            outpath = create_litchi_csv(placemarks, outfile, flight_mode=mode)
             return FileResponse(
                 outpath,
                 media_type="text/csv",
-                filename=f"task-{project_task_index}-{mode.name}-project-{project_id}.csv",
+                filename=(
+                    f"task-{project_task_index}-{mode.name}-project-{project_id}.csv"
+                ),
             )
+
         else:
             msg = f"Unsupported output format / drone type: {output_format}"
             log.error(msg)
             raise HTTPException(status_code=400, detail=msg)
 
+    # If not downloading, re-create placemarks for metadata calcs,
+    # as create_flightplan handles placemarks internally
+    waypoint_data = create_waypoint(
+        project_area=task_geojson,
+        agl=altitude,
+        gsd=gsd,
+        forward_overlap=forward_overlap,
+        side_overlap=side_overlap,
+        rotation_angle=360 - rotation_angle,
+        generate_3d=False,
+        take_off_point=take_off_point,
+        drone_type=drone_type,
+        mode=mode,
+        gimbal_angle=gimbal_angle,
+    )
+
+    points = waypoint_data["geojson"]
+    placemarks = create_placemarks(
+        geojson.loads(points),
+        calculate_parameters(
+            forward_overlap,
+            side_overlap,
+            altitude,
+            gsd,
+            2,
+            drone_type,
+        ),
+    )
+
     flight_data = calculate_flight_time_from_placemarks(placemarks)
 
-    drones = list(DroneType.__members__.keys())
     return {
         "results": placemarks,
         "flight_data": flight_data,
-        "drones": drones,
+        "drones": list(DroneType.__members__.keys()),
         "battery_warning": waypoint_data["battery_warning"],
         "estimated_flight_time_minutes": waypoint_data["estimated_flight_time_minutes"],
     }

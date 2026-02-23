@@ -1,7 +1,7 @@
 site_name: DroneTM
 site_description: Community-driven drone imagery generation.
 # strict: true
-site_url: "https://docs.dronetm.hotosm.org"
+site_url: "https://docs.drone.hotosm.org"
 
 repo_name: "hotosm/drone-tm"
 repo_url: "https://github.com/hotosm/drone-tm/"
@@ -37,7 +37,11 @@ markdown_extensions:
       title: Page contents
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight
   - pymdownx.extra
   - pymdownx.emoji:
@@ -66,7 +70,7 @@ plugins:
 
 nav:
   - Home: index.md
-  # - API Docs: https://hotosm.github.io/swagger/?url=https://docs.dronetm.hotosm.org/openapi.json
+  # - API Docs: https://hotosm.github.io/swagger/?url=https://docs.drone.hotosm.org/openapi.json
   - Get Started:
       - About: about/about.md
       - Installation: INSTALL.md
@@ -87,4 +91,8 @@ nav:
           - Pre-Commit: https://docs.hotosm.org/dev-guide/repo-management/pre-commit/
           - Versioning: https://docs.hotosm.org/dev-guide/repo-management/version-control/#creating-releases
       - Setup: dev/setup.md
+      - Testing: dev/testing.md
+      - Migrate to Kubernetes: dev/migrate-k8s.md
+      - Frontend Env Injection: dev/runtime-frontend-config.md
+      - Imagery Upload Workflow: dev/imagery-upload.md
   - Timeline: timeline.md
