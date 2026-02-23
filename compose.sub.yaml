@@ -176,8 +176,7 @@ services:
       dragonfly:
         condition: service_healthy
     env_file: .env
-    networks:
-      - dtm-network
+    network_mode: service:backend
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "arq", "app.arq.tasks.WorkerSettings", "--check"]
@@ -188,6 +187,5 @@ services:
 
   dragonfly:
     image: ghcr.io/dragonflydb/dragonfly:v1.36.0
-    networks:
-      - dtm-network
+    network_mode: service:backend
     restart: unless-stopped

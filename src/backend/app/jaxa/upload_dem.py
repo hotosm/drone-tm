@@ -1,10 +1,19 @@
+"""Initialise Scrapy AsyncCrawlerRunner and download DEM files from JAXA.
+
+Uses AsyncCrawlerRunner (Scrapy >=2.13) which provides native async/await
+support on top of AsyncioSelectorReactor, avoiding the Deferred-to-Future
+bridging that CrawlerRunner required.
+"""
+
 import io
+import asyncio
 import os
 from pathlib import Path
 
 from loguru import logger as log
-from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
+from scrapy.crawler import AsyncCrawlerRunner
+from scrapy.utils.reactor import install_reactor, _asyncio_reactor_path
 from fastapi import UploadFile
 from arq import ArqRedis
 
@@ -12,6 +21,66 @@ from app.db import database
 from app.jaxa.jaxa_coordinates import get_covering_tiles
 from app.projects import project_logic
 from app.jaxa.tif_spider import TifSpider
+
+
+_crawler_runner: AsyncCrawlerRunner | None = None
+_crawler_loop: asyncio.AbstractEventLoop | None = None
+_crawler_lock = asyncio.Lock()
+_crawler_timeout_seconds = 20 * 60
+
+
+def _get_or_create_crawler_runner() -> AsyncCrawlerRunner:
+    """Create Scrapy runner bound to the currently running asyncio loop."""
+    global _crawler_runner, _crawler_loop
+
+    loop = asyncio.get_running_loop()
+    if _crawler_runner is not None:
+        if _crawler_loop is not loop:
+            raise RuntimeError(
+                "Scrapy crawler runner is bound to a different event loop. "
+                "Restart the worker to reset Scrapy/Twisted state."
+            )
+        return _crawler_runner
+
+    install_reactor(_asyncio_reactor_path)
+
+    from twisted.internet import reactor as twisted_reactor
+
+    reactor_loop = getattr(twisted_reactor, "_asyncioEventloop", None)
+    if reactor_loop is not loop:
+        raise RuntimeError(
+            "Twisted AsyncioSelectorReactor is attached to a different asyncio loop. "
+            "This can stall Scrapy crawls; restart the worker process."
+        )
+
+    # The reactor must be marked as "running" so that callWhenRunning()
+    # callbacks fire immediately.  Without this, the Twisted thread-pool
+    # (used for DNS resolution) is created but never started, causing
+    # every Scrapy download to hang on hostname resolution.
+    if not twisted_reactor.running:
+        twisted_reactor.startRunning(installSignalHandlers=False)
+
+    scrapy_settings = get_project_settings()
+    scrapy_settings.set("TWISTED_REACTOR", _asyncio_reactor_path, priority="project")
+    scrapy_settings.set("TELNETCONSOLE_ENABLED", False, priority="project")
+
+    _crawler_runner = AsyncCrawlerRunner(scrapy_settings)
+    _crawler_loop = loop
+    return _crawler_runner
+
+
+async def _run_scrapy_crawler_async(coordinates_str: str, tif_file_path: str):
+    """Run Scrapy in-process using the asyncio reactor, one crawl at a time."""
+    async with _crawler_lock:
+        runner = _get_or_create_crawler_runner()
+        log.info(f"Starting Scrapy crawl for DEM tiles: {coordinates_str}")
+        await asyncio.wait_for(
+            runner.crawl(
+                TifSpider, coordinates=coordinates_str, output_path=tif_file_path
+            ),
+            timeout=_crawler_timeout_seconds,
+        )
+        log.info(f"Scrapy crawl finished, expecting DEM at {tif_file_path}")
 
 
 async def upload_dem_file_s3_sync(tif_file_path: str, project_id: str):
@@ -124,10 +193,7 @@ async def download_and_upload_dem(ctx, coordinates_str: str, project_id: str):
     try:
         # Run the blocking Scrapy crawler
         log.info(f"Starting Scrapy crawler for project ({project_id})")
-
-        process = CrawlerProcess(get_project_settings())
-        process.crawl(TifSpider, coordinates=coordinates_str, output_path=tif_file_path)
-        process.start()  # This blocks until crawling is complete
+        await _run_scrapy_crawler_async(coordinates_str, tif_file_path)
 
         log.info(f"Scrapy crawler completed for project ({project_id})")
 

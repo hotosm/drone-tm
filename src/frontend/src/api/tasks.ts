@@ -14,6 +14,7 @@ export const useGetTaskWaypointQuery = (
   rotationAngle: number,
   gimbalAngle: string,
   queryOptions?: Partial<UseQueryOptions>,
+  allowMissingDem = false,
 ) => {
   return useQuery({
     queryKey: [
@@ -24,6 +25,7 @@ export const useGetTaskWaypointQuery = (
       droneModel,
       rotationAngle,
       gimbalAngle,
+      allowMissingDem,
     ],
     enabled: !!(projectId && taskId),
     queryFn: () =>
@@ -34,6 +36,7 @@ export const useGetTaskWaypointQuery = (
         droneModel,
         rotationAngle,
         gimbalAngle,
+        allowMissingDem,
       ),
     select: (res: any) => res.data,
     ...queryOptions,

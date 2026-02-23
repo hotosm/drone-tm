@@ -190,7 +190,6 @@ async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Annotated[Connection, Depends(database.get_db)],
     background_tasks: BackgroundTasks,
-    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user_data: Annotated[AuthUser, Depends(login_required)],
     dem: UploadFile = File(None),
     image: UploadFile = File(None),
@@ -228,7 +227,16 @@ async def create_project(
 
     if project_info.is_terrain_follow and not dem:
         geometry = project_info.outline["features"][0]["geometry"]
-        background_tasks.add_task(enqueue_dem_download, geometry, project_id, redis)
+        try:
+            redis = await get_redis_pool()
+            background_tasks.add_task(enqueue_dem_download, geometry, project_id, redis)
+        except HTTPException as e:
+            # Project creation should succeed even if DEM background queue is unavailable.
+            log.warning(
+                "Project {} created but DEM enqueue skipped (Redis unavailable): {}",
+                project_id,
+                e.detail,
+            )
 
     return {"message": "Project successfully created", "project_id": project_id}
 

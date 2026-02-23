@@ -100,7 +100,7 @@ Your Secret should include (at minimum):
 
 - Database: `POSTGRES_PASSWORD`
 - S3 credentials: `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
-- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JAXA_AUTH_TOKEN`, `SECRET_KEY`.
+- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SECRET_KEY`.
 - DragonflyDB: (provided automatically by the chart; no `DRAGONFLY_DSN` needed)
 
 You will also typically want to set these **non-secret** environment variables via Helm values
@@ -124,7 +124,6 @@ kubectl --namespace drone create secret generic drone-tm-prod-secrets \
   --from-literal=GOOGLE_CLIENT_SECRET='<google oauth client secret>' \
   --from-literal=GOOGLE_LOGIN_REDIRECT_URI='https://<your-domain>/auth' \
   --from-literal=SMTP_PASSWORD='<smtp password>' \
-  --from-literal=JAXA_AUTH_TOKEN='<smtp password>' \
   --from-literal=SENTRY_DSN='<sentry dsn>'
 ```
 
