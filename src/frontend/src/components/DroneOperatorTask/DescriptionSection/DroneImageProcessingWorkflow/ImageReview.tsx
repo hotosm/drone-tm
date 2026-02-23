@@ -390,7 +390,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                         loading="lazy"
                       />
                       {(image.status === 'rejected' || image.status === 'invalid_exif') && (
-                        <div 
+                        <div
                           className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white"
                           title={image.rejection_reason}
                         >
