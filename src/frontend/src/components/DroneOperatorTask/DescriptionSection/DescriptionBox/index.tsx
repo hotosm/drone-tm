@@ -11,8 +11,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postProcessImagery } from '@Services/tasks';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
-import { Label } from '@Components/common/FormUI';
 import SwitchTab from '@Components/common/SwitchTab';
+import Icon from '@Components/common/Icon';
 import {
   resetFilesExifData,
   setSelectedTaskDetailToViewOrthophoto,
@@ -32,6 +32,7 @@ const DescriptionBox = () => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const [flyable, setFlyable] = useState('yes');
+  const [showUploadSection, setShowUploadSection] = useState(false);
   const { taskId, projectId } = useParams();
   const uploadedImageType = useTypedSelector(
     state => state.droneOperatorTask.uploadedImagesType,
@@ -289,17 +290,6 @@ const DescriptionBox = () => {
 
           {taskAssetsInformation?.assets_url && (
             <div className="naxatw-flex naxatw-gap-1">
-              {/* <Button
-                variant="outline"
-                className="naxatw-border-red naxatw-text-red"
-                leftIcon="visibility"
-                iconClassname="naxatw-text-[1.125rem]"
-                onClick={() =>
-                  dispatch(toggleModal('task-ortho-photo-preview'))
-                }
-              >
-                View Orthophoto
-              </Button> */}
               <Button
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
@@ -320,10 +310,23 @@ const DescriptionBox = () => {
             />
           ) : (
             <>
+              {/* Info banner for returning users */}
               {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
                 (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
                   taskAssetsInformation?.image_count > 0)) && (
-                <div className="">
+                <div className="naxatw-rounded-md naxatw-border naxatw-border-blue-200 naxatw-bg-blue-50 naxatw-px-3 naxatw-py-2">
+                  <p className="naxatw-text-sm naxatw-text-blue-800">
+                    {taskAssetsInformation?.image_count} images uploaded. Ready
+                    to process.
+                  </p>
+                </div>
+              )}
+
+              {/* Start Processing / Re-run Processing button — prominent position */}
+              {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
+                (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
+                  taskAssetsInformation?.image_count > 0)) && (
+                <div>
                   <Button
                     variant="ghost"
                     className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
@@ -346,7 +349,7 @@ const DescriptionBox = () => {
                 </div>
               )}
               {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
-                <div className="">
+                <div>
                   <Button
                     variant="ghost"
                     className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
@@ -359,43 +362,60 @@ const DescriptionBox = () => {
                   </Button>
                 </div>
               )}
+
+              {/* Collapsible upload section */}
               {(taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
-                // if the state is LOCKED_FOR_MAPPING and has a image count it means all selected images are not uploaded and the status updating api call is interrupted so need to give user to upload the remaining images
                 taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' ||
                 taskAssetsInformation?.state === 'IMAGE_UPLOADED') && (
                 <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pb-4">
-                  <Label>
+                  <button
+                    type="button"
+                    className="naxatw-flex naxatw-items-center naxatw-gap-1 naxatw-text-left"
+                    onClick={() => setShowUploadSection(prev => !prev)}
+                  >
+                    <Icon
+                      name={
+                        showUploadSection
+                          ? 'keyboard_arrow_up'
+                          : 'keyboard_arrow_down'
+                      }
+                      className="naxatw-text-[1.25rem] naxatw-text-[#D73F3F]"
+                    />
                     <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
-                      Upload Images
+                      Upload More / Replace Images
                     </p>
-                  </Label>
-                  <SwitchTab
-                    options={[
-                      {
-                        name: 'image-upload-for',
-                        value: 'add',
-                        label: 'Add to existing',
-                      },
-                      {
-                        name: 'image-upload-for',
-                        value: 'replace',
-                        label: 'Replace existing',
-                      },
-                    ]}
-                    valueKey="value"
-                    selectedValue={uploadedImageType}
-                    activeClassName="naxatw-bg-red naxatw-text-white"
-                    onChange={(selected: Record<string, any>) => {
-                      dispatch(setUploadedImagesType(selected.value));
-                    }}
-                  />
-                  <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
-                    Note:{' '}
-                    {uploadedImageType === 'add'
-                      ? 'Uploaded images will be added with the existing images.'
-                      : 'Uploaded images will be replaced with all the existing images and starts processing.'}
-                  </p>
-                  <UploadsBox label="" />
+                  </button>
+                  {showUploadSection && (
+                    <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-pt-2">
+                      <SwitchTab
+                        options={[
+                          {
+                            name: 'image-upload-for',
+                            value: 'add',
+                            label: 'Add to existing',
+                          },
+                          {
+                            name: 'image-upload-for',
+                            value: 'replace',
+                            label: 'Replace existing',
+                          },
+                        ]}
+                        valueKey="value"
+                        selectedValue={uploadedImageType}
+                        activeClassName="naxatw-bg-red naxatw-text-white"
+                        onChange={(selected: Record<string, any>) => {
+                          dispatch(setUploadedImagesType(selected.value));
+                        }}
+                      />
+                      <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs">
+                        Note:{' '}
+                        {uploadedImageType === 'add'
+                          ? 'Uploaded images will be added with the existing images.'
+                          : 'Uploaded images will be replaced with all the existing images and starts processing.'}
+                      </p>
+                      <UploadsBox label="" />
+                    </div>
+                  )}
                 </div>
               )}
             </>

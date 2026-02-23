@@ -74,7 +74,7 @@ class AssetsInfo(BaseModel):
     task_id: str
     image_count: int
     assets_url: Optional[str]
-    state: Optional[UserRole] = None
+    state: Optional[str] = None
 
 
 def validate_geojson(

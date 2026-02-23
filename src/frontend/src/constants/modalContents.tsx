@@ -5,6 +5,7 @@ import ImageMapBox from '@Components/DroneOperatorTask/DescriptionSection/Popove
 import ChooseTakeOffPointOptions from '@Components/DroneOperatorTask/ModalContent/ChooseTakeOffPointOptions';
 import TaskOrthophotoPreview from '@Components/DroneOperatorTask/ModalContent/TaskOrthophotoPreview';
 import ChooseProcessingParameter from '@Components/IndividualProject/ModalContent/ChooseProcessingParameter';
+import ProcessingStatusDialog from '@Components/IndividualProject/ModalContent/ProcessingStatusDialog';
 import UploadToOAM from '@Components/IndividualProject/ModalContent/UploadToOAM';
 import { ReactElement } from 'react';
 
@@ -17,6 +18,7 @@ export type ModalContentsType =
   | 'task-ortho-photo-preview'
   | 'document-preview'
   | 'choose-processing-parameter'
+  | 'processing-status'
   | 'upload-to-oam'
   | null;
 export type PromptDialogContentsType = 'delete-layer' | null;
@@ -45,6 +47,12 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
         className: 'naxatw-w-[92vw] naxatw-max-w-[25rem]',
         title: 'Start Processing',
         content: <ChooseProcessingParameter />,
+      };
+    case 'processing-status':
+      return {
+        className: 'naxatw-w-[92vw] naxatw-max-w-[40rem]',
+        title: 'Processing Status',
+        content: <ProcessingStatusDialog />,
       };
 
     case 'raw-image-preview':
