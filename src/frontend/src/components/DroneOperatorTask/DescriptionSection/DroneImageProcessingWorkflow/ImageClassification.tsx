@@ -144,6 +144,7 @@ const ImageClassification = ({
         (batchStatus.duplicate ?? 0);
       const remaining =
         (batchStatus.staged ?? 0) +
+        (batchStatus.uploading ?? 0) +
         (batchStatus.uploaded ?? 0) +
         (batchStatus.classifying ?? 0);
 
@@ -198,6 +199,8 @@ const ImageClassification = ({
         return 'Duplicate';
       case 'classifying':
         return 'Processing...';
+      case 'uploading':
+        return 'Uploading';
       case 'uploaded':
         return 'Ready';
       case 'staged':
@@ -220,6 +223,8 @@ const ImageClassification = ({
         return 'naxatw-border-gray-400';
       case 'classifying':
         return 'naxatw-border-blue-400';
+      case 'uploading':
+        return 'naxatw-border-gray-400 naxatw-border-dashed';
       default:
         return 'naxatw-border-gray-300';
     }
@@ -232,6 +237,7 @@ const ImageClassification = ({
   const computedStats = useMemo(() => {
     if (!batchStatus) return null;
 
+    const uploading = batchStatus.uploading ?? 0;
     const uploaded = (batchStatus.staged ?? 0) + (batchStatus.uploaded ?? 0);
     const processing = batchStatus.classifying ?? 0;
     const complete = batchStatus.assigned ?? 0;
@@ -241,6 +247,7 @@ const ImageClassification = ({
     const issuePercentage = totalClassified > 0 ? (issues / totalClassified) * 100 : 0;
 
     return {
+      uploading,
       uploaded,
       processing,
       complete,
@@ -252,7 +259,7 @@ const ImageClassification = ({
   }, [batchStatus]);
 
   // Check if classification is complete and has high issue rate
-  const isClassificationComplete = computedStats && computedStats.processing === 0 && computedStats.uploaded === 0 && computedStats.totalClassified > 0;
+  const isClassificationComplete = computedStats && computedStats.processing === 0 && computedStats.uploaded === 0 && computedStats.uploading === 0 && computedStats.totalClassified > 0;
   const hasHighIssueRate = isClassificationComplete && computedStats.issuePercentage >= 50;
 
   // Virtualization setup
@@ -294,15 +301,15 @@ const ImageClassification = ({
           <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
             <button
               onClick={handleStartClassification}
-              disabled={startClassificationMutation.isPending || isLoadingStatus || (batchStatus?.staged ?? 0) === 0}
+              disabled={startClassificationMutation.isPending || isLoadingStatus || ((batchStatus?.staged ?? 0) === 0 && (batchStatus?.uploading ?? 0) === 0)}
               className="naxatw-rounded naxatw-bg-red naxatw-px-6 naxatw-py-2 naxatw-text-white hover:naxatw-bg-red-600 disabled:naxatw-bg-gray-400 disabled:naxatw-cursor-not-allowed naxatw-transition-colors"
             >
               {startClassificationMutation.isPending ? 'Starting...' : 'Start Classification'}
             </button>
-            {isLoadingStatus && (
+            {(isLoadingStatus || (batchStatus?.uploading ?? 0) > 0) && (
               <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-500">
                 <div className="naxatw-h-4 naxatw-w-4 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-red"></div>
-                <span>Fetching images...</span>
+                <span>{(batchStatus?.uploading ?? 0) > 0 ? 'Processing uploads...' : 'Fetching images...'}</span>
               </div>
             )}
           </div>
@@ -311,7 +318,11 @@ const ImageClassification = ({
 
       {/* Status Summary */}
       {computedStats && (
-        <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-5">
+        <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-6">
+          <div className="naxatw-text-center">
+            {renderValue(computedStats.uploading, (computedStats.uploading > 0), 'naxatw-text-gray-400')}
+            <div className="naxatw-text-sm naxatw-text-gray-600">Uploading</div>
+          </div>
           <div className="naxatw-text-center">
             {renderValue(computedStats.uploaded, isClassifying, 'naxatw-text-gray-500')}
             <div className="naxatw-text-sm naxatw-text-gray-600">Pending</div>

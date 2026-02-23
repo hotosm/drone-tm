@@ -3,7 +3,7 @@ import { authenticated, api } from './index';
 export interface ImageClassificationResult {
   id: string;
   filename: string;
-  status: 'staged' | 'uploaded' | 'classifying' | 'assigned' | 'rejected' | 'unmatched' | 'invalid_exif' | 'duplicate';
+  status: 'uploading' | 'staged' | 'uploaded' | 'classifying' | 'assigned' | 'rejected' | 'unmatched' | 'invalid_exif' | 'duplicate';
   task_id?: string;
   rejection_reason?: string;
   has_gps: boolean;
@@ -15,6 +15,7 @@ export interface ImageClassificationResult {
 
 export interface BatchStatusSummary {
   total: number;
+  uploading: number;
   staged: number;
   uploaded: number;
   classifying: number;

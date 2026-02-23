@@ -359,6 +359,13 @@ class ImageClassifier:
                 f"GPS check passed: image_id={image_id} lat={latitude:.6f} lon={longitude:.6f}"
             )
 
+        # Try to find matching task early so we can associate rejected images with tasks
+        task_id = None
+        if latitude is not None and longitude is not None:
+            task_id = await ImageClassifier.find_matching_task(
+                db, project_id, latitude, longitude
+            )
+
         # Parse UserComment for drone metadata (pitch, yaw, etc.)
         user_comment = exif_data.get("UserComment")
         drone_metadata = {}
@@ -467,7 +474,7 @@ class ImageClassifier:
             )
 
             await ImageClassifier._update_image_status(
-                db, image_id, status, rejection_reason, sharpness_score
+                db, image_id, status, rejection_reason, sharpness_score, task_id
             )
             log.info(
                 f"Image rejected: image_id={image_id} status={status.value} reason={rejection_reason}"
@@ -477,6 +484,7 @@ class ImageClassifier:
                 "status": status,
                 "reason": rejection_reason,
                 "sharpness_score": sharpness_score,
+                "task_id": str(task_id) if task_id else None,
             }
 
         # All checks passed
@@ -489,10 +497,6 @@ class ImageClassifier:
             quality_details += f", Sharpness: {sharpness_score:.1f}"
         quality_details += " - All checks passed"
         log.debug(f"Quality check passed: image_id={image_id} {quality_details}")
-
-        task_id = await ImageClassifier.find_matching_task(
-            db, project_id, latitude, longitude
-        )
 
         if not task_id:
             rejection_reason = "Image location is outside of all task areas"
@@ -537,12 +541,14 @@ class ImageClassifier:
         status: ImageStatus,
         rejection_reason: Optional[str] = None,
         sharpness_score: Optional[float] = None,
+        task_id: Optional[uuid.UUID] = None,
     ) -> None:
         query = """
             UPDATE project_images
             SET status = %(status)s,
                 rejection_reason = %(rejection_reason)s,
                 sharpness_score = %(sharpness_score)s,
+                task_id = COALESCE(%(task_id)s, task_id),
                 classified_at = %(classified_at)s
             WHERE id = %(image_id)s
         """
@@ -555,6 +561,7 @@ class ImageClassifier:
                     "status": status.value,
                     "rejection_reason": rejection_reason,
                     "sharpness_score": sharpness_score,
+                    "task_id": str(task_id) if task_id else None,
                     "classified_at": datetime.utcnow(),
                 },
             )
@@ -817,7 +824,7 @@ class ImageClassifier:
         params = {"batch_id": str(batch_id), "project_id": str(project_id)}
 
         if last_timestamp:
-            query += " AND classified_at > %(last_timestamp)s"
+            query += " AND (uploaded_at > %(last_timestamp)s OR classified_at > %(last_timestamp)s)"
             params["last_timestamp"] = last_timestamp
 
         query += " ORDER BY uploaded_at"
@@ -881,7 +888,7 @@ class ImageClassifier:
             LEFT JOIN latest_task_state lts ON pi.task_id = lts.task_id
             WHERE pi.batch_id = %(batch_id)s
             AND pi.project_id = %(project_id)s
-            AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate')
+            AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate', 'unmatched')
             GROUP BY pi.task_id, t.project_task_index, lts.state
             ORDER BY t.project_task_index NULLS LAST
         """
@@ -1081,6 +1088,7 @@ class ImageClassifier:
                 id,
                 filename,
                 status,
+                rejection_reason,
                 task_id,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
@@ -1110,6 +1118,7 @@ class ImageClassifier:
                         "id": str(img["id"]),
                         "filename": img["filename"],
                         "status": img["status"],
+                        "rejection_reason": img["rejection_reason"],
                         "task_id": str(img["task_id"]) if img["task_id"] else None,
                     },
                 }
@@ -1387,7 +1396,7 @@ class ImageClassifier:
         if not task:
             raise ValueError(f"Task {task_id} not found in project {project_id}")
 
-        # Get all assigned images for this task in the batch
+        # Get all images for this task in the batch (assigned, rejected, etc.)
         images_query = """
             SELECT
                 id,
@@ -1401,7 +1410,7 @@ class ImageClassifier:
             WHERE task_id = %(task_id)s
             AND batch_id = %(batch_id)s
             AND project_id = %(project_id)s
-            AND status = %(status)s
+            AND status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate')
             ORDER BY uploaded_at
         """
 
@@ -1412,7 +1421,6 @@ class ImageClassifier:
                     "task_id": str(task_id),
                     "batch_id": str(batch_id),
                     "project_id": str(project_id),
-                    "status": ImageStatus.ASSIGNED.value,
                 },
             )
             images = await cur.fetchall()

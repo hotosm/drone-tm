@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Map as MapLibreMap, NavigationControl, AttributionControl } from 'maplibre-gl';
 import { toast } from 'react-toastify';
@@ -41,6 +41,7 @@ const TaskVerificationModal = ({
   const [isStyleReady, setIsStyleReady] = useState(false);
   const [popupData, setPopupData] = useState<Record<string, any>>();
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch task verification data
   const { data: verificationData, isLoading, refetch } = useQuery<TaskVerificationData>({
@@ -61,18 +62,9 @@ const TaskVerificationModal = ({
 
   // Initialize map after data is loaded and DOM is ready
   useEffect(() => {
-    if (!isOpen || !verificationData || map) return;
-
-    // Use a small delay to ensure DOM is rendered after loading state changes
-    const timer = setTimeout(() => {
-      const container = document.getElementById('task-verification-map');
-      if (!container) {
-        console.error('Map container not found');
-        return;
-      }
-
+    if (isOpen && verificationData && mapContainerRef.current && !map) {
       const mapInstance = new MapLibreMap({
-        container: container,
+        container: mapContainerRef.current,
         style: { version: 8, sources: {}, layers: [] },
         center: [0, 0],
         zoom: 2,
@@ -95,9 +87,14 @@ const TaskVerificationModal = ({
       mapInstance.touchZoomRotate.disableRotation();
 
       setMap(mapInstance);
-    }, 100);
 
-    return () => clearTimeout(timer);
+      return () => {
+        if (mapInstance) {
+          mapInstance.remove();
+          setMap(null);
+        }
+      };
+    }
   }, [isOpen, verificationData, map]);
 
   // Add map controls
@@ -112,7 +109,7 @@ const TaskVerificationModal = ({
   }, [isMapLoaded, map]);
 
   // Convert images to GeoJSON for map display
-  const imagesGeoJson = useCallback(() => {
+  const imageGeoJsonData = useMemo(() => {
     if (!verificationData?.images) return null;
 
     const features = verificationData.images
@@ -123,6 +120,7 @@ const TaskVerificationModal = ({
           id: img.id,
           filename: img.filename,
           status: img.status,
+          rejection_reason: img.rejection_reason,
           thumbnail_url: img.thumbnail_url,
           url: img.url,
         },
@@ -134,6 +132,57 @@ const TaskVerificationModal = ({
       features,
     };
   }, [verificationData]);
+
+  const taskGeoJsonData = useMemo(() => {
+    if (!verificationData?.task_geometry) return null;
+    return {
+      type: 'FeatureCollection' as const,
+      features: [verificationData.task_geometry],
+    };
+  }, [verificationData?.task_geometry]);
+
+  // Memoize layer options to avoid unnecessary layer recreation in VectorLayer
+  const taskLayerOptions = useMemo(() => ({
+    type: 'fill' as const,
+    paint: {
+      'fill-color': '#98BBC8',
+      'fill-outline-color': '#484848',
+      'fill-opacity': 0.4,
+    },
+  }), []);
+
+  const taskOutlineLayerOptions = useMemo(() => ({
+    type: 'line' as const,
+    paint: {
+      'line-color': '#484848',
+      'line-width': 2,
+    },
+  }), []);
+
+  const imagePointLayerOptions = useMemo(() => ({
+    type: 'circle' as const,
+    paint: {
+      'circle-color': [
+        'match',
+        ['get', 'status'],
+        'assigned',
+        '#22c55e',
+        'rejected',
+        '#D73F3F',
+        'unmatched',
+        '#eab308',
+        'invalid_exif',
+        '#f97316',
+        'duplicate',
+        '#6b7280',
+        '#3b82f6',
+      ],
+      'circle-radius': 6,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-opacity': 0.8,
+    },
+  }), []);
 
   // Mark as verified mutation
   const verifyMutation = useMutation({
@@ -188,6 +237,11 @@ const TaskVerificationModal = ({
           <p className="naxatw-text-xs naxatw-capitalize">
             Status: {popupData.status?.replace('_', ' ')}
           </p>
+          {popupData.rejection_reason && (
+            <p className="naxatw-text-xs naxatw-text-red-500">
+              Reason: {popupData.rejection_reason}
+            </p>
+          )}
         </div>
       );
     },
@@ -241,6 +295,7 @@ const TaskVerificationModal = ({
               {/* Map Section */}
               <div className="naxatw-relative naxatw-flex-1">
                 <MapContainer
+                  ref={mapContainerRef}
                   map={map}
                   isMapLoaded={isMapLoaded}
                   containerId="task-verification-map"
@@ -257,19 +312,9 @@ const TaskVerificationModal = ({
                       map={map}
                       isMapLoaded={isMapLoaded}
                       id="task-polygon"
-                      geojson={{
-                        type: 'FeatureCollection',
-                        features: [verificationData.task_geometry],
-                      } as GeojsonType}
+                      geojson={taskGeoJsonData as GeojsonType}
                       visibleOnMap={true}
-                      layerOptions={{
-                        type: 'fill',
-                        paint: {
-                          'fill-color': '#98BBC8',
-                          'fill-outline-color': '#484848',
-                          'fill-opacity': 0.4,
-                        },
-                      }}
+                      layerOptions={taskLayerOptions}
                       zoomToExtent
                     />
                   )}
@@ -280,18 +325,9 @@ const TaskVerificationModal = ({
                       map={map}
                       isMapLoaded={isMapLoaded}
                       id="task-polygon-outline"
-                      geojson={{
-                        type: 'FeatureCollection',
-                        features: [verificationData.task_geometry],
-                      } as GeojsonType}
+                      geojson={taskGeoJsonData as GeojsonType}
                       visibleOnMap={true}
-                      layerOptions={{
-                        type: 'line',
-                        paint: {
-                          'line-color': '#484848',
-                          'line-width': 2,
-                        },
-                      }}
+                      layerOptions={taskOutlineLayerOptions}
                     />
                   )}
 
@@ -303,16 +339,7 @@ const TaskVerificationModal = ({
                       id="task-image-points"
                       geojson={imageGeoJsonData as GeojsonType}
                       visibleOnMap={true}
-                      layerOptions={{
-                        type: 'circle',
-                        paint: {
-                          'circle-color': '#22c55e',
-                          'circle-radius': 6,
-                          'circle-stroke-width': 2,
-                          'circle-stroke-color': '#ffffff',
-                          'circle-stroke-opacity': 0.8,
-                        },
-                      }}
+                      layerOptions={imagePointLayerOptions}
                     />
                   )}
 
@@ -388,12 +415,15 @@ const TaskVerificationModal = ({
                     {verificationData?.images.map((image) => (
                       <div
                         key={image.id}
-                        className={`naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border naxatw-transition-all hover:naxatw-shadow-md ${
+                        className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border naxatw-transition-all hover:naxatw-shadow-md ${
                           selectedImageId === image.id
                             ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-200'
-                            : 'naxatw-border-gray-200'
+                            : image.status === 'rejected' || image.status === 'invalid_exif'
+                              ? 'naxatw-border-red-300 hover:naxatw-border-red-500'
+                              : 'naxatw-border-gray-200'
                         }`}
                         onClick={() => setSelectedImageId(image.id)}
+                        title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ''}`}
                       >
                         <img
                           src={image.thumbnail_url || image.url}
@@ -401,6 +431,14 @@ const TaskVerificationModal = ({
                           className="naxatw-h-full naxatw-w-full naxatw-object-cover"
                           loading="lazy"
                         />
+                        {(image.status === 'rejected' || image.status === 'invalid_exif') && (
+                          <div
+                            className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white"
+                            title={image.rejection_reason}
+                          >
+                            Rejected
+                          </div>
+                        )}
                         <button
                           className="naxatw-absolute naxatw-right-1 naxatw-top-1 naxatw-rounded-full naxatw-bg-red-500 naxatw-p-1 naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity hover:naxatw-bg-red-600 group-hover:naxatw-opacity-100"
                           onClick={(e) => {

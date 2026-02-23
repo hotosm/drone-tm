@@ -49,9 +49,9 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     enabled: !!projectId && !!batchId,
   });
 
-  // Initialize map only once when component mounts
+  // Initialize map as soon as data is loaded and container is ready
   useEffect(() => {
-    if (!mapContainerRef.current || map) return;
+    if (isLoading || !reviewData || !mapContainerRef.current || map) return;
 
     const mapInstance = new MapLibreMap({
       container: mapContainerRef.current,
@@ -74,9 +74,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     setMap(mapInstance);
 
     return () => {
-      mapInstance.remove();
+      if (mapInstance) {
+        mapInstance.remove();
+      }
     };
-  }, []); // Empty dependency - initialize map only once on mount
+  }, [isLoading, reviewData, map]); // Dependencies ensure it runs when data/container is ready
 
   // Add map controls when loaded
   useEffect(() => {
@@ -134,9 +136,50 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
         <p className="naxatw-text-sm naxatw-font-medium">{popupData?.filename || 'Unknown'}</p>
         <p className="naxatw-text-xs naxatw-capitalize">Status: {popupData?.status?.replace('_', ' ') || 'Unknown'}</p>
+        {popupData?.rejection_reason && (
+          <p className="naxatw-text-xs naxatw-text-red-500">Reason: {popupData.rejection_reason}</p>
+        )}
       </div>
     );
   }, [popupData]);
+
+  // Memoize layer options to avoid unnecessary layer recreation in VectorLayer
+  const taskLayerOptions = useMemo(() => ({
+    type: 'fill' as const,
+    paint: {
+      'fill-color': '#98BBC8',
+      'fill-outline-color': '#484848',
+      'fill-opacity': 0.4,
+    },
+  }), []);
+
+  const taskOutlineLayerOptions = useMemo(() => ({
+    type: 'line' as const,
+    paint: {
+      'line-color': '#484848',
+      'line-width': 2,
+    },
+  }), []);
+
+  const imagePointLayerOptions = useMemo(() => ({
+    type: 'circle' as const,
+    paint: {
+      'circle-color': [
+        'match',
+        ['get', 'status'],
+        'assigned', '#22c55e',
+        'rejected', '#D73F3F',
+        'unmatched', '#eab308',
+        'invalid_exif', '#f97316',
+        'duplicate', '#6b7280',
+        '#3b82f6',
+      ],
+      'circle-radius': 5,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-opacity': 0.8,
+    },
+  }), []);
 
   if (isLoading) {
     return (
@@ -196,14 +239,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 id="review-task-polygons"
                 geojson={mapData.tasks as GeojsonType}
                 visibleOnMap={true}
-                layerOptions={{
-                  type: 'fill',
-                  paint: {
-                    'fill-color': '#98BBC8',
-                    'fill-outline-color': '#484848',
-                    'fill-opacity': 0.4,
-                  },
-                }}
+                layerOptions={taskLayerOptions}
                 zoomToExtent
               />
             )}
@@ -216,13 +252,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 id="review-task-outlines"
                 geojson={mapData.tasks as GeojsonType}
                 visibleOnMap={true}
-                layerOptions={{
-                  type: 'line',
-                  paint: {
-                    'line-color': '#484848',
-                    'line-width': 2,
-                  },
-                }}
+                layerOptions={taskOutlineLayerOptions}
               />
             )}
 
@@ -234,25 +264,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 id="review-image-points"
                 geojson={mapData.images as GeojsonType}
                 visibleOnMap={true}
-                layerOptions={{
-                  type: 'circle',
-                  paint: {
-                    'circle-color': [
-                      'match',
-                      ['get', 'status'],
-                      'assigned', '#22c55e',
-                      'rejected', '#D73F3F',
-                      'unmatched', '#eab308',
-                      'invalid_exif', '#f97316',
-                      'duplicate', '#6b7280',
-                      '#3b82f6',
-                    ],
-                    'circle-radius': 5,
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#ffffff',
-                    'circle-stroke-opacity': 0.8,
-                  },
-                }}
+                layerOptions={imagePointLayerOptions}
               />
             )}
 
@@ -322,7 +334,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 title={
                   <FlexRow className="naxatw-items-center naxatw-gap-3">
                     <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
-                      {group.task_id ? `Task #${group.project_task_index}` : 'Rejected Images'}
+                      {group.task_id ? `Task #${group.project_task_index}` : 'Unmatched'}
                     </h4>
                     <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
                       {group.image_count} {group.image_count === 1 ? 'image' : 'images'}
@@ -369,7 +381,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                             : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
                       }`}
                       onClick={() => handleImageClick(image)}
-                      title={image.filename}
+                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ''}`}
                     >
                       <img
                         src={image.thumbnail_url || image.url}
@@ -378,7 +390,10 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                         loading="lazy"
                       />
                       {(image.status === 'rejected' || image.status === 'invalid_exif') && (
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
+                        <div 
+                          className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white"
+                          title={image.rejection_reason}
+                        >
                           Rejected
                         </div>
                       )}

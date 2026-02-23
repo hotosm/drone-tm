@@ -156,6 +156,7 @@ async def get_batch_status(
             "batch_id": str(batch_id),
             "total": sum(status_counts.values()),
             "staged": status_counts.get("staged", 0),
+            "uploading": status_counts.get("uploading", 0),
             "uploaded": status_counts.get("uploaded", 0),
             "classifying": status_counts.get("classifying", 0),
             "assigned": status_counts.get("assigned", 0),
