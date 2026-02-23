@@ -15,6 +15,7 @@ interface UppyFileUploaderProps {
   taskId?: string;
   label?: string;
   onUploadComplete?: (result: any, batchId?: string) => void;
+  onCancel?: (batchId: string) => void;
   allowedFileTypes?: string[];
   note?: string;
   staging?: boolean; // If true, uploads to user-uploads staging directory
@@ -25,6 +26,7 @@ const UppyFileUploader = ({
   taskId,
   label = 'Upload Files',
   onUploadComplete,
+  onCancel,
   allowedFileTypes = [
     'image/jpeg',
     'image/jpg',
@@ -255,16 +257,26 @@ const UppyFileUploader = ({
       }
     };
 
+    // Handle cancel-all event to clean up batch when user cancels upload
+    const handleCancelAll = () => {
+      if (staging && batchIdRef.current) {
+        onCancel?.(batchIdRef.current);
+        batchIdRef.current = null;
+      }
+    };
+
     uppy.on('upload', handleUpload);
     uppy.on('upload-error', handleUploadError);
     uppy.on('complete', handleComplete);
+    uppy.on('cancel-all', handleCancelAll);
 
     return () => {
       uppy.off('upload', handleUpload);
       uppy.off('upload-error', handleUploadError);
       uppy.off('complete', handleComplete);
+      uppy.off('cancel-all', handleCancelAll);
     };
-  }, [uppy, dispatch, onUploadComplete, staging]);
+  }, [uppy, dispatch, onUploadComplete, onCancel, staging]);
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">
