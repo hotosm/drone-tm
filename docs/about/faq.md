@@ -235,39 +235,61 @@ a priority for now.
 
 This is more stable and the preferred approach if you can do this.
 
-- Install RClone on your machine:
+**1. Install rclone**
 
-  ```bash
-  sudo -v ; curl https://rclone.org/install.sh | sudo bash
-  mkdir -p ~/.config/rclone
-  ```
+Windows:
 
-- Add the details provided by your manager, either via the rclone
-  config command, or using:
+- Download: https://rclone.org/downloads/
+- Download **Windows (64-bit)**
+- Extract the zip
+- Open the extracted folder
+- In the address bar, type `cmd` and press Enter
 
-  ```bash
-  BUCKET_NAME=some-bucket-name
-  ACCESS_KEY=xxx
-  SECRET_KEY=xxx
-  cat <<EOF > ~/.config/rclone/rclone.conf
-  [s3-bucket]
-  type = s3
-  provider = AWS
-  access_key_id = ${ACCESS_KEY}
-  secret_access_key = ${SECRET_KEY}
-  endpoint = https://${BUCKET_NAME}.s3.amazonaws.com
-  region = us-east-1
-  acl = private
-  EOF
-  ```
+Linux:
 
-- Copy files from your system into the bucket:
+```bash
+curl https://rclone.org/install.sh | sudo bash
+```
 
-  ```bash
-  rclone sync \
-     /path/to/imagery_directory \
-     s3-bucket:imagery_directory_plus_timestamp
-  ```
+**2. Configure rclone**
+
+```bash
+rclone config
+
+# Then enter:
+n
+s3upload
+s3
+AWS
+false
+<PASTE_ACCESS_KEY>
+<PASTE_SECRET_KEY>
+us-east-1
+[press Enter]
+[press Enter]
+private
+n
+
+# Exit config when finished.
+
+# Test connection:
+rclone lsd s3upload:
+```
+
+**3. Upload Files**
+
+```bash
+# Windows
+rclone copy "C:\Path\To\Folder" s3upload:BUCKET_NAME --progress --transfers 1 --s3-upload-concurrency 1 --retries 10
+
+# Linux
+rclone copy /path/to/folder s3upload:BUCKET_NAME --progress --transfers 1 --s3-upload-concurrency 1 --retries 10
+```
+
+**If the internet disconnects**:
+
+- Just run the same upload command again.
+- It will resume automatically.
 
 #### Other Options
 
