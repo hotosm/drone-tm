@@ -716,6 +716,13 @@ async def get_assets_info(
             task_info = project_logic.get_project_info_from_s3(
                 project.id, task.get("id")
             )
+            try:
+                current_state = await task_logic.get_task_state(
+                    db, project.id, task.get("id")
+                )
+                task_info.state = current_state.get("state") if current_state else None
+            except Exception:
+                task_info.state = None
             results.append(task_info)
 
         return results
