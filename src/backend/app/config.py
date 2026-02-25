@@ -43,7 +43,6 @@ class OtelSettings(BaseSettings):
     These mostly set environment variables set by the OTEL SDK.
     """
 
-    SITE_NAME: Optional[str] = Field(exclude=True)
     LOG_LEVEL: Optional[str] = Field(exclude=True)
 
     @computed_field
@@ -61,9 +60,6 @@ class OtelSettings(BaseSettings):
     def otel_service_name(self) -> Optional[HttpUrlStr]:
         """Set OpenTelemetry service name for traces."""
         service_name = "unknown"
-        if self.SITE_NAME:
-            # Return name with underscores
-            service_name = self.SITE_NAME.lower().replace(" ", "-")
         if self.DOMAIN:
             # Return domain with underscores
             service_name = self.FMTM_DOMAIN.replace(".", "_")
