@@ -35,6 +35,7 @@ markdown_extensions:
   - toc:
       permalink: true
       title: Page contents
+  - pymdownx.extra
   - admonition
   - pymdownx.details
   - pymdownx.superfences:
@@ -43,7 +44,6 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight
-  - pymdownx.extra
   - pymdownx.emoji:
   - pymdownx.tabbed:
       alternate_style: true
