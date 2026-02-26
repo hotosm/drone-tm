@@ -8,7 +8,7 @@ import {
   DefineAOI,
   KeyParameters,
   Contributions,
-  GenerateTask,
+  GenerateTasks,
 } from '@Components/CreateProject/DescriptionContents';
 import orthoPhotoIcon from '@Assets/images/ortho-photo-icon.svg';
 // import _3DModal from '@Assets/images/3d-model-icon.svg';
@@ -23,7 +23,7 @@ export const stepDescriptionComponents: StepComponentMap = {
   1: BasicInformation,
   2: DefineAOI,
   3: KeyParameters,
-  4: GenerateTask,
+  4: GenerateTasks,
   5: Contributions,
 };
 

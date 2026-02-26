@@ -43,16 +43,15 @@ class OtelSettings(BaseSettings):
     These mostly set environment variables set by the OTEL SDK.
     """
 
-    LOG_LEVEL: Optional[str] = Field(exclude=True)
+    LOG_LEVEL: Optional[str] = Field(default="INFO", exclude=True)
 
     @computed_field
     @property
     def otel_log_level(self) -> Optional[str]:
-        """Set OpenTelemetry log level."""
-        if self.LOG_LEVEL:
-            log_level = self.LOG_LEVEL.lower()
-            # NOTE setting to DEBUG makes very verbose for every library
-            os.environ["OTEL_LOG_LEVEL"] = log_level
+        """Set OpenTelemetry log level based on main app log level."""
+        log_level = (self.LOG_LEVEL or "INFO").lower()
+        # NOTE setting to DEBUG makes very verbose for every library
+        os.environ["OTEL_LOG_LEVEL"] = log_level
         return log_level
 
     @computed_field
@@ -217,8 +216,6 @@ class Settings(BaseSettings):
         if not self.S3_ENDPOINT_DOWNLOAD:
             self.S3_ENDPOINT_DOWNLOAD = self.S3_ENDPOINT_UPLOAD
 
-    JAXA_AUTH_TOKEN: Optional[str] = ""
-
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 60 * 24 * 1  # 1 day
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 60 * 24 * 8  # 8 day
@@ -234,8 +231,7 @@ class Settings(BaseSettings):
     def monitoring_config(self) -> Optional[SentrySettings]:
         """Get the monitoring configuration."""
         if self.MONITORING == MonitoringTypes.SENTRY:
-            return SentrySettings()
-
+            return SentrySettings(LOG_LEVEL=self.LOG_LEVEL)
         return None
 
     # SMTP Configurations

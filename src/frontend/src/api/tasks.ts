@@ -1,5 +1,6 @@
 /* eslint-disable import/prefer-default-export */
 import {
+  getAllTaskAssetsInfo,
   getIndividualTask,
   getTaskAssetsInfo,
   getTaskWaypoint,
@@ -14,6 +15,7 @@ export const useGetTaskWaypointQuery = (
   rotationAngle: number,
   gimbalAngle: string,
   queryOptions?: Partial<UseQueryOptions>,
+  allowMissingDem = false,
 ) => {
   return useQuery({
     queryKey: [
@@ -24,6 +26,7 @@ export const useGetTaskWaypointQuery = (
       droneModel,
       rotationAngle,
       gimbalAngle,
+      allowMissingDem,
     ],
     enabled: !!(projectId && taskId),
     queryFn: () =>
@@ -34,6 +37,7 @@ export const useGetTaskWaypointQuery = (
         droneModel,
         rotationAngle,
         gimbalAngle,
+        allowMissingDem,
       ),
     select: (res: any) => res.data,
     ...queryOptions,
@@ -63,6 +67,26 @@ export const useGetTaskAssetsInfo = (
     enabled: !!taskId,
     queryFn: () => getTaskAssetsInfo(projectId, taskId),
     select: (res: any) => res.data,
+    ...queryOptions,
+  });
+};
+
+export const useGetAllTaskAssetsInfo = (
+  projectId: string,
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['all-task-assets-info', projectId],
+    enabled: !!projectId,
+    queryFn: () => getAllTaskAssetsInfo(projectId),
+    select: (res: any) => res.data,
+    refetchInterval: (query: any) => {
+      const data = query?.state?.data?.data;
+      const hasProcessing = Array.isArray(data) && data.some(
+        (t: any) => t.state === 'IMAGE_PROCESSING_STARTED',
+      );
+      return hasProcessing ? 10000 : 30000;
+    },
     ...queryOptions,
   });
 };

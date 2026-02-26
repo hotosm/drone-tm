@@ -35,11 +35,15 @@ markdown_extensions:
   - toc:
       permalink: true
       title: Page contents
+  - pymdownx.extra
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight
-  - pymdownx.extra
   - pymdownx.emoji:
   - pymdownx.tabbed:
       alternate_style: true
@@ -90,4 +94,5 @@ nav:
       - Testing: dev/testing.md
       - Migrate to Kubernetes: dev/migrate-k8s.md
       - Frontend Env Injection: dev/runtime-frontend-config.md
+      - Imagery Upload Workflow: dev/imagery-upload.md
   - Timeline: timeline.md

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import ImageStatus
 
@@ -68,6 +68,8 @@ class ProjectImageUpdate(BaseModel):
 class ProjectImageOut(ProjectImageBase):
     """Schema for project image output."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     project_id: UUID
     task_id: Optional[UUID]
@@ -78,8 +80,3 @@ class ProjectImageOut(ProjectImageBase):
     duplicate_of: Optional[UUID]
     batch_id: Optional[UUID]
     rejection_reason: Optional[str] = None
-
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True

@@ -24,7 +24,7 @@ from app.config import settings
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.projects import project_deps
-from app.s3 import get_file_from_bucket
+from app.s3 import check_file_exists, get_file_from_bucket
 from app.tasks.task_logic import (
     get_take_off_point_from_db,
     get_task_geojson,
@@ -51,6 +51,7 @@ async def get_task_flightplan(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     download: bool = True,
+    allow_missing_dem: bool = False,
     mode: FlightMode = FlightMode.WAYLINES,
     rotation_angle: float = 0,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
@@ -110,33 +111,75 @@ async def get_task_flightplan(
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
 
-    # Download DEM if terrain-follow is enabled
+    # For terrain-follow, DEM availability is based on S3 object existence.
+    # Local disk is only used as a transient download location for generation.
     dem_path = None
     if project.is_terrain_follow:
-        dem_path = f"/tmp/{uuid.uuid4()}.tif"
-        get_file_from_bucket(
-            settings.S3_BUCKET_NAME,
-            f"projects/{project_id}/dem.tif",
-            dem_path,
-        )
+        dem_object_key = f"projects/{project_id}/dem.tif"
+        has_dem = check_file_exists(settings.S3_BUCKET_NAME, dem_object_key)
+
+        if not has_dem:
+            if not allow_missing_dem:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "MISSING_TERRAIN_DEM",
+                        "message": (
+                            "Terrain-follow mission generation is blocked because no "
+                            "DEM is available for this project."
+                        ),
+                        "allow_missing_dem_param": "allow_missing_dem=true",
+                    },
+                )
+
+            log.warning(
+                "DEM missing for terrain-follow project (%s). "
+                "Proceeding because allow_missing_dem=true.",
+                project_id,
+            )
+        else:
+            dem_path = f"/tmp/{uuid.uuid4()}.tif"
+            dem_downloaded = get_file_from_bucket(
+                settings.S3_BUCKET_NAME,
+                dem_object_key,
+                dem_path,
+            )
+            if (
+                dem_downloaded is False
+                or not os.path.exists(dem_path)
+                or os.path.getsize(dem_path) <= 0
+            ):
+                if os.path.exists(dem_path):
+                    os.remove(dem_path)
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "Terrain-follow mission generation failed because DEM "
+                        "download from storage failed."
+                    ),
+                )
 
     # Generate flighplan
     outfile = f"/tmp/{uuid.uuid4()}"
 
-    outpath = create_flightplan(
-        aoi=task_geojson,
-        forward_overlap=forward_overlap,
-        side_overlap=side_overlap,
-        agl=altitude,
-        gsd=gsd,
-        image_interval=2,
-        dem=dem_path,
-        outfile=outfile,
-        flight_mode=mode,
-        rotation_angle=rotation_angle,
-        take_off_point=take_off_point,
-        drone_type=drone_type,
-    )
+    try:
+        outpath = create_flightplan(
+            aoi=task_geojson,
+            forward_overlap=forward_overlap,
+            side_overlap=side_overlap,
+            agl=altitude,
+            gsd=gsd,
+            image_interval=2,
+            dem=dem_path,
+            outfile=outfile,
+            flight_mode=mode,
+            rotation_angle=rotation_angle,
+            take_off_point=take_off_point,
+            drone_type=drone_type,
+        )
+    finally:
+        if dem_path and os.path.exists(dem_path):
+            os.remove(dem_path)
 
     # If the user needs a download, wrap in correct response
     if download:
