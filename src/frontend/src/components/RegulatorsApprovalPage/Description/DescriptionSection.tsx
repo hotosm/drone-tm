@@ -42,6 +42,15 @@ const DescriptionSection = ({
     [projectData?.tasks],
   );
 
+  const taskStatusSummary = useMemo(() => {
+    const tasks = projectData?.tasks;
+    if (!tasks?.length) return null;
+    const processed = tasks.filter(
+      (t: Record<string, any>) => t?.state === 'IMAGE_PROCESSING_FINISHED',
+    ).length;
+    return `${processed}/${tasks.length}`;
+  }, [projectData?.tasks]);
+
   const handleDownloadResult = () => {
     if (!projectData?.assets_url) return;
     try {
@@ -152,22 +161,24 @@ const DescriptionSection = ({
         (!projectData?.requires_approval_from_regulator ||
           projectData?.regulator_approval_status === 'APPROVED') &&
         isAbleToStartProcessing && (
-          <>
-            {projectData?.image_processing_status === 'NOT_STARTED' ? (
-              <div>
-                <Button
-                  className="naxatw-bg-red"
-                  withLoader
-                  leftIcon="play_arrow"
-                  onClick={() => {
-                    dispatch(toggleModal('choose-processing-parameter'));
-                  }}
-                >
-                  Start Processing
-                </Button>
-              </div>
-            ) : projectData?.image_processing_status === 'SUCCESS' ? (
-              <div className="naxatw-flex naxatw-gap-2">
+          <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
+            <Button
+              className="naxatw-bg-red"
+              leftIcon="monitoring"
+              onClick={() => {
+                dispatch(toggleModal('processing-status'));
+              }}
+            >
+              Processing Status
+              {taskStatusSummary && (
+                <span className="naxatw-ml-1 naxatw-rounded-full naxatw-bg-white/20 naxatw-px-2 naxatw-py-0.5 naxatw-text-xs">
+                  {taskStatusSummary}
+                </span>
+              )}
+            </Button>
+
+            {projectData?.image_processing_status === 'SUCCESS' && (
+              <>
                 <Button
                   className="naxatw-bg-red"
                   leftIcon="download"
@@ -175,7 +186,6 @@ const DescriptionSection = ({
                 >
                   Download Results
                 </Button>
-                {/* show button only if same logged-in user created the project  */}
                 {String(projectData?.author_id || '') ===
                   String(userDetails?.id || '') && (
                   <>
@@ -199,40 +209,27 @@ const DescriptionSection = ({
                           dispatch(toggleModal('upload-to-oam'));
                         }}
                       >
-                        Re-upload Upload to OAM
+                        Re-upload to OAM
                       </Button>
                     ) : (
                       <></>
                     )}
                   </>
                 )}
-              </div>
-            ) : projectData?.image_processing_status === 'PROCESSING' ? (
-              <div>
-                <Button
-                  className="naxatw-bg-gray-500"
-                  withLoader
-                  isLoading
-                  onClick={() => {}}
-                >
-                  Processing
-                </Button>
-              </div>
-            ) : (
-              <div>
-                <Button
-                  className="naxatw-bg-red"
-                  withLoader
-                  leftIcon="replay"
-                  onClick={() => {
-                    dispatch(toggleModal('choose-processing-parameter'));
-                  }}
-                >
-                  Re-start Processing
-                </Button>
-              </div>
+              </>
             )}
-          </>
+
+            {projectData?.image_processing_status === 'PROCESSING' && (
+              <Button
+                className="naxatw-bg-gray-500"
+                withLoader
+                isLoading
+                onClick={() => {}}
+              >
+                Processing
+              </Button>
+            )}
+          </div>
         )}
 
       {page === 'project-approval' &&

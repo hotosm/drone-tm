@@ -16,6 +16,7 @@ interface UppyFileUploaderProps {
   taskId?: string;
   label?: string;
   onUploadComplete?: (result: any, batchId?: string) => void;
+  onCancel?: (batchId: string) => void;
   allowedFileTypes?: string[];
   note?: string;
   staging?: boolean; // If true, uploads to user-uploads staging directory
@@ -26,6 +27,7 @@ const UppyFileUploader = ({
   taskId,
   label = 'Upload Files',
   onUploadComplete,
+  onCancel,
   allowedFileTypes = [
     'image/jpeg',
     'image/jpg',
@@ -256,9 +258,13 @@ const UppyFileUploader = ({
       }
     };
 
+    // Handle cancel-all event to clean up batch when user cancels upload
     const handleCancelAll = async () => {
-      // Cleanup database records when user cancels upload via Uppy UI
+      // Notify parent component first
       if (staging && batchIdRef.current) {
+        onCancel?.(batchIdRef.current);
+
+        // Then cleanup database records when user cancels upload via Uppy UI
         try {
           await deleteBatch(projectId, batchIdRef.current);
           toast.warning('Upload cancelled. Staging images cleared.');
@@ -283,7 +289,7 @@ const UppyFileUploader = ({
       uppy.off('complete', handleComplete);
       uppy.off('cancel-all', handleCancelAll);
     };
-  }, [uppy, dispatch, onUploadComplete, staging, projectId]);
+  }, [uppy, dispatch, onUploadComplete, onCancel, staging, projectId]);
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">

@@ -120,6 +120,16 @@ const DroneImageProcessingWorkflow = ({
     }
   }, [dispatch]);
 
+  // Handle upload cancel - clean up batch from database when user cancels via Uppy UI
+  const handleUploadCancel = useCallback(async (cancelledBatchId: string) => {
+    try {
+      await deleteBatch(projectId, cancelledBatchId);
+      toast.info('Upload cancelled and batch cleaned up');
+    } catch (error) {
+      console.error('Failed to clean up cancelled batch:', error);
+    }
+  }, [projectId]);
+
   // Should proceed to the next step
   const handleNextButton = () => {
     // Disable Next button on step 1 if no batch ID
@@ -140,6 +150,7 @@ const DroneImageProcessingWorkflow = ({
           <ImageUpload
             projectId={projectId}
             onUploadComplete={handleUploadComplete}
+            onCancel={handleUploadCancel}
           />
         );
       case 2:
