@@ -21,12 +21,12 @@ interface ImageReviewProps {
 
 const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const queryClient = useQueryClient();
-  
-  const { 
+
+  const {
     data: mapData,
     isLoading: isMapDataLoading,
     error: mapDataError,
-    isError: isMapDataError 
+    isError: isMapDataError
   } = useQuery({
     queryKey: ['batchMapData', projectId, batchId],
     queryFn: () => getBatchMapData(projectId, batchId),
@@ -43,7 +43,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     queryFn: () => getBatchReview(projectId, batchId),
     enabled: !!projectId && !!batchId,
   });
-  
+
   const isLoading = isMapDataLoading || isReviewLoading;
   const error = isMapDataError ? mapDataError : (isReviewError ? reviewError : null);
 
@@ -72,7 +72,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     taskId: '',
     taskIndex: 0,
   });
-  
+
   // Detect when container is ready
   const mapContainerRefCallback = useCallback((node: HTMLDivElement | null) => {
       if (node !== null) {
@@ -125,7 +125,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   // Observe container resize events
   useEffect(() => {
     if (!map || !container) return;
-    
+
     const observer = new ResizeObserver(() => {
        if (map) {
           map.resize();

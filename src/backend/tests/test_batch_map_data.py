@@ -1,9 +1,8 @@
 """Tests for batch map data retrieval with GPS and non-GPS images."""
 
 import uuid
-import json
 import pytest
-from shapely.geometry import Point, box
+from shapely.geometry import box
 
 from app.models.enums import ImageStatus
 from app.images.image_classification import ImageClassifier
@@ -32,7 +31,7 @@ async def test_get_batch_map_data_with_mixed_gps(db, create_test_project, auth_u
     async with db.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO project_images 
+            INSERT INTO project_images
             (id, project_id, task_id, filename, s3_key, hash_md5, batch_id, status, location, uploaded_by)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
             """,
@@ -46,7 +45,7 @@ async def test_get_batch_map_data_with_mixed_gps(db, create_test_project, auth_u
                 str(batch_id),
                 ImageStatus.ASSIGNED.value,
                 115.505,  # longitude
-                -8.335,   # latitude
+                -8.335,  # latitude
                 auth_user.id,
             ),
         )
@@ -56,7 +55,7 @@ async def test_get_batch_map_data_with_mixed_gps(db, create_test_project, auth_u
     async with db.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO project_images 
+            INSERT INTO project_images
             (id, project_id, task_id, filename, s3_key, hash_md5, batch_id, status, rejection_reason, uploaded_by)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
@@ -99,8 +98,12 @@ async def test_get_batch_map_data_with_mixed_gps(db, create_test_project, auth_u
     assert len(image_features) == 2
 
     # Find images by filename
-    located_feature = next(f for f in image_features if f["properties"]["filename"] == "image_with_gps.jpg")
-    unlocated_feature = next(f for f in image_features if f["properties"]["filename"] == "image_no_gps.jpg")
+    located_feature = next(
+        f for f in image_features if f["properties"]["filename"] == "image_with_gps.jpg"
+    )
+    unlocated_feature = next(
+        f for f in image_features if f["properties"]["filename"] == "image_no_gps.jpg"
+    )
 
     # Verify located image has Point geometry
     assert located_feature["geometry"] is not None
@@ -111,7 +114,10 @@ async def test_get_batch_map_data_with_mixed_gps(db, create_test_project, auth_u
     assert unlocated_feature["geometry"] is None
     assert unlocated_feature["properties"]["filename"] == "image_no_gps.jpg"
     assert unlocated_feature["properties"]["status"] == ImageStatus.INVALID_EXIF.value
-    assert unlocated_feature["properties"]["rejection_reason"] == "No GPS coordinates found in EXIF"
+    assert (
+        unlocated_feature["properties"]["rejection_reason"]
+        == "No GPS coordinates found in EXIF"
+    )
 
 
 @pytest.mark.asyncio
@@ -145,7 +151,7 @@ async def test_get_batch_map_data_all_without_gps(db, create_test_project, auth_
         async with db.cursor() as cur:
             await cur.execute(
                 """
-                INSERT INTO project_images 
+                INSERT INTO project_images
                 (id, project_id, filename, s3_key, hash_md5, batch_id, status, rejection_reason, uploaded_by)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
