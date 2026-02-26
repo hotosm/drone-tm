@@ -144,6 +144,8 @@ export interface BatchMapData {
   images: GeoJSON.FeatureCollection;
   total_tasks: number;
   total_images: number;
+  total_images_with_gps: number;
+  total_images_without_gps: number;
 }
 
 /**

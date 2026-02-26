@@ -5,6 +5,7 @@ import { UppyContext } from '@uppy/react';
 import { toast } from 'react-toastify';
 import { authenticated, api } from '@Services/index';
 import { useTypedDispatch } from '@Store/hooks';
+import { deleteBatch } from '@Services/classification';
 
 import '@uppy/core/css/style.min.css';
 import '@uppy/dashboard/css/style.min.css';
@@ -255,16 +256,34 @@ const UppyFileUploader = ({
       }
     };
 
+    const handleCancelAll = async () => {
+      // Cleanup database records when user cancels upload via Uppy UI
+      if (staging && batchIdRef.current) {
+        try {
+          await deleteBatch(projectId, batchIdRef.current);
+          toast.warning('Upload cancelled. Staging images cleared.');
+        } catch (error: any) {
+          console.error('Failed to cleanup batch after cancel:', error);
+          toast.error('Warning: Failed to cleanup staging images');
+        } finally {
+          batchIdRef.current = null;
+          notificationShownRef.current = false;
+        }
+      }
+    };
+
     uppy.on('upload', handleUpload);
     uppy.on('upload-error', handleUploadError);
     uppy.on('complete', handleComplete);
+    uppy.on('cancel-all', handleCancelAll);
 
     return () => {
       uppy.off('upload', handleUpload);
       uppy.off('upload-error', handleUploadError);
       uppy.off('complete', handleComplete);
+      uppy.off('cancel-all', handleCancelAll);
     };
-  }, [uppy, dispatch, onUploadComplete, staging]);
+  }, [uppy, dispatch, onUploadComplete, staging, projectId]);
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">

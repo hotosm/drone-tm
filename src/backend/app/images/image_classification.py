@@ -1027,7 +1027,7 @@ class ImageClassifier:
     ) -> dict:
         """Get map data for batch review visualization.
 
-        Returns task geometries and image point locations as GeoJSON.
+        Returns task geometries and all images as GeoJSON (with/without GPS coordinates).
         """
         # Get all task IDs that have images in this batch
         task_ids_query = """
@@ -1075,47 +1075,68 @@ class ImageClassifier:
                     }
                 )
 
-        # Get image locations as GeoJSON points
-        images_query = """
+        # Get all images with or without GPS data
+        all_images_query = """
             SELECT
                 id,
                 filename,
                 status,
+                rejection_reason,
                 task_id,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
             FROM project_images
             WHERE batch_id = %(batch_id)s
             AND project_id = %(project_id)s
-            AND location IS NOT NULL
+            ORDER BY uploaded_at DESC
         """
 
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                images_query,
+                all_images_query,
                 {"batch_id": str(batch_id), "project_id": str(project_id)},
             )
-            images = await cur.fetchall()
+            all_images = await cur.fetchall()
 
-        images_geojson = {
-            "type": "FeatureCollection",
-            "features": [
-                {
+        # Build GeoJSON features for each image
+        images_features = []
+        located_count = 0
+        unlocated_count = 0
+
+        for img in all_images:
+            properties = {
+                "id": str(img["id"]),
+                "filename": img["filename"],
+                "status": img["status"],
+                "task_id": str(img["task_id"]) if img["task_id"] else None,
+                "rejection_reason": img["rejection_reason"],
+            }
+
+            # Add Point geometry if GPS data exists
+            if img["longitude"] is not None and img["latitude"] is not None:
+                feature = {
                     "type": "Feature",
                     "geometry": {
                         "type": "Point",
                         "coordinates": [img["longitude"], img["latitude"]],
                     },
-                    "properties": {
-                        "id": str(img["id"]),
-                        "filename": img["filename"],
-                        "status": img["status"],
-                        "task_id": str(img["task_id"]) if img["task_id"] else None,
-                    },
+                    "properties": properties,
                 }
-                for img in images
-                if img["longitude"] is not None and img["latitude"] is not None
-            ],
+                located_count += 1
+            else:
+                # Add feature with null geometry for images without GPS
+                feature = {
+                    "type": "Feature",
+                    "geometry": None,
+                    "properties": properties,
+                }
+                unlocated_count += 1
+
+            images_features.append(feature)
+
+        images_geojson = {
+            "type": "FeatureCollection",
+            "features": images_features,
         }
 
         return {
@@ -1124,6 +1145,8 @@ class ImageClassifier:
             "images": images_geojson,
             "total_tasks": len(tasks_geojson["features"]),
             "total_images": len(images_geojson["features"]),
+            "total_images_with_gps": located_count,
+            "total_images_without_gps": unlocated_count,
         }
 
     @staticmethod
