@@ -31,12 +31,19 @@ const ImageClassification = ({
 }: ImageClassificationProps) => {
   const dispatch = useTypedDispatch();
   const queryClient = useQueryClient();
-  const { jobId } = useTypedSelector(
+  const { jobId, hasClassificationStarted, isClassificationComplete: isCompleteFromRedux } = useTypedSelector(
     (state) => state.imageProcessingWorkflow
   );
   const [images, setImages] = useState<Record<string, ImageClassificationResult>>({});
   const [lastUpdateTime, setLastUpdateTime] = useState<string | undefined>();
   const [isPolling, setIsPolling] = useState(false);
+
+  useEffect(() => {
+    if (jobId && !isCompleteFromRedux && !isPolling) {
+      setIsPolling(true);
+    }
+  }, [jobId, isCompleteFromRedux, isPolling]);
+
   const [selectedImage, setSelectedImage] = useState<ImageClassificationResult | null>(null);
 
   // Mutation to accept a rejected image
@@ -94,7 +101,12 @@ const ImageClassification = ({
   });
 
   // Query for batch status (summary counts) - poll every 10 seconds to handle race conditions
-  const { data: batchStatus, isLoading: isLoadingStatus } = useGetBatchStatusQuery(
+  const {
+    data: batchStatus,
+    isLoading: isLoadingStatus,
+    isError: isErrorStatus,
+    error: errorStatus
+  } = useGetBatchStatusQuery(
     projectId,
     batchId,
     {
@@ -104,7 +116,11 @@ const ImageClassification = ({
   );
 
   // Query for batch images - fetch immediately and poll every 10 seconds to handle race conditions
-  const { data: newImages } = useGetBatchImagesQuery(
+  const {
+    data: newImages,
+    isError: isErrorImages,
+    error: errorImages
+  } = useGetBatchImagesQuery(
     projectId,
     batchId,
     lastUpdateTime,
@@ -255,6 +271,13 @@ const ImageClassification = ({
   const isClassificationComplete = computedStats && computedStats.processing === 0 && computedStats.uploaded === 0 && computedStats.totalClassified > 0;
   const hasHighIssueRate = isClassificationComplete && computedStats.issuePercentage >= 50;
 
+  // Sync Redux state if classification is actually complete but Redux doesn't know it
+  useEffect(() => {
+    if (isClassificationComplete && !isCompleteFromRedux) {
+      dispatch(completeClassification());
+    }
+  }, [isClassificationComplete, isCompleteFromRedux, dispatch]);
+
   // Virtualization setup
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -288,23 +311,49 @@ const ImageClassification = ({
 
   return (
     <div className="naxatw-flex naxatw-h-full naxatw-flex-col naxatw-gap-6">
+      {/* Error States */}
+      {(isErrorStatus || isErrorImages) && (
+        <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded naxatw-border naxatw-border-red-300 naxatw-bg-red-50 naxatw-p-4 naxatw-text-red-700">
+          <span className="material-icons">error</span>
+          <div>
+            <p className="naxatw-font-semibold">Failed to fetch update</p>
+            <p className="naxatw-text-sm">{(errorStatus || errorImages)?.message || 'An unknown error occurred'}</p>
+          </div>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
         {!jobId && (
-          <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
-            <button
-              onClick={handleStartClassification}
-              disabled={startClassificationMutation.isPending || isLoadingStatus || (batchStatus?.staged ?? 0) === 0}
-              className="naxatw-rounded naxatw-bg-red naxatw-px-6 naxatw-py-2 naxatw-text-white hover:naxatw-bg-red-600 disabled:naxatw-bg-gray-400 disabled:naxatw-cursor-not-allowed naxatw-transition-colors"
-            >
-              {startClassificationMutation.isPending ? 'Starting...' : 'Start Classification'}
-            </button>
-            {isLoadingStatus && (
-              <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-500">
-                <div className="naxatw-h-4 naxatw-w-4 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-red"></div>
-                <span>Fetching images...</span>
+          <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
+            {!hasClassificationStarted && (
+              <div className="naxatw-mb-2 naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-amber-600">
+                <span className="material-icons naxatw-text-sm">info</span>
+                <span className="naxatw-text-sm naxatw-font-medium">Classification is required before you can proceed to the next step.</span>
               </div>
             )}
+            <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
+              <button
+                onClick={handleStartClassification}
+                disabled={startClassificationMutation.isPending || isLoadingStatus || (batchStatus?.total ?? 0) === 0}
+                className="naxatw-rounded naxatw-bg-red naxatw-px-8 naxatw-py-3 naxatw-text-lg naxatw-font-bold naxatw-text-white hover:naxatw-bg-red-600 disabled:naxatw-bg-gray-400 disabled:naxatw-cursor-not-allowed naxatw-transition-all naxatw-shadow-md active:naxatw-scale-95"
+              >
+                {startClassificationMutation.isPending ? (
+                  <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
+                    <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-white naxatw-border-t-transparent"></div>
+                    <span>Starting...</span>
+                  </div>
+                ) : (
+                  'Start Classification'
+                )}
+              </button>
+              {isLoadingStatus && (
+                <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-500">
+                  <div className="naxatw-h-4 naxatw-w-4 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-red"></div>
+                  <span>Fetching images...</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -440,12 +489,21 @@ const ImageClassification = ({
       {/* Loading state - show when no images yet */}
       {imagesList.length === 0 && (
         <div className="naxatw-flex naxatw-flex-1 naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
-          <div className="naxatw-text-center">
-            <div className="naxatw-mx-auto naxatw-h-12 naxatw-w-12 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-gray-300 naxatw-border-t-red"></div>
-            <p className="naxatw-mt-4 naxatw-text-gray-500">
-              Loading images...
-            </p>
-          </div>
+          {isLoadingStatus ? (
+            <div className="naxatw-text-center">
+              <div className="naxatw-mx-auto naxatw-h-12 naxatw-w-12 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-gray-300 naxatw-border-t-red"></div>
+              <p className="naxatw-mt-4 naxatw-text-gray-500">
+                Loading images...
+              </p>
+            </div>
+          ) : (
+            <div className="naxatw-text-center">
+              <span className="material-icons naxatw-text-4xl naxatw-text-gray-400">image_not_supported</span>
+              <p className="naxatw-mt-2 naxatw-text-gray-500">
+                No images found in this batch.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

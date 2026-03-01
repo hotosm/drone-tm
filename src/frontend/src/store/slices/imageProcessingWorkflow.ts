@@ -6,6 +6,8 @@ export interface IImageProcessingWorkflowState {
   batchId: string | null;
   projectId: string | null;
   isClassifying: boolean;
+  isClassificationComplete: boolean;
+  hasClassificationStarted: boolean;
   jobId: string | null;
 }
 
@@ -14,6 +16,8 @@ const initialState: IImageProcessingWorkflowState = {
   batchId: null,
   projectId: null,
   isClassifying: false,
+  isClassificationComplete: false,
+  hasClassificationStarted: false,
   jobId: null,
 };
 
@@ -26,6 +30,12 @@ export const imageProcessingWorkflowSlice = createSlice({
     },
     setBatchId: (state, action: PayloadAction<string | null>) => {
       state.batchId = action.payload;
+      if (action.payload) {
+        state.isClassifying = false;
+        state.isClassificationComplete = false;
+        state.hasClassificationStarted = false;
+        state.jobId = null;
+      }
     },
     setProjectId: (state, action: PayloadAction<string | null>) => {
       state.projectId = action.payload;
@@ -33,20 +43,27 @@ export const imageProcessingWorkflowSlice = createSlice({
     setIsClassifying: (state, action: PayloadAction<boolean>) => {
       state.isClassifying = action.payload;
     },
+    setHasClassificationStarted: (state, action: PayloadAction<boolean>) => {
+      state.hasClassificationStarted = action.payload;
+    },
     setJobId: (state, action: PayloadAction<string | null>) => {
       state.jobId = action.payload;
     },
     startClassification: (state, action: PayloadAction<string>) => {
       state.isClassifying = true;
+      state.hasClassificationStarted = true;
       state.jobId = action.payload;
     },
     completeClassification: (state) => {
       state.isClassifying = false;
+      state.isClassificationComplete = true;
     },
     resetWorkflow: (state) => {
       state.currentStep = 1;
       state.batchId = null;
       state.isClassifying = false;
+      state.isClassificationComplete = false;
+      state.hasClassificationStarted = false;
       state.jobId = null;
     },
   },
@@ -57,6 +74,7 @@ export const {
   setBatchId,
   setProjectId,
   setIsClassifying,
+  setHasClassificationStarted,
   setJobId,
   startClassification,
   completeClassification,
