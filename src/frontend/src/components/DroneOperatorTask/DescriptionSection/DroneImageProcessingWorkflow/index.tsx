@@ -121,13 +121,6 @@ const DroneImageProcessingWorkflow = ({
     }
   }, [dispatch]);
 
-  // Logic for Next button state and tooltip
-  const navigationInfo = useMemo(() => {
-    // Step 1: Image Upload
-    if (currentStep === 1) {
-      if (!batchId) {
-        return { disabled: true, reason: 'Please upload images first' };
-      }
   // Handle upload cancel - clean up batch from database when user cancels via Uppy UI
   const handleUploadCancel = useCallback(async (cancelledBatchId: string) => {
     try {
@@ -138,11 +131,13 @@ const DroneImageProcessingWorkflow = ({
     }
   }, [projectId]);
 
-  // Should proceed to the next step
-  const handleNextButton = () => {
-    // Disable Next button on step 1 if no batch ID
-    if (currentStep === 1 && !batchId) {
-      return true;
+  // Logic for Next button state and tooltip
+  const navigationInfo = useMemo(() => {
+    // Step 1: Image Upload
+    if (currentStep === 1) {
+      if (!batchId) {
+        return { disabled: true, reason: 'Please upload images first' };
+      }
     }
 
     // Step 2: Image Classification
