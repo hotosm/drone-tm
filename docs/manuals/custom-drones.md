@@ -56,12 +56,13 @@ Optional Control:
 
 Total build weight: likely 1.5-2kg
 
-> [!IMPORTANT]
-> Be sure you are taking any restrictions from your aviation
-> authority into account when planning the build.
->
-> The drone must be registered to be flown.
-> If in doubt, clarify with them first.
+!!! important
+
+    Be sure you are taking any restrictions from your aviation
+    authority into account when planning the build.
+
+    The drone must be registered to be flown.
+    If in doubt, clarify with them first.
 
 ### Assembly
 
