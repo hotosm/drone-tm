@@ -80,8 +80,10 @@ nav:
       - The Team: about/team.md
   - User Manuals:
       - Drone Operators: manuals/operators.md
-      - DJI Drones: manuals/dji.md
+      - DJI Drones (General): manuals/dji.md
       - Potensic Drones: manuals/potensic.md
+      - Specific Drone Models:
+          - DJI Mini 5 Pro: manuals/specific-models/dji-mini-5-pro.md
       - Ground Control Points: manuals/ground-control-points.md
       - Manual Flightplan Generation: manuals/generate-flightplans.md
       - Building Drones: manuals/custom-drones.md
