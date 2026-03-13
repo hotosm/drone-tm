@@ -75,44 +75,28 @@ def create_reset_password_token(email: str):
     return encoded_jwt
 
 
-# ==============================================================================
 # Override login_required with Hanko SSO when AUTH_PROVIDER=hanko
-# ==============================================================================
 if settings.AUTH_PROVIDER == "hanko":
     from hotosm_auth_fastapi import CurrentUser, get_mapped_user_id
     from app.users.hanko_helpers import lookup_user_by_email, create_drone_tm_user
 
-    log.info("🔐 Using Hanko SSO authentication (overriding login_required)")
+    log.info("Using Hanko SSO authentication")
 
     async def login_required(
         hanko_user: CurrentUser,
         db: Annotated[Connection, Depends(database.get_db)],
     ) -> AuthUser:
-        """Dependency for Hanko SSO with user mapping (replaces legacy login_required)."""
-        log.debug(f"🔐 login_required called with Hanko user: {hanko_user.id} / {hanko_user.email}")
+        """Hanko SSO login dependency."""
+        user_id = await get_mapped_user_id(
+            hanko_user=hanko_user,
+            db_conn=db,
+            app_name="drone-tm",
+            auto_create=True,
+            email_lookup_fn=lookup_user_by_email,
+            user_creator_fn=create_drone_tm_user,
+        )
 
-        # Map Hanko user to Drone-TM user ID
-        try:
-            user_id = await get_mapped_user_id(
-                hanko_user=hanko_user,
-                db_conn=db,
-                app_name="drone-tm",
-                auto_create=True,
-                email_lookup_fn=lookup_user_by_email,
-                user_creator_fn=create_drone_tm_user,
-            )
-            log.debug(f"✅ Mapped to Drone-TM user_id: {user_id}")
-        except Exception as e:
-            log.error(f"❌ Error in get_mapped_user_id: {type(e).__name__}: {e}")
-            import traceback
-            log.error(f"Full traceback:\n{traceback.format_exc()}")
-            raise
-
-        # Get user from database
         user = await DbUser.get_user_by_id(db, user_id)
-        log.debug(f"✅ Retrieved user from DB: {user['email_address']} (id: {user['id']})")
-
-        # Return as AuthUser
         return AuthUser(
             id=user["id"],
             email=user["email_address"],
