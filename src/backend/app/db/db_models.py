@@ -49,6 +49,7 @@ class DbUser(Base):
 
     id = cast(str, Column(String, primary_key=True))
     email_address = cast(str, Column(String, nullable=False, unique=True))
+    # FIXME refactor this to remove password / defer to oauth provider
     password = cast(str, Column(String))
     name = cast(str, Column(String))
     is_active = cast(bool, Column(Boolean, default=False))
@@ -57,6 +58,7 @@ class DbUser(Base):
     date_registered = cast(datetime, Column(DateTime, default=timestamp))
 
 
+# TODO reconsider / possibly remove this
 class DbOrganisation(Base):
     """Describes an Organisation."""
 
@@ -86,6 +88,7 @@ class DbTask(Base):
         WKBElement, Column(Geometry("POINT", srid=4326), nullable=True)
     )
     total_area_sqkm = cast(float, Column(Float, nullable=True))
+    # TODO check if we calculate on-the-fly or stored in db?
     flight_time_minutes = cast(int, Column(Float, nullable=True))
     flight_distance_km = cast(float, Column(Float, nullable=True))
     total_image_uploaded = cast(int, Column(SmallInteger, nullable=True))
@@ -151,6 +154,8 @@ class DbProject(Base):
     requires_approval_from_manager_for_locking = cast(
         bool, Column(Boolean, default=False)
     )
+    # TODO reassess how useful regulation approval part is
+    # TODO speak with stakeholders & decide if this functionality is used
     requires_approval_from_regulator = cast(bool, Column(Boolean, default=False))
     regulator_emails = cast(list, Column(ARRAY(String), nullable=True))
     # PROJECT STATUS
@@ -187,6 +192,8 @@ class DbProject(Base):
         ),
     )
 
+    # TODO we should look into different options for split modes
+    # TODO e.g. original area: https://github.com/hotosm/datm-research/tree/main/task_splitter
     task_split_type = cast(TaskSplitType, Column(Enum(TaskSplitType), nullable=True))
     task_split_dimension = cast(int, Column(SmallInteger, nullable=True))
 
@@ -227,6 +234,7 @@ class DbProjectImage(Base):
     filename = cast(str, Column(Text, nullable=False))
     s3_key = cast(str, Column(Text, nullable=False))
     hash_md5 = cast(str, Column(CHAR(32), nullable=False))
+    # batching is done for image classification / pre-processing, not ODM processing
     batch_id = cast(str, Column(UUID(as_uuid=True), nullable=True))
     location = cast(WKBElement, Column(Geometry("POINT", srid=4326), nullable=True))
     exif = cast(dict, Column(JSONB, nullable=True))
@@ -293,6 +301,7 @@ class TaskEvent(Base):
     updated_at = cast(datetime, Column(DateTime, nullable=True))
 
 
+# FIXME we don't actually use this
 class Drone(Base):
     __tablename__ = "drones"
 
@@ -313,6 +322,7 @@ class Drone(Base):
     created = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
 
 
+# FIXME we don't actually use this
 class DroneFlight(Base):
     __tablename__ = "drone_flights"
 
@@ -347,9 +357,11 @@ class GroundControlPoint(Base):
     created_at = cast(datetime, Column(DateTime, default=timestamp))
 
 
+# FIXME merge this with DbUser table?
 class DbUserProfile(Base):
     __tablename__ = "user_profile"
     user_id = cast(str, Column(String, ForeignKey("users.id"), primary_key=True))
+    # TODO do we even need roles here?
     role = cast(list, Column(ARRAY(Enum(UserRole))))
     phone_number = cast(str, Column(String))
     country = cast(str, Column(String))

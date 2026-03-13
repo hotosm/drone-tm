@@ -124,7 +124,7 @@ Currently, only processed data is available for download. The final outputs incl
 
 ### Q. Do I need an OSM account or need to create a new account to contribute to DroneTM?
 
-No, you don’t need an OSM account. You can simply sign up using your Google account.
+No, you don't need an OSM account. You can simply sign up using your Google account.
 We could add other login providers on request / over time too.
 
 ---
@@ -168,6 +168,31 @@ it.
 Our goal is to support affordable community mapping drones that ideally cost
 less than 1000 USD, so support for expensive commercial drones will not be
 a priority for now.
+
+### Q. Isn't it risky capturing high resolution images that contain people?
+
+Drone operators should always consider privacy when collecting imagery
+that may include people, especially when publishing data to public platforms.
+
+DroneTM's recommended default resolution is around 4 cm/pixel (GSD). At this
+resolution, a human face (~15–20 cm wide) typically spans only 4–5 pixels,
+which means faces are not reliably identifiable.
+
+However, other contextual risks may still exist depending on the environment.
+For example, imagery may reveal **personally identifiable assets** such as vehicles,
+distinctive property features, or activities occurring on private property.
+
+Before collecting imagery in areas where people may be present, operators
+should **conduct a risk assessment appropriate to the local context and regulations**.
+
+It is also important to implement **no-fly zones or restricted areas**, particularly
+around critical infrastructure, military installations, or other sensitive locations.
+
+The following risks are less of a concern for a typical DroneTM project:
+
+- Reliable facial identification.
+- Detailed behavioural tracking, as DroneTM projects typically involve
+  infrequent data collection rather than continuous monitoring.
 
 ## Info For Drone Operators
 
