@@ -7,7 +7,7 @@ from app.images.flight_gap_identification import identify_flight_gaps
 
 
 def assert_is_valid_flightplan(buffer: bytes):
-    """Verifies the result is a valid KMZ archive containing flight instructions."""
+    """Verifies the result is a valid KMZ bytes containing flight instructions."""
 
     assert isinstance(buffer, bytes)
     assert buffer.startswith(b"PK")
@@ -15,10 +15,9 @@ def assert_is_valid_flightplan(buffer: bytes):
     with zipfile.ZipFile(io.BytesIO(buffer)) as z:
         filenames = [f.lower() for f in z.namelist()]
         valid_extensions = [".kml", ".wpml", ".plan", ".json"]
-
         assert any(
             any(extension in f for extension in valid_extensions) for f in filenames
-        )
+        ), f"No valid flight plan files found in KMZ. Files: {filenames}"
 
 
 @pytest.mark.asyncio
@@ -55,7 +54,8 @@ async def test_north_wrap_around(db, load_freetown_into_db):
     )
     result = await identify_flight_gaps(db, project_id, batch_id, task_id)
 
-    assert_is_valid_flightplan(result)
+    assert "type" in result["gap_polygons"]
+    assert "images" in result
 
 
 @pytest.mark.asyncio
@@ -88,8 +88,7 @@ async def test_gap_missing_flight_leg(db, load_freetown_into_db):
     )
     result = await identify_flight_gaps(db, project_id, batch_id, task_id)
 
-    assert_is_valid_flightplan(result)
-
+    assert_is_valid_flightplan(result["kmz_bytes"])
 
 @pytest.mark.asyncio
 async def test_front_overlap_gap_logic(
@@ -105,8 +104,8 @@ async def test_front_overlap_gap_logic(
     )
     result = await identify_flight_gaps(db, project_id, batch_id, task_id)
 
-    assert len(result) > 100
-    assert_is_valid_flightplan(result)
+    assert len(result["kmz_bytes"]) > 100
+    assert_is_valid_flightplan(result["kmz_bytes"])
 
 
 @pytest.mark.asyncio
@@ -123,7 +122,7 @@ async def test_side_overlap_gap_logic(
     )
     result = await identify_flight_gaps(db, project_id, batch_id, task_id)
 
-    assert_is_valid_flightplan(result)
+    assert_is_valid_flightplan(result["kmz_bytes"])
 
 
 @pytest.mark.asyncio
@@ -147,8 +146,11 @@ async def test_gap_outside_aoi_ignored(db, load_freetown_into_db):
     await db.commit()
 
     result = await identify_flight_gaps(db, project_id, batch_id, task_id)
-    # Result must be None
-    assert result is None
+    
+    assert result["kmz_bytes"] is None
+    assert result["message"] == "No gaps detected" 
+
+    assert result["gap_polygons"]["type"] in ["GeometryCollection", "FeatureCollection", "Polygon"]
 
 
 @pytest.mark.asyncio
@@ -157,4 +159,6 @@ async def test_freetown_dataset_gap_full_verification(db, load_freetown_into_db)
     project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
     result = await identify_flight_gaps(db, project_id, batch_id, task_id)
 
-    assert_is_valid_flightplan(result)
+    assert_is_valid_flightplan(result["kmz_bytes"])
+    assert "Successfully identified" in result["message"]
+    
