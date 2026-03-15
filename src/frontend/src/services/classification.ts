@@ -372,3 +372,34 @@ export const getProjectTaskVerificationData = async (
   );
   return response.data;
 };
+
+export interface FlightGapDetectionData {
+  task_id: string;
+  message: string;
+  task_geometry: GeoJSON.Feature;
+  gap_polygons: GeoJSON.FeatureCollection;
+  drone_type: string;
+  images: GeoJSON.FeatureCollection;
+  flightplan_url: string | null;
+}
+
+export const getFlightGapDetectionData = async (
+  projectId: string,
+  batchId: string,
+  taskId: string,
+  projectTaskIndex: number,
+  manualGapPolygons: GeoJSON.FeatureCollection | null,
+): Promise<FlightGapDetectionData> => {
+  void projectTaskIndex;
+
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/batch/${batchId}/task/${taskId}/find-gaps/`,
+    manualGapPolygons,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  );
+  return response.data;
+};
