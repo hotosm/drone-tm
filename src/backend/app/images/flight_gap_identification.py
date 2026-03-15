@@ -376,7 +376,7 @@ async def identify_flight_gaps(
         task_aoi_outline = shape(task_row["geometry"])
     
     # Getting drone type
-    db_drone_model = "DJI_MINI_4_PRO" #project_image_results[0]["drone_model_name"]
+    db_drone_model = project_image_results[0]["drone_model_name"]
 
     try:
         drone_model_clean = db_drone_model.upper().replace(" ", "_")
@@ -404,9 +404,9 @@ async def identify_flight_gaps(
         MIN_DISTANCE_METERS = 5.0
         LEG_SAMPLE_COUNT = 3  # Ensures enough into the trajectory to compare azimuths'
         # Minimum missing imagery to create a suggested flightplan
-        MIN_GAP_IMAGES = 1
-        GAP_EXCEED_BASELINE = 1.1  # Threshold when to detect a missing 'gap'
-        MIN_SEGMENT_SIZE = 3
+        MIN_GAP_IMAGES = 3
+        GAP_EXCEED_BASELINE = 1.5  # Threshold when to detect a missing 'gap'
+        MIN_SEGMENT_SIZE = 20
 
 
         # Iterate through each flight segment
