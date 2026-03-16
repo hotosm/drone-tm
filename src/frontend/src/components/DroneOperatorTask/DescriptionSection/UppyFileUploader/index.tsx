@@ -4,7 +4,6 @@ import { Dashboard } from '@uppy/react';
 import { UppyContext } from '@uppy/react';
 import { toast } from 'react-toastify';
 import { authenticated, api } from '@Services/index';
-import { useTypedDispatch } from '@Store/hooks';
 import { deleteBatch } from '@Services/classification';
 
 import '@uppy/core/css/style.min.css';
@@ -16,7 +15,6 @@ interface UppyFileUploaderProps {
   taskId?: string;
   label?: string;
   onUploadComplete?: (result: any, batchId?: string) => void;
-  onCancel?: (batchId: string) => void;
   allowedFileTypes?: string[];
   note?: string;
   staging?: boolean; // If true, uploads to user-uploads staging directory
@@ -27,7 +25,6 @@ const UppyFileUploader = ({
   taskId,
   label = 'Upload Files',
   onUploadComplete,
-  onCancel,
   allowedFileTypes = [
     'image/jpeg',
     'image/jpg',
@@ -44,7 +41,6 @@ const UppyFileUploader = ({
   note = 'Drag and drop files here, or click to browse',
   staging = false,
 }: UppyFileUploaderProps) => {
-  const dispatch = useTypedDispatch();
   // Generate a batch ID when upload starts (for staging uploads only)
   const batchIdRef = useRef<string | null>(null);
   // Track if we've shown the success notification to prevent duplicates
@@ -260,13 +256,9 @@ const UppyFileUploader = ({
 
     // Handle cancel-all event to clean up batch when user cancels upload
     const handleCancelAll = async () => {
-      // Notify parent component first
       if (staging && batchIdRef.current) {
-        onCancel?.(batchIdRef.current);
-
-        // Then cleanup database records when user cancels upload via Uppy UI
         try {
-          await deleteBatch(projectId, batchIdRef.current);
+          await deleteBatch(projectId, batchIdRef.current, { waitForCleanup: true });
           toast.warning('Upload cancelled. Staging images cleared.');
         } catch (error: any) {
           console.error('Failed to cleanup batch after cancel:', error);
@@ -289,7 +281,7 @@ const UppyFileUploader = ({
       uppy.off('complete', handleComplete);
       uppy.off('cancel-all', handleCancelAll);
     };
-  }, [uppy, dispatch, onUploadComplete, onCancel, staging, projectId]);
+  }, [uppy, onUploadComplete, staging, projectId]);
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">

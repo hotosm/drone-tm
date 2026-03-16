@@ -131,9 +131,13 @@ export const acceptImage = async (
 export const deleteBatch = async (
   projectId: string,
   batchId: string,
-): Promise<{ message: string; batch_id: string; job_id: string }> => {
+  options?: { waitForCleanup?: boolean },
+): Promise<{ message: string; batch_id: string; job_id?: string; deleted_count?: number; deleted_s3_count?: number }> => {
   const response = await authenticated(api).delete(
     `/projects/${projectId}/batch/${batchId}/`,
+    {
+      params: options?.waitForCleanup ? { wait_for_cleanup: true } : undefined,
+    },
   );
   return response.data;
 };
@@ -191,6 +195,20 @@ export const getProcessingSummary = async (
 ): Promise<ProcessingSummary> => {
   const response = await authenticated(api).get(
     `/projects/${projectId}/batch/${batchId}/processing-summary/`,
+  );
+  return response.data;
+};
+
+/**
+ * Finalize a batch - moves images to task folders WITHOUT triggering ODM.
+ * Called when user clicks 'Finish' without processing.
+ */
+export const finalizeBatch = async (
+  projectId: string,
+  batchId: string,
+): Promise<{ message: string; batch_id: string; total_moved: number; task_count: number }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/batch/${batchId}/finalize/`,
   );
   return response.data;
 };

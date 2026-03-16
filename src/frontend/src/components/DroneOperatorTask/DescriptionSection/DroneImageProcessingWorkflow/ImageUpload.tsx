@@ -3,10 +3,9 @@ import UppyFileUploader from '../UppyFileUploader';
 interface ImageUploadProps {
   projectId: string;
   onUploadComplete?: (result: any, batchId?: string) => void;
-  onCancel?: (batchId: string) => void;
 }
 
-const ImageUpload = ({ projectId, onUploadComplete, onCancel }: ImageUploadProps) => {
+const ImageUpload = ({ projectId, onUploadComplete }: ImageUploadProps) => {
   return (
     <div className="naxatw-flex naxatw-h-full naxatw-flex-col">
       {projectId ? (
@@ -14,7 +13,6 @@ const ImageUpload = ({ projectId, onUploadComplete, onCancel }: ImageUploadProps
           projectId={projectId}
           label=""
           onUploadComplete={onUploadComplete}
-          onCancel={onCancel}
           allowedFileTypes={[
             'image/jpeg',
             'image/jpg',

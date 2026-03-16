@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Map as MapLibreMap, NavigationControl, AttributionControl } from 'maplibre-gl';
+import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike, Popup } from 'maplibre-gl';
+import bbox from '@turf/bbox';
 import { toast } from 'react-toastify';
 import {
   getTaskVerificationData,
@@ -14,7 +15,6 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 
 interface TaskVerificationModalProps {
   isOpen: boolean;
@@ -39,8 +39,10 @@ const TaskVerificationModal = ({
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isStyleReady, setIsStyleReady] = useState(false);
-  const [popupData, setPopupData] = useState<Record<string, any>>();
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const popupRef = useRef<Popup | null>(null);
+  const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const hasFitRef = useRef(false);
 
   // Fetch task verification data
   const { data: verificationData, isLoading, refetch } = useQuery<TaskVerificationData>({
@@ -56,6 +58,7 @@ const TaskVerificationModal = ({
       setMap(null);
       setIsMapLoaded(false);
       setIsStyleReady(false);
+      hasFitRef.current = false;
     }
   }, [isOpen]);
 
@@ -63,7 +66,6 @@ const TaskVerificationModal = ({
   useEffect(() => {
     if (!isOpen || !verificationData || map) return;
 
-    // Use a small delay to ensure DOM is rendered after loading state changes
     const timer = setTimeout(() => {
       const container = document.getElementById('task-verification-map');
       if (!container) {
@@ -83,7 +85,6 @@ const TaskVerificationModal = ({
 
       mapInstance.on('load', () => {
         setIsMapLoaded(true);
-        // Additional delay to ensure style is fully ready
         setTimeout(() => {
           if (mapInstance.getStyle()) {
             setIsStyleReady(true);
@@ -110,6 +111,141 @@ const TaskVerificationModal = ({
       );
     }
   }, [isMapLoaded, map]);
+
+  // Fit to task extent with appropriate zoom (not too close)
+  useEffect(() => {
+    if (!map || !isMapLoaded || !isStyleReady || !verificationData?.task_geometry || hasFitRef.current) return;
+    hasFitRef.current = true;
+
+    try {
+      const geojson = {
+        type: 'FeatureCollection' as const,
+        features: [verificationData.task_geometry],
+      };
+      const [minLng, minLat, maxLng, maxLat] = bbox(geojson);
+      map.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]] as LngLatBoundsLike,
+        {
+          padding: 60,
+          maxZoom: 17,
+          duration: 300,
+        }
+      );
+    } catch {
+      // ignore
+    }
+  }, [map, isMapLoaded, isStyleReady, verificationData]);
+
+  // Pointer cursor + click handler on image points
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    const layerId = 'task-image-points-layer';
+
+    const onMouseEnter = () => {
+      map.getCanvas().style.cursor = 'pointer';
+    };
+    const onMouseLeave = () => {
+      map.getCanvas().style.cursor = '';
+    };
+
+    const handleClick = (e: any) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+      if (!features?.length) return;
+
+      const props = features[0].properties;
+      const coords = (features[0].geometry as any).coordinates.slice();
+
+      // Close existing popup
+      if (popupRef.current) {
+        popupRef.current.remove();
+      }
+
+      const html = `
+        <div style="min-width:160px;max-width:280px;font-family:system-ui,sans-serif;">
+          <p style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${props.filename}</p>
+          ${(props.thumbnail_url || props.url)
+            ? `<img src="${props.thumbnail_url || props.url}" style="width:100%;height:auto;border-radius:4px;margin-bottom:4px;" />`
+            : ''}
+          <p style="font-size:12px;color:#555;text-transform:capitalize;">Status: ${(props.status || '').replace('_', ' ')}</p>
+        </div>
+      `;
+
+      const newPopup = new Popup({
+        closeButton: true,
+        closeOnClick: false,
+        offset: 12,
+        anchor: 'bottom',
+        maxWidth: '300px',
+      })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+
+      popupRef.current = newPopup;
+
+      // Highlight in sidebar
+      setSelectedImageId(props.id);
+      setTimeout(() => {
+        const el = imageRefs.current[props.id];
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+    };
+
+    map.on('mouseenter', layerId, onMouseEnter);
+    map.on('mouseleave', layerId, onMouseLeave);
+    map.on('click', layerId, handleClick);
+
+    return () => {
+      map.off('mouseenter', layerId, onMouseEnter);
+      map.off('mouseleave', layerId, onMouseLeave);
+      map.off('click', layerId, handleClick);
+      if (popupRef.current) {
+        popupRef.current.remove();
+        popupRef.current = null;
+      }
+    };
+  }, [map, isMapLoaded]);
+
+  // Update map highlight when selectedImageId changes
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    const layerId = 'task-image-points-layer';
+
+    try {
+      if (!map.getLayer(layerId)) return;
+
+      if (selectedImageId) {
+        map.setPaintProperty(layerId, 'circle-stroke-width', [
+          'case',
+          ['==', ['get', 'id'], selectedImageId],
+          4,
+          2,
+        ]);
+        map.setPaintProperty(layerId, 'circle-stroke-color', [
+          'case',
+          ['==', ['get', 'id'], selectedImageId],
+          '#2563eb',
+          '#ffffff',
+        ]);
+        map.setPaintProperty(layerId, 'circle-radius', [
+          'case',
+          ['==', ['get', 'id'], selectedImageId],
+          8,
+          6,
+        ]);
+      } else {
+        map.setPaintProperty(layerId, 'circle-stroke-width', 2);
+        map.setPaintProperty(layerId, 'circle-stroke-color', '#ffffff');
+        map.setPaintProperty(layerId, 'circle-radius', 6);
+      }
+    } catch {
+      // Layer not ready yet
+    }
+  }, [map, isMapLoaded, selectedImageId]);
 
   // Convert images to GeoJSON for map display
   const imagesGeoJson = useCallback(() => {
@@ -166,39 +302,47 @@ const TaskVerificationModal = ({
     },
   });
 
-  const getPopupUI = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (_properties: Record<string, any>) => {
-      if (!popupData) {
-        return <div>Loading...</div>;
+  // Handle sidebar image click: highlight on map and fly to point
+  const handleSidebarImageClick = (imageId: string) => {
+    setSelectedImageId(imageId);
+
+    if (map && verificationData?.images) {
+      const img = verificationData.images.find(i => i.id === imageId);
+      if (img?.location?.coordinates) {
+        const coords = img.location.coordinates as [number, number];
+
+        // Close existing popup
+        if (popupRef.current) {
+          popupRef.current.remove();
+        }
+
+        const html = `
+          <div style="min-width:160px;max-width:280px;font-family:system-ui,sans-serif;">
+            <p style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${img.filename}</p>
+            ${(img.thumbnail_url || img.url)
+              ? `<img src="${img.thumbnail_url || img.url}" style="width:100%;height:auto;border-radius:4px;margin-bottom:4px;" />`
+              : ''}
+            <p style="font-size:12px;color:#555;text-transform:capitalize;">Status: ${(img.status || '').replace('_', ' ')}</p>
+          </div>
+        `;
+
+        const newPopup = new Popup({
+          closeButton: true,
+          closeOnClick: false,
+          offset: 12,
+          anchor: 'bottom',
+          maxWidth: '300px',
+        })
+          .setLngLat(coords)
+          .setHTML(html)
+          .addTo(map);
+
+        popupRef.current = newPopup;
+
+        map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 17), duration: 500 });
       }
-
-      return (
-        <div className="naxatw-flex naxatw-flex-col naxatw-gap-2 naxatw-max-w-[300px]">
-          <p className="naxatw-text-sm naxatw-font-medium naxatw-truncate">
-            {popupData.filename}
-          </p>
-          {(popupData.thumbnail_url || popupData.url) && (
-            <img
-              src={popupData.thumbnail_url || popupData.url}
-              alt={popupData.filename}
-              className="naxatw-w-full naxatw-h-auto naxatw-rounded"
-            />
-          )}
-          <p className="naxatw-text-xs naxatw-capitalize">
-            Status: {popupData.status?.replace('_', ' ')}
-          </p>
-        </div>
-      );
-    },
-    [popupData],
-  );
-
-  const handleDeleteFromPopup = useCallback((data: Record<string, any>) => {
-    if (data?.id) {
-      deleteMutation.mutate(data.id);
     }
-  }, [deleteMutation]);
+  };
 
   if (!isOpen) return null;
 
@@ -270,7 +414,6 @@ const TaskVerificationModal = ({
                           'fill-opacity': 0.4,
                         },
                       }}
-                      zoomToExtent
                     />
                   )}
 
@@ -315,21 +458,6 @@ const TaskVerificationModal = ({
                       }}
                     />
                   )}
-
-                  {/* Popup for image preview */}
-                  <AsyncPopup
-                    showPopup={(feature: Record<string, any>) =>
-                      feature?.source === 'task-image-points'
-                    }
-                    popupUI={getPopupUI}
-                    fetchPopupData={(properties: Record<string, any>) => {
-                      setPopupData(properties);
-                    }}
-                    title="Image Preview"
-                    buttonText="Delete"
-                    handleBtnClick={handleDeleteFromPopup}
-                    closePopupOnButtonClick
-                  />
                 </MapContainer>
 
                 {/* Stats Overlay */}
@@ -388,12 +516,13 @@ const TaskVerificationModal = ({
                     {verificationData?.images.map((image) => (
                       <div
                         key={image.id}
-                        className={`naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border naxatw-transition-all hover:naxatw-shadow-md ${
+                        ref={(el) => { imageRefs.current[image.id] = el; }}
+                        className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
                           selectedImageId === image.id
                             ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-200'
                             : 'naxatw-border-gray-200'
                         }`}
-                        onClick={() => setSelectedImageId(image.id)}
+                        onClick={() => handleSidebarImageClick(image.id)}
                       >
                         <img
                           src={image.thumbnail_url || image.url}
@@ -425,7 +554,7 @@ const TaskVerificationModal = ({
         {/* Footer */}
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-border-t naxatw-px-6 naxatw-py-4">
           <div className="naxatw-text-sm naxatw-text-gray-500">
-            Click on image dots to preview. Delete any problematic images before verifying.
+            Click on image dots to preview. Click thumbnails to highlight on map.
           </div>
           <FlexRow className="naxatw-gap-3">
             <Button

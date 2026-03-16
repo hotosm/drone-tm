@@ -12,11 +12,10 @@ import Modal from '@Components/common/Modal';
 import { Button } from '@Components/RadixComponents/Button';
 import StepSwitcher from '@Components/common/StepSwitcher';
 import ToolTip from '@Components/RadixComponents/ToolTip';
-import { deleteBatch } from '@Services/classification';
+import { deleteBatch, finalizeBatch } from '@Services/classification';
 import ImageUpload from './ImageUpload';
 import ImageClassification from './ImageClassification';
 import ImageReview from './ImageReview';
-import ImageProcessing from './ImageProcessing';
 
 interface IDroneImageProcessingWorkflowProps {
   isOpen: boolean;
@@ -67,7 +66,6 @@ const DroneImageProcessingWorkflow = ({
     { url: '', step: 1, label: '01', name: 'Image Upload', title: 'Upload' },
     { url: '', step: 2, label: '02', name: 'Classification', title: 'Classify' },
     { url: '', step: 3, label: '03', name: 'Review', title: 'Review' },
-    { url: '', step: 4, label: '04', name: 'Processing', title: 'Process' },
   ];
 
   const handleNext = () => {
@@ -105,9 +103,21 @@ const DroneImageProcessingWorkflow = ({
     setShowAbortConfirmation(false);
   };
 
-  // Handle finish button - closes without showing abort confirmation
-  // Used when user has completed the workflow (on final step)
-  const handleFinish = () => {
+  const [isFinishing, setIsFinishing] = useState(false);
+
+  // Finish finalizes reviewed imagery so task-ready images appear in Processing Status.
+  const handleFinish = async () => {
+    if (batchId) {
+      setIsFinishing(true);
+      try {
+        await finalizeBatch(projectId, batchId);
+        toast.success('Imagery review complete. Ready tasks now appear in Processing Status.');
+      } catch (error: any) {
+        console.warn('Failed to finalize batch:', error);
+      } finally {
+        setIsFinishing(false);
+      }
+    }
     dispatch(resetWorkflow());
     onClose();
   };
@@ -123,29 +133,10 @@ const DroneImageProcessingWorkflow = ({
 
   // Logic for Next button state and tooltip
   const navigationInfo = useMemo(() => {
-    // Step 1: Image Upload
-    if (currentStep === 1) {
-      if (!batchId) {
-        return { disabled: true, reason: 'Please upload images first' };
-      }
-  // Handle upload cancel - clean up batch from database when user cancels via Uppy UI
-  const handleUploadCancel = useCallback(async (cancelledBatchId: string) => {
-    try {
-      await deleteBatch(projectId, cancelledBatchId);
-      toast.info('Upload cancelled and batch cleaned up');
-    } catch (error) {
-      console.error('Failed to clean up cancelled batch:', error);
-    }
-  }, [projectId]);
-
-  // Should proceed to the next step
-  const handleNextButton = () => {
-    // Disable Next button on step 1 if no batch ID
     if (currentStep === 1 && !batchId) {
-      return true;
+      return { disabled: true, reason: 'Please upload images first' };
     }
 
-    // Step 2: Image Classification
     if (currentStep === 2) {
       if (isClassifying) {
         return { disabled: true, reason: 'Classification in progress...' };
@@ -155,11 +146,8 @@ const DroneImageProcessingWorkflow = ({
       }
     }
 
-    // Step 3: Image Review
-    if (currentStep === 3) {
-      if (!isClassificationComplete) {
-        return { disabled: true, reason: 'Please complete classification first' };
-      }
+    if (currentStep === 3 && !isClassificationComplete) {
+      return { disabled: true, reason: 'Please complete classification first' };
     }
 
     return { disabled: false, reason: '' };
@@ -172,7 +160,6 @@ const DroneImageProcessingWorkflow = ({
           <ImageUpload
             projectId={projectId}
             onUploadComplete={handleUploadComplete}
-            onCancel={handleUploadCancel}
           />
         );
       case 2:
@@ -197,17 +184,6 @@ const DroneImageProcessingWorkflow = ({
             No batch ID available. Please complete classification first.
           </div>
         );
-      case 4:
-        return batchId ? (
-          <ImageProcessing
-            projectId={projectId}
-            batchId={batchId}
-          />
-        ) : (
-          <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-text-gray-500">
-            No batch ID available. Please complete the previous steps first.
-          </div>
-        );
       default:
         return null;
     }
@@ -218,7 +194,7 @@ const DroneImageProcessingWorkflow = ({
     <Modal
       show={isOpen}
       onClose={handleClose}
-      title="Drone Image Processing Workflow"
+      title="Upload Imagery"
       className="!naxatw-max-w-[80vw] !naxatw-w-[80vw] !naxatw-max-h-[85vh] !naxatw-h-[85vh] !naxatw-flex !naxatw-flex-col"
     >
       <div className="naxatw-flex naxatw-h-[calc(85vh-8rem)] naxatw-flex-col naxatw-gap-4">
@@ -279,10 +255,11 @@ const DroneImageProcessingWorkflow = ({
               <Button
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white"
-                leftIcon="check"
+                leftIcon={isFinishing ? 'sync' : 'check'}
                 onClick={handleFinish}
+                disabled={isFinishing}
               >
-                Finish
+                {isFinishing ? 'Saving...' : 'Finish'}
               </Button>
             )}
           </div>

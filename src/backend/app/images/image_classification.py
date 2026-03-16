@@ -21,6 +21,7 @@ from app.s3 import (
     copy_file_within_bucket,
     get_obj_from_bucket,
     maybe_presign_s3_key,
+    s3_client,
 )
 
 
@@ -980,9 +981,8 @@ class ImageClassifier:
         batch_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> dict:
-        # Get count of images to be deleted
-        count_query = """
-            SELECT COUNT(*) as count
+        keys_query = """
+            SELECT s3_key, thumbnail_url
             FROM project_images
             WHERE batch_id = %(batch_id)s
             AND project_id = %(project_id)s
@@ -990,13 +990,28 @@ class ImageClassifier:
 
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                count_query,
+                keys_query,
                 {"batch_id": str(batch_id), "project_id": str(project_id)},
             )
-            result = await cur.fetchone()
-            image_count = result["count"] if result else 0
+            rows = await cur.fetchall()
 
-        # Delete all images in the batch
+        s3_keys_to_delete: list[str] = []
+        for row in rows:
+            if row["s3_key"]:
+                s3_keys_to_delete.append(str(row["s3_key"]).lstrip("/"))
+            if row["thumbnail_url"]:
+                s3_keys_to_delete.append(str(row["thumbnail_url"]).lstrip("/"))
+
+        deleted_s3_count = 0
+        if s3_keys_to_delete:
+            client = s3_client()
+            for key in s3_keys_to_delete:
+                try:
+                    client.remove_object(settings.S3_BUCKET_NAME, key)
+                    deleted_s3_count += 1
+                except Exception as e:
+                    log.warning(f"Failed to delete S3 object {key}: {e}")
+
         delete_query = """
             DELETE FROM project_images
             WHERE batch_id = %(batch_id)s
@@ -1009,14 +1024,19 @@ class ImageClassifier:
                 {"batch_id": str(batch_id), "project_id": str(project_id)},
             )
 
+        await db.commit()
+
+        image_count = len(rows)
         log.info(
-            f"Deleted {image_count} images from batch {batch_id} in project {project_id}"
+            f"Deleted {image_count} images and {deleted_s3_count} S3 objects "
+            f"from batch {batch_id} in project {project_id}"
         )
 
         return {
             "message": "Batch deleted successfully",
             "batch_id": str(batch_id),
             "deleted_count": image_count,
+            "deleted_s3_count": deleted_s3_count,
         }
 
     @staticmethod
@@ -1083,6 +1103,8 @@ class ImageClassifier:
                 status,
                 rejection_reason,
                 task_id,
+                s3_key,
+                thumbnail_url,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
             FROM project_images
@@ -1110,6 +1132,14 @@ class ImageClassifier:
                 "status": img["status"],
                 "task_id": str(img["task_id"]) if img["task_id"] else None,
                 "rejection_reason": img["rejection_reason"],
+                "thumbnail_url": maybe_presign_s3_key(
+                    img["thumbnail_url"], expires_hours=1
+                )
+                if img.get("thumbnail_url")
+                else None,
+                "url": maybe_presign_s3_key(img["s3_key"], expires_hours=1)
+                if img.get("s3_key")
+                else None,
             }
 
             # Add Point geometry if GPS data exists

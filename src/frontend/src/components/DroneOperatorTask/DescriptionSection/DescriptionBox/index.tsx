@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
@@ -7,16 +7,14 @@ import {
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { postProcessImagery } from '@Services/tasks';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import {
   resetFilesExifData,
   setSelectedTaskDetailToViewOrthophoto,
 } from '@Store/actions/droneOperatorTask';
+import { toggleModal } from '@Store/actions/common';
 import { useTypedSelector } from '@Store/hooks';
-import { postTaskStatus } from '@Services/project';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
@@ -25,8 +23,6 @@ import DroneImageProcessingWorkflow from '../DroneImageProcessingWorkflow';
 
 const DescriptionBox = () => {
   const dispatch = useDispatch();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [flyable, setFlyable] = useState('yes');
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const { taskId, projectId } = useParams();
@@ -65,42 +61,9 @@ const DescriptionBox = () => {
     taskId as string,
   );
 
-  const { mutate: updateStatus, isPending: statusUpdating } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
-    mutationFn: postTaskStatus,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['task-description'] });
-      queryClient.invalidateQueries({ queryKey: ['task-assets-info'] });
-    },
-    onError: (err: any) => {
-      toast.error(err.message);
-    },
-  });
-
   useEffect(() => {
     dispatch(resetFilesExifData());
   }, [dispatch]);
-
-  const { mutate: startImageryProcess, isPending: imageProcessingStarting } =
-    useMutation({
-      mutationFn: () =>
-        postProcessImagery(projectId as string, taskId as string),
-      onSuccess: () => {
-        updateStatus({
-          projectId,
-          taskId,
-          data: {
-            event: 'image_processing_start',
-            updated_at: new Date().toISOString(),
-          },
-        });
-        toast.success('Image processing started');
-      },
-    });
 
   const { data: taskQueryData }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
@@ -224,6 +187,28 @@ const DescriptionBox = () => {
     () => uploadProgress?.[taskId || ''],
     [taskId, uploadProgress],
   );
+  const showProcessingStatusAction = useMemo(
+    () => (
+      taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
+      taskAssetsInformation?.state === 'IMAGE_PROCESSING_STARTED' ||
+      taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
+      taskAssetsInformation?.state === 'IMAGE_PROCESSING_FINISHED' ||
+      (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
+        taskAssetsInformation?.image_count > 0)
+    ),
+    [taskAssetsInformation],
+  );
+  const canUploadMoreImagery = useMemo(
+    () => (
+      taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
+      taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
+      taskAssetsInformation?.state === 'IMAGE_PROCESSING_STARTED' ||
+      taskAssetsInformation?.state === 'IMAGE_PROCESSING_FINISHED' ||
+      (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
+        taskAssetsInformation?.image_count > 0)
+    ),
+    [taskAssetsInformation],
+  );
 
   return (
     <>
@@ -251,10 +236,10 @@ const DescriptionBox = () => {
             </span>
             <div className="naxatw-flex-1">
               <p className="naxatw-mb-1 naxatw-text-base naxatw-font-semibold naxatw-text-red-900">
-                Ready to process drone imagery?
+                Ready to upload drone imagery?
               </p>
               <p className="naxatw-mb-3 naxatw-text-sm naxatw-text-red-700">
-                Upload your drone images, classify them for quality, review results, and start processing.
+                Upload your drone images, classify them for quality, review task coverage, and mark tasks ready for processing.
               </p>
             </div>
           </div>
@@ -265,7 +250,7 @@ const DescriptionBox = () => {
             iconClassname="naxatw-text-xl"
             onClick={() => setIsWorkflowModalOpen(true)}
           >
-            Drone Image Processing Workflow
+            Upload Imagery
           </Button>
         </div>
       )}
@@ -317,7 +302,7 @@ const DescriptionBox = () => {
           />
 
           {taskAssetsInformation?.assets_url && (
-            <div className="naxatw-flex naxatw-gap-1">
+            <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-1">
               <Button
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
@@ -334,7 +319,16 @@ const DescriptionBox = () => {
                 iconClassname="naxatw-text-[1.125rem]"
                 onClick={() => setIsWorkflowModalOpen(true)}
               >
-                Drone Image Processing Workflow
+                Upload Imagery
+              </Button>
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white"
+                leftIcon="monitoring"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => dispatch(toggleModal('processing-status'))}
+              >
+                Processing Status
               </Button>
             </div>
           )}
@@ -348,62 +342,43 @@ const DescriptionBox = () => {
           ) : (
             <>
               {/* Info banner for returning users */}
-              {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
-                (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                  taskAssetsInformation?.image_count > 0)) && (
+              {showProcessingStatusAction && (
                 <div className="naxatw-rounded-md naxatw-border naxatw-border-blue-200 naxatw-bg-blue-50 naxatw-px-3 naxatw-py-2">
                   <p className="naxatw-text-sm naxatw-text-blue-800">
-                    {taskAssetsInformation?.image_count} images uploaded. Ready
-                    to process.
+                    {taskAssetsInformation?.image_count} images linked to this task. Use Processing Status to start or monitor per-task processing.
                   </p>
                 </div>
               )}
 
-              {/* Start Processing / Re-run Processing button — prominent position */}
-              {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
-                (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                  taskAssetsInformation?.image_count > 0)) && (
-                <div>
-                  <Button
-                    variant="ghost"
-                    className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-                    leftIcon="play_arrow"
-                    iconClassname="naxatw-text-[1.125rem]"
-                    onClick={() => startImageryProcess()}
-                    disabled={imageProcessingStarting || statusUpdating}
-                  >
-                    Start Processing
-                  </Button>
-                  {taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                    taskAssetsInformation?.image_count > 0 && (
-                      <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs naxatw-text-yellow-600">
-                        Note: Some images may not have been uploaded due to an
-                        issue during the upload process. However, you can
-                        proceed with processing for the successfully uploaded
-                        images.
-                      </p>
-                    )}
-                </div>
-              )}
-              {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
-                <div>
-                  <Button
-                    variant="ghost"
-                    className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-                    leftIcon="replay"
-                    iconClassname="naxatw-text-[1.125rem]"
-                    onClick={() => startImageryProcess()}
-                    disabled={imageProcessingStarting || statusUpdating}
-                  >
-                    Re-run processing
-                  </Button>
+              {/* Upload imagery and processing status actions */}
+              {(canUploadMoreImagery || showProcessingStatusAction) && (
+                <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
+                  {canUploadMoreImagery && (
+                    <Button
+                      variant="ghost"
+                      className="naxatw-bg-red naxatw-text-white"
+                      leftIcon="upload"
+                      iconClassname="naxatw-text-[1.125rem]"
+                      onClick={() => setIsWorkflowModalOpen(true)}
+                    >
+                      Upload More Imagery
+                    </Button>
+                  )}
+                  {showProcessingStatusAction && (
+                    <Button
+                      variant="ghost"
+                      className="naxatw-bg-red naxatw-text-white"
+                      leftIcon="monitoring"
+                      iconClassname="naxatw-text-[1.125rem]"
+                      onClick={() => dispatch(toggleModal('processing-status'))}
+                    >
+                      Processing Status
+                    </Button>
+                  )}
                 </div>
               )}
 
-              {/* Collapsible upload section */}
-              {(taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
-                taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' ||
-                taskAssetsInformation?.state === 'IMAGE_UPLOADED') && (
+              {canUploadMoreImagery && (
                 <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-blue-200 naxatw-bg-blue-50 naxatw-p-4">
                   <div className="naxatw-flex naxatw-items-start naxatw-gap-2">
                     <span className="material-icons naxatw-text-blue-600">
@@ -414,20 +389,18 @@ const DescriptionBox = () => {
                         Need to upload more images?
                       </p>
                       <p className="naxatw-text-sm naxatw-text-blue-600">
-                        Image uploads are now managed from the Project Details
-                        page. Use the Drone Image Processing Workflow to upload,
-                        classify, and process your drone imagery.
+                        You can reopen Upload Imagery any time. Additional uploads are reviewed against the task area and duplicates are filtered out.
                       </p>
                     </div>
                   </div>
                   <Button
                     variant="ghost"
                     className="naxatw-w-fit naxatw-bg-blue-600 naxatw-text-white hover:naxatw-bg-blue-700"
-                    leftIcon="arrow_forward"
+                    leftIcon="upload"
                     iconClassname="naxatw-text-[1.125rem]"
-                    onClick={() => navigate(`/projects/${projectId}`)}
+                    onClick={() => setIsWorkflowModalOpen(true)}
                   >
-                    Go to Project Details
+                    Upload Imagery
                   </Button>
                 </div>
               )}

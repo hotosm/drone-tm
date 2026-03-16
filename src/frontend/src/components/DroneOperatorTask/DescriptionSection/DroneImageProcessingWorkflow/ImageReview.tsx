@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike } from 'maplibre-gl';
+import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike, Popup } from 'maplibre-gl';
 import bbox from '@turf/bbox';
 import { getBatchReview, getBatchMapData, acceptImage, BatchReviewData, BatchMapData, TaskGroup, TaskGroupImage } from '@Services/classification';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
@@ -11,7 +11,6 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import AsyncPopup from '@Components/common/MapLibreComponents/NewAsyncPopup';
 import TaskVerificationModal from './TaskVerificationModal';
 
 interface ImageReviewProps {
@@ -21,6 +20,8 @@ interface ImageReviewProps {
 
 const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const queryClient = useQueryClient();
+  const hasFitBoundsRef = useRef(false);
+  const popupRef = useRef<Popup | null>(null);
 
   const {
     data: mapData,
@@ -59,7 +60,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     status: string;
     rejection_reason?: string;
   } | null>(null);
-  const [popupData, setPopupData] = useState<Record<string, any>>();
+  const [highlightedImageId, setHighlightedImageId] = useState<string | null>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -72,6 +73,9 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     taskId: '',
     taskIndex: 0,
   });
+
+  // Refs for sidebar scrolling
+  const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Detect when container is ready
   const mapContainerRefCallback = useCallback((node: HTMLDivElement | null) => {
@@ -89,8 +93,8 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     const mapInstance = new MapLibreMap({
       container: container,
       style: { version: 8, sources: {}, layers: [] },
-      center: [0, 0], // Default center
-      zoom: 1, // Default zoom shows world
+      center: [0, 0],
+      zoom: 1,
       maxZoom: 22,
       attributionControl: false,
       renderWorldCopies: false,
@@ -168,6 +172,140 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     }
   }, [isMapLoaded, map]);
 
+  // Pointer cursor on image point hover
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    const layerId = 'review-image-points-layer';
+
+    const onMouseEnter = () => {
+      map.getCanvas().style.cursor = 'pointer';
+    };
+    const onMouseLeave = () => {
+      map.getCanvas().style.cursor = '';
+    };
+
+    map.on('mouseenter', layerId, onMouseEnter);
+    map.on('mouseleave', layerId, onMouseLeave);
+
+    return () => {
+      map.off('mouseenter', layerId, onMouseEnter);
+      map.off('mouseleave', layerId, onMouseLeave);
+    };
+  }, [map, isMapLoaded]);
+
+  // Custom popup on map click (replaces AsyncPopup for reliable close behavior)
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    const layerId = 'review-image-points-layer';
+
+    const handleClick = (e: any) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+      if (!features?.length) return;
+
+      const props = features[0].properties;
+      const coords = (features[0].geometry as any).coordinates.slice();
+
+      // Close existing popup
+      if (popupRef.current) {
+        popupRef.current.remove();
+      }
+
+      const statusColors: Record<string, string> = {
+        assigned: '#22c55e',
+        rejected: '#D73F3F',
+        unmatched: '#eab308',
+        invalid_exif: '#f97316',
+        duplicate: '#6b7280',
+      };
+      const dotColor = statusColors[props.status] || '#3b82f6';
+
+      const html = `
+        <div style="min-width:180px;max-width:280px;font-family:system-ui,sans-serif;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${props.filename || 'Unknown'}</div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};"></span>
+            ${(props.status || 'unknown').replace('_', ' ')}
+          </div>
+          ${props.rejection_reason ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${props.rejection_reason}</div>` : ''}
+        </div>
+      `;
+
+      const newPopup = new Popup({
+        closeButton: true,
+        closeOnClick: false,
+        offset: 12,
+        anchor: 'bottom',
+        maxWidth: '300px',
+      })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+
+      popupRef.current = newPopup;
+
+      // Highlight the clicked image in sidebar
+      setHighlightedImageId(props.id);
+
+      // Scroll to the image in the sidebar
+      setTimeout(() => {
+        const el = imageRefs.current[props.id];
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+    };
+
+    map.on('click', layerId, handleClick);
+
+    return () => {
+      map.off('click', layerId, handleClick);
+      if (popupRef.current) {
+        popupRef.current.remove();
+        popupRef.current = null;
+      }
+    };
+  }, [map, isMapLoaded]);
+
+  // Update map highlight when highlightedImageId changes
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    const layerId = 'review-image-points-layer';
+
+    try {
+      if (!map.getLayer(layerId)) return;
+
+      if (highlightedImageId) {
+        map.setPaintProperty(layerId, 'circle-stroke-width', [
+          'case',
+          ['==', ['get', 'id'], highlightedImageId],
+          4,
+          2,
+        ]);
+        map.setPaintProperty(layerId, 'circle-stroke-color', [
+          'case',
+          ['==', ['get', 'id'], highlightedImageId],
+          '#2563eb',
+          '#ffffff',
+        ]);
+        map.setPaintProperty(layerId, 'circle-radius', [
+          'case',
+          ['==', ['get', 'id'], highlightedImageId],
+          8,
+          5,
+        ]);
+      } else {
+        map.setPaintProperty(layerId, 'circle-stroke-width', 2);
+        map.setPaintProperty(layerId, 'circle-stroke-color', '#ffffff');
+        map.setPaintProperty(layerId, 'circle-radius', 5);
+      }
+    } catch {
+      // Layer might not exist yet
+    }
+  }, [map, isMapLoaded, highlightedImageId]);
+
   const acceptMutation = useMutation({
     mutationFn: (imageId: string) => acceptImage(projectId, imageId),
     onSuccess: (data) => {
@@ -196,6 +334,61 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     });
   };
 
+  // Handle sidebar thumbnail click: highlight on map and fly to it
+  const handleSidebarImageClick = (image: TaskGroupImage) => {
+    setHighlightedImageId(image.id);
+
+    // Find the image's coordinates on the map and fly to it
+    if (map && mapData?.images?.features) {
+      const feature = mapData.images.features.find(
+        (f: GeoJSON.Feature<any>) => f.properties?.id === image.id && f.geometry
+      );
+      if (feature && feature.geometry && 'coordinates' in feature.geometry) {
+        const coords = (feature.geometry as GeoJSON.Point).coordinates;
+
+        // Close existing popup
+        if (popupRef.current) {
+          popupRef.current.remove();
+        }
+
+        const statusColors: Record<string, string> = {
+          assigned: '#22c55e',
+          rejected: '#D73F3F',
+          unmatched: '#eab308',
+          invalid_exif: '#f97316',
+          duplicate: '#6b7280',
+        };
+        const dotColor = statusColors[image.status] || '#3b82f6';
+
+        const html = `
+          <div style="min-width:180px;max-width:280px;font-family:system-ui,sans-serif;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${image.filename || 'Unknown'}</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};"></span>
+              ${(image.status || 'unknown').replace('_', ' ')}
+            </div>
+            ${image.rejection_reason ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${image.rejection_reason}</div>` : ''}
+          </div>
+        `;
+
+        const newPopup = new Popup({
+          closeButton: true,
+          closeOnClick: false,
+          offset: 12,
+          anchor: 'bottom',
+          maxWidth: '300px',
+        })
+          .setLngLat(coords as [number, number])
+          .setHTML(html)
+          .addTo(map);
+
+        popupRef.current = newPopup;
+
+        map.flyTo({ center: coords as [number, number], zoom: Math.max(map.getZoom(), 16), duration: 500 });
+      }
+    }
+  };
+
   const closeModal = () => {
     setSelectedImage(null);
   };
@@ -205,15 +398,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
       acceptMutation.mutate(selectedImage.id);
     }
   };
-
-  const getPopupUI = useCallback(() => {
-    return (
-      <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
-        <p className="naxatw-text-sm naxatw-font-medium">{popupData?.filename || 'Unknown'}</p>
-        <p className="naxatw-text-xs naxatw-capitalize">Status: {popupData?.status?.replace('_', ' ') || 'Unknown'}</p>
-      </div>
-    );
-  }, [popupData]);
 
   if (isLoading) {
     return (
@@ -249,6 +433,8 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const locatedImages = mapData?.images?.features?.filter(
     (feature: GeoJSON.Feature<any>) => feature.geometry !== null,
   ) || [];
+
+  // Collect unlocated images with their thumbnail data from map API
   const unlocatedImages = mapData?.images?.features?.filter(
     (feature: GeoJSON.Feature<any>) => feature.geometry === null,
   ) || [];
@@ -257,6 +443,17 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     type: 'FeatureCollection',
     features: locatedImages as GeoJSON.Feature<any>[],
   };
+
+  // Merge unlocated images into the "Rejected Images" group in reviewData
+  // Find or create the rejected images group (task_id === null)
+  const rejectedGroup = reviewData.task_groups.find((g: TaskGroup) => g.task_id === null);
+  const hasUnlocatedNotInRejected = unlocatedImages.some(
+    (f: GeoJSON.Feature<any>) => {
+      const fId = f.properties?.id;
+      if (!rejectedGroup) return true;
+      return !rejectedGroup.images.some((img) => img.id === fId);
+    }
+  );
 
   return (
     <FlexColumn className="naxatw-gap-4 naxatw-h-full">
@@ -270,11 +467,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
               <span className="naxatw-font-semibold naxatw-text-gray-700">
                 Map View: {locatedImages.length} images with GPS
               </span>
-              {mapData?.total_images_without_gps ? (
+              {unlocatedImages.length > 0 && (
                 <span className="naxatw-text-yellow-600">
-                  {mapData.total_images_without_gps} without GPS below
+                  {unlocatedImages.length} without GPS (in Rejected Images)
                 </span>
-              ) : null}
+              )}
             </FlexRow>
           </div>
 
@@ -362,19 +559,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 }}
               />
             )}
-
-            {/* Popup for image points */}
-            <AsyncPopup
-              showPopup={(feature: Record<string, any>) =>
-                feature?.source === 'review-image-points'
-              }
-              popupUI={getPopupUI}
-              fetchPopupData={(properties: Record<string, any>) => {
-                setPopupData(properties);
-              }}
-              title="Image Details"
-              hideButton
-            />
           </MapContainer>
 
             {/* Loading Overlay - appears while data is fetching */}
@@ -427,11 +611,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
               <span className="naxatw-text-gray-600">
                 <span className="naxatw-font-semibold naxatw-text-gray-900">{mapData?.total_images_with_gps || 0}</span> on Map
               </span>
-              {unlocatedImages.length > 0 && (
-                <span className="naxatw-text-gray-600">
-                  <span className="naxatw-font-semibold naxatw-text-yellow-600">{unlocatedImages.length}</span> No GPS
-                </span>
-              )}
             </FlexRow>
           </FlexRow>
 
@@ -450,7 +629,10 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                       {group.task_id ? `Task #${group.project_task_index}` : 'Rejected Images'}
                     </h4>
                     <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
-                      {group.image_count} {group.image_count === 1 ? 'image' : 'images'}
+                      {group.task_id
+                        ? `${group.image_count} ${group.image_count === 1 ? 'image' : 'images'}`
+                        : `${group.image_count + (hasUnlocatedNotInRejected ? unlocatedImages.filter((f: GeoJSON.Feature<any>) => !group.images.some((img) => img.id === f.properties?.id)).length : 0)} ${group.image_count === 1 ? 'image' : 'images'}`
+                      }
                     </span>
                     {group.is_verified && (
                       <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-green-800">
@@ -481,20 +663,24 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   </div>
                 )}
 
-                {/* Image Grid - Only loaded when accordion is open */}
+                {/* Image Grid */}
                 <div className="naxatw-grid naxatw-grid-cols-6 naxatw-gap-2">
                   {group.images.map((image) => (
                     <div
                       key={image.id}
-                      className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border naxatw-transition-all hover:naxatw-shadow-md ${
-                        image.status === 'rejected' || image.status === 'invalid_exif'
-                          ? 'naxatw-border-red-300 hover:naxatw-border-red-500'
-                          : image.status === 'duplicate'
-                            ? 'naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60'
-                            : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
+                      ref={(el) => { imageRefs.current[image.id] = el; }}
+                      className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
+                        highlightedImageId === image.id
+                          ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300'
+                          : image.status === 'rejected' || image.status === 'invalid_exif'
+                            ? 'naxatw-border-red-300 hover:naxatw-border-red-500'
+                            : image.status === 'duplicate'
+                              ? 'naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60'
+                              : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
                       }`}
-                      onClick={() => handleImageClick(image)}
-                      title={image.filename}
+                      onClick={() => handleSidebarImageClick(image)}
+                      onDoubleClick={() => handleImageClick(image)}
+                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ''} (double-click to view)`}
                     >
                       <img
                         src={image.thumbnail_url || image.url}
@@ -503,8 +689,8 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                         loading="lazy"
                       />
                       {(image.status === 'rejected' || image.status === 'invalid_exif') && (
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
-                          Rejected
+                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
+                          {image.rejection_reason || 'Rejected'}
                         </div>
                       )}
                       {image.status === 'duplicate' && (
@@ -515,55 +701,46 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                       <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
                     </div>
                   ))}
-                </div>
-              </Accordion>
-            ))}
 
-            {/* Unlocated Images Section */}
-            {unlocatedImages.length > 0 && (
-              <Accordion
-                open={false}
-                className="!naxatw-border-b !naxatw-border-yellow-300 !naxatw-py-4 naxatw-bg-yellow-50"
-                headerClassName="!naxatw-items-start"
-                contentClassName="naxatw-mt-4"
-                title={
-                  <FlexRow className="naxatw-items-center naxatw-gap-3">
-                    <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-yellow-900">
-                      No GPS Location
-                    </h4>
-                    <span className="naxatw-rounded-full naxatw-bg-yellow-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-yellow-800">
-                      {unlocatedImages.length} {unlocatedImages.length === 1 ? 'image' : 'images'}
-                    </span>
-                  </FlexRow>
-                }
-              >
-                <p className="naxatw-mb-3 naxatw-text-sm naxatw-text-yellow-700">
-                  These images do not have GPS coordinates and cannot be automatically assigned to tasks.
-                  They will remain in the batch but won't be processed for orthophoto generation.
-                </p>
-                <div className="naxatw-grid naxatw-grid-cols-6 naxatw-gap-2">
-                  {unlocatedImages.map((feature: GeoJSON.Feature<any>) => {
+                  {/* Merge unlocated images into the rejected group */}
+                  {!group.task_id && unlocatedImages.map((feature: GeoJSON.Feature<any>) => {
                     const props = feature.properties || {};
+                    // Skip if already in the group from review data
+                    if (group.images.some((img) => img.id === props.id)) return null;
                     return (
                       <div
                         key={props.id}
-                        className="naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border naxatw-border-yellow-300 naxatw-transition-all hover:naxatw-shadow-md hover:naxatw-border-yellow-500"
+                        ref={(el) => { imageRefs.current[props.id] = el; }}
+                        className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
+                          highlightedImageId === props.id
+                            ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300'
+                            : 'naxatw-border-red-300 hover:naxatw-border-red-500'
+                        }`}
                         onClick={() =>
                           setSelectedImage({
                             id: props.id,
-                            url: '', // No thumbnail_url available from map data
+                            url: props.url || props.thumbnail_url || '',
                             filename: props.filename || 'Unknown',
                             status: props.status || 'unknown',
-                            rejection_reason: props.rejection_reason,
+                            rejection_reason: props.rejection_reason || 'No GPS',
                           })
                         }
-                        title={props.filename}
+                        title={`${props.filename} - ${props.rejection_reason || 'No GPS'}`}
                       >
-                        <div className="naxatw-h-full naxatw-w-full naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-yellow-100">
-                          <span className="naxatw-text-2xl">📷</span>
-                        </div>
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-yellow-600 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
-                          No GPS
+                        {(props.thumbnail_url || props.url) ? (
+                          <img
+                            src={props.thumbnail_url || props.url}
+                            alt={props.filename}
+                            className="naxatw-h-full naxatw-w-full naxatw-object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="naxatw-h-full naxatw-w-full naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-gray-100">
+                            <span className="material-icons naxatw-text-2xl naxatw-text-gray-400">image</span>
+                          </div>
+                        )}
+                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
+                          {props.rejection_reason || 'No GPS'}
                         </div>
                         <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
                       </div>
@@ -571,7 +748,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   })}
                 </div>
               </Accordion>
-            )}
+            ))}
           </div>
         </div>
       </div>

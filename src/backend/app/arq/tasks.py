@@ -620,74 +620,20 @@ async def delete_batch_images(
 
     try:
         async with db_pool.connection() as conn:
-            # Get all S3 keys for images and thumbnails in this batch
-            query = """
-                SELECT s3_key, thumbnail_url
-                FROM project_images
-                WHERE batch_id = %(batch_id)s
-                AND project_id = %(project_id)s
-            """
-
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    query,
-                    {"batch_id": batch_id, "project_id": project_id},
-                )
-                rows = await cur.fetchall()
-
-            # Collect all S3 keys to delete
-            s3_keys_to_delete = []
-            for row in rows:
-                s3_key, thumbnail_url = row
-                if s3_key:
-                    s3_keys_to_delete.append(s3_key)
-                if thumbnail_url:
-                    s3_keys_to_delete.append(thumbnail_url)
-
-            image_count = len(rows)
-            log.info(
-                f"Found {image_count} images and {len(s3_keys_to_delete)} S3 objects to delete"
+            result = await ImageClassifier.delete_batch(
+                conn, UUID(batch_id), UUID(project_id)
             )
 
-            # Delete from S3
-            deleted_s3_count = 0
-            if s3_keys_to_delete:
-                client = s3_client()
-                for key in s3_keys_to_delete:
-                    try:
-                        key = key.lstrip("/")
-                        client.remove_object(settings.S3_BUCKET_NAME, key)
-                        deleted_s3_count += 1
-                    except Exception as e:
-                        log.warning(f"Failed to delete S3 object {key}: {e}")
-
-            log.info(f"Deleted {deleted_s3_count} objects from S3")
-
-            # Delete from database
-            delete_query = """
-                DELETE FROM project_images
-                WHERE batch_id = %(batch_id)s
-                AND project_id = %(project_id)s
-            """
-
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    delete_query,
-                    {"batch_id": batch_id, "project_id": project_id},
-                )
-
-            await conn.commit()
-
             log.info(
-                f"Batch deletion complete: {image_count} images, "
-                f"{deleted_s3_count} S3 objects deleted"
+                f"Batch deletion complete: {result['deleted_count']} images, "
+                f"{result['deleted_s3_count']} S3 objects deleted"
             )
 
             return {
-                "message": "Batch deleted successfully",
+                "message": result["message"],
                 "batch_id": batch_id,
-                "deleted_images": image_count,
-                "deleted_s3_objects": deleted_s3_count,
+                "deleted_images": result["deleted_count"],
+                "deleted_s3_objects": result["deleted_s3_count"],
             }
 
     except Exception as e:

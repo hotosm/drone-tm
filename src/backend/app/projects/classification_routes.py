@@ -242,10 +242,18 @@ async def get_batch_map_data(
 async def delete_batch(
     project_id: UUID,
     batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
+    wait_for_cleanup: bool = Query(
+        False,
+        description="Delete immediately instead of enqueueing a background job",
+    ),
 ):
     try:
+        if wait_for_cleanup:
+            return await ImageClassifier.delete_batch(db, batch_id, project_id)
+
         # Enqueue the deletion job to run in background
         job = await redis.enqueue_job(
             "delete_batch_images",
@@ -291,6 +299,44 @@ async def get_batch_processing_summary(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to retrieve batch processing summary: {e}",
+        )
+
+
+@router.post("/{project_id}/batch/{batch_id}/finalize/", tags=["Image Classification"])
+async def finalize_batch(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Finalize a batch: move images to task folders without triggering ODM processing.
+
+    This is called when a user clicks 'Finish' without processing any tasks.
+    It ensures images are stored under the correct {task_id}/images/ path.
+    """
+    try:
+        move_result = await ImageClassifier.move_batch_images_to_tasks(
+            db, batch_id, project_id
+        )
+        await db.commit()
+
+        log.info(
+            f"Finalized batch {batch_id}: moved {move_result['total_moved']} images "
+            f"to {move_result['task_count']} tasks"
+        )
+
+        return {
+            "message": "Batch finalized successfully",
+            "batch_id": str(batch_id),
+            "total_moved": move_result["total_moved"],
+            "task_count": move_result["task_count"],
+        }
+
+    except Exception as e:
+        log.error(f"Failed to finalize batch: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to finalize batch: {e}",
         )
 
 
