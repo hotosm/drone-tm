@@ -684,28 +684,32 @@ async def mark_task_verified(
         )
 
 
-@router.post("/{project_id}/batch/{batch_id}/task/{task_id}/find-gaps/", tags=["Image Classification"])
+@router.post(
+    "/{project_id}/batch/{batch_id}/task/{task_id}/find-gaps/",
+    tags=["Image Classification"],
+)
 async def detect_task_flight_gaps(
-    project_id: UUID, 
-    batch_id: UUID, 
+    project_id: UUID,
+    batch_id: UUID,
     task_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
-    manual_gap_polygons: dict = None
+    manual_gap_polygons: dict = None,
 ):
-    """Conducts the flight gap analysis.
-    """
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id, manual_gap_polygons)
+    """Conducts the flight gap analysis."""
+    result = await identify_flight_gaps(
+        db, project_id, batch_id, task_id, manual_gap_polygons
+    )
 
     if not result:
         raise HTTPException(
-            status_code=404, 
-            detail="Could not perform flight gap analysis for this task."
+            status_code=404,
+            detail="Could not perform flight gap analysis for this task.",
         )
-    
-    try: 
+
+    try:
         drone_type = result.get("drone_type").value
-    except: 
+    except:
         log.error(f"Could not find drone type value {drone_type}")
 
     flightplan_url = None
@@ -714,24 +718,28 @@ async def detect_task_flight_gaps(
         file_path = f"/tmp/reflight_{task_id}.kmz"
         with open(file_path, "wb") as f:
             f.write(result["kmz_bytes"])
-        flightplan_url = f"/api/projects/tasks/{task_id}/{drone_type}/download-reflight-plan/"
+        flightplan_url = (
+            f"/api/projects/tasks/{task_id}/{drone_type}/download-reflight-plan/"
+        )
 
     return {
         "task_id": str(task_id),
         "message": result.get("message"),
-        "task_geometry": result.get("task_geometry"), 
+        "task_geometry": result.get("task_geometry"),
         "gap_polygons": result.get("gap_polygons"),
         "drone_type": result.get("drone_type"),
         "images": result.get("images"),
-        "flightplan_url": flightplan_url
+        "flightplan_url": flightplan_url,
     }
 
 
-@router.get("/tasks/{task_id}/{drone_type}/download-reflight-plan/", tags=["Image Classification"])
+@router.get(
+    "/tasks/{task_id}/{drone_type}/download-reflight-plan/",
+    tags=["Image Classification"],
+)
 async def download_reflight_plan(project_id: UUID, task_id: UUID, drone_type: str):
-    """Downloads a KMZ file of a reconstructed flight plan based on identified flight gaps. 
-    """
-    file_path = f"/tmp/reflight_{task_id}.kmz" 
+    """Downloads a KMZ file of a reconstructed flight plan based on identified flight gaps."""
+    file_path = f"/tmp/reflight_{task_id}.kmz"
 
     try:
         drone_model = drone_type.upper().replace(" ", "_")
@@ -740,56 +748,50 @@ async def download_reflight_plan(project_id: UUID, task_id: UUID, drone_type: st
         log.error(f"Could not find drone type {flight_drone_type}")
 
     output_format = DRONE_PARAMS[flight_drone_type].get("OUTPUT_FORMAT")
-    
+
     if not os.path.exists(file_path):
         log.error(f"Flight plan file not found: {file_path}")
         raise HTTPException(
-            status_code=404, 
-            detail="Flight plan file not found. Please run 'Find Gaps' again."
+            status_code=404,
+            detail="Flight plan file not found. Please run 'Find Gaps' again.",
         )
 
     if output_format == "DJI_WMPL":
-            return FileResponse(
-                file_path,
-                media_type="application/vnd.google-earth.kmz",
-                filename=(
-                    f"reflight_task_{task_id}_{drone_type}_project_{project_id}.kmz"
-                ),
-            )
+        return FileResponse(
+            file_path,
+            media_type="application/vnd.google-earth.kmz",
+            filename=(f"reflight_task_{task_id}_{drone_type}_project_{project_id}.kmz"),
+        )
 
     elif output_format == "POTENSIC_SQLITE":
-            return FileResponse(
-                file_path,
-                media_type="application/vnd.sqlite3",
-                filename="reflight_map.db",
-            )
+        return FileResponse(
+            file_path,
+            media_type="application/vnd.sqlite3",
+            filename="reflight_map.db",
+        )
 
     elif output_format == "POTENSIC_JSON":
-            return FileResponse(
-                file_path,
-                media_type="application/zip",
-                filename=(
-                    f"reflight_task_{task_id}_{drone_type}_project_{project_id}.zip"
-                ),
-            )
+        return FileResponse(
+            file_path,
+            media_type="application/zip",
+            filename=(f"reflight_task_{task_id}_{drone_type}_project_{project_id}.zip"),
+        )
 
     elif output_format == "QGROUNDCONTROL":
-            return FileResponse(
-                file_path,
-                media_type="application/json",
-                filename=(
-                    f"reflight_task_{task_id}_{drone_type}_project_{project_id}.plan"
-                ),
-            )
+        return FileResponse(
+            file_path,
+            media_type="application/json",
+            filename=(
+                f"reflight_task_{task_id}_{drone_type}_project_{project_id}.plan"
+            ),
+        )
 
     elif output_format == "LITCHI":
-            return FileResponse(
-                file_path,
-                media_type="text/csv",
-                filename=(
-                    f"reflight_task_{task_id}_{drone_type}_project_{project_id}.csv"
-                ),
-            )
+        return FileResponse(
+            file_path,
+            media_type="text/csv",
+            filename=(f"reflight_task_{task_id}_{drone_type}_project_{project_id}.csv"),
+        )
 
     else:
         msg = f"Unsupported output format / drone type: {output_format}"

@@ -166,7 +166,7 @@ const FlightGapDetectionModal = ({
     [popupData],
   );
 
-  // Manual gaps modified and finalized by user 
+  // Manual gaps modified and finalized by user
   const finalizeGapMutation = useMutation({
       mutationFn: (gap_polygons: GeoJSON.FeatureCollection) => getFlightGapDetectionData(projectId, batchId, taskId, taskIndex, gap_polygons),
       onSuccess: () => {
@@ -197,7 +197,7 @@ const FlightGapDetectionModal = ({
       toast.error("Flight Plan URL not found.");
     }
   }
-  
+
   if (!isOpen || !gapAnalysisData) return null;
 
   const imageGeoJsonData = imagesGeoJson();
@@ -380,7 +380,7 @@ const FlightGapDetectionModal = ({
             >
               Cancel
             </Button>
-            {isDownloadReady ? 
+            {isDownloadReady ?
             (
               <Button
                 variant="ghost"
@@ -390,7 +390,7 @@ const FlightGapDetectionModal = ({
                 Download Flight Plan
               </Button>
               )
-               : 
+               :
                (
                 <Button
                 variant="ghost"

@@ -131,7 +131,7 @@ def _generate_reconstruction_flightplan(
     task_aoi: Polygon,
     global_side_median: float,
     drone_type: DroneType,
-    average_altitude
+    average_altitude,
 ):
     """
     Generates a kmz flight plan to cover detected missing imagery gaps.
@@ -142,9 +142,9 @@ def _generate_reconstruction_flightplan(
         global_side_median (float): The measured side-lap distance (in meters).
         drone_type (DroneType): The drone model to optimize parameters for.
     """
-    if not confirmed_gaps: 
-        return None 
-    
+    if not confirmed_gaps:
+        return None
+
     specs = DRONE_PARAMS[drone_type]
 
     avg_alt = average_altitude
@@ -223,10 +223,7 @@ def _generate_reconstruction_flightplan(
 
             if result_path and os.path.exists(result_path):
                 with open(result_path, "rb") as f:
-                    return {
-                    "kmz_bytes": f.read(),
-                    "geometry": reconstruction_aoi 
-                    }
+                    return {"kmz_bytes": f.read(), "geometry": reconstruction_aoi}
             return None
 
     finally:
@@ -246,9 +243,9 @@ async def identify_flight_gaps(
         task_id (UUID): Task ID.
 
     Returns:
-        Dict: A dictionary containing a message if analysis was successful, task ID, the original task aoi, 
-        gap polygons identified or manually inputted by user, drone type, reconstructed flight plan bytes, and 
-        image points of the current project task.  
+        Dict: A dictionary containing a message if analysis was successful, task ID, the original task aoi,
+        gap polygons identified or manually inputted by user, drone type, reconstructed flight plan bytes, and
+        image points of the current project task.
     """
 
     params = {
@@ -262,7 +259,7 @@ async def identify_flight_gaps(
         WITH ordered AS (
             SELECT
                 i.id,
-                i.filename, 
+                i.filename,
                 i.status,
                 i.thumbnail_url,
                 i.s3_key,
@@ -318,7 +315,7 @@ async def identify_flight_gaps(
         )
         SELECT
             id,
-            status, 
+            status,
             filename,
             thumbnail_url,
             s3_key,
@@ -372,7 +369,7 @@ async def identify_flight_gaps(
 
     if task_row and task_row["geometry"]:
         task_aoi_outline = shape(task_row["geometry"])
-    
+
     # Getting drone type
     for row in project_image_results:
         if row.get("drone_model_name") is not None:
@@ -385,10 +382,10 @@ async def identify_flight_gaps(
         log.error(f"Could not find drone type {db_drone_model}")
 
     # Manual gaps overrides analysis calculations and skips to reconstruction
-    if manual_gaps: 
+    if manual_gaps:
         all_potential_gaps = manual_gaps
-    
-    else: 
+
+    else:
         # Group by segment
         segments_map: dict[int, list[dict]] = {}
         for row in project_image_results:
@@ -426,12 +423,12 @@ async def identify_flight_gaps(
                 )
                 continue
 
-            # Add altitudes into all_atltidues list 
-            for images in segment: 
-                if images["altitude_m"] is not None: 
+            # Add altitudes into all_atltidues list
+            for images in segment:
+                if images["altitude_m"] is not None:
                     all_altitudes.append(images["altitude_m"])
                 else:
-                    log.error(f"No altitiude_m found for image")
+                    log.error("No altitiude_m found for image")
 
             # Determine the legs in each segment's drone trajectory
             leg_count = 0  # Current leg
@@ -525,7 +522,11 @@ async def identify_flight_gaps(
                 # at its current altitude, assuming a standard 70% side overlap.
                 specs = DRONE_PARAMS[flight_drone_type]
                 avg_alt = np.median(
-                    [images["altitude_m"] for images in segment if images.get("altitude_m")]
+                    [
+                        images["altitude_m"]
+                        for images in segment
+                        if images.get("altitude_m")
+                    ]
                 )
                 horizontal_footprint = avg_alt * specs["HORIZONTAL_FOV"]
 
@@ -612,38 +613,43 @@ async def identify_flight_gaps(
 
                 previous_leg = leg
 
-    # Overall average altitude 
+    # Overall average altitude
     # Set to default first then override if values found
     overall_average_altitude = MINIMUM_ALTITUDE
 
-    if len(all_altitudes) > 0: 
+    if len(all_altitudes) > 0:
         overall_average_altitude = np.mean(all_altitudes)
-    else: 
+    else:
         log.error("Altitude values not found.")
 
-    # Calculating theoritical spacing overall (70%) for side overlap median then overriding if values exist
+    # Calculating theoretical spacing overall (70%) for side overlap median then overriding if values exist
     specs = DRONE_PARAMS[flight_drone_type]
     horizontal_footprint = 2 * overall_average_altitude * specs["HORIZONTAL_FOV"]
     global_side_overlap_median = horizontal_footprint * 0.30
 
-    if len(all_side_overlap_medians) > 0: 
+    if len(all_side_overlap_medians) > 0:
         global_side_overlap_median = np.median(all_side_overlap_medians)
-    else: 
+    else:
         log.error("No side overlap medians found.")
 
     # Process for confirming gaps and triggering reconstruction of flightplan
-    # Getting all image points for UI 
-    image_features = [{
-        "type": "Feature",
-        "geometry": row["image_location_json"],
-        "properties": {
-            "id": str(row["id"]),
-            "filename": str(row["filename"]),
-            "status": str(row["status"]),
-            "thumbnail_url": str(row["thumbnail_url"]),
-            "url": maybe_presign_s3_key(row["s3_key"], expires_hours=1) if row.get("s3_key") else None,
-            }
-    } for row in project_image_results]
+    # Getting all image points for UI
+    image_features = [
+        {
+            "type": "Feature",
+            "geometry": row["image_location_json"],
+            "properties": {
+                "id": str(row["id"]),
+                "filename": str(row["filename"]),
+                "status": str(row["status"]),
+                "thumbnail_url": str(row["thumbnail_url"]),
+                "url": maybe_presign_s3_key(row["s3_key"], expires_hours=1)
+                if row.get("s3_key")
+                else None,
+            },
+        }
+        for row in project_image_results
+    ]
 
     images_geojson = {"type": "FeatureCollection", "features": image_features}
 
@@ -663,28 +669,26 @@ async def identify_flight_gaps(
                 task_aoi_outline,
                 global_side_overlap_median,
                 flight_drone_type,
-                overall_average_altitude
+                overall_average_altitude,
             )
 
-            if result: 
+            if result:
                 return {
-                    "message":  f"Successfully identified {len(confirmed_gaps)} gaps.",
+                    "message": f"Successfully identified {len(confirmed_gaps)} gaps.",
                     "task_geometry": mapping(task_aoi_outline),
-                    "gap_polygons": mapping(result["geometry"]), 
+                    "gap_polygons": mapping(result["geometry"]),
                     "drone_type": flight_drone_type,
                     "kmz_bytes": result["kmz_bytes"],
-                    "images": images_geojson
+                    "images": images_geojson,
                 }
-    
-    if not flight_drone_type: 
-        message = "Missing drone metadata" 
-    else: 
+
+    if not flight_drone_type:
+        message = "Missing drone metadata"
+    else:
         message = "No gaps detected"
-    
-    log.info(
-                f"Task {task_id}: No gaps identified for task."
-                )
-    
+
+    log.info(f"Task {task_id}: No gaps identified for task.")
+
     return {
         "message": f"{message}",
         "task_id": str(task_id),
@@ -692,5 +696,5 @@ async def identify_flight_gaps(
         "gap_polygons": {"type": "FeatureCollection", "features": []},
         "drone_type": flight_drone_type,
         "kmz_bytes": None,
-        "images": images_geojson
+        "images": images_geojson,
     }
