@@ -28,11 +28,9 @@ default:
 [no-cd]
 backend:
     {{docker}} compose -f compose.test.yaml build backend
-    {{docker}} compose -f compose.test.yaml up --detach db dragonfly minio nodeodm arq-worker
-    {{docker}} compose -f compose.test.yaml run --rm createbuckets
-    {{docker}} compose -f compose.test.yaml run --rm migrations
+    {{docker}} compose -f compose.test.yaml up --detach backend arq-worker createbuckets
     # We run like this to ensure correct cleanup after tests done (or early exit)
-    sh -c 'trap "just test backend-cleanup || true" EXIT; {{docker}} compose -f compose.test.yaml run --rm backend pytest'
+    sh -c 'trap "just test backend-cleanup || true" EXIT; {{docker}} compose -f compose.test.yaml exec -T backend pytest'
 
 # Cleanup orphan backend tests
 [no-cd]
