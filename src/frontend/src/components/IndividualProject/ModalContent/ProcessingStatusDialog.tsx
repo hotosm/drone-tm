@@ -184,6 +184,16 @@ const ProcessingStatusDialog = () => {
     }
   }, []);
 
+  const getProcessButtonLabel = useCallback((task: ProcessingDialogTask) => {
+    if (task.state === 'IMAGE_PROCESSING_FAILED') {
+      return 'Retry';
+    }
+    if (task.state === 'IMAGE_PROCESSING_FINISHED') {
+      return 'Re-run';
+    }
+    return 'Process';
+  }, []);
+
   const handleStartFinalProcessing = useCallback(
     (withGcp: boolean) => {
       if (withGcp) {
@@ -440,44 +450,49 @@ const ProcessingStatusDialog = () => {
                       )}
                     </div>
                   </td>
-                  <td className="naxatw-px-3 naxatw-py-2 naxatw-text-right">
+                  <td className="naxatw-px-3 naxatw-py-2">
                     {isTaskProcessing ? (
-                      <Icon
-                        name="sync"
-                        className="naxatw-animate-spin !naxatw-text-lg naxatw-text-gray-500"
-                      />
-                    ) : task.state === 'IMAGE_PROCESSING_FINISHED' &&
-                      task.assets_url ? (
-                      <Button
-                        variant="ghost"
-                        className="naxatw-h-7 naxatw-px-2 naxatw-text-xs naxatw-text-blue-600 hover:naxatw-bg-blue-50"
-                        leftIcon="download"
-                        iconClassname="!naxatw-text-sm"
-                        onClick={() => {
-                          if (task.assets_url) {
-                            handleDownloadAssets(task.assets_url);
-                          }
-                        }}
-                      >
-                        Download
-                      </Button>
-                    ) : canProcess ? (
-                      <Button
-                        variant="ghost"
-                        className="naxatw-h-7 naxatw-bg-red naxatw-px-2 naxatw-text-xs naxatw-text-white hover:naxatw-bg-red/90"
-                        leftIcon={
-                          task.state === 'IMAGE_PROCESSING_FAILED'
-                            ? 'replay'
-                            : 'play_arrow'
-                        }
-                        iconClassname="!naxatw-text-sm"
-                        onClick={() => handleProcessSingle(task.task_id)}
-                      >
-                        {task.state === 'IMAGE_PROCESSING_FAILED'
-                          ? 'Retry'
-                          : 'Process'}
-                      </Button>
-                    ) : null}
+                      <div className="naxatw-flex naxatw-justify-end">
+                        <Icon
+                          name="sync"
+                          className="naxatw-animate-spin !naxatw-text-lg naxatw-text-gray-500"
+                        />
+                      </div>
+                    ) : (
+                      <div className="naxatw-flex naxatw-justify-end naxatw-gap-2">
+                        {task.state === 'IMAGE_PROCESSING_FINISHED' && task.assets_url ? (
+                          <Button
+                            variant="ghost"
+                            className="naxatw-h-7 naxatw-px-2 naxatw-text-xs naxatw-text-blue-600 hover:naxatw-bg-blue-50"
+                            leftIcon="download"
+                            iconClassname="!naxatw-text-sm"
+                            onClick={() => {
+                              if (task.assets_url) {
+                                handleDownloadAssets(task.assets_url);
+                              }
+                            }}
+                          >
+                            Download
+                          </Button>
+                        ) : null}
+                        {canProcess ? (
+                          <Button
+                            variant="ghost"
+                            className="naxatw-h-7 naxatw-bg-red naxatw-px-2 naxatw-text-xs naxatw-text-white hover:naxatw-bg-red/90"
+                            leftIcon={
+                              task.state === 'IMAGE_PROCESSING_FAILED' ||
+                              task.state === 'IMAGE_PROCESSING_FINISHED'
+                                ? 'replay'
+                                : 'play_arrow'
+                            }
+                            iconClassname="!naxatw-text-sm"
+                            onClick={() => handleProcessSingle(task.task_id)}
+                          >
+                            {getProcessButtonLabel(task)}
+                          </Button>
+                        ) : null}
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

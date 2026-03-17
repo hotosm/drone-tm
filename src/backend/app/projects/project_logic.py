@@ -343,8 +343,9 @@ async def process_drone_images(
         async with pool.connection() as conn:
             # Update task state to IMAGE_PROCESSING_STARTED first, so that any
             # failure below can be correctly transitioned to IMAGE_PROCESSING_FAILED.
-            # Support both fresh processing (IMAGE_UPLOADED) and retries
-            # (IMAGE_PROCESSING_FAILED) since the UI offers a Retry button.
+            # Support fresh processing (IMAGE_UPLOADED), retries from failure
+            # (IMAGE_PROCESSING_FAILED), and reruns after completion
+            # (IMAGE_PROCESSING_FINISHED) when new imagery has been verified.
             from app.tasks import task_logic
             from app.utils import timestamp
 
@@ -368,9 +369,20 @@ async def process_drone_images(
                     timestamp(),
                 )
             if result is None:
+                result = await task_logic.update_task_state_system(
+                    conn,
+                    project_id,
+                    task_id,
+                    "ODM processing rerun",
+                    State.IMAGE_PROCESSING_FINISHED,
+                    State.IMAGE_PROCESSING_STARTED,
+                    timestamp(),
+                )
+            if result is None:
                 raise RuntimeError(
                     "Cannot start processing: task is not in a valid state "
-                    "(expected IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED)"
+                    "(expected IMAGE_UPLOADED, IMAGE_PROCESSING_FAILED, "
+                    "or IMAGE_PROCESSING_FINISHED)"
                 )
             await conn.commit()
             log.info(f"Task {task_id} state updated to IMAGE_PROCESSING_STARTED")

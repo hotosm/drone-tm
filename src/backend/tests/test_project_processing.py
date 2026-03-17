@@ -253,13 +253,82 @@ async def test_process_drone_images_retries_from_failed_state(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
-    """If task is in neither IMAGE_UPLOADED nor IMAGE_PROCESSING_FAILED,
-    processing should raise immediately."""
+async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
     ctx = {"job_id": "job-4", "db_pool": _FakePool(conn)}
+    state_calls = []
+
+    async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
+        return {"moved_count": 0, "failed_count": 0}
+
+    async def fake_update_task_state_system(
+        db,
+        project_id_arg,
+        task_id_arg,
+        comment,
+        initial_state,
+        final_state,
+        updated_at,
+    ):
+        state_calls.append(
+            {
+                "comment": comment,
+                "initial_state": initial_state,
+                "final_state": final_state,
+            }
+        )
+        if initial_state in (
+            State.IMAGE_UPLOADED,
+            State.IMAGE_PROCESSING_FAILED,
+        ):
+            return None
+        return {"project_id": project_id_arg, "task_id": task_id_arg}
+
+    class FakeProcessor:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def process_images_from_s3(self, bucket_name, name, options, webhook):
+            return {"bucket_name": bucket_name, "name": name, "webhook": webhook}
+
+    monkeypatch.setattr(
+        project_logic.ImageClassifier,
+        "move_task_images_to_folder",
+        fake_move_task_images_to_folder,
+    )
+    monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
+
+    from app.tasks import task_logic
+
+    monkeypatch.setattr(
+        task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    result = await project_logic.process_drone_images(
+        ctx,
+        project_id,
+        task_id,
+        "user-123",
+    )
+
+    assert result["status"] == "processing_started"
+    assert state_calls[0]["initial_state"] == State.IMAGE_UPLOADED
+    assert state_calls[1]["initial_state"] == State.IMAGE_PROCESSING_FAILED
+    assert state_calls[2]["initial_state"] == State.IMAGE_PROCESSING_FINISHED
+    assert state_calls[2]["final_state"] == State.IMAGE_PROCESSING_STARTED
+
+
+@pytest.mark.asyncio
+async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
+    """If task is in none of the allowed processing states, raise immediately."""
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "job-5", "db_pool": _FakePool(conn)}
 
     async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
         return {"moved_count": 0, "failed_count": 0}
