@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
@@ -28,6 +28,7 @@ type ProcessingDialogTask = {
   task_index: number;
   image_count: number;
   state: string;
+  failure_reason?: string | null;
   assets_url?: string | null;
 };
 
@@ -111,6 +112,7 @@ const ProcessingStatusDialog = () => {
 
   const handleProcessSelected = useCallback(async () => {
     const taskIds = Array.from(selectedTasks);
+    setSelectedTasks(new Set());
     setProcessingTasks(new Set(taskIds));
     const results = await Promise.allSettled(
       taskIds.map(taskId => processTask({ taskId })),
@@ -127,14 +129,22 @@ const ProcessingStatusDialog = () => {
     if (failCount > 0) {
       toast.error(`Failed to start processing for ${failCount} task(s)`);
     }
-    setSelectedTasks(new Set());
+    const failedTaskIds = taskIds.filter(
+      (_taskId, index) => results[index].status === 'rejected',
+    );
+    if (failedTaskIds.length > 0) {
+      setProcessingTasks((prev) => {
+        const next = new Set(prev);
+        failedTaskIds.forEach((taskId) => next.delete(taskId));
+        return next;
+      });
+    }
     queryClient.invalidateQueries({
       queryKey: ['all-task-assets-info', projectId],
     });
     queryClient.invalidateQueries({
       queryKey: ['projectTaskImagerySummary', projectId],
     });
-    setProcessingTasks(new Set());
   }, [selectedTasks, processTask, queryClient, projectId]);
 
   const handleProcessSingle = useCallback(
@@ -151,12 +161,12 @@ const ProcessingStatusDialog = () => {
         });
       } catch {
         toast.error('Failed to start processing');
+        setProcessingTasks(prev => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
       }
-      setProcessingTasks(prev => {
-        const next = new Set(prev);
-        next.delete(taskId);
-        return next;
-      });
     },
     [processTask, queryClient, projectId],
   );
@@ -222,6 +232,7 @@ const ProcessingStatusDialog = () => {
             task_index: task.project_task_index,
             image_count: task.assigned_images,
             state: task.task_state,
+            failure_reason: task.failure_reason,
             assets_url: assetInfo?.assets_url,
           };
         })
@@ -244,6 +255,7 @@ const ProcessingStatusDialog = () => {
         task_index: task.task_index,
         image_count: task.image_count,
         state: task.state,
+        failure_reason: task.failure_reason,
         assets_url: task.assets_url,
       }))
       .sort((a, b) => {
@@ -256,6 +268,21 @@ const ProcessingStatusDialog = () => {
     () => taskList.filter((task) => readinessMap.get(task.task_id) === true),
     [taskList, readinessMap],
   );
+
+  useEffect(() => {
+    setProcessingTasks((prev) => {
+      if (prev.size === 0) return prev;
+
+      const next = new Set(prev);
+      taskList.forEach((task) => {
+        if (next.has(task.task_id) && task.state !== 'IMAGE_UPLOADED') {
+          next.delete(task.task_id);
+        }
+      });
+
+      return next.size === prev.size ? prev : next;
+    });
+  }, [taskList]);
 
   const toggleSelectAll = useCallback(() => {
     if (selectedTasks.size === processableTasks.length) {
@@ -350,12 +377,18 @@ const ProcessingStatusDialog = () => {
           </thead>
           <tbody>
             {taskList.map((task, index: number) => {
-              const canProcess = readinessMap.get(task.task_id) === true;
+              const canProcess =
+                readinessMap.get(task.task_id) === true &&
+                !processingTasks.has(task.task_id) &&
+                task.state !== 'IMAGE_PROCESSING_STARTED';
               const isTaskProcessing =
                 processingTasks.has(task.task_id) ||
                 task.state === 'IMAGE_PROCESSING_STARTED';
+              const displayState = isTaskProcessing
+                ? 'IMAGE_PROCESSING_STARTED'
+                : task.state;
               const stateColor =
-                stateColors[task.state] || '#e5e7eb';
+                stateColors[displayState] || '#e5e7eb';
 
               return (
                 <tr
@@ -378,27 +411,34 @@ const ProcessingStatusDialog = () => {
                     {task.image_count} images
                   </td>
                   <td className="naxatw-px-3 naxatw-py-2">
-                    <span
-                      className="naxatw-inline-flex naxatw-items-center naxatw-gap-1 naxatw-rounded-full naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-medium"
-                      style={{
-                        backgroundColor: `${stateColor}33`,
-                        color:
-                          task.state === 'IMAGE_PROCESSING_FINISHED'
-                            ? '#166534'
-                            : task.state === 'IMAGE_PROCESSING_FAILED'
-                              ? '#991b1b'
-                              : '#374151',
-                      }}
-                    >
-                      {isTaskProcessing && (
-                        <Icon
-                          name="sync"
-                          className="naxatw-animate-spin !naxatw-text-sm"
-                        />
+                    <div className="naxatw-flex naxatw-flex-col naxatw-items-start naxatw-gap-1">
+                      <span
+                        className="naxatw-inline-flex naxatw-items-center naxatw-gap-1 naxatw-rounded-full naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-medium"
+                        style={{
+                          backgroundColor: `${stateColor}33`,
+                          color:
+                            displayState === 'IMAGE_PROCESSING_FINISHED'
+                              ? '#166534'
+                              : displayState === 'IMAGE_PROCESSING_FAILED'
+                                ? '#991b1b'
+                                : '#374151',
+                        }}
+                      >
+                        {isTaskProcessing && (
+                          <Icon
+                            name="sync"
+                            className="naxatw-animate-spin !naxatw-text-sm"
+                          />
+                        )}
+                        {displayState === 'IMAGE_PROCESSING_FINISHED' && '✓ '}
+                        {formatString(displayState) || 'No images'}
+                      </span>
+                      {task.state === 'IMAGE_PROCESSING_FAILED' && task.failure_reason && (
+                        <p className="naxatw-max-w-[320px] naxatw-text-xs naxatw-text-red-700">
+                          {task.failure_reason}
+                        </p>
                       )}
-                      {task.state === 'IMAGE_PROCESSING_FINISHED' && '✓ '}
-                      {formatString(task.state) || 'No images'}
-                    </span>
+                    </div>
                   </td>
                   <td className="naxatw-px-3 naxatw-py-2 naxatw-text-right">
                     {isTaskProcessing ? (
@@ -451,9 +491,10 @@ const ProcessingStatusDialog = () => {
         <div className="naxatw-flex naxatw-justify-center">
           <Button
             variant="ghost"
-            className="naxatw-bg-red naxatw-text-white"
+            className="naxatw-bg-red naxatw-text-white disabled:naxatw-bg-gray-400"
             leftIcon="play_arrow"
             onClick={handleProcessSelected}
+            disabled={selectedTasks.size === 0}
           >
             Process Selected ({selectedTasks.size})
           </Button>

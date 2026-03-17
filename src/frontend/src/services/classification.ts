@@ -303,6 +303,7 @@ export interface TaskImagerySummary {
   duplicate_images: number;
   unmatched_images: number;
   latest_upload: string | null;
+  failure_reason?: string | null;
   has_ready_imagery: boolean;
 }
 

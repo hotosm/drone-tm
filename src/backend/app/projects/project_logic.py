@@ -15,6 +15,7 @@ from loguru import logger as log
 from minio.error import S3Error
 from psycopg import Connection
 from psycopg.rows import dict_row
+from pyodm.exceptions import NodeResponseError
 from shapely.geometry import shape
 from shapely.ops import transform
 
@@ -28,6 +29,7 @@ from drone_flightplan import (
 from drone_flightplan.enums import FlightMode
 
 from app.config import settings
+from app.images.image_classification import ImageClassifier
 from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
 from app.images.image_processing import DroneImageProcessor
@@ -339,11 +341,14 @@ async def process_drone_images(
     try:
         pool = ctx["db_pool"]
         async with pool.connection() as conn:
-            # Update task state to IMAGE_PROCESSING_STARTED
+            # Update task state to IMAGE_PROCESSING_STARTED first, so that any
+            # failure below can be correctly transitioned to IMAGE_PROCESSING_FAILED.
+            # Support both fresh processing (IMAGE_UPLOADED) and retries
+            # (IMAGE_PROCESSING_FAILED) since the UI offers a Retry button.
             from app.tasks import task_logic
             from app.utils import timestamp
 
-            await task_logic.update_task_state_system(
+            result = await task_logic.update_task_state_system(
                 conn,
                 project_id,
                 task_id,
@@ -352,8 +357,41 @@ async def process_drone_images(
                 State.IMAGE_PROCESSING_STARTED,
                 timestamp(),
             )
+            if result is None:
+                result = await task_logic.update_task_state_system(
+                    conn,
+                    project_id,
+                    task_id,
+                    "ODM processing retry",
+                    State.IMAGE_PROCESSING_FAILED,
+                    State.IMAGE_PROCESSING_STARTED,
+                    timestamp(),
+                )
+            if result is None:
+                raise RuntimeError(
+                    "Cannot start processing: task is not in a valid state "
+                    "(expected IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED)"
+                )
             await conn.commit()
             log.info(f"Task {task_id} state updated to IMAGE_PROCESSING_STARTED")
+
+            # Ensure images classified for this task are available in the task folder.
+            # Single-task processing can be triggered from the project dialog before the
+            # batch-processing flow has copied files out of staging.
+            move_result = await ImageClassifier.move_task_images_to_folder(
+                conn, project_id, task_id
+            )
+            if move_result.get("failed_count", 0) > 0:
+                await conn.rollback()
+                raise RuntimeError(
+                    f"Failed to move {move_result['failed_count']} image(s) into the task folder"
+                )
+            if move_result.get("moved_count", 0) > 0:
+                await conn.commit()
+                log.info(
+                    f"Task {task_id}: moved {move_result['moved_count']} staged image(s) "
+                    "into the task folder before ODM submission"
+                )
 
             # Initialize the processor with the database connection
             processor = DroneImageProcessor(
@@ -390,6 +428,35 @@ async def process_drone_images(
             }
 
     except Exception as e:
+        failure_message = str(e).strip() or "Image processing failed."
+        if isinstance(e, NodeResponseError) and "Not enough images" in failure_message:
+            failure_message = "Not enough images for ODM processing. At least 3 task images are required."
+
+        try:
+            pool = ctx["db_pool"]
+            async with pool.connection() as conn:
+                from app.tasks import task_logic
+                from app.utils import timestamp
+
+                await task_logic.update_task_state_system(
+                    conn,
+                    project_id,
+                    task_id,
+                    failure_message,
+                    State.IMAGE_PROCESSING_STARTED,
+                    State.IMAGE_PROCESSING_FAILED,
+                    timestamp(),
+                )
+                await conn.commit()
+                log.info(
+                    f"Task {task_id} state updated to IMAGE_PROCESSING_FAILED: "
+                    f"{failure_message}"
+                )
+        except Exception as state_error:
+            log.error(
+                f"Failed to persist processing failure state for task {task_id}: {state_error}"
+            )
+
         log.error(f"Error in process_drone_images (Job ID: {job_id}): {str(e)}")
         raise
 

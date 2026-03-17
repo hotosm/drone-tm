@@ -1676,7 +1676,8 @@ class ImageClassifier:
             WITH latest_task_state AS (
                 SELECT DISTINCT ON (task_id)
                     task_id,
-                    state
+                    state,
+                    comment
                 FROM task_events
                 WHERE project_id = %(project_id)s
                 ORDER BY task_id, created_at DESC
@@ -1685,6 +1686,7 @@ class ImageClassifier:
                 t.id as task_id,
                 t.project_task_index,
                 COALESCE(lts.state, 'LOCKED_FOR_MAPPING') as task_state,
+                lts.comment as state_comment,
                 COALESCE(img.total, 0) as total_images,
                 COALESCE(img.assigned, 0) as assigned_images,
                 COALESCE(img.rejected, 0) as rejected_images,
@@ -1733,6 +1735,11 @@ class ImageClassifier:
                     "latest_upload": (
                         row["latest_upload"].isoformat()
                         if row["latest_upload"]
+                        else None
+                    ),
+                    "failure_reason": (
+                        row["state_comment"]
+                        if row["task_state"] == "IMAGE_PROCESSING_FAILED"
                         else None
                     ),
                     "has_ready_imagery": has_ready_imagery,
