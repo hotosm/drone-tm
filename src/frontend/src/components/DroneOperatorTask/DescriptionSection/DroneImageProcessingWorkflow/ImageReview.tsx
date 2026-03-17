@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike, Popup } from 'maplibre-gl';
 import bbox from '@turf/bbox';
@@ -17,6 +17,8 @@ interface ImageReviewProps {
   projectId: string;
   batchId?: string;  // Optional: when provided, shows batch-scoped data (upload step 3); when absent, shows project-level data (verify dialog)
 }
+
+const hasIssueStatus = (status?: string) => status !== 'assigned';
 
 const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const queryClient = useQueryClient();
@@ -438,8 +440,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const isRejectedImage = selectedImage && (selectedImage.status === 'rejected' || selectedImage.status === 'invalid_exif');
   const isDuplicateImage = selectedImage && selectedImage.status === 'duplicate';
 
-  const hasIssueStatus = useCallback((status?: string) => status !== 'assigned', []);
-
   const locatedImages = mapData?.images?.features?.filter(
     (feature: GeoJSON.Feature<any>) => feature.geometry !== null,
   ) || [];
@@ -449,68 +449,56 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     (feature: GeoJSON.Feature<any>) => feature.geometry === null,
   ) || [];
 
-  const filteredLocatedImages = useMemo(
-    () => (
-      showOnlyIssueImages
-        ? locatedImages.filter((feature: GeoJSON.Feature<any>) => hasIssueStatus(feature.properties?.status))
-        : locatedImages
-    ),
-    [showOnlyIssueImages, locatedImages, hasIssueStatus],
-  );
+  const filteredLocatedImages = showOnlyIssueImages
+    ? locatedImages.filter((feature: GeoJSON.Feature<any>) => hasIssueStatus(feature.properties?.status))
+    : locatedImages;
 
-  const filteredUnlocatedImages = useMemo(
-    () => (
-      showOnlyIssueImages
-        ? unlocatedImages.filter((feature: GeoJSON.Feature<any>) => hasIssueStatus(feature.properties?.status))
-        : unlocatedImages
-    ),
-    [showOnlyIssueImages, unlocatedImages, hasIssueStatus],
-  );
+  const filteredUnlocatedImages = showOnlyIssueImages
+    ? unlocatedImages.filter((feature: GeoJSON.Feature<any>) => hasIssueStatus(feature.properties?.status))
+    : unlocatedImages;
 
   const locatedImagesGeojson: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
     features: filteredLocatedImages as GeoJSON.Feature<any>[],
   };
 
-  const displayedTaskGroups = useMemo(() => {
-    return reviewData.task_groups
-      .map((group: TaskGroup) => {
-        const filteredImages = showOnlyIssueImages
-          ? group.images.filter((image) => hasIssueStatus(image.status))
-          : group.images;
+  const displayedTaskGroups = reviewData.task_groups
+    .map((group: TaskGroup) => {
+      const filteredImages = showOnlyIssueImages
+        ? group.images.filter((image) => hasIssueStatus(image.status))
+        : group.images;
 
-        if (group.task_id) {
-          return {
-            ...group,
-            images: filteredImages,
-          };
-        }
-
-        const mergedUnlocatedImages = filteredUnlocatedImages
-          .filter((feature: GeoJSON.Feature<any>) => !group.images.some((img) => img.id === feature.properties?.id))
-          .map((feature: GeoJSON.Feature<any>) => {
-            const props = feature.properties || {};
-            return {
-              id: props.id,
-              filename: props.filename || 'Unknown',
-              s3_key: props.s3_key || '',
-              thumbnail_url: props.thumbnail_url,
-              url: props.url,
-              status: props.status || 'unknown',
-              rejection_reason: props.rejection_reason || 'No GPS',
-              uploaded_at: props.uploaded_at || '',
-            };
-          });
-
+      if (group.task_id) {
         return {
           ...group,
-          images: [...filteredImages, ...mergedUnlocatedImages],
+          images: filteredImages,
         };
-      })
-      .filter((group: TaskGroup) => !showOnlyIssueImages || group.images.length > 0);
-  }, [reviewData.task_groups, showOnlyIssueImages, hasIssueStatus, filteredUnlocatedImages]);
+      }
 
-  const totalIssueImages = useMemo(() => {
+      const mergedUnlocatedImages = filteredUnlocatedImages
+        .filter((feature: GeoJSON.Feature<any>) => !group.images.some((img) => img.id === feature.properties?.id))
+        .map((feature: GeoJSON.Feature<any>) => {
+          const props = feature.properties || {};
+          return {
+            id: props.id,
+            filename: props.filename || 'Unknown',
+            s3_key: props.s3_key || '',
+            thumbnail_url: props.thumbnail_url,
+            url: props.url,
+            status: props.status || 'unknown',
+            rejection_reason: props.rejection_reason || 'No GPS',
+            uploaded_at: props.uploaded_at || '',
+          };
+        });
+
+      return {
+        ...group,
+        images: [...filteredImages, ...mergedUnlocatedImages],
+      };
+    })
+    .filter((group: TaskGroup) => !showOnlyIssueImages || group.images.length > 0);
+
+  const totalIssueImages = (() => {
     const groupedIssueCount = reviewData.task_groups.reduce(
       (count: number, group: TaskGroup) => count + group.images.filter((image) => hasIssueStatus(image.status)).length,
       0,
@@ -527,7 +515,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     }).length;
 
     return groupedIssueCount + extraUnlocatedIssueCount;
-  }, [reviewData.task_groups, unlocatedImages, hasIssueStatus]);
+  })();
 
   const visibleTaskCount = displayedTaskGroups.filter((group: TaskGroup) => group.task_id).length;
 
@@ -537,20 +525,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
       <div className="naxatw-flex naxatw-flex-1 naxatw-gap-4 naxatw-min-h-0 naxatw-overflow-hidden">
         {/* Map Section */}
         <div className="naxatw-w-1/2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-overflow-hidden naxatw-relative naxatw-flex naxatw-flex-col">
-          {/* Map Header with Stats */}
-          <div className="naxatw-px-3 naxatw-py-2 naxatw-bg-gray-50 naxatw-border-b naxatw-border-gray-200">
-            <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-text-xs">
-              <span className="naxatw-font-semibold naxatw-text-gray-700">
-                Map View: {filteredLocatedImages.length} {showOnlyIssueImages ? 'issue ' : ''}images with GPS
-              </span>
-              {filteredUnlocatedImages.length > 0 && (
-                <span className="naxatw-text-yellow-600">
-                  {filteredUnlocatedImages.length} without GPS (in Rejected Images)
-                </span>
-              )}
-            </FlexRow>
-          </div>
-
           {/* Map Container */}
           <div className="naxatw-flex-1 naxatw-relative" style={{ display: 'flex', flexDirection: 'column', minHeight: '400px' }}>
           <MapContainer
@@ -616,6 +590,18 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 visibleOnMap={true}
                 layerOptions={{
                   type: 'circle',
+                  layout: {
+                    'circle-sort-key': [
+                      'match',
+                      ['get', 'status'],
+                      'assigned', 4,
+                      'unmatched', 3,
+                      'rejected', 2,
+                      'invalid_exif', 1,
+                      'duplicate', 0,
+                      0,
+                    ],
+                  },
                   paint: {
                     'circle-color': [
                       'match',

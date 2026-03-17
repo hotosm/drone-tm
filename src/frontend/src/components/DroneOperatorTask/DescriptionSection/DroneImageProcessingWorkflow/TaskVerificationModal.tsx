@@ -279,6 +279,9 @@ const TaskVerificationModal = ({
       queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
       queryClient.invalidateQueries({
+        queryKey: ['projectTaskImagerySummary', projectId],
+      });
+      queryClient.invalidateQueries({
         queryKey: ['all-task-assets-info', projectId],
       });
       onVerified?.();

@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useGetProjectsDetailQuery } from '@Api/projects';
 import { useGetAllTaskAssetsInfo } from '@Api/tasks';
 import { postProcessImagery } from '@Services/tasks';
 import { processAllImagery } from '@Services/project';
@@ -22,9 +23,26 @@ const stateColors: Record<string, string> = {
   UNFLYABLE_TASK: '#9EA5AD',
 };
 
+type ProcessingDialogTask = {
+  task_id: string;
+  task_index: number;
+  image_count: number;
+  state: string;
+  assets_url?: string | null;
+};
+
+type ProcessingDialogProjectDetail = {
+  total_task_count?: number;
+  has_gcp?: boolean;
+};
+
 const ProcessingStatusDialog = () => {
-  const { id } = useParams();
-  const projectId = id as string;
+  const { pathname } = useLocation();
+  const projectId = useMemo(() => {
+    const projectMatch = matchPath('/projects/:id', pathname);
+    const approvalMatch = matchPath('/projects/:id/approval', pathname);
+    return projectMatch?.params.id || approvalMatch?.params.id || '';
+  }, [pathname]);
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
 
@@ -35,6 +53,9 @@ const ProcessingStatusDialog = () => {
 
   // allTaskAssets: S3-based data (assets_url, image_count from disk, state)
   const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
+  const { data: projectDetail } = useGetProjectsDetailQuery(projectId) as {
+    data?: ProcessingDialogProjectDetail;
+  };
 
   // Backend summary: authoritative source for has_ready_imagery
   const { data: taskSummary } = useQuery<TaskImagerySummary[]>({
@@ -76,16 +97,6 @@ const ProcessingStatusDialog = () => {
       },
     });
 
-  const processableTasks = useMemo(
-    () =>
-      Array.isArray(allTaskAssets)
-        ? allTaskAssets.filter((t: any) =>
-            readinessMap.get(t.task_id) === true,
-          )
-        : [],
-    [allTaskAssets, readinessMap],
-  );
-
   const toggleTaskSelection = useCallback((taskId: string) => {
     setSelectedTasks(prev => {
       const next = new Set(prev);
@@ -97,16 +108,6 @@ const ProcessingStatusDialog = () => {
       return next;
     });
   }, []);
-
-  const toggleSelectAll = useCallback(() => {
-    if (selectedTasks.size === processableTasks.length) {
-      setSelectedTasks(new Set());
-    } else {
-      setSelectedTasks(
-        new Set(processableTasks.map((t: any) => t.task_id)),
-      );
-    }
-  }, [selectedTasks, processableTasks]);
 
   const handleProcessSelected = useCallback(async () => {
     const taskIds = Array.from(selectedTasks);
@@ -186,14 +187,49 @@ const ProcessingStatusDialog = () => {
     [dispatch, startAllImageProcessing, projectId],
   );
 
-  const totalTaskCount = useMemo(
-    () => (Array.isArray(allTaskAssets) ? allTaskAssets.length : 0),
-    [allTaskAssets],
-  );
+  const totalTaskCount = useMemo(() => {
+    if (typeof projectDetail?.total_task_count === 'number') {
+      return projectDetail.total_task_count;
+    }
+    if (Array.isArray(taskSummary) && taskSummary.length > 0) {
+      return taskSummary.length;
+    }
+    return Array.isArray(allTaskAssets) ? allTaskAssets.length : 0;
+  }, [allTaskAssets, taskSummary, projectDetail]);
 
-  const taskList = useMemo(() => {
+  const taskList = useMemo<ProcessingDialogTask[]>(() => {
+    const assetsByTaskId = new Map<string, any>();
+    if (Array.isArray(allTaskAssets)) {
+      allTaskAssets.forEach((task: any) => {
+        assetsByTaskId.set(task.task_id, task);
+      });
+    }
+
+    if (Array.isArray(taskSummary) && taskSummary.length > 0) {
+      return taskSummary
+        .filter(
+          (task) =>
+            task.assigned_images > 0 ||
+            task.task_state === 'IMAGE_UPLOADED' ||
+            task.task_state === 'IMAGE_PROCESSING_STARTED' ||
+            task.task_state === 'IMAGE_PROCESSING_FINISHED' ||
+            task.task_state === 'IMAGE_PROCESSING_FAILED',
+        )
+        .map((task) => {
+          const assetInfo = assetsByTaskId.get(task.task_id);
+          return {
+            task_id: task.task_id,
+            task_index: task.project_task_index,
+            image_count: task.assigned_images,
+            state: task.task_state,
+            assets_url: assetInfo?.assets_url,
+          };
+        })
+        .sort((a, b) => a.task_index - b.task_index);
+    }
+
     if (!Array.isArray(allTaskAssets)) return [];
-    // Only show tasks that have images or are in a processing/uploaded state
+
     return [...allTaskAssets]
       .filter(
         (t: any) =>
@@ -203,11 +239,33 @@ const ProcessingStatusDialog = () => {
           t.state === 'IMAGE_PROCESSING_FINISHED' ||
           t.state === 'IMAGE_PROCESSING_FAILED',
       )
-      .sort((a: any, b: any) => {
+      .map((task: any) => ({
+        task_id: task.task_id,
+        task_index: task.task_index,
+        image_count: task.image_count,
+        state: task.state,
+        assets_url: task.assets_url,
+      }))
+      .sort((a, b) => {
         const aIdx = a.task_id?.localeCompare?.(b.task_id) || 0;
         return aIdx;
       });
-  }, [allTaskAssets]);
+  }, [allTaskAssets, taskSummary]);
+
+  const processableTasks = useMemo(
+    () => taskList.filter((task) => readinessMap.get(task.task_id) === true),
+    [taskList, readinessMap],
+  );
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedTasks.size === processableTasks.length) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(
+        new Set(processableTasks.map((task) => task.task_id)),
+      );
+    }
+  }, [selectedTasks, processableTasks]);
 
   const processedCount = useMemo(
     () =>
@@ -216,6 +274,35 @@ const ProcessingStatusDialog = () => {
       ).length,
     [taskList],
   );
+
+  const allTasksProcessed = useMemo(
+    () =>
+      totalTaskCount > 0 &&
+      Array.isArray(taskSummary) &&
+      taskSummary.length === totalTaskCount &&
+      taskSummary.every(
+        (task) => task.task_state === 'IMAGE_PROCESSING_FINISHED',
+      ),
+    [taskSummary, totalTaskCount],
+  );
+
+  const finalProcessingDisabledReason = useMemo(() => {
+    if (isProcessingAll) {
+      return 'Final processing is already starting.';
+    }
+    if (!totalTaskCount) {
+      return 'No project tasks are available yet.';
+    }
+    if (!Array.isArray(taskSummary) || taskSummary.length < totalTaskCount) {
+      return 'Every task must have imagery and finish quick processing first.';
+    }
+    if (!allTasksProcessed) {
+      return 'All tasks must reach Complete before final processing can start.';
+    }
+    return '';
+  }, [isProcessingAll, totalTaskCount, taskSummary, allTasksProcessed]);
+
+  const hasSavedGcp = Boolean(projectDetail?.has_gcp);
 
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
@@ -262,7 +349,7 @@ const ProcessingStatusDialog = () => {
             </tr>
           </thead>
           <tbody>
-            {taskList.map((task: any, index: number) => {
+            {taskList.map((task, index: number) => {
               const canProcess = readinessMap.get(task.task_id) === true;
               const isTaskProcessing =
                 processingTasks.has(task.task_id) ||
@@ -285,7 +372,7 @@ const ProcessingStatusDialog = () => {
                     />
                   </td>
                   <td className="naxatw-px-3 naxatw-py-2 naxatw-font-medium">
-                    Task {index + 1}
+                    Task {task.task_index ?? index + 1}
                   </td>
                   <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-600">
                     {task.image_count} images
@@ -326,14 +413,18 @@ const ProcessingStatusDialog = () => {
                         className="naxatw-h-7 naxatw-px-2 naxatw-text-xs naxatw-text-blue-600 hover:naxatw-bg-blue-50"
                         leftIcon="download"
                         iconClassname="!naxatw-text-sm"
-                        onClick={() => handleDownloadAssets(task.assets_url)}
+                        onClick={() => {
+                          if (task.assets_url) {
+                            handleDownloadAssets(task.assets_url);
+                          }
+                        }}
                       >
                         Download
                       </Button>
                     ) : canProcess ? (
                       <Button
                         variant="ghost"
-                        className="naxatw-h-7 naxatw-px-2 naxatw-text-xs naxatw-text-red-600 hover:naxatw-bg-red-50"
+                        className="naxatw-h-7 naxatw-bg-red naxatw-px-2 naxatw-text-xs naxatw-text-white hover:naxatw-bg-red/90"
                         leftIcon={
                           task.state === 'IMAGE_PROCESSING_FAILED'
                             ? 'replay'
@@ -407,25 +498,55 @@ const ProcessingStatusDialog = () => {
         </p>
       </div>
 
-      <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2">
+      <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-3">
+        <div
+          className={`naxatw-w-full naxatw-max-w-xl naxatw-rounded-lg naxatw-border naxatw-px-4 naxatw-py-3 naxatw-text-sm ${
+            hasSavedGcp
+              ? 'naxatw-border-green-200 naxatw-bg-green-50 naxatw-text-green-800'
+              : 'naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-text-gray-700'
+          }`}
+        >
+          <div className="naxatw-flex naxatw-items-start naxatw-gap-2">
+            <span className="material-icons !naxatw-text-base">
+              {hasSavedGcp ? 'check_circle' : 'pin_drop'}
+            </span>
+            <div>
+              <p className="naxatw-font-medium">
+                {hasSavedGcp ? 'GCP points have been saved for this project.' : 'No saved GCP points yet.'}
+              </p>
+              <p className="naxatw-mt-1 naxatw-text-xs">
+                {hasSavedGcp
+                  ? 'Start Final Processing will automatically include the saved GCP file.'
+                  : 'Use With GCP to add control points before starting final processing.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {finalProcessingDisabledReason && (
+          <p className="naxatw-text-center naxatw-text-xs naxatw-text-amber-700">
+            {finalProcessingDisabledReason}
+          </p>
+        )}
+
         <div className="naxatw-flex naxatw-gap-2">
           <Button
             variant="ghost"
             className="naxatw-bg-red naxatw-text-white disabled:naxatw-bg-gray-400"
             leftIcon="play_arrow"
             onClick={() => handleStartFinalProcessing(false)}
-            disabled={isProcessingAll}
+            disabled={Boolean(finalProcessingDisabledReason)}
           >
             Start Final Processing
           </Button>
           <Button
             variant="outline"
-            className="naxatw-border-red naxatw-text-red"
+            className="naxatw-border-red naxatw-text-red disabled:naxatw-border-gray-300 disabled:naxatw-text-gray-400"
             leftIcon="pin_drop"
             onClick={() => handleStartFinalProcessing(true)}
-            disabled={isProcessingAll}
+            disabled={Boolean(finalProcessingDisabledReason)}
           >
-            With GCP
+            {hasSavedGcp ? 'Edit GCP' : 'Add GCP'}
           </Button>
         </div>
       </div>
