@@ -16,26 +16,27 @@ import { deleteBatch } from '@Services/classification';
 import ImageUpload from './ImageUpload';
 import ImageClassification from './ImageClassification';
 import ImageReview from './ImageReview';
-import ImageProcessing from './ImageProcessing';
 
-interface IDroneImageProcessingWorkflowProps {
+// ─── Upload Imagery Dialog ───────────────────────────────────────────────────
+// Steps: Upload → Classify → Review → Finish (moves images to task folders)
+
+interface IUploadImageryDialogProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
 }
 
-const DroneImageProcessingWorkflow = ({
+export const UploadImageryDialog = ({
   isOpen,
   onClose,
   projectId,
-}: IDroneImageProcessingWorkflowProps) => {
+}: IUploadImageryDialogProps) => {
   const dispatch = useTypedDispatch();
   const { currentStep, batchId, isClassifying, isClassificationComplete } = useTypedSelector(
     (state) => state.imageProcessingWorkflow
   );
   const [showAbortConfirmation, setShowAbortConfirmation] = useState(false);
 
-  // Mutation to delete batch
   const deleteBatchMutation = useMutation({
     mutationFn: () => deleteBatch(projectId, batchId!),
     onSuccess: () => {
@@ -49,14 +50,12 @@ const DroneImageProcessingWorkflow = ({
     },
   });
 
-  // Set project ID when component mounts or projectId changes
   useEffect(() => {
     if (projectId) {
       dispatch(setProjectId(projectId));
     }
   }, [projectId, dispatch]);
 
-  // Reset abort confirmation state when modal opens
   useEffect(() => {
     if (isOpen) {
       setShowAbortConfirmation(false);
@@ -67,7 +66,6 @@ const DroneImageProcessingWorkflow = ({
     { url: '', step: 1, label: '01', name: 'Image Upload', title: 'Upload' },
     { url: '', step: 2, label: '02', name: 'Classification', title: 'Classify' },
     { url: '', step: 3, label: '03', name: 'Review', title: 'Review' },
-    { url: '', step: 4, label: '04', name: 'Processing', title: 'Process' },
   ];
 
   const handleNext = () => {
@@ -83,7 +81,6 @@ const DroneImageProcessingWorkflow = ({
   };
 
   const handleClose = () => {
-    // If there's a batch in progress (after upload step), show confirmation
     if (batchId && currentStep > 1) {
       setShowAbortConfirmation(true);
       return;
@@ -101,51 +98,25 @@ const DroneImageProcessingWorkflow = ({
     }
   };
 
-  const handleCancelAbort = () => {
-    setShowAbortConfirmation(false);
-  };
-
-  // Handle finish button - closes without showing abort confirmation
-  // Used when user has completed the workflow (on final step)
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    // Images are moved to task folders only when tasks are marked as verified
+    // in the Verify Imagery dialog, so no finalization needed here.
+    toast.success('Upload complete. Open Verify Imagery to review and mark tasks as fully flown.');
     dispatch(resetWorkflow());
     onClose();
   };
 
-  // Handle upload complete - store batch ID and move to classification
   const handleUploadComplete = useCallback((result: any, uploadedBatchId?: string) => {
     if (uploadedBatchId) {
       dispatch(setBatchId(uploadedBatchId));
-      // Automatically move to classification step
       dispatch(setCurrentStep(2));
     }
   }, [dispatch]);
 
-  // Logic for Next button state and tooltip
   const navigationInfo = useMemo(() => {
-    // Step 1: Image Upload
-    if (currentStep === 1) {
-      if (!batchId) {
-        return { disabled: true, reason: 'Please upload images first' };
-      }
-  // Handle upload cancel - clean up batch from database when user cancels via Uppy UI
-  const handleUploadCancel = useCallback(async (cancelledBatchId: string) => {
-    try {
-      await deleteBatch(projectId, cancelledBatchId);
-      toast.info('Upload cancelled and batch cleaned up');
-    } catch (error) {
-      console.error('Failed to clean up cancelled batch:', error);
-    }
-  }, [projectId]);
-
-  // Should proceed to the next step
-  const handleNextButton = () => {
-    // Disable Next button on step 1 if no batch ID
     if (currentStep === 1 && !batchId) {
-      return true;
+      return { disabled: true, reason: 'Please upload images first' };
     }
-
-    // Step 2: Image Classification
     if (currentStep === 2) {
       if (isClassifying) {
         return { disabled: true, reason: 'Classification in progress...' };
@@ -154,14 +125,9 @@ const DroneImageProcessingWorkflow = ({
         return { disabled: true, reason: 'Please start and complete classification first' };
       }
     }
-
-    // Step 3: Image Review
-    if (currentStep === 3) {
-      if (!isClassificationComplete) {
-        return { disabled: true, reason: 'Please complete classification first' };
-      }
+    if (currentStep === 3 && !isClassificationComplete) {
+      return { disabled: true, reason: 'Please complete classification first' };
     }
-
     return { disabled: false, reason: '' };
   }, [currentStep, batchId, isClassifying, isClassificationComplete]);
 
@@ -172,15 +138,11 @@ const DroneImageProcessingWorkflow = ({
           <ImageUpload
             projectId={projectId}
             onUploadComplete={handleUploadComplete}
-            onCancel={handleUploadCancel}
           />
         );
       case 2:
         return batchId ? (
-          <ImageClassification
-            projectId={projectId}
-            batchId={batchId}
-          />
+          <ImageClassification projectId={projectId} batchId={batchId} />
         ) : (
           <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-text-gray-500">
             No batch ID available. Please upload images first.
@@ -188,24 +150,10 @@ const DroneImageProcessingWorkflow = ({
         );
       case 3:
         return batchId ? (
-          <ImageReview
-            projectId={projectId}
-            batchId={batchId}
-          />
+          <ImageReview projectId={projectId} batchId={batchId} />
         ) : (
           <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-text-gray-500">
             No batch ID available. Please complete classification first.
-          </div>
-        );
-      case 4:
-        return batchId ? (
-          <ImageProcessing
-            projectId={projectId}
-            batchId={batchId}
-          />
-        ) : (
-          <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-text-gray-500">
-            No batch ID available. Please complete the previous steps first.
           </div>
         );
       default:
@@ -218,19 +166,17 @@ const DroneImageProcessingWorkflow = ({
     <Modal
       show={isOpen}
       onClose={handleClose}
-      title="Drone Image Processing Workflow"
-      className="!naxatw-max-w-[80vw] !naxatw-w-[80vw] !naxatw-max-h-[85vh] !naxatw-h-[85vh] !naxatw-flex !naxatw-flex-col"
+      title="Upload Imagery"
+      className="!naxatw-max-w-[88vw] !naxatw-w-[88vw] !naxatw-max-h-[90vh] !naxatw-h-[90vh] !naxatw-flex !naxatw-flex-col"
+      bodyScrollable={false}
     >
-      <div className="naxatw-flex naxatw-h-[calc(85vh-8rem)] naxatw-flex-col naxatw-gap-4">
-        {/* Step Indicator */}
+      <div className="naxatw-flex naxatw-h-[calc(90vh-8rem)] naxatw-flex-col naxatw-gap-4">
         <StepSwitcher data={steps} activeStep={currentStep} />
 
-        {/* Content */}
         <div className="naxatw-flex-1 naxatw-min-h-0 naxatw-overflow-y-auto naxatw-pb-4">
           {renderStepContent()}
         </div>
 
-        {/* Footer */}
         <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-justify-between naxatw-border-t naxatw-pt-4">
           <div className="naxatw-flex naxatw-gap-2">
             <Button
@@ -254,11 +200,7 @@ const DroneImageProcessingWorkflow = ({
             )}
           </div>
           <div className="naxatw-flex naxatw-gap-2">
-            <Button
-              variant="outline"
-              className="naxatw-border-gray-300"
-              onClick={handleClose}
-            >
+            <Button variant="outline" className="naxatw-border-gray-300" onClick={handleClose}>
               Cancel
             </Button>
             {currentStep < steps.length ? (
@@ -288,10 +230,8 @@ const DroneImageProcessingWorkflow = ({
           </div>
         </div>
       </div>
-
     </Modal>
 
-      {/* Abort Confirmation Dialog */}
       {showAbortConfirmation && (
         <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[10000] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
           <div className="naxatw-w-full naxatw-max-w-md naxatw-rounded-lg naxatw-bg-white naxatw-p-6 naxatw-shadow-xl">
@@ -309,7 +249,7 @@ const DroneImageProcessingWorkflow = ({
               <Button
                 variant="outline"
                 className="naxatw-border-gray-300"
-                onClick={handleCancelAbort}
+                onClick={() => setShowAbortConfirmation(false)}
                 disabled={deleteBatchMutation.isPending}
               >
                 Continue Processing
@@ -330,4 +270,43 @@ const DroneImageProcessingWorkflow = ({
   );
 };
 
-export default DroneImageProcessingWorkflow;
+
+// ─── Verify Imagery Dialog ───────────────────────────────────────────────────
+// Standalone dialog that shows project-level ImageReview (aggregated across all
+// batches) with task verification capabilities.
+
+interface IVerifyImageryDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  projectId: string;
+}
+
+export const VerifyImageryDialog = ({
+  isOpen,
+  onClose,
+  projectId,
+}: IVerifyImageryDialogProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <Modal
+      show={isOpen}
+      onClose={onClose}
+      title="Verify Imagery"
+      className="!naxatw-max-w-[88vw] !naxatw-w-[88vw] !naxatw-max-h-[90vh] !naxatw-h-[90vh] !naxatw-flex !naxatw-flex-col"
+      bodyScrollable={false}
+    >
+      <div className="naxatw-flex naxatw-h-[calc(90vh-8rem)] naxatw-flex-col naxatw-gap-4">
+        <div className="naxatw-flex-1 naxatw-min-h-0 naxatw-overflow-y-auto naxatw-pb-4">
+          <ImageReview projectId={projectId} />
+        </div>
+
+        <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-justify-end naxatw-border-t naxatw-pt-4">
+          <Button variant="outline" className="naxatw-border-gray-300" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};

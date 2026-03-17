@@ -9,10 +9,7 @@ export interface IFilesExifData {
 export interface IDroneOperatorTaskState {
   secondPage: boolean;
   secondPageState: string;
-  clickedImage: string;
-  checkedImages: Record<number, boolean>;
   popOver: boolean;
-  files: any[];
   selectedTakeOffPointOption: string;
   selectedTakeOffPoint: any[] | string | null;
   uploadedImagesType: 'add' | 'replace';
@@ -31,10 +28,7 @@ export interface IDroneOperatorTaskState {
 const initialState: IDroneOperatorTaskState = {
   secondPage: false,
   secondPageState: 'description',
-  clickedImage: '',
-  checkedImages: {},
   popOver: false,
-  files: [],
   selectedTakeOffPointOption: 'current_location',
   selectedTakeOffPoint: null,
   uploadedImagesType: 'add',
@@ -67,31 +61,8 @@ export const droneOperatorTaskSlice = createSlice({
     setSecondPageState: (state, action) => {
       state.secondPageState = action.payload;
     },
-    setSelectedImage: (state, action) => {
-      state.clickedImage = action.payload;
-    },
-    setCheckedImages: (state, action) => {
-      state.checkedImages = action.payload;
-    },
-    unCheckImages: (state, action) => {
-      state.checkedImages[action.payload] =
-        !state.checkedImages[action.payload];
-    },
     showPopover: state => {
       state.popOver = !state.popOver;
-    },
-    unCheckAllImages: state => {
-      Object.keys(state.checkedImages).forEach((key: any) => {
-        state.checkedImages[key] = false;
-      });
-    },
-    checkAllImages: state => {
-      Object.keys(state.checkedImages).forEach((key: any) => {
-        state.checkedImages[key] = true;
-      });
-    },
-    setFiles: (state, action) => {
-      state.files = action.payload;
     },
     setSelectedTakeOffPointOption: (state, action) => {
       state.selectedTakeOffPointOption = action.payload;

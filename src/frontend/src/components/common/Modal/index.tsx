@@ -9,9 +9,11 @@ interface IModalProps {
   onClose: MouseEventHandler;
   children: ReactNode;
   className?: string;
+  bodyClassName?: string;
   headerContent?: string;
   zIndex?: number;
   hideCloseButton?: boolean;
+  bodyScrollable?: boolean;
 }
 
 export default function Modal({
@@ -21,9 +23,11 @@ export default function Modal({
   onClose,
   children,
   className,
+  bodyClassName,
   headerContent,
   zIndex = 1111,
   hideCloseButton,
+  bodyScrollable = true,
 }: IModalProps) {
   const nodeRef = useRef(null);
 
@@ -82,7 +86,13 @@ export default function Modal({
                   )}
                 </div>
                 <div className="naxatw-flex">
-                  <div className="scrollbar naxatw-max-h-[calc(100vh-10rem)] naxatw-grow naxatw-overflow-y-auto naxatw-px-10 naxatw-pb-5">
+                  <div
+                    className={`naxatw-grow naxatw-px-10 naxatw-pb-5 ${
+                      bodyScrollable
+                        ? 'scrollbar naxatw-max-h-[calc(100vh-10rem)] naxatw-overflow-y-auto'
+                        : 'naxatw-h-full naxatw-overflow-hidden'
+                    } ${bodyClassName || ''}`}
+                  >
                     {children}
                   </div>
                 </div>

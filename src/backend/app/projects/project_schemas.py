@@ -31,7 +31,9 @@ from app.models.enums import (
     RegulatorApprovalStatus,
     UserRole,
 )
+from app.config import settings
 from app.s3 import (
+    check_file_exists,
     get_assets_url_for_project,
     get_orthophoto_url_for_project,
     maybe_presign_s3_key,
@@ -663,6 +665,7 @@ class ProjectInfo(BaseModel):
     oam_upload_status: Optional[str] = None
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
+    has_gcp: bool = False
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_name: Optional[str] = None
@@ -717,6 +720,24 @@ class ProjectInfo(BaseModel):
             lambda: get_orthophoto_url_for_project(project_id),
             label="orthophoto_url",
         )
+
+        return values
+
+    @model_validator(mode="after")
+    def set_has_gcp(cls, values):
+        project_id = values.id
+        if not project_id:
+            values.has_gcp = False
+            return values
+
+        try:
+            values.has_gcp = check_file_exists(
+                settings.S3_BUCKET_NAME,
+                f"projects/{project_id}/gcp/gcp_list.txt",
+            )
+        except Exception as e:
+            log.warning(f"Failed to determine has_gcp for project {project_id}: {e}")
+            values.has_gcp = False
 
         return values
 

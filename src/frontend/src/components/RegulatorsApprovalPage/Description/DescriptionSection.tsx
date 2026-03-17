@@ -21,11 +21,15 @@ const DescriptionSection = ({
   page = 'project-approval',
   projectData,
   isProjectDataLoading = false,
+  onOpenUpload,
+  onOpenVerify,
   onOpenWorkflow,
 }: {
   projectData: Record<string, any>;
   page?: 'project-description' | 'project-approval';
   isProjectDataLoading?: boolean;
+  onOpenUpload?: () => void;
+  onOpenVerify?: () => void;
   onOpenWorkflow?: () => void;
 }) => {
   const dispatch = useDispatch();
@@ -41,15 +45,6 @@ const DescriptionSection = ({
       ),
     [projectData?.tasks],
   );
-
-  const taskStatusSummary = useMemo(() => {
-    const tasks = projectData?.tasks;
-    if (!tasks?.length) return null;
-    const processed = tasks.filter(
-      (t: Record<string, any>) => t?.state === 'IMAGE_PROCESSING_FINISHED',
-    ).length;
-    return `${processed}/${tasks.length}`;
-  }, [projectData?.tasks]);
 
   const handleDownloadResult = () => {
     if (!projectData?.assets_url) return;
@@ -129,30 +124,85 @@ const DescriptionSection = ({
         </div>
       </div>
 
-      {page === 'project-description' && onOpenWorkflow && (
-        <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-rounded-lg naxatw-border-2 naxatw-border-red-200 naxatw-bg-red-50 naxatw-p-6">
-          <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
-            <span className="material-icons naxatw-text-2xl naxatw-text-red-600">
-              cloud_upload
-            </span>
+      {page === 'project-description' && (onOpenUpload || onOpenWorkflow) && (
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-mt-2">
+          <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
+            Imagery Workflow
+          </p>
+
+          {/* Step 1: Upload Imagery */}
+          <button
+            className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-p-3 naxatw-text-left naxatw-transition-all hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
+            onClick={onOpenUpload || onOpenWorkflow}
+          >
+            <div className="naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-red naxatw-text-sm naxatw-font-bold naxatw-text-white">
+              1
+            </div>
             <div className="naxatw-flex-1">
-              <p className="naxatw-mb-1 naxatw-text-base naxatw-font-semibold naxatw-text-red-900">
-                Ready to process drone imagery?
+              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Upload Imagery</p>
+              <p className="naxatw-text-xs naxatw-text-gray-500">
+                Upload drone images, classify quality, and review results
               </p>
-              <p className="naxatw-mb-3 naxatw-text-sm naxatw-text-red-700">
-                Upload your drone images, classify them for quality, review results, and start processing.
+            </div>
+            <span className="material-icons naxatw-text-gray-400">chevron_right</span>
+          </button>
+
+          {/* Step 2: Verify Imagery */}
+          <button
+            className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+              onOpenVerify
+                ? 'naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50'
+                : 'naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60'
+            }`}
+            onClick={onOpenVerify}
+            disabled={!onOpenVerify}
+          >
+            <div className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${onOpenVerify ? 'naxatw-bg-red' : 'naxatw-bg-gray-400'}`}>
+              2
+            </div>
+            <div className="naxatw-flex-1">
+              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Verify Imagery</p>
+              <p className="naxatw-text-xs naxatw-text-gray-500">
+                Review on map, mark tasks as fully flown
+              </p>
+            </div>
+            <span className="material-icons naxatw-text-gray-400">chevron_right</span>
+          </button>
+
+          {/* Step 3: Processing */}
+          <button
+            className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+              isAbleToStartProcessing
+                ? 'naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50'
+                : 'naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60'
+            }`}
+            onClick={() => isAbleToStartProcessing && dispatch(toggleModal('processing-status'))}
+            disabled={!isAbleToStartProcessing}
+          >
+            <div className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${isAbleToStartProcessing ? 'naxatw-bg-red' : 'naxatw-bg-gray-400'}`}>
+              3
+            </div>
+            <div className="naxatw-flex-1">
+              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Processing</p>
+              <p className="naxatw-text-xs naxatw-text-gray-500">
+                Start ODM processing and monitor task status
+              </p>
+            </div>
+            <span className="material-icons naxatw-text-gray-400">chevron_right</span>
+          </button>
+
+          {/* Step 4: Identify Flight Gaps (future) */}
+          <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-p-3 naxatw-opacity-50">
+            <div className="naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-gray-300 naxatw-text-sm naxatw-font-bold naxatw-text-white">
+              4
+            </div>
+            <div className="naxatw-flex-1">
+              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">Identify Flight Gaps</p>
+              <p className="naxatw-text-xs naxatw-text-gray-400">
+                Coming soon
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            className="naxatw-w-full naxatw-bg-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-white hover:naxatw-bg-red-700"
-            leftIcon="settings"
-            iconClassname="naxatw-text-xl"
-            onClick={onOpenWorkflow}
-          >
-            Drone Image Processing Workflow
-          </Button>
         </div>
       )}
 
@@ -161,21 +211,6 @@ const DescriptionSection = ({
           projectData?.regulator_approval_status === 'APPROVED') &&
         isAbleToStartProcessing && (
           <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
-            <Button
-              className="naxatw-bg-red"
-              leftIcon="monitoring"
-              onClick={() => {
-                dispatch(toggleModal('processing-status'));
-              }}
-            >
-              Processing Status
-              {taskStatusSummary && (
-                <span className="naxatw-ml-1 naxatw-rounded-full naxatw-bg-white/20 naxatw-px-2 naxatw-py-0.5 naxatw-text-xs">
-                  {taskStatusSummary}
-                </span>
-              )}
-            </Button>
-
             {projectData?.image_processing_status === 'SUCCESS' && (
               <>
                 <Button

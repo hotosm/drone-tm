@@ -243,7 +243,6 @@ async def create_project(
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])
 async def upload_project_task_boundaries(
-    background_tasks: BackgroundTasks,
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
@@ -259,8 +258,18 @@ async def upload_project_task_boundaries(
         dict: JSON containing success message, project ID, and number of tasks.
     """
     log.debug("Creating tasks for each polygon in project")
+    redis_pool = None
+    try:
+        redis_pool = await get_redis_pool()
+    except HTTPException as e:
+        log.warning(
+            "Project {} tasks created without metrics queueing: {}",
+            project.id,
+            e.detail,
+        )
+
     await project_logic.create_tasks_from_geojson(
-        db, project.id, task_featcol, project, background_tasks
+        db, project.id, task_featcol, project, redis_pool
     )
 
     return {
