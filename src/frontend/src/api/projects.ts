@@ -89,18 +89,18 @@ export const useGetProjectCentroidQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: queryOptions?.queryKey
-      ? [
-          'all-projects-centroid',
-          ...Object.values(queryOptions?.queryKey || {}),
-        ]
-      : ['all-projects-centroid'],
     queryFn: () =>
       getProjectCentroid(
         queryOptions?.queryKey ? { ...queryOptions.queryKey } : {},
       ),
     select: (data: any) => data.data,
     ...queryOptions,
+    queryKey: queryOptions?.queryKey
+      ? [
+          'all-projects-centroid',
+          ...Object.values(queryOptions?.queryKey || {}),
+        ]
+      : ['all-projects-centroid'],
   });
 };
 

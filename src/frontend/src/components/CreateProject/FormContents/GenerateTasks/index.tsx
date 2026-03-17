@@ -88,7 +88,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
             placeholder="Enter Dimension (in m)"
             type="number"
             className="naxatw-mt-1"
-            value={dimension}
+            value={dimension ?? ''}
             min={50}
             max={1000}
             {...register('task_split_dimension', {
@@ -136,8 +136,10 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
           Generate Tasks
         </Button>
         {!projectWaypointCountIsLoading && projectWayPoints && (
-          <p className="naxatw-mt-4 naxatw-text-sm naxatw-font-semibold">
-            The average number of waypoints is:
+          <div className="naxatw-mt-4">
+            <p className="naxatw-text-sm naxatw-font-semibold">
+              The average number of waypoints is:
+            </p>
             <ul className="naxatw-ml-4 naxatw-list-disc">
               {projectWayPoints?.data?.waypoints && (
                 <li>
@@ -154,7 +156,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
                 </li>
               )}
             </ul>
-          </p>
+          </div>
         )}
       </div>
       <div className="naxatw-col-span-3 naxatw-h-[50vh] naxatw-bg-green-50 md:naxatw-col-span-2 md:naxatw-h-full">
