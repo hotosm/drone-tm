@@ -212,7 +212,7 @@ const DescriptionBox = () => {
                 rightIcon="open_in_new"
                 onClick={() => navigate(`/projects/${projectId}`)}
               >
-                Open Project Workflow
+                Open Project Page
               </Button>
             </div>
           </div>
