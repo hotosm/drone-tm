@@ -25,8 +25,10 @@ from app.s3 import (
 )
 
 
-# Number of concurrent workers for parallel classification
-CLASSIFICATION_CONCURRENCY = 6
+# Number of concurrent workers for parallel classification.
+# Must not exceed the connection pool size (default 4) to avoid pool
+# exhaustion, which silently leaves images stuck in STAGED.
+CLASSIFICATION_CONCURRENCY = 4
 
 # Hard timeout per image to avoid a single stuck S3 read / decode hanging the whole batch.
 # If exceeded, the image is marked as REJECTED with a generic "Classification failed".
@@ -788,7 +790,36 @@ class ImageClassifier:
 
         # Process all images in parallel with controlled concurrency
         tasks = [classify_with_commit(image) for image in images]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        gather_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Detect silently swallowed exceptions (e.g. pool timeout before the
+        # inner try/except). These leave images stuck in STAGED with no log.
+        for image_record, result_or_exc in zip(images, gather_results):
+            if isinstance(result_or_exc, BaseException):
+                image_id = image_record["id"]
+                log.error(
+                    f"Classification worker failed for image {image_id} "
+                    f"(batch {batch_id}): {result_or_exc!r}"
+                )
+                # Best-effort: mark the image as rejected so it isn't stuck
+                try:
+                    async with db_pool.connection() as err_conn:
+                        await ImageClassifier._update_image_status(
+                            err_conn,
+                            image_id
+                            if isinstance(image_id, uuid.UUID)
+                            else uuid.UUID(image_id),
+                            ImageStatus.REJECTED,
+                            _format_classification_failure_reason(result_or_exc),
+                        )
+                        await err_conn.commit()
+                    async with results_lock:
+                        results["rejected"] += 1
+                except Exception as cleanup_err:
+                    log.error(
+                        f"Failed to mark image {image_id} as rejected "
+                        f"after worker error: {cleanup_err}"
+                    )
 
         log.info(
             f"Parallel classification complete for batch {batch_id}: "
