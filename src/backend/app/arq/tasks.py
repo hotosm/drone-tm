@@ -20,7 +20,12 @@ from app.images.image_logic import (
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
 from app.models.enums import HTTPStatus, ImageStatus
-from app.projects.project_logic import process_all_drone_images, process_drone_images
+from app.projects import project_schemas
+from app.projects.project_logic import (
+    process_all_drone_images,
+    process_drone_images,
+    process_task_metrics,
+)
 from app.s3 import async_get_obj_from_bucket, s3_client
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
@@ -641,6 +646,53 @@ async def delete_batch_images(
         raise
 
 
+async def process_project_task_metrics(
+    ctx: Dict[Any, Any], project_id: str
+) -> Dict[str, Any]:
+    """Process project task metrics in the ARQ worker."""
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        f"Starting process_project_task_metrics (Job ID: {job_id}): project={project_id}"
+    )
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as db:
+            project = await project_schemas.DbProject.one(db, UUID(project_id))
+
+            async with db.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id, project_id, ST_AsBinary(outline), project_task_index
+                    FROM tasks
+                    WHERE project_id = %s
+                    ORDER BY project_task_index
+                    """,
+                    (project.id,),
+                )
+                tasks_data = await cur.fetchall()
+
+            await process_task_metrics(db, tasks_data, project)
+
+            log.info(
+                f"Completed process_project_task_metrics (Job ID: {job_id}): "
+                f"project={project_id}, tasks={len(tasks_data)}"
+            )
+
+            return {
+                "message": "Task metrics processed",
+                "project_id": project_id,
+                "task_count": len(tasks_data),
+            }
+
+    except Exception as e:
+        log.error(f"Failed process_project_task_metrics (Job ID: {job_id}): {str(e)}")
+        raise
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -654,6 +706,7 @@ class WorkerSettings:
         classify_image_batch,
         process_batch_images,
         delete_batch_images,
+        process_project_task_metrics,
         download_and_upload_dem,
     ]
 

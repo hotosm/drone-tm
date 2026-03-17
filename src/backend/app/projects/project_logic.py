@@ -8,7 +8,7 @@ from typing import Any, Dict
 import geojson
 import pyproj
 import shapely.wkb as wkblib
-from fastapi import BackgroundTasks, HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from geojson import Feature, FeatureCollection
 from loguru import logger as log
@@ -166,6 +166,7 @@ async def update_task_metrics(db, task_updates):
             task_updates,
         )
         log.debug(f"Updated {len(task_updates)} tasks with flight metrics")
+    await db.commit()
 
 
 async def process_task_metrics(db, tasks_data, project):
@@ -252,9 +253,9 @@ async def create_tasks_from_geojson(
     project_id: uuid.UUID,
     boundaries: Any,
     project,
-    background_tasks: BackgroundTasks,
+    redis=None,
 ):
-    """Create tasks and update metrics asynchronously."""
+    """Create tasks and enqueue task metric processing asynchronously."""
     try:
         if isinstance(boundaries, str):
             boundaries = json.loads(boundaries)
@@ -284,7 +285,22 @@ async def create_tasks_from_geojson(
                     tasks_data,
                 )
                 log.debug(f"Inserted {len(tasks_data)} tasks in bulk")
-            background_tasks.add_task(process_task_metrics, db, tasks_data, project)
+            await db.commit()
+
+            if redis:
+                job = await redis.enqueue_job(
+                    "process_project_task_metrics",
+                    str(project_id),
+                    _queue_name="default_queue",
+                )
+                log.info(
+                    f"Queued task metrics job {job.job_id} for project {project_id}"
+                )
+            else:
+                log.warning(
+                    "Project {} task metrics enqueue skipped (Redis unavailable)",
+                    project_id,
+                )
 
         return {
             "message": "Task creation started, metrics will be updated in the background"
@@ -292,163 +308,6 @@ async def create_tasks_from_geojson(
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
-
-
-# async def create_tasks_from_geojson(
-#     db: Connection,
-#     project_id: uuid.UUID,
-#     boundaries: Any,
-#     project: project_schemas.DbProject,
-# ):
-#     """Create tasks for a project, from provided task boundaries."""
-#     try:
-#         if isinstance(boundaries, str):
-#             boundaries = json.loads(boundaries)
-
-#         if boundaries["type"] == "Feature":
-#             polygons = [boundaries]
-#         else:
-#             polygons = boundaries["features"]
-
-#         log.debug(f"Processing {len(polygons)} task geometries")
-
-#         # Set up the projection transform for EPSG:3857 (Web Mercator)
-#         proj_wgs84 = pyproj.CRS("EPSG:4326")
-#         proj_mercator = pyproj.CRS("EPSG:3857")
-#         project_transformer = pyproj.Transformer.from_crs(
-#             proj_wgs84, proj_mercator, always_xy=True
-#         )
-
-#         for index, polygon in enumerate(polygons):
-#             forward_overlap = project.front_overlap if project.front_overlap else 70
-#             side_overlap = project.side_overlap if project.side_overlap else 70
-#             generate_3d = False  # TODO: For 3d imageries drone_flightplan package needs to be updated.
-
-#             gsd = project.gsd_cm_px
-#             altitude = project.altitude_from_ground
-
-#             parameters = calculate_parameters(
-#                 forward_overlap,
-#                 side_overlap,
-#                 altitude,
-#                 gsd,
-#                 2,  # Image Interval is set to 2
-#             )
-
-#             # Wrap polygon into GeoJSON Feature
-#             if not polygon["geometry"]:
-#                 continue
-#             # If the polygon is a MultiPolygon, convert it to a Polygon
-#             if polygon["geometry"]["type"] == "MultiPolygon":
-#                 log.debug("Converting MultiPolygon to Polygon")
-#                 polygon["geometry"]["type"] = "Polygon"
-#                 polygon["geometry"]["coordinates"] = polygon["geometry"]["coordinates"][
-#                     0
-#                 ]
-
-#             geom = shape(polygon["geometry"])
-
-#             coordinates = polygon["geometry"]["coordinates"]
-#             if polygon["geometry"]["type"] == "Polygon":
-#                 coordinates = polygon["geometry"]["coordinates"]
-#             feature = Feature(geometry=Polygon(coordinates), properties={})
-#             feature_collection = FeatureCollection([feature])
-
-#             # Common parameters for create_waypoint
-#             waypoint_params = {
-#                 "project_area": feature_collection,
-#                 "agl": altitude,
-#                 "gsd": gsd,
-#                 "forward_overlap": forward_overlap,
-#                 "side_overlap": side_overlap,
-#                 "rotation_angle": 0,
-#                 "generate_3d": generate_3d,
-#             }
-#             waypoint_params["mode"] = FlightMode.WAYPOINTS
-#             if project.is_terrain_follow:
-#                 dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
-
-#                 # Terrain follow uses waypoints mode, waylines are generated later
-#                 points = create_waypoint(**waypoint_params)
-
-#                 try:
-#                     get_file_from_bucket(
-#                         settings.S3_BUCKET_NAME,
-#                         f"projects/{project.id}/dem.tif",
-#                         dem_path,
-#                     )
-#                     # TODO: Do this with inmemory data
-#                     outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-#                     add_elevation_from_dem(dem_path, points, outfile_with_elevation)
-
-#                     inpointsfile = open(outfile_with_elevation, "r")
-#                     points_with_elevation = inpointsfile.read()
-
-#                 except Exception:
-#                     points_with_elevation = points
-
-#                 placemarks = create_placemarks(
-#                     geojson.loads(points_with_elevation), parameters
-#                 )
-
-#             else:
-#                 points = create_waypoint(**waypoint_params)
-#                 placemarks = create_placemarks(geojson.loads(points), parameters)
-
-#             flight_time_minutes = calculate_flight_time_from_placemarks(placemarks).get(
-#                 "total_flight_time"
-#             )
-#             flight_distance_km = calculate_flight_time_from_placemarks(placemarks).get(
-#                 "flight_distance_km"
-#             )
-#             try:
-#                 # Transform the geometry to EPSG:3857 and calculate the area in square meters
-#                 transformed_geom = transform(project_transformer.transform, geom)
-#                 area_sq_m = transformed_geom.area  # Area in square meters
-
-#                 # Convert area to square kilometers
-#                 total_area_sqkm = area_sq_m / 1_000_000
-
-#                 task_id = str(uuid.uuid4())
-#                 async with db.cursor() as cur:
-#                     await cur.execute(
-#                         """
-#                         INSERT INTO tasks (id, project_id, outline, project_task_index, total_area_sqkm, flight_time_minutes, flight_distance_km)
-#                         VALUES (%(id)s, %(project_id)s, %(outline)s, %(project_task_index)s, %(total_area_sqkm)s, %(flight_time_minutes)s, %(flight_distance_km)s)
-#                         RETURNING id;
-#                         """,
-#                         {
-#                             "id": task_id,
-#                             "project_id": project_id,
-#                             "outline": wkblib.dumps(
-#                                 shape(polygon["geometry"]), hex=True
-#                             ),
-#                             "project_task_index": index + 1,
-#                             "total_area_sqkm": total_area_sqkm,
-#                             "flight_time_minutes": flight_time_minutes,
-#                             "flight_distance_km": flight_distance_km,
-#                         },
-#                     )
-#                     result = await cur.fetchone()
-
-#                     if result:
-#                         log.debug(
-#                             "Created database task | "
-#                             f"Project ID {project_id} | "
-#                             f"Task index {index}"
-#                         )
-#                         log.debug(
-#                             "COMPLETE: creating project boundary, based on task boundaries"
-#                         )
-#             except Exception as e:
-#                 log.exception(e)
-#                 raise HTTPException(e) from e
-
-#         return True
-
-#     except Exception as e:
-#         log.exception(e)
-#         raise HTTPException(e) from e
 
 
 async def preview_split_by_square(boundary: str, meters: int):
