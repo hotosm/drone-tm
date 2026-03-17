@@ -4,7 +4,7 @@ import { Map as MapLibreMap, NavigationControl, AttributionControl } from 'mapli
 import { toast } from 'react-toastify';
 import {
   FlightGapDetectionData,
-  getFlightGapDetectionData
+  getFlightGapDetectionData,
 } from '@Services/classification';
 import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
@@ -18,7 +18,6 @@ interface FlightGapDetectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
-  batchId: string;
   taskId: string;
   taskIndex: number;
   gapAnalysisData: FlightGapDetectionData | null;
@@ -28,7 +27,6 @@ const FlightGapDetectionModal = ({
   isOpen,
   onClose,
   projectId,
-  batchId,
   taskId,
   taskIndex,
   gapAnalysisData
@@ -168,7 +166,8 @@ const FlightGapDetectionModal = ({
 
   // Manual gaps modified and finalized by user
   const finalizeGapMutation = useMutation({
-      mutationFn: (gap_polygons: GeoJSON.FeatureCollection) => getFlightGapDetectionData(projectId, batchId, taskId, taskIndex, gap_polygons),
+      mutationFn: (gap_polygons: GeoJSON.FeatureCollection) =>
+        getFlightGapDetectionData(projectId, taskId, gap_polygons),
       onSuccess: () => {
         toast.success('Gaps Finalized and Reconstructed Flight Plan available.');
         setIsDownloadReady(true);

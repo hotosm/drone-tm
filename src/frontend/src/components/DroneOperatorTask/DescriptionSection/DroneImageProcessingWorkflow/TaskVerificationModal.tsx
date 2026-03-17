@@ -8,6 +8,8 @@ import {
   markTaskAsVerified,
   deleteTaskImage,
   TaskVerificationData,
+  FlightGapDetectionData,
+  getFlightGapDetectionData,
 } from '@Services/classification';
 import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
@@ -17,6 +19,7 @@ import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import FlightGapDetectionModal from './FlightGapDetectionModal';
 
 interface TaskVerificationModalProps {
   isOpen: boolean;
@@ -42,6 +45,13 @@ const TaskVerificationModal = ({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isStyleReady, setIsStyleReady] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [flightGapModal, setFlightGapModal] = useState<{
+    isOpen: boolean;
+    gapData: FlightGapDetectionData | null;
+  }>({
+    isOpen: false,
+    gapData: null,
+  });
   const popupRef = useRef<Popup | null>(null);
   const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hasFitRef = useRef(false);
@@ -61,6 +71,9 @@ const TaskVerificationModal = ({
       setIsMapLoaded(false);
       setIsStyleReady(false);
       hasFitRef.current = false;
+    }
+    if (!isOpen) {
+      setFlightGapModal({ isOpen: false, gapData: null });
     }
   }, [isOpen]);
 
@@ -373,6 +386,28 @@ const TaskVerificationModal = ({
     },
   });
 
+  const flightGapAnalysisMutation = useMutation<
+    FlightGapDetectionData,
+    Error,
+    void
+  >({
+    mutationFn: () =>
+      getFlightGapDetectionData(projectId, taskId, null),
+    onSuccess: (data) => {
+      setFlightGapModal({
+        isOpen: true,
+        gapData: data,
+      });
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.detail ||
+        error.message ||
+        'Failed to run flight gap analysis';
+      toast.error(message);
+    },
+  });
+
   // Handle sidebar image click: highlight on map and fly to point
   const handleSidebarImageClick = (imageId: string) => {
     setSelectedImageId(imageId);
@@ -420,6 +455,7 @@ const TaskVerificationModal = ({
   const imageGeoJsonData = imagesGeoJson();
   const coveragePercentage = verificationData?.coverage_percentage ?? 0;
   const isLowCoverage = coveragePercentage < 100;
+  const isAlreadyVerified = verificationData?.is_verified ?? false;
 
   return (
     <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[9999] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
@@ -636,17 +672,43 @@ const TaskVerificationModal = ({
               Cancel
             </Button>
             <Button
+              variant="outline"
+              className="naxatw-border-red-600 naxatw-text-red-700 hover:naxatw-bg-red-50 disabled:naxatw-opacity-50"
+              onClick={() => flightGapAnalysisMutation.mutate()}
+              disabled={flightGapAnalysisMutation.isPending || !verificationData?.images.length}
+              leftIcon={flightGapAnalysisMutation.isPending ? 'sync' : 'search'}
+            >
+              {flightGapAnalysisMutation.isPending ? 'Finding Gaps...' : 'Identify Flight Gaps'}
+            </Button>
+            <Button
               variant="ghost"
               className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700 disabled:naxatw-opacity-50"
               onClick={() => verifyMutation.mutate()}
-              disabled={verifyMutation.isPending || !verificationData?.images.length}
+              disabled={
+                verifyMutation.isPending ||
+                !verificationData?.images.length ||
+                isAlreadyVerified
+              }
               leftIcon={verifyMutation.isPending ? 'sync' : 'check_circle'}
             >
-              {verifyMutation.isPending ? 'Updating...' : 'Mark Ready For Processing'}
+              {verifyMutation.isPending
+                ? 'Verifying...'
+                : isAlreadyVerified
+                  ? 'Already Fully Flown'
+                  : 'Mark Fully Flown'}
             </Button>
           </FlexRow>
         </div>
       </div>
+
+      <FlightGapDetectionModal
+        isOpen={flightGapModal.isOpen}
+        onClose={() => setFlightGapModal({ isOpen: false, gapData: null })}
+        projectId={projectId}
+        taskId={taskId}
+        taskIndex={taskIndex}
+        gapAnalysisData={flightGapModal.gapData}
+      />
     </div>
   );
 };

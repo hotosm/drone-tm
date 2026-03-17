@@ -385,15 +385,11 @@ export interface FlightGapDetectionData {
 
 export const getFlightGapDetectionData = async (
   projectId: string,
-  batchId: string,
   taskId: string,
-  projectTaskIndex: number,
   manualGapPolygons: GeoJSON.FeatureCollection | null,
 ): Promise<FlightGapDetectionData> => {
-  void projectTaskIndex;
-
   const response = await authenticated(api).post(
-    `/projects/${projectId}/batch/${batchId}/task/${taskId}/find-gaps/`,
+    `/projects/${projectId}/imagery/task/${taskId}/find-gaps/`,
     manualGapPolygons,
     {
       headers: {

@@ -52,7 +52,7 @@ async def test_north_wrap_around(db, load_freetown_into_db):
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=north_path
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
     assert "type" in result["gap_polygons"]
     assert "images" in result
@@ -86,7 +86,7 @@ async def test_gap_missing_flight_leg(db, load_freetown_into_db):
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=side_gap_metadata
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
     assert_is_valid_flightplan(result["kmz_bytes"])
 
@@ -103,7 +103,7 @@ async def test_front_overlap_gap_logic(
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=gapped_metadata
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
     assert len(result["kmz_bytes"]) > 100
     assert_is_valid_flightplan(result["kmz_bytes"])
@@ -121,7 +121,7 @@ async def test_side_overlap_gap_logic(
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=gapped_metadata
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
     assert_is_valid_flightplan(result["kmz_bytes"])
 
@@ -146,7 +146,7 @@ async def test_gap_outside_aoi_ignored(db, load_freetown_into_db):
         )
     await db.commit()
 
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
     assert result["kmz_bytes"] is None
     assert result["message"] == "No gaps detected"
@@ -162,7 +162,21 @@ async def test_gap_outside_aoi_ignored(db, load_freetown_into_db):
 async def test_freetown_dataset_gap_full_verification(db, load_freetown_into_db):
     """Tests the official 'images-to-delete-for-gaps.txt' gap."""
     project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
     assert_is_valid_flightplan(result["kmz_bytes"])
     assert "Successfully identified" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_project_level_gap_detection_without_batch_filter(
+    db, load_freetown_into_db
+):
+    """Project-level gap analysis should work across uploaded imagery for a task."""
+    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+
+    result = await identify_flight_gaps(db, project_id, task_id)
+
+    assert batch_id is not None
+    assert "images" in result
+    assert_is_valid_flightplan(result["kmz_bytes"])

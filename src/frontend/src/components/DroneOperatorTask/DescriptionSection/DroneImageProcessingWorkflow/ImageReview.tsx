@@ -12,8 +12,6 @@ import {
   TaskGroupImage,
   getBatchReview,
   getBatchMapData,
-  FlightGapDetectionData,
-  getFlightGapDetectionData,
 } from '@Services/classification';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import Accordion from '@Components/common/Accordion';
@@ -24,7 +22,6 @@ import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLaye
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
 import TaskVerificationModal from './TaskVerificationModal';
-import FlightGapDetectionModal from './FlightGapDetectionModal';
 
 interface ImageReviewProps {
   projectId: string;
@@ -91,18 +88,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     taskId: '',
     taskIndex: 0,
   });
-  const [flightGapModal, setFlightGapModal] = useState<{
-    isOpen: boolean;
-    taskId: string;
-    taskIndex: number;
-    gapData: FlightGapDetectionData | null;
-  }>({
-    isOpen: false,
-    taskId: '',
-    taskIndex: 0,
-    gapData: null,
-  });
-
   // Refs for sidebar scrolling
   const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -358,38 +343,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     },
   });
 
-  const flightGapAnalysisMutation = useMutation<
-    FlightGapDetectionData,
-    Error,
-    { taskId: string; projectTaskIndex: number }
-  >({
-    mutationFn: ({ taskId, projectTaskIndex }) => {
-      if (!batchId) {
-        throw new Error('Flight gap analysis is only available for batch review.');
-      }
-
-      return getFlightGapDetectionData(
-        projectId,
-        batchId,
-        taskId,
-        projectTaskIndex,
-        null,
-      );
-    },
-    onSuccess: (data, variables) => {
-      setFlightGapModal({
-        isOpen: true,
-        taskId: data.task_id,
-        taskIndex: variables.projectTaskIndex,
-        gapData: data,
-      });
-    },
-    onError: (error: any) => {
-      const message = error?.response?.data?.detail || error.message || 'Failed to run flight gap analysis';
-      toast.error(message);
-    },
-  });
-
   const handleImageClick = (image: TaskGroupImage) => {
     setSelectedImage({
       id: image.id,
@@ -465,14 +418,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     }
   };
 
-  const handleFlightGapAnalysis = (taskId: string, projectTaskIndex: number) => {
-    if (!taskId) {
-      toast.error('Task ID is not valid.');
-      return;
-    }
-
-    flightGapAnalysisMutation.mutate({ taskId, projectTaskIndex });
-  };
   if (isLoading) {
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
@@ -817,26 +762,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   </div>
                 )}
 
-                {group.task_id && batchId && (
-                  <div className="naxatw-mb-4">
-                    <Button
-                      variant="outline"
-                      className="naxatw-border-red-600 naxatw-text-red-700 hover:naxatw-bg-red-50"
-                      leftIcon="search"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFlightGapAnalysis(
-                          group.task_id!,
-                          group.project_task_index || 0,
-                        );
-                      }}
-                      disabled={flightGapAnalysisMutation.isPending}
-                    >
-                      {flightGapAnalysisMutation.isPending ? 'Finding Gaps...' : 'Find Flight Gaps'}
-                    </Button>
-                  </div>
-                )}
-
                 {/* Image Grid */}
                 <div className="naxatw-grid naxatw-grid-cols-6 naxatw-gap-2">
                   {group.images.map((image) => (
@@ -933,18 +858,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
         </div>
       )}
 
-      {/* Flight Gap Detection Modal */}
-      {batchId && (
-        <FlightGapDetectionModal
-          isOpen={flightGapModal.isOpen}
-          onClose={() => setFlightGapModal({ isOpen: false, taskId: '', taskIndex: 0, gapData: null })}
-          projectId={projectId}
-          batchId={batchId}
-          taskId={flightGapModal.taskId}
-          taskIndex={flightGapModal.taskIndex}
-          gapAnalysisData={flightGapModal.gapData}
-        />
-      )}
       {/* Task Verification Modal */}
       <TaskVerificationModal
         isOpen={verificationModal.isOpen}

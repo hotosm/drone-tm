@@ -685,21 +685,18 @@ async def mark_task_verified(
 
 
 @router.post(
-    "/{project_id}/batch/{batch_id}/task/{task_id}/find-gaps/",
+    "/{project_id}/imagery/task/{task_id}/find-gaps/",
     tags=["Image Classification"],
 )
 async def detect_task_flight_gaps(
     project_id: UUID,
-    batch_id: UUID,
     task_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
     manual_gap_polygons: dict = None,
 ):
-    """Conducts the flight gap analysis."""
-    result = await identify_flight_gaps(
-        db, project_id, batch_id, task_id, manual_gap_polygons
-    )
+    """Conduct flight gap analysis across all uploaded imagery for a task."""
+    result = await identify_flight_gaps(db, project_id, task_id, manual_gap_polygons)
 
     if not result:
         raise HTTPException(
@@ -707,14 +704,15 @@ async def detect_task_flight_gaps(
             detail="Could not perform flight gap analysis for this task.",
         )
 
+    drone_type = None
     try:
         drone_type = result.get("drone_type").value
-    except:
-        log.error(f"Could not find drone type value {drone_type}")
+    except Exception:
+        log.error(f"Could not find drone type value {result.get('drone_type')}")
 
     flightplan_url = None
 
-    if result.get("kmz_bytes"):
+    if result.get("kmz_bytes") and drone_type:
         file_path = f"/tmp/reflight_{task_id}.kmz"
         with open(file_path, "wb") as f:
             f.write(result["kmz_bytes"])
@@ -744,8 +742,8 @@ async def download_reflight_plan(project_id: UUID, task_id: UUID, drone_type: st
     try:
         drone_model = drone_type.upper().replace(" ", "_")
         flight_drone_type = DroneType(drone_model)
-    except:
-        log.error(f"Could not find drone type {flight_drone_type}")
+    except Exception:
+        log.error(f"Could not find drone type {drone_type}")
 
     output_format = DRONE_PARAMS[flight_drone_type].get("OUTPUT_FORMAT")
 

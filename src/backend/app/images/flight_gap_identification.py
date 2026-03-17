@@ -231,7 +231,10 @@ def _generate_reconstruction_flightplan(
 
 
 async def identify_flight_gaps(
-    db: Connection, project_id: UUID, batch_id: UUID, task_id: UUID, manual_gaps=None
+    db: Connection,
+    project_id: UUID,
+    task_id: UUID,
+    manual_gaps=None,
 ):
     """
     Analyzes drone image metadata to detect front and side overlap gaps in a flight trajectory.
@@ -239,7 +242,6 @@ async def identify_flight_gaps(
     Args:
         db (Connection): The database connection.
         project_id (UUID): Project ID.
-        batch_id (UUID): Batch ID.
         task_id (UUID): Task ID.
 
     Returns:
@@ -250,7 +252,6 @@ async def identify_flight_gaps(
 
     params = {
         "project_id": project_id,
-        "batch_id": batch_id,
         "task_id": task_id,
         "status": ImageStatus.ASSIGNED.value,
     }
@@ -278,7 +279,6 @@ async def identify_flight_gaps(
             LEFT JOIN drones d ON df.drone_id = d.id
             WHERE i.project_id = %(project_id)s
                 AND i.task_id = %(task_id)s
-                AND i.batch_id = %(batch_id)s
                 AND i.status = %(status)s
                 AND i.rejection_reason IS NULL
                 AND i.location IS NOT NULL
@@ -371,15 +371,29 @@ async def identify_flight_gaps(
         task_aoi_outline = shape(task_row["geometry"])
 
     # Getting drone type
+    db_drone_model = None
     for row in project_image_results:
         if row.get("drone_model_name") is not None:
             db_drone_model = row["drone_model_name"]
             break
-    try:
-        drone_model_clean = db_drone_model.upper().replace(" ", "_")
-        flight_drone_type = DroneType(drone_model_clean)
-    except:
-        log.error(f"Could not find drone type {db_drone_model}")
+
+    if db_drone_model:
+        try:
+            drone_model_clean = db_drone_model.upper().replace(" ", "_")
+            flight_drone_type = DroneType(drone_model_clean)
+        except Exception:
+            log.error(f"Could not find drone type {db_drone_model}")
+    else:
+        log.error("No drone model found in image metadata")
+
+    MIN_DISTANCE_METERS = 5.0
+    LEG_SAMPLE_COUNT = 3  # Ensures enough into the trajectory to compare azimuths'
+    # Minimum missing imagery to create a suggested flightplan
+    MIN_GAP_IMAGES = 3
+    GAP_EXCEED_BASELINE = 1.5  # Threshold when to detect a missing 'gap'
+    MIN_SEGMENT_SIZE = 20
+    # Fallback values
+    MINIMUM_ALTITUDE = 60
 
     # Manual gaps overrides analysis calculations and skips to reconstruction
     if manual_gaps:
@@ -397,15 +411,6 @@ async def identify_flight_gaps(
             f"Image gap detection for task {task_id}: "
             f"Split into {len(segments)} time-contiguous segments"
         )
-
-        MIN_DISTANCE_METERS = 5.0
-        LEG_SAMPLE_COUNT = 3  # Ensures enough into the trajectory to compare azimuths'
-        # Minimum missing imagery to create a suggested flightplan
-        MIN_GAP_IMAGES = 3
-        GAP_EXCEED_BASELINE = 1.5  # Threshold when to detect a missing 'gap'
-        MIN_SEGMENT_SIZE = 20
-        # Fallback values
-        MINIMUM_ALTITUDE = 60
 
         # Iterate through each flight segment
         for idx, segment in enumerate(segments):
@@ -623,14 +628,17 @@ async def identify_flight_gaps(
         log.error("Altitude values not found.")
 
     # Calculating theoretical spacing overall (70%) for side overlap median then overriding if values exist
-    specs = DRONE_PARAMS[flight_drone_type]
-    horizontal_footprint = 2 * overall_average_altitude * specs["HORIZONTAL_FOV"]
-    global_side_overlap_median = horizontal_footprint * 0.30
+    global_side_overlap_median = None
+
+    if flight_drone_type:
+        specs = DRONE_PARAMS[flight_drone_type]
+        horizontal_footprint = 2 * overall_average_altitude * specs["HORIZONTAL_FOV"]
+        global_side_overlap_median = horizontal_footprint * 0.30
 
     if len(all_side_overlap_medians) > 0:
         global_side_overlap_median = np.median(all_side_overlap_medians)
-    else:
-        log.error("No side overlap medians found.")
+    elif flight_drone_type is None:
+        log.error("No drone type found and no side overlap medians available.")
 
     # Process for confirming gaps and triggering reconstruction of flightplan
     # Getting all image points for UI
