@@ -289,3 +289,85 @@ export const deleteTaskImage = async (
   );
   return response.data;
 };
+
+// ─── Project-level (task-centric) endpoints ─────────────────────────────────
+
+export interface TaskImagerySummary {
+  task_id: string;
+  project_task_index: number;
+  task_state: string;
+  total_images: number;
+  assigned_images: number;
+  rejected_images: number;
+  invalid_exif_images: number;
+  duplicate_images: number;
+  unmatched_images: number;
+  latest_upload: string | null;
+  has_ready_imagery: boolean;
+}
+
+export interface ProjectReviewData {
+  project_id: string;
+  task_groups: TaskGroup[];
+  total_tasks: number;
+  total_images: number;
+}
+
+export interface ProjectMapData {
+  project_id: string;
+  tasks: GeoJSON.FeatureCollection;
+  images: GeoJSON.FeatureCollection;
+  total_tasks: number;
+  total_images: number;
+  total_images_with_gps: number;
+  total_images_without_gps: number;
+}
+
+/**
+ * Get per-task imagery summary aggregated across all batches
+ */
+export const getProjectTaskImagerySummary = async (
+  projectId: string,
+): Promise<TaskImagerySummary[]> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/imagery/tasks/`,
+  );
+  return response.data;
+};
+
+/**
+ * Get project-level review data: images grouped by task across all batches
+ */
+export const getProjectReview = async (
+  projectId: string,
+): Promise<ProjectReviewData> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/imagery/review/`,
+  );
+  return response.data;
+};
+
+/**
+ * Get project-level map data: task geometries + all image points across batches
+ */
+export const getProjectMapData = async (
+  projectId: string,
+): Promise<ProjectMapData> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/imagery/map-data/`,
+  );
+  return response.data;
+};
+
+/**
+ * Get task verification data aggregated across all batches (no batch_id needed)
+ */
+export const getProjectTaskVerificationData = async (
+  projectId: string,
+  taskId: string,
+): Promise<TaskVerificationData> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/imagery/task/${taskId}/verification/`,
+  );
+  return response.data;
+};

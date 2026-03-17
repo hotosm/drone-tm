@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike, Popup } from 'maplibre-gl';
 import bbox from '@turf/bbox';
-import { getBatchReview, getBatchMapData, acceptImage, BatchReviewData, BatchMapData, TaskGroup, TaskGroupImage } from '@Services/classification';
+import { getProjectReview, getProjectMapData, acceptImage, ProjectReviewData, ProjectMapData, TaskGroup, TaskGroupImage, getBatchReview, getBatchMapData } from '@Services/classification';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import Accordion from '@Components/common/Accordion';
 import { Button } from '@Components/RadixComponents/Button';
@@ -15,23 +15,26 @@ import TaskVerificationModal from './TaskVerificationModal';
 
 interface ImageReviewProps {
   projectId: string;
-  batchId: string;
+  batchId?: string;  // Optional: when provided, shows batch-scoped data (upload step 3); when absent, shows project-level data (verify dialog)
 }
 
 const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const queryClient = useQueryClient();
   const hasFitBoundsRef = useRef(false);
   const popupRef = useRef<Popup | null>(null);
+  const [showOnlyIssueImages, setShowOnlyIssueImages] = useState(false);
 
+  // Use project-level endpoints when no batchId (verify dialog), batch-scoped when batchId is present (upload step 3)
+  // Both return the same shape (tasks FeatureCollection, images FeatureCollection, counts)
   const {
     data: mapData,
     isLoading: isMapDataLoading,
     error: mapDataError,
     isError: isMapDataError
-  } = useQuery({
-    queryKey: ['batchMapData', projectId, batchId],
-    queryFn: () => getBatchMapData(projectId, batchId),
-    enabled: !!projectId && !!batchId,
+  } = useQuery<ProjectMapData>({
+    queryKey: batchId ? ['batchMapData', projectId, batchId] : ['projectMapData', projectId],
+    queryFn: () => (batchId ? getBatchMapData(projectId, batchId) : getProjectMapData(projectId)) as Promise<ProjectMapData>,
+    enabled: !!projectId,
   });
 
   const {
@@ -39,19 +42,19 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     isLoading: isReviewLoading,
     error: reviewError,
     isError: isReviewError
-  } = useQuery({
-    queryKey: ['batchReview', projectId, batchId],
-    queryFn: () => getBatchReview(projectId, batchId),
-    enabled: !!projectId && !!batchId,
+  } = useQuery<ProjectReviewData>({
+    queryKey: batchId ? ['batchReview', projectId, batchId] : ['projectReview', projectId],
+    queryFn: () => (batchId ? getBatchReview(projectId, batchId) : getProjectReview(projectId)) as Promise<ProjectReviewData>,
+    enabled: !!projectId,
   });
 
   const isLoading = isMapDataLoading || isReviewLoading;
   const error = isMapDataError ? mapDataError : (isReviewError ? reviewError : null);
 
-  // Reset fit bounds when batch changes
+  // Reset fit bounds when data source changes
   useEffect(() => {
     hasFitBoundsRef.current = false;
-  }, [batchId]);
+  }, [batchId, projectId]);
 
   const [selectedImage, setSelectedImage] = useState<{
     id: string;
@@ -314,8 +317,13 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
       } else {
         toast.success('Image accepted successfully');
       }
-      queryClient.invalidateQueries({ queryKey: ['batchReview', projectId, batchId] });
-      queryClient.invalidateQueries({ queryKey: ['batchMapData', projectId, batchId] });
+      // Invalidate both batch-scoped and project-level queries
+      if (batchId) {
+        queryClient.invalidateQueries({ queryKey: ['batchReview', projectId, batchId] });
+        queryClient.invalidateQueries({ queryKey: ['batchMapData', projectId, batchId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
       setSelectedImage(null);
     },
     onError: (error: any) => {
@@ -430,6 +438,8 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   const isRejectedImage = selectedImage && (selectedImage.status === 'rejected' || selectedImage.status === 'invalid_exif');
   const isDuplicateImage = selectedImage && selectedImage.status === 'duplicate';
 
+  const hasIssueStatus = useCallback((status?: string) => status !== 'assigned', []);
+
   const locatedImages = mapData?.images?.features?.filter(
     (feature: GeoJSON.Feature<any>) => feature.geometry !== null,
   ) || [];
@@ -439,21 +449,87 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     (feature: GeoJSON.Feature<any>) => feature.geometry === null,
   ) || [];
 
+  const filteredLocatedImages = useMemo(
+    () => (
+      showOnlyIssueImages
+        ? locatedImages.filter((feature: GeoJSON.Feature<any>) => hasIssueStatus(feature.properties?.status))
+        : locatedImages
+    ),
+    [showOnlyIssueImages, locatedImages, hasIssueStatus],
+  );
+
+  const filteredUnlocatedImages = useMemo(
+    () => (
+      showOnlyIssueImages
+        ? unlocatedImages.filter((feature: GeoJSON.Feature<any>) => hasIssueStatus(feature.properties?.status))
+        : unlocatedImages
+    ),
+    [showOnlyIssueImages, unlocatedImages, hasIssueStatus],
+  );
+
   const locatedImagesGeojson: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
-    features: locatedImages as GeoJSON.Feature<any>[],
+    features: filteredLocatedImages as GeoJSON.Feature<any>[],
   };
 
-  // Merge unlocated images into the "Rejected Images" group in reviewData
-  // Find or create the rejected images group (task_id === null)
-  const rejectedGroup = reviewData.task_groups.find((g: TaskGroup) => g.task_id === null);
-  const hasUnlocatedNotInRejected = unlocatedImages.some(
-    (f: GeoJSON.Feature<any>) => {
-      const fId = f.properties?.id;
-      if (!rejectedGroup) return true;
-      return !rejectedGroup.images.some((img) => img.id === fId);
-    }
-  );
+  const displayedTaskGroups = useMemo(() => {
+    return reviewData.task_groups
+      .map((group: TaskGroup) => {
+        const filteredImages = showOnlyIssueImages
+          ? group.images.filter((image) => hasIssueStatus(image.status))
+          : group.images;
+
+        if (group.task_id) {
+          return {
+            ...group,
+            images: filteredImages,
+          };
+        }
+
+        const mergedUnlocatedImages = filteredUnlocatedImages
+          .filter((feature: GeoJSON.Feature<any>) => !group.images.some((img) => img.id === feature.properties?.id))
+          .map((feature: GeoJSON.Feature<any>) => {
+            const props = feature.properties || {};
+            return {
+              id: props.id,
+              filename: props.filename || 'Unknown',
+              s3_key: props.s3_key || '',
+              thumbnail_url: props.thumbnail_url,
+              url: props.url,
+              status: props.status || 'unknown',
+              rejection_reason: props.rejection_reason || 'No GPS',
+              uploaded_at: props.uploaded_at || '',
+            };
+          });
+
+        return {
+          ...group,
+          images: [...filteredImages, ...mergedUnlocatedImages],
+        };
+      })
+      .filter((group: TaskGroup) => !showOnlyIssueImages || group.images.length > 0);
+  }, [reviewData.task_groups, showOnlyIssueImages, hasIssueStatus, filteredUnlocatedImages]);
+
+  const totalIssueImages = useMemo(() => {
+    const groupedIssueCount = reviewData.task_groups.reduce(
+      (count: number, group: TaskGroup) => count + group.images.filter((image) => hasIssueStatus(image.status)).length,
+      0,
+    );
+    const rejectedGroup = reviewData.task_groups.find((group: TaskGroup) => group.task_id === null);
+    const extraUnlocatedIssueCount = unlocatedImages.filter((feature: GeoJSON.Feature<any>) => {
+      if (!hasIssueStatus(feature.properties?.status)) {
+        return false;
+      }
+      if (!rejectedGroup) {
+        return true;
+      }
+      return !rejectedGroup.images.some((image) => image.id === feature.properties?.id);
+    }).length;
+
+    return groupedIssueCount + extraUnlocatedIssueCount;
+  }, [reviewData.task_groups, unlocatedImages, hasIssueStatus]);
+
+  const visibleTaskCount = displayedTaskGroups.filter((group: TaskGroup) => group.task_id).length;
 
   return (
     <FlexColumn className="naxatw-gap-4 naxatw-h-full">
@@ -465,11 +541,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
           <div className="naxatw-px-3 naxatw-py-2 naxatw-bg-gray-50 naxatw-border-b naxatw-border-gray-200">
             <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-text-xs">
               <span className="naxatw-font-semibold naxatw-text-gray-700">
-                Map View: {locatedImages.length} images with GPS
+                Map View: {filteredLocatedImages.length} {showOnlyIssueImages ? 'issue ' : ''}images with GPS
               </span>
-              {unlocatedImages.length > 0 && (
+              {filteredUnlocatedImages.length > 0 && (
                 <span className="naxatw-text-yellow-600">
-                  {unlocatedImages.length} without GPS (in Rejected Images)
+                  {filteredUnlocatedImages.length} without GPS (in Rejected Images)
                 </span>
               )}
             </FlexRow>
@@ -601,22 +677,36 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
         {/* List Section */}
         <div className="naxatw-w-1/2 naxatw-overflow-y-auto naxatw-pr-2">
           <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-mb-3">
-            <p className="naxatw-text-sm naxatw-text-[#484848]">
-              Review the classified images grouped by tasks.
-            </p>
-            <FlexRow className="naxatw-gap-3 naxatw-text-xs">
+            <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
+              <p className="naxatw-text-sm naxatw-text-[#484848]">
+                Review the classified images grouped by tasks.
+              </p>
+              <label className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-700">
+                <input
+                  type="checkbox"
+                  className="naxatw-h-4 naxatw-w-4 naxatw-rounded naxatw-border-gray-300"
+                  checked={showOnlyIssueImages}
+                  onChange={(event) => setShowOnlyIssueImages(event.target.checked)}
+                />
+                Show only images with issues
+              </label>
+            </div>
+            <FlexRow className="naxatw-gap-3 naxatw-text-xs naxatw-items-start">
               <span className="naxatw-text-gray-600">
-                <span className="naxatw-font-semibold naxatw-text-gray-900">{reviewData.total_tasks}</span> Tasks
+                <span className="naxatw-font-semibold naxatw-text-gray-900">{showOnlyIssueImages ? visibleTaskCount : reviewData.total_tasks}</span> Tasks
               </span>
               <span className="naxatw-text-gray-600">
-                <span className="naxatw-font-semibold naxatw-text-gray-900">{mapData?.total_images_with_gps || 0}</span> on Map
+                <span className="naxatw-font-semibold naxatw-text-gray-900">{filteredLocatedImages.length}</span> on Map
+              </span>
+              <span className="naxatw-text-gray-600">
+                <span className="naxatw-font-semibold naxatw-text-gray-900">{totalIssueImages}</span> Issues
               </span>
             </FlexRow>
           </FlexRow>
 
           {/* Task Accordions */}
           <div className="naxatw-flex naxatw-flex-col">
-            {reviewData.task_groups.map((group: TaskGroup, index: number) => (
+            {displayedTaskGroups.map((group: TaskGroup, index: number) => (
               <Accordion
                 key={group.task_id || `task-${index}`}
                 open={false}
@@ -629,10 +719,9 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                       {group.task_id ? `Task #${group.project_task_index}` : 'Rejected Images'}
                     </h4>
                     <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
-                      {group.task_id
-                        ? `${group.image_count} ${group.image_count === 1 ? 'image' : 'images'}`
-                        : `${group.image_count + (hasUnlocatedNotInRejected ? unlocatedImages.filter((f: GeoJSON.Feature<any>) => !group.images.some((img) => img.id === f.properties?.id)).length : 0)} ${group.image_count === 1 ? 'image' : 'images'}`
-                      }
+                      {showOnlyIssueImages
+                        ? `${group.images.length} ${group.images.length === 1 ? 'issue' : 'issues'}`
+                        : `${group.images.length} ${group.images.length === 1 ? 'image' : 'images'}`}
                     </span>
                     {group.is_verified && (
                       <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-green-800">
@@ -642,8 +731,8 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   </FlexRow>
                 }
               >
-                {/* Verify Task Button - Only for actual tasks, not rejected images group */}
-                {group.task_id && (
+                {/* Verify Task Button - Only for actual tasks in project-level view (not batch-scoped upload step 3) */}
+                {group.task_id && !batchId && (
                   <div className="naxatw-mb-4">
                     <Button
                       variant="ghost"
@@ -701,51 +790,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                       <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
                     </div>
                   ))}
-
-                  {/* Merge unlocated images into the rejected group */}
-                  {!group.task_id && unlocatedImages.map((feature: GeoJSON.Feature<any>) => {
-                    const props = feature.properties || {};
-                    // Skip if already in the group from review data
-                    if (group.images.some((img) => img.id === props.id)) return null;
-                    return (
-                      <div
-                        key={props.id}
-                        ref={(el) => { imageRefs.current[props.id] = el; }}
-                        className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
-                          highlightedImageId === props.id
-                            ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300'
-                            : 'naxatw-border-red-300 hover:naxatw-border-red-500'
-                        }`}
-                        onClick={() =>
-                          setSelectedImage({
-                            id: props.id,
-                            url: props.url || props.thumbnail_url || '',
-                            filename: props.filename || 'Unknown',
-                            status: props.status || 'unknown',
-                            rejection_reason: props.rejection_reason || 'No GPS',
-                          })
-                        }
-                        title={`${props.filename} - ${props.rejection_reason || 'No GPS'}`}
-                      >
-                        {(props.thumbnail_url || props.url) ? (
-                          <img
-                            src={props.thumbnail_url || props.url}
-                            alt={props.filename}
-                            className="naxatw-h-full naxatw-w-full naxatw-object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="naxatw-h-full naxatw-w-full naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-gray-100">
-                            <span className="material-icons naxatw-text-2xl naxatw-text-gray-400">image</span>
-                          </div>
-                        )}
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
-                          {props.rejection_reason || 'No GPS'}
-                        </div>
-                        <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
-                      </div>
-                    );
-                  })}
                 </div>
               </Accordion>
             ))}
@@ -809,11 +853,14 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
         isOpen={verificationModal.isOpen}
         onClose={() => setVerificationModal({ isOpen: false, taskId: '', taskIndex: 0 })}
         projectId={projectId}
-        batchId={batchId}
         taskId={verificationModal.taskId}
         taskIndex={verificationModal.taskIndex}
         onVerified={() => {
-          queryClient.invalidateQueries({ queryKey: ['batchReview', projectId, batchId] });
+          if (batchId) {
+            queryClient.invalidateQueries({ queryKey: ['batchReview', projectId, batchId] });
+          }
+          queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
+          queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
         }}
       />
     </FlexColumn>

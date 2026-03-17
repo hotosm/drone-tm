@@ -4,7 +4,7 @@ import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBounds
 import bbox from '@turf/bbox';
 import { toast } from 'react-toastify';
 import {
-  getTaskVerificationData,
+  getProjectTaskVerificationData,
   markTaskAsVerified,
   deleteTaskImage,
   TaskVerificationData,
@@ -20,7 +20,6 @@ interface TaskVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
-  batchId: string;
   taskId: string;
   taskIndex: number;
   onVerified?: () => void;
@@ -30,7 +29,6 @@ const TaskVerificationModal = ({
   isOpen,
   onClose,
   projectId,
-  batchId,
   taskId,
   taskIndex,
   onVerified,
@@ -44,11 +42,11 @@ const TaskVerificationModal = ({
   const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hasFitRef = useRef(false);
 
-  // Fetch task verification data
+  // Fetch task verification data (project-level, across all batches)
   const { data: verificationData, isLoading, refetch } = useQuery<TaskVerificationData>({
-    queryKey: ['taskVerification', projectId, batchId, taskId],
-    queryFn: () => getTaskVerificationData(projectId, batchId, taskId),
-    enabled: isOpen && !!projectId && !!batchId && !!taskId,
+    queryKey: ['taskVerification', projectId, taskId],
+    queryFn: () => getProjectTaskVerificationData(projectId, taskId),
+    enabled: isOpen && !!projectId && !!taskId,
   });
 
   // Reset map when modal closes
@@ -277,8 +275,12 @@ const TaskVerificationModal = ({
     onSuccess: () => {
       toast.success(`Task #${taskIndex} marked as fully flown`);
       queryClient.invalidateQueries({ queryKey: ['taskVerification'] });
-      queryClient.invalidateQueries({ queryKey: ['batchReview'] });
-      queryClient.invalidateQueries({ queryKey: ['processing-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ['all-task-assets-info', projectId],
+      });
       onVerified?.();
       onClose();
     },

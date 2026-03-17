@@ -2,10 +2,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGetAllTaskAssetsInfo } from '@Api/tasks';
 import { postProcessImagery } from '@Services/tasks';
 import { processAllImagery } from '@Services/project';
+import { getProjectTaskImagerySummary, TaskImagerySummary } from '@Services/classification';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import Icon from '@Components/common/Icon';
@@ -21,11 +22,6 @@ const stateColors: Record<string, string> = {
   UNFLYABLE_TASK: '#9EA5AD',
 };
 
-const isProcessable = (state: string | null, imageCount: number) =>
-  state === 'IMAGE_UPLOADED' ||
-  state === 'IMAGE_PROCESSING_FAILED' ||
-  (state === 'LOCKED_FOR_MAPPING' && imageCount > 0);
-
 const ProcessingStatusDialog = () => {
   const { id } = useParams();
   const projectId = id as string;
@@ -37,7 +33,28 @@ const ProcessingStatusDialog = () => {
     new Set(),
   );
 
+  // allTaskAssets: S3-based data (assets_url, image_count from disk, state)
   const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
+
+  // Backend summary: authoritative source for has_ready_imagery
+  const { data: taskSummary } = useQuery<TaskImagerySummary[]>({
+    queryKey: ['projectTaskImagerySummary', projectId],
+    queryFn: () => getProjectTaskImagerySummary(projectId),
+    enabled: !!projectId,
+    refetchInterval: 30000,
+  });
+
+  // Build a lookup from task_id → has_ready_imagery so the backend is the
+  // single source of truth for readiness decisions.
+  const readinessMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (taskSummary) {
+      for (const t of taskSummary) {
+        map.set(t.task_id, t.has_ready_imagery);
+      }
+    }
+    return map;
+  }, [taskSummary]);
 
   const { mutateAsync: processTask } = useMutation({
     mutationFn: ({ taskId }: { taskId: string }) =>
@@ -52,6 +69,9 @@ const ProcessingStatusDialog = () => {
         queryClient.invalidateQueries({
           queryKey: ['all-task-assets-info', projectId],
         });
+        queryClient.invalidateQueries({
+          queryKey: ['projectTaskImagerySummary', projectId],
+        });
         toast.success('Final processing started');
       },
     });
@@ -60,10 +80,10 @@ const ProcessingStatusDialog = () => {
     () =>
       Array.isArray(allTaskAssets)
         ? allTaskAssets.filter((t: any) =>
-            isProcessable(t.state, t.image_count),
+            readinessMap.get(t.task_id) === true,
           )
         : [],
-    [allTaskAssets],
+    [allTaskAssets, readinessMap],
   );
 
   const toggleTaskSelection = useCallback((taskId: string) => {
@@ -110,6 +130,9 @@ const ProcessingStatusDialog = () => {
     queryClient.invalidateQueries({
       queryKey: ['all-task-assets-info', projectId],
     });
+    queryClient.invalidateQueries({
+      queryKey: ['projectTaskImagerySummary', projectId],
+    });
     setProcessingTasks(new Set());
   }, [selectedTasks, processTask, queryClient, projectId]);
 
@@ -121,6 +144,9 @@ const ProcessingStatusDialog = () => {
         toast.success(`Task processing started`);
         queryClient.invalidateQueries({
           queryKey: ['all-task-assets-info', projectId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['projectTaskImagerySummary', projectId],
         });
       } catch {
         toast.error('Failed to start processing');
@@ -160,12 +186,27 @@ const ProcessingStatusDialog = () => {
     [dispatch, startAllImageProcessing, projectId],
   );
 
+  const totalTaskCount = useMemo(
+    () => (Array.isArray(allTaskAssets) ? allTaskAssets.length : 0),
+    [allTaskAssets],
+  );
+
   const taskList = useMemo(() => {
     if (!Array.isArray(allTaskAssets)) return [];
-    return [...allTaskAssets].sort((a: any, b: any) => {
-      const aIdx = a.task_id?.localeCompare?.(b.task_id) || 0;
-      return aIdx;
-    });
+    // Only show tasks that have images or are in a processing/uploaded state
+    return [...allTaskAssets]
+      .filter(
+        (t: any) =>
+          t.image_count > 0 ||
+          t.state === 'IMAGE_UPLOADED' ||
+          t.state === 'IMAGE_PROCESSING_STARTED' ||
+          t.state === 'IMAGE_PROCESSING_FINISHED' ||
+          t.state === 'IMAGE_PROCESSING_FAILED',
+      )
+      .sort((a: any, b: any) => {
+        const aIdx = a.task_id?.localeCompare?.(b.task_id) || 0;
+        return aIdx;
+      });
   }, [allTaskAssets]);
 
   const processedCount = useMemo(
@@ -222,7 +263,7 @@ const ProcessingStatusDialog = () => {
           </thead>
           <tbody>
             {taskList.map((task: any, index: number) => {
-              const canProcess = isProcessable(task.state, task.image_count);
+              const canProcess = readinessMap.get(task.task_id) === true;
               const isTaskProcessing =
                 processingTasks.has(task.task_id) ||
                 task.state === 'IMAGE_PROCESSING_STARTED';
@@ -331,7 +372,26 @@ const ProcessingStatusDialog = () => {
       {/* Status summary */}
       <p className="naxatw-text-center naxatw-text-xs naxatw-text-gray-500">
         {processedCount}/{taskList.length} tasks processed
+        {taskList.length < totalTaskCount && (
+          <span className="naxatw-ml-1">
+            ({totalTaskCount - taskList.length} tasks awaiting imagery)
+          </span>
+        )}
       </p>
+
+      {taskList.length === 0 && (
+        <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2 naxatw-py-6 naxatw-text-gray-500">
+          <span className="material-icons naxatw-text-4xl naxatw-text-gray-300">
+            image_search
+          </span>
+          <p className="naxatw-text-sm">
+            No tasks are ready for processing yet.
+          </p>
+          <p className="naxatw-text-xs">
+            Upload imagery and mark tasks as fully flown in the Verify Imagery step first.
+          </p>
+        </div>
+      )}
 
       {/* Divider */}
       <hr className="naxatw-border-gray-200" />

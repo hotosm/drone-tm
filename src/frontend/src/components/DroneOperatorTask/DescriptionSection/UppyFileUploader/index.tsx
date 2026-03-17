@@ -284,7 +284,7 @@ const UppyFileUploader = ({
   }, [uppy, onUploadComplete, staging, projectId]);
 
   return (
-    <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3">
+    <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3 naxatw-overflow-hidden">
       {label && (
         <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
           {label}
