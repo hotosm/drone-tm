@@ -378,19 +378,27 @@ export interface FlightGapDetectionData {
   message: string;
   task_geometry: GeoJSON.Feature;
   gap_polygons: GeoJSON.FeatureCollection;
-  drone_type: string;
+  drone_type: string | null;
   images: GeoJSON.FeatureCollection;
   flightplan_url: string | null;
+}
+
+export interface FlightGapDetectionRequest {
+  manualGapPolygons?: GeoJSON.FeatureCollection | null;
+  droneType?: string | null;
 }
 
 export const getFlightGapDetectionData = async (
   projectId: string,
   taskId: string,
-  manualGapPolygons: GeoJSON.FeatureCollection | null,
+  request: FlightGapDetectionRequest = {},
 ): Promise<FlightGapDetectionData> => {
   const response = await authenticated(api).post(
     `/projects/${projectId}/imagery/task/${taskId}/find-gaps/`,
-    manualGapPolygons,
+    {
+      manual_gap_polygons: request.manualGapPolygons ?? null,
+      drone_type: request.droneType ?? null,
+    },
     {
       headers: {
         'Content-Type': 'application/json',

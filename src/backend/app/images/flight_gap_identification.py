@@ -1,4 +1,5 @@
 import os
+import re
 
 import numpy as np
 import pyproj
@@ -6,7 +7,15 @@ import geojson
 import tempfile
 
 from uuid import UUID
-from shapely.geometry import Point, Polygon, LineString, shape, mapping
+from shapely.geometry import (
+    GeometryCollection,
+    LineString,
+    MultiPolygon,
+    Point,
+    Polygon,
+    shape,
+    mapping,
+)
 
 from loguru import logger as log
 from psycopg import Connection
@@ -25,10 +34,50 @@ from drone_flightplan import create_flightplan
 from drone_flightplan.drone_type import DRONE_PARAMS, DroneType
 from drone_flightplan.enums import FlightMode
 
-from shapely.ops import unary_union
+from shapely.ops import transform, unary_union
 
 
 projector = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+inverse_projector = pyproj.Transformer.from_crs(
+    "EPSG:3857", "EPSG:4326", always_xy=True
+)
+
+
+def _geometry_to_feature(geom) -> dict:
+    """Wrap a Shapely geometry as a GeoJSON Feature."""
+    return {"type": "Feature", "properties": {}, "geometry": mapping(geom)}
+
+
+def _geometry_to_feature_collection(geom) -> dict:
+    """Wrap a Shapely geometry as a GeoJSON FeatureCollection."""
+    if geom is None:
+        return {"type": "FeatureCollection", "features": []}
+    return {"type": "FeatureCollection", "features": [_geometry_to_feature(geom)]}
+
+
+def _coerce_drone_type(drone_model: str | None) -> DroneType | None:
+    """Normalize drone model strings from DB/EXIF into supported DroneType values."""
+    if not drone_model:
+        return None
+
+    normalized = re.sub(r"[^A-Z0-9]+", "_", drone_model.upper()).strip("_")
+    if not normalized:
+        return None
+
+    try:
+        return DroneType(normalized)
+    except ValueError:
+        pass
+
+    aliases = {
+        "DJI_AIR3": DroneType.DJI_AIR_3,
+        "DJI_MINI4_PRO": DroneType.DJI_MINI_4_PRO,
+        "DJI_MINI_4": DroneType.DJI_MINI_4_PRO,
+        "DJI_MINI5_PRO": DroneType.DJI_MINI_5_PRO,
+        "POTENSIC_ATOM": DroneType.POTENSIC_ATOM_1,
+        "POTENSIC_ATOM_SE": DroneType.POTENSIC_ATOM_1,
+    }
+    return aliases.get(normalized)
 
 
 def point_to_meters(location: dict) -> Point:
@@ -53,6 +102,148 @@ def point_to_meters(location: dict) -> Point:
     x, y = projector.transform(lon, lat)
 
     return Point(x, y)
+
+
+def _project_geometry_to_meters(geom):
+    """Project a geometry from EPSG:4326 to EPSG:3857."""
+    return transform(projector.transform, geom)
+
+
+def _project_geometry_to_wgs84(geom):
+    """Project a geometry from EPSG:3857 back to EPSG:4326."""
+    return transform(inverse_projector.transform, geom)
+
+
+def _filter_polygonal_geometry_by_area(geom, min_area_m2: float):
+    """Drop tiny polygonal fragments created by geometric difference operations."""
+    if geom is None or geom.is_empty:
+        return None
+
+    if isinstance(geom, Polygon):
+        return geom if geom.area >= min_area_m2 else None
+
+    if isinstance(geom, MultiPolygon):
+        polygons = [polygon for polygon in geom.geoms if polygon.area >= min_area_m2]
+        if not polygons:
+            return None
+        if len(polygons) == 1:
+            return polygons[0]
+        return MultiPolygon(polygons)
+
+    if isinstance(geom, GeometryCollection):
+        polygons = [
+            polygon
+            for polygon in geom.geoms
+            if isinstance(polygon, Polygon) and polygon.area >= min_area_m2
+        ]
+        if not polygons:
+            return None
+        if len(polygons) == 1:
+            return polygons[0]
+        return MultiPolygon(polygons)
+
+    return None
+
+
+def _generate_flightplan_for_geometry(
+    reconstruction_aoi,
+    drone_type: DroneType,
+    average_altitude: float,
+    rotation_angle: float | None = None,
+    front_overlap: float = 70,
+    side_overlap: float = 70,
+    flight_mode: FlightMode = FlightMode.WAYPOINTS,
+):
+    """Generate a reflight plan for an already-derived reconstruction AOI."""
+    if reconstruction_aoi is None or reconstruction_aoi.is_empty:
+        return None
+
+    # Library fix
+    original_loads = geojson.loads
+
+    def unwrap_geojson_loads(obj, **kwargs):
+        if isinstance(obj, dict) and "geojson" in obj:
+            return original_loads(obj["geojson"], **kwargs)
+
+        if isinstance(obj, dict):
+            return obj
+
+        return original_loads(obj, **kwargs)
+
+    geojson.loads = unwrap_geojson_loads
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            temp_outfile = os.path.join(tmp_dir, "reconstruction")
+
+            result_path = create_flightplan(
+                aoi=mapping(reconstruction_aoi),
+                forward_overlap=max(50, min(90, front_overlap)),
+                side_overlap=max(50, min(90, side_overlap)),
+                agl=average_altitude,
+                flight_mode=flight_mode,
+                drone_type=drone_type,
+                rotation_angle=rotation_angle or 0,
+                outfile=temp_outfile,
+            )
+
+            if result_path and os.path.exists(result_path):
+                with open(result_path, "rb") as f:
+                    return {"kmz_bytes": f.read(), "geometry": reconstruction_aoi}
+            return None
+
+    finally:
+        geojson.loads = original_loads
+
+
+def _detect_sparse_coverage_gap(
+    task_aoi: Polygon,
+    images: list[dict],
+    drone_type: DroneType,
+    average_altitude: float,
+):
+    """
+    Estimate uncovered task AOI for very small image sets where trajectory baselines
+    cannot be derived reliably from neighboring images.
+    """
+    if not images or average_altitude <= 0:
+        return None
+
+    specs = DRONE_PARAMS[drone_type]
+    forward_footprint = average_altitude * specs["VERTICAL_FOV"]
+    horizontal_footprint = average_altitude * specs["HORIZONTAL_FOV"]
+    coverage_radius = min(forward_footprint, horizontal_footprint) / 2
+
+    if coverage_radius <= 0:
+        return None
+
+    task_aoi_m = _project_geometry_to_meters(task_aoi)
+    coverage_buffers = []
+
+    for image in images:
+        point_m = point_to_meters(image["image_location_json"])
+        if point_m is None:
+            continue
+        coverage_buffers.append(point_m.buffer(coverage_radius))
+
+    if not coverage_buffers:
+        return None
+
+    covered_area_m = unary_union(coverage_buffers)
+    uncovered_area_m = task_aoi_m.difference(covered_area_m)
+    image_footprint_area = forward_footprint * horizontal_footprint
+    min_gap_area = max(image_footprint_area * 0.5, 100.0)
+    uncovered_area_m = _filter_polygonal_geometry_by_area(
+        uncovered_area_m, min_gap_area
+    )
+
+    if uncovered_area_m is None or uncovered_area_m.is_empty:
+        return None
+
+    if uncovered_area_m.area < max(task_aoi_m.area * 0.15, min_gap_area):
+        return None
+
+    return _project_geometry_to_wgs84(uncovered_area_m)
 
 
 def _calculate_side_overlap_distance(
@@ -192,42 +383,42 @@ def _generate_reconstruction_flightplan(
         f"Side Gap Detected: {has_side_overlap_gap}, "
         f"Selected Flight Mode: {mode.value}"
     )
-    # Library fix
-    original_loads = geojson.loads
+    return _generate_flightplan_for_geometry(
+        reconstruction_aoi,
+        drone_type=drone_type,
+        average_altitude=avg_alt,
+        rotation_angle=avg_azi,
+        front_overlap=front_overlap,
+        side_overlap=side_overlap,
+        flight_mode=mode,
+    )
 
-    def unwrap_geojson_loads(obj, **kwargs):
-        if isinstance(obj, dict) and "geojson" in obj:
-            return original_loads(obj["geojson"], **kwargs)
 
-        if isinstance(obj, dict):
-            return obj
+def _build_gap_geometry(
+    confirmed_gaps: list[dict],
+    task_aoi: Polygon,
+    horizontal_footprint: float,
+):
+    """Create buffered gap polygons intersected with the task AOI."""
+    if not confirmed_gaps or horizontal_footprint <= 0:
+        return None
 
-        return original_loads(obj, **kwargs)
+    gap_polygons = []
+    for gap in confirmed_gaps:
+        line = LineString(
+            [gap["start_loc"]["coordinates"], gap["end_loc"]["coordinates"]]
+        )
+        polygon = line.buffer((horizontal_footprint / 2) / 111320)
+        gap_polygons.append(polygon)
 
-    geojson.loads = unwrap_geojson_loads
+    combined_gaps = unary_union(gap_polygons)
+    reconstruction_aoi = combined_gaps.intersection(task_aoi)
 
-    try:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            temp_outfile = os.path.join(tmp_dir, "reconstruction")
+    if reconstruction_aoi.is_empty:
+        log.warning("Reconstruction AOI is empty after intersection with Task AOI.")
+        return None
 
-            result_path = create_flightplan(
-                aoi=mapping(reconstruction_aoi),
-                forward_overlap=max(50, min(90, front_overlap)),
-                side_overlap=max(50, min(90, side_overlap)),
-                agl=avg_alt,
-                flight_mode=mode,
-                drone_type=drone_type,
-                rotation_angle=avg_azi,
-                outfile=temp_outfile,
-            )
-
-            if result_path and os.path.exists(result_path):
-                with open(result_path, "rb") as f:
-                    return {"kmz_bytes": f.read(), "geometry": reconstruction_aoi}
-            return None
-
-    finally:
-        geojson.loads = original_loads
+    return reconstruction_aoi
 
 
 async def identify_flight_gaps(
@@ -235,6 +426,7 @@ async def identify_flight_gaps(
     project_id: UUID,
     task_id: UUID,
     manual_gaps=None,
+    drone_type_override: DroneType | None = None,
 ):
     """
     Analyzes drone image metadata to detect front and side overlap gaps in a flight trajectory.
@@ -267,6 +459,7 @@ async def identify_flight_gaps(
                 ST_AsGeoJSON(i.location)::json AS image_location_json,
                 i.location AS geom,
                 d.model AS drone_model_name,
+                NULLIF(i.exif->>'Model', '') AS exif_drone_model_name,
                 COALESCE(
                     to_timestamp(i.exif->>'DateTimeOriginal', 'YYYY:MM:DD HH24:MI:SS')::timestamptz,
                     i.uploaded_at
@@ -322,6 +515,7 @@ async def identify_flight_gaps(
             sort_ts,
             segment_id,
             drone_model_name,
+            exif_drone_model_name,
             altitude_m,
             yaw_deg,
             row_num,
@@ -342,7 +536,7 @@ async def identify_flight_gaps(
     """
     # Setting all tracking variables
     all_potential_gaps = []
-    flight_drone_type = None
+    flight_drone_type = drone_type_override
     all_side_overlap_medians = []
     all_altitudes = []
 
@@ -373,17 +567,15 @@ async def identify_flight_gaps(
     # Getting drone type
     db_drone_model = None
     for row in project_image_results:
-        if row.get("drone_model_name") is not None:
-            db_drone_model = row["drone_model_name"]
+        db_drone_model = row.get("drone_model_name") or row.get("exif_drone_model_name")
+        if db_drone_model is not None:
             break
 
-    if db_drone_model:
-        try:
-            drone_model_clean = db_drone_model.upper().replace(" ", "_")
-            flight_drone_type = DroneType(drone_model_clean)
-        except Exception:
+    if db_drone_model and flight_drone_type is None:
+        flight_drone_type = _coerce_drone_type(db_drone_model)
+        if flight_drone_type is None:
             log.error(f"Could not find drone type {db_drone_model}")
-    else:
+    elif not db_drone_model and flight_drone_type is None:
         log.error("No drone model found in image metadata")
 
     MIN_DISTANCE_METERS = 5.0
@@ -392,6 +584,7 @@ async def identify_flight_gaps(
     MIN_GAP_IMAGES = 3
     GAP_EXCEED_BASELINE = 1.5  # Threshold when to detect a missing 'gap'
     MIN_SEGMENT_SIZE = 20
+    SPARSE_SEGMENT_MAX_IMAGES = 5
     # Fallback values
     MINIMUM_ALTITUDE = 60
 
@@ -521,7 +714,7 @@ async def identify_flight_gaps(
                 segment_side_overlap_median = np.median(side_dist_moved_legs_list)
                 all_side_overlap_medians.append(segment_side_overlap_median)
 
-            else:
+            elif flight_drone_type:
                 # If only one leg exists then there isn't sufficient data for a side overlap to be found
                 # Calculate what the spacing SHOULD look like based on the drone's FOV
                 # at its current altitude, assuming a standard 70% side overlap.
@@ -536,6 +729,10 @@ async def identify_flight_gaps(
                 horizontal_footprint = avg_alt * specs["HORIZONTAL_FOV"]
 
                 segment_side_overlap_median = horizontal_footprint * 0.30
+            else:
+                log.warning(
+                    "Unable to estimate side overlap baseline without a drone type."
+                )
 
             log.debug(
                 f"Segment side overlap median for all legs: {segment_side_overlap_median}"
@@ -640,6 +837,8 @@ async def identify_flight_gaps(
     elif flight_drone_type is None:
         log.error("No drone type found and no side overlap medians available.")
 
+    gap_geometry = None
+
     # Process for confirming gaps and triggering reconstruction of flightplan
     # Getting all image points for UI
     image_features = [
@@ -650,7 +849,11 @@ async def identify_flight_gaps(
                 "id": str(row["id"]),
                 "filename": str(row["filename"]),
                 "status": str(row["status"]),
-                "thumbnail_url": str(row["thumbnail_url"]),
+                "thumbnail_url": maybe_presign_s3_key(
+                    row["thumbnail_url"], expires_hours=1
+                )
+                if row.get("thumbnail_url")
+                else None,
                 "url": maybe_presign_s3_key(row["s3_key"], expires_hours=1)
                 if row.get("s3_key")
                 else None,
@@ -661,11 +864,75 @@ async def identify_flight_gaps(
 
     images_geojson = {"type": "FeatureCollection", "features": image_features}
 
+    if (
+        not manual_gaps
+        and flight_drone_type
+        and 0 < len(project_image_results) <= SPARSE_SEGMENT_MAX_IMAGES
+    ):
+        sparse_gap_geometry = _detect_sparse_coverage_gap(
+            task_aoi_outline,
+            project_image_results,
+            flight_drone_type,
+            overall_average_altitude,
+        )
+        if sparse_gap_geometry is not None:
+            sparse_yaws = [
+                row["yaw_deg"]
+                for row in project_image_results
+                if row.get("yaw_deg") is not None
+            ]
+            sparse_rotation = circular_mean_list(sparse_yaws) if sparse_yaws else None
+            result = _generate_flightplan_for_geometry(
+                sparse_gap_geometry,
+                drone_type=flight_drone_type,
+                average_altitude=overall_average_altitude,
+                rotation_angle=sparse_rotation,
+            )
+
+            if result:
+                return {
+                    "message": "Successfully identified sparse-coverage gaps.",
+                    "task_geometry": _geometry_to_feature(task_aoi_outline),
+                    "gap_polygons": _geometry_to_feature_collection(result["geometry"]),
+                    "drone_type": flight_drone_type,
+                    "kmz_bytes": result["kmz_bytes"],
+                    "images": images_geojson,
+                }
+
+            return {
+                "message": "Gaps identified, but no flightplan was generated.",
+                "task_id": str(task_id),
+                "task_geometry": _geometry_to_feature(task_aoi_outline),
+                "gap_polygons": _geometry_to_feature_collection(sparse_gap_geometry),
+                "drone_type": flight_drone_type,
+                "kmz_bytes": None,
+                "images": images_geojson,
+            }
+
     if len(all_potential_gaps) > MIN_GAP_IMAGES:
         # Filter potential gaps to find those that intersect with task AOI
         confirmed_gaps = _validate_gaps_in_task_aoi(
             task_aoi_outline, all_potential_gaps
         )
+
+        approximate_horizontal_footprint = None
+        if global_side_overlap_median:
+            approximate_horizontal_footprint = global_side_overlap_median / 0.30
+        elif confirmed_gaps:
+            expected_gap_sizes = [
+                gap["expected"] for gap in confirmed_gaps if gap.get("expected")
+            ]
+            if expected_gap_sizes:
+                approximate_horizontal_footprint = (
+                    float(np.median(expected_gap_sizes)) / 0.30
+                )
+
+        if approximate_horizontal_footprint:
+            gap_geometry = _build_gap_geometry(
+                confirmed_gaps,
+                task_aoi_outline,
+                approximate_horizontal_footprint,
+            )
 
         if confirmed_gaps and flight_drone_type:
             log.info(
@@ -681,14 +948,26 @@ async def identify_flight_gaps(
             )
 
             if result:
+                gap_geometry = result["geometry"]
                 return {
                     "message": f"Successfully identified {len(confirmed_gaps)} gaps.",
-                    "task_geometry": mapping(task_aoi_outline),
-                    "gap_polygons": mapping(result["geometry"]),
+                    "task_geometry": _geometry_to_feature(task_aoi_outline),
+                    "gap_polygons": _geometry_to_feature_collection(gap_geometry),
                     "drone_type": flight_drone_type,
                     "kmz_bytes": result["kmz_bytes"],
                     "images": images_geojson,
                 }
+
+        if confirmed_gaps and not flight_drone_type:
+            return {
+                "message": "Select a drone model to generate a reflight plan.",
+                "task_id": str(task_id),
+                "task_geometry": _geometry_to_feature(task_aoi_outline),
+                "gap_polygons": _geometry_to_feature_collection(gap_geometry),
+                "drone_type": None,
+                "kmz_bytes": None,
+                "images": images_geojson,
+            }
 
     if not flight_drone_type:
         message = "Missing drone metadata"
@@ -700,7 +979,7 @@ async def identify_flight_gaps(
     return {
         "message": f"{message}",
         "task_id": str(task_id),
-        "task_geometry": mapping(task_aoi_outline),
+        "task_geometry": _geometry_to_feature(task_aoi_outline),
         "gap_polygons": {"type": "FeatureCollection", "features": []},
         "drone_type": flight_drone_type,
         "kmz_bytes": None,

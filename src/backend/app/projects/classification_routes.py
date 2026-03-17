@@ -9,7 +9,7 @@ from loguru import logger as log
 from psycopg import Connection
 from pydantic import BaseModel
 
-from drone_flightplan.drone_type import DRONE_PARAMS, DroneType
+from drone_flightplan.drone_type import DroneType
 
 from app.arq.tasks import get_redis_pool
 from app.db import database
@@ -18,7 +18,10 @@ from app.images.image_classification import ImageClassifier
 from app.images.flight_gap_identification import identify_flight_gaps
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
-from fastapi.responses import FileResponse
+from app.waypoints.flightplan_output import (
+    build_flightplan_download_response,
+    get_flightplan_output_config,
+)
 
 
 router = APIRouter(
@@ -40,6 +43,11 @@ class ClassificationStatusResponse(BaseModel):
     unmatched: int
     invalid: int
     images: list[dict]
+
+
+class FlightGapDetectionRequest(BaseModel):
+    manual_gap_polygons: dict | None = None
+    drone_type: DroneType | None = None
 
 
 @router.get("/{project_id}/latest-batch/", tags=["Image Classification"])
@@ -693,10 +701,18 @@ async def detect_task_flight_gaps(
     task_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
-    manual_gap_polygons: dict = None,
+    request: FlightGapDetectionRequest | None = None,
 ):
     """Conduct flight gap analysis across all uploaded imagery for a task."""
-    result = await identify_flight_gaps(db, project_id, task_id, manual_gap_polygons)
+    manual_gap_polygons = request.manual_gap_polygons if request else None
+    drone_type_override = request.drone_type if request else None
+    result = await identify_flight_gaps(
+        db,
+        project_id,
+        task_id,
+        manual_gap_polygons,
+        drone_type_override=drone_type_override,
+    )
 
     if not result:
         raise HTTPException(
@@ -704,20 +720,19 @@ async def detect_task_flight_gaps(
             detail="Could not perform flight gap analysis for this task.",
         )
 
-    drone_type = None
-    try:
-        drone_type = result.get("drone_type").value
-    except Exception:
-        log.error(f"Could not find drone type value {result.get('drone_type')}")
+    drone_type = result.get("drone_type")
+    drone_type_value = drone_type.value if isinstance(drone_type, DroneType) else None
 
     flightplan_url = None
 
-    if result.get("kmz_bytes") and drone_type:
-        file_path = f"/tmp/reflight_{task_id}.kmz"
+    if result.get("kmz_bytes") and drone_type_value:
+        flightplan_config = get_flightplan_output_config(drone_type)
+        file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
         with open(file_path, "wb") as f:
             f.write(result["kmz_bytes"])
         flightplan_url = (
-            f"/api/projects/tasks/{task_id}/{drone_type}/download-reflight-plan/"
+            f"/api/projects/tasks/{task_id}/{drone_type_value}/download-reflight-plan/"
+            f"?project_id={project_id}"
         )
 
     return {
@@ -725,7 +740,7 @@ async def detect_task_flight_gaps(
         "message": result.get("message"),
         "task_geometry": result.get("task_geometry"),
         "gap_polygons": result.get("gap_polygons"),
-        "drone_type": result.get("drone_type"),
+        "drone_type": drone_type_value,
         "images": result.get("images"),
         "flightplan_url": flightplan_url,
     }
@@ -736,16 +751,19 @@ async def detect_task_flight_gaps(
     tags=["Image Classification"],
 )
 async def download_reflight_plan(project_id: UUID, task_id: UUID, drone_type: str):
-    """Downloads a KMZ file of a reconstructed flight plan based on identified flight gaps."""
-    file_path = f"/tmp/reflight_{task_id}.kmz"
+    """Download a reconstructed flight plan based on identified flight gaps."""
 
     try:
         drone_model = drone_type.upper().replace(" ", "_")
         flight_drone_type = DroneType(drone_model)
     except Exception:
         log.error(f"Could not find drone type {drone_type}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported drone type: {drone_type}"
+        )
 
-    output_format = DRONE_PARAMS[flight_drone_type].get("OUTPUT_FORMAT")
+    flightplan_config = get_flightplan_output_config(flight_drone_type)
+    file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
 
     if not os.path.exists(file_path):
         log.error(f"Flight plan file not found: {file_path}")
@@ -754,44 +772,8 @@ async def download_reflight_plan(project_id: UUID, task_id: UUID, drone_type: st
             detail="Flight plan file not found. Please run 'Find Gaps' again.",
         )
 
-    if output_format == "DJI_WMPL":
-        return FileResponse(
-            file_path,
-            media_type="application/vnd.google-earth.kmz",
-            filename=(f"reflight_task_{task_id}_{drone_type}_project_{project_id}.kmz"),
-        )
-
-    elif output_format == "POTENSIC_SQLITE":
-        return FileResponse(
-            file_path,
-            media_type="application/vnd.sqlite3",
-            filename="reflight_map.db",
-        )
-
-    elif output_format == "POTENSIC_JSON":
-        return FileResponse(
-            file_path,
-            media_type="application/zip",
-            filename=(f"reflight_task_{task_id}_{drone_type}_project_{project_id}.zip"),
-        )
-
-    elif output_format == "QGROUNDCONTROL":
-        return FileResponse(
-            file_path,
-            media_type="application/json",
-            filename=(
-                f"reflight_task_{task_id}_{drone_type}_project_{project_id}.plan"
-            ),
-        )
-
-    elif output_format == "LITCHI":
-        return FileResponse(
-            file_path,
-            media_type="text/csv",
-            filename=(f"reflight_task_{task_id}_{drone_type}_project_{project_id}.csv"),
-        )
-
-    else:
-        msg = f"Unsupported output format / drone type: {output_format}"
-        log.error(msg)
-        raise HTTPException(status_code=400, detail=msg)
+    return build_flightplan_download_response(
+        file_path,
+        drone_type=flight_drone_type,
+        filename_stem=f"reflight_task_{task_id}_{drone_type}_project_{project_id}",
+    )

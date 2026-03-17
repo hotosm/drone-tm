@@ -392,7 +392,7 @@ const TaskVerificationModal = ({
     void
   >({
     mutationFn: () =>
-      getFlightGapDetectionData(projectId, taskId, null),
+      getFlightGapDetectionData(projectId, taskId),
     onSuccess: (data) => {
       setFlightGapModal({
         isOpen: true,
