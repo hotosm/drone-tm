@@ -5,10 +5,8 @@ Revises: 001_project_images, 973d20c518d6
 Create Date: 2025-12-15
 
 """
-from typing import Sequence, Union
 
-from alembic import op
-import sqlalchemy as sa
+from typing import Sequence, Union
 
 
 # revision identifiers, used by Alembic.

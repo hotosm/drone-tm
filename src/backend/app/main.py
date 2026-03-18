@@ -4,7 +4,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +13,6 @@ from loguru import logger as log
 from psycopg import Connection
 from psycopg_pool import AsyncConnectionPool
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
 
 from app.__version__ import __version__
 from app.config import settings, MonitoringTypes
@@ -194,7 +193,9 @@ async def lifespan(app: FastAPI):
     if settings.AUTH_PROVIDER == "hanko":
         log.info("🔧 Initializing Hanko SSO authentication...")
         auth_config = AuthConfig.from_env()
-        log.info(f"🔧 AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}")
+        log.info(
+            f"🔧 AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}"
+        )
         init_auth(auth_config)
         log.info("✅ Authentication initialized")
 

@@ -60,7 +60,7 @@ export default function SignInOverlay() {
                 // This prevents account confusion when switching users
                 document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
                 document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
-          
+
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(FRONTEND_URL)}`;
                 return;
               }
@@ -92,7 +92,7 @@ export default function SignInOverlay() {
                 // This prevents account confusion when switching users
                 document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
                 document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
-          
+
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(FRONTEND_URL)}`;
                 return;
               }
