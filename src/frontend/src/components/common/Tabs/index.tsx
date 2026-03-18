@@ -7,6 +7,7 @@ interface ITabOptions {
   id: number;
   label: string;
   value: number | string;
+  hideForHanko?: boolean;
 }
 
 interface TabProps {
@@ -18,6 +19,8 @@ interface TabProps {
   clickable?: boolean;
   orientation: 'row' | 'column';
 }
+
+const AUTH_PROVIDER = import.meta.env.VITE_AUTH_PROVIDER;
 
 const Tab: React.FC<TabProps> = ({
   tabOptions,
@@ -42,7 +45,7 @@ const Tab: React.FC<TabProps> = ({
 
   return (
     <div className={`${orientation === 'column' ? '' : 'naxatw-flex'}`}>
-      {tabOptions.map(tab => (
+      {tabOptions.filter(tab => !(AUTH_PROVIDER === 'hanko' && tab.hideForHanko)).map(tab => (
         <div
           key={tab.id}
           className={`${className} naxatw-cursor-pointer hover:naxatw-bg-red hover:naxatw-bg-opacity-10 ${

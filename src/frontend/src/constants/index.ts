@@ -27,6 +27,7 @@ export const tabOptions = [
     id: 3,
     label: 'Password',
     value: 3,
+    hideForHanko: true,
   },
 ];
 
