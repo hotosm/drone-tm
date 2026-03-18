@@ -119,9 +119,7 @@ export default function Login() {
           <div
             className="naxatw-flex naxatw-w-[60%] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-rounded-lg naxatw-border naxatw-border-grey-800 naxatw-px-5 naxatw-py-3 hover:naxatw-shadow-md"
             onClick={() => {
-              // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
-              const returnTo = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
-              window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnTo)}`;
+              window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(FRONTEND_URL)}`;
             }}
           >
             <span className="naxatw-text-body-btn">Login with HOTOSM SSO</span>

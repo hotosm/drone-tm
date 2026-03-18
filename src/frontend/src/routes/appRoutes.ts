@@ -3,7 +3,6 @@ import Dashboard from '@Views/Dashboard';
 import CompleteUserProfile from '@Views/CompleteUserProfile';
 import CreateProject from '@Components/CreateProject';
 import GoogleAuth from '@Components/GoogleAuth';
-import HankoAuth from '@Components/HankoAuth';
 import userRoutes from '@UserModule/routes';
 import LandingPage from '@Views/LandingPage';
 import IndividualProject from '@Views/IndividualProject';
@@ -36,12 +35,6 @@ const appRoutes: IRoute[] = [
     path: '/auth',
     name: 'Google Authentication',
     component: GoogleAuth,
-    authenticated: false,
-  },
-  {
-    path: '/hanko-auth',
-    name: 'Hanko Authentication',
-    component: HankoAuth,
     authenticated: false,
   },
   {

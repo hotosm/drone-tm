@@ -10,6 +10,7 @@ import '@Assets/css/index.css';
 import '@Assets/css/tailwind.css';
 import { store, persistor } from './store';
 import App from './App';
+import { AuthProvider } from './providers/AuthProvider';
 import { getRuntimeConfig } from './runtimeConfig';
 
 // Workaround required, as @hotosm/gcp-editor already imports all components
@@ -31,7 +32,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <Provider store={store}>
       <PersistGate loading={<h1>hello</h1>} persistor={persistor}>
         <BrowserRouter>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </BrowserRouter>
         <hot-tracking
           style={{ position: 'fixed', bottom: '0%' }}

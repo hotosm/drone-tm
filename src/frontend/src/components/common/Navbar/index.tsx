@@ -27,10 +27,7 @@ export default function Navbar() {
     pathnameOnArray?.includes('projects') &&
     pathnameOnArray?.includes('approval');
 
-  // Get user role for Hanko auth callback
-  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
-  // Build return URL for Hanko SSO that goes through /hanko-auth callback
-  const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
+  const hankoReturnUrl = FRONTEND_URL;
 
   const navLinkClass = ({
     isActive,

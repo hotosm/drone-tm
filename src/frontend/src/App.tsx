@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { initDomToCode } from 'dom-to-code';
 import { ToastContainer } from 'react-toastify';
@@ -31,68 +30,6 @@ export default function App() {
   const dispatch = useTypedDispatch();
   const { pathname } = useLocation();
 
-  // Listen for Hanko login event and fetch user profile
-  useEffect(() => {
-    const handleHankoLogin = async () => {
-      console.log('🔐 Hanko login detected, fetching user profile...');
-
-      // Check if we already have userprofile to avoid duplicate calls
-      const existingProfile = localStorage.getItem('userprofile');
-      if (existingProfile) {
-        console.log('✅ User profile already exists in localStorage');
-        return;
-      }
-
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/users/my-info/`, {
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch user profile');
-        }
-
-        const userDetails = await response.json();
-        localStorage.setItem('userprofile', JSON.stringify(userDetails));
-        console.log('✅ User profile saved to localStorage');
-      } catch (error) {
-        console.error('❌ Failed to fetch user profile:', error);
-      }
-    };
-
-    const authComponent = document.querySelector('hotosm-auth');
-    if (authComponent) {
-      authComponent.addEventListener('hanko-login', handleHankoLogin as EventListener);
-
-      return () => {
-        authComponent.removeEventListener('hanko-login', handleHankoLogin as EventListener);
-      };
-    }
-    return undefined;
-  }, [pathname]);
-
-  // Listen for Hanko logout event and clean localStorage
-  useEffect(() => {
-    const handleHankoLogout = () => {
-      // Clean authentication-related localStorage items
-      localStorage.removeItem('token');
-      localStorage.removeItem('userprofile');
-      localStorage.removeItem('signedInAs');
-      console.log('🧹 localStorage cleaned after Hanko logout');
-    };
-
-    // Find the hotosm-auth component and listen to its logout event
-    const authComponent = document.querySelector('hotosm-auth');
-    if (authComponent) {
-      authComponent.addEventListener('logout', handleHankoLogout as EventListener);
-
-      // Cleanup on unmount
-      return () => {
-        authComponent.removeEventListener('logout', handleHankoLogout as EventListener);
-      };
-    }
-    return undefined;
-  }, [pathname]); // Re-run when pathname changes to re-attach listener if component remounts
   const showModal = useTypedSelector(state => state.common.showModal);
   const modalContent = useTypedSelector(state => state.common.modalContent);
   const showPromptDialog = useTypedSelector(
@@ -132,7 +69,6 @@ export default function App() {
     '/login',
     '/forgot-password',
     '/complete-profile',
-    '/hanko-auth',
   ];
 
   return (

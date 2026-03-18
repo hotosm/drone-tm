@@ -33,7 +33,8 @@
       "@Store/*": ["store/*"],
       "@UserModule/*": ["modules/user-auth-module/src/*"],
       "@Utils/*": ["utils/*"],
-      "@Views/*": ["views/*"]
+      "@Views/*": ["views/*"],
+      "@Providers/*": ["providers/*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,

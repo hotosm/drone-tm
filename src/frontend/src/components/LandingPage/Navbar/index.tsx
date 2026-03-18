@@ -12,18 +12,15 @@ if (AUTH_PROVIDER === 'hanko') {
 }
 
 export default function Navbar() {
-  // Return URL for hanko-auth callback
-  const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth`;
-
   return (
     <header>
-      {/* Hidden auth component for session verification - redirects to /hanko-auth if user has SSO session */}
+      {/* Hidden auth component for session verification */}
       {AUTH_PROVIDER === 'hanko' && (
         <div style={{ display: 'none' }}>
           <hotosm-auth
             hanko-url={HANKO_URL}
             base-path={HANKO_URL}
-            redirect-after-login={hankoReturnUrl}
+            redirect-after-login={FRONTEND_URL}
             redirect-after-logout={FRONTEND_URL}
           />
         </div>

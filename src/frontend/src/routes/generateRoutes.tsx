@@ -2,7 +2,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { ReactNode, Suspense } from 'react';
 import Fallback from '@Components/common/Fallback';
-import useAuth from '@Hooks/useAuth';
+import { useAuth } from '@Hooks/useAuth';
 import ProtectedRoute from './ProtectedRoute';
 import { IRoute } from './types';
 
@@ -24,7 +24,7 @@ export default function generateRoutes({
             return (
               <Route
                 key={route.name}
-                element={<ProtectedRoute isAuthenticated={isAuthenticated()} />}
+                element={<ProtectedRoute isAuthenticated={isAuthenticated} />}
               >
                 {route?.children ? (
                   <Route key={route.name} path={route.path}>

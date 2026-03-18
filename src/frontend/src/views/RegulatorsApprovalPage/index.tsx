@@ -4,7 +4,7 @@ import BreadCrumb from '@Components/common/Breadcrumb';
 import { MapSection } from '@Components/IndividualProject';
 import Skeleton from '@Components/RadixComponents/Skeleton';
 import DetailsTemplate from '@Components/RegulatorsApprovalPage';
-import useAuth from '@Hooks/useAuth';
+import { useAuth } from '@Hooks/useAuth';
 import { regulatorUser } from '@Services/createproject';
 import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch } from '@Store/hooks';
@@ -46,7 +46,7 @@ const RegulatorsApprovalPage = () => {
     data: projectData,
     isFetching: isProjectDataFetching,
   }: Record<string, any> = useGetProjectsDetailQuery(id as string, {
-    enabled: isAuthenticated(), // call only if the user is created and saved token on local storage
+    enabled: isAuthenticated, // call only if the user is created and saved token on local storage
   });
   useEffect(() => {
     if (projectData) {

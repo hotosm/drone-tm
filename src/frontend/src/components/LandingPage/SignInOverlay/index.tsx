@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTypedDispatch } from '@Store/hooks';
-import useAuth from '@Hooks/useAuth';
+import { useAuth } from '@Hooks/useAuth';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
 import Image from '@Components/RadixComponents/Image';
@@ -61,14 +61,11 @@ export default function SignInOverlay() {
                 document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
                 document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
           
-                // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
-                // Return to /hanko-auth callback which validates with backend and sets up user profile
-                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'PROJECT_CREATOR'}`;
-                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
+                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(FRONTEND_URL)}`;
                 return;
               }
 
-              if (isAuthenticated()) {
+              if (isAuthenticated) {
                 navigate('/projects');
               } else {
                 navigate('/login', { state: { from: location.state?.from } });
@@ -96,14 +93,11 @@ export default function SignInOverlay() {
                 document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
                 document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
           
-                // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
-                // Return to /hanko-auth callback which validates with backend and sets up user profile
-                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'DRONE_PILOT'}`;
-                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
+                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(FRONTEND_URL)}`;
                 return;
               }
 
-              if (isAuthenticated()) {
+              if (isAuthenticated) {
                 navigate('/projects');
               } else {
                 navigate('/login', { state: { from: location.state?.from } });
