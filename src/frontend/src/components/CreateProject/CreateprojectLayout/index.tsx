@@ -110,16 +110,16 @@ const CreateprojectLayout = () => {
     name: '',
     // short_description: '',
     description: '',
-    outline: null,
-    no_fly_zones: null,
-    gsd_cm_px: null,
-    task_split_dimension: null,
-    is_terrain_follow: null,
+    outline: undefined,
+    no_fly_zones: undefined,
+    gsd_cm_px: '',
+    task_split_dimension: '',
+    is_terrain_follow: false,
     // task_split_type: 1,
     per_task_instructions: '',
     deadline_at: '',
     visibility: 0,
-    dem: null,
+    dem: undefined,
     requires_approval_from_manager_for_locking: false,
     altitude_from_ground: 0,
     requires_approval_from_regulator: false,
@@ -199,7 +199,7 @@ const CreateprojectLayout = () => {
     dispatch(setCreateProjectState({ activeStep: activeStep - 1 }));
   };
 
-  const { isFetching: isFetchingCountry } = useQuery({
+  const { data: countryResponse, isFetching: isFetchingCountry } = useQuery({
     queryFn: () =>
       getCountry({
         lon: projectCentroid?.[0] || 0,
@@ -208,14 +208,15 @@ const CreateprojectLayout = () => {
       }),
     queryKey: ['country', projectCentroid?.[0], projectCentroid?.[1]],
     enabled: !!projectCentroid,
-    select(data) {
-      dispatch(
-        setCommonState({
-          projectCountry: data?.data?.address?.country || null,
-        }),
-      );
-    },
   });
+
+  useEffect(() => {
+    dispatch(
+      setCommonState({
+        projectCountry: countryResponse?.data?.address?.country || null,
+      }),
+    );
+  }, [countryResponse, dispatch]);
 
   const onSubmit = (data: any) => {
     if (activeStep === 2) {

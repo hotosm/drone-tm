@@ -360,26 +360,57 @@ const ImageClassification = ({
 
       {/* Status Summary */}
       {computedStats && (
-        <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-5">
-          <div className="naxatw-text-center">
-            {renderValue(computedStats.uploaded, isClassifying, 'naxatw-text-gray-500')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Pending</div>
-          </div>
-          <div className="naxatw-text-center">
-            {renderValue(computedStats.processing, isClassifying, 'naxatw-text-blue-600')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Processing</div>
-          </div>
-          <div className="naxatw-text-center">
-            {renderValue(computedStats.complete, isClassifying, 'naxatw-text-green-600')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">No Issues</div>
-          </div>
-          <div className="naxatw-text-center">
-            {renderValue(computedStats.issues, isClassifying, 'naxatw-text-orange-600')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Issues</div>
-          </div>
-          <div className="naxatw-text-center">
-            {renderValue(computedStats.duplicates, isClassifying, 'naxatw-text-gray-600')}
-            <div className="naxatw-text-sm naxatw-text-gray-600">Duplicates</div>
+        <div className="naxatw-rounded naxatw-bg-gray-50 naxatw-p-4">
+          {/* Progress bar during classification */}
+          {isClassifying && batchStatus && (batchStatus.total ?? 0) > 0 && (
+            <div className="naxatw-mb-4">
+              <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-mb-2">
+                <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
+                  <div className="naxatw-h-4 naxatw-w-4 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-blue-600"></div>
+                  <span className="naxatw-text-sm naxatw-font-medium naxatw-text-blue-700">
+                    Classifying images...
+                  </span>
+                </div>
+                <span className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
+                  {computedStats.totalClassified} / {batchStatus.total ?? 0}
+                </span>
+              </div>
+              <div className="naxatw-w-full naxatw-bg-gray-200 naxatw-rounded-full naxatw-h-2.5 naxatw-overflow-hidden">
+                <div
+                  className="naxatw-bg-blue-600 naxatw-h-2.5 naxatw-rounded-full naxatw-transition-all naxatw-duration-500"
+                  style={{
+                    width: `${Math.round((computedStats.totalClassified / (batchStatus.total ?? 1)) * 100)}%`,
+                  }}
+                ></div>
+              </div>
+              <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
+                {computedStats.processing > 0 && `${computedStats.processing} currently processing. `}
+                Updates every 10 seconds.
+              </p>
+            </div>
+          )}
+
+          <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-5">
+            <div className="naxatw-text-center">
+              {renderValue(computedStats.uploaded, isClassifying, 'naxatw-text-gray-500')}
+              <div className="naxatw-text-sm naxatw-text-gray-600">Pending</div>
+            </div>
+            <div className="naxatw-text-center">
+              {renderValue(computedStats.processing, isClassifying, 'naxatw-text-blue-600')}
+              <div className="naxatw-text-sm naxatw-text-gray-600">Processing</div>
+            </div>
+            <div className="naxatw-text-center">
+              {renderValue(computedStats.complete, isClassifying, 'naxatw-text-green-600')}
+              <div className="naxatw-text-sm naxatw-text-gray-600">No Issues</div>
+            </div>
+            <div className="naxatw-text-center">
+              {renderValue(computedStats.issues, isClassifying, 'naxatw-text-orange-600')}
+              <div className="naxatw-text-sm naxatw-text-gray-600">Issues</div>
+            </div>
+            <div className="naxatw-text-center">
+              {renderValue(computedStats.duplicates, isClassifying, 'naxatw-text-gray-600')}
+              <div className="naxatw-text-sm naxatw-text-gray-600">Duplicates</div>
+            </div>
           </div>
         </div>
       )}

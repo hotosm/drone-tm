@@ -37,6 +37,47 @@ class ClassificationStatusResponse(BaseModel):
     images: list[dict]
 
 
+@router.get("/{project_id}/latest-batch/", tags=["Image Classification"])
+async def get_latest_batch(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get the most recent batch ID for a project."""
+    try:
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT batch_id
+                FROM project_images
+                WHERE project_id = %(project_id)s
+                AND batch_id IS NOT NULL
+                GROUP BY batch_id
+                ORDER BY MAX(uploaded_at) DESC
+                LIMIT 1
+                """,
+                {"project_id": str(project_id)},
+            )
+            result = await cur.fetchone()
+
+        if not result:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail="No batches found for this project",
+            )
+
+        return {"batch_id": str(result[0]), "project_id": str(project_id)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to get latest batch: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to get latest batch: {e}",
+        )
+
+
 @router.post("/{project_id}/classify-batch/", tags=["Image Classification"])
 async def start_batch_classification(
     project_id: UUID,
@@ -242,10 +283,18 @@ async def get_batch_map_data(
 async def delete_batch(
     project_id: UUID,
     batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
+    wait_for_cleanup: bool = Query(
+        False,
+        description="Delete immediately instead of enqueueing a background job",
+    ),
 ):
     try:
+        if wait_for_cleanup:
+            return await ImageClassifier.delete_batch(db, batch_id, project_id)
+
         # Enqueue the deletion job to run in background
         job = await redis.enqueue_job(
             "delete_batch_images",
@@ -291,6 +340,44 @@ async def get_batch_processing_summary(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to retrieve batch processing summary: {e}",
+        )
+
+
+@router.post("/{project_id}/batch/{batch_id}/finalize/", tags=["Image Classification"])
+async def finalize_batch(
+    project_id: UUID,
+    batch_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Finalize a batch: move images to task folders without triggering ODM processing.
+
+    This is called when a user clicks 'Finish' without processing any tasks.
+    It ensures images are stored under the correct {task_id}/images/ path.
+    """
+    try:
+        move_result = await ImageClassifier.move_batch_images_to_tasks(
+            db, batch_id, project_id
+        )
+        await db.commit()
+
+        log.info(
+            f"Finalized batch {batch_id}: moved {move_result['total_moved']} images "
+            f"to {move_result['task_count']} tasks"
+        )
+
+        return {
+            "message": "Batch finalized successfully",
+            "batch_id": str(batch_id),
+            "total_moved": move_result["total_moved"],
+            "task_count": move_result["task_count"],
+        }
+
+    except Exception as e:
+        log.error(f"Failed to finalize batch: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to finalize batch: {e}",
         )
 
 
@@ -407,6 +494,88 @@ async def delete_image(
         )
 
 
+# ─── Project-level (task-centric) endpoints ──────────────────────────────────
+
+
+@router.get("/{project_id}/imagery/tasks/", tags=["Image Classification"])
+async def get_project_task_imagery_summary(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Per-task imagery summary aggregated across all batches.
+
+    Single source of truth for task readiness, image counts, and processability.
+    """
+    try:
+        return await ImageClassifier.get_project_task_imagery_summary(db, project_id)
+    except Exception as e:
+        log.error(f"Failed to get project task imagery summary: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve task imagery summary: {e}",
+        )
+
+
+@router.get("/{project_id}/imagery/review/", tags=["Image Classification"])
+async def get_project_review(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Project-level review data: images grouped by task across all batches."""
+    try:
+        return await ImageClassifier.get_project_review_data(db, project_id)
+    except Exception as e:
+        log.error(f"Failed to get project review data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve project review data: {e}",
+        )
+
+
+@router.get("/{project_id}/imagery/map-data/", tags=["Image Classification"])
+async def get_project_map_data(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Project-level map data: task geometries + all image points across batches."""
+    try:
+        return await ImageClassifier.get_project_map_data(db, project_id)
+    except Exception as e:
+        log.error(f"Failed to get project map data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve project map data: {e}",
+        )
+
+
+@router.get(
+    "/{project_id}/imagery/task/{task_id}/verification/",
+    tags=["Image Classification"],
+)
+async def get_project_task_verification(
+    project_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Task verification data aggregated across all batches."""
+    try:
+        return await ImageClassifier.get_task_verification_data_project(
+            db, task_id, project_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e))
+    except Exception as e:
+        log.error(f"Failed to get task verification data: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve task verification data: {e}",
+        )
+
+
 @router.post(
     "/{project_id}/tasks/{task_id}/mark-verified/", tags=["Image Classification"]
 )
@@ -420,7 +589,9 @@ async def mark_task_verified(
 
     This inserts a new task event with IMAGE_UPLOADED state, indicating that
     the user has verified that all required images are present and the task
-    is ready for processing.
+    is ready for processing. After marking, it also moves the task's images
+    from the upload staging area to the task's images folder so they are
+    ready for ODM processing.
     """
     try:
         async with db.cursor() as cur:
@@ -466,20 +637,42 @@ async def mark_task_verified(
                 },
             )
 
+        # Move images BEFORE committing the state change so we don't mark
+        # verified when files never made it to the task folder.
+        move_result = await ImageClassifier.move_task_images_to_folder(
+            db, project_id, task_id
+        )
+
+        if move_result.get("failed_count", 0) > 0:
+            await db.rollback()
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=(
+                    f"Failed to move {move_result['failed_count']} image(s) "
+                    f"to the task folder. Task was NOT marked as verified. "
+                    f"Please try again."
+                ),
+            )
+
+        await db.commit()
+
         log.info(
-            f"Task {task_id} marked as verified (IMAGE_UPLOADED) by user {user.id}"
+            f"Task {task_id} marked as verified (IMAGE_UPLOADED) by user {user.id}, "
+            f"{move_result.get('moved_count', 0)} images moved"
         )
 
         return {
             "message": "Task marked as fully flown",
             "task_id": str(task_id),
             "state": State.IMAGE_UPLOADED.name,
+            "images_moved": move_result.get("moved_count", 0),
         }
 
     except HTTPException:
         raise
     except Exception as e:
         log.error(f"Failed to mark task as verified: {e}")
+        await db.rollback()
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to mark task as verified: {e}",

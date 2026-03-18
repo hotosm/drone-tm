@@ -1,14 +1,13 @@
-# compose.test.yaml
 name: dtm-test
+
+networks:
+  dtm-network:
+    name: dtm-network
 
 volumes:
   db-data:
   minio-data:
   frontend-html:
-
-networks:
-  dtm-network:
-    driver: bridge
 
 services:
   backend:
@@ -49,17 +48,11 @@ services:
       service: createbuckets
 
   migrations:
-    image: ghcr.io/hotosm/drone-tm/backend:debug
-    volumes:
-      - ./src/backend:/project/src/backend
-    env_file:
-      - .env
+    extends:
+      file: compose.yaml
+      service: migrations
     environment:
       MONITORING: ""
-    networks:
-      - dtm-network
-    command: ["alembic", "upgrade", "head"]
-    restart: "no"
 
   arq-worker:
     extends:

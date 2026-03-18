@@ -30,7 +30,7 @@ import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import DroneImageProcessingWorkflow from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
+import { UploadImageryDialog, VerifyImageryDialog } from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
 import { getRuntimeConfig } from '@/runtimeConfig';
 
 // eslint-disable-next-line camelcase
@@ -44,7 +44,9 @@ const getActiveTabContent = (
   // eslint-disable-next-line no-unused-vars
   handleTableRowClick: (rowData: any) => {},
   // eslint-disable-next-line no-unused-vars
-  onOpenWorkflow?: () => void,
+  onOpenUpload?: () => void,
+  // eslint-disable-next-line no-unused-vars
+  onOpenVerify?: () => void,
 ) => {
   if (activeTab === 'about')
     return (
@@ -52,7 +54,8 @@ const getActiveTabContent = (
         projectData={data}
         isProjectDataLoading={isProjectDataLoading}
         page="project-description"
-        onOpenWorkflow={onOpenWorkflow}
+        onOpenUpload={onOpenUpload}
+        onOpenVerify={onOpenVerify}
       />
     );
   if (activeTab === 'tasks')
@@ -89,7 +92,8 @@ const IndividualProject = () => {
   const [showProjectDeletePrompt, setShowProjectDeletePrompt] = useState(false);
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
-  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
   const Token = localStorage.getItem('token');
 
   const individualProjectActiveTab = useTypedSelector(
@@ -295,7 +299,8 @@ const IndividualProject = () => {
                   projectData as Record<string, any>,
                   isProjectDataFetching,
                   handleTableRowClick,
-                  () => setIsWorkflowModalOpen(true),
+                  () => setIsUploadDialogOpen(true),
+                  () => setIsVerifyDialogOpen(true),
                 )}
               </div>
               <div className="naxatw-absolute naxatw-bottom-0 naxatw-flex naxatw-w-full naxatw-justify-center">
@@ -350,9 +355,15 @@ const IndividualProject = () => {
         />
       </ProjectPromptDialog>
 
-      <DroneImageProcessingWorkflow
-        isOpen={isWorkflowModalOpen}
-        onClose={() => setIsWorkflowModalOpen(false)}
+      <UploadImageryDialog
+        isOpen={isUploadDialogOpen}
+        onClose={() => setIsUploadDialogOpen(false)}
+        projectId={id as string}
+      />
+
+      <VerifyImageryDialog
+        isOpen={isVerifyDialogOpen}
+        onClose={() => setIsVerifyDialogOpen(false)}
         projectId={id as string}
       />
     </>

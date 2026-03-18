@@ -21,11 +21,14 @@ from app.s3 import (
     copy_file_within_bucket,
     get_obj_from_bucket,
     maybe_presign_s3_key,
+    s3_client,
 )
 
 
-# Number of concurrent workers for parallel classification
-CLASSIFICATION_CONCURRENCY = 6
+# Number of concurrent workers for parallel classification.
+# Must not exceed the connection pool size (default 4) to avoid pool
+# exhaustion, which silently leaves images stuck in STAGED.
+CLASSIFICATION_CONCURRENCY = 4
 
 # Hard timeout per image to avoid a single stuck S3 read / decode hanging the whole batch.
 # If exceeded, the image is marked as REJECTED with a generic "Classification failed".
@@ -33,6 +36,15 @@ CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS = 120
 
 # Buffer radius in meters for coverage calculation
 COVERAGE_BUFFER_METERS = 20.0
+
+# Task states that indicate verification has occurred (IMAGE_UPLOADED = just verified,
+# later processing states preserve that verification status)
+VERIFIED_TASK_STATES = {
+    "IMAGE_UPLOADED",
+    "IMAGE_PROCESSING_STARTED",
+    "IMAGE_PROCESSING_FINISHED",
+    "IMAGE_PROCESSING_FAILED",
+}
 
 
 @dataclass(frozen=True)
@@ -778,7 +790,36 @@ class ImageClassifier:
 
         # Process all images in parallel with controlled concurrency
         tasks = [classify_with_commit(image) for image in images]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        gather_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Detect silently swallowed exceptions (e.g. pool timeout before the
+        # inner try/except). These leave images stuck in STAGED with no log.
+        for image_record, result_or_exc in zip(images, gather_results):
+            if isinstance(result_or_exc, BaseException):
+                image_id = image_record["id"]
+                log.error(
+                    f"Classification worker failed for image {image_id} "
+                    f"(batch {batch_id}): {result_or_exc!r}"
+                )
+                # Best-effort: mark the image as rejected so it isn't stuck
+                try:
+                    async with db_pool.connection() as err_conn:
+                        await ImageClassifier._update_image_status(
+                            err_conn,
+                            image_id
+                            if isinstance(image_id, uuid.UUID)
+                            else uuid.UUID(image_id),
+                            ImageStatus.REJECTED,
+                            _format_classification_failure_reason(result_or_exc),
+                        )
+                        await err_conn.commit()
+                    async with results_lock:
+                        results["rejected"] += 1
+                except Exception as cleanup_err:
+                    log.error(
+                        f"Failed to mark image {image_id} as rejected "
+                        f"after worker error: {cleanup_err}"
+                    )
 
         log.info(
             f"Parallel classification complete for batch {batch_id}: "
@@ -850,7 +891,7 @@ class ImageClassifier:
         batch_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> dict:
-        # Query includes is_verified by checking if task has IMAGE_UPLOADED state
+        # Query includes is_verified by checking if task has a post-verification state
         query = """
             WITH latest_task_state AS (
                 SELECT DISTINCT ON (task_id)
@@ -864,7 +905,7 @@ class ImageClassifier:
                 pi.task_id,
                 t.project_task_index,
                 COUNT(*) as image_count,
-                COALESCE(lts.state = 'IMAGE_UPLOADED', false) as is_verified,
+                COALESCE(lts.state IN ('IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
                 json_agg(
                     json_build_object(
                         'id', pi.id,
@@ -980,9 +1021,8 @@ class ImageClassifier:
         batch_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> dict:
-        # Get count of images to be deleted
-        count_query = """
-            SELECT COUNT(*) as count
+        keys_query = """
+            SELECT s3_key, thumbnail_url
             FROM project_images
             WHERE batch_id = %(batch_id)s
             AND project_id = %(project_id)s
@@ -990,13 +1030,28 @@ class ImageClassifier:
 
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                count_query,
+                keys_query,
                 {"batch_id": str(batch_id), "project_id": str(project_id)},
             )
-            result = await cur.fetchone()
-            image_count = result["count"] if result else 0
+            rows = await cur.fetchall()
 
-        # Delete all images in the batch
+        s3_keys_to_delete: list[str] = []
+        for row in rows:
+            if row["s3_key"]:
+                s3_keys_to_delete.append(str(row["s3_key"]).lstrip("/"))
+            if row["thumbnail_url"]:
+                s3_keys_to_delete.append(str(row["thumbnail_url"]).lstrip("/"))
+
+        deleted_s3_count = 0
+        if s3_keys_to_delete:
+            client = s3_client()
+            for key in s3_keys_to_delete:
+                try:
+                    client.remove_object(settings.S3_BUCKET_NAME, key)
+                    deleted_s3_count += 1
+                except Exception as e:
+                    log.warning(f"Failed to delete S3 object {key}: {e}")
+
         delete_query = """
             DELETE FROM project_images
             WHERE batch_id = %(batch_id)s
@@ -1009,14 +1064,19 @@ class ImageClassifier:
                 {"batch_id": str(batch_id), "project_id": str(project_id)},
             )
 
+        await db.commit()
+
+        image_count = len(rows)
         log.info(
-            f"Deleted {image_count} images from batch {batch_id} in project {project_id}"
+            f"Deleted {image_count} images and {deleted_s3_count} S3 objects "
+            f"from batch {batch_id} in project {project_id}"
         )
 
         return {
             "message": "Batch deleted successfully",
             "batch_id": str(batch_id),
             "deleted_count": image_count,
+            "deleted_s3_count": deleted_s3_count,
         }
 
     @staticmethod
@@ -1027,7 +1087,7 @@ class ImageClassifier:
     ) -> dict:
         """Get map data for batch review visualization.
 
-        Returns task geometries and image point locations as GeoJSON.
+        Returns task geometries and all images as GeoJSON (with/without GPS coordinates).
         """
         # Get all task IDs that have images in this batch
         task_ids_query = """
@@ -1075,47 +1135,78 @@ class ImageClassifier:
                     }
                 )
 
-        # Get image locations as GeoJSON points
-        images_query = """
+        # Get all images with or without GPS data
+        all_images_query = """
             SELECT
                 id,
                 filename,
                 status,
+                rejection_reason,
                 task_id,
+                s3_key,
+                thumbnail_url,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
             FROM project_images
             WHERE batch_id = %(batch_id)s
             AND project_id = %(project_id)s
-            AND location IS NOT NULL
+            ORDER BY uploaded_at DESC
         """
 
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                images_query,
+                all_images_query,
                 {"batch_id": str(batch_id), "project_id": str(project_id)},
             )
-            images = await cur.fetchall()
+            all_images = await cur.fetchall()
 
-        images_geojson = {
-            "type": "FeatureCollection",
-            "features": [
-                {
+        # Build GeoJSON features for each image
+        images_features = []
+        located_count = 0
+        unlocated_count = 0
+
+        for img in all_images:
+            properties = {
+                "id": str(img["id"]),
+                "filename": img["filename"],
+                "status": img["status"],
+                "task_id": str(img["task_id"]) if img["task_id"] else None,
+                "rejection_reason": img["rejection_reason"],
+                "thumbnail_url": maybe_presign_s3_key(
+                    img["thumbnail_url"], expires_hours=1
+                )
+                if img.get("thumbnail_url")
+                else None,
+                "url": maybe_presign_s3_key(img["s3_key"], expires_hours=1)
+                if img.get("s3_key")
+                else None,
+            }
+
+            # Add Point geometry if GPS data exists
+            if img["longitude"] is not None and img["latitude"] is not None:
+                feature = {
                     "type": "Feature",
                     "geometry": {
                         "type": "Point",
                         "coordinates": [img["longitude"], img["latitude"]],
                     },
-                    "properties": {
-                        "id": str(img["id"]),
-                        "filename": img["filename"],
-                        "status": img["status"],
-                        "task_id": str(img["task_id"]) if img["task_id"] else None,
-                    },
+                    "properties": properties,
                 }
-                for img in images
-                if img["longitude"] is not None and img["latitude"] is not None
-            ],
+                located_count += 1
+            else:
+                # Add feature with null geometry for images without GPS
+                feature = {
+                    "type": "Feature",
+                    "geometry": None,
+                    "properties": properties,
+                }
+                unlocated_count += 1
+
+            images_features.append(feature)
+
+        images_geojson = {
+            "type": "FeatureCollection",
+            "features": images_features,
         }
 
         return {
@@ -1124,6 +1215,8 @@ class ImageClassifier:
             "images": images_geojson,
             "total_tasks": len(tasks_geojson["features"]),
             "total_images": len(images_geojson["features"]),
+            "total_images_with_gps": located_count,
+            "total_images_without_gps": unlocated_count,
         }
 
     @staticmethod
@@ -1260,6 +1353,93 @@ class ImageClassifier:
             "task_count": len(tasks_summary),
             "tasks": tasks_summary,
         }
+
+    @staticmethod
+    async def move_task_images_to_folder(
+        db: Connection,
+        project_id: uuid.UUID,
+        task_id: uuid.UUID,
+    ) -> dict:
+        """Move all assigned images for a specific task from staging to the task folder.
+
+        Copies images from user-uploads staging area to:
+            projects/{project_id}/{task_id}/images/{filename}
+
+        This is called after marking a task as verified/fully flown so that
+        the images are in the expected location for ODM processing.
+        """
+        query = """
+            SELECT
+                pi.id,
+                pi.filename,
+                pi.s3_key
+            FROM project_images pi
+            WHERE pi.project_id = %(project_id)s
+            AND pi.task_id = %(task_id)s
+            AND pi.status = %(status)s
+            AND pi.s3_key LIKE '%%user-uploads%%'
+            ORDER BY pi.uploaded_at
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {
+                    "project_id": str(project_id),
+                    "task_id": str(task_id),
+                    "status": ImageStatus.ASSIGNED.value,
+                },
+            )
+            images = await cur.fetchall()
+
+        if not images:
+            return {"moved_count": 0, "failed_count": 0}
+
+        moved_count = 0
+        failed_count = 0
+
+        for image in images:
+            filename = image["filename"]
+            source_key = image["s3_key"]
+            # Use the image's unique DB id as prefix to guarantee no collisions
+            # (across batches, within a batch, or from duplicate filenames).
+            image_id_prefix = str(image["id"])[:8]
+            dest_key = (
+                f"projects/{project_id}/{task_id}/images/{image_id_prefix}_{filename}"
+            )
+
+            success = await run_in_threadpool(
+                copy_file_within_bucket,
+                settings.S3_BUCKET_NAME,
+                source_key,
+                dest_key,
+            )
+
+            if success:
+                async with db.cursor() as update_cur:
+                    await update_cur.execute(
+                        """
+                        UPDATE project_images
+                        SET s3_key = %(new_s3_key)s
+                        WHERE id = %(image_id)s
+                        """,
+                        {
+                            "new_s3_key": dest_key,
+                            "image_id": str(image["id"]),
+                        },
+                    )
+                moved_count += 1
+                log.info(f"Moved image {filename} to task {task_id}")
+            else:
+                failed_count += 1
+                log.error(f"Failed to move image {filename} to task {task_id}")
+
+        # NOTE: caller is responsible for commit/rollback so that the task
+        # state event and the image moves are in the same transaction.
+
+        log.info(f"Task {task_id}: Moved {moved_count} images, {failed_count} failed")
+
+        return {"moved_count": moved_count, "failed_count": failed_count}
 
     @staticmethod
     async def get_batch_processing_summary(
@@ -1509,4 +1689,440 @@ class ImageClassifier:
             },
             "coverage_percentage": coverage_percentage,
             "is_verified": False,  # TODO: Add verified_at field to tasks table
+        }
+
+    # ─── Project-level (task-centric) methods ─────────────────────────────
+
+    @staticmethod
+    async def get_project_task_imagery_summary(
+        db: Connection,
+        project_id: uuid.UUID,
+    ) -> list[dict]:
+        """Get per-task imagery summary aggregated across ALL batches.
+
+        Returns one row per task with counts, status breakdown, and task state.
+        This is the single source of truth for "what imagery exists for each task".
+        """
+        query = """
+            WITH latest_task_state AS (
+                SELECT DISTINCT ON (task_id)
+                    task_id,
+                    state,
+                    comment
+                FROM task_events
+                WHERE project_id = %(project_id)s
+                ORDER BY task_id, created_at DESC
+            )
+            SELECT
+                t.id as task_id,
+                t.project_task_index,
+                COALESCE(lts.state, 'LOCKED_FOR_MAPPING') as task_state,
+                lts.comment as state_comment,
+                COALESCE(img.total, 0) as total_images,
+                COALESCE(img.assigned, 0) as assigned_images,
+                COALESCE(img.rejected, 0) as rejected_images,
+                COALESCE(img.invalid_exif, 0) as invalid_exif_images,
+                COALESCE(img.duplicate, 0) as duplicate_images,
+                COALESCE(img.unmatched, 0) as unmatched_images,
+                img.latest_upload
+            FROM tasks t
+            LEFT JOIN latest_task_state lts ON t.id = lts.task_id
+            LEFT JOIN LATERAL (
+                SELECT
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE status = 'assigned') as assigned,
+                    COUNT(*) FILTER (WHERE status = 'rejected') as rejected,
+                    COUNT(*) FILTER (WHERE status = 'invalid_exif') as invalid_exif,
+                    COUNT(*) FILTER (WHERE status = 'duplicate') as duplicate,
+                    COUNT(*) FILTER (WHERE status = 'unmatched') as unmatched,
+                    MAX(uploaded_at) as latest_upload
+                FROM project_images
+                WHERE task_id = t.id AND project_id = %(project_id)s
+            ) img ON true
+            WHERE t.project_id = %(project_id)s
+            ORDER BY t.project_task_index
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(query, {"project_id": str(project_id)})
+            rows = await cur.fetchall()
+
+        result = []
+        for row in rows:
+            has_ready_imagery = (
+                row["task_state"] in VERIFIED_TASK_STATES and row["assigned_images"] > 0
+            )
+            result.append(
+                {
+                    "task_id": str(row["task_id"]),
+                    "project_task_index": row["project_task_index"],
+                    "task_state": row["task_state"],
+                    "total_images": row["total_images"],
+                    "assigned_images": row["assigned_images"],
+                    "rejected_images": row["rejected_images"],
+                    "invalid_exif_images": row["invalid_exif_images"],
+                    "duplicate_images": row["duplicate_images"],
+                    "unmatched_images": row["unmatched_images"],
+                    "latest_upload": (
+                        row["latest_upload"].isoformat()
+                        if row["latest_upload"]
+                        else None
+                    ),
+                    "failure_reason": (
+                        row["state_comment"]
+                        if row["task_state"] == "IMAGE_PROCESSING_FAILED"
+                        else None
+                    ),
+                    "has_ready_imagery": has_ready_imagery,
+                }
+            )
+
+        return result
+
+    @staticmethod
+    async def get_project_review_data(
+        db: Connection,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Project-level review: images grouped by task across ALL batches.
+
+        Replaces get_batch_review_data for the verify/review UI.
+        """
+        query = """
+            WITH latest_task_state AS (
+                SELECT DISTINCT ON (task_id)
+                    task_id,
+                    state
+                FROM task_events
+                WHERE project_id = %(project_id)s
+                ORDER BY task_id, created_at DESC
+            )
+            SELECT
+                pi.task_id,
+                t.project_task_index,
+                COUNT(*) as image_count,
+                COALESCE(lts.state IN ('IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
+                json_agg(
+                    json_build_object(
+                        'id', pi.id,
+                        'filename', pi.filename,
+                        's3_key', pi.s3_key,
+                        'thumbnail_url', pi.thumbnail_url,
+                        'status', pi.status,
+                        'rejection_reason', pi.rejection_reason,
+                        'uploaded_at', pi.uploaded_at
+                    ) ORDER BY pi.uploaded_at
+                ) as images
+            FROM project_images pi
+            LEFT JOIN tasks t ON pi.task_id = t.id
+            LEFT JOIN latest_task_state lts ON pi.task_id = lts.task_id
+            WHERE pi.project_id = %(project_id)s
+            AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate')
+            GROUP BY pi.task_id, t.project_task_index, lts.state
+            ORDER BY t.project_task_index NULLS LAST
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(query, {"project_id": str(project_id)})
+            task_groups = await cur.fetchall()
+
+        for group in task_groups:
+            for image in group["images"]:
+                if image.get("thumbnail_url"):
+                    image["thumbnail_url"] = maybe_presign_s3_key(
+                        image["thumbnail_url"], expires_hours=1
+                    )
+                if image.get("s3_key"):
+                    image["url"] = maybe_presign_s3_key(
+                        image["s3_key"], expires_hours=1
+                    )
+
+        return {
+            "project_id": str(project_id),
+            "task_groups": task_groups,
+            "total_tasks": len(task_groups),
+            "total_images": sum(group["image_count"] for group in task_groups),
+        }
+
+    @staticmethod
+    async def get_project_map_data(
+        db: Connection,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Project-level map data: task geometries + ALL image points across batches.
+
+        Replaces get_batch_map_data for the verify/review UI.
+        """
+        # Get all tasks for the project that have any assigned imagery
+        tasks_query = """
+            SELECT
+                t.id,
+                t.project_task_index,
+                ST_AsGeoJSON(t.outline)::json as geometry
+            FROM tasks t
+            WHERE t.project_id = %(project_id)s
+            AND EXISTS (
+                SELECT 1 FROM project_images pi
+                WHERE pi.task_id = t.id
+                AND pi.project_id = %(project_id)s
+                AND pi.status = 'assigned'
+            )
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(tasks_query, {"project_id": str(project_id)})
+            tasks = await cur.fetchall()
+
+        tasks_geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": task["geometry"],
+                    "properties": {
+                        "id": str(task["id"]),
+                        "task_index": task["project_task_index"],
+                    },
+                }
+                for task in tasks
+            ],
+        }
+
+        # Get all classified images across all batches
+        images_query = """
+            SELECT
+                id,
+                filename,
+                status,
+                rejection_reason,
+                task_id,
+                s3_key,
+                thumbnail_url,
+                ST_X(location::geometry) as longitude,
+                ST_Y(location::geometry) as latitude
+            FROM project_images
+            WHERE project_id = %(project_id)s
+            AND status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate', 'unmatched')
+            ORDER BY uploaded_at DESC
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(images_query, {"project_id": str(project_id)})
+            all_images = await cur.fetchall()
+
+        images_features = []
+        located_count = 0
+        unlocated_count = 0
+
+        for img in all_images:
+            properties = {
+                "id": str(img["id"]),
+                "filename": img["filename"],
+                "status": img["status"],
+                "task_id": str(img["task_id"]) if img["task_id"] else None,
+                "rejection_reason": img["rejection_reason"],
+                "thumbnail_url": maybe_presign_s3_key(
+                    img["thumbnail_url"], expires_hours=1
+                )
+                if img.get("thumbnail_url")
+                else None,
+                "url": maybe_presign_s3_key(img["s3_key"], expires_hours=1)
+                if img.get("s3_key")
+                else None,
+            }
+
+            if img["longitude"] is not None and img["latitude"] is not None:
+                feature = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [img["longitude"], img["latitude"]],
+                    },
+                    "properties": properties,
+                }
+                located_count += 1
+            else:
+                feature = {
+                    "type": "Feature",
+                    "geometry": None,
+                    "properties": properties,
+                }
+                unlocated_count += 1
+
+            images_features.append(feature)
+
+        return {
+            "project_id": str(project_id),
+            "tasks": tasks_geojson,
+            "images": {
+                "type": "FeatureCollection",
+                "features": images_features,
+            },
+            "total_tasks": len(tasks_geojson["features"]),
+            "total_images": len(images_features),
+            "total_images_with_gps": located_count,
+            "total_images_without_gps": unlocated_count,
+        }
+
+    @staticmethod
+    async def get_task_verification_data_project(
+        db: Connection,
+        task_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Project-level task verification: ALL assigned images for this task
+        across all batches.
+
+        Replaces get_task_verification_data (which was batch-scoped).
+        """
+        # Get task geometry and index
+        task_query = """
+            SELECT
+                id,
+                project_task_index,
+                ST_AsGeoJSON(outline)::json as geometry
+            FROM tasks
+            WHERE id = %(task_id)s
+            AND project_id = %(project_id)s
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                task_query,
+                {"task_id": str(task_id), "project_id": str(project_id)},
+            )
+            task = await cur.fetchone()
+
+        if not task:
+            raise ValueError(f"Task {task_id} not found in project {project_id}")
+
+        # Get ALL assigned images for this task across all batches
+        images_query = """
+            SELECT
+                id,
+                filename,
+                s3_key,
+                thumbnail_url,
+                status,
+                rejection_reason,
+                ST_AsGeoJSON(location)::json as location
+            FROM project_images
+            WHERE task_id = %(task_id)s
+            AND project_id = %(project_id)s
+            AND status = %(status)s
+            ORDER BY uploaded_at
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                images_query,
+                {
+                    "task_id": str(task_id),
+                    "project_id": str(project_id),
+                    "status": ImageStatus.ASSIGNED.value,
+                },
+            )
+            images = await cur.fetchall()
+
+        for image in images:
+            if image.get("thumbnail_url"):
+                image["thumbnail_url"] = maybe_presign_s3_key(
+                    image["thumbnail_url"], expires_hours=1
+                )
+            if image.get("s3_key"):
+                image["url"] = maybe_presign_s3_key(image["s3_key"], expires_hours=1)
+
+        # Calculate coverage using PostGIS (same logic, no batch filter)
+        coverage_query = """
+            WITH image_points AS (
+                SELECT location
+                FROM project_images
+                WHERE task_id = %(task_id)s
+                AND project_id = %(project_id)s
+                AND status = %(status)s
+                AND location IS NOT NULL
+            ),
+            task_polygon AS (
+                SELECT outline
+                FROM tasks
+                WHERE id = %(task_id)s
+            ),
+            buffered_points AS (
+                SELECT ST_Union(ST_Buffer(location::geography, 20)::geometry) as coverage
+                FROM image_points
+            )
+            SELECT
+                CASE
+                    WHEN (SELECT COUNT(*) FROM image_points) = 0 THEN 0
+                    ELSE LEAST(100, (
+                        ST_Area(
+                            ST_Intersection(
+                                (SELECT coverage FROM buffered_points),
+                                (SELECT outline FROM task_polygon)
+                            )::geography
+                        ) /
+                        NULLIF(ST_Area((SELECT outline FROM task_polygon)::geography), 0)
+                    ) * 100)
+                END as coverage_percentage
+        """
+
+        coverage_percentage = 0
+        try:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    coverage_query,
+                    {
+                        "task_id": str(task_id),
+                        "project_id": str(project_id),
+                        "status": ImageStatus.ASSIGNED.value,
+                    },
+                )
+                coverage_result = await cur.fetchone()
+                if coverage_result and coverage_result.get("coverage_percentage"):
+                    coverage_percentage = float(coverage_result["coverage_percentage"])
+        except Exception as e:
+            log.warning(f"Could not calculate coverage: {e}")
+
+        # Check if task is verified (any post-verification state counts)
+        is_verified = False
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT state FROM task_events
+                WHERE task_id = %(task_id)s AND project_id = %(project_id)s
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                {"task_id": str(task_id), "project_id": str(project_id)},
+            )
+            row = await cur.fetchone()
+            if row and row[0] in VERIFIED_TASK_STATES:
+                is_verified = True
+
+        return {
+            "task_id": str(task_id),
+            "project_task_index": task["project_task_index"],
+            "image_count": len(images),
+            "images": [
+                {
+                    "id": str(img["id"]),
+                    "filename": img["filename"],
+                    "s3_key": img["s3_key"],
+                    "thumbnail_url": img.get("thumbnail_url"),
+                    "url": img.get("url"),
+                    "status": img["status"],
+                    "rejection_reason": img.get("rejection_reason"),
+                    "location": img.get("location"),
+                }
+                for img in images
+            ],
+            "task_geometry": {
+                "type": "Feature",
+                "geometry": task["geometry"],
+                "properties": {
+                    "id": str(task["id"]),
+                    "task_index": task["project_task_index"],
+                },
+            },
+            "coverage_percentage": coverage_percentage,
+            "is_verified": is_verified,
         }

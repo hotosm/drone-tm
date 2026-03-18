@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from loguru import logger as log
 
 from app.projects import project_routes
+from app.projects import project_schemas
 
 
 @pytest.mark.asyncio
@@ -81,6 +82,19 @@ async def test_read_project(client, create_test_project):
     response = await client.get(f"/api/projects/{project_id}")
     assert response.status_code == 200
     assert response.json()["id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_read_project_includes_has_gcp_flag(
+    client, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    monkeypatch.setattr(project_schemas, "check_file_exists", lambda *_args: True)
+
+    response = await client.get(f"/api/projects/{project_id}")
+
+    assert response.status_code == 200
+    assert response.json()["has_gcp"] is True
 
 
 @pytest.mark.asyncio

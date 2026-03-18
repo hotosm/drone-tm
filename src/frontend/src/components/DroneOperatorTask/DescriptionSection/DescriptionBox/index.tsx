@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
@@ -7,8 +7,6 @@ import {
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { postProcessImagery } from '@Services/tasks';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import {
@@ -16,19 +14,15 @@ import {
   setSelectedTaskDetailToViewOrthophoto,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
-import { postTaskStatus } from '@Services/project';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
 import ProgressBar from './ProgessBar';
-import DroneImageProcessingWorkflow from '../DroneImageProcessingWorkflow';
 
 const DescriptionBox = () => {
   const dispatch = useDispatch();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [flyable, setFlyable] = useState('yes');
-  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const { taskId, projectId } = useParams();
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
@@ -59,52 +53,17 @@ const DescriptionBox = () => {
 
   const {
     data: taskAssetsInformation,
-    // isFetching: taskAssetsInfoLoading,
   }: Record<string, any> = useGetTaskAssetsInfo(
     projectId as string,
     taskId as string,
   );
 
-  const { mutate: updateStatus, isPending: statusUpdating } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
-    mutationFn: postTaskStatus,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['task-description'] });
-      queryClient.invalidateQueries({ queryKey: ['task-assets-info'] });
-    },
-    onError: (err: any) => {
-      toast.error(err.message);
-    },
-  });
-
   useEffect(() => {
     dispatch(resetFilesExifData());
   }, [dispatch]);
 
-  const { mutate: startImageryProcess, isPending: imageProcessingStarting } =
-    useMutation({
-      mutationFn: () =>
-        postProcessImagery(projectId as string, taskId as string),
-      onSuccess: () => {
-        updateStatus({
-          projectId,
-          taskId,
-          data: {
-            event: 'image_processing_start',
-            updated_at: new Date().toISOString(),
-          },
-        });
-        toast.success('Image processing started');
-      },
-    });
-
   const { data: taskQueryData }: Record<string, any> =
     useGetIndividualTaskQuery(taskId as string, {
-      // enabled: !!taskWayPoints,
       select: (data: any) => {
         const { data: taskData } = data;
 
@@ -178,11 +137,6 @@ const DescriptionBox = () => {
               },
             ],
           },
-          // {
-         //   total_image_uploaded: taskData?.total_image_uploaded || 0,
-         //   assets_url: taskData?.assets_url,
-         //   state: taskData?.state,
-         // },
         ];
         return { taskDescription, taskData };
       },
@@ -199,12 +153,6 @@ const DescriptionBox = () => {
       );
     }
   }, [dispatch, taskQueryData]);
-
-  // const taskAssetsInformation = useMemo(() => {
-  //   if (!taskDescription) return {};
-  //   dispatch(setTaskAssetsInformation(taskDescription?.[2]));
-  //   return taskDescription?.[2];
-  // }, [taskDescription, dispatch]);
 
   const handleDownloadResult = () => {
     if (!taskAssetsInformation?.assets_url) return;
@@ -225,6 +173,10 @@ const DescriptionBox = () => {
     [taskId, uploadProgress],
   );
 
+  const hasImages = taskAssetsInformation?.image_count > 0;
+  const isLocked = taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING';
+  const hasAssets = !!taskAssetsInformation?.assets_url;
+
   return (
     <>
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
@@ -236,19 +188,38 @@ const DescriptionBox = () => {
           />
         ))}
         <p className="naxatw-text-[0.75rem] naxatw-text-[#212121]">
-          {/* TODO - we might need to change this value if a drone is added which cannot
-          achieve this speed */}
           *This flight time was calculated using an average ground speed of 11.5 m/s.
         </p>
       </div>
 
-      {/* Drone Image Processing Workflow Modal */}
-      <DroneImageProcessingWorkflow
-        isOpen={isWorkflowModalOpen}
-        onClose={() => setIsWorkflowModalOpen(false)}
-        projectId={projectId as string}
-      />
+      {(isLocked || hasImages) && (
+        <div className="naxatw-mt-4 naxatw-rounded-lg naxatw-border naxatw-border-amber-200 naxatw-bg-amber-50 naxatw-p-4">
+          <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
+            <span className="material-icons naxatw-text-[1.25rem] naxatw-text-amber-600">
+              info
+            </span>
+            <div className="naxatw-flex-1">
+              <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-amber-900">
+                Imagery processing moved to the project page
+              </p>
+              <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-amber-800">
+                Upload imagery, verify coverage, and start processing from the
+                main project page instead of the individual task page.
+              </p>
+              <Button
+                variant="outline"
+                className="naxatw-mt-3 naxatw-border-amber-300 naxatw-bg-white naxatw-text-amber-900"
+                rightIcon="open_in_new"
+                onClick={() => navigate(`/projects/${projectId}`)}
+              >
+                Open Project Page
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* Upload progress bar */}
       {taskAssetsInformation?.image_count === 0 &&
         (progressDetails?.totalFiles ? (
           <ProgressBar
@@ -264,7 +235,8 @@ const DescriptionBox = () => {
           />
         ))}
 
-      {taskAssetsInformation?.image_count > 0 && (
+      {/* Uploads info and download section */}
+      {hasImages && (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-5">
           <UploadsInformation
             data={[
@@ -274,22 +246,20 @@ const DescriptionBox = () => {
               },
               {
                 name: 'Orthophoto available',
-                value: taskAssetsInformation?.assets_url ? 'Yes' : 'No',
+                value: hasAssets ? 'Yes' : 'No',
               },
               {
                 name: 'Image Status',
                 value:
-                  // if the state is LOCKED_FOR_MAPPING and has a image count it means the images are not fully uploaded
-                  taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                  taskAssetsInformation?.image_count > 0
+                  isLocked && hasImages
                     ? 'Image Uploading Failed'
                     : formatString(taskAssetsInformation?.state),
               },
             ]}
           />
 
-          {taskAssetsInformation?.assets_url && (
-            <div className="naxatw-flex naxatw-gap-1">
+          {hasAssets && (
+            <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-1">
               <Button
                 variant="ghost"
                 className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
@@ -299,111 +269,15 @@ const DescriptionBox = () => {
               >
                 Download Result
               </Button>
-              <Button
-                variant="ghost"
-                className="naxatw-bg-red naxatw-text-white"
-                leftIcon="upload"
-                iconClassname="naxatw-text-[1.125rem]"
-                onClick={() => setIsWorkflowModalOpen(true)}
-              >
-                Drone Image Processing Workflow
-              </Button>
             </div>
           )}
 
-          {progressDetails?.totalFiles ? (
+          {progressDetails?.totalFiles && (
             <ProgressBar
               heading="Uploading Images"
               successCount={progressDetails?.uploadedFiles}
               totalCount={progressDetails.totalFiles}
             />
-          ) : (
-            <>
-              {/* Info banner for returning users */}
-              {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
-                (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                  taskAssetsInformation?.image_count > 0)) && (
-                <div className="naxatw-rounded-md naxatw-border naxatw-border-blue-200 naxatw-bg-blue-50 naxatw-px-3 naxatw-py-2">
-                  <p className="naxatw-text-sm naxatw-text-blue-800">
-                    {taskAssetsInformation?.image_count} images uploaded. Ready
-                    to process.
-                  </p>
-                </div>
-              )}
-
-              {/* Start Processing / Re-run Processing button — prominent position */}
-              {(taskAssetsInformation?.state === 'IMAGE_UPLOADED' ||
-                (taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                  taskAssetsInformation?.image_count > 0)) && (
-                <div>
-                  <Button
-                    variant="ghost"
-                    className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-                    leftIcon="play_arrow"
-                    iconClassname="naxatw-text-[1.125rem]"
-                    onClick={() => startImageryProcess()}
-                    disabled={imageProcessingStarting || statusUpdating}
-                  >
-                    Start Processing
-                  </Button>
-                  {taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' &&
-                    taskAssetsInformation?.image_count > 0 && (
-                      <p className="naxatw-px-1 naxatw-py-1 naxatw-text-xs naxatw-text-yellow-600">
-                        Note: Some images may not have been uploaded due to an
-                        issue during the upload process. However, you can
-                        proceed with processing for the successfully uploaded
-                        images.
-                      </p>
-                    )}
-                </div>
-              )}
-              {taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' && (
-                <div>
-                  <Button
-                    variant="ghost"
-                    className="naxatw-bg-red naxatw-text-white disabled:!naxatw-cursor-not-allowed disabled:naxatw-bg-gray-500 disabled:naxatw-text-white"
-                    leftIcon="replay"
-                    iconClassname="naxatw-text-[1.125rem]"
-                    onClick={() => startImageryProcess()}
-                    disabled={imageProcessingStarting || statusUpdating}
-                  >
-                    Re-run processing
-                  </Button>
-                </div>
-              )}
-
-              {/* Collapsible upload section */}
-              {(taskAssetsInformation?.state === 'IMAGE_PROCESSING_FAILED' ||
-                taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING' ||
-                taskAssetsInformation?.state === 'IMAGE_UPLOADED') && (
-                <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-blue-200 naxatw-bg-blue-50 naxatw-p-4">
-                  <div className="naxatw-flex naxatw-items-start naxatw-gap-2">
-                    <span className="material-icons naxatw-text-blue-600">
-                      info
-                    </span>
-                    <div>
-                      <p className="naxatw-font-medium naxatw-text-blue-800">
-                        Need to upload more images?
-                      </p>
-                      <p className="naxatw-text-sm naxatw-text-blue-600">
-                        Image uploads are now managed from the Project Details
-                        page. Use the Drone Image Processing Workflow to upload,
-                        classify, and process your drone imagery.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    className="naxatw-w-fit naxatw-bg-blue-600 naxatw-text-white hover:naxatw-bg-blue-700"
-                    leftIcon="arrow_forward"
-                    iconClassname="naxatw-text-[1.125rem]"
-                    onClick={() => navigate(`/projects/${projectId}`)}
-                  >
-                    Go to Project Details
-                  </Button>
-                </div>
-              )}
-            </>
           )}
         </div>
       )}

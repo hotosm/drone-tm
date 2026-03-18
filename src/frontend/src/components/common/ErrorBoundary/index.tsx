@@ -31,12 +31,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   render() {
     if (this.state.errorInfo) {
-      const [fileName, errorLocation] = (
-        this.state.errorInfo as any
-      ).componentStack
-        .split('\n ')[1]
-        .trim()
-        .split(' (');
+      const componentStack = (this.state.errorInfo as any)?.componentStack || '';
+      const stackLine = componentStack
+        .split('\n')
+        .map((line: string) => line.trim())
+        .find((line: string) => line.length > 0);
+      const [fileName = 'Component stack unavailable', errorLocation] = stackLine
+        ? stackLine.split(' (')
+        : [];
       return (
         <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-1 naxatw-bg-pink-200 naxatw-p-4">
           <div className="title naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center">
@@ -49,14 +51,18 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               An Error Occurred !
             </p>
           </div>
-          <a
-            href={errorLocation}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="naxatw-text-red-600 naxatw-text-sm naxatw-underline"
-          >
-            {fileName}
-          </a>
+          {errorLocation ? (
+            <a
+              href={errorLocation}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="naxatw-text-red-600 naxatw-text-sm naxatw-underline"
+            >
+              {fileName}
+            </a>
+          ) : (
+            <p className="naxatw-text-red-600 naxatw-text-sm">{fileName}</p>
+          )}
         </div>
       );
     }
