@@ -17,6 +17,12 @@ importers:
       '@hotosm/gcp-editor':
         specifier: ^0.0.9
         version: 0.0.9(@floating-ui/utils@0.2.9)(@shoelace-style/shoelace@2.20.0(@floating-ui/utils@0.2.9)(@types/react@19.0.8))(@types/react@19.0.8)(ol@7.5.2)
+      '@hotosm/hanko-auth':
+        specifier: ^0.5.2
+        version: 0.5.2
+      '@hotosm/tool-menu':
+        specifier: ^0.2.6
+        version: 0.2.6
       '@hotosm/ui':
         specifier: 0.2.0-b6
         version: 0.2.0-b6(@floating-ui/utils@0.2.9)(@types/react@19.0.8)
@@ -919,6 +925,11 @@ packages:
       react: '>=17.0.0'
       react-dom: '>=17.0.0'
 
+  '@denysvuika/preact-translate@0.6.0':
+    resolution: {integrity: sha512-LPzcbCc9PD+HghgZe4rjWB3wQm05ibQ37Zvh0K8MwIwbPtMZIz9iBe9+9z9uu8yVFNiuswABvUZKaNrDngqmPw==}
+    peerDependencies:
+      preact: '>=10.13.0'
+
   '@emotion/is-prop-valid@1.2.2':
     resolution: {integrity: sha512-uNsoYd37AFmaCdXlg6EYD1KaPOaRWRByMCYzbKUX4+hhMfrxdVSelShywL4JVaAeM/eHUOSprYBQls+/neX3pw==}
 
@@ -1110,6 +1121,13 @@ packages:
       '@shoelace-style/shoelace': ^2.17.1
       ol: ^7.5.0
 
+  '@hotosm/hanko-auth@0.5.2':
+    resolution: {integrity: sha512-dCCrNRyH2C2bS3TBDLJrX45rmHPgMzZHp8Il+LvEeh9mHzBB/iXro1bJZj5Fpmdhfy3HVN+v5PE2WhMK3ymznw==}
+
+  '@hotosm/tool-menu@0.2.6':
+    resolution: {integrity: sha512-CbDTuQ6NoyS5Kmye3r1ud2DjoqqgG9h6LIMrd6pi+P6O8kHKnW6akUtT2l0FIjaAZXu1azE7Fj6TePzXIy0dtA==}
+    engines: {node: '>=14.17.0'}
+
   '@hotosm/ui@0.2.0-b6':
     resolution: {integrity: sha512-ac7Hr2YD/3mNvxL9WFVAe0ELcqk9NV1QHF/jZJQwfxg/1H1czF9E1ghM8TgDI2cjHjqA6/5+hHXbW3lCstIBDg==}
     engines: {node: '>=14.17'}
@@ -1157,6 +1175,9 @@ packages:
   '@lit-labs/ssr-dom-shim@1.3.0':
     resolution: {integrity: sha512-nQIWonJ6eFAvUUrSlwyHDm/aE8PBDu5kRpL0vHMg6K8fK3Diq1xdPjTnsJSwxABhaZ+5eBi1btQB5ShUTKo4nQ==}
 
+  '@lit-labs/ssr-dom-shim@1.5.1':
+    resolution: {integrity: sha512-Aou5UdlSpr5whQe8AA/bZG0jMj96CoJIWbGfZ91qieWu5AWUMKw8VR/pAkQkJYvBNhmCcWnZlyyk5oze8JIqYA==}
+
   '@lit/react@1.0.7':
     resolution: {integrity: sha512-cencnwwLXQKiKxjfFzSgZRngcWJzUDZi/04E0fSaF86wZgchMdvTyu+lE36DrUfvuus3bH8+xLPrhM1cTjwpzw==}
     peerDependencies:
@@ -1164,6 +1185,9 @@ packages:
 
   '@lit/reactive-element@2.0.4':
     resolution: {integrity: sha512-GFn91inaUa2oHLak8awSIigYz0cU0Payr1rcFsrkf5OJ5eSPxElyZfKh0f2p9FsTiZWXQdWGJeXZICEfXXYSXQ==}
+
+  '@lit/reactive-element@2.1.2':
+    resolution: {integrity: sha512-pbCDiVMnne1lYUIaYNN5wrwQXDtHaYtg7YEFPeW+hws6U47WeFvISGUWekPGKWOP1ygrs0ef0o1VJMk1exos5A==}
 
   '@mapbox/geojson-area@0.2.2':
     resolution: {integrity: sha512-bBqqFn1kIbLBfn7Yq1PzzwVkPYQr9lVUeT8Dhd0NL5n76PBuXzOcuLV7GOSbEB1ia8qWxH4COCvFpziEu/yReA==}
@@ -1744,6 +1768,17 @@ packages:
   '@tanstack/virtual-core@3.13.12':
     resolution: {integrity: sha512-1YBOJfRHV4sXUmWsFSf5rQor4Ss82G8dQWLRbnk3GA4jeP8hQt1hxXh0tmflpC0dz3VgEv/1+qwPyLeWkQuPFA==}
 
+  '@teamhanko/hanko-elements@2.5.0':
+    resolution: {integrity: sha512-lWh9kWp5+ANIjRdxC/ZbNfLHp42GR6zi6wJol0eyLmlMq2yiWyzdXA2MSEh30KtT256qHRhvu+phYx8UFtpO4A==}
+
+  '@teamhanko/hanko-frontend-sdk@2.5.0':
+    resolution: {integrity: sha512-JFgQa/FDZZsRPQ4qVKpFWfSbtsiaOtePITXpnQdK8XngKNU+bLnf/9J+TWq1cOADZHdDD2r/dDWdngku7t2JKw==}
+
+  '@teamhanko/preact-custom-element@4.2.2':
+    resolution: {integrity: sha512-3djCQr25IxQIgpidxD8J0fTQ7/hMuoa5Nmv7delQc6sX4kXgv9e/pE01cywpmGZLi69H1KUH4dmZ4cPPJQrsQQ==}
+    peerDependencies:
+      preact: 10.x
+
   '@transloadit/prettier-bytes@0.3.5':
     resolution: {integrity: sha512-xF4A3d/ZyX2LJWeQZREZQw+qFX4TGQ8bGVP97OLRt6sPO6T0TNHBFTuRHOJh7RNmYOBmQ9MHxpolD9bXihpuVA==}
 
@@ -1893,6 +1928,9 @@ packages:
 
   '@types/geojson@7946.0.8':
     resolution: {integrity: sha512-1rkryxURpr6aWP7R786/UQOkJ3PcpQiWkAXBmdWc7ryFWqN6a4xfK7BtjXvFBKO9LjQ+MWQSWxYeZX1OApnArA==}
+
+  '@types/js-cookie@3.0.6':
+    resolution: {integrity: sha512-wkw9yd1kEXOPnvEeEV1Go1MmxtBJL0RR79aOTAApecWFVu7w0NNXNqhcWgvw2YgZDYadliXkl14pa3WXw5jlCQ==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -3336,11 +3374,20 @@ packages:
   lit-element@4.1.1:
     resolution: {integrity: sha512-HO9Tkkh34QkTeUmEdNYhMT8hzLid7YlMlATSi1q4q17HE5d9mrrEHJ/o8O2D0cMi182zK1F3v7x0PWFjrhXFew==}
 
+  lit-element@4.2.2:
+    resolution: {integrity: sha512-aFKhNToWxoyhkNDmWZwEva2SlQia+jfG0fjIWV//YeTaWrVnOxD89dPKfigCUspXFmjzOEUQpOkejH5Ly6sG0w==}
+
   lit-html@3.2.1:
     resolution: {integrity: sha512-qI/3lziaPMSKsrwlxH/xMgikhQ0EGOX2ICU73Bi/YHFvz2j/yMCIrw4+puF2IpQ4+upd3EWbvnHM9+PnJn48YA==}
 
+  lit-html@3.3.2:
+    resolution: {integrity: sha512-Qy9hU88zcmaxBXcc10ZpdK7cOLXvXpRoBxERdtqV9QOrfpMZZ6pSYP91LhpPtap3sFMUiL7Tw2RImbe0Al2/kw==}
+
   lit@3.2.1:
     resolution: {integrity: sha512-1BBa1E/z0O9ye5fZprPtdqnc0BFzxIxTTOO/tQFmyC/hj1O3jL4TfmLBw0WEwjAokdLwpclkvGgDJwTIh0/22w==}
+
+  lit@3.3.2:
+    resolution: {integrity: sha512-NF9zbsP79l4ao2SNrH3NkfmFgN/hBYSQo90saIVI1o5GpjAdCPVstVzO1MrLOakHoEhYkrtRjPK6Ob521aoYWQ==}
 
   loader-utils@2.0.3:
     resolution: {integrity: sha512-THWqIsn8QRnvLl0shHYVBN9syumU8pYWEHPTmkiVGd+7K5eFNVSY6AJhRvgGF70gg1Dz+l/k8WicvFCxdEs60A==}
@@ -3697,6 +3744,9 @@ packages:
 
   preact@10.27.2:
     resolution: {integrity: sha512-5SYSgFKSyhCbk6SrXyMpqjb5+MQBgfvEKE/OC+PujcY34sOpqtr+0AZQtPYx5IA6VxynQ7rUPCtKzyovpj9Bpg==}
+
+  preact@10.29.0:
+    resolution: {integrity: sha512-wSAGyk2bYR1c7t3SZ3jHcM6xy0lcBcDel6lODcs9ME6Th++Dx2KU+6D3HD8wMMKGA8Wpw7OMd3/4RGzYRpzwRg==}
 
   prebuild-install@7.1.3:
     resolution: {integrity: sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug==}
@@ -5396,6 +5446,10 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
+  '@denysvuika/preact-translate@0.6.0(preact@10.29.0)':
+    dependencies:
+      preact: 10.29.0
+
   '@emotion/is-prop-valid@1.2.2':
     dependencies:
       '@emotion/memoize': 0.8.1
@@ -5534,6 +5588,15 @@ snapshots:
       - '@floating-ui/utils'
       - '@types/react'
 
+  '@hotosm/hanko-auth@0.5.2':
+    dependencies:
+      '@teamhanko/hanko-elements': 2.5.0
+      lit: 3.3.2
+
+  '@hotosm/tool-menu@0.2.6':
+    dependencies:
+      lit: 3.3.2
+
   '@hotosm/ui@0.2.0-b6(@floating-ui/utils@0.2.9)(@types/react@19.0.8)':
     dependencies:
       '@shoelace-style/shoelace': 2.20.0(@floating-ui/utils@0.2.9)(@types/react@19.0.8)
@@ -5596,6 +5659,8 @@ snapshots:
 
   '@lit-labs/ssr-dom-shim@1.3.0': {}
 
+  '@lit-labs/ssr-dom-shim@1.5.1': {}
+
   '@lit/react@1.0.7(@types/react@19.0.8)':
     dependencies:
       '@types/react': 19.0.8
@@ -5603,6 +5668,10 @@ snapshots:
   '@lit/reactive-element@2.0.4':
     dependencies:
       '@lit-labs/ssr-dom-shim': 1.3.0
+
+  '@lit/reactive-element@2.1.2':
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.5.1
 
   '@mapbox/geojson-area@0.2.2':
     dependencies:
@@ -5680,13 +5749,13 @@ snapshots:
 
   '@openlayers-elements/core@0.4.0':
     dependencies:
-      lit: 3.2.1
+      lit: 3.3.2
       ol: 7.5.2
 
   '@openlayers-elements/maps@0.4.0':
     dependencies:
       '@openlayers-elements/core': 0.4.0
-      lit: 3.2.1
+      lit: 3.3.2
       ol: 7.5.2
 
   '@panzoom/panzoom@4.6.0': {}
@@ -6127,6 +6196,22 @@ snapshots:
 
   '@tanstack/virtual-core@3.13.12': {}
 
+  '@teamhanko/hanko-elements@2.5.0':
+    dependencies:
+      '@denysvuika/preact-translate': 0.6.0(preact@10.29.0)
+      '@teamhanko/hanko-frontend-sdk': 2.5.0
+      '@teamhanko/preact-custom-element': 4.2.2(preact@10.29.0)
+      classnames: 2.5.1
+      preact: 10.29.0
+
+  '@teamhanko/hanko-frontend-sdk@2.5.0':
+    dependencies:
+      '@types/js-cookie': 3.0.6
+
+  '@teamhanko/preact-custom-element@4.2.2(preact@10.29.0)':
+    dependencies:
+      preact: 10.29.0
+
   '@transloadit/prettier-bytes@0.3.5': {}
 
   '@turf/area@7.2.0':
@@ -6400,6 +6485,8 @@ snapshots:
   '@types/geojson@7946.0.16': {}
 
   '@types/geojson@7946.0.8': {}
+
+  '@types/js-cookie@3.0.6': {}
 
   '@types/json-schema@7.0.15': {}
 
@@ -8122,7 +8209,17 @@ snapshots:
       '@lit/reactive-element': 2.0.4
       lit-html: 3.2.1
 
+  lit-element@4.2.2:
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.5.1
+      '@lit/reactive-element': 2.1.2
+      lit-html: 3.3.2
+
   lit-html@3.2.1:
+    dependencies:
+      '@types/trusted-types': 2.0.7
+
+  lit-html@3.3.2:
     dependencies:
       '@types/trusted-types': 2.0.7
 
@@ -8131,6 +8228,12 @@ snapshots:
       '@lit/reactive-element': 2.0.4
       lit-element: 4.1.1
       lit-html: 3.2.1
+
+  lit@3.3.2:
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+      lit-element: 4.2.2
+      lit-html: 3.3.2
 
   loader-utils@2.0.3:
     dependencies:
@@ -8516,6 +8619,8 @@ snapshots:
   potpack@2.0.0: {}
 
   preact@10.27.2: {}
+
+  preact@10.29.0: {}
 
   prebuild-install@7.1.3:
     dependencies:

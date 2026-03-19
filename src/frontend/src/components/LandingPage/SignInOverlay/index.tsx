@@ -12,6 +12,10 @@ import { setCommonState } from '@Store/actions/common';
 import { motion } from 'framer-motion';
 import { slideVariants } from '@Constants/animations';
 
+const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
+const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
+const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
+
 export default function SignInOverlay() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
@@ -47,8 +51,23 @@ export default function SignInOverlay() {
           <Button
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
+
             onClick={() => {
               localStorage.setItem('signedInAs', 'PROJECT_CREATOR');
+
+              if (AUTH_PROVIDER === 'hanko') {
+                // Clear any existing Hanko session to force fresh login
+                // This prevents account confusion when switching users
+                document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
+                document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
+          
+                // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
+                // Return to /hanko-auth callback which validates with backend and sets up user profile
+                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'PROJECT_CREATOR'}`;
+                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
+                return;
+              }
+
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {
@@ -70,6 +89,20 @@ export default function SignInOverlay() {
             rightIcon="east"
             onClick={() => {
               localStorage.setItem('signedInAs', 'DRONE_PILOT');
+
+              if (AUTH_PROVIDER === 'hanko') {
+                // Clear any existing Hanko session to force fresh login
+                // This prevents account confusion when switching users
+                document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
+                document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
+          
+                // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
+                // Return to /hanko-auth callback which validates with backend and sets up user profile
+                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'DRONE_PILOT'}`;
+                window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
+                return;
+              }
+
               if (isAuthenticated()) {
                 navigate('/projects');
               } else {

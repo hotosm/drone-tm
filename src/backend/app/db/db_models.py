@@ -38,6 +38,9 @@ from app.models.enums import (
 )
 from app.utils import timestamp
 
+# Import HankoUserMapping from auth-libs
+from hotosm_auth_fastapi import HankoUserMapping
+
 Base = declarative_base()
 
 

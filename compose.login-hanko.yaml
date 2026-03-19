@@ -1,0 +1,149 @@
+# compose.test.yaml - Test environment for login-hanko branch
+# Deploy to: testlogin.dronetm.hotosm.org
+# Requires: Traefik running in /opt/traefik with hotosm-test network
+
+services:
+  # Frontend syncs built files to a shared volume
+  frontend:
+    image: ghcr.io/hotosm/drone-tm/frontend:login-hanko
+    restart: unless-stopped
+    volumes:
+      - frontend-html:/frontend_html
+    networks:
+      - internal
+
+  # Nginx serves the static files
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    volumes:
+      - frontend-html:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - hotosm-test
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dronetm-frontend.rule=Host(`testlogin.dronetm.hotosm.org`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.dronetm-frontend.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dronetm-frontend.loadbalancer.server.port=80"
+
+  backend:
+    image: ghcr.io/hotosm/drone-tm/backend:login-hanko
+    restart: unless-stopped
+    deploy:
+      replicas: 4
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
+      - HANKO_API_URL=https://dev.login.hotosm.org
+      - JWT_ISSUER=https://dev.login.hotosm.org
+      - SECRET_KEY=${SECRET_KEY}
+      - COOKIE_SECRET=${SECRET_KEY}
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_NAME=dronetm
+      - S3_DOWNLOAD_ROOT=https://s3.testlogin.dronetm.hotosm.org
+      - DRAGONFLY_DSN=redis://redis:6379/0
+      - FRONTEND_URL=https://testlogin.dronetm.hotosm.org
+      - BACKEND_URL=https://testlogin.dronetm.hotosm.org/api
+      - EXTRA_CORS_ORIGINS=["https://testlogin.dronetm.hotosm.org","https://portal.hotosm.org","https://dev.login.hotosm.org"]
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
+    networks:
+      - hotosm-test
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dronetm-backend.rule=Host(`testlogin.dronetm.hotosm.org`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dronetm-backend.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dronetm-backend.loadbalancer.server.port=8000"
+
+  db:
+    image: postgis/postgis:14-3.4
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - dronetm-db:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${S3_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY}
+    volumes:
+      - dronetm-minio:/data
+    networks:
+      - internal
+      - hotosm-test
+    labels:
+      - "traefik.enable=true"
+      # MinIO Console (Web UI)
+      - "traefik.http.routers.dronetm-minio-console.rule=Host(`minio.testlogin.dronetm.hotosm.org`)"
+      - "traefik.http.routers.dronetm-minio-console.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dronetm-minio-console.service=dronetm-minio-console"
+      - "traefik.http.services.dronetm-minio-console.loadbalancer.server.port=9001"
+      # MinIO S3 API (for presigned URLs)
+      - "traefik.http.routers.dronetm-minio-api.rule=Host(`s3.testlogin.dronetm.hotosm.org`)"
+      - "traefik.http.routers.dronetm-minio-api.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dronetm-minio-api.service=dronetm-minio-api"
+      - "traefik.http.services.dronetm-minio-api.loadbalancer.server.port=9000"
+
+  migrations:
+    image: ghcr.io/hotosm/drone-tm/backend:login-hanko
+    command: alembic upgrade head
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    networks:
+      - internal
+
+  arq-worker:
+    image: ghcr.io/hotosm/drone-tm/backend:login-hanko
+    command: arq app.arq.tasks.WorkerSettings
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DRAGONFLY_DSN=redis://redis:6379/0
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_NAME=dronetm
+      - S3_DOWNLOAD_ROOT=https://s3.testlogin.dronetm.hotosm.org
+    networks:
+      - internal
+
+networks:
+  hotosm-test:
+    external: true
+  internal:
+
+volumes:
+  dronetm-db:
+  dronetm-minio:
+  frontend-html:

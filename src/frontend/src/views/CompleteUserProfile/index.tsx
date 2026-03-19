@@ -25,6 +25,14 @@ import useWindowDimensions from '@Hooks/useWindowDimensions';
 import { useGetUserDetailsQuery } from '@Api/projects';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
 
+const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
+const isHankoAuth = AUTH_PROVIDER === 'hanko';
+
+// Filter out Password tab when using Hanko auth (password managed by Hanko)
+const filteredTabOptions = isHankoAuth
+  ? tabOptions.filter(tab => tab.id !== 3)
+  : tabOptions;
+
 const getActiveFormContent = (
   activeTab: number,
   userType: string,
@@ -137,6 +145,11 @@ const CompleteUserProfile = () => {
     },
   });
 
+  // With Hanko auth, skip the password tab (tab 3)
+  // New users: tabs 1, 2, (skip 3 if Hanko) → submit
+  // Existing users adding role: tabs 1, 2 → submit
+  const lastTab = isHankoAuth ? 2 : 3;
+
   const onSubmit = (formData: Record<string, any>) => {
     if (userProfile?.role) {
       if (userProfileActiveTab !== 2) {
@@ -148,7 +161,7 @@ const CompleteUserProfile = () => {
     }
 
     if (!userProfile?.role?.length) {
-      if (userProfileActiveTab !== 3) {
+      if (userProfileActiveTab !== lastTab) {
         dispatch(
           setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }),
         );
@@ -186,7 +199,7 @@ const CompleteUserProfile = () => {
             className="naxatw-w-full naxatw-border-b"
             orientation={width < 768 ? 'row' : 'column'}
             onTabChange={() => {}}
-            tabOptions={tabOptions}
+            tabOptions={filteredTabOptions}
             activeTab={userProfileActiveTab}
           />
         </div>
@@ -211,7 +224,7 @@ const CompleteUserProfile = () => {
               }}
               withLoader
             >
-              {userProfileActiveTab === 3 ? 'Complete Profile' : 'Next'}
+              {userProfileActiveTab === lastTab ? 'Complete Profile' : 'Next'}
             </Button>
           </div>
         </div>

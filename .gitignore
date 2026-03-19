@@ -4,6 +4,9 @@ env/
 ./build/
 develop-eggs/
 dist/
+# Allow auth-libs dist (distributed from auth-libs repo)
+!src/frontend/auth-libs/**/dist/
+!src/backend/auth-libs/dist/
 downloads/
 eggs/
 .eggs/
