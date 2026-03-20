@@ -25,30 +25,23 @@ export default function useAuth() {
       .find(row => row.startsWith('hanko='));
     devLog('  hanko cookie:', hankoCookie ? 'EXISTS' : 'NOT FOUND');
 
+    // Check for stale localStorage data (cookie expired but localStorage has old data)
+    const userprofile = localStorage.getItem('userprofile');
+
+    if (!hankoCookie && userprofile) {
+      // Cookie expired but localStorage has stale data - clean up
+      devLog('  ⚠️ Cookie expired, cleaning stale localStorage data');
+      localStorage.removeItem('userprofile');
+      localStorage.removeItem('signedInAs');
+      devLog('  🧹 Cleaned userprofile and signedInAs');
+      devLog('  ❌ Not authenticated (cookie expired)');
+      return false;
+    }
+
     if (hankoCookie) {
       // Valid Hanko session exists
       devLog('  ✅ Authenticated via Hanko cookie');
       return true;
-    }
-
-    // Check for Hanko SSO userprofile in localStorage
-    const userprofile = localStorage.getItem('userprofile');
-    devLog('  userprofile:', userprofile ? 'EXISTS' : 'NOT FOUND');
-    if (userprofile) {
-      try {
-        const profile = JSON.parse(userprofile);
-        devLog('  userprofile.id:', profile?.id);
-        // Verify it has user ID (basic validation)
-        if (profile?.id) {
-          // Trust localStorage if it exists and has valid user ID
-          // The backend validated the JWT when creating this profile
-          devLog('  ✅ Authenticated via userprofile in localStorage');
-          return true;
-        }
-      } catch (err) {
-        devLog('  ❌ Error parsing userprofile:', err);
-        return false;
-      }
     }
 
     devLog('  ❌ Not authenticated');
