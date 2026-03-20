@@ -1,7 +1,7 @@
 """add_hanko_user_mappings_table
 
 Revision ID: 973d20c518d6
-Revises: 7389d0d528c3
+Revises: add_thumbnail_url
 Create Date: 2025-10-27 11:00:56.706931
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '973d20c518d6'
-down_revision: Union[str, None] = '7389d0d528c3'
+down_revision: Union[str, None] = 'add_thumbnail_url'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
