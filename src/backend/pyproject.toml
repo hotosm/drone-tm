@@ -96,6 +96,7 @@ version_files = [
     "pyproject.toml:version",
     "app/__version__.py",
     "../frontend/package.json:version",
+    "../../chart/Chart.yaml:appVersion",
 ]
 changelog_file = "../../CHANGELOG.md"
 update_changelog_on_bump = true
