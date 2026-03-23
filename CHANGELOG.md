@@ -3,10 +3,6 @@
 ### BREAKING CHANGE
 
 - Switch from minio to boto3
-- Switch from minio to boto3
-- Switch from minio to boto3
-- Switch from minio to boto3
-- Switch from minio to boto3
 
 ### Feat
 
