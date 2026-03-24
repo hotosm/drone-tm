@@ -4,7 +4,8 @@ import Image from '@Components/RadixComponents/Image';
 import { Button } from '@Components/RadixComponents/Button';
 import { motion } from 'framer-motion';
 import droneTaskingManagerLogo from '@Assets/images/DTM-logo-white.svg';
-import droneBackgroundImage from '@Assets/images/LandingPage/DroneTM-bg.jpg';
+// Served from public/ dir with <link rel="preload"> in index.html for fast LCP
+const droneBackgroundImage = '/images/DroneTM-bg.jpg';
 import arrowSouth from '@Assets/images/LandingPage/arrow_south.svg';
 import { setCommonState } from '@Store/actions/common';
 import useAuth from '@Hooks/useAuth';
