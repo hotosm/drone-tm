@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.image-with-outer-wrapper{
+    width: 550px;
+    height: 380px;
+    min-width: 550px;
+    min-height: 380px;
+  }
+  .active{
+    border: 2px solid red;
+  }
+  .outer {
+     width: 100%;
+     height: 350px;
+     overflow: auto;
+     position: relative;
+     /* display: flex;
+     justify-items: center;
+     align-items: center; */
+   }
+
+  .image-container {
+     width: 100%;
+     height: 100%;
+     background-size: cover;
+     background-position: center;
+     position: relative;
+   }
+
+   .images-list-wrapper{
+    display:flex;
+    flex:wrap;
+    padding-top:40px;
+    gap:10px;
+    overflow-y:auto;
+   }
+
+  #image-uploading-content {
+    height: 80vh;
+  }
+
+*,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+  .main-component-wrapper{
+    height:100vh;
+    width:100vw;
+  }
+
+
+    /* primary button */
+hot-button.primary::part(base) {
+  background-color: #D73F3F;
+  color:white !important;
+  border: 0px;
+  font-weight: 600;
+  font-family: "Barlow Condensed";
+  padding:4px 4px;
+  font-size: 14px;
+}
+hot-button.primary::part(base):hover {
+  background-color: #b91c1c;
+}
+
+hot-button::part(base):hover{
+  border-color: #b91c1c;
+  color:#b91c1c
+}
+
+hot-button.is-active::part(base){
+  border-color: #b91c1c;
+  color:#b91c1c
+}
+
+  /* secondary button */
+  hot-button.secondary::part(base) {
+    background-color: white;
+    color:#b91c1c !important;
+    border: 0px;
+    font-weight: 600;
+    font-family: "Barlow Condensed";
+    padding:4px 4px;
+    font-size: 14px;
+
+  }
+  hot-button.secondary::part(base):hover {
+    -webkit-box-shadow: -2px 2px 23px -6px rgba(0,0,0,0.5);
+    -moz-box-shadow: -2px 2px 23px -6px rgba(0,0,0,0.5);
+    box-shadow: -2px 2px 23px -6px rgba(0,0,0,0.5);
+  }

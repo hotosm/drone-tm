@@ -57,8 +57,8 @@ services:
   frontend:
     image: ghcr.io/hotosm/drone-tm/frontend:debug
     build:
-      context: src/frontend
-      dockerfile: Dockerfile
+      context: src
+      dockerfile: frontend/Dockerfile
       target: development
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
@@ -72,13 +72,15 @@ services:
     networks:
       - dtm-network
     volumes:
-      - ./src/frontend/public:/app/public
-      - ./src/frontend/src:/app/src
-      - ./src/frontend/components.json:/app/components.json
-      - ./src/frontend/index.html:/app/index.html
-      - ./src/frontend/postcss.config.js:/app/postcss.config.js
-      - ./src/frontend/tailwind.config.js:/app/tailwind.config.js
-      - ./src/frontend/vite.config.ts:/app/vite.config.ts
+      - ./src/frontend/public:/app/frontend/public
+      - ./src/frontend/src:/app/frontend/src
+      - ./src/frontend/components.json:/app/frontend/components.json
+      - ./src/frontend/index.html:/app/frontend/index.html
+      - ./src/frontend/postcss.config.js:/app/frontend/postcss.config.js
+      - ./src/frontend/tailwind.config.js:/app/frontend/tailwind.config.js
+      - ./src/frontend/vite.config.ts:/app/frontend/vite.config.ts
+      - ./src/gcp-editor/src:/app/gcp-editor/src
+      - ./src/gcp-editor/dist:/app/gcp-editor/dist
       - frontend-html:/frontend_html
 
   # If error, please upgrade the db with `contrib/pg-upgrade/compose.yaml`

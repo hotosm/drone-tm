@@ -1,4 +1,5 @@
 declare module '@hotosm/ui/dist/hotosm-ui.js';
+declare module '@uppy/react/dashboard';
 declare module '@hotosm/gcp-editor';
 declare module '@hotosm/gcp-editor/style.css';
 declare module '*.png';
