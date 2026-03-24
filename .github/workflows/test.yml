@@ -32,9 +32,5 @@ jobs:
         with:
           just-version: 1.40.0
 
-      - name: Configure Test Environment
-        run: |
-          cp .env.example .env
-
       - name: Run Backend Tests
         run: just test backend
