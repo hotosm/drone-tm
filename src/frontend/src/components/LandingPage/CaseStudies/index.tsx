@@ -7,7 +7,7 @@ import {
   fadeUpVariant,
 } from '@Constants/animations';
 import { caseStudiesData } from '@Constants/landingPage';
-import caseStudyImage from '@Assets/images/LandingPage/CaseStudyImage.png';
+import caseStudyImage from '@Assets/images/LandingPage/CaseStudyImage.webp';
 import { useEffect, useState } from 'react';
 
 export default function CaseStudies() {
