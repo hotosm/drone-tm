@@ -1,6 +1,4 @@
-import { useEffect, createElement, useRef } from 'react';
-import '@hotosm/gcp-editor';
-import '@hotosm/gcp-editor/style.css';
+import { useEffect, createElement, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setProjectState } from '@Store/actions/project';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,10 +9,10 @@ import { toast } from 'react-toastify';
 const GcpEditor = ({
   cogUrl,
   finalButtonText,
-  //   handleProcessingStart,
   rawImageUrl,
 }: any) => {
   const triggeredEvent = useRef(false);
+  const [loaded, setLoaded] = useState(false);
   const { id } = useParams();
   const dispatch = useDispatch();
   const CUSTOM_EVENT: any = 'start-processing-click';
@@ -43,10 +41,31 @@ const GcpEditor = ({
   };
 
   useEffect(() => {
+    // Lazy-load gcp-editor and suppress duplicate custom element registration
+    // errors from its bundled (older) copy of @hotosm/ui
+    const originalDefine = customElements.define.bind(customElements);
+    customElements.define = ((name: string, ctor: CustomElementConstructor, options?: ElementDefinitionOptions) => {
+      if (customElements.get(name)) return;
+      originalDefine(name, ctor, options);
+    }) as typeof customElements.define;
+
+    Promise.all([
+      import('@hotosm/gcp-editor'),
+      import('@hotosm/gcp-editor/style.css'),
+    ]).then(() => {
+      customElements.define = originalDefine;
+      setLoaded(true);
+    });
+
+    return () => {
+      customElements.define = originalDefine;
+    };
+  }, []);
+
+  useEffect(() => {
     document.addEventListener(
       CUSTOM_EVENT,
       handleProcessingStart,
-      // When we use the {once: true} option when adding an event listener, the listener will be invoked at most once and immediately removed as soon as the event is invoked.
       { once: true },
     );
 
@@ -56,6 +75,8 @@ const GcpEditor = ({
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [CUSTOM_EVENT, dispatch]);
+
+  if (!loaded) return null;
 
   return createElement('gcp-editor', {
     cogUrl,

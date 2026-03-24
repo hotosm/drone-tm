@@ -1,4 +1,6 @@
-import '@hotosm/ui/dist/style.css';
+// HOT theme only (fonts + design tokens + WebAwesome overrides)
+// WebAwesome base CSS is loaded via CDN in index.html for cross-tool caching
+import '@hotosm/ui/dist/style-core.css';
 
 import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
@@ -14,7 +16,7 @@ import { getRuntimeConfig } from './runtimeConfig';
 
 // Workaround required, as @hotosm/gcp-editor already imports all components
 if (!customElements.get('hot-tracking')) {
-  import('@hotosm/ui/dist/hotosm-ui');
+  import('@hotosm/ui/dist/hotosm-ui.js');
 }
 
 const queryClient = new QueryClient({
