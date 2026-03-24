@@ -2,9 +2,8 @@
   font-family: 'Barlow Condensed';
   font-style: normal;
   font-weight: normal;
-  src:
-    url('../fonts/BarlowCondensed-Regular.ttf') format('truetype'),
-    url('../fonts/BarlowCondensed-Regular.ttf') format('truetype');
+  font-display: swap;
+  src: url('../fonts/BarlowCondensed-Regular.ttf') format('truetype');
 }
 
 html,

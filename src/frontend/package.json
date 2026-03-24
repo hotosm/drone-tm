@@ -1,6 +1,6 @@
 {
   "name": "drone-tm",
-  "version": "2026.0.0",
+  "version": "2026.1.0",
   "private": true,
   "license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "scripts": {
@@ -15,6 +15,7 @@
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
     "@hotosm/gcp-editor": "^0.0.9",
+    "@hotosm/ui": "^0.9.0",
     "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",
     "@radix-ui/react-popover": "^1.1.6",
@@ -101,7 +102,7 @@
     "vite": "^5.4.11"
   },
   "peerDependencies": {
-    "@hotosm/ui": "0.2.0-b6"
+    "@awesome.me/webawesome": "3.2.1"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

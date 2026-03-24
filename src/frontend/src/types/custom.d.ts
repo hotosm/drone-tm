@@ -1,8 +1,11 @@
-declare module '@hotosm/ui/dist/hotosm-ui';
+declare module '@hotosm/ui/dist/hotosm-ui.js';
+declare module '@hotosm/gcp-editor';
+declare module '@hotosm/gcp-editor/style.css';
 declare module '*.png';
 declare module '*.svg';
 declare module '*.jpeg';
 declare module '*.jpg';
+declare module '*.webp';
 declare module 'uuid';
 declare module '@mapbox/mapbox-gl-draw-static-mode';
 declare module 'mapbox-gl-draw-cut-line-mode';

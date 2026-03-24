@@ -1,16 +1,21 @@
-import Projects from '@Views/Projects';
-import Dashboard from '@Views/Dashboard';
-import CompleteUserProfile from '@Views/CompleteUserProfile';
-import CreateProject from '@Components/CreateProject';
-import GoogleAuth from '@Components/GoogleAuth';
+import { lazy } from 'react';
 import userRoutes from '@UserModule/routes';
 import LandingPage from '@Views/LandingPage';
-import IndividualProject from '@Views/IndividualProject';
-import TaskDescription from '@Views/TaskDescription';
-import UpdateUserProfile from '@Views/UpdateUserProfile';
-import RegulatorsApprovalPage from '@Views/RegulatorsApprovalPage';
-import Tutorials from '@Views/Tutorial';
 import { IRoute } from './types';
+
+// Lazy-load all routes except the landing page (which is the entry point)
+const Projects = lazy(() => import('@Views/Projects'));
+const Dashboard = lazy(() => import('@Views/Dashboard'));
+const CompleteUserProfile = lazy(() => import('@Views/CompleteUserProfile'));
+const CreateProject = lazy(() => import('@Components/CreateProject'));
+const GoogleAuth = lazy(() => import('@Components/GoogleAuth'));
+const IndividualProject = lazy(() => import('@Views/IndividualProject'));
+const TaskDescription = lazy(() => import('@Views/TaskDescription'));
+const UpdateUserProfile = lazy(() => import('@Views/UpdateUserProfile'));
+const RegulatorsApprovalPage = lazy(
+  () => import('@Views/RegulatorsApprovalPage'),
+);
+const Tutorials = lazy(() => import('@Views/Tutorial'));
 
 const appRoutes: IRoute[] = [
   ...userRoutes,
