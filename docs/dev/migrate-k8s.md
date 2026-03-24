@@ -38,6 +38,7 @@ kubectl get pods -l cnpg.io/cluster=dronetm-db-prod
 ```
 
 ```bash
+export BACKUP_FILE=backup.dump.gz
 export DB_NAME=new_db_name
 export DB_USER=new_db_user
 export DB_PASS=new_password
