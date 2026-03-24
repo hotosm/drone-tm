@@ -1,4 +1,4 @@
-import mobileView from '@Assets/images/LandingPage/MobileView.svg';
+import mobileView from '@Assets/images/LandingPage/MobileView.webp';
 import Icon from '@Components/common/Icon';
 import Image from '@Components/RadixComponents/Image';
 import { Link } from 'react-router-dom';
