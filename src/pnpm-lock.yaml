@@ -1308,12 +1308,6 @@ packages:
     peerDependencies:
       '@awesome.me/webawesome': 3.2.1
 
-  '@hotosm/ui@0.9.0':
-    resolution: {integrity: sha512-ggUPGl/wqY7ot26GfOq4ZAWqiVhwz2H3niNgAMubYdUZZOqu9Gkk7v1LNdeo8vce5oqpL+WZ79kNXwe4SC+VpA==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      '@awesome.me/webawesome': 3.2.1
-
   '@humanwhocodes/config-array@0.6.0':
     resolution: {integrity: sha512-JQlEKbcgEUjBFhLIF4iqM7u/9lwgHRBcpHrmUNCALK0Q3amXN6lxdoXLnF0sm11E9VqTmBALR87IlUg1bZ8A9A==}
     engines: {node: '>=10.10.0'}
@@ -3694,11 +3688,6 @@ packages:
     engines: {node: ^18 || >=20}
     hasBin: true
 
-  nanoid@5.1.7:
-    resolution: {integrity: sha512-ua3NDgISf6jdwezAheMOk4mbE1LXjm1DfMUDMuJf4AqxLFK3ccGpgWizwa5YV7Yz9EpXwEaWoRXSb/BnV0t5dQ==}
-    engines: {node: ^18 || >=20}
-    hasBin: true
-
   napi-build-utils@2.0.0:
     resolution: {integrity: sha512-GEbrYkbfF7MoNaoh2iGG84Mnf/WZfB0GdGEsM8wz7Expx/LlWf5U8t9nvJKXSp3qr5IsEbK04cBGhol/KwOsWA==}
 
@@ -5884,10 +5873,6 @@ snapshots:
   '@hotosm/ui@0.9.0(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))':
     dependencies:
       '@awesome.me/webawesome': 3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
-
-  '@hotosm/ui@0.9.0(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.9)(@types/react@19.0.8))':
-    dependencies:
-      '@awesome.me/webawesome': 3.2.1(@floating-ui/utils@0.2.9)(@types/react@19.0.8)
 
   '@humanwhocodes/config-array@0.6.0':
     dependencies:
@@ -8608,8 +8593,6 @@ snapshots:
   namespace-emitter@2.0.1: {}
 
   nanoid@3.3.11: {}
-
-  nanoid@5.1.7: {}
 
   nanoid@5.1.7: {}
 
