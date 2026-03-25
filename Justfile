@@ -21,9 +21,7 @@ set dotenv-load
 mod build 'tasks/build'
 mod start 'tasks/start'
 mod config 'tasks/config'
-mod prep 'tasks/prep'
 mod test 'tasks/test'
-mod chart 'tasks/chart'
 
 # List available commands
 [private]
@@ -33,6 +31,18 @@ default:
 # List available commands
 help:
   just --justfile {{justfile()}} --list
+
+# Prep module from https://github.com/hotosm/justfiles
+prep *args:
+    @curl -sS https://raw.githubusercontent.com/hotosm/justfiles/main/prep.just \
+      -o {{justfile_directory()}}/tasks/prep.just;
+    @just --justfile {{justfile_directory()}}/tasks/prep.just {{args}}
+
+# Chart module from https://github.com/hotosm/justfiles
+chart *args:
+    @curl -sS https://raw.githubusercontent.com/hotosm/justfiles/main/chart.just \
+      -o {{justfile_directory()}}/tasks/chart.just;
+    @just --justfile {{justfile_directory()}}/tasks/chart.just {{args}}
 
 # Run pre-commit hooks
 lint:
