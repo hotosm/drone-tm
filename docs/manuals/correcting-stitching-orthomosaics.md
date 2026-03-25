@@ -27,6 +27,9 @@
 This workflow uses QGIS to georeference each orthomosaic manually,
 then merges the corrected TIFFs into a single output.
 
+Credit to Sam Colchester who took the time to work this out and
+document for the benefit of other users!
+
 ## Requirements
 
 - QGIS.
