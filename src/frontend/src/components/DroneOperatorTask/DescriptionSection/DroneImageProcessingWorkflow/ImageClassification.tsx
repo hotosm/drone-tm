@@ -504,9 +504,22 @@ const ImageClassification = ({
                         </span>
                       </div>
 
-                      {/* Filename on hover */}
+                      {/* Filename + override on hover */}
                       <div className="naxatw-absolute naxatw-inset-x-0 naxatw-bottom-0 naxatw-bg-black naxatw-bg-opacity-60 naxatw-p-1 naxatw-text-xs naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-100">
                         <div className="naxatw-truncate">{image.filename}</div>
+                        {(image.status === 'rejected' || image.status === 'invalid_exif') && (
+                          <button
+                            type="button"
+                            className="naxatw-mt-1 naxatw-w-full naxatw-rounded naxatw-bg-green-600 naxatw-px-1 naxatw-py-0.5 naxatw-text-[10px] naxatw-font-medium naxatw-text-white hover:naxatw-bg-green-700"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              acceptImageMutation.mutate(image.id);
+                            }}
+                            disabled={acceptImageMutation.isPending}
+                          >
+                            Override rejection
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -719,7 +732,7 @@ const ImageClassification = ({
                       disabled={acceptImageMutation.isPending}
                       leftIcon="check"
                     >
-                      {acceptImageMutation.isPending ? 'Processing...' : 'Mark as Good'}
+                      {acceptImageMutation.isPending ? 'Accepting...' : 'Override rejection'}
                     </Button>
                     <p className="naxatw-mt-2 naxatw-text-xs naxatw-text-gray-500">
                       If this image is valid and should be included, click to override the rejection.

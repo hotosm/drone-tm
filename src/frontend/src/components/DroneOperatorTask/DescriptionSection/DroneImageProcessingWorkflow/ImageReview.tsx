@@ -764,8 +764,21 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                         loading="lazy"
                       />
                       {(image.status === 'rejected' || image.status === 'invalid_exif') && (
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
-                          {image.rejection_reason || 'Rejected'}
+                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-flex naxatw-flex-col">
+                          <button
+                            type="button"
+                            className="naxatw-bg-green-600 naxatw-bg-opacity-90 naxatw-px-1 naxatw-py-0.5 naxatw-text-[10px] naxatw-text-white naxatw-font-medium hover:naxatw-bg-opacity-100 naxatw-transition-opacity naxatw-opacity-0 group-hover:naxatw-opacity-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              acceptMutation.mutate(image.id);
+                            }}
+                            disabled={acceptMutation.isPending}
+                          >
+                            Override rejection
+                          </button>
+                          <div className="naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
+                            {image.rejection_reason || 'Rejected'}
+                          </div>
                         </div>
                       )}
                       {image.status === 'duplicate' && (
@@ -826,7 +839,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   disabled={acceptMutation.isPending}
                   leftIcon="check"
                 >
-                  {acceptMutation.isPending ? 'Accepting...' : 'Mark as Good'}
+                  {acceptMutation.isPending ? 'Accepting...' : 'Override rejection'}
                 </Button>
               )}
             </div>
