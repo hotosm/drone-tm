@@ -8,6 +8,7 @@ import { postUnflyableComment } from '@Services/droneOperator';
 import { toast } from 'react-toastify';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
+import RadioButton from '@Components/common/RadioButton';
 // import UploadsBox from '../UploadsBox'; // Disabled - use Drone Upload Workflow instead
 
 interface IQuestionBoxProps {
@@ -30,8 +31,8 @@ const QuestionBox = ({
     open: { opacity: 1, y: 0 },
     closed: { opacity: 0, y: '-100%' },
   };
-  function handleFlyableChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setFlyable(e.target.value);
+  function handleFlyableChange(value: string) {
+    setFlyable(value);
   }
 
   const { mutate: mutateComment, isPending: commentIsUpdating } = useMutation({
@@ -66,38 +67,17 @@ const QuestionBox = ({
           <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-text-[#212121]">
             Is this task flyable ?
           </p>
-          <div className="naxatw-flex naxatw-flex-col">
-            <div className="naxatw-flex naxatw-items-center naxatw-gap-1">
-              <input
-                type="radio"
-                id="yes"
-                value="yes"
-                checked={flyable === 'yes'}
-                onChange={handleFlyableChange}
-              />
-              <label
-                htmlFor="yes"
-                className="naxatw-text-[0.875rem] naxatw-text-[#212121]"
-              >
-                Yes
-              </label>
-            </div>
-            <div className="naxatw-flex naxatw-items-center naxatw-gap-1">
-              <input
-                type="radio"
-                id="no"
-                value="no"
-                checked={flyable === 'no'}
-                onChange={handleFlyableChange}
-              />
-              <label
-                htmlFor="no"
-                className="naxatw-text-[0.875rem] naxatw-text-[#212121]"
-              >
-                No
-              </label>
-            </div>
-          </div>
+          <RadioButton
+            options={[
+              { name: 'flyable', value: 'yes', label: 'Yes' },
+              { name: 'flyable', value: 'no', label: 'No' },
+            ]}
+            direction="column"
+            onChangeData={handleFlyableChange}
+            value={flyable}
+            name="flyable"
+            className="naxatw-text-[0.875rem] naxatw-text-[#212121]"
+          />
         </div>
         <motion.div
           animate={flyable === 'yes' ? 'closed' : 'open'}
