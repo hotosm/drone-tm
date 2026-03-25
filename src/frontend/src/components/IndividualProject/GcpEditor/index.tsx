@@ -50,6 +50,28 @@ const GcpEditor = ({
   }, []);
 
   useEffect(() => {
+    // Lazy-load gcp-editor and suppress duplicate custom element registration
+    // errors from its bundled (older) copy of @hotosm/ui
+    const originalDefine = customElements.define.bind(customElements);
+    customElements.define = ((name: string, ctor: CustomElementConstructor, options?: ElementDefinitionOptions) => {
+      if (customElements.get(name)) return;
+      originalDefine(name, ctor, options);
+    }) as typeof customElements.define;
+
+    Promise.all([
+      import('@hotosm/gcp-editor'),
+      import('@hotosm/gcp-editor/style.css'),
+    ]).then(() => {
+      customElements.define = originalDefine;
+      setLoaded(true);
+    });
+
+    return () => {
+      customElements.define = originalDefine;
+    };
+  }, []);
+
+  useEffect(() => {
     document.addEventListener(
       CUSTOM_EVENT,
       handleSaveGcp,
