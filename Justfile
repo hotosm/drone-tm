@@ -42,7 +42,7 @@ prep *args:
 chart *args:
     @curl -sS https://raw.githubusercontent.com/hotosm/justfiles/main/chart.just \
       -o {{justfile_directory()}}/tasks/chart.just;
-    @just --justfile {{justfile_directory()}}/tasks/chart.just {{args}}
+    @just --justfile {{justfile_directory()}}/tasks/chart.just --set chart_name "drone-tm" {{args}}
 
 # Run pre-commit hooks
 lint:
