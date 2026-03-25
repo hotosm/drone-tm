@@ -11,6 +11,8 @@ export class GcpMarking extends LitElement {
   @property() gcpDataWithXY = Store.getGcpDataWithXY();
   @property() imageList: any = Store.getImageList();
 
+  private _boundHandleSelectedGcpDetailsUpdate = this.handleSelectedGcpDetailsUpdate.bind(this);
+
   createRenderRoot() {
     // Return `this` instead of a shadow root, meaning no Shadow DOM is used
     return this;
@@ -18,11 +20,11 @@ export class GcpMarking extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    document.addEventListener(Store.SELECTED_GCP_DETAILS_UPDATE, this.handleSelectedGcpDetailsUpdate.bind(this));
+    document.addEventListener(Store.SELECTED_GCP_DETAILS_UPDATE, this._boundHandleSelectedGcpDetailsUpdate);
   }
 
   disconnectedCallback() {
-    document.removeEventListener(Store.SELECTED_GCP_DETAILS_UPDATE, this.handleSelectedGcpDetailsUpdate.bind(this));
+    document.removeEventListener(Store.SELECTED_GCP_DETAILS_UPDATE, this._boundHandleSelectedGcpDetailsUpdate);
     super.disconnectedCallback();
   }
 
@@ -51,21 +53,21 @@ export class GcpMarking extends LitElement {
             <gcp-marking-table></gcp-marking-table>
           </div>
           <div class="tw-h-fit tw-py-5 tw-flex tw-justify-between">
-            <hot-button size="small" class="secondary" @click=${() => this.handlePreviousClick()}>
+            <wa-button size="small" class="secondary" @click=${() => this.handlePreviousClick()}>
               Previous
-              <span slot="prefix" class="material-symbols-outlined !tw-text-lg">chevron_left</span>
-            </hot-button>
-            <hot-button size="small" class="primary" @click=${() => this.handleNextClick()}>
+              <span slot="start" class="material-symbols-outlined !tw-text-lg">chevron_left</span>
+            </wa-button>
+            <wa-button size="small" class="primary" @click=${() => this.handleNextClick()}>
               Next
-              <span slot="suffix" class="material-symbols-outlined !tw-text-lg">chevron_right</span>
-            </hot-button>
+              <span slot="end" class="material-symbols-outlined !tw-text-lg">chevron_right</span>
+            </wa-button>
           </div>
         </div>
         <div class="tw-col-span-3"><map-section></map-section></div>
       </div>
       ${this.selectedGcpDetails
         ? html`
-            <hot-dialog
+            <wa-dialog
               open
               label="Mark GCP ${this?.selectedGcpDetails?.[0]} on raw images"
               class="dialog-width dialog-deny-close"
@@ -74,7 +76,7 @@ export class GcpMarking extends LitElement {
               <div id="image-uploading-content">
                 <raw-image-listing-modal></raw-image-listing-modal>
               </div>
-            </hot-dialog>
+            </wa-dialog>
           `
         : null}
     `;

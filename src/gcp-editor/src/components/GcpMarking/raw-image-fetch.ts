@@ -1,17 +1,22 @@
 import { html, LitElement, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { Store } from '../../store';
-import spinner from '../../assets/spinner.gif';
+import './raw-image-marker';
 
+/**
+ * Displays fetched S3 images for GCP marking with pagination.
+ * Images are passed in via the `prefetchedImages` property (fetched by the parent modal).
+ */
 @customElement('raw-image-fetch')
 export class RawImageFetch extends LitElement {
+  /** Pre-fetched image URLs from the parent modal */
+  @property({ type: Array }) prefetchedImages: string[] = [];
+
   @property() imageList: any = {}; // the list of images of all gcp
   @property() gcpList: any = {}; // the list of all gcp marks
   @property() selectedGcpDetails: any = [];
   @property() rawImageList: any[] = []; // list of active gcp's image list
   @property() gcpMarkList: any = {}; // list of active gcp's image mark
-  @property() imageUrl: string = '';
-  @state() isLoadingImages = false;
 
   // pagination
   @state() imagesPerPage = 6;
@@ -58,26 +63,20 @@ export class RawImageFetch extends LitElement {
   }
 
   createRenderRoot() {
-    // Return `this` instead of a shadow root, meaning no Shadow DOM is used
     return this;
   }
 
-  async connectedCallback() {
+  connectedCallback() {
     super.connectedCallback();
-    this.imageUrl = Store.getRawImageUrl();
     this.imageList = Store.getImageList();
     this.gcpList = Store.getGcpDataWithXY();
     this.selectedGcpDetails = Store.getSelectedGcpDetails();
-    this.rawImageList = this.imageList?.[this.selectedGcpDetails?.[0]] || [];
     this.gcpMarkList = this.gcpList?.[this.selectedGcpDetails?.[0]] || {};
-    this.numberOfPages = this.imageList?.[this.selectedGcpDetails?.[0]]?.length
-      ? Math.ceil(this.imageList?.[this.selectedGcpDetails?.[0]]?.length / this?.imagesPerPage)
-      : 0;
 
-    if (!this.rawImageList || (!this.rawImageList?.length && this.imageUrl)) {
-      this.isLoadingImages = true;
-      this.fetchImages(this.imageUrl);
-    }
+    // Use cached images if available, otherwise use prefetched from parent
+    const cached = this.imageList?.[this.selectedGcpDetails?.[0]];
+    this.rawImageList = cached?.length ? cached : this.prefetchedImages;
+    this.numberOfPages = Math.ceil(this.rawImageList.length / this.imagesPerPage);
   }
 
   disconnectedCallback(): void {
@@ -93,31 +92,6 @@ export class RawImageFetch extends LitElement {
       }
     });
     super.update(_changedProperties);
-  }
-
-  private async fetchImages(url: string) {
-    try {
-      const response = await fetch(`${url}`, {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          longitude: this.selectedGcpDetails[2],
-          latitude: this.selectedGcpDetails[1],
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      this.rawImageList = await response.json();
-      this.numberOfPages = Math.ceil(this.rawImageList.length / this.imagesPerPage);
-    } catch (error) {
-      console.error('There was a problem with the fetch operation:', error);
-    } finally {
-      this.isLoadingImages = false;
-    }
   }
 
   private getOnViewImages = () => {
@@ -155,15 +129,7 @@ export class RawImageFetch extends LitElement {
   render() {
     return html`
       <div class="tw-flex tw-max-h-full tw-gap-4 tw-flex-wrap tw-w-full tw-overflow-y-auto tw-h-[70vh] tw-mt-4">
-        ${this.isLoadingImages
-          ? html`
-              <div class="tw-flex tw-justify-center tw-items-center tw-w-full">
-                <div class="tw-w-[200px] tw-h-[200px]:">
-                  <img src=${spinner} />
-                </div>
-              </div>
-            `
-          : this.onViewImages.length
+        ${this.onViewImages.length
           ? this.onViewImages?.map(
               ({ image, index }: any) => html`
                 <raw-image-marker
@@ -176,43 +142,31 @@ export class RawImageFetch extends LitElement {
                 ></raw-image-marker>
               `
             )
-          : this.rawImageList?.length && !this?.onViewImages?.length
-          ? html`
-              <div class="tw-flex tw-justify-center tw-items-center tw-w-full">
-                <div class="tw-w-[200px] tw-h-[200px]:">
-                  <img src=${spinner} />
-                </div>
-              </div>
-            `
-          : html`
-              <div></div>
-            `}
+          : html`<div></div>`}
       </div>
       <div class="tw-flex tw-justify-between tw-w-full tw-absolute tw-bottom-4">
         <div></div>
         ${this.rawImageList?.length
           ? html`
               <div class="tw-flex tw-gap-1">
-                <hot-button size="small" @click=${() => this.previous()}><<</hot-button>
+                <wa-button size="small" @click=${() => this.previous()}><<</wa-button>
                 ${[...Array(this.numberOfPages)].map(
                   (_, index) =>
                     html`
-                      <hot-button
+                      <wa-button
                         size="small"
                         class=${this.currentPage === index + 1 ? 'is-active' : ''}
                         @click=${() => this.goTo(index + 1)}
                       >
                         ${index + 1}
-                      </hot-button>
+                      </wa-button>
                     `
                 )}
-                <hot-button size="small" class="active-btn" @click=${() => this.next()}>>></hot-button>
+                <wa-button size="small" class="active-btn" @click=${() => this.next()}>>></wa-button>
               </div>
             `
-          : html`
-              <div></div>
-            `}
-        <hot-button size="small" class="primary" @click=${() => this.updateGcpData()}>Save Changes</hot-button>
+          : html`<div></div>`}
+        <wa-button size="small" class="primary" @click=${() => this.updateGcpData()}>Save Changes</wa-button>
       </div>
     `;
   }

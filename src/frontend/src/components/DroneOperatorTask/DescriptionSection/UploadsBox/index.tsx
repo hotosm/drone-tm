@@ -14,7 +14,7 @@ const UploadsBox = ({
       projectId={projectId}
       taskId={taskId}
       label={label}
-      note="Supported: .jpg, .jpeg, .png, .tif, .tiff, gcp_list.txt, align.laz"
+      note="Supported: .jpg, .jpeg, .png, .tif, .tiff, gcp.txt, align.laz"
     />
   );
 };

@@ -54,8 +54,16 @@
   }
 
 
+    /* all buttons base styles */
+wa-button::part(base) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
     /* primary button */
-hot-button.primary::part(base) {
+wa-button.primary::part(base) {
   background-color: #D73F3F;
   color:white !important;
   border: 0px;
@@ -64,22 +72,22 @@ hot-button.primary::part(base) {
   padding:4px 4px;
   font-size: 14px;
 }
-hot-button.primary::part(base):hover {
+wa-button.primary::part(base):hover {
   background-color: #b91c1c;
 }
 
-hot-button::part(base):hover{
+wa-button::part(base):hover{
   border-color: #b91c1c;
   color:#b91c1c
 }
 
-hot-button.is-active::part(base){
+wa-button.is-active::part(base){
   border-color: #b91c1c;
   color:#b91c1c
 }
 
   /* secondary button */
-  hot-button.secondary::part(base) {
+  wa-button.secondary::part(base) {
     background-color: white;
     color:#b91c1c !important;
     border: 0px;
@@ -89,7 +97,7 @@ hot-button.is-active::part(base){
     font-size: 14px;
 
   }
-  hot-button.secondary::part(base):hover {
+  wa-button.secondary::part(base):hover {
     -webkit-box-shadow: -2px 2px 23px -6px rgba(0,0,0,0.5);
     -moz-box-shadow: -2px 2px 23px -6px rgba(0,0,0,0.5);
     box-shadow: -2px 2px 23px -6px rgba(0,0,0,0.5);

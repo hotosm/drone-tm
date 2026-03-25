@@ -1,41 +1,31 @@
-import OlMap from '@openlayers-elements/core/ol-map';
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { Map as OlMapInstance, Overlay } from 'ol';
-import TileLayer from 'ol/layer/WebGLTile.js';
-import { OSM, XYZ } from 'ol/source';
-import '@openlayers-elements/core/ol-map';
-import VectorSource from 'ol/source/Vector';
-import VectorLayer from 'ol/layer/Vector';
-import { GeoJSON } from 'ol/format';
-import { Style, Icon } from 'ol/style';
-import GeoTIFF from 'ol/source/GeoTIFF';
-import LayerGroup from 'ol/layer/Group';
-import Tile from 'ol/layer/Tile';
+import maplibregl, { Map, Popup } from 'maplibre-gl';
+// @ts-ignore - virtual module resolved by esbuild plugin, inlines maplibre CSS for shadow DOM
+import maplibreCss from 'maplibre-gl-css';
+import { cogProtocol } from '@geomatico/maplibre-cog-protocol';
 import { Store } from '../../store';
 import MarkerIcon from '../../assets/markerIcon.png';
 import uploadImage from '../../assets/uploadIcon.png';
 import layerSwitcher from '../../assets/layers.png';
 
-const cssTextOlPopupWrapper =
-  'position: absolute; background-color: white; box-shadow: 0 1px 4px rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid #cccccc; bottom: 12px; left: -50px; min-width: 280px;';
-
-const cssTextArrowDiv =
-  'position: absolute; top: -13px; left: 0px; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid white; margin-left: -10px;';
+const BASE_LAYERS = ['osm', 'satellite', 'topo', 'hybrid'] as const;
 
 @customElement('map-section')
 export class MapSection extends LitElement {
-  @property({ type: Object }) gcpPointGeojson: String[][] = Store.getGcpGeojson();
+  @property({ type: Object }) gcpPointGeojson: any = Store.getGcpGeojson();
   @property({ type: Object }) cogUrl: string = Store.getCogUrl();
   @property({ type: String }) projection: string = Store.getProjection();
-  @state() popup: any;
-  @state() gcpPointSource: any;
   @state() activeGcp: any;
   @state() showBaseLayerList: boolean = false;
 
-  private map!: OlMapInstance;
+  private map!: Map;
+  private popup!: Popup;
+  private gcpGeojsonData: any = null;
+  private _boundHandleGcpSelection = this.handleGcpSelection.bind(this);
 
   static styles = css`
+    ${unsafeCSS(maplibreCss)}
     :host {
       display: block;
       padding: 10px;
@@ -51,6 +41,10 @@ export class MapSection extends LitElement {
       overflow: hidden;
       position: relative;
     }
+    #gcp-map-container {
+      width: 100%;
+      height: 100%;
+    }
     .base-layer-list {
       position: absolute;
       left: 35px;
@@ -61,6 +55,7 @@ export class MapSection extends LitElement {
       width: 120px;
       padding: 10px 10px;
       border-radius: 8px;
+      z-index: 1;
     }
     .layer-switcher {
       position: absolute;
@@ -72,6 +67,7 @@ export class MapSection extends LitElement {
       padding: 4px 4px;
       border-radius: 8px;
       font-size: 14px;
+      z-index: 1;
     }
     .layer-switcher:hover {
       background: #f7f6eb;
@@ -92,102 +88,149 @@ export class MapSection extends LitElement {
   `;
 
   firstUpdated(): void {
-    const mapEl: OlMap = this.renderRoot.querySelector('ol-map#gcp-map')!;
+    const container = this.renderRoot.querySelector('#gcp-map-container') as HTMLElement;
     this.gcpPointGeojson = Store.getGcpGeojson();
     this.projection = Store.getProjection();
 
-    mapEl?.updateComplete?.then(() => {
-      this.map = mapEl.map!;
+    this.map = new Map({
+      container,
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '&copy; OpenStreetMap contributors',
+          },
+        },
+        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+      },
+      center: [0, 0],
+      zoom: 2,
+    });
 
-      // **********Base layer section***********
-      const osmLayer = new Tile({
-        source: new OSM(),
-        visible: true,
-      });
-      osmLayer.set('id', 'osm');
-
-      const satelliteLayer = new Tile({
-        source: new XYZ({
-          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        }),
-        visible: false,
-      });
-      satelliteLayer.set('id', 'satellite');
-
-      const topoLayer = new Tile({
-        source: new XYZ({
-          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-        }),
-        visible: false,
-      });
-      topoLayer.set('id', 'topo');
-
-      const hybridLayer = new Tile({
-        source: new XYZ({
-          url: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-        }),
-        visible: false,
-      });
-      hybridLayer.set('id', 'hybrid');
-
-      // Create a Layer Group for base layers
-      const baseLayerGroup = new LayerGroup({
-        layers: [osmLayer, satelliteLayer, topoLayer, hybridLayer],
-      });
-
-      // Add the Layer Group to the map
-      this.map.addLayer(baseLayerGroup);
-
-      const baseLayerElements = this.shadowRoot?.querySelectorAll(
-        '.base-layer-list > label > input[type=radio]'
-      ) as NodeListOf<HTMLInputElement>;
-      for (let inputElement of baseLayerElements) {
-        inputElement.addEventListener('change', () => {
-          const baseLayerElement = inputElement.value;
-          baseLayerGroup.getLayers().forEach((element) => {
-            const baseLayerId = element.get('id');
-            element.setVisible(baseLayerElement === baseLayerId);
-            this.showBaseLayerList = false;
-          });
-        });
-      }
-      // **********Base layer section end***********
-
+    this.map.on('load', () => {
+      this.addBaseLayers();
+      this.setupLayerSwitcher();
       this.loadGcpPoints(this.gcpPointGeojson);
-
       if (this.cogUrl) {
-        this.loadImage(this.cogUrl);
+        this.loadCog(this.cogUrl);
       }
-
-      this.popup = new Overlay({
-        element: document.createElement('div'),
-      });
-      this.popup.getElement().className = 'ol-popup';
-      this.popup.getElement().style.cssText = cssTextOlPopupWrapper;
-
-      // Create a new div element for the arrow
-      const arrowDiv = document.createElement('div');
-      arrowDiv.classList.add('popup-arrow');
-      this.popup.getElement().insertAdjacentElement('afterend', arrowDiv);
-      arrowDiv.style.cssText = cssTextArrowDiv;
-      // end of adding arrow
-      this.map.addOverlay(this.popup);
-      this.map.on('singleclick', (event) => this.handleMapClick(event));
+      this.setupClickHandler();
     });
   }
 
   connectedCallback() {
     super.connectedCallback();
     this.activeGcp = Store.getActiveGcp();
-    document.addEventListener(Store.ACTIVE_GCP_UPDATE, this.handleGcpSelection.bind(this));
+    document.addEventListener(Store.ACTIVE_GCP_UPDATE, this._boundHandleGcpSelection);
   }
 
   disconnectedCallback() {
-    document.removeEventListener(Store.ACTIVE_GCP_UPDATE, this.handleGcpSelection.bind(this));
-    const main = this.shadowRoot?.querySelector('#gcp-map')?.shadowRoot;
-    const uploadButton = main?.querySelector('#upload-button-popup');
-    uploadButton?.removeEventListener('click', this.handleGcpDataSelection);
+    document.removeEventListener(Store.ACTIVE_GCP_UPDATE, this._boundHandleGcpSelection);
+    this.map?.remove();
     super.disconnectedCallback();
+  }
+
+  private addBaseLayers() {
+    this.map.addSource('satellite', {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+    });
+    this.map.addLayer({ id: 'satellite', type: 'raster', source: 'satellite', layout: { visibility: 'none' } });
+
+    this.map.addSource('topo', {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+    });
+    this.map.addLayer({ id: 'topo', type: 'raster', source: 'topo', layout: { visibility: 'none' } });
+
+    this.map.addSource('hybrid', {
+      type: 'raster',
+      tiles: ['https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'],
+      tileSize: 256,
+    });
+    this.map.addLayer({ id: 'hybrid', type: 'raster', source: 'hybrid', layout: { visibility: 'none' } });
+  }
+
+  private setupLayerSwitcher() {
+    const radioInputs = this.renderRoot.querySelectorAll(
+      '.base-layer-list > label > input[type=radio]'
+    ) as NodeListOf<HTMLInputElement>;
+
+    for (const input of radioInputs) {
+      input.addEventListener('change', () => {
+        const selected = input.value;
+        BASE_LAYERS.forEach((id) => {
+          this.map.setLayoutProperty(id, 'visibility', id === selected ? 'visible' : 'none');
+        });
+        this.showBaseLayerList = false;
+      });
+    }
+  }
+
+  private loadGcpPoints(geojson: any) {
+    if (!geojson?.features?.length) return;
+    this.gcpGeojsonData = geojson;
+
+    const img = new Image();
+    img.src = MarkerIcon;
+    img.onload = () => {
+      if (this.map.hasImage('gcp-marker')) return;
+      this.map.addImage('gcp-marker', img);
+
+      this.map.addSource('gcp-points', {
+        type: 'geojson',
+        data: geojson,
+      });
+
+      this.map.addLayer({
+        id: 'gcp-points-layer',
+        type: 'symbol',
+        source: 'gcp-points',
+        layout: {
+          'icon-image': 'gcp-marker',
+          'icon-size': 0.5,
+          'icon-allow-overlap': true,
+        },
+      });
+
+      // Fit to bounds
+      const bounds = new maplibregl.LngLatBounds();
+      geojson.features.forEach((f: any) => {
+        bounds.extend(f.geometry.coordinates);
+      });
+      this.map.fitBounds(bounds, { padding: 100, duration: 1000 });
+    };
+  }
+
+  private loadCog(cogUrl: string) {
+    if (!cogUrl) return;
+
+    try {
+      maplibregl.addProtocol('cog', cogProtocol);
+
+      this.map.addSource('cog-source', {
+        type: 'raster',
+        url: `cog://${cogUrl}`,
+        tileSize: 256,
+      });
+
+      this.map.addLayer(
+        {
+          id: 'cog-layer',
+          type: 'raster',
+          source: 'cog-source',
+        },
+        // Insert below gcp-points so markers stay on top
+        this.map.getLayer('gcp-points-layer') ? 'gcp-points-layer' : undefined
+      );
+    } catch (error) {
+      console.error('Error loading COG:', error);
+    }
   }
 
   handleGcpDataSelection = () => {
@@ -214,129 +257,81 @@ export class MapSection extends LitElement {
           `;
   }
 
-  // this function is responsible for triggering popup on gcp point click
-  private handleMapClick(event: any) {
-    const coordinate = event.coordinate;
-    const pixel = event.pixel;
-    const features = this.map.forEachFeatureAtPixel(pixel, function (feature) {
-      return feature.getProperties();
+  private setupClickHandler() {
+    this.popup = new Popup({ closeOnClick: true, offset: 12, closeButton: false });
+
+    // Click on a GCP point feature
+    this.map.on('click', 'gcp-points-layer', (e) => {
+      if (!e.features?.length) return;
+      const props = e.features[0].properties;
+      const coords = (e.features[0].geometry as any).coordinates.slice();
+
+      this.showPopup(coords, {
+        label: props.label ?? props.id,
+        x: props.x,
+        y: props.y,
+        z: props.z,
+      });
+
+      Store.setActiveGcp([props.label ?? props.id, props.x, props.y, props.z]);
     });
 
-    if (features) {
-      this.popup.getElement().innerHTML = this.getPopupContent({
-        label: features?.label,
-        x: features?.x,
-        y: features?.y,
-        z: features?.z,
-      });
-      this.popup.setPosition(coordinate);
-      Store.setActiveGcp([features?.label, features?.x, features?.y, features?.z]);
-
-      // add event listener only after the popup is added to DOM
-      const main = this.shadowRoot?.querySelector('#gcp-map')?.shadowRoot;
-      const uploadButton = main?.querySelector('#upload-button-popup');
-      uploadButton?.addEventListener('click', this.handleGcpDataSelection);
-      return;
-    }
-    this.popup.setPosition(undefined);
-    Store.setActiveGcp(null);
-  }
-
-  // this function is responsive for triggering popup on table row click
-  // (on table row click the active gcp will be updated so the event event listener will fire this function with updated value)
-  private handleGcpSelection(event: Event) {
-    const CustomEvent = event as CustomEvent;
-    this.activeGcp = CustomEvent.detail;
-    try {
-      const feature = this.gcpPointSource?.getFeatureById(CustomEvent.detail?.[0]);
-      if (feature) {
-        const geometry = feature.getGeometry();
-        const coordinates = geometry.getCoordinates();
-        this.popup.getElement().innerHTML = this.getPopupContent({
-          label: CustomEvent.detail?.[0],
-          x: CustomEvent.detail?.[1],
-          y: CustomEvent.detail?.[2],
-          z: CustomEvent.detail?.[3],
-        });
-        this.popup.setPosition(coordinates);
-
-        // add event listener only after the popup is added to DOM
-        const main = this.shadowRoot?.querySelector('#gcp-map')?.shadowRoot;
-        const uploadButton = main?.querySelector('#upload-button-popup');
-        uploadButton?.addEventListener('click', this.handleGcpDataSelection);
+    // Click elsewhere closes popup
+    this.map.on('click', (e) => {
+      const features = this.map.queryRenderedFeatures(e.point, { layers: ['gcp-points-layer'] });
+      if (!features.length) {
+        this.popup.remove();
+        Store.setActiveGcp(null);
       }
-    } catch (error) {
-      console.log('Feature not found');
-    }
+    });
+
+    // Pointer cursor on hover
+    this.map.on('mouseenter', 'gcp-points-layer', () => {
+      this.map.getCanvas().style.cursor = 'pointer';
+    });
+    this.map.on('mouseleave', 'gcp-points-layer', () => {
+      this.map.getCanvas().style.cursor = '';
+    });
   }
 
-  private async loadImage(cogUrl: string): Promise<void> {
-    if (!cogUrl) {
-      alert('Please provide a valid COG URL.');
-      return;
-    }
+  private showPopup(coords: [number, number], features: Record<string, any>) {
+    const popupContent = this.getPopupContent(features);
+    this.popup.setLngLat(coords).setHTML(popupContent).addTo(this.map);
 
-    try {
-      const geoTiffSource = new GeoTIFF({
-        sources: [{ url: cogUrl }],
-      });
-
-      const imageLayer = new TileLayer({
-        source: geoTiffSource,
-      });
-
-      this.map.addLayer(imageLayer);
-      console.log('COG loaded successfully.');
-      this.map.setView(geoTiffSource.getView());
-      this.map.getView().animate({ zoom: 0 });
-    } catch (error) {
-      console.error('Error loading COG:', error);
-      alert('Failed to load the COG file.');
-    }
+    // Attach upload button handler after popup DOM is ready
+    requestAnimationFrame(() => {
+      const btn = this.map.getContainer().querySelector('#upload-button-popup');
+      btn?.addEventListener('click', this.handleGcpDataSelection);
+    });
   }
 
-  loadGcpPoints(geojson: any) {
-    try {
-      // store globally cause it will be used to retrieve feature coordinates by id
-      this.gcpPointSource = new VectorSource();
-      const format = new GeoJSON();
-      // Read features from GeoJSON and add them to the vector source
-      geojson.features.forEach((feature: any) => {
-        const olFeature = format.readFeature(feature, {
-          featureProjection: 'EPSG:3857', // Ensures features are in the correct projection
-          dataProjection: this.projection,
-        });
-        olFeature.setId(feature.properties.id); // set gcp label as id to each feature
-        this.gcpPointSource.addFeature(olFeature);
-      });
+  // Triggered from table row click via Store event
+  private handleGcpSelection(event: Event) {
+    const detail = (event as CustomEvent).detail;
+    this.activeGcp = detail;
 
-      const gcpPointLayer = new VectorLayer({
-        source: this.gcpPointSource,
-        style: new Style({
-          image: new Icon({
-            src: MarkerIcon,
-            scale: 0.5,
-          }),
-        }),
-      });
+    if (!detail?.[0] || !this.gcpGeojsonData) return;
 
-      this.map.addLayer(gcpPointLayer);
-      gcpPointLayer.setZIndex(99);
-      console.log('Points loaded successfully.');
-      this.map.getView().fit(this.gcpPointSource.getExtent(), {
-        size: this.map.getSize(),
-        padding: [100, 100, 100, 100],
-        duration: 1000,
+    const feature = this.gcpGeojsonData.features.find(
+      (f: any) => f.properties.id === detail[0] || f.properties.label === detail[0]
+    );
+
+    if (feature) {
+      const coords = feature.geometry.coordinates;
+      this.showPopup(coords, {
+        label: detail[0],
+        x: detail[1],
+        y: detail[2],
+        z: detail[3],
       });
-    } catch (error) {
-      console.log('Failed to load gcp points');
+      this.map.flyTo({ center: coords, zoom: Math.max(this.map.getZoom(), 12) });
     }
   }
 
   protected render() {
     return html`
       <div id="map-container">
-        <ol-map id="gcp-map"></ol-map>
+        <div id="gcp-map-container"></div>
         <div class="layer-switcher">
           <img src=${layerSwitcher} @click=${() => (this.showBaseLayerList = !this.showBaseLayerList)} />
           <div class="base-layer-list" style="display:${this.showBaseLayerList ? 'flex' : 'none'}">

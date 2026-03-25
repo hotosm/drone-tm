@@ -123,27 +123,31 @@ export class RawImageUpload extends LitElement {
   };
 
   render() {
+    const hasImages = this.rawImageList?.length > 0;
     return html`
       <div class="tw-w-full tw-h-full tw-flex tw-flex-col">
-        <div class="tw-w-full tw-h-fit">
+        <div class="tw-w-full ${hasImages ? 'tw-h-fit' : 'tw-flex-1 tw-flex tw-flex-col tw-justify-center tw-items-center'}">
           <label
-            class=" tw-border-gray-400 tw-border-dashed tw-border-2 tw-rounded-lg tw-h-20 tw-w-full tw-flex tw-items-center tw-justify-center tw-relative"
+            class="tw-cursor-pointer tw-border-gray-400 tw-border-dashed tw-border-2 tw-rounded-lg ${hasImages ? 'tw-h-20' : 'tw-h-48 tw-max-w-lg'} tw-w-full tw-flex tw-items-center tw-justify-center tw-relative tw-mx-auto hover:tw-border-red-400 hover:tw-bg-red-50 tw-transition-colors"
           >
             <input
               type="file"
               id="raw-image-input-element"
               name="gcp-file"
-              class="tw-h-24 tw-opacity-0 tw-absolute"
+              class="tw-h-full tw-w-full tw-opacity-0 tw-absolute tw-cursor-pointer"
               multiple
               @change=${this.handleFileInputChange}
               accept="image/*"
             />
-            <div class="tw-flex tw-flex-col tw-items-center tw-justify-center">
-              <span class="material-symbols-outlined tw-text-primary">cloud_upload</span>
-              <span class="tw-text tw-font-light">Please upload an image file (.jpg, .png)</span>
+            <div class="tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-2 tw-p-4">
+              <span class="material-symbols-outlined tw-text-primary ${hasImages ? '' : 'tw-text-4xl'}">cloud_upload</span>
+              <span class="tw-text tw-font-light">Upload raw drone images (.jpg, .png)</span>
+              ${!hasImages ? html`<span class="tw-text-sm tw-text-gray-400">Double-click each image to mark where the GCP appears</span>` : ''}
             </div>
           </label>
+          ${!hasImages ? html`<p class="tw-text-center tw-text-gray-400 tw-text-xs tw-mt-4">Upload the drone photos that contain this ground control point, then mark its position in each image.</p>` : ''}
         </div>
+        ${hasImages ? html`
         <div class="tw-flex tw-max-h-full tw-gap-4 tw-flex-wrap tw-w-full tw-overflow-y-auto tw-h-[60vh] tw-mt-4">
           ${this.onViewImages.length
             ? this.onViewImages?.map(({ image, index }: any) => {
@@ -158,44 +162,41 @@ export class RawImageUpload extends LitElement {
                   ></raw-image-marker>
                 `;
               })
-            : this.rawImageList?.length && !this?.onViewImages?.length
-            ? html`
+            : html`
                 <div class="tw-flex tw-justify-center tw-items-center tw-w-full">
                   <div class="tw-w-[200px] tw-h-[200px]:">
                     <img src=${spinner} />
                   </div>
                 </div>
-              `
-            : html`
-                <div></div>
               `}
         </div>
+        ` : ''}
       </div>
       <div class="tw-flex tw-justify-between tw-w-full tw-absolute tw-bottom-4">
         <div></div>
         ${this.rawImageList?.length
           ? html`
               <div class="tw-flex tw-gap-1">
-                <hot-button size="small" @click=${() => this.previous()}><<</hot-button>
+                <wa-button size="small" @click=${() => this.previous()}><<</wa-button>
                 ${[...Array(this.numberOfPages)].map(
                   (_, index) =>
                     html`
-                      <hot-button
+                      <wa-button
                         size="small"
                         class=${this.currentPage === index + 1 ? 'is-active' : ''}
                         @click=${() => this.goTo(index + 1)}
                       >
                         ${index + 1}
-                      </hot-button>
+                      </wa-button>
                     `
                 )}
-                <hot-button size="small" class="active-btn" @click=${() => this.next()}>>></hot-button>
+                <wa-button size="small" class="active-btn" @click=${() => this.next()}>>></wa-button>
               </div>
             `
           : html`
               <div></div>
             `}
-        <hot-button size="small" class="primary" @click=${() => this.updateGcpData()}>Save Changes</hot-button>
+        <wa-button size="small" class="primary" @click=${() => this.updateGcpData()}>Save Changes</wa-button>
       </div>
     `;
   }

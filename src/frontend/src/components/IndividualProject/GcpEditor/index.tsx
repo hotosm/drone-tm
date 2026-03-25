@@ -2,7 +2,7 @@ import { useEffect, createElement, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setProjectState } from '@Store/actions/project';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { processAllImagery } from '@Services/project';
+import { saveGcpFile } from '@Services/project';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -15,29 +15,28 @@ const GcpEditor = ({
   const [loaded, setLoaded] = useState(false);
   const { id } = useParams();
   const dispatch = useDispatch();
-  const CUSTOM_EVENT: any = 'start-processing-click';
+  const CUSTOM_EVENT: any = 'save-gcp-click';
   const queryClient = useQueryClient();
 
-  const { mutate: startImageProcessing } = useMutation({
-    mutationFn: processAllImagery,
+  const { mutate: saveGcp } = useMutation({
+    mutationFn: saveGcpFile,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-detail'] });
       dispatch(setProjectState({ showGcpEditor: false }));
-      toast.success('Processing started');
+      toast.success('GCP file saved for this project');
+    },
+    onError: () => {
+      toast.error('Failed to save GCP file');
     },
   });
 
-  const startProcessing = (data: any) => {
+  const handleSaveGcp = (data: any) => {
+    if (triggeredEvent.current) return;
+    triggeredEvent.current = true;
     const gcpData = data.detail;
     const blob = new Blob([gcpData], { type: 'text/plain;charset=utf-8;' });
     const gcpFile = new File([blob], 'gcp.txt');
-    startImageProcessing({ projectId: id, gcp_file: gcpFile });
-  };
-
-  const handleProcessingStart = (data: any) => {
-    if (triggeredEvent.current) return;
-    startProcessing(data);
-    triggeredEvent.current = true;
+    saveGcp({ projectId: id!, gcp_file: gcpFile });
   };
 
   useEffect(() => {
@@ -53,12 +52,12 @@ const GcpEditor = ({
   useEffect(() => {
     document.addEventListener(
       CUSTOM_EVENT,
-      handleProcessingStart,
+      handleSaveGcp,
       { once: true },
     );
 
     return () => {
-      document.removeEventListener(CUSTOM_EVENT, handleProcessingStart);
+      document.removeEventListener(CUSTOM_EVENT, handleSaveGcp);
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

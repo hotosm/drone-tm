@@ -733,7 +733,7 @@ class ProjectInfo(BaseModel):
         try:
             values.has_gcp = check_file_exists(
                 settings.S3_BUCKET_NAME,
-                f"projects/{project_id}/gcp/gcp_list.txt",
+                f"projects/{project_id}/gcp.txt",
             )
         except Exception as e:
             log.warning(f"Failed to determine has_gcp for project {project_id}: {e}")

@@ -43,12 +43,12 @@ export class CsvUpload extends LitElement {
     return html`
       <div class="tw-max-w-full">
         <label
-          class=" tw-border-gray-400 tw-border-dashed tw-border-2 tw-rounded-lg tw-h-20 tw-w-full tw-flex tw-items-center tw-justify-center tw-relative"
+          class="tw-cursor-pointer tw-border-gray-400 tw-border-dashed tw-border-2 tw-rounded-lg tw-h-20 tw-w-full tw-flex tw-items-center tw-justify-center tw-relative"
         >
           <input
             type="file"
             name="gcp-file"
-            class="tw-h-24 tw-opacity-0 tw-absolute"
+            class="tw-h-24 tw-w-full tw-opacity-0 tw-absolute tw-cursor-pointer"
             @change=${this.handleFileInputChange}
             accept=".csv"
           />

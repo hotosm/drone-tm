@@ -5,6 +5,8 @@ import { html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { Store } from './store';
 import '@hotosm/ui/dist/hotosm-ui.js';
+import '@awesome.me/webawesome/dist/components/button/button.js';
+import '@awesome.me/webawesome/dist/components/dialog/dialog.js';
 import './components/GcpDataInput/index';
 import './components/GcpMarking/index';
 import './components/GcpResult/index';
@@ -13,7 +15,7 @@ import './components/Steps';
 const steps = [
   { label: 'Upload GCPs', step: 1 },
   { label: 'Mark GCPs', step: 2 },
-  { label: 'Final Processing', step: 3 },
+  { label: 'Review & Save', step: 3 },
 ];
 
 @customElement('gcp-editor')

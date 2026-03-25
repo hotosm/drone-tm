@@ -1,8 +1,6 @@
 import { css, html, LitElement, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { Store } from '../../store';
-import chevronLeft from '../../assets/chevronLeft.png';
-
 // Define the type for a row in the gcp.txt file
 // [X Y Z ImageX ImageY FileName.jpg]
 // e.g. 544256.7 5320919.9 5 3044 2622 IMG_0525.jpg
@@ -105,19 +103,27 @@ export class GcpResult extends LitElement {
       padding: 20px 20px;
       display: flex;
       justify-content: space-between;
-      justify-items: center;
+      align-items: center;
       gap: 10px;
     }
 
     .main-btns {
       display: flex;
       justify-content: center;
-      justify-items: center;
+      align-items: center;
       gap: 10px;
     }
 
+    /* all buttons base styles */
+    wa-button::part(base) {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
     /* primary button */
-    hot-button.primary::part(base) {
+    wa-button.primary::part(base) {
       background-color: #d73f3f;
       color: white !important;
       border: 0px;
@@ -127,12 +133,12 @@ export class GcpResult extends LitElement {
       font-size: 14px;
     }
 
-    hot-button.primary::part(base):hover {
+    wa-button.primary::part(base):hover {
       background-color: #b91c1c;
     }
 
     /* secondary button */
-    hot-button.secondary::part(base) {
+    wa-button.secondary::part(base) {
       background-color: white;
       color: #d73f3f !important;
       border: 0px;
@@ -141,20 +147,20 @@ export class GcpResult extends LitElement {
       padding: 4px 4px;
       font-size: 14px;
     }
-    hot-button.secondary::part(base):hover {
+    wa-button.secondary::part(base):hover {
       -webkit-box-shadow: -2px 2px 23px -6px rgba(0, 0, 0, 0.5);
       -moz-box-shadow: -2px 2px 23px -6px rgba(0, 0, 0, 0.5);
       box-shadow: -2px 2px 23px -6px rgba(0, 0, 0, 0.5);
     }
 
-    hot-button.download::part(base):hover {
+    wa-button.download::part(base):hover {
       background-color: #ff7b00;
       font-weight: 600;
       font-family: 'Barlow Condensed';
       padding: 4px 4px;
       font-size: 14px;
     }
-    hot-button.download::part(base) {
+    wa-button.download::part(base) {
       background-color: #ffa500;
       color: white !important;
       border: 0px;
@@ -291,23 +297,22 @@ export class GcpResult extends LitElement {
         </table>
       </div>
       <div class="button-wrapper">
-        <hot-button size="small" class="secondary" @click=${this.handlePreviousClick}>
-          <img src=${chevronLeft} style="padding-right:12px" />
-          Previous
-        </hot-button>
+        <wa-button size="small" class="secondary" @click=${this.handlePreviousClick}>
+          ← Previous
+        </wa-button>
         <div class="main-buttons">
-          <hot-button
+          <wa-button
             size="small"
-            class=${this.customEvent ? 'download' : 'primary'}
+            class="download"
             @click=${this.handleGcpFileDownload}
           >
             Download
-          </hot-button>
+          </wa-button>
           ${this.customEvent
             ? html`
-                <hot-button size="small" class="primary" @click=${this.handleFinalButtonClick}>
-                  ${this.buttonText}
-                </hot-button>
+                <wa-button size="small" class="primary" @click=${this.handleFinalButtonClick}>
+                  ${this.buttonText || 'Save GCP'}
+                </wa-button>
               `
             : null}
         </div>

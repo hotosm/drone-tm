@@ -16,7 +16,7 @@ export class GcpDataInput extends LitElement {
 
   handleNextClick() {
     if (!Store.getGcpData()?.length) {
-      this.errorMessage = 'Please upload csv file';
+      this.errorMessage = 'Please upload a CSV file.';
       return;
     }
     this.errorMessage = '';
@@ -58,10 +58,10 @@ export class GcpDataInput extends LitElement {
           <csv-upload errorMessage=${this.errorMessage}></csv-upload>
 
           <div class="tw-absolute tw-bottom-4 tw-right-10">
-            <hot-button size="small" class="primary" @click=${() => this.handleNextClick()}>
+            <wa-button size="small" class="primary" @click=${() => this.handleNextClick()}>
               Next
-              <span slot="suffix" class="material-symbols-outlined !tw-text-lg">chevron_right</span>
-            </hot-button>
+              <span slot="end" class="material-symbols-outlined !tw-text-lg">chevron_right</span>
+            </wa-button>
           </div>
         </div>
       </div>
