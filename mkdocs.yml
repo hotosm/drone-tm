@@ -87,6 +87,7 @@ nav:
       - Ground Control Points: manuals/ground-control-points.md
       - Manual Flightplan Generation: manuals/generate-flightplans.md
       - Building Drones: manuals/custom-drones.md
+      - Correcting Orthomosaics: manuals/correcting-stitching-orthomosaics.md
   - Developer Guide:
       - Practices:
           - Dev Practices: https://docs.hotosm.org/dev-practices
