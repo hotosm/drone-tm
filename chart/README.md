@@ -228,7 +228,7 @@ aws iam create-role \
 
 aws iam put-role-policy \
   --role-name "$ROLE_NAME" \
-  --policy-name cloudfront-deploy \
+  --policy-name dronetm-prod-cloudfront-deploy \
   --policy-document file://policy.json
 
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
