@@ -24,8 +24,9 @@ import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import { useGetUserDetailsQuery } from '@Api/projects';
 import callApiSimultaneously from '@Utils/callApiSimultaneously';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
-const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
+const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
 const isHankoAuth = AUTH_PROVIDER === 'hanko';
 
 // Filter out Password tab when using Hanko auth (password managed by Hanko)

@@ -137,6 +137,7 @@ services:
       context: src
       dockerfile: frontend/Dockerfile
       target: prod
+    env_file: .env
     volumes:
       - frontend-html:/frontend_html
     network_mode: none

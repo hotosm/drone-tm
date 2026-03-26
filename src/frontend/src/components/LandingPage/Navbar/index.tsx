@@ -1,9 +1,10 @@
 import { FlexRow } from '@Components/common/Layouts';
 import { Link } from 'react-router-dom';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
 // Auth configuration for SSO session verification
-const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
-const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
+const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
+const HANKO_URL = getRuntimeConfig('VITE_HANKO_URL', 'https://dev.login.hotosm.org');
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 // Import Hanko web component for session verification

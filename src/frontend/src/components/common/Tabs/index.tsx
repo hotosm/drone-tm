@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 import React, { useState, useEffect, act } from 'react';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
 interface ITabOptions {
   id: number;
@@ -20,7 +21,7 @@ interface TabProps {
   orientation: 'row' | 'column';
 }
 
-const AUTH_PROVIDER = import.meta.env.VITE_AUTH_PROVIDER;
+const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
 
 const Tab: React.FC<TabProps> = ({
   tabOptions,

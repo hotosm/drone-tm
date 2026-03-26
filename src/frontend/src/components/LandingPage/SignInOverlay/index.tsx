@@ -11,9 +11,10 @@ import Icon from '@Components/common/Icon';
 import { setCommonState } from '@Store/actions/common';
 import { motion } from 'framer-motion';
 import { slideVariants } from '@Constants/animations';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
-const AUTH_PROVIDER = (import.meta as any).env.VITE_AUTH_PROVIDER || 'legacy';
-const HANKO_URL = (import.meta as any).env.VITE_HANKO_URL || 'https://dev.login.hotosm.org';
+const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
+const HANKO_URL = getRuntimeConfig('VITE_HANKO_URL', 'https://dev.login.hotosm.org');
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 export default function SignInOverlay() {
