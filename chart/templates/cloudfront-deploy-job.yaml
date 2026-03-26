@@ -136,7 +136,7 @@ spec:
               }
               {{- $aliases := $cf.aliases | default list }}
               {{- if $aliases }}
-              config['Aliases'] = {'Quantity': {{ len $aliases }}, 'Items': {{ $aliases | toJson }}}
+              config['Aliases'] = {'Quantity': {{ len $aliases }}, 'Items': [{{ range $i, $a := $aliases }}{{ if $i }}, {{ end }}'{{ $a }}'{{ end }}]}
               config['ViewerCertificate'] = {
                   'ACMCertificateArn': '{{ $cf.acmCertificateArn }}',
                   'SSLSupportMethod': 'sni-only',
