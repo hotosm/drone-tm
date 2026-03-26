@@ -1,3 +1,26 @@
+## 2026.1.1 (2026-03-26)
+
+### Feat
+
+- **gcp-editor**: move gcp-editor to monorepo here, ol --> maplibre, fix up workflow with current code
+
+### Fix
+
+- **frontend**: improve visual consistency of design / radio buttons
+- **frontend**: surface the manual rejection override button for the user
+- **frontend**: minor fixes after gcp editor integration
+- **gcp-editor**: remove @tailwind base to avoid preflight reset on main app
+- **frontend**: fix broken pnpm lock file after merge
+- **frontend**: small styling override from gcp-editor
+- **frontend**: update hotosm/ui to avoid module register error
+
+### Perf
+
+- **frontend**: lazy load frontend components, use webp over png, optimise first page load (#744)
+- **frontend**: replace huge mobile .svg --> tiny .webp file
+- **frontend**: compress png --> webp for landing images, update refs, remove unused
+- **frontend**: lazy load components, preload css / imgs, font swap css - improve FCP
+
 ## 2026.1.0 (2026-03-23)
 
 ### BREAKING CHANGE

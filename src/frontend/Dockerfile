@@ -25,6 +25,8 @@ COPY ./gcp-editor/package.json ./gcp-editor/package.json
 RUN pnpm install
 COPY ./gcp-editor /app/gcp-editor
 COPY ./frontend /app/frontend
+WORKDIR /app/gcp-editor
+RUN pnpm run build
 WORKDIR /app/frontend
 RUN pnpm run build
 

@@ -23,6 +23,7 @@ spec:
         app.kubernetes.io/component: cloudfront-deploy
     spec:
       restartPolicy: Never
+      serviceAccountName: {{ include "drone-tm.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -43,9 +44,6 @@ spec:
         - name: deploy
           image: "{{ $cf.awsCliImage.repository }}:{{ $cf.awsCliImage.tag }}"
           imagePullPolicy: {{ $cf.awsCliImage.pullPolicy }}
-          envFrom:
-            - secretRef:
-                name: {{ $cf.existingSecret }}
           env:
             - name: AWS_DEFAULT_REGION
               value: {{ $cf.region | quote }}

@@ -20,9 +20,7 @@ existingSecret:
 # - SMTP_PASSWORD (if email enabled)
 # - SENTRY_DSN (if MONITORING=sentry)
 #
-# For frontend.mode=cloudfront (frontend.cloudfront.existingSecret):
-# - AWS_ACCESS_KEY_ID
-# - AWS_SECRET_ACCESS_KEY
+# For frontend.mode=cloudfront, see frontend.cloudfront.roleArn (IRSA, no static keys needed).
 extraEnvFrom: []
 env: {}
 # # See an exhaustive list of env var options in the documentation.
@@ -141,8 +139,9 @@ frontend:
 
   # ── Settings for mode: cloudfront ──────────────────────────────────────
   cloudfront:
-    # Existing K8s Secret with AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY.
-    existingSecret: ""
+    # ARN of an IAM role for IRSA. The chart annotates the ServiceAccount
+    # so the deploy Job picks up temporary credentials automatically.
+    roleArn: ""
     region: "us-east-1"
     s3Bucket: ""  # Required, e.g. "drone-tm-frontend"
     # S3 path prefix - each deploy uploads to <version>/.

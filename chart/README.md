@@ -55,7 +55,7 @@ and configure CORS so the frontend can call the API cross-origin.
 | `frontend.image.tag` | Image tag (defaults to `appVersion`) | `""` |
 | `frontend.runtimeEnv` | Runtime env vars injected into `config.js` | `{}` |
 | `frontend.mode` | `"bundleWithBackend"` or `"cloudfront"` | `"bundleWithBackend"` |
-| `frontend.cloudfront.existingSecret` | K8s Secret with `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` | `""` |
+| `frontend.cloudfront.roleArn` | IAM role ARN for IRSA (**required**, see setup steps) | `""` |
 | `frontend.cloudfront.region` | AWS region | `"us-east-1"` |
 | `frontend.cloudfront.s3Bucket` | S3 bucket name (**required**) | `""` |
 | `frontend.cloudfront.version` | S3 path prefix (defaults to `appVersion`; set to older version to rollback) | `""` |
@@ -74,58 +74,210 @@ s3://bucket/2026.2.0/   ← current (CloudFront origin path points here)
 
 To rollback, set `frontend.cloudfront.version` to the old version and re-sync.
 
-#### AWS IAM Policy
-
-Minimum permissions for the deploy Job:
-
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "S3",
-            "Effect": "Allow",
-            "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket", "s3:PutBucketPolicy"],
-            "Resource": ["arn:aws:s3:::YOUR_BUCKET", "arn:aws:s3:::YOUR_BUCKET/*"]
-        },
-        {
-            "Sid": "CloudFront",
-            "Effect": "Allow",
-            "Action": [
-                "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig",
-                "cloudfront:UpdateDistribution", "cloudfront:CreateInvalidation",
-                "cloudfront:ListDistributions", "cloudfront:CreateDistribution",
-                "cloudfront:CreateOriginAccessControl", "cloudfront:ListOriginAccessControls"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-```
-
 #### Setup Steps
 
-1. **Create S3 bucket**: `aws s3api create-bucket --bucket YOUR_BUCKET --region us-east-1`
+Every step below uses the AWS CLI -- no console access required. Run these once
+before the first deploy.
 
-2. **Create ACM certificate** (must be in `us-east-1` for CloudFront):
-   ```bash
-   aws acm request-certificate --domain-name drone.hotosm.org --validation-method DNS --region us-east-1
-   ```
-   Validate via DNS, then note the ARN for `acmCertificateArn`.
+```bash
+# ── Variables (set these for your environment) ──────────────────────────
+BUCKET="dronetm-prod-frontend"
+DOMAIN="drone.hotosm.org"
+CLUSTER="your-eks-cluster"
+REGION="us-east-1"
+NAMESPACE="drone"
+RELEASE="drone-tm"           # Helm release name
+ROLE_NAME="drone-tm-cloudfront-deploy"
+```
 
-3. **Create IAM user** with the policy above and generate access keys.
+**1. Create S3 bucket**
 
-4. **Create K8s secret** in the deploy namespace:
-   ```bash
-   kubectl -n drone create secret generic drone-tm-cloudfront-creds \
-     --from-literal=AWS_ACCESS_KEY_ID='<key>' \
-     --from-literal=AWS_SECRET_ACCESS_KEY='<secret>'
-   ```
+```bash
+aws s3api create-bucket --bucket "$BUCKET" --region "$REGION"
+```
 
-5. **Deploy** with CloudFront values. On first run the Job creates the distribution.
+**2. Create & validate ACM certificate**
 
-6. **DNS cutover**: Point `drone.hotosm.org` to the CloudFront distribution (Route53 ALIAS record).
-   The `api.drone.hotosm.org` record is created automatically by external-dns.
+CloudFront requires the certificate in `us-east-1`.
+
+```bash
+CERT_ARN=$(aws acm request-certificate \
+  --domain-name "$DOMAIN" \
+  --validation-method DNS \
+  --region "$REGION" \
+  --query CertificateArn --output text)
+echo "Certificate ARN: $CERT_ARN"
+
+# Get the CNAME record AWS needs you to create for validation
+aws acm describe-certificate \
+  --certificate-arn "$CERT_ARN" \
+  --region "$REGION" \
+  --query 'Certificate.DomainValidationOptions[0].ResourceRecord'
+```
+
+This returns a `Name` and `Value`. Create that CNAME in Route53:
+
+```bash
+# Get the hosted zone ID for your domain
+ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+  --dns-name "$DOMAIN" \
+  --query "HostedZones[0].Id" --output text | sed 's|/hostedzone/||')
+
+# Read the validation record details
+VALIDATION=$(aws acm describe-certificate \
+  --certificate-arn "$CERT_ARN" \
+  --region "$REGION" \
+  --query 'Certificate.DomainValidationOptions[0].ResourceRecord')
+CNAME_NAME=$(echo "$VALIDATION" | python3 -c "import sys,json; print(json.load(sys.stdin)['Name'])")
+CNAME_VALUE=$(echo "$VALIDATION" | python3 -c "import sys,json; print(json.load(sys.stdin)['Value'])")
+
+aws route53 change-resource-record-sets --hosted-zone-id "$ZONE_ID" --change-batch '{
+  "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+      "Name": "'"$CNAME_NAME"'",
+      "Type": "CNAME",
+      "TTL": 300,
+      "ResourceRecords": [{"Value": "'"$CNAME_VALUE"'"}]
+    }
+  }]
+}'
+
+# Wait for validation (usually 1-3 minutes)
+aws acm wait certificate-validated --certificate-arn "$CERT_ARN" --region "$REGION"
+echo "Certificate issued."
+```
+
+Keep the CNAME record in place -- ACM uses it to auto-renew the certificate.
+
+**3. Create IAM role (IRSA)**
+
+The deploy Job assumes an IAM role via the EKS service account -- no static
+credentials to manage or rotate.
+
+```bash
+# Get OIDC provider details
+OIDC_URL=$(aws eks describe-cluster --name "$CLUSTER" \
+  --query "cluster.identity.oidc.issuer" --output text)
+OIDC_ID=$(echo "$OIDC_URL" | awk -F/ '{print $NF}')
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+OIDC_PROVIDER="oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
+
+# Register the OIDC provider with IAM (idempotent)
+eksctl utils associate-iam-oidc-provider --cluster "$CLUSTER" --approve
+```
+
+Create the trust policy (restricts the role to this chart's service account):
+
+```bash
+cat > trust-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/${OIDC_PROVIDER}"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "${OIDC_PROVIDER}:sub": "system:serviceaccount:${NAMESPACE}:${RELEASE}-drone-tm",
+        "${OIDC_PROVIDER}:aud": "sts.amazonaws.com"
+      }
+    }
+  }]
+}
+EOF
+```
+
+Create the permissions policy (minimum required for the deploy Job):
+
+```bash
+cat > policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket", "s3:PutBucketPolicy"],
+      "Resource": ["arn:aws:s3:::${BUCKET}", "arn:aws:s3:::${BUCKET}/*"]
+    },
+    {
+      "Sid": "CloudFront",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig",
+        "cloudfront:UpdateDistribution", "cloudfront:CreateInvalidation",
+        "cloudfront:ListDistributions", "cloudfront:CreateDistribution",
+        "cloudfront:CreateOriginAccessControl", "cloudfront:ListOriginAccessControls"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+```
+
+Create the role and attach the policy:
+
+```bash
+aws iam create-role \
+  --role-name "$ROLE_NAME" \
+  --assume-role-policy-document file://trust-policy.json
+
+aws iam put-role-policy \
+  --role-name "$ROLE_NAME" \
+  --policy-name cloudfront-deploy \
+  --policy-document file://policy.json
+
+ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
+echo "Role ARN: $ROLE_ARN"
+```
+
+Use `$ROLE_ARN` for `frontend.cloudfront.roleArn` in your Helm values.
+
+**4. Deploy** with CloudFront values. On first run the Job creates the distribution.
+
+**5. DNS cutover**
+
+After the first deploy, get the CloudFront distribution domain:
+
+```bash
+DIST_DOMAIN=$(aws cloudfront list-distributions \
+  --query "DistributionList.Items[?Origins.Items[0].DomainName=='${BUCKET}.s3.amazonaws.com'].DomainName | [0]" \
+  --output text)
+DIST_ID=$(aws cloudfront list-distributions \
+  --query "DistributionList.Items[?Origins.Items[0].DomainName=='${BUCKET}.s3.amazonaws.com'].Id | [0]" \
+  --output text)
+echo "CloudFront: $DIST_DOMAIN ($DIST_ID)"
+```
+
+Point `drone.hotosm.org` to the CloudFront distribution (Route53 ALIAS):
+
+```bash
+aws route53 change-resource-record-sets --hosted-zone-id "$ZONE_ID" --change-batch '{
+  "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+      "Name": "'"$DOMAIN"'",
+      "Type": "A",
+      "AliasTarget": {
+        "HostedZoneId": "Z2FDTNDATAQYW2",
+        "DNSName": "'"$DIST_DOMAIN"'",
+        "EvaluateTargetHealth": false
+      }
+    }
+  }]
+}'
+```
+
+> `Z2FDTNDATAQYW2` is the fixed hosted zone ID for all CloudFront distributions.
+
+The `api.drone.hotosm.org` record is created automatically by external-dns.
+
+To minimize downtime, deploy the backend changes first (so the API is live on both
+the old and new domains during transition), then cut DNS for the frontend.
 
 #### Example Production Values
 
@@ -147,12 +299,12 @@ frontend:
   runtimeEnv:
     VITE_API_URL: "https://api.drone.hotosm.org"
   cloudfront:
-    existingSecret: "drone-tm-cloudfront-creds"
+    roleArn: "arn:aws:iam::123456789012:role/drone-tm-cloudfront-deploy"
     region: "us-east-1"
-    s3Bucket: "drone-tm-frontend"
+    s3Bucket: "dronetm-prod-frontend"
     aliases:
       - "drone.hotosm.org"
-    acmCertificateArn: "arn:aws:acm:us-east-1:123456789:certificate/abc-def"
+    acmCertificateArn: "arn:aws:acm:us-east-1:123456789012:certificate/abc-def"
 ```
 
 ### Overriding The Frontend API URL
