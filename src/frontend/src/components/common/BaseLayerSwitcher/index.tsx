@@ -1,5 +1,6 @@
 import useOutsideClick from '@Hooks/useOutsideClick';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import RadioButton from '@Components/common/RadioButton';
 import BaseLayerSwitcher from '../MapLibreComponents/BaseLayerSwitcher';
 import baseLayersData from '../MapLibreComponents/BaseLayerSwitcher/baseLayers';
 import { useMap } from '../MapLibreComponents/MapContext';
@@ -10,6 +11,16 @@ const BaseLayerSwitcherUI = () => {
   // eslint-disable-next-line no-unused-vars
   const [_, toggle, handleToggle]: any = useOutsideClick('single');
   const baseLayerList = baseLayersData;
+
+  const layerOptions = useMemo(
+    () =>
+      Object.keys(baseLayerList).map(key => ({
+        name: 'baseLayer',
+        value: key,
+        label: key,
+      })),
+    [baseLayerList],
+  );
 
   return (
     <>
@@ -27,27 +38,17 @@ const BaseLayerSwitcherUI = () => {
       </div>
       {toggle && (
         <div className="naxatw-absolute naxatw-left-10 naxatw-top-3 naxatw-z-50 naxatw-gap-1 naxatw-rounded-md naxatw-bg-white naxatw-px-2 naxatw-py-2">
-          {Object.entries(baseLayerList)?.map(([key]) => (
-            <div className="naxatw-flex naxatw-gap-1" key={key}>
-              <input
-                id={key}
-                type="radio"
-                value={key}
-                checked={selectedBaseLayer === key}
-                className="naxatw-cursor-pointer"
-                onChange={e => {
-                  setSelectedBaseLayer(e.target.value);
-                  handleToggle();
-                }}
-              />
-              <label
-                htmlFor={key}
-                className="naxatw-cursor-pointer naxatw-text-sm naxatw-capitalize hover:naxatw-underline"
-              >
-                {key}
-              </label>
-            </div>
-          ))}
+          <RadioButton
+            options={layerOptions}
+            direction="column"
+            onChangeData={value => {
+              setSelectedBaseLayer(value);
+              handleToggle();
+            }}
+            value={selectedBaseLayer}
+            name="baseLayer"
+            className="naxatw-text-sm naxatw-capitalize"
+          />
         </div>
       )}
 

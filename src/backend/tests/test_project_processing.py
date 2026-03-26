@@ -336,7 +336,7 @@ async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
     async def fake_update_task_state_system(
         db, project_id_arg, task_id_arg, comment, initial_state, final_state, updated_at
     ):
-        # Both transitions fail — task is in an unexpected state
+        # Both transitions fail - task is in an unexpected state
         return None
 
     monkeypatch.setattr(

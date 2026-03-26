@@ -1,6 +1,6 @@
 [project]
 name = "drone-tm"
-version = "2025.5.0"
+version = "2026.1.1"
 description = "Community-driven drone imagery generation"
 authors = [
     {name = "HOTOSM", email = "sysadmin@hotosm.org"},
@@ -91,12 +91,13 @@ members = ["packages/*"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "2025.5.0"
+version = "2026.1.1"
 version_provider = "uv"
 version_files = [
     "pyproject.toml:version",
     "app/__version__.py",
     "../frontend/package.json:version",
+    "../../chart/Chart.yaml:appVersion",
 ]
 changelog_file = "../../CHANGELOG.md"
 update_changelog_on_bump = true

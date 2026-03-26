@@ -2,7 +2,7 @@ import { Grid } from '@Components/common/Layouts';
 import Image from '@Components/RadixComponents/Image';
 import { motion } from 'framer-motion';
 import Accordion from '@Components/common/Accordion';
-import majorImpactsImage from '@Assets/images/LandingPage/MajorImpactImage.png';
+import majorImpactsImage from '@Assets/images/LandingPage/MajorImpactImage.webp';
 import { accordionData } from '@Constants/landingPage';
 import {
   containerAnimationVariant,

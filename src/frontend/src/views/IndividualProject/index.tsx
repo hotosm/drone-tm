@@ -208,7 +208,16 @@ const IndividualProject = () => {
               { name: projectData?.name || '--', navLink: '' },
             ]}
           />
-          <div className="naxatw-flex naxatw-gap-5">
+          <div className="naxatw-flex naxatw-gap-3">
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+              leftIcon="pin_drop"
+              iconClassname="naxatw-text-[1.125rem]"
+              onClick={() => dispatch(setProjectState({ showGcpEditor: true }))}
+            >
+              GCP Editor
+            </Button>
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
@@ -269,8 +278,7 @@ const IndividualProject = () => {
               close
             </button>
             <GcpEditor
-              finalButtonText="Start Final Processing"
-              // handleProcessingStart={handleStartProcessingClick}
+              finalButtonText="Save GCP"
               // eslint-disable-next-line camelcase
               rawImageUrl={`${API_URL}/gcp/find-project-images/?project_id=${id}`}
             />

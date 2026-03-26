@@ -1,3 +1,4 @@
+{{- $bundleWithBackend := eq (.Values.frontend.mode | default "bundleWithBackend") "bundleWithBackend" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,13 +35,13 @@ spec:
       serviceAccountName: {{ include "drone-tm.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if .Values.frontendAssets.enabled }}
+      {{- if $bundleWithBackend }}
       initContainers:
         - name: frontend-assets
-          image: "{{ .Values.frontendAssets.image.repository }}:{{ .Values.frontendAssets.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.frontendAssets.image.pullPolicy }}
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           env:
-            {{- range $k, $v := (.Values.frontendAssets.runtimeEnv | default dict) }}
+            {{- range $k, $v := (.Values.frontend.runtimeEnv | default dict) }}
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
@@ -71,14 +72,14 @@ spec:
           readinessProbe:
             {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
           volumeMounts:
-            {{- if .Values.frontendAssets.enabled }}
+            {{- if $bundleWithBackend }}
             - name: frontend-html
               mountPath: /project/src/backend/frontend_html
             {{- end }}
             - name: temp-storage
               mountPath: /tmp
       volumes:
-        {{- if .Values.frontendAssets.enabled }}
+        {{- if $bundleWithBackend }}
         - name: frontend-html
           emptyDir: {}
         {{- end }}

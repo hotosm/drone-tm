@@ -9,7 +9,7 @@ on:
 
 jobs:
   backend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.1
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.6.0
     with:
       context: ./src/backend
       build_target: service
@@ -19,10 +19,10 @@ jobs:
       multi_arch: true
 
   frontend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.4.1
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.6.0
     with:
-      context: ./src/frontend
+      context: ./src
       build_target: prod
       image_name: ghcr.io/${{ github.repository }}/frontend
-      dockerfile: Dockerfile
+      dockerfile: frontend/Dockerfile
       multi_arch: true

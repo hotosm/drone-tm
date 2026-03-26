@@ -667,14 +667,30 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
               <p className="naxatw-text-sm naxatw-text-[#484848]">
                 Review the classified images grouped by tasks.
               </p>
-              <label className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-700">
+              <p className="naxatw-text-xs naxatw-text-gray-500">
+                Double-click a thumbnail to inspect and override rejections.
+              </p>
+              <label className="naxatw-flex naxatw-w-fit naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-px-3 naxatw-py-1.5 naxatw-text-sm naxatw-font-medium naxatw-text-gray-700 naxatw-transition-colors hover:naxatw-border-red hover:naxatw-text-gray-900">
+                <span
+                  className={`naxatw-flex naxatw-h-4 naxatw-w-4 naxatw-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-text-white naxatw-transition-colors ${
+                    showOnlyIssueImages
+                      ? 'naxatw-border-red naxatw-bg-red'
+                      : 'naxatw-border-gray-400 naxatw-bg-white'
+                  }`}
+                >
+                  {showOnlyIssueImages && (
+                    <svg className="naxatw-h-3 naxatw-w-3" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
                 <input
                   type="checkbox"
-                  className="naxatw-h-4 naxatw-w-4 naxatw-rounded naxatw-border-gray-300"
+                  className="naxatw-sr-only"
                   checked={showOnlyIssueImages}
                   onChange={(event) => setShowOnlyIssueImages(event.target.checked)}
                 />
-                Show only images with issues
+                Show only images with issues ({totalIssueImages})
               </label>
             </div>
             <FlexRow className="naxatw-gap-3 naxatw-text-xs naxatw-items-start">
@@ -826,7 +842,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   disabled={acceptMutation.isPending}
                   leftIcon="check"
                 >
-                  {acceptMutation.isPending ? 'Accepting...' : 'Mark as Good'}
+                  {acceptMutation.isPending ? 'Accepting...' : 'Override rejection'}
                 </Button>
               )}
             </div>

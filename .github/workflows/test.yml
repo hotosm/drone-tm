@@ -19,22 +19,13 @@ on:
       - "tasks/test/**"
       - ".github/workflows/test.yml"
 
+  # Allow manual trigger (workflow_dispatch)
+  workflow_dispatch:
+
 jobs:
-  backend-tests:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Just
-        uses: extractions/setup-just@v2
-        with:
-          just-version: 1.40.0
-
-      - name: Configure Test Environment
-        run: |
-          cp .env.example .env
-
-      - name: Run Backend Tests
-        run: just test backend
+  pytest:
+    uses: hotosm/gh-workflows/.github/workflows/just.yml@3.6.0
+    with:
+      environment: "test"
+      command: "test backend"
+    secrets: inherit
