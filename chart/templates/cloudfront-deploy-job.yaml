@@ -128,8 +128,8 @@ spec:
                   'CustomErrorResponses': {
                       'Quantity': 2,
                       'Items': [
-                          {'ErrorCode': 403, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 60},
-                          {'ErrorCode': 404, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 60},
+                          {'ErrorCode': 403, 'ResponseCode': '200', 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 60},
+                          {'ErrorCode': 404, 'ResponseCode': '200', 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 60},
                       ],
                   },
                   'PriceClass': '{{ $cf.priceClass }}',
