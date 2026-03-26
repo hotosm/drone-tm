@@ -66,10 +66,12 @@ spec:
                 --cache-control "public, max-age=31536000, immutable"
 
               # index.html and config.js must not be cached long (mutable on each deploy).
+              declare -A CONTENT_TYPES=( [index.html]="text/html" [config.js]="application/javascript" )
               for f in index.html config.js; do
                 if aws s3 ls "s3://${BUCKET}/${VERSION}/${f}" 2>/dev/null; then
                   aws s3 cp "s3://${BUCKET}/${VERSION}/${f}" "s3://${BUCKET}/${VERSION}/${f}" \
                     --cache-control "public, max-age=60" \
+                    --content-type "${CONTENT_TYPES[$f]}" \
                     --metadata-directive REPLACE
                 fi
               done
