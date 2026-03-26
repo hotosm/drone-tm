@@ -12,7 +12,7 @@ metadata:
     # Argo CD: run after deployments so the new backend is live
     # before the new frontend starts serving traffic.
     argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
     argocd.argoproj.io/sync-wave: "15"
 spec:
   backoffLimit: 3
