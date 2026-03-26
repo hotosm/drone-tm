@@ -167,7 +167,13 @@ OIDC_PROVIDER="oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
 eksctl utils associate-iam-oidc-provider --cluster "$CLUSTER" --approve
 ```
 
-Create the trust policy (restricts the role to this chart's service account):
+Create the trust policy (restricts the role to this chart's service account).
+
+> **Service account name:** The chart uses Helm's standard `fullname` helper.
+> If your release name already contains the chart name (`drone-tm`), the SA
+> name equals the release name (e.g. release `drone-tm-prod` → SA `drone-tm-prod`).
+> Otherwise it is `<release>-drone-tm`. Run
+> `kubectl get sa -n $NAMESPACE` to verify before creating the trust policy.
 
 ```bash
 cat > trust-policy.json << EOF
@@ -181,7 +187,7 @@ cat > trust-policy.json << EOF
     "Action": "sts:AssumeRoleWithWebIdentity",
     "Condition": {
       "StringEquals": {
-        "${OIDC_PROVIDER}:sub": "system:serviceaccount:${NAMESPACE}:${RELEASE}-drone-tm",
+        "${OIDC_PROVIDER}:sub": "system:serviceaccount:${NAMESPACE}:${RELEASE}",
         "${OIDC_PROVIDER}:aud": "sts.amazonaws.com"
       }
     }
