@@ -38,15 +38,13 @@ jobs:
       - name: Build and push frontend
         run: |
           docker build -t ghcr.io/${{ env.IMAGE_PREFIX }}/frontend:dev \
+            -f src/frontend/Dockerfile \
             --target prod \
             --build-arg VITE_AUTH_PROVIDER=${{ vars.AUTH_PROVIDER || 'legacy' }} \
             --build-arg VITE_HANKO_URL=${{ vars.HANKO_API_URL || 'https://dev.login.hotosm.org' }} \
             --build-arg VITE_FRONTEND_URL=https://dev.drone.hotosm.org \
             --build-arg VITE_API_URL=https://dev.drone.hotosm.org/api \
-            --build-arg API_URL=https://dev.drone.hotosm.org/api \
-            --build-arg BASE_URL=https://dev.drone.hotosm.org/api \
-            --build-arg SITE_NAME="Drone TM Dev" \
-            ./src/frontend
+            ./src
           docker push ghcr.io/${{ env.IMAGE_PREFIX }}/frontend:dev
 
   deploy:
