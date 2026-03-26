@@ -1,5 +1,5 @@
 # compose.test.yaml - Test environment for login-hanko branch
-# Deploy to: testlogin.dronetm.hotosm.org
+# Deploy to: dronetm.testlogin.hotosm.org
 # Requires: Traefik running in /opt/traefik with hotosm-test network
 
 services:
@@ -25,7 +25,7 @@ services:
       - hotosm-test
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dronetm-frontend.rule=Host(`testlogin.dronetm.hotosm.org`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.dronetm-frontend.rule=Host(`dronetm.testlogin.hotosm.org`) && !PathPrefix(`/api`)"
       - "traefik.http.routers.dronetm-frontend.entrypoints=websecure"
       - "traefik.http.routers.dronetm-frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.dronetm-frontend.loadbalancer.server.port=80"
@@ -49,18 +49,18 @@ services:
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - S3_BUCKET_NAME=dronetm
-      - S3_DOWNLOAD_ROOT=https://s3.testlogin.dronetm.hotosm.org
+      - S3_DOWNLOAD_ROOT=https://s3.dronetm.testlogin.hotosm.org
       - DRAGONFLY_DSN=redis://redis:6379/0
-      - FRONTEND_URL=https://testlogin.dronetm.hotosm.org
-      - BACKEND_URL=https://testlogin.dronetm.hotosm.org/api
-      - EXTRA_CORS_ORIGINS=["https://testlogin.dronetm.hotosm.org","https://portal.hotosm.org","https://dev.login.hotosm.org"]
+      - FRONTEND_URL=https://dronetm.testlogin.hotosm.org
+      - BACKEND_URL=https://dronetm.testlogin.hotosm.org/api
+      - EXTRA_CORS_ORIGINS=["https://dronetm.testlogin.hotosm.org","https://portal.hotosm.org","https://dev.login.hotosm.org"]
       - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     networks:
       - hotosm-test
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dronetm-backend.rule=Host(`testlogin.dronetm.hotosm.org`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dronetm-backend.rule=Host(`dronetm.testlogin.hotosm.org`) && PathPrefix(`/api`)"
       - "traefik.http.routers.dronetm-backend.entrypoints=websecure"
       - "traefik.http.routers.dronetm-backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.dronetm-backend.loadbalancer.server.port=8000"
@@ -98,13 +98,13 @@ services:
     labels:
       - "traefik.enable=true"
       # MinIO Console (Web UI)
-      - "traefik.http.routers.dronetm-minio-console.rule=Host(`minio.testlogin.dronetm.hotosm.org`)"
+      - "traefik.http.routers.dronetm-minio-console.rule=Host(`minio.dronetm.testlogin.hotosm.org`)"
       - "traefik.http.routers.dronetm-minio-console.entrypoints=websecure"
       - "traefik.http.routers.dronetm-minio-console.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dronetm-minio-console.service=dronetm-minio-console"
       - "traefik.http.services.dronetm-minio-console.loadbalancer.server.port=9001"
       # MinIO S3 API (for presigned URLs)
-      - "traefik.http.routers.dronetm-minio-api.rule=Host(`s3.testlogin.dronetm.hotosm.org`)"
+      - "traefik.http.routers.dronetm-minio-api.rule=Host(`s3.dronetm.testlogin.hotosm.org`)"
       - "traefik.http.routers.dronetm-minio-api.entrypoints=websecure"
       - "traefik.http.routers.dronetm-minio-api.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dronetm-minio-api.service=dronetm-minio-api"
@@ -134,7 +134,7 @@ services:
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - S3_BUCKET_NAME=dronetm
-      - S3_DOWNLOAD_ROOT=https://s3.testlogin.dronetm.hotosm.org
+      - S3_DOWNLOAD_ROOT=https://s3.dronetm.testlogin.hotosm.org
     networks:
       - internal
 
