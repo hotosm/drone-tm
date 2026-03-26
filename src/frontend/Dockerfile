@@ -19,6 +19,10 @@ ENTRYPOINT ["/bin/sh", "-c", "pnpm run start"]
 
 # Generate frontend build files
 FROM base AS build
+ARG VITE_AUTH_PROVIDER
+ARG VITE_HANKO_URL
+ARG VITE_FRONTEND_URL
+ARG VITE_API_URL
 COPY ./pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY ./frontend/package.json ./frontend/package.json
 COPY ./gcp-editor/package.json ./gcp-editor/package.json
