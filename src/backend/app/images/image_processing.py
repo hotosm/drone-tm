@@ -221,8 +221,8 @@ class DroneImageProcessor:
                 await self.download_images_from_s3(bucket_name, temp_dir, self.task_id)
                 images_list = self.list_images(temp_dir)
             else:
-                gcp_list_file = f"projects/{self.project_id}/gcp/gcp_list.txt"
-                gcp_file_path = os.path.join(temp_dir, "gcp_list.txt")
+                gcp_list_file = f"projects/{self.project_id}/gcp.txt"
+                gcp_file_path = os.path.join(temp_dir, "gcp.txt")
 
                 # Check and add the GCP file to the images list if it exists
                 if get_file_from_bucket(bucket_name, gcp_list_file, gcp_file_path):

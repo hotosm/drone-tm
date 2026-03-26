@@ -14,7 +14,7 @@ backend:
     requests:
       cpu: 250m
       memory: 256Mi
-# (UI is served by backend; no separate frontend deployment)
+# frontend.mode defaults to "bundleWithBackend" (UI served by backend pod)
 
 # Development worker configuration
 worker:

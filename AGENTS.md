@@ -103,6 +103,12 @@ Start backend service only (Docker):
 just start backend
 ```
 
+Install frontend deps (pnpm workspace):
+
+```bash
+cd src && pnpm install
+```
+
 Run frontend locally:
 
 ```bash

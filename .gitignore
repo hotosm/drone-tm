@@ -89,3 +89,5 @@ src/backend/frontend_html
 
 # Flightplan test files
 *.json
+!**/package.json
+!**/tsconfig.json

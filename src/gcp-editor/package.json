@@ -1,0 +1,69 @@
+{
+  "name": "@hotosm/gcp-editor",
+  "version": "0.0.9",
+  "description": "A web component for working with Ground Control Points.",
+  "homepage": "https://github.com/hotosm/gcp-editor#readme",
+  "author": {
+    "name": "HOTOSM",
+    "email": "sysadmin@hotosm.org"
+  },
+  "contributors": [
+    {
+      "name": "Sujit Karki",
+      "url": "https://github.com/suzit-10"
+    },
+    {
+      "name": "Sam Woodcock",
+      "url": "https://github.com/spwoodcock"
+    }
+  ],
+  "license": "AGPL-3.0-only",
+  "main": "./dist/gcp-editor.js",
+  "module": "./dist/gcp-editor.js",
+  "type": "module",
+  "types": "./dist/gcp-editor.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/gcp-editor.d.ts",
+      "import": "./dist/gcp-editor.js",
+      "default": "./dist/gcp-editor.js"
+    },
+    "./style.css": "./dist/gcp-editor.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hotosm/gcp-editor.git"
+  },
+  "scripts": {
+    "build:dts": "tsc --emitDeclarationOnly",
+    "build:js": "scripts/build.js",
+    "build": "pnpm run build:js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "pnpm run build && pnpm run --dir site dev",
+    "preview": "pnpm run build && pnpm run --dir site preview"
+  },
+  "dependencies": {
+    "@hotosm/ui": "^0.9.0",
+    "@panzoom/panzoom": "^4.5.1",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "esbuild": "^0.24.0",
+    "esbuild-plugin-tailwindcss": "^1.2.1",
+    "jsdom": "^29.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "~5.6.2",
+    "vitest": "^2.1.9"
+  },
+  "peerDependencies": {
+    "@awesome.me/webawesome": "3.2.1",
+    "@geomatico/maplibre-cog-protocol": "^0.3.0",
+    "maplibre-gl": "^4.0.0"
+  }
+}

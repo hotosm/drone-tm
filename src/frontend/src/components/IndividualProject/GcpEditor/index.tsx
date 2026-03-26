@@ -1,61 +1,73 @@
-import { useEffect, createElement, useRef } from 'react';
-import '@hotosm/gcp-editor';
-import '@hotosm/gcp-editor/style.css';
+import { useEffect, createElement, useCallback, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setProjectState } from '@Store/actions/project';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { processAllImagery } from '@Services/project';
+import { saveGcpFile } from '@Services/project';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+
+const CUSTOM_EVENT = 'save-gcp-click';
 
 const GcpEditor = ({
   cogUrl,
   finalButtonText,
-  //   handleProcessingStart,
   rawImageUrl,
 }: any) => {
-  const triggeredEvent = useRef(false);
+  const [loaded, setLoaded] = useState(false);
   const { id } = useParams();
   const dispatch = useDispatch();
-  const CUSTOM_EVENT: any = 'start-processing-click';
   const queryClient = useQueryClient();
 
-  const { mutate: startImageProcessing } = useMutation({
-    mutationFn: processAllImagery,
+  const { mutate: saveGcp, isPending } = useMutation({
+    mutationFn: saveGcpFile,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-detail'] });
       dispatch(setProjectState({ showGcpEditor: false }));
-      toast.success('Processing started');
+      toast.success('GCP file saved for this project');
+    },
+    onError: () => {
+      toast.error('Failed to save GCP file');
     },
   });
 
-  const startProcessing = (data: any) => {
+  const handleSaveGcp = useCallback((data: any) => {
+    if (isPending) return;
     const gcpData = data.detail;
     const blob = new Blob([gcpData], { type: 'text/plain;charset=utf-8;' });
     const gcpFile = new File([blob], 'gcp.txt');
-    startImageProcessing({ projectId: id, gcp_file: gcpFile });
-  };
-
-  const handleProcessingStart = (data: any) => {
-    if (triggeredEvent.current) return;
-    startProcessing(data);
-    triggeredEvent.current = true;
-  };
+    saveGcp({ projectId: id!, gcp_file: gcpFile });
+  }, [isPending, id, saveGcp]);
 
   useEffect(() => {
-    document.addEventListener(
-      CUSTOM_EVENT,
-      handleProcessingStart,
-      // When we use the {once: true} option when adding an event listener, the listener will be invoked at most once and immediately removed as soon as the event is invoked.
-      { once: true },
-    );
+    // Lazy-load gcp-editor and suppress duplicate custom element registration
+    // errors from its bundled (older) copy of @hotosm/ui
+    const originalDefine = customElements.define.bind(customElements);
+    customElements.define = ((name: string, ctor: CustomElementConstructor, options?: ElementDefinitionOptions) => {
+      if (customElements.get(name)) return;
+      originalDefine(name, ctor, options);
+    }) as typeof customElements.define;
+
+    Promise.all([
+      import('@hotosm/gcp-editor'),
+      import('@hotosm/gcp-editor/style.css'),
+    ]).then(() => {
+      customElements.define = originalDefine;
+      setLoaded(true);
+    });
 
     return () => {
-      document.removeEventListener(CUSTOM_EVENT, handleProcessingStart);
+      customElements.define = originalDefine;
     };
+  }, []);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [CUSTOM_EVENT, dispatch]);
+  useEffect(() => {
+    document.addEventListener(CUSTOM_EVENT, handleSaveGcp);
+    return () => {
+      document.removeEventListener(CUSTOM_EVENT, handleSaveGcp);
+    };
+  }, [handleSaveGcp]);
+
+  if (!loaded) return null;
 
   return createElement('gcp-editor', {
     cogUrl,

@@ -81,7 +81,7 @@ repos:
 
   # Deps: ensure Python uv lockfile is up to date
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.10
+    rev: 0.10.12
     hooks:
       - id: uv-lock
         files: src/backend/pyproject.toml
@@ -97,7 +97,7 @@ repos:
   # Lint / autoformat: Python code
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.15.6"
+    rev: "v0.15.7"
     hooks:
       # Run the linter
       - id: ruff
@@ -116,6 +116,7 @@ repos:
         args: [--toml, src/backend/pyproject.toml]
 
   # Autoformat: YAML, JSON, Markdown, etc.
+  # TODO remove frontend & gcp-editor and allow formatting
   - repo: https://github.com/pycontribs/mirrors-prettier
     rev: v3.6.2
     hooks:
@@ -125,12 +126,13 @@ repos:
             --ignore-unknown,
             --no-error-on-unmatched-pattern,
             "!src/frontend/**",
+            "!src/gcp-editor/**",
+            "!src/pnpm-lock.yaml",
+            "!src/pnpm-workspace.yaml",
             "!chart/**",
             "!CHANGELOG.md",
             "!CONTRIBUTING.md",
-            "!src/frontend/pnpm-lock.yaml",
             "!src/backend/tests/test_data/**",
-            "!src/frontend/**",
           ]
 
   # # Lint: Markdown

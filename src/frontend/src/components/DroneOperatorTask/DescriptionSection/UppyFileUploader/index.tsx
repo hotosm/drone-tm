@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useContext, useRef } from 'react';
 import AwsS3 from '@uppy/aws-s3';
-import { Dashboard } from '@uppy/react';
+import Dashboard from '@uppy/react/dashboard';
 import { UppyContext } from '@uppy/react';
 import { toast } from 'react-toastify';
 import { authenticated, api } from '@Services/index';

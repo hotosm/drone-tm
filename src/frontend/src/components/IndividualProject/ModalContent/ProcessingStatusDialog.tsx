@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGetProjectsDetailQuery } from '@Api/projects';
 import { useGetAllTaskAssetsInfo } from '@Api/tasks';
 import { postProcessImagery } from '@Services/tasks';
-import { processAllImagery } from '@Services/project';
+import { processAllImagery, saveGcpFile } from '@Services/project';
 import { getProjectTaskImagerySummary, TaskImagerySummary } from '@Services/classification';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
@@ -205,6 +205,30 @@ const ProcessingStatusDialog = () => {
       }
     },
     [dispatch, startAllImageProcessing, projectId],
+  );
+
+  const gcpFileInputRef = useRef<HTMLInputElement>(null);
+
+  const { mutate: uploadGcpFile, isPending: isUploadingGcp } = useMutation({
+    mutationFn: saveGcpFile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-detail'] });
+      toast.success('GCP file uploaded');
+    },
+    onError: () => {
+      toast.error('Failed to upload GCP file');
+    },
+  });
+
+  const handleGcpFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      uploadGcpFile({ projectId, gcp_file: file });
+      // Reset so the same file can be re-selected
+      e.target.value = '';
+    },
+    [projectId, uploadGcpFile],
   );
 
   const totalTaskCount = useMemo(() => {
@@ -554,57 +578,80 @@ const ProcessingStatusDialog = () => {
         </p>
       </div>
 
-      <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-3">
-        <div
-          className={`naxatw-w-full naxatw-max-w-xl naxatw-rounded-lg naxatw-border naxatw-px-4 naxatw-py-3 naxatw-text-sm ${
-            hasSavedGcp
-              ? 'naxatw-border-green-200 naxatw-bg-green-50 naxatw-text-green-800'
-              : 'naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-text-gray-700'
-          }`}
-        >
+      {/* GCP status card with actions */}
+      <div
+        className={`naxatw-w-full naxatw-rounded-lg naxatw-border naxatw-px-4 naxatw-py-3 naxatw-text-sm ${
+          hasSavedGcp
+            ? 'naxatw-border-green-200 naxatw-bg-green-50 naxatw-text-green-800'
+            : 'naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-text-gray-700'
+        }`}
+      >
+        <div className="naxatw-flex naxatw-items-start naxatw-justify-between naxatw-gap-3">
           <div className="naxatw-flex naxatw-items-start naxatw-gap-2">
-            <span className="material-icons !naxatw-text-base">
+            <span className="material-icons !naxatw-text-base naxatw-mt-0.5">
               {hasSavedGcp ? 'check_circle' : 'pin_drop'}
             </span>
             <div>
               <p className="naxatw-font-medium">
-                {hasSavedGcp ? 'GCP points have been saved for this project.' : 'No saved GCP points yet.'}
+                {hasSavedGcp ? 'GCP file saved for this project.' : 'No GCP file yet (optional).'}
               </p>
-              <p className="naxatw-mt-1 naxatw-text-xs">
+              <p className="naxatw-mt-1 naxatw-text-xs naxatw-opacity-80">
                 {hasSavedGcp
-                  ? 'Start Final Processing will automatically include the saved GCP file.'
-                  : 'Use With GCP to add control points before starting final processing.'}
+                  ? 'The saved gcp.txt will be included in final processing.'
+                  : 'Mark points on images with the GCP Editor, or upload an existing gcp.txt.'}
               </p>
             </div>
           </div>
+          <div className="naxatw-flex naxatw-shrink-0 naxatw-gap-2">
+            <Button
+              variant="outline"
+              className="naxatw-h-8 naxatw-border-red naxatw-px-3 naxatw-text-xs naxatw-text-red"
+              leftIcon="pin_drop"
+              iconClassname="!naxatw-text-sm"
+              onClick={() => {
+                dispatch(setProjectState({ showGcpEditor: true }));
+                dispatch(toggleModal());
+              }}
+            >
+              {hasSavedGcp ? 'Edit GCP' : 'GCP Editor'}
+            </Button>
+            <Button
+              variant="outline"
+              className="naxatw-h-8 naxatw-border-gray-400 naxatw-px-3 naxatw-text-xs naxatw-text-gray-700"
+              leftIcon="upload_file"
+              iconClassname="!naxatw-text-sm"
+              onClick={() => gcpFileInputRef.current?.click()}
+              disabled={isUploadingGcp}
+            >
+              {isUploadingGcp ? 'Uploading...' : hasSavedGcp ? 'Replace gcp.txt' : 'Upload gcp.txt'}
+            </Button>
+            <input
+              ref={gcpFileInputRef}
+              type="file"
+              accept=".txt"
+              className="naxatw-hidden"
+              onChange={handleGcpFileUpload}
+            />
+          </div>
         </div>
+      </div>
 
+      {/* Start Final Processing CTA */}
+      <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2">
         {finalProcessingDisabledReason && (
           <p className="naxatw-text-center naxatw-text-xs naxatw-text-amber-700">
             {finalProcessingDisabledReason}
           </p>
         )}
-
-        <div className="naxatw-flex naxatw-gap-2">
-          <Button
-            variant="ghost"
-            className="naxatw-bg-red naxatw-text-white disabled:naxatw-bg-gray-400"
-            leftIcon="play_arrow"
-            onClick={() => handleStartFinalProcessing(false)}
-            disabled={Boolean(finalProcessingDisabledReason)}
-          >
-            Start Final Processing
-          </Button>
-          <Button
-            variant="outline"
-            className="naxatw-border-red naxatw-text-red disabled:naxatw-border-gray-300 disabled:naxatw-text-gray-400"
-            leftIcon="pin_drop"
-            onClick={() => handleStartFinalProcessing(true)}
-            disabled={Boolean(finalProcessingDisabledReason)}
-          >
-            {hasSavedGcp ? 'Edit GCP' : 'Add GCP'}
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          className="naxatw-bg-red naxatw-px-8 naxatw-py-2 naxatw-text-white disabled:naxatw-bg-gray-400"
+          leftIcon="play_arrow"
+          onClick={() => handleStartFinalProcessing(false)}
+          disabled={Boolean(finalProcessingDisabledReason)}
+        >
+          Start Final Processing
+        </Button>
       </div>
     </div>
   );

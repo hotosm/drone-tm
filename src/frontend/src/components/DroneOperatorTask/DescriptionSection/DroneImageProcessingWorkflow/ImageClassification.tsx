@@ -432,7 +432,12 @@ const ImageClassification = ({
         </div>
       )}
 
-      {/* Virtualized Image Grid */}
+      {/* Hint + Virtualized Image Grid */}
+      {imagesList.length > 0 && (
+        <p className="naxatw-mb-2 naxatw-text-xs naxatw-text-gray-500">
+          Double-click an image to inspect details and override rejections.
+        </p>
+      )}
       {imagesList.length > 0 && (
         <div
           ref={parentRef}
@@ -719,7 +724,7 @@ const ImageClassification = ({
                       disabled={acceptImageMutation.isPending}
                       leftIcon="check"
                     >
-                      {acceptImageMutation.isPending ? 'Processing...' : 'Mark as Good'}
+                      {acceptImageMutation.isPending ? 'Accepting...' : 'Override rejection'}
                     </Button>
                     <p className="naxatw-mt-2 naxatw-text-xs naxatw-text-gray-500">
                       If this image is valid and should be included, click to override the rejection.

@@ -37,7 +37,6 @@ from app.projects import project_deps, project_logic, project_schemas
 from app.projects.oam import upload_to_oam
 from app.s3 import (
     abort_multipart_upload,
-    add_file_to_bucket,
     complete_multipart_upload,
     generate_presigned_put_url,
     generate_presigned_multipart_upload_url,
@@ -495,18 +494,13 @@ async def process_all_imagery(
     user_data: Annotated[AuthUser, Depends(login_required)],
     db: Annotated[Connection, Depends(database.get_db)],
     redis_pool: ArqRedis = Depends(get_redis_pool),
-    gcp_file: UploadFile = File(None),
 ):
-    """API endpoint to process all tasks associated with a project."""
+    """API endpoint to process all tasks associated with a project.
+
+    If a GCP file has been saved for this project (via POST /gcp/save/),
+    it will be automatically included during ODM processing.
+    """
     user_id = user_data.id
-    if gcp_file:
-        gcp_file_path = f"/tmp/{uuid.uuid4()}"
-        with open(gcp_file_path, "wb") as f:
-            f.write(await gcp_file.read())
-
-        s3_path = f"projects/{project.id}/gcp/gcp_list.txt"
-        add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
-
     tasks = await project_logic.get_all_tasks_for_project(project.id, db)
     job = await redis_pool.enqueue_job(
         "process_all_drone_images",

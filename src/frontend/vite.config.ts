@@ -43,6 +43,20 @@ export default defineConfig({
   build: {
     target: 'esnext',
     sourcemap: process.env.NODE_ENV === 'development',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split large vendor dependencies into separate cacheable chunks
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-redux': [
+            '@reduxjs/toolkit',
+            'react-redux',
+            'redux-persist',
+          ],
+          'vendor-map': ['maplibre-gl'],
+        },
+      },
+    },
   },
   define: {
     'process.env': {

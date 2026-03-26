@@ -60,7 +60,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
               id={`${option.value}-${name}`}
               name={option.name}
               value={option.value}
-              className={`naxatw-cursor-pointer naxatw-accent-red ${
+              className={`naxatw-appearance-none naxatw-h-4 naxatw-w-4 naxatw-min-h-4 naxatw-min-w-4 naxatw-rounded-full naxatw-border-2 naxatw-border-[#555] naxatw-bg-white naxatw-transition-colors checked:naxatw-border-red checked:naxatw-shadow-[inset_0_0_0_3px_#D73F3F] focus-visible:naxatw-outline focus-visible:naxatw-outline-2 focus-visible:naxatw-outline-offset-2 focus-visible:naxatw-outline-red naxatw-cursor-pointer ${
                 option?.disabled === true ? 'naxatw-cursor-not-allowed' : ''
               }`}
               onChange={e => {

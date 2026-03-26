@@ -134,8 +134,8 @@ services:
   frontend:
     image: ghcr.io/hotosm/drone-tm/frontend:${GIT_BRANCH:-main}
     build:
-      context: src/frontend
-      dockerfile: Dockerfile
+      context: src
+      dockerfile: frontend/Dockerfile
       target: prod
     volumes:
       - frontend-html:/frontend_html

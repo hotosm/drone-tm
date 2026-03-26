@@ -1,7 +1,7 @@
 import { Grid } from '@Components/common/Layouts';
 import Image from '@Components/RadixComponents/Image';
 import { motion } from 'framer-motion';
-import droneImage from '@Assets/images/LandingPage/DroneImage.png';
+import droneImage from '@Assets/images/LandingPage/DroneImage.webp';
 import { aboutData } from '@Constants/landingPage';
 import {
   containerAnimationVariant,

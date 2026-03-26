@@ -19,6 +19,8 @@ existingSecret:
 # Optional (depending on features you use):
 # - SMTP_PASSWORD (if email enabled)
 # - SENTRY_DSN (if MONITORING=sentry)
+#
+# For frontend.mode=cloudfront, see frontend.cloudfront.roleArn (IRSA, no static keys needed).
 extraEnvFrom: []
 env: {}
 # # See an exhaustive list of env var options in the documentation.
@@ -119,19 +121,46 @@ migrations:
   # Optional extra annotations for the migrations Job.
   annotations: {}
 
-frontendAssets:
-  # Uses the frontend image as an initContainer to populate backend templates (the frontend image exits after syncing).
-  enabled: true
+# Frontend deployment configuration.
+# Two mutually exclusive modes:
+#   "bundleWithBackend" - init container syncs built frontend into the backend pod (default, good for local dev).
+#   "cloudfront"        - Helm Job syncs frontend to S3 + CloudFront (production CDN deployment).
+frontend:
   image:
     repository: ghcr.io/hotosm/drone-tm/frontend
     tag: ""
     pullPolicy: IfNotPresent
-  # Runtime config injected into `/config.js` at pod start by the frontend initContainer.
-  # Defaults are chosen so the app works across domains without rebuilds:
-  # - VITE_API_URL defaults to `/api` (same-origin, path-based)
+  # Runtime config injected into `/config.js` at pod start.
+  # VITE_API_URL defaults to `/api` (same-origin, path-based).
   runtimeEnv: {}
-  # runtimeEnv:
   #   VITE_API_URL: "/api"
+
+  mode: "bundleWithBackend"
+
+  # ── Settings for mode: cloudfront ──────────────────────────────────────
+  cloudfront:
+    # ARN of an IAM role for IRSA. The chart annotates the ServiceAccount
+    # so the deploy Job picks up temporary credentials automatically.
+    roleArn: ""
+    region: "us-east-1"
+    s3Bucket: ""  # Required, e.g. "drone-tm-frontend"
+    # S3 path prefix - each deploy uploads to <version>/.
+    # Defaults to .Chart.AppVersion. To rollback, set to an older version.
+    version: ""
+    # Only used when auto-creating a new distribution:
+    aliases: []                 # e.g. ["tasks.hotosm.org"]
+    acmCertificateArn: ""       # Required when aliases are set.
+    # Difference between:
+    # - _100 (USA, Canada, Europe, and Israel)
+    # - _200 (+ Africa, Middle East, most of Asia)
+    # - _All (all edge locations, including South America and Australia)
+    # is negligible at our current traffic levels. If we scale to significantly higher
+    # traffic (especially GB transferred or users in higher-cost regions), we can revisit.
+    priceClass: "PriceClass_All"
+    awsCliImage:
+      repository: docker.io/amazon/aws-cli
+      tag: "2.34.17"
+      pullPolicy: IfNotPresent
 
 worker:
   # Uses the same envFrom + env as backend

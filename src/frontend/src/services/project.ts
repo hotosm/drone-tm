@@ -16,13 +16,13 @@ export const getRequestedTasks = () =>
 
 export const processAllImagery = (data: Record<string, any>) => {
   const { projectId } = data;
-  if (data?.gcp_file) {
-    return authenticated(api).post(
-      `/projects/process_all_imagery/${projectId}/`,
-      { gcp_file: data.gcp_file },
-    );
-  }
   return authenticated(api).post(`/projects/process_all_imagery/${projectId}/`);
+};
+
+export const saveGcpFile = (data: { projectId: string; gcp_file: File }) => {
+  const formData = new FormData();
+  formData.append('gcp_file', data.gcp_file);
+  return authenticated(api).post(`/gcp/save/${data.projectId}/`, formData);
 };
 
 export const deleteProject = (projectId: string) =>

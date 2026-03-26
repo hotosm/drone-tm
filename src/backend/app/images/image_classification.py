@@ -395,7 +395,8 @@ class ImageClassifier:
             )
         elif gimbal_angle is not None and gimbal_angle > Q.max_gimbal_pitch_deg:
             issues.append(
-                f"Camera must point down (gimbal pitch <= {Q.max_gimbal_pitch_deg:.0f}°), got {gimbal_angle:.0f}°"
+                f"Camera must point down (gimbal pitch {Q.max_gimbal_pitch_deg:.0f}°"
+                f" from horizon), got {gimbal_angle:.0f}°"
             )
             log.debug(
                 f"Gimbal check FAILED: image_id={image_id} angle={gimbal_angle:.1f} max={Q.max_gimbal_pitch_deg:.0f}"

@@ -118,7 +118,7 @@ class CORSHeaderMiddleware(BaseHTTPMiddleware):
 
 def get_application() -> FastAPI:
     """Get the FastAPI app instance, with settings."""
-    api_prefix = "/api"
+    api_prefix = settings.API_PREFIX
     _app = FastAPI(
         title=settings.APP_NAME,
         description="HOTOSM Drone Tasking Manager",
@@ -150,7 +150,7 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["Content-Disposition"],
     )
-    # All API routes live under `/api/*` so Kubernetes ingress can route `/api` without rewrites.
+    # All API routes live under the configured prefix (default `/api`).
     _app.include_router(drone_routes.router, prefix=api_prefix)
     _app.include_router(project_routes.router, prefix=api_prefix)
     _app.include_router(classification_routes.router, prefix=api_prefix)
@@ -240,7 +240,7 @@ async def home(request: Request):
         )
     except Exception:
         """Fall back if tempalate missing. Redirect home to docs."""
-        return RedirectResponse("/api/docs")
+        return RedirectResponse(f"{settings.API_PREFIX}/docs")
 
 
 @api.get("/config.js")

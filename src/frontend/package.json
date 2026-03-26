@@ -1,6 +1,6 @@
 {
   "name": "drone-tm",
-  "version": "2025.5.0",
+  "version": "2026.1.1",
   "private": true,
   "license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "scripts": {
@@ -14,9 +14,10 @@
   "dependencies": {
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
-    "@hotosm/gcp-editor": "^0.0.9",
+    "@hotosm/gcp-editor": "workspace:*",
     "@hotosm/hanko-auth": "^0.5.2",
     "@hotosm/tool-menu": "^0.2.6",
+    "@hotosm/ui": "^0.9.0",
     "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",
     "@radix-ui/react-popover": "^1.1.6",
@@ -39,10 +40,10 @@
     "@turf/length": "^7.2.0",
     "@turf/meta": "^7.2.0",
     "@turf/transform-rotate": "^7.2.0",
-    "@uppy/aws-s3": "^5.0.1",
-    "@uppy/core": "^5.1.0",
-    "@uppy/dashboard": "^5.0.3",
-    "@uppy/react": "^5.1.0",
+    "@uppy/aws-s3": "^5.1.0",
+    "@uppy/core": "^5.2.0",
+    "@uppy/dashboard": "^5.1.1",
+    "@uppy/react": "^5.2.0",
     "@yume-chan/adb": "^2.1.0",
     "@yume-chan/adb-credential-web": "^2.1.0",
     "@yume-chan/adb-daemon-webusb": "^2.1.0",
@@ -103,7 +104,7 @@
     "vite": "^5.4.11"
   },
   "peerDependencies": {
-    "@hotosm/ui": "0.2.0-b6"
+    "@awesome.me/webawesome": "3.2.1"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
