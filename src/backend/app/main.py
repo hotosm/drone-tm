@@ -29,7 +29,7 @@ from app.waypoints import waypoint_routes
 
 # Import auth initialization for Hanko SSO
 from hotosm_auth import AuthConfig
-from hotosm_auth_fastapi import init_auth, create_admin_mappings_router_psycopg
+from hotosm_auth_fastapi import init_auth, create_admin_mappings_router_psycopg, osm_router
 
 root = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
@@ -181,6 +181,9 @@ def get_application() -> FastAPI:
         user_email_column="email_address",
     )
     _app.include_router(admin_router, prefix="/api")
+
+    # OSM OAuth router for account linking
+    _app.include_router(osm_router, prefix="/api")
 
     return _app
 
