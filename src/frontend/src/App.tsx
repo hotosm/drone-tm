@@ -72,27 +72,22 @@ export default function App() {
   }, [pathname]);
 
   // Listen for Hanko logout event and clean localStorage
+  // Listen on document level since the event bubbles up from hotosm-auth component
   useEffect(() => {
     const handleHankoLogout = () => {
       // Clean authentication-related localStorage items
       localStorage.removeItem('token');
       localStorage.removeItem('userprofile');
       localStorage.removeItem('signedInAs');
-      console.log('🧹 localStorage cleaned after Hanko logout');
+      console.log('[App] localStorage cleaned after Hanko logout');
     };
 
-    // Find the hotosm-auth component and listen to its logout event
-    const authComponent = document.querySelector('hotosm-auth');
-    if (authComponent) {
-      authComponent.addEventListener('logout', handleHankoLogout as EventListener);
+    document.addEventListener('logout', handleHankoLogout);
 
-      // Cleanup on unmount
-      return () => {
-        authComponent.removeEventListener('logout', handleHankoLogout as EventListener);
-      };
-    }
-    return undefined;
-  }, [pathname]); // Re-run when pathname changes to re-attach listener if component remounts
+    return () => {
+      document.removeEventListener('logout', handleHankoLogout);
+    };
+  }, []);
   const showModal = useTypedSelector(state => state.common.showModal);
   const modalContent = useTypedSelector(state => state.common.modalContent);
   const showPromptDialog = useTypedSelector(

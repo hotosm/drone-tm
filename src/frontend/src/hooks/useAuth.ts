@@ -7,51 +7,47 @@ const devLog = (...args: any[]) => {
 
 export default function useAuth() {
   const isAuthenticated = () => {
-    devLog('🔍 useAuth.isAuthenticated() called');
+    devLog('[useAuth] isAuthenticated() called');
 
     // Check for legacy OAuth token
     const token = localStorage.getItem('token');
-    devLog('  token:', token ? 'EXISTS' : 'NOT FOUND');
+    devLog('[useAuth] token:', token ? 'EXISTS' : 'NOT FOUND');
     if (token) {
-      devLog('  ✅ Authenticated via legacy token');
+      devLog('[useAuth] Authenticated via legacy token');
       return true;
     }
 
     // Check for Hanko cookie (SSO authentication)
     const allCookies = document.cookie;
-    devLog('  All cookies:', allCookies);
+    devLog('[useAuth] All cookies:', allCookies);
     const hankoCookie = document.cookie
       .split('; ')
       .find(row => row.startsWith('hanko='));
-    devLog('  hanko cookie:', hankoCookie ? 'EXISTS' : 'NOT FOUND');
+    devLog('[useAuth] hanko cookie:', hankoCookie ? 'EXISTS' : 'NOT FOUND');
 
     if (hankoCookie) {
-      // Valid Hanko session exists
-      devLog('  ✅ Authenticated via Hanko cookie');
+      devLog('[useAuth] Authenticated via Hanko cookie');
       return true;
     }
 
     // Check for Hanko SSO userprofile in localStorage
     const userprofile = localStorage.getItem('userprofile');
-    devLog('  userprofile:', userprofile ? 'EXISTS' : 'NOT FOUND');
+    devLog('[useAuth] userprofile:', userprofile ? 'EXISTS' : 'NOT FOUND');
     if (userprofile) {
       try {
         const profile = JSON.parse(userprofile);
-        devLog('  userprofile.id:', profile?.id);
-        // Verify it has user ID (basic validation)
+        devLog('[useAuth] userprofile.id:', profile?.id);
         if (profile?.id) {
-          // Trust localStorage if it exists and has valid user ID
-          // The backend validated the JWT when creating this profile
-          devLog('  ✅ Authenticated via userprofile in localStorage');
+          devLog('[useAuth] Authenticated via userprofile in localStorage');
           return true;
         }
       } catch (err) {
-        devLog('  ❌ Error parsing userprofile:', err);
+        devLog('[useAuth] Error parsing userprofile:', err);
         return false;
       }
     }
 
-    devLog('  ❌ Not authenticated');
+    devLog('[useAuth] Not authenticated');
     return false;
   };
   return { isAuthenticated };
