@@ -8,6 +8,8 @@ import Icon from '../Icon';
 import Drawer from '../Drawer';
 import '@hotosm/tool-menu';
 import { getRuntimeConfig } from '@/runtimeConfig';
+import { useGetUserDetailsQuery } from '@Api/projects';
+import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 // Import Hanko web component when using SSO
 const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
@@ -29,6 +31,13 @@ export default function Navbar() {
 
   // Get user role for Hanko auth callback
   const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
+
+  // For Hanko SSO: fetch user profile to keep localStorage in sync
+  // (In legacy auth, UserProfile component handles this)
+  const userProfile = getLocalStorageValue('userprofile');
+  useGetUserDetailsQuery({
+    enabled: AUTH_PROVIDER === 'hanko' && !!userProfile?.id,
+  });
   // Build return URL for Hanko SSO that goes through /hanko-auth callback
   const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
 
