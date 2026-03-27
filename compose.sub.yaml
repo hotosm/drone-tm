@@ -80,7 +80,12 @@ services:
       SERVER_NAME: ${DOMAIN}
       ${DOMAIN}_REVERSE_PROXY_HOST: http://backend:8000
       ${DOMAIN}_REVERSE_PROXY_URL: /api
-      ${DOMAIN}_ERRORS=404: /index.html
+      # SPA routing: serve index.html for unknown routes (client-side routing)
+      ${DOMAIN}_CUSTOM_CONF_SERVER_HTTP_spa: |
+        location / {
+          root /var/www/html/${DOMAIN};
+          try_files $$uri $$uri/ /index.html;
+        }
     ports:
       - 80:8080
       - 443:8443
@@ -90,6 +95,9 @@ services:
 
   backend:
     image: ghcr.io/hotosm/drone-tm/backend:${GIT_BRANCH:-main}
+    build:
+      context: src/backend
+      dockerfile: Dockerfile
     restart: always
     depends_on:
       db:
