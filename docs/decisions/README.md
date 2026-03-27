@@ -12,3 +12,4 @@ from the projects inception.
 - [0001 - FastAPI for Backend API](./0001-fastapi.md)
 - [0002 - Flightplan Upload Options](./0002-flightplan-upload.md)
 - [0003 - Storage And Processing Options](./0003-aws-storage-processing.md)
+- [0004 - QField Mobile Plugin For Flightplans](./0004-mobile-qfield-plugin.md)
