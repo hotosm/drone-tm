@@ -8,13 +8,6 @@ import { getRuntimeConfig } from '@/runtimeConfig';
 
 const BASE_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
-// Development-only logger (logs disabled in production builds)
-const devLog = (...args: any[]) => {
-  if (import.meta.env.DEV) {
-    console.log(...args);
-  }
-};
-
 /**
  * HankoAuth - Callback component after Portal SSO login
  *
@@ -45,20 +38,14 @@ function HankoAuth() {
 
   useEffect(() => {
     const loginRedirect = async () => {
-      devLog('[HankoAuth] Starting authentication process...');
-      devLog('[HankoAuth] signedInAs:', signedInAs);
-
       // Check if user was already logged in (to avoid showing toast on return from Portal)
       const wasAlreadyLoggedIn = !!localStorage.getItem('userprofile');
-      devLog('[HankoAuth] wasAlreadyLoggedIn:', wasAlreadyLoggedIn);
 
       // Clear any existing user data to prevent stale data from previous session
-      devLog('[HankoAuth] Clearing previous user data from localStorage...');
       localStorage.removeItem('userprofile');
       localStorage.removeItem('token'); // Legacy OAuth token
 
       // Clear TanStack Query cache to prevent showing previous user's data
-      devLog('[HankoAuth] Clearing TanStack Query cache...');
       queryClient.clear();
 
       try {
@@ -66,24 +53,19 @@ function HankoAuth() {
         // Call /my-info/ which uses login_required (overridden for Hanko)
         // This validates JWT, creates/maps user, and returns complete profile
         const userDetailsUrl = `${BASE_URL}/users/my-info/`;
-        devLog('[HankoAuth] Calling:', userDetailsUrl);
 
         const userDetailsResponse = await fetch(userDetailsUrl, {
           credentials: 'include', // Include Hanko JWT cookie
         });
-
-        devLog('[HankoAuth] Response status:', userDetailsResponse.status);
 
         if (!userDetailsResponse.ok) {
           throw new Error('Failed to authenticate. Please try logging in again.');
         }
 
         const userDetails = await userDetailsResponse.json();
-        devLog('[HankoAuth] User profile data:', userDetails);
 
         // Store user profile in localStorage (matching GoogleAuth flow)
-        const userDetailsString = JSON.stringify(userDetails);
-        localStorage.setItem('userprofile', userDetailsString);
+        localStorage.setItem('userprofile', JSON.stringify(userDetails));
 
         // Navigate based on user profile completion
         // If user has completed profile with ANY role, allow access
@@ -93,10 +75,8 @@ function HankoAuth() {
           Array.isArray(userDetails.role) &&
           userDetails.role.length > 0
         ) {
-          devLog('[HankoAuth] User has complete profile, navigating to /projects');
           navigate('/projects');
         } else {
-          devLog('[HankoAuth] User needs to complete profile, navigating to /complete-profile');
           navigate('/complete-profile');
         }
 

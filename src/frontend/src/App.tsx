@@ -34,12 +34,9 @@ export default function App() {
   // Listen for Hanko login event and fetch user profile
   useEffect(() => {
     const handleHankoLogin = async () => {
-      console.log('🔐 Hanko login detected, fetching user profile...');
-
       // Check if we already have userprofile to avoid duplicate calls
       const existingProfile = localStorage.getItem('userprofile');
       if (existingProfile) {
-        console.log('✅ User profile already exists in localStorage');
         return;
       }
 
@@ -54,9 +51,8 @@ export default function App() {
 
         const userDetails = await response.json();
         localStorage.setItem('userprofile', JSON.stringify(userDetails));
-        console.log('✅ User profile saved to localStorage');
       } catch (error) {
-        console.error('❌ Failed to fetch user profile:', error);
+        console.error('[App] Failed to fetch user profile:', error);
       }
     };
 
@@ -75,11 +71,9 @@ export default function App() {
   // Listen on document level since the event bubbles up from hotosm-auth component
   useEffect(() => {
     const handleHankoLogout = () => {
-      // Clean authentication-related localStorage items
       localStorage.removeItem('token');
       localStorage.removeItem('userprofile');
       localStorage.removeItem('signedInAs');
-      console.log('[App] localStorage cleaned after Hanko logout');
     };
 
     document.addEventListener('logout', handleHankoLogout);
