@@ -4,8 +4,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Flex } from '@Components/common/Layouts';
 import { toast } from 'react-toastify';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 // Development-only logger (logs disabled in production builds)
 const devLog = (...args: any[]) => {
