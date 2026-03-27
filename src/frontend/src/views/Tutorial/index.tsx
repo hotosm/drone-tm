@@ -13,22 +13,12 @@ import {
 import { IVideoTutorialItems, videoTutorialData } from '@Constants/tutorials';
 import { Link } from 'react-router-dom';
 import Icon from '@Components/common/Icon';
-import { useQuery } from '@tanstack/react-query';
-import { getPublicPresignedUrl } from '@Services/public';
 
 const Tutorials = () => {
   const [isVideoBoxVisible, setIsVideoBoxVisible] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<IVideoTutorialItems | null>(
     null,
   );
-
-  const { data: currentVideoUrl } = useQuery({
-    queryKey: ['public-presigned-url', currentVideo?.videoKey],
-    enabled: !!currentVideo?.videoKey,
-    queryFn: async () => {
-      return await getPublicPresignedUrl(currentVideo!.videoKey);
-    },
-  });
 
   const springs = useSpring({
     from: { y: 100 },
@@ -138,9 +128,9 @@ const Tutorials = () => {
                 initial="hidden"
                 animate={isVideoBoxVisible ? 'show' : 'hidden'}
               >
-                {currentVideo && currentVideoUrl && (
+                {currentVideo && (
                   <VideoPlayer
-                    src={currentVideoUrl}
+                    src={currentVideo.videoUrl}
                     title={currentVideo.title}
                   />
                 )}
