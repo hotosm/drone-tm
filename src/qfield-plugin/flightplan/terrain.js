@@ -9,13 +9,15 @@
 
 // Add altitude and speed properties to waypoints based on elevation data
 // Adjusts altitude relative to base elevation at first waypoint
-function createPlacemarks(waypointsGeojson, parameters) {
+function createPlacemarks(waypointsGeojson, parameters, takeoffElevation) {
     var groundSpeed = parameters.ground_speed;
     var agl = parameters.altitude_above_ground_level;
     var features = waypointsGeojson.features;
 
     var baseElevation = 0;
-    if (features.length > 0) {
+    if (takeoffElevation !== null && takeoffElevation !== undefined && !isNaN(takeoffElevation)) {
+        baseElevation = takeoffElevation;
+    } else if (features.length > 0) {
         var firstCoords = features[0].geometry.coordinates;
         if (firstCoords.length > 2) {
             baseElevation = firstCoords[2];

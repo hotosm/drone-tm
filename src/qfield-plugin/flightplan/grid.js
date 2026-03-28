@@ -72,7 +72,8 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
             var y = miny + yi * ySpacing;
 
             // Rotate point back to original coordinate system
-            var rotated = Geo.rotatePoint(x, y, centroid.x, centroid.y, -rotationAngle);
+            // NOTE: Uses rotationAngle (not negated) to match Python Shapely rotate() convention
+            var rotated = Geo.rotatePoint(x, y, centroid.x, centroid.y, rotationAngle);
 
             // Alternate flight direction between waylines
             var angle = (currentAxis === "x") ? -90 : 90;
@@ -121,7 +122,7 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
 
             for (var cxi = 0; cxi < xpoints; cxi++) {
                 var cx = minx + cxi * xSpacing;
-                var rotPt = Geo.rotatePoint(cx, newY, centroid.x, centroid.y, -rotationAngle);
+                var rotPt = Geo.rotatePoint(cx, newY, centroid.x, centroid.y, rotationAngle);
 
                 if (Geo.pointInPolygon(rotPt.x, rotPt.y, bufferedPoly)) {
                     // Check for duplicates

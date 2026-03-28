@@ -21,6 +21,11 @@ Item {
   property string lastKmzPath: ""
   property var lastKmzData: null
 
+  // Takeoff point state
+  property var takeoffPoint: null  // {lon, lat} or null
+  property bool placingTakeoff: false
+  property var positionSource: iface.findItemByObjectName('positionSource')
+
   // --- Toolbar Button ---
   QfToolButton {
     id: dronetmButton
@@ -75,6 +80,7 @@ Item {
   FlightplanDialog {
     id: flightplanDialog
     taskLayer: plugin.taskLayer
+    takeoffPoint: plugin.takeoffPoint
 
     onGenerateRequested: function(config) {
       generateFlightplan(config)
@@ -83,11 +89,46 @@ Item {
     onCopyToControllerRequested: {
       copyToFlightController()
     }
+
+    onUseGpsTakeoff: {
+      setTakeoffFromGps()
+    }
+
+    onPlaceMapTakeoff: {
+      setTakeoffFromMap()
+    }
+
+    onClearTakeoff: {
+      takeoffPoint = null
+      flightplanDialog.takeoffPoint = null
+    }
   }
 
   // --- ExpressionEvaluator for DEM sampling ---
   ExpressionEvaluator {
     id: demEvaluator
+  }
+
+  // --- Map tap handler for placing takeoff point ---
+  Connections {
+    target: mapCanvas
+    function onClicked(point) {
+      if (!placingTakeoff) return
+      placingTakeoff = false
+
+      var wgs84Crs = CoordinateReferenceSystemUtils.fromDescription("EPSG:4326")
+      var mapCrs = mapCanvas.mapSettings.destinationCrs
+      var mapPoint = mapCanvas.mapSettings.screenToCoordinate(point)
+      var projected = GeometryUtils.reprojectPoint(
+        GeometryUtils.point(mapPoint.x, mapPoint.y), mapCrs, wgs84Crs
+      )
+
+      takeoffPoint = { lon: projected.x, lat: projected.y }
+      flightplanDialog.takeoffPoint = takeoffPoint
+      mainWindow.displayToast(qsTr('Takeoff point set'))
+      flightplanDialog.populateTaskList()
+      flightplanDialog.open()
+    }
   }
 
   // --- Core Functions ---
@@ -110,6 +151,26 @@ Item {
         log("Found object '" + names[i] + "' with methods: " + methods.join(', '))
       }
     }
+  }
+
+  function setTakeoffFromGps() {
+    if (!positionSource || !positionSource.active ||
+        !positionSource.positionInformation.latitudeValid) {
+      mainWindow.displayToast(qsTr('GPS not available'))
+      return
+    }
+    takeoffPoint = {
+      lon: positionSource.positionInformation.longitude,
+      lat: positionSource.positionInformation.latitude
+    }
+    flightplanDialog.takeoffPoint = takeoffPoint
+    mainWindow.displayToast(qsTr('Takeoff point set from GPS'))
+  }
+
+  function setTakeoffFromMap() {
+    placingTakeoff = true
+    flightplanDialog.close()
+    mainWindow.displayToast(qsTr('Tap map to set takeoff point'))
   }
 
   function findTaskLayer() {
@@ -258,6 +319,23 @@ Item {
       return
     }
 
+    // Sample DEM at takeoff point if set
+    var takeoffElevation = null
+    if (config.takeoffPoint) {
+      var tLon = config.takeoffPoint.lon
+      var tLat = config.takeoffPoint.lat
+      demEvaluator.expressionText =
+        "raster_value('" + demLayerName + "', 1, " +
+        "transform(make_point(" + tLon + "," + tLat + "), 'EPSG:4326', layer_property('" + demLayerName + "', 'crs')))"
+      var tElev = demEvaluator.evaluate()
+      if (tElev !== null && tElev !== undefined && !isNaN(tElev) && tElev > -9999) {
+        takeoffElevation = tElev
+        log("Takeoff elevation from DEM: " + takeoffElevation + " at " + tLon.toFixed(6) + "," + tLat.toFixed(6))
+      } else {
+        log("Could not sample DEM at takeoff point (" + tLon.toFixed(6) + "," + tLat.toFixed(6) + "), using first waypoint")
+      }
+    }
+
     log("Sampling DEM from " + demLayerName + " for " + features.length + " waypoints")
 
     var sampledCount = 0
@@ -287,7 +365,7 @@ Item {
 
     // Apply terrain-following altitude adjustments, then convert to waylines if needed
     var placemarks = Flightplan.applyTerrainFollowing(
-      geojson, result.parameters, flightMode
+      geojson, result.parameters, flightMode, takeoffElevation
     )
     log("After terrain following: " + placemarks.features.length + " features (mode=" + flightMode + ")")
     outputFlightplan(placemarks, config, taskId)
@@ -356,13 +434,13 @@ Item {
       flightplanDialog.generationState = "error"
       try {
         platformUtilities.copyTextToClipboard(wpmlXml)
-        flightplanDialog.resultMessage = qsTr('File write failed — WPML copied to clipboard')
+        flightplanDialog.resultMessage = qsTr('File write failed - WPML copied to clipboard')
         mainWindow.displayToast(
           qsTr('File write failed - WPML copied to clipboard. Paste into %1.wpml').arg(filename)
         )
       } catch (e) {
         log("Clipboard copy also failed: " + e)
-        flightplanDialog.resultMessage = qsTr('File write failed — could not copy to clipboard either')
+        flightplanDialog.resultMessage = qsTr('File write failed - could not copy to clipboard either')
         mainWindow.displayToast(qsTr('File write failed - check app storage permissions'))
       }
     }
@@ -514,7 +592,7 @@ Item {
     // No DJI path found
     log("Could not find DJI waypoint directory on any storage")
     mainWindow.displayToast(
-      qsTr('DJI controller not found — see transfer options below')
+      qsTr('DJI controller not found - see transfer options below')
     )
     flightplanDialog.generationState = "transfer_failed"
     flightplanDialog.resultMessage = qsTr(

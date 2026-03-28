@@ -14,6 +14,8 @@ QfDialog {
   property int droneTypeIndex: 0
   property int gimbalAngleIndex: 0
   property int flightModeIndex: 0
+  property bool autoRotation: true
+  property int rotationAngle: 0
 
   // Manager-configured values (injected via pyQGIS project variables, not shown in UI)
   property real forwardOverlap: 75
@@ -22,8 +24,14 @@ QfDialog {
   property real gsd: 3.5
   property bool useGsd: true
 
+  // Takeoff point (set from parent)
+  property var takeoffPoint: null
+
   signal generateRequested(var config)
   signal copyToControllerRequested()
+  signal useGpsTakeoff()
+  signal placeMapTakeoff()
+  signal clearTakeoff()
 
   // Post-generation state
   property string generationState: "idle"  // "idle", "done", "error"
@@ -119,6 +127,75 @@ QfDialog {
         color: Theme.mainTextDisabledColor
       }
 
+      // --- Takeoff Point ---
+      Label {
+        text: qsTr("Takeoff Point")
+        font.bold: true
+        font.pixelSize: Theme.defaultFont.pixelSize * 1.1
+        color: Theme.mainTextColor
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+
+        QfButton {
+          Layout.fillWidth: true
+          text: qsTr("Use GPS")
+          onClicked: useGpsTakeoff()
+        }
+
+        QfButton {
+          Layout.fillWidth: true
+          text: qsTr("Place on Map")
+          onClicked: placeMapTakeoff()
+        }
+      }
+
+      Label {
+        text: {
+          if (flightplanDialog.takeoffPoint) {
+            return qsTr("Takeoff: %1, %2")
+              .arg(flightplanDialog.takeoffPoint.lon.toFixed(6))
+              .arg(flightplanDialog.takeoffPoint.lat.toFixed(6))
+          }
+          return qsTr("Not set - will use first waypoint")
+        }
+        font.pixelSize: Theme.defaultFont.pixelSize * 0.9
+        font.italic: true
+        color: flightplanDialog.takeoffPoint ? Theme.mainTextColor : Theme.mainTextDisabledColor
+        wrapMode: Text.WordWrap
+        Layout.fillWidth: true
+
+        MouseArea {
+          anchors.fill: parent
+          visible: flightplanDialog.takeoffPoint !== null
+          cursorShape: Qt.PointingHandCursor
+          onClicked: clearTakeoff()
+        }
+
+        Label {
+          visible: flightplanDialog.takeoffPoint !== null
+          anchors.right: parent.right
+          text: qsTr("Clear")
+          font.pixelSize: Theme.defaultFont.pixelSize * 0.85
+          font.underline: true
+          color: "#C53639"
+
+          MouseArea {
+            anchors.fill: parent
+            onClicked: clearTakeoff()
+          }
+        }
+      }
+
+      // --- Separator ---
+      Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 1
+        color: Theme.mainTextDisabledColor
+      }
+
       // --- Drone Model ---
       Label {
         text: qsTr("Drone Model")
@@ -171,6 +248,39 @@ QfDialog {
         Layout.fillWidth: true
         model: ["Waypoints"]
         currentIndex: 0
+      }
+
+      // --- Grid Rotation ---
+      Label {
+        text: qsTr("Grid Rotation")
+        font: Theme.defaultFont
+        color: Theme.mainTextColor
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+
+        CheckBox {
+          id: autoRotationCheck
+          text: qsTr("Auto")
+          checked: flightplanDialog.autoRotation
+          onCheckedChanged: flightplanDialog.autoRotation = checked
+        }
+
+        SpinBox {
+          id: rotationSpinBox
+          Layout.fillWidth: true
+          from: 0
+          to: 359
+          stepSize: 5
+          value: flightplanDialog.rotationAngle
+          enabled: !autoRotationCheck.checked
+          opacity: enabled ? 1.0 : 0.4
+          onValueModified: flightplanDialog.rotationAngle = value
+          textFromValue: function(value) { return value + "\u00B0" }
+          valueFromText: function(text) { return parseInt(text) || 0 }
+        }
       }
 
       // --- Flight config summary (read-only, from project settings) ---
@@ -231,7 +341,10 @@ QfDialog {
             sideOverlap: flightplanDialog.sideOverlap,
             agl: flightplanDialog.useGsd ? null : flightplanDialog.altitude,
             gsd: flightplanDialog.useGsd ? flightplanDialog.gsd : null,
-            demLayer: hasDem ? demLayerCombo.currentText : null
+            demLayer: hasDem ? demLayerCombo.currentText : null,
+            takeoffPoint: flightplanDialog.takeoffPoint,
+            rotationAngle: autoRotationCheck.checked ? 0 : rotationSpinBox.value,
+            autoRotation: autoRotationCheck.checked
           };
 
           saveSettings();
@@ -396,6 +509,17 @@ QfDialog {
       var hasDem = demLayerCombo.currentIndex > 0;
       var effectiveIndex = hasDem ? flightModeCombo.currentIndex : 1; // 1 = waypoints in full list
       projectInfo.saveVariable("dtm_flight_mode", effectiveIndex);
+
+      projectInfo.saveVariable("dtm_auto_rotation", autoRotation ? 1 : 0);
+      projectInfo.saveVariable("dtm_rotation_angle", rotationAngle);
+
+      if (takeoffPoint) {
+        projectInfo.saveVariable("dtm_takeoff_lon", takeoffPoint.lon);
+        projectInfo.saveVariable("dtm_takeoff_lat", takeoffPoint.lat);
+      } else {
+        projectInfo.saveVariable("dtm_takeoff_lon", "");
+        projectInfo.saveVariable("dtm_takeoff_lat", "");
+      }
     }
   }
 
@@ -409,6 +533,10 @@ QfDialog {
     if (variables["dtm_drone_type"] !== undefined) droneTypeIndex = parseInt(variables["dtm_drone_type"]) || 0;
     if (variables["dtm_gimbal_angle"] !== undefined) gimbalAngleIndex = parseInt(variables["dtm_gimbal_angle"]) || 0;
     if (variables["dtm_flight_mode"] !== undefined) flightModeIndex = parseInt(variables["dtm_flight_mode"]) || 0;
+    if (variables["dtm_auto_rotation"] !== undefined)
+        autoRotation = parseInt(variables["dtm_auto_rotation"]) !== 0;
+    if (variables["dtm_rotation_angle"] !== undefined)
+        rotationAngle = parseInt(variables["dtm_rotation_angle"]) || 0;
 
     // Manager-injected flight parameters
     if (variables["dtm_forward_overlap"] !== undefined) forwardOverlap = parseFloat(variables["dtm_forward_overlap"]) || 75;
@@ -427,6 +555,13 @@ QfDialog {
       useGsd = false;
     }
     // else: keep defaults (GSD 3.5 cm/px)
+
+    // Restore takeoff point
+    var tLon = parseFloat(variables["dtm_takeoff_lon"]);
+    var tLat = parseFloat(variables["dtm_takeoff_lat"]);
+    if (!isNaN(tLon) && !isNaN(tLat) && tLon !== 0 && tLat !== 0) {
+      takeoffPoint = { lon: tLon, lat: tLat };
+    }
 
     iface.logMessage("DroneTM: Config loaded - " +
       (useGsd ? "GSD: " + gsd + " cm/px" : "AGL: " + altitude + "m") +

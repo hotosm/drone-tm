@@ -40,6 +40,7 @@ function generate(polygonCoords, config) {
     var forwardOverlap = config.forwardOverlap || 70;
     var sideOverlap = config.sideOverlap || 70;
     var rotationAngle = config.rotationAngle || 0;
+    var autoRotation = (config.autoRotation !== undefined) ? config.autoRotation : true;
     var flightMode = config.flightMode || Specs.FlightMode.WAYLINES;
     var droneType = config.droneType || Specs.DroneType.DJI_MINI_4_PRO;
     var gimbalAngle = config.gimbalAngle || Specs.GimbalAngle.OFF_NADIR;
@@ -67,8 +68,8 @@ function generate(polygonCoords, config) {
         poly3857.push({ x: projected.x, y: projected.y });
     }
 
-    // Auto-calculate rotation angle if not specified (0 or 360)
-    if (rotationAngle === 0 || rotationAngle === 360) {
+    // Auto-calculate rotation angle if enabled
+    if (autoRotation && (rotationAngle === 0 || rotationAngle === 360)) {
         rotationAngle = Grid.calculateOptimalRotationAngle(poly3857);
     }
 
@@ -163,15 +164,16 @@ function generate(polygonCoords, config) {
 //   geojson - FeatureCollection with elevation in coordinates[2]
 //   parameters - flight parameters from generate()
 //   flightMode - "waylines" or "waypoints"
+//   takeoffElevation - DEM elevation at takeoff point (null to use first waypoint)
 //   threshold - AGL deviation threshold for terrain following (default 5m)
 //
 // Returns:
 //   Updated GeoJSON FeatureCollection with altitude/speed properties
-function applyTerrainFollowing(geojson, parameters, flightMode, threshold) {
+function applyTerrainFollowing(geojson, parameters, flightMode, takeoffElevation, threshold) {
     if (threshold === undefined) threshold = 5;
 
     // Add altitude/speed properties based on elevation
-    var placemarks = Terrain.createPlacemarks(geojson, parameters);
+    var placemarks = Terrain.createPlacemarks(geojson, parameters, takeoffElevation);
 
     // For waylines mode, simplify to terrain-aware waylines
     // This removes intermediate points while maintaining AGL within threshold
