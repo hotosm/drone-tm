@@ -242,10 +242,18 @@ Item {
       return
     }
 
-    // Highlight selected task
+    // Highlight selected task and pan map to its extent
     if (geometryHighlighter) {
       geometryHighlighter.geometryWrapper.qgsGeometry = geom
       geometryHighlighter.geometryWrapper.crs = taskLayer.crs
+    }
+    try {
+      var extent = GeometryUtils.reprojectRectangle(
+        geom.boundingBox(), taskLayer.crs, mapCanvas.mapSettings.destinationCrs
+      )
+      mapCanvas.mapSettings.extent = extent
+    } catch (e) {
+      log("Could not pan to task extent: " + e)
     }
 
     log("Generating with config: " + JSON.stringify(config))
@@ -417,6 +425,9 @@ Item {
       flightplanDialog.generationState = "done"
       flightplanDialog.resultMessage = msg
       flightplanDialog.kmzAvailable = kmzOk
+
+      // Scroll dialog to reveal the Copy/Close buttons
+      flightplanDialog.scrollToBottom()
 
       // Load GeoJSON as visualization layer
       try {

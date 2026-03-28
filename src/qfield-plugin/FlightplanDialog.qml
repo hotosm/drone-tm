@@ -97,7 +97,25 @@ QfDialog {
     }
   }
 
+  // Scroll the dialog to reveal post-generation buttons (deferred to let layout update)
+  function scrollToBottom() {
+    scrollTimer.start();
+  }
+
+  Timer {
+    id: scrollTimer
+    interval: 100
+    repeat: false
+    onTriggered: {
+      var maxY = formFlickable.contentHeight - formFlickable.height;
+      if (maxY > 0) {
+        formFlickable.contentY = maxY;
+      }
+    }
+  }
+
   contentItem: Flickable {
+    id: formFlickable
     clip: true
     contentHeight: formColumn.height
     flickableDirection: Flickable.VerticalFlick
@@ -497,6 +515,10 @@ QfDialog {
       iface.logMessage("DroneTM: Error enumerating DEM layers: " + e);
     }
     demLayerCombo.model = layers;
+    // Auto-select first DEM layer found as a convenience
+    if (layers.length > 1) {
+      demLayerCombo.currentIndex = 1;
+    }
   }
 
   // Save user-selectable settings (drone, gimbal, flight mode) via project variables
