@@ -56,13 +56,48 @@ frontends-prod branch="main":
   export GIT_BRANCH="{{ branch }}"
   ./envsubst -i compose.sub.yaml | {{docker}} compose -f - build frontend
 
+# Package the QField plugin as a versioned zip archive
+qfield-plugin output_dir=".":
+  #!/usr/bin/env sh
+  set -eu
+
+  PLUGIN_DIR="{{ justfile_directory() }}/src/qfield-plugin"
+  VERSION=$(sed -n 's/^version=//p' "$PLUGIN_DIR/metadata.txt" | head -n 1)
+  : "${VERSION:?Could not determine plugin version from metadata.txt}"
+
+  OUTPUT_DIR=$(cd "{{ justfile_directory() }}" && mkdir -p "{{ output_dir }}" && cd "{{ output_dir }}" && pwd)
+  ARCHIVE="$OUTPUT_DIR/drone-tm-qfield-$VERSION.zip"
+  rm -f "$ARCHIVE"
+
+  cd "$PLUGIN_DIR"
+  if command -v zip >/dev/null 2>&1; then
+    find . -type f ! -path '*/.git/*' | sort | zip -q "$ARCHIVE" -@
+  else
+    just --justfile {{ justfile() }} build _qfield-plugin-zip "$ARCHIVE" "$PLUGIN_DIR"
+  fi
+
+  echo "$ARCHIVE"
+
+# Python fallback for zipping when zip is not available
+[private]
+_qfield-plugin-zip archive plugin_dir:
+  #!/usr/bin/env python3
+  import sys
+  from pathlib import Path
+  from zipfile import ZIP_DEFLATED, ZipFile
+  plugin_dir = Path("{{ plugin_dir }}")
+  with ZipFile("{{ archive }}", "w", ZIP_DEFLATED) as zf:
+      for p in sorted(plugin_dir.rglob("*")):
+          if p.is_file() and ".git" not in p.parts:
+              zf.write(p, p.relative_to(plugin_dir))
+
 # Set 'dc' alias for docker compose
 alias:
   #!/usr/bin/env sh
-  dc_alias_cmd="alias dc='docker compose'"
+  dc_alias_cmd="alias dc=\"docker compose\""
   if ! grep -q "$dc_alias_cmd" ~/.bashrc; then
-      echo "Adding 'dc' alias to ~/.bashrc."
+      echo "Adding dc alias to ~/.bashrc."
       echo "$dc_alias_cmd" | tee -a ~/.bashrc > /dev/null
   else
-      echo "'dc' alias already exists in ~/.bashrc."
+      echo "dc alias already exists in ~/.bashrc."
   fi

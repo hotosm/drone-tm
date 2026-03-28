@@ -76,6 +76,7 @@ envsubst
 # Helm
 chart/charts
 drone-tm-*.tgz
+drone-tm-qfield-*.zip
 
 #Backend Template
 src/backend/templates/*

@@ -127,6 +127,7 @@ repos:
             --no-error-on-unmatched-pattern,
             "!src/frontend/**",
             "!src/gcp-editor/**",
+            "!src/qfield-plugin/**",
             "!src/pnpm-lock.yaml",
             "!src/pnpm-workspace.yaml",
             "!chart/**",

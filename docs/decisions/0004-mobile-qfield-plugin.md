@@ -86,6 +86,9 @@ Pros:
   write access on iOS.
 - QField is already used in related HOT workflows (FieldTM), so operators
   only need one app installed.
+- QField supports external high-precision GPS receivers, which means the
+  same project can also be used to capture Ground Control Points (GCPs)
+  in the field without switching tools or workflows.
 - The QField project file (`.qgz`) bundles everything needed: task area
   polygons, DEM raster, basemap, and plugin. Project managers configure
   flight parameters (GSD, overlaps) via QGIS project variables when
@@ -94,7 +97,9 @@ Pros:
   rendering, GPS, offline sync, and platform-specific concerns.
 - Plugin is distributed inside the QField project itself, no app store
   submission needed for updates.
-- Supports QFieldCloud for project distribution and status synchronisation.
+- Supports QFieldCloud for project distribution and status synchronisation,
+  including updating flown task statuses back to a central server once
+  operators return to signal.
 - The 3D map rendering in QField allows visualising flightplans over terrain,
   similar to professional flight planning software.
 
@@ -157,7 +162,10 @@ The primary decision factors were:
    code, not an entire mobile application.
 5. **Ecosystem fit**: QField is already part of the HOT toolchain, and
    QFieldCloud provides a natural distribution and sync mechanism.
-6. **Manager-configured, operator-simple**: flight parameters (GSD, overlaps)
+6. **Self-contained field workflow**: the same QField project can support
+   flight planning, precision external GPS use, and Ground Control Point
+   capture in one operator workflow.
+7. **Manager-configured, operator-simple**: flight parameters (GSD, overlaps)
    are injected as QGIS project variables via pyQGIS when the project is
    created. The field operator's dialog only shows task selection, drone
    model, and generate button.
@@ -199,7 +207,11 @@ The plugin consists of:
 5. The plugin generates the flightplan entirely offline, outputs `.wpml`
    and `.geojson` files to the project's `flightplans/` directory, and
    adds a visualisation layer to the map.
-6. Operator transfers the `.wpml` file to their drone's flight controller.
+6. The same project can also be used with an external precision GPS to
+   capture Ground Control Points as part of the field workflow.
+7. When the operator returns to signal, QFieldCloud syncs task status
+   updates and other collected project data back to the central server.
+8. Operator transfers the `.wpml` file to their drone's flight controller.
 
 ### Consequences
 
@@ -208,8 +220,12 @@ The plugin consists of:
 - ✅ Very low maintenance overhead compared to a native mobile app.
 - ✅ Operators only need one app (QField) for field mapping and flight
   planning.
+- ✅ External precision GPS support means Ground Control Points can be
+  captured within the same self-contained QField project.
 - ✅ Flight parameters are manager-controlled, simplifying the operator
   experience.
+- ✅ Operators can work offline during the day and sync flown task status
+  updates back to the centralised QFieldCloud server when signal returns.
 - ❌ Plugin API is young and sparsely documented; requires close
   collaboration with QField developers.
 - ❌ JavaScript engine limitations require careful coding (no modern JS
