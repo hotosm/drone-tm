@@ -172,7 +172,11 @@ async def test_preview_split_multi_feature(client):
     ).encode("utf-8")
 
     files = {
-        "project_geojson": ("aoi.geojson", BytesIO(multi_featcol), "application/geo+json"),
+        "project_geojson": (
+            "aoi.geojson",
+            BytesIO(multi_featcol),
+            "application/geo+json",
+        ),
     }
     response = await client.post(
         "/api/projects/preview-split-by-square/",

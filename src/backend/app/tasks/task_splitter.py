@@ -119,9 +119,7 @@ class TaskSplitter(object):
         if len(features) == 1:
             return shape(features[0].get("geometry"))
 
-        log.info(
-            f"AOI contains {len(features)} geometries, merging into one polygon"
-        )
+        log.info(f"AOI contains {len(features)} geometries, merging into one polygon")
         polygons = [shape(f.get("geometry")) for f in features]
         merged = unary_union(polygons)
         if merged.geom_type == "MultiPolygon":
