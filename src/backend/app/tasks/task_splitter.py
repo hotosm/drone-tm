@@ -103,8 +103,10 @@ class TaskSplitter(object):
     ) -> Polygon:
         """Parse GeoJSON and return shapely Polygon.
 
-        The GeoJSON may be of type FeatureCollection, Feature, or Polygon,
-        but should only contain one Polygon geometry in total.
+        The GeoJSON may be of type FeatureCollection, Feature, or Polygon.
+        If multiple geometries are present they are merged via unary_union
+        so that FeatureCollections exported by QGIS (or similar) work
+        without requiring the caller to pre-merge.
         """
         features = TaskSplitter.geojson_to_featcol(geojson).get("features", [])
         log.debug("Converting AOI to Shapely geometry")
@@ -113,12 +115,18 @@ class TaskSplitter(object):
             msg = "The input AOI contains no geometries."
             log.error(msg)
             raise ValueError(msg)
-        elif len(features) > 1:
-            msg = "The input AOI cannot contain multiple geometries."
-            log.error(msg)
-            raise ValueError(msg)
 
-        return shape(features[0].get("geometry"))
+        if len(features) == 1:
+            return shape(features[0].get("geometry"))
+
+        log.info(
+            f"AOI contains {len(features)} geometries, merging into one polygon"
+        )
+        polygons = [shape(f.get("geometry")) for f in features]
+        merged = unary_union(polygons)
+        if merged.geom_type == "MultiPolygon":
+            merged = merged.convex_hull
+        return merged
 
     def splitBySquare(self, meters: int) -> FeatureCollection:
         # Set up transformations: WGS84 (EPSG:4326) <-> Web Mercator (EPSG:3857)

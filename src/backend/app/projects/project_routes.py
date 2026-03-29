@@ -1,5 +1,4 @@
 import json
-import os
 import uuid
 from datetime import timedelta
 from typing import Annotated, Dict, List, Optional
@@ -34,6 +33,7 @@ from app.db import database
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
 from app.projects import project_deps, project_logic, project_schemas
+from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
 from app.s3 import (
     abort_multipart_upload,
@@ -280,24 +280,18 @@ async def upload_project_task_boundaries(
 @router.post("/preview-split-by-square/", tags=["Projects"])
 async def preview_split_by_square(
     user: Annotated[AuthUser, Depends(login_required)],
-    project_geojson: UploadFile = File(...),
+    aoi: Annotated[geojson.FeatureCollection, Depends(normalize_aoi)],
     no_fly_zones: UploadFile = File(default=None),
     dimension: int = Form(100),
 ):
-    """Preview splitting by square."""
-    # Validating for .geojson File.
-    file_name = os.path.splitext(project_geojson.filename)
-    file_ext = file_name[1]
-    allowed_extensions = [".geojson", ".json"]
-    if file_ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+    """Preview splitting by square.
 
-    # read entire file
-    content = await project_geojson.read()
-    boundary = geojson.loads(content)
-    project_shape = shape(boundary["features"][0]["geometry"])
+    The AOI is normalised via geojson-aoi-parser so that any valid GeoJSON
+    type (including multi-feature FeatureCollections exported by QGIS) is
+    accepted and merged into a single Polygon.
+    """
+    project_shape = shape(aoi["features"][0]["geometry"])
 
-    # If no_fly_zones is provided, read and parse it
     if no_fly_zones:
         no_fly_content = await no_fly_zones.read()
         no_fly_zones_geojson = geojson.loads(no_fly_content)
@@ -305,17 +299,11 @@ async def preview_split_by_square(
             shape(feature["geometry"]) for feature in no_fly_zones_geojson["features"]
         ]
         no_fly_union = unary_union(no_fly_shapes)
+        project_shape = project_shape.difference(no_fly_union)
 
-        # Calculate the difference between the project shape and no-fly zones
-        new_outline = project_shape.difference(no_fly_union)
-    else:
-        new_outline = project_shape
+    result_geojson = geojson.Feature(geometry=mapping(project_shape))
 
-    result_geojson = geojson.Feature(geometry=mapping(new_outline))
-
-    result = await project_logic.preview_split_by_square(result_geojson, dimension)
-
-    return result
+    return await project_logic.preview_split_by_square(result_geojson, dimension)
 
 
 @router.post(
@@ -675,20 +663,24 @@ async def get_project_waypoints_counts(
     front_overlap: float,
     altitude_from_ground: float,
     gsd_cm_px: float,
+    aoi: Annotated[geojson.FeatureCollection, Depends(normalize_aoi)],
     meters: float = 100,
-    project_geojson: UploadFile = File(...),
     is_terrain_follow: bool = False,
     dem: UploadFile = File(None),
     user_data: AuthUser = Depends(login_required),
 ):
-    """Count waypoints and waylines within AOI."""
+    """Count waypoints and waylines within AOI.
+
+    The AOI is normalised via geojson-aoi-parser so that any valid GeoJSON
+    type is accepted and merged into a single Polygon.
+    """
     return await project_logic.process_waypoints_and_waylines(
         side_overlap,
         front_overlap,
         altitude_from_ground,
         gsd_cm_px,
         meters,
-        project_geojson,
+        aoi,
         is_terrain_follow,
         dem,
     )

@@ -124,6 +124,67 @@ async def test_create_terrain_follow_project_succeeds_when_redis_unavailable(
     assert response.status_code == 200
 
 
+@pytest.mark.asyncio
+async def test_preview_split_multi_feature(client):
+    """Uploading a multi-feature FeatureCollection should not error.
+
+    Regression test for #735 - FeatureCollections exported by QGIS
+    contain multiple features and previously only the first was used.
+    """
+    multi_featcol = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.319, 27.705],
+                                [85.320, 27.705],
+                                [85.320, 27.706],
+                                [85.319, 27.706],
+                                [85.319, 27.705],
+                            ]
+                        ],
+                    },
+                },
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.320, 27.705],
+                                [85.321, 27.705],
+                                [85.321, 27.706],
+                                [85.320, 27.706],
+                                [85.320, 27.705],
+                            ]
+                        ],
+                    },
+                },
+            ],
+        }
+    ).encode("utf-8")
+
+    files = {
+        "project_geojson": ("aoi.geojson", BytesIO(multi_featcol), "application/geo+json"),
+    }
+    response = await client.post(
+        "/api/projects/preview-split-by-square/",
+        files=files,
+        data={"dimension": 100},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) > 0
+
+
 if __name__ == "__main__":
     """Main func if file invoked directly."""
     pytest.main()

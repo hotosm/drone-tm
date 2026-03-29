@@ -4,11 +4,15 @@ import json
 from typing import Annotated
 from uuid import UUID
 
+import geojson as geojson_lib
 from fastapi import Depends, File, HTTPException, Path, UploadFile
 from geojson import FeatureCollection
+from geojson_aoi import parse_aoi_async
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
+from shapely.geometry import mapping, shape
+from shapely.ops import unary_union
 
 from app.db import database
 from app.models.enums import HTTPStatus
@@ -81,3 +85,49 @@ async def geojson_upload(
         ) from e
 
     return geojson_data
+
+
+async def normalize_aoi(
+    db: Annotated[Connection, Depends(database.get_db)],
+    project_geojson: UploadFile = File(...),
+) -> geojson_lib.FeatureCollection:
+    """Normalise an uploaded AOI GeoJSON to a single-polygon FeatureCollection.
+
+    Accepts any GeoJSON type (Polygon, MultiPolygon, Feature,
+    FeatureCollection, GeometryCollection) and returns a FeatureCollection
+    containing one merged Polygon.
+
+    Uses geojson-aoi-parser for PostGIS-based normalisation (z-removal,
+    polygon orientation, type coercion), then merges multiple features
+    into a single polygon via shapely if needed.
+    """
+    file_ext = (project_geojson.filename or "").rsplit(".", 1)[-1].lower()
+    if file_ext not in ("geojson", "json"):
+        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+
+    content = await project_geojson.read()
+
+    try:
+        featcol = await parse_aoi_async(db, content)
+    except Exception as e:
+        log.warning(f"geojson-aoi-parser failed: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail=f"Invalid GeoJSON: {e}",
+        ) from e
+
+    features = featcol.get("features", [])
+    if not features:
+        raise HTTPException(status_code=400, detail="GeoJSON contains no geometries")
+
+    # If there are multiple features, merge them into one polygon
+    if len(features) > 1:
+        polygons = [shape(f["geometry"]) for f in features]
+        merged = unary_union(polygons)
+        if merged.geom_type == "MultiPolygon":
+            merged = merged.convex_hull
+        featcol = geojson_lib.FeatureCollection(
+            [geojson_lib.Feature(geometry=mapping(merged))]
+        )
+
+    return featcol

@@ -703,21 +703,16 @@ async def process_waypoints_and_waylines(
     altitude_from_ground: float,
     gsd_cm_px: float,
     meters: float,
-    project_geojson: UploadFile,
+    boundary: dict,
     is_terrain_follow: bool,
     dem: UploadFile,
 ):
-    """Processes and returns counts of waypoints and waylines."""
-    # Validate the input GeoJSON file
-    file_name = os.path.splitext(project_geojson.filename)
-    file_ext = file_name[1]
-    allowed_extensions = [".geojson", ".json"]
-    if file_ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+    """Processes and returns counts of waypoints and waylines.
 
-    # Generate square boundary GeoJSON
-    content = project_geojson.file.read()
-    boundary = geojson.loads(content)
+    Args:
+        boundary: A normalised FeatureCollection containing one Polygon
+            feature (already parsed and merged by normalize_aoi).
+    """
     geometry = shape(boundary["features"][0]["geometry"])
     centroid = geometry.centroid
     center_lon = centroid.x
