@@ -11,8 +11,6 @@ from geojson_aoi import parse_aoi_async
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
-from shapely.geometry import mapping, shape
-from shapely.ops import unary_union
 
 from app.db import database
 from app.models.enums import HTTPStatus
@@ -98,8 +96,8 @@ async def normalize_aoi(
     containing one merged Polygon.
 
     Uses geojson-aoi-parser for PostGIS-based normalisation (z-removal,
-    polygon orientation, type coercion), then merges multiple features
-    into a single polygon via shapely if needed.
+    polygon orientation, type coercion) with merge=True to combine
+    multiple features into a single polygon via ST_UnaryUnion.
     """
     file_ext = (project_geojson.filename or "").rsplit(".", 1)[-1].lower()
     if file_ext not in ("geojson", "json"):
@@ -108,7 +106,7 @@ async def normalize_aoi(
     content = await project_geojson.read()
 
     try:
-        featcol = await parse_aoi_async(db, content)
+        featcol = await parse_aoi_async(db, content, merge=True)
     except Exception as e:
         log.warning(f"geojson-aoi-parser failed: {e}")
         raise HTTPException(
@@ -120,14 +118,24 @@ async def normalize_aoi(
     if not features:
         raise HTTPException(status_code=400, detail="GeoJSON contains no geometries")
 
-    # If there are multiple features, merge them into one polygon
+    # Merge multiple features into one polygon via PostGIS ST_UnaryUnion.
+    # Once geojson-aoi-parser fully implements merge=True this block can be removed.
     if len(features) > 1:
-        polygons = [shape(f["geometry"]) for f in features]
-        merged = unary_union(polygons)
-        if merged.geom_type == "MultiPolygon":
-            merged = merged.convex_hull
-        featcol = geojson_lib.FeatureCollection(
-            [geojson_lib.Feature(geometry=mapping(merged))]
-        )
+        geom_jsons = [json.dumps(f["geometry"]) for f in features]
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT ST_AsGeoJSON(
+                    ST_UnaryUnion(array_agg(ST_GeomFromGeoJSON(geom)))
+                )
+                FROM unnest(%s::text[]) AS geom
+                """,
+                (geom_jsons,),
+            )
+            row = await cur.fetchone()
+            if row and row[0]:
+                featcol = geojson_lib.FeatureCollection(
+                    [geojson_lib.Feature(geometry=json.loads(row[0]))]
+                )
 
     return featcol
