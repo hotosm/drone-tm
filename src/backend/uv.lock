@@ -813,7 +813,6 @@ docs = [
     { name = "mkdocstrings-python" },
 ]
 monitoring = [
-    { name = "opentelemetry-instrumentation-arq" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-instrumentation-logging" },
     { name = "opentelemetry-instrumentation-psycopg" },
@@ -885,7 +884,6 @@ docs = [
     { name = "mkdocstrings-python", specifier = "==2.0.3" },
 ]
 monitoring = [
-    { name = "opentelemetry-instrumentation-arq", specifier = "==0.50b1" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = "==0.60b1" },
     { name = "opentelemetry-instrumentation-logging", specifier = "==0.60b1" },
     { name = "opentelemetry-instrumentation-psycopg", specifier = "==0.60b1" },
@@ -1181,6 +1179,7 @@ wheels = [
 name = "griffelib"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/06/eccbd311c9e2b3ca45dbc063b93134c57a1ccc7607c5e545264ad092c4a9/griffelib-2.0.0.tar.gz", hash = "sha256:e504d637a089f5cab9b5daf18f7645970509bf4f53eda8d79ed71cce8bd97934", size = 166312, upload-time = "2026-03-23T21:06:55.954Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/51/c936033e16d12b627ea334aaaaf42229c37620d0f15593456ab69ab48161/griffelib-2.0.0-py3-none-any.whl", hash = "sha256:01284878c966508b6d6f1dbff9b6fa607bc062d8261c5c7253cb285b06422a7f", size = 142004, upload-time = "2026-02-09T19:09:40.561Z" },
 ]
@@ -2169,21 +2168,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/41/0f/7e6b713ac117c1f5e4e3300748af699b9902a2e5e34c9cf443dde25a01fa/opentelemetry_instrumentation-0.60b1.tar.gz", hash = "sha256:57ddc7974c6eb35865af0426d1a17132b88b2ed8586897fee187fd5b8944bd6a", size = 31706, upload-time = "2025-12-11T13:36:42.515Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/77/d2/6788e83c5c86a2690101681aeef27eeb2a6bf22df52d3f263a22cee20915/opentelemetry_instrumentation-0.60b1-py3-none-any.whl", hash = "sha256:04480db952b48fb1ed0073f822f0ee26012b7be7c3eac1a3793122737c78632d", size = 33096, upload-time = "2025-12-11T13:35:33.067Z" },
-]
-
-[[package]]
-name = "opentelemetry-instrumentation-arq"
-version = "0.50b1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-instrumentation" },
-    { name = "opentelemetry-semantic-conventions" },
-    { name = "wrapt" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/18/c2/8fcb231a13a01f046334d5c69f066e20c89640962d6cd6b8bd6afd6d5266/opentelemetry_instrumentation_arq-0.50b1.tar.gz", hash = "sha256:b8744f452c29a01f07640ef569053e3d559960e237c08ba68a78f509e1ce8aee", size = 7925, upload-time = "2025-10-11T08:31:33.796Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/75/d8bae17e32a41706e11ddf975ae8f74d223a152a6629144be4af44015f17/opentelemetry_instrumentation_arq-0.50b1-py3-none-any.whl", hash = "sha256:e7713c30e347862021c7eed79290091f76788722e331bb730bc2d24cda461182", size = 8402, upload-time = "2025-10-11T08:31:32.407Z" },
 ]
 
 [[package]]

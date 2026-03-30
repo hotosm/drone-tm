@@ -152,7 +152,7 @@ def generate_presigned_get_url(
 
     By default, uses S3_ENDPOINT_DOWNLOAD (e.g., CloudFront) for browser-facing
     URLs. Pass ``internal=True`` for worker/backend downloads so the URL is
-    signed against S3_ENDPOINT_UPLOAD (the actual S3 endpoint) — S3 presigned
+    signed against S3_ENDPOINT_UPLOAD (the actual S3 endpoint) - S3 presigned
     signatures are bound to the host they were generated for, so a URL signed
     for a CloudFront domain will fail with AccessDenied at the S3 origin.
 

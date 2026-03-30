@@ -79,7 +79,6 @@ monitoring = [
     "opentelemetry-instrumentation-logging==0.60b1",
     "opentelemetry-instrumentation-psycopg==0.60b1",
     "opentelemetry-instrumentation-requests==0.60b1",
-    "opentelemetry-instrumentation-arq==0.50b1",
 ]
 
 [tool.uv.sources]
