@@ -77,7 +77,7 @@ jobs:
 
             APP_DIR="/opt/dronetm-test"
 
-            # Setup inicial si no existe
+            # Initial setup if not exists
             if [ ! -d "\$APP_DIR" ]; then
               sudo mkdir -p \$APP_DIR
               sudo chown \$USER:\$USER \$APP_DIR

@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup-test-server.sh - Setup inicial para servidor de testing HOTOSM
+# setup-test-server.sh - Initial setup for HOTOSM testing server
 # Ejecutar via SSH: ssh ubuntu@107.21.77.122 'bash -s' < scripts/setup-test-server.sh
 set -e
 
