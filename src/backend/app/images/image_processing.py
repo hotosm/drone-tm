@@ -128,8 +128,10 @@ class DroneImageProcessor:
 
         accepted_file_extensions = (".jpg", ".jpeg", ".png", ".txt", ".laz")
 
+        # Use internal=True so the presigned URL is signed against S3 directly,
+        # not against CloudFront (which would fail with AccessDenied).
         object_urls = [
-            generate_presigned_get_url(bucket_name, obj.object_name, 12)
+            generate_presigned_get_url(bucket_name, obj.object_name, 12, internal=True)
             for obj in objects
             if obj.object_name.lower().endswith(accepted_file_extensions)
         ]
@@ -151,9 +153,7 @@ class DroneImageProcessor:
                     self.download_image(
                         session,
                         url,
-                        os.path.join(
-                            local_dir, f"{task_id}_file_{i + j + 1}.jpg"
-                        ),  # unique image name are maintained with uuid
+                        os.path.join(local_dir, f"{task_id}_file_{i + j + 1}.jpg"),
                     )
                     for j, url in enumerate(batch)
                 ]

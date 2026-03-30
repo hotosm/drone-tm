@@ -145,21 +145,28 @@ def generate_presigned_get_url(
     bucket_name: str,
     object_name: str,
     expires_hours: int = 2,
+    *,
+    internal: bool = False,
 ) -> str:
-    """Generate a presigned GET URL for browser downloads.
+    """Generate a presigned GET URL.
 
-    Uses S3_ENDPOINT_DOWNLOAD (e.g., CloudFront or localhost:9000).
+    By default, uses S3_ENDPOINT_DOWNLOAD (e.g., CloudFront) for browser-facing
+    URLs. Pass ``internal=True`` for worker/backend downloads so the URL is
+    signed against S3_ENDPOINT_UPLOAD (the actual S3 endpoint) — S3 presigned
+    signatures are bound to the host they were generated for, so a URL signed
+    for a CloudFront domain will fail with AccessDenied at the S3 origin.
 
     Args:
         bucket_name: Name of the S3 bucket
         object_name: Path to the object in the bucket
         expires_hours: Hours until the URL expires (default: 2)
+        internal: If True, sign against S3 directly (for worker downloads)
 
     Returns:
         str: Presigned URL for GET operation
     """
     object_name = _normalize_object_name(object_name)
-    client = _presign_client_for_download()
+    client = s3_client() if internal else _presign_client_for_download()
     return client.presigned_get_object(
         bucket_name, object_name, expires=timedelta(hours=expires_hours)
     )
