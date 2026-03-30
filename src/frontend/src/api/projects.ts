@@ -6,7 +6,7 @@ import {
   getProjectCentroid,
 } from '@Services/createproject';
 import { getTaskStates } from '@Services/project';
-import { getUserProfileInfo } from '@Services/common';
+import { getUserProfileInfo, getUsers } from '@Services/common';
 import {
   startClassification,
   getBatchStatus,
@@ -14,6 +14,12 @@ import {
   BatchStatusSummary,
   ImageClassificationResult,
 } from '@Services/classification';
+
+export interface ProjectUser {
+  id: number | string;
+  name: string;
+  profile_img?: string | null;
+}
 
 export const useGetProjectsListQuery = (
   queryOptions?: Partial<UseQueryOptions>,
@@ -68,6 +74,19 @@ export const useGetUserDetailsQuery = (
       const userDetailsString = JSON.stringify(userDetails);
       localStorage.setItem('userprofile', userDetailsString as string);
       return userDetails;
+    },
+    ...queryOptions,
+  });
+};
+
+export const useGetUsersQuery = (
+  queryOptions?: Partial<UseQueryOptions<ProjectUser[]>>,
+) => {
+  return useQuery<ProjectUser[]>({
+    queryKey: ['users-list'],
+    queryFn: async () => {
+      const res = await getUsers();
+      return res.data as ProjectUser[];
     },
     ...queryOptions,
   });

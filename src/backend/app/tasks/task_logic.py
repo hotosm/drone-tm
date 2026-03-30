@@ -381,13 +381,16 @@ async def handle_event(
                 state_after = State.REQUEST_FOR_MAPPING
                 message = "Request for flight"
 
+            # Use user-provided comment if present, otherwise use auto-generated message
+            comment = detail.comment if detail.comment else message
+
             # Perform the mapping request
             data = await request_mapping(
                 db,
                 project_id,
                 task_id,
                 user_id,
-                message,
+                comment,
                 State.UNLOCKED_TO_MAP,
                 state_after,
                 detail.updated_at,

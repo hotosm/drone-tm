@@ -9,38 +9,27 @@ async function sendDjiGoFileViaAdb(data: Blob) {
 
     const base64String = await _encodeDataAsBase64String(data);
 
-    // Need to find first existing waypoint directory available
-    const waypointDir = `/sdcard/Android/data`;
+    // Find an existing waypoint UUID directory to replace
+    const waypointBase = `/sdcard/Android/data/dji.go.v5/files/waypoint`;
     const listDirs = await adb.subprocess.shellProtocol!.spawn(
-        `ls -1 ${waypointDir}`
-      );
+        `ls -1t ${waypointBase}`
+    );
     const dirOutput = await _readShellOutput(listDirs);
     const dirs = dirOutput.split('\n').filter(Boolean);
     if (dirs.length === 0) {
-        throw new Error(`A waypoint flight must flown first`);
+        throw new Error(`No existing waypoint missions found. Fly a waypoint mission first so DJI registers it in its database.`);
     }
-    const firstDir = dirs[0];
-    // Then find the .kmz file within that dir
-    const targetPath = `${waypointDir}/${firstDir}`;
-    const listFiles = await adb.subprocess.shellProtocol!.spawn(
-      `ls -1 ${targetPath}/*.kmz`
-    );
-    const filesOutput = await _readShellOutput(listFiles);
-    const kmzFiles = filesOutput.split('\n').filter(Boolean);
-    if (kmzFiles.length === 0) {
-      throw new Error(`No .kmz files found in ${targetPath}`);
-    }
-    const targetFile = kmzFiles[0];
+    const uuid = dirs[0];
+    const targetFile = `${waypointBase}/${uuid}/${uuid}.kmz`;
     console.log(`Replacing: ${targetFile}`);
 
-    // // Send file to phone via ADB STDIN
+    // Send file to phone via ADB STDIN
     const process = await adb.subprocess.shellProtocol!.spawn(
         `sh -c "base64 -d > '${targetFile}'"`
     );
     const writer = process.stdin.getWriter();
     await writer.write(encodeUtf8(base64String));
-    console.log(`Successfully replaced: ${targetFile}`);
-    console.log(`Copied flightplan to ${targetFile}`)
+    console.log(`Copied flightplan to ${targetFile}`);
 }
 
 async function sendPotensicProFileViaAdb(data: Blob) {
