@@ -6,8 +6,6 @@
 !app
 !packages
 !packages/**
-!libs
-!libs/**
 !templates
 !tests
 !docker-entrypoint.sh
