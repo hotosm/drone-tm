@@ -21,5 +21,5 @@ def instrument_app_otel(app: FastAPI):
 
     FastAPIInstrumentor.instrument_app(app)
     PsycopgInstrumentor().instrument(enable_commenter=True, commenter_options={})
-    ArqInstrumentor.instrument()
+    ArqInstrumentor().instrument()
     RequestsInstrumentor().instrument()
