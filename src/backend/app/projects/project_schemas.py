@@ -419,12 +419,12 @@ class DbProject(BaseModel):
                         ST_AsGeoJSON(p.outline)::jsonb AS outline,
                         p.requires_approval_from_manager_for_locking,
                         COUNT(t.id) AS total_task_count,
-                        COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
-                        COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
+                        COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) AS ongoing_task_count,
+                        COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
                         CASE
-                            WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
-                                AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
+                            WHEN COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
+                            WHEN COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) = 0
+                                AND COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
                             ELSE 'ongoing'
                         END AS calculated_status
                     FROM projects p
@@ -468,9 +468,9 @@ class DbProject(BaseModel):
                     SELECT
                         p.id,
                         CASE
-                            WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
-                                AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
+                            WHEN COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
+                            WHEN COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) = 0
+                                AND COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
                             ELSE 'ongoing'
                         END AS calculated_status
                     FROM projects p

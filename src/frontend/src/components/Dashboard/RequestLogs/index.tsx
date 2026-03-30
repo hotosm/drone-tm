@@ -46,7 +46,7 @@ const RequestLogs = () => {
     respondToRequest({
       projectId,
       taskId,
-      data: { event: 'map' },
+      data: { event: 'fly' },
     });
   };
 

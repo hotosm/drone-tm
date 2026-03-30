@@ -8,6 +8,7 @@ Create Date: 2026-03-24 01:33:35.483759
 
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -20,8 +21,15 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # ALTER TYPE ... ADD VALUE cannot run inside a transaction in PostgreSQL.
     op.execute("COMMIT")
-    for value in ("uploaded", "classifying", "assigned", "rejected"):
-        op.execute(f"ALTER TYPE image_status ADD VALUE IF NOT EXISTS '{value}'")
+
+    # Only add values if the image_status enum exists (created by 001_project_images).
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text("SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'image_status')")
+    )
+    if result.scalar():
+        for value in ("uploaded", "classifying", "assigned", "rejected"):
+            op.execute(f"ALTER TYPE image_status ADD VALUE IF NOT EXISTS '{value}'")
 
 
 def downgrade() -> None:

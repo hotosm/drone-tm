@@ -337,7 +337,7 @@ class DroneImageProcessor:
                 self.task_id,
                 self.user_id,
                 "Task completed.",
-                State.IMAGE_UPLOADED,
+                State.READY_FOR_PROCESSING,
                 State.IMAGE_PROCESSING_FINISHED,
                 timestamp(),
             )

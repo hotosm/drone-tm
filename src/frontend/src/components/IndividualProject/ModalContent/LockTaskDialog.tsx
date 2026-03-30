@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@Components/RadixComponents/Button';
 import { ProjectUser, useGetUsersQuery } from '@Api/projects';
+import { createMentionToken } from '@Utils/mentions';
 
 interface ILockTaskDialogProps {
   handleLockTask: (comment: string) => void;
   setShowLockDialog: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+interface SelectedMention {
+  id: string;
+  displayText: string;
+  token: string;
 }
 
 const MENTION_MIN_CHARS = 3;
@@ -19,6 +26,7 @@ const LockTaskDialog = ({
   const [debouncedMentionQuery, setDebouncedMentionQuery] = useState<string | null>(null);
   const [mentionStartIndex, setMentionStartIndex] = useState<number>(-1);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [selectedMentions, setSelectedMentions] = useState<SelectedMention[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,6 +65,9 @@ const LockTaskDialog = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { value, selectionStart } = e.target;
     setComment(value);
+    setSelectedMentions(prev =>
+      prev.filter(mention => value.includes(mention.displayText)),
+    );
 
     // Check if we're in a mention context
     const textBeforeCursor = value.slice(0, selectionStart);
@@ -82,20 +93,26 @@ const LockTaskDialog = ({
   };
 
   const insertMention = useCallback(
-    (userName: string) => {
+    (user: ProjectUser) => {
       const before = comment.slice(0, mentionStartIndex);
       const after = comment.slice(
         mentionStartIndex + (mentionQuery?.length || 0) + 1,
       );
-      const newComment = `${before}@${userName} ${after}`;
+      const displayText = `@${user.name}`;
+      const mentionToken = createMentionToken(user.name, String(user.id));
+      const newComment = `${before}${displayText} ${after}`;
       setComment(newComment);
+      setSelectedMentions(prev => [
+        ...prev,
+        { id: `${user.id}-${prev.length}`, displayText, token: mentionToken },
+      ]);
       setMentionQuery(null);
       setMentionStartIndex(-1);
 
       // Refocus textarea after insertion
       setTimeout(() => {
         if (textareaRef.current) {
-          const cursorPos = mentionStartIndex + userName.length + 2; // +2 for @ and space
+          const cursorPos = mentionStartIndex + displayText.length + 1;
           textareaRef.current.focus();
           textareaRef.current.setSelectionRange(cursorPos, cursorPos);
         }
@@ -118,7 +135,7 @@ const LockTaskDialog = ({
         );
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        insertMention(filteredUsers[selectedMentionIndex].name);
+        insertMention(filteredUsers[selectedMentionIndex]);
       } else if (e.key === 'Escape') {
         e.preventDefault();
         setMentionQuery(null);
@@ -137,6 +154,18 @@ const LockTaskDialog = ({
       }
     }
   }, [selectedMentionIndex, mentionQuery]);
+
+  const serializeCommentMentions = useCallback(() => {
+    let serializedComment = comment;
+
+    selectedMentions.forEach(({ displayText, token }) => {
+      if (serializedComment.includes(displayText)) {
+        serializedComment = serializedComment.replace(displayText, token);
+      }
+    });
+
+    return serializedComment;
+  }, [comment, selectedMentions]);
 
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
@@ -167,7 +196,7 @@ const LockTaskDialog = ({
                       ? 'naxatw-bg-grey-100'
                       : ''
                   }`}
-                  onClick={() => insertMention(user.name)}
+                  onClick={() => insertMention(user)}
                 >
                   {user.profile_img ? (
                     <img
@@ -197,7 +226,7 @@ const LockTaskDialog = ({
         <Button
           className="naxatw-bg-red"
           onClick={() => {
-            handleLockTask(comment);
+            handleLockTask(serializeCommentMentions());
             setShowLockDialog(false);
           }}
         >

@@ -174,7 +174,7 @@ const DescriptionBox = () => {
   );
 
   const hasImages = taskAssetsInformation?.image_count > 0;
-  const isLocked = taskAssetsInformation?.state === 'LOCKED_FOR_MAPPING';
+  const isLocked = taskAssetsInformation?.state === 'LOCKED';
   const hasAssets = !!taskAssetsInformation?.assets_url;
 
   return (

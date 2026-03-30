@@ -37,10 +37,9 @@ CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS = 120
 # Buffer radius in meters for coverage calculation
 COVERAGE_BUFFER_METERS = 20.0
 
-# Task states that indicate verification has occurred (IMAGE_UPLOADED = just verified,
-# later processing states preserve that verification status)
+# Task states that indicate the task is ready for or past processing.
 VERIFIED_TASK_STATES = {
-    "IMAGE_UPLOADED",
+    "READY_FOR_PROCESSING",
     "IMAGE_PROCESSING_STARTED",
     "IMAGE_PROCESSING_FINISHED",
     "IMAGE_PROCESSING_FAILED",
@@ -828,6 +827,59 @@ class ImageClassifier:
             f"{results['unmatched']} unmatched, {results['invalid']} invalid"
         )
 
+        # Auto-transition tasks that received images to HAS_IMAGERY
+        if results["assigned"] > 0:
+            try:
+                async with db_pool.connection() as db:
+                    async with db.cursor(row_factory=dict_row) as cur:
+                        # Find tasks that received images in this batch and are in LOCKED or FULLY_FLOWN state
+                        await cur.execute(
+                            """
+                            WITH affected_tasks AS (
+                                SELECT DISTINCT pi.task_id
+                                FROM project_images pi
+                                WHERE pi.batch_id = %(batch_id)s
+                                AND pi.project_id = %(project_id)s
+                                AND pi.status = 'assigned'
+                                AND pi.task_id IS NOT NULL
+                            ),
+                            current_states AS (
+                                SELECT DISTINCT ON (te.task_id) te.task_id, te.state, te.user_id
+                                FROM task_events te
+                                WHERE te.task_id IN (SELECT task_id FROM affected_tasks)
+                                ORDER BY te.task_id, te.created_at DESC
+                            )
+                            SELECT cs.task_id, cs.user_id
+                            FROM current_states cs
+                            WHERE cs.state::text IN ('LOCKED', 'FULLY_FLOWN')
+                            """,
+                            {
+                                "batch_id": str(batch_id),
+                                "project_id": str(project_id),
+                            },
+                        )
+                        tasks_to_update = await cur.fetchall()
+
+                    for task_row in tasks_to_update:
+                        async with db.cursor() as cur:
+                            await cur.execute(
+                                """
+                                INSERT INTO task_events (event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+                                VALUES (gen_random_uuid(), %(project_id)s, %(task_id)s, %(user_id)s, 'HAS_IMAGERY', 'Images classified to task', NOW(), NOW())
+                                """,
+                                {
+                                    "project_id": str(project_id),
+                                    "task_id": str(task_row["task_id"]),
+                                    "user_id": str(task_row["user_id"]),
+                                },
+                            )
+                        await db.commit()
+                        log.info(
+                            f"Auto-transitioned task {task_row['task_id']} to HAS_IMAGERY"
+                        )
+            except Exception as e:
+                log.error(f"Failed to auto-transition tasks to HAS_IMAGERY: {e}")
+
         return results
 
     @staticmethod
@@ -906,7 +958,7 @@ class ImageClassifier:
                 pi.task_id,
                 t.project_task_index,
                 COUNT(*) as image_count,
-                COALESCE(lts.state IN ('IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
+                COALESCE(lts.state::text IN ('READY_FOR_PROCESSING', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
                 json_agg(
                     json_build_object(
                         'id', pi.id,
@@ -1233,7 +1285,7 @@ class ImageClassifier:
         - Destination: projects/{project_id}/{task_id}/images/{filename}
 
         This prepares the images for ODM processing.
-        Only moves images for tasks that have been marked as fully flown (IMAGE_UPLOADED).
+        Only moves images for tasks that have been marked as fully flown (READY_FOR_PROCESSING).
 
         Args:
             db: Database connection
@@ -1244,7 +1296,7 @@ class ImageClassifier:
             dict: Summary of moved images per task
         """
         # Get all assigned images in this batch grouped by task
-        # Only include images for tasks with IMAGE_UPLOADED state
+        # Only include images for tasks with READY_FOR_PROCESSING state
         query = """
             WITH latest_task_state AS (
                 SELECT DISTINCT ON (task_id)
@@ -1265,7 +1317,7 @@ class ImageClassifier:
             AND pi.project_id = %(project_id)s
             AND pi.status = %(status)s
             AND pi.task_id IS NOT NULL
-            AND lts.state = 'IMAGE_UPLOADED'
+            AND lts.state::text = 'READY_FOR_PROCESSING'
             ORDER BY pi.task_id, pi.uploaded_at
         """
 
@@ -1451,7 +1503,7 @@ class ImageClassifier:
         """Get a summary of assigned images for processing.
 
         Returns task-grouped summary suitable for the Processing step UI.
-        Only includes tasks that have been marked as fully flown (IMAGE_UPLOADED state
+        Only includes tasks that have been marked as fully flown (READY_FOR_PROCESSING state
         or later processing states).
 
         Args:
@@ -1462,7 +1514,7 @@ class ImageClassifier:
         Returns:
             dict: Summary with tasks, image counts, and processing status
         """
-        # Query includes tasks with IMAGE_UPLOADED or processing states
+        # Query includes tasks with READY_FOR_PROCESSING or processing states
         # This allows tracking processing progress
         # Also includes the comment field for failure reasons
         query = """
@@ -1488,8 +1540,8 @@ class ImageClassifier:
             AND pi.project_id = %(project_id)s
             AND pi.status = %(status)s
             AND pi.task_id IS NOT NULL
-            AND lts.state IN (
-                'IMAGE_UPLOADED',
+            AND lts.state::text IN (
+                'READY_FOR_PROCESSING',
                 'IMAGE_PROCESSING_STARTED',
                 'IMAGE_PROCESSING_FINISHED',
                 'IMAGE_PROCESSING_FAILED'
@@ -1717,7 +1769,7 @@ class ImageClassifier:
             SELECT
                 t.id as task_id,
                 t.project_task_index,
-                COALESCE(lts.state, 'LOCKED_FOR_MAPPING') as task_state,
+                COALESCE(lts.state::text, 'LOCKED') as task_state,
                 lts.comment as state_comment,
                 COALESCE(img.total, 0) as total_images,
                 COALESCE(img.assigned, 0) as assigned_images,
@@ -1802,7 +1854,7 @@ class ImageClassifier:
                 pi.task_id,
                 t.project_task_index,
                 COUNT(*) as image_count,
-                COALESCE(lts.state IN ('IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
+                COALESCE(lts.state::text IN ('READY_FOR_PROCESSING', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
                 json_agg(
                     json_build_object(
                         'id', pi.id,

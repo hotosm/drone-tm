@@ -181,7 +181,7 @@ async def test_process_drone_images_marks_task_failed_when_odm_rejects(monkeypat
 async def test_process_drone_images_retries_from_failed_state(monkeypatch):
     """Retry a task whose previous processing attempt failed.
 
-    The first transition (IMAGE_UPLOADED -> STARTED) should return None
+    The first transition (READY_FOR_PROCESSING -> STARTED) should return None
     because the task is in IMAGE_PROCESSING_FAILED, then the fallback
     (IMAGE_PROCESSING_FAILED -> STARTED) should succeed.
     """
@@ -211,8 +211,8 @@ async def test_process_drone_images_retries_from_failed_state(monkeypatch):
             }
         )
         # Simulate: task is currently IMAGE_PROCESSING_FAILED.
-        # IMAGE_UPLOADED -> STARTED fails; IMAGE_PROCESSING_FAILED -> STARTED succeeds.
-        if initial_state == State.IMAGE_UPLOADED:
+        # READY_FOR_PROCESSING -> STARTED fails; IMAGE_PROCESSING_FAILED -> STARTED succeeds.
+        if initial_state == State.READY_FOR_PROCESSING:
             return None
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
@@ -246,8 +246,8 @@ async def test_process_drone_images_retries_from_failed_state(monkeypatch):
     )
 
     assert result["status"] == "processing_started"
-    # First attempt (IMAGE_UPLOADED) returned None, second (IMAGE_PROCESSING_FAILED) succeeded
-    assert state_calls[0]["initial_state"] == State.IMAGE_UPLOADED
+    # First attempt (READY_FOR_PROCESSING) returned None, second (IMAGE_PROCESSING_FAILED) succeeded
+    assert state_calls[0]["initial_state"] == State.READY_FOR_PROCESSING
     assert state_calls[1]["initial_state"] == State.IMAGE_PROCESSING_FAILED
     assert state_calls[1]["final_state"] == State.IMAGE_PROCESSING_STARTED
 
@@ -280,7 +280,7 @@ async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
             }
         )
         if initial_state in (
-            State.IMAGE_UPLOADED,
+            State.READY_FOR_PROCESSING,
             State.IMAGE_PROCESSING_FAILED,
         ):
             return None
@@ -316,7 +316,7 @@ async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
     )
 
     assert result["status"] == "processing_started"
-    assert state_calls[0]["initial_state"] == State.IMAGE_UPLOADED
+    assert state_calls[0]["initial_state"] == State.READY_FOR_PROCESSING
     assert state_calls[1]["initial_state"] == State.IMAGE_PROCESSING_FAILED
     assert state_calls[2]["initial_state"] == State.IMAGE_PROCESSING_FINISHED
     assert state_calls[2]["final_state"] == State.IMAGE_PROCESSING_STARTED

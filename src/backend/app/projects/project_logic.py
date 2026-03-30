@@ -58,8 +58,8 @@ async def get_centroids(db: Connection):
                     p.name,
                     ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
                     COUNT(t.id) AS total_task_count,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK', 'IMAGE_PROCESSING_STARTED') THEN 1 END) AS ongoing_task_count,
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
+                    COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES', 'IMAGE_PROCESSING_STARTED') THEN 1 END) AS ongoing_task_count,
+                    COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
                 FROM
                     projects p
                 LEFT JOIN
@@ -343,7 +343,7 @@ async def process_drone_images(
         async with pool.connection() as conn:
             # Update task state to IMAGE_PROCESSING_STARTED first, so that any
             # failure below can be correctly transitioned to IMAGE_PROCESSING_FAILED.
-            # Support fresh processing (IMAGE_UPLOADED), retries from failure
+            # Support fresh processing (READY_FOR_PROCESSING), retries from failure
             # (IMAGE_PROCESSING_FAILED), and reruns after completion
             # (IMAGE_PROCESSING_FINISHED) when new imagery has been verified.
             from app.tasks import task_logic
@@ -354,7 +354,7 @@ async def process_drone_images(
                 project_id,
                 task_id,
                 "ODM processing started",
-                State.IMAGE_UPLOADED,
+                State.READY_FOR_PROCESSING,
                 State.IMAGE_PROCESSING_STARTED,
                 timestamp(),
             )
@@ -381,7 +381,7 @@ async def process_drone_images(
             if result is None:
                 raise RuntimeError(
                     "Cannot start processing: task is not in a valid state "
-                    "(expected IMAGE_UPLOADED, IMAGE_PROCESSING_FAILED, "
+                    "(expected READY_FOR_PROCESSING, IMAGE_PROCESSING_FAILED, "
                     "or IMAGE_PROCESSING_FINISHED)"
                 )
             await conn.commit()
@@ -661,14 +661,14 @@ def generate_square_geojson(center_lat, center_lon, side_length_meters):
 
 async def get_all_tasks_for_project(project_id, db):
     """Get all unique tasks associated with the project ID
-    that are in state IMAGE_UPLOADED.
+    that are in state READY_FOR_PROCESSING.
     """
     async with db.cursor() as cur:
         query = """
         SELECT DISTINCT ON (t.id) t.id
         FROM tasks t
         JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id = %s AND te.state = 'IMAGE_UPLOADED'
+        WHERE t.project_id = %s AND te.state::text = 'READY_FOR_PROCESSING'
         ORDER BY t.id, te.created_at DESC;
         """
         await cur.execute(query, (project_id,))
