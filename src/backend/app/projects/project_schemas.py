@@ -196,6 +196,7 @@ class TaskOut(BaseModel):
     state: Optional[str] = None
     user_id: Optional[str] = None
     name: Optional[str] = None
+    comment: Optional[str] = None
     image_count: Optional[int] = None
     assets_url: Optional[str] = None
     total_area_sqkm: Optional[float] = None
@@ -318,7 +319,8 @@ class DbProject(BaseModel):
                     SELECT DISTINCT ON (te.task_id)
                         te.task_id,
                         te.user_id,
-                        te.state
+                        te.state,
+                        te.comment
                     FROM
                         task_events te
                     ORDER BY
@@ -342,6 +344,7 @@ class DbProject(BaseModel):
                         ST_YMax(ST_Envelope(t.outline)) AS ymax,
                         tsc.state AS state,
                         tsc.user_id,
+                        tsc.comment,
                         u.name
                     FROM
                         tasks t
@@ -358,6 +361,7 @@ class DbProject(BaseModel):
                     state,
                     user_id,
                     name,
+                    comment,
                     project_id,
                     total_area_sqkm,
                     flight_distance_km,

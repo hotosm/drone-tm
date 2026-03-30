@@ -6,7 +6,7 @@ import {
   getProjectCentroid,
 } from '@Services/createproject';
 import { getTaskStates } from '@Services/project';
-import { getUserProfileInfo } from '@Services/common';
+import { getUserProfileInfo, getUsers } from '@Services/common';
 import {
   startClassification,
   getBatchStatus,
@@ -69,6 +69,17 @@ export const useGetUserDetailsQuery = (
       localStorage.setItem('userprofile', userDetailsString as string);
       return userDetails;
     },
+    ...queryOptions,
+  });
+};
+
+export const useGetUsersQuery = (
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['users-list'],
+    queryFn: getUsers,
+    select: (res: any) => res.data,
     ...queryOptions,
   });
 };

@@ -121,6 +121,7 @@ const IndividualProject = () => {
                 ...task.outline.properties,
                 locked_user_id: task?.user_id,
                 locked_user_name: task?.name,
+                lock_comment: task?.comment,
               },
             },
           })),
@@ -147,6 +148,7 @@ const IndividualProject = () => {
       id: clickedTask?.id,
       locked_user_id: clickedTask?.user_id,
       locked_user_name: clickedTask?.name,
+      lock_comment: clickedTask?.comment,
       centroidCoordinates: centroid(clickedTask?.outline).geometry.coordinates,
     };
 

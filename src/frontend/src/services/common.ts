@@ -29,6 +29,8 @@ export const postUserProfile = ({
 export const getUserProfileInfo = () =>
   authenticated(api).get('/users/my-info/');
 
+export const getUsers = () => authenticated(api).get('/users/');
+
 export const patchUserProfile = ({ userId, data }: Record<string, any>) =>
   authenticated(api).patch(`/users/${userId}/profile`, data, {
     headers: { 'Content-Type': 'application/json' },

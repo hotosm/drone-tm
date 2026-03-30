@@ -1,5 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LngLatBoundsLike, Map, RasterSourceSpecification } from 'maplibre-gl';
 import { FeatureCollection } from 'geojson';
@@ -30,6 +30,7 @@ import ToolTip from '@Components/RadixComponents/ToolTip';
 import Legend from './Legend';
 import ProjectPromptDialog from '../ModalContent';
 import UnlockTaskPromptDialog from '../ModalContent/UnlockTaskPromptDialog';
+import LockTaskDialog from '../ModalContent/LockTaskDialog';
 import Icon from '@Components/common/Icon';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
@@ -44,6 +45,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     null,
   );
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
+  const [showLockDialog, setShowLockDialog] = useState(false);
+  const pendingLockCommentRef = useRef<string>('');
   const [showOverallOrthophoto, setShowOverallOrthophoto] = useState(false);
   const [showTaskArea, setShowTaskArea] = useState(true);
   const [selectedTaskIndex, setSelectedTaskIndex] = useState<number | null>(null);
@@ -80,18 +83,47 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const { mutate: lockTask } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: (res: any) => {
-      setTaskStatusObj({
-        ...taskStatusObj,
-        [res.data.task_id]:
-          projectData?.requires_approval_from_manager_for_locking &&
-          userDetails?.id !== projectData?.author_id
-            ? 'REQUEST_FOR_MAPPING'
-            : 'LOCKED_FOR_MAPPING',
-      });
-      if (
+      const taskId = res.data.task_id;
+      const newState =
         projectData?.requires_approval_from_manager_for_locking &&
         userDetails?.id !== projectData?.author_id
-      ) {
+          ? 'REQUEST_FOR_MAPPING'
+          : 'LOCKED_FOR_MAPPING';
+      setTaskStatusObj({
+        ...taskStatusObj,
+        [taskId]: newState,
+      });
+      // Update tasksData in Redux so map feature properties reflect the new lock info immediately
+      if (tasksData) {
+        const commentText = pendingLockCommentRef.current;
+        dispatch(
+          setProjectState({
+            tasksData: tasksData.map((task: Record<string, any>) =>
+              task.id === taskId
+                ? {
+                    ...task,
+                    user_id: userDetails?.id,
+                    name: userDetails?.name,
+                    comment: commentText || undefined,
+                    outline: {
+                      ...task.outline,
+                      properties: {
+                        ...task.outline.properties,
+                        locked_user_id: userDetails?.id,
+                        locked_user_name: userDetails?.name,
+                        lock_comment: commentText || undefined,
+                      },
+                    },
+                  }
+                : task,
+            ),
+          }),
+        );
+      }
+      pendingLockCommentRef.current = '';
+      // Close the popup so it reopens with fresh data on next click
+      document.getElementById('close-popup')?.click();
+      if (newState === 'REQUEST_FOR_MAPPING') {
         toast.success('Task Requested for Flight');
       } else {
         toast.success('Task Locked for Flight');
@@ -106,10 +138,39 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const { mutate: unLockTask } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: (res: any) => {
+      const taskId = res.data.task_id;
       setTaskStatusObj({
         ...taskStatusObj,
-        [res.data.task_id]: 'UNLOCKED_TO_MAP',
+        [taskId]: 'UNLOCKED_TO_MAP',
       });
+      // Clear lock info from tasksData in Redux
+      if (tasksData) {
+        dispatch(
+          setProjectState({
+            tasksData: tasksData.map((task: Record<string, any>) =>
+              task.id === taskId
+                ? {
+                    ...task,
+                    user_id: undefined,
+                    name: undefined,
+                    comment: undefined,
+                    outline: {
+                      ...task.outline,
+                      properties: {
+                        ...task.outline.properties,
+                        locked_user_id: undefined,
+                        locked_user_name: undefined,
+                        lock_comment: undefined,
+                      },
+                    },
+                  }
+                : task,
+            ),
+          }),
+        );
+      }
+      // Close the popup so it reopens with fresh data on next click
+      document.getElementById('close-popup')?.click();
       toast.success('Task Unlocked Successfully');
     },
     onError: (err: any) => {
@@ -170,6 +231,14 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const getPopupUI = useCallback(
     (properties: Record<string, any>) => {
       const status = taskStatusObj?.[properties?.id];
+      const lockerName = userDetails?.id === properties?.locked_user_id
+        ? 'you'
+        : properties?.locked_user_name;
+      const byLocker = properties.locked_user_name
+        ? `by ${lockerName}`
+        : '';
+      const lockComment = properties?.lock_comment;
+
       const popupText = (taskStatus: string) => {
         if (projectData?.regulator_approval_status === 'PENDING')
           return `Unable to proceed, local regulator's approval is pending.`;
@@ -179,24 +248,37 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           case 'UNLOCKED_TO_MAP':
             return 'This task is available for flying';
           case 'REQUEST_FOR_MAPPING':
-            return `This task is requested for flying ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is requested for flying ${byLocker}`;
           case 'LOCKED_FOR_MAPPING':
-            return `This task is locked for flying ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is locked for flying ${byLocker}`;
           case 'UNFLYABLE_TASK':
             return 'This task is not flyable';
           case 'IMAGE_UPLOADED':
-            return `This task's Images has been uploaded ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task's images have been uploaded ${byLocker}`;
           case 'IMAGE_PROCESSING_STARTED':
-            return `This task is started ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is started ${byLocker}`;
           case 'IMAGE_PROCESSING_FINISHED':
-            return `This task is completed ${properties.locked_user_name ? `by ${userDetails?.id === properties?.locked_user_id ? 'you' : properties?.locked_user_name}` : ''}`;
+            return `This task is completed ${byLocker}`;
           case 'IMAGE_PROCESSING_FAILED':
-            return `The image processing task started ${userDetails?.id === properties?.locked_user_id ? 'by you' : `by ${properties?.locked_user_name}`} has failed.`;
+            return `The image processing task started ${byLocker} has failed.`;
           default:
             return '';
         }
       };
-      return <h6>{popupText(status)}</h6>;
+
+      const statusText = popupText(status);
+      const showComment = lockComment && status !== 'UNLOCKED_TO_MAP';
+
+      return (
+        <div>
+          <h6>{statusText}</h6>
+          {showComment && (
+            <p className="naxatw-mt-1 naxatw-text-xs naxatw-italic naxatw-text-grey-600">
+              {lockComment}
+            </p>
+          )}
+        </div>
+      );
     },
     [taskStatusObj, userDetails, projectData],
   );
@@ -211,10 +293,28 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   );
 
   const handleTaskLockClick = () => {
+    pendingLockCommentRef.current = '';
     lockTask({
       projectId: id,
       taskId: selectedTaskId,
       data: { event: 'request', updated_at: new Date().toISOString() },
+    });
+  };
+
+  const handleTaskLockWithCommentClick = () => {
+    setShowLockDialog(true);
+  };
+
+  const handleLockTaskWithComment = (comment: string) => {
+    pendingLockCommentRef.current = comment;
+    lockTask({
+      projectId: id,
+      taskId: selectedTaskId,
+      data: {
+        event: 'request',
+        comment: comment || undefined,
+        updated_at: new Date().toISOString(),
+      },
     });
   };
 
@@ -447,17 +547,30 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
               : 'Go To Task'
           }
           handleBtnClick={() =>
-            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP'
+            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
+            !taskStatusObj?.[selectedTaskId]
               ? handleTaskLockClick()
               : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
           }
           hasSecondaryButton={
-            taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
-            (lockedUser?.id === userDetails?.id ||
-              projectData?.author_id === userDetails?.id) // enable task unlock to the project author
+            (taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
+              !taskStatusObj?.[selectedTaskId]) ||
+            (taskStatusObj?.[selectedTaskId] === 'LOCKED_FOR_MAPPING' &&
+              (lockedUser?.id === userDetails?.id ||
+                projectData?.author_id === userDetails?.id))
           }
-          secondaryButtonText="Unlock Task"
-          handleSecondaryBtnClick={() => setShowUnlockDialog(true)}
+          secondaryButtonText={
+            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
+            !taskStatusObj?.[selectedTaskId]
+              ? 'Lock With Comment'
+              : 'Unlock Task'
+          }
+          handleSecondaryBtnClick={() =>
+            taskStatusObj?.[selectedTaskId] === 'UNLOCKED_TO_MAP' ||
+            !taskStatusObj?.[selectedTaskId]
+              ? handleTaskLockWithCommentClick()
+              : setShowUnlockDialog(true)
+          }
           // trigger from popup outside
           openPopupFor={
             projectData?.regulator_approval_status === 'REJECTED' // ignore click if the regulator rejected the approval
@@ -475,6 +588,17 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         />
         <Legend />
       </MapContainer>
+
+      <ProjectPromptDialog
+        title="Lock Task"
+        show={showLockDialog}
+        onClose={() => setShowLockDialog(false)}
+      >
+        <LockTaskDialog
+          handleLockTask={handleLockTaskWithComment}
+          setShowLockDialog={setShowLockDialog}
+        />
+      </ProjectPromptDialog>
 
       <ProjectPromptDialog
         title="Task Unlock"
