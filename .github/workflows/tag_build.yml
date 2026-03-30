@@ -15,6 +15,7 @@ jobs:
       build_target: service
       image_name: ghcr.io/${{ github.repository }}/backend
       dockerfile: Dockerfile
+      build_args: MONITORING=sentry
       scan_image: false
       multi_arch: true
 
