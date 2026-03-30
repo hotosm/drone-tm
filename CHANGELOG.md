@@ -1,3 +1,20 @@
+## 2026.1.2 (2026-03-30)
+
+### Feat
+
+- **qfield**: commit working implementation of qfield plugin flightplan gen
+
+### Fix
+
+- **backend**: url pre-sign issue against cloudfront during processing in prod
+- **frontend**: allow adding comments to locked tasks, partial #750
+- **frontend**: only register hot cookie banner (matomo) in production
+- **backend**: suppress verbose db pool connection logging on prod
+- **qfield**: tweak plugin to auto-pan to flightplan after gen + scroll down on dialog
+- **qfield**: ensure the js flightplan output matches the python one exactly
+- **frontend**: ensure adb flightplan copy implementation for dji works in correct dir
+- **frontend**: tutorial videos loading, no longer require pre-signing
+
 ## 2026.1.1 (2026-03-26)
 
 ### Feat
