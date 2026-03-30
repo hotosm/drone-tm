@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@Components/RadixComponents/Button';
-import { useGetUsersQuery } from '@Api/projects';
+import { ProjectUser, useGetUsersQuery } from '@Api/projects';
 
 interface ILockTaskDialogProps {
   handleLockTask: (comment: string) => void;
@@ -49,7 +49,7 @@ const LockTaskDialog = ({
   // Filter users client-side using the live (non-debounced) query for responsiveness
   const filteredUsers =
     mentionQuery !== null && mentionQuery.length >= MENTION_MIN_CHARS && users
-      ? users.filter((user: Record<string, any>) =>
+      ? users.filter((user: ProjectUser) =>
           user.name.toLowerCase().includes(mentionQuery.toLowerCase()),
         )
       : [];
@@ -158,7 +158,7 @@ const LockTaskDialog = ({
             className="naxatw-absolute naxatw-left-0 naxatw-z-20 naxatw-mt-1 naxatw-max-h-[160px] naxatw-w-full naxatw-overflow-y-auto naxatw-rounded-[4px] naxatw-border naxatw-border-grey-400 naxatw-bg-white naxatw-shadow-lg"
           >
             {filteredUsers.map(
-              (user: Record<string, any>, index: number) => (
+              (user: ProjectUser, index: number) => (
                 <button
                   key={user.id}
                   type="button"

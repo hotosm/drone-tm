@@ -15,6 +15,12 @@ import {
   ImageClassificationResult,
 } from '@Services/classification';
 
+export interface ProjectUser {
+  id: number | string;
+  name: string;
+  profile_img?: string | null;
+}
+
 export const useGetProjectsListQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
@@ -74,12 +80,14 @@ export const useGetUserDetailsQuery = (
 };
 
 export const useGetUsersQuery = (
-  queryOptions?: Partial<UseQueryOptions>,
+  queryOptions?: Partial<UseQueryOptions<ProjectUser[]>>,
 ) => {
-  return useQuery({
+  return useQuery<ProjectUser[]>({
     queryKey: ['users-list'],
-    queryFn: getUsers,
-    select: (res: any) => res.data,
+    queryFn: async () => {
+      const res = await getUsers();
+      return res.data as ProjectUser[];
+    },
     ...queryOptions,
   });
 };
