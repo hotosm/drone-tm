@@ -61,7 +61,7 @@ export default function SignInOverlay() {
                 // This prevents account confusion when switching users
                 document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
                 document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
-          
+
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'PROJECT_CREATOR'}`;
@@ -96,7 +96,7 @@ export default function SignInOverlay() {
                 // This prevents account confusion when switching users
                 document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
                 document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
-          
+
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'DRONE_PILOT'}`;
