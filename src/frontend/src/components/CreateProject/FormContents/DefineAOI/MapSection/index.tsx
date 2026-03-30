@@ -112,6 +112,7 @@ const MapSection = ({
 
   const handleDelete = () => {
     const selectedFeatureIds = draw.getSelectedIds();
+    if (!selectedFeatureIds.length) return;
     let finalFeatureList = [];
     if (selectedTab === 'project') {
       // @ts-ignore
@@ -132,7 +133,7 @@ const MapSection = ({
     } else {
       setBufferGeojson(null);
     }
-    draw.delete(draw.getSelectedIds());
+    draw.delete(selectedFeatureIds);
   };
 
   return (
