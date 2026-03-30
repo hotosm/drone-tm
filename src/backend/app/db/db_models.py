@@ -38,8 +38,6 @@ from app.models.enums import (
 )
 from app.utils import timestamp
 
-# Import HankoUserMapping from auth-libs
-
 Base = declarative_base()
 
 

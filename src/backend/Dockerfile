@@ -50,7 +50,6 @@ STOPSIGNAL SIGINT
 # Copy files needed for building the project
 COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
 COPY packages /project/packages
-COPY libs /project/libs
 
 ARG MONITORING
 
