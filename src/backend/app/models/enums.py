@@ -31,7 +31,7 @@ class TaskSplitType(IntEnum):
 
 
 class ProjectStatus(IntEnum):
-    """Enum to describes all possible states of a Mapping Project."""
+    """Enum to describe all possible states of a Drone Project."""
 
     ARCHIVED = 0
     PUBLISHED = 1
@@ -64,7 +64,7 @@ class ProjectVisibility(IntEnum):
 
 
 class MappingLevel(IntEnum):
-    """The mapping level the mapper has achieved."""
+    """The experience level the drone operator has achieved."""
 
     BEGINNER = 1
     INTERMEDIATE = 2
@@ -115,68 +115,61 @@ class State(IntEnum):
     for a given task.
 
     The state can be:
-    - REQUEST_FOR_MAPPING: someone was request to map the task.
-    - UNLOCKED_TO_MAP: default status, ready to fly.
-    - LOCKED_FOR_MAPPING: locked by a user that is about to fly the task.
-    - ~UNLOCKED_TO_VALIDATE~: flying complete, requires validation (not used yet).
-    - ~LOCKED_FOR_VALIDATION~: currently being validated (not used yet).
-    - ~UNLOCKED_DONE~: task is complete and validated (currently not used).
-    - UNFLYABLE_TASK: not possibly to fly - marked bad.
-    - IMAGE_UPLOADED: imagery has been uploaded for the task.
+    - AWAITING_APPROVAL: someone requested to fly the task (pending approval).
+    - UNLOCKED: default status, ready to fly.
+    - LOCKED: locked by a user that is about to fly the task.
+    - FULLY_FLOWN: flown in the field, not yet uploaded.
+    - HAS_IMAGERY: imagery has been classified/uploaded for the task.
+    - READY_FOR_PROCESSING: user marked task ready for ODM processing.
+    - HAS_ISSUES: task has issues (unflyable, needs redo, etc.).
     - IMAGE_PROCESSING_FAILED: failed processing in ODM.
     - IMAGE_PROCESSING_STARTED: started processing in ODM.
     - IMAGE_PROCESSING_FINISHED: successful processing in ODM.
     """
 
-    REQUEST_FOR_MAPPING = -1
-    UNLOCKED_TO_MAP = 0
-    LOCKED_FOR_MAPPING = 1
-    UNLOCKED_TO_VALIDATE = 2
-    LOCKED_FOR_VALIDATION = 3
-    UNLOCKED_DONE = 4
-    UNFLYABLE_TASK = 5
-    IMAGE_UPLOADED = 6
+    AWAITING_APPROVAL = -1
+    UNLOCKED = 0
+    LOCKED = 1
+    FULLY_FLOWN = 2
+    HAS_IMAGERY = 3
+    READY_FOR_PROCESSING = 4
+    HAS_ISSUES = 5
     IMAGE_PROCESSING_FAILED = 7
     IMAGE_PROCESSING_STARTED = 8
     IMAGE_PROCESSING_FINISHED = 9
 
 
 class EventType(StrEnum):
-    """Events that can be used via the API to update a state
+    """Events that can be used via the API to update a state.
 
     Specify the event type for ``POST`` to:
     ``/project/{pid}/event`` .
 
     Possible values are:
 
-    - ``request`` -- Request a task to be mapped.
-    - ``map`` -- Set to *locked to fly*, i.e. flight in progress.
-    - ``finish`` -- Set to *unlocked to validate*, i.e. is mapped.
-    - ``validate`` -- Request recent task ready to be validate.
-    - ``good`` -- Set the state to *unlocked done*.
-    - ``bad`` -- Set the state *unlocked to map* again, to be mapped once again.
-    - ``split`` -- Set the state *unlocked done* then generate additional subdivided task areas.
-    - ``assign`` -- For a requester user to assign a task to another user. Set the state *locked to fly* passing in the required user id.
-    - ``comment`` -- Keep the state the same, but simply add a comment.
-    - ``unlock`` -- Unlock a task state by unlocking it if it's locked.
-    - ``image_upload`` -- Set the state to *image uploaded* when the task image is uploaded.
-    - ``image_processing_start`` -- Set the state to *image processing started* when the image processing is started by user.
+    - ``request`` -- Request to fly a task (may need approval).
+    - ``fly`` -- Approve/lock the task for flying.
+    - ``mark_flown`` -- Mark a locked task as fully flown.
+    - ``reject`` -- Reject a flight request.
+    - ``mark_issue`` -- Mark a task as having issues.
+    - ``assign`` -- Assign a task to another user.
+    - ``comment`` -- Add a comment without changing state.
+    - ``unlock`` -- Unlock a locked task.
+    - ``split`` -- Split a task (TODO: not yet implemented).
+    - ``image_processing_start`` -- Start image processing in ODM.
 
     Note that ``task_id`` must be specified in the endpoint too.
     """
 
-    REQUESTS = "request"
-    REJECTED = "reject"
-    MAP = "map"
-    FINISH = "finish"
-    VALIDATE = "validate"
-    GOOD = "good"
-    BAD = "bad"
+    REQUEST = "request"
+    REJECT = "reject"
+    FLY = "fly"
+    MARK_FLOWN = "mark_flown"
+    MARK_ISSUE = "mark_issue"
     SPLIT = "split"
     ASSIGN = "assign"
     COMMENT = "comment"
     UNLOCK = "unlock"
-    IMAGE_UPLOAD = "image_upload"
     IMAGE_PROCESSING_START = "image_processing_start"
 
 

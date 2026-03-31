@@ -176,12 +176,12 @@ class Task(BaseModel):
             # task ids that are not in task_events table
             remaining_task_ids = [x for x in task_ids if x not in existing_task_ids]
 
-            # Add missing tasks with state as "UNLOCKED_FOR_MAPPING"
+            # Add missing tasks with state as "UNLOCKED"
             remaining_tasks = [
                 {
                     "project_id": str(project_id),
                     "task_id": task_id,
-                    "state": State.UNLOCKED_TO_MAP.name,
+                    "state": State.UNLOCKED.name,
                 }
                 for task_id in remaining_task_ids
             ]
@@ -245,14 +245,14 @@ class UserTasksOut(BaseModel):
                 WHERE
                     (
                         %(role)s = 'DRONE_PILOT'
-                        AND task_events.user_id = %(user_id)s AND task_events.state NOT IN ('UNLOCKED_TO_MAP')
+                        AND task_events.user_id = %(user_id)s AND task_events.state::text NOT IN ('UNLOCKED')
                     )
                     OR
                     (
                         %(role)s = 'PROJECT_CREATOR'
                         AND (
                             (
-                                task_events.user_id = %(user_id)s AND task_events.state NOT IN ('REQUEST_FOR_MAPPING')
+                                task_events.user_id = %(user_id)s AND task_events.state::text NOT IN ('AWAITING_APPROVAL')
                             )
                             OR
                             (

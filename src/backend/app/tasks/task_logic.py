@@ -33,10 +33,10 @@ async def get_task_stats(db: Connection, user_data: AuthUser):
         async with db.cursor(row_factory=class_row(TaskStats)) as cur:
             raw_sql = """
                 SELECT
-                    COUNT(CASE WHEN te.state = 'REQUEST_FOR_MAPPING' THEN 1 END) AS request_logs,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'IMAGE_UPLOADED', 'IMAGE_PROCESSING_STARTED','IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_tasks,
-                    COUNT(CASE WHEN te.state = 'UNFLYABLE_TASK' THEN 1 END) AS unflyable_tasks
+                    COUNT(CASE WHEN te.state::text = 'AWAITING_APPROVAL' THEN 1 END) AS request_logs,
+                    COUNT(CASE WHEN te.state::text IN ('LOCKED', 'FULLY_FLOWN', 'HAS_IMAGERY', 'READY_FOR_PROCESSING', 'IMAGE_PROCESSING_STARTED','IMAGE_PROCESSING_FAILED') THEN 1 END) AS ongoing_tasks,
+                    COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_tasks,
+                    COUNT(CASE WHEN te.state::text = 'HAS_ISSUES' THEN 1 END) AS unflyable_tasks
 
                 FROM (
                     SELECT DISTINCT ON (te.task_id)
@@ -47,13 +47,13 @@ async def get_task_stats(db: Connection, user_data: AuthUser):
                     WHERE
                         (
                         %(role)s = 'DRONE_PILOT'
-                        AND te.user_id = %(user_id)s AND te.state NOT IN ('UNLOCKED_TO_MAP')
+                        AND te.user_id = %(user_id)s AND te.state::text NOT IN ('UNLOCKED')
                     )
                     OR
                     (
                         %(role)s = 'PROJECT_CREATOR'
                         AND (
-                            te.user_id = %(user_id)s AND te.state NOT IN ('REQUEST_FOR_MAPPING')
+                            te.user_id = %(user_id)s AND te.state::text NOT IN ('AWAITING_APPROVAL')
                             OR
                             te.project_id IN (
                                 SELECT p.id
@@ -360,43 +360,37 @@ async def handle_event(
     background_tasks: BackgroundTasks,
 ):
     match detail.event:
-        case EventType.REQUESTS:
+        case EventType.REQUEST:
             # Determine the appropriate state and message
             is_author = project["author_id"] == user_id
-            # NOTE:
-            # if user_role != UserRole.DRONE_PILOT.name and not is_author:
-            #     raise HTTPException(
-            #         status_code=403,
-            #         detail="Only the project author or drone operators can request tasks for this project.",
-            #     )
 
             requires_approval = project["requires_approval_from_manager_for_locking"]
 
             if is_author or not requires_approval:
-                state_after = State.LOCKED_FOR_MAPPING
+                state_after = State.LOCKED
                 message = "Request accepted automatically" + (
                     " as the author" if is_author else ""
                 )
             else:
-                state_after = State.REQUEST_FOR_MAPPING
+                state_after = State.AWAITING_APPROVAL
                 message = "Request for flight"
 
             # Use user-provided comment if present, otherwise use auto-generated message
             comment = detail.comment if detail.comment else message
 
-            # Perform the mapping request
+            # Perform the flight request
             data = await request_mapping(
                 db,
                 project_id,
                 task_id,
                 user_id,
                 comment,
-                State.UNLOCKED_TO_MAP,
+                State.UNLOCKED,
                 state_after,
                 detail.updated_at,
             )
             # Send email notification if approval is required
-            if state_after == State.REQUEST_FOR_MAPPING:
+            if state_after == State.AWAITING_APPROVAL:
                 author = await DbUser.get_user_by_id(db, project["author_id"])
                 html_content = render_email_template(
                     folder_name="mapping",
@@ -420,23 +414,23 @@ async def handle_event(
 
             return data
 
-        case EventType.MAP:
+        case EventType.FLY:
             if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only the project creator can approve the mapping.",
+                    detail="Only the project creator can approve the flight request.",
                 )
 
             requested_user_id = await DbUser.get_requested_user_id(
-                db, project_id, task_id, State.REQUEST_FOR_MAPPING
+                db, project_id, task_id, State.AWAITING_APPROVAL
             )
             drone_operator = await DbUser.get_user_by_id(db, requested_user_id)
             html_content = render_email_template(
                 folder_name="mapping",
                 template_name="approved_or_rejected.html",
                 context={
-                    "email_subject": "Mapping Request Approved",
-                    "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
+                    "email_subject": "Flight Request Approved",
+                    "email_body": "We are pleased to inform you that your flight request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
                     "task_status": "approved",
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
@@ -455,34 +449,36 @@ async def handle_event(
                 html_content,
             )
 
+            # Add an @mention so the approved operator gets the map highlight
+            # that indicates the task was locked for them by the manager.
             return await update_task_state(
                 db,
                 project_id,
                 task_id,
                 requested_user_id,
-                "Request accepted for flying",
-                State.REQUEST_FOR_MAPPING,
-                State.LOCKED_FOR_MAPPING,
+                f"Request accepted for flying. @[{drone_operator['name']}]({requested_user_id})",
+                State.AWAITING_APPROVAL,
+                State.LOCKED,
                 detail.updated_at,
             )
 
-        case EventType.REJECTED:
+        case EventType.REJECT:
             if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only the project creator can approve the mapping.",
+                    detail="Only the project creator can reject the flight request.",
                 )
 
             requested_user_id = await DbUser.get_requested_user_id(
-                db, project_id, task_id, State.REQUEST_FOR_MAPPING
+                db, project_id, task_id, State.AWAITING_APPROVAL
             )
             drone_operator = await DbUser.get_user_by_id(db, requested_user_id)
             html_content = render_email_template(
                 folder_name="mapping",
                 template_name="approved_or_rejected.html",
                 context={
-                    "email_subject": "Mapping Request Rejected",
-                    "email_body": "We are sorry to inform you that your mapping request has been rejected.",
+                    "email_subject": "Flight Request Rejected",
+                    "email_body": "We are sorry to inform you that your flight request has been rejected.",
                     "task_status": "rejected",
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
@@ -506,60 +502,27 @@ async def handle_event(
                 task_id,
                 requested_user_id,
                 "Request for flight rejected",
-                State.REQUEST_FOR_MAPPING,
-                State.UNLOCKED_TO_MAP,
+                State.AWAITING_APPROVAL,
+                State.UNLOCKED,
                 detail.updated_at,
             )
-        case EventType.FINISH:
+        case EventType.MARK_FLOWN:
             return await update_task_state(
                 db,
                 project_id,
                 task_id,
                 user_id,
-                "Done: unlocked to validate",
-                State.LOCKED_FOR_MAPPING,
-                State.UNLOCKED_TO_VALIDATE,
-                detail.updated_at,
-            )
-        case EventType.VALIDATE:
-            return update_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                "Done: locked for validation",
-                State.UNLOCKED_TO_VALIDATE,
-                State.LOCKED_FOR_VALIDATION,
-                detail.updated_at,
-            )
-        case EventType.GOOD:
-            return await update_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                "Done: Task is Good",
-                State.LOCKED_FOR_VALIDATION,
-                State.UNLOCKED_DONE,
+                "Task marked as fully flown",
+                State.LOCKED,
+                State.FULLY_FLOWN,
                 detail.updated_at,
             )
 
-        case EventType.BAD:
-            return await update_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                "Done: needs to redo",
-                State.LOCKED_FOR_VALIDATION,
-                State.UNLOCKED_TO_MAP,
-                detail.updated_at,
-            )
-        case EventType.COMMENT:
+        case EventType.MARK_ISSUE:
             author = await DbUser.get_user_by_id(db, project["author_id"])
 
             requested_user_id = await DbUser.get_requested_user_id(
-                db, project_id, task_id, State.LOCKED_FOR_MAPPING
+                db, project_id, task_id, State.LOCKED
             )
             project_task_index = next(
                 (
@@ -598,10 +561,38 @@ async def handle_event(
                 task_id,
                 user_id,
                 detail.comment,
-                State.LOCKED_FOR_MAPPING,
-                State.UNFLYABLE_TASK,
+                State.LOCKED,
+                State.HAS_ISSUES,
                 detail.updated_at,
             )
+
+        case EventType.COMMENT:
+            # Comments no longer change state; just insert a task_event row
+            current_task_state = await get_task_state(db, project_id, task_id)
+            current_state_name = (
+                current_task_state.get("state")
+                if current_task_state
+                else State.UNLOCKED.name
+            )
+            current_state = State[current_state_name]
+
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+                    VALUES (gen_random_uuid(), %(project_id)s, %(task_id)s, %(user_id)s, %(state)s, %(comment)s, %(updated_at)s, now())
+                    RETURNING project_id, task_id, comment;
+                    """,
+                    {
+                        "project_id": str(project_id),
+                        "task_id": str(task_id),
+                        "user_id": str(user_id),
+                        "state": current_state.name,
+                        "comment": detail.comment,
+                        "updated_at": detail.updated_at,
+                    },
+                )
+                return await cur.fetchone()
 
         case EventType.UNLOCK:
             # Fetch the task state
@@ -612,7 +603,7 @@ async def handle_event(
             is_author = project["author_id"] == user_id
 
             # Determine error conditions
-            if state != State.LOCKED_FOR_MAPPING.name:
+            if state != State.LOCKED.name:
                 raise HTTPException(
                     status_code=400,
                     detail="Task state does not match expected state for unlock operation.",
@@ -630,44 +621,23 @@ async def handle_event(
                 task_id,
                 user_id,
                 f"Task has been unlock by user {user_data.name}.",
-                State.LOCKED_FOR_MAPPING,
-                State.UNLOCKED_TO_MAP,
+                State.LOCKED,
+                State.UNLOCKED,
                 detail.updated_at,
             )
-
-        case EventType.IMAGE_UPLOAD:
-            # DEPRECATED: This event type is no longer used.
-            # Task status should only be updated via the "Mark Fully Flown" button
-            # in the verification workflow. Images are now uploaded to the staging area
-            # and classified to tasks without changing task status automatically.
-            #
-            # The new workflow is:
-            # 1. Upload images via the new resumable upload workflow (project-level)
-            # 2. Classify images to tasks
-            # 3. User verifies coverage and clicks "Mark Fully Flown" to set IMAGE_UPLOADED
-            #
-            # Keeping this case to avoid breaking existing API calls, but it now does nothing.
-            log.warning(
-                f"Deprecated IMAGE_UPLOAD event received for project {project_id}, "
-                f"task {task_id}. This event no longer updates task status."
-            )
-            return {
-                "message": "Image upload event received but task status was not changed. "
-                "Use the 'Mark Fully Flown' button to update task status after verifying coverage."
-            }
 
         case EventType.IMAGE_PROCESSING_START:
             current_task_state = await get_task_state(db, project_id, task_id)
             if not current_task_state:
                 raise HTTPException(
-                    status_code=400, detail="Task is not ready for image upload."
+                    status_code=400, detail="Task is not ready for processing."
                 )
             state = current_task_state.get("state")
             locked_user_id = current_task_state.get("user_id")
 
-            # Determine error conditions: Current State must be IMAGE_UPLOADED or IMAGE_PROCESSING_FAILED.
+            # Current State must be READY_FOR_PROCESSING or IMAGE_PROCESSING_FAILED.
             if state not in (
-                State.IMAGE_UPLOADED.name,
+                State.READY_FOR_PROCESSING.name,
                 State.IMAGE_PROCESSING_FAILED.name,
             ):
                 raise HTTPException(
@@ -681,13 +651,17 @@ async def handle_event(
                     detail="You cannot upload an image for this task as it is locked by another user.",
                 )
 
+            # Preserve the actual current state so retries from FAILED use the
+            # correct transition instead of always assuming READY_FOR_PROCESSING.
+            initial_state = State[state]
+
             return await update_task_state(
                 db,
                 project_id,
                 task_id,
                 user_id,
                 f"Task image processing started by user {user_data.name}.",
-                State.IMAGE_UPLOADED,
+                initial_state,
                 State.IMAGE_PROCESSING_STARTED,
                 detail.updated_at,
             )

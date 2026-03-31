@@ -107,13 +107,13 @@ export const ourRationaleData = [
     id: 1,
     title: 'Limited Access to High Resolution Aerial Datasets',
     description:
-      'In low-income and disaster-prone areas, access to near real-time satellite datasets is severely limited. High-resolution satellite imagery, when available, is often expensive and out-of-date. Additionally, full-scale aircraft mapping is not a viable option due to its high costs and operational complexity.',
+      'In low-income and disaster-prone areas, access to near real-time satellite datasets is severely limited. High-resolution satellite imagery, when available, is often expensive and out-of-date. Additionally, full-scale aircraft mapping is not a viable option due to high costs and operational complexity.',
   },
   {
     id: 2,
     title: 'Limited Engagement Of Communities',
     description:
-      'Traditional mapping solutions involve professional consultants with expensive equipment who with communities only briefly, which can lead to delays and lack of locally relevant data.',
+      'Traditional mapping solutions involve professional consultants with expensive equipment who engage with communities only briefly, which can lead to delays and lack of locally relevant data.',
   },
   {
     id: 3,

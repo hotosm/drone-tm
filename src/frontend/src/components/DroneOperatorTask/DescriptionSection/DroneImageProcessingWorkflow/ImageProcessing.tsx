@@ -22,7 +22,7 @@ const POLLING_INTERVAL = 10000;
 
 const getTaskStatusInfo = (task: ProcessingTask) => {
   switch (task.state) {
-    case 'IMAGE_UPLOADED':
+    case 'READY_FOR_PROCESSING':
       return {
         label: 'Ready',
         icon: 'check',
@@ -109,7 +109,7 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
       return { processableTasks: [], insufficientTasks: [], processingTasks: [], completedTasks: [] };
     }
 
-    const readyTasks = summary.tasks.filter(t => t.state === 'IMAGE_UPLOADED');
+    const readyTasks = summary.tasks.filter(t => t.state === 'READY_FOR_PROCESSING');
     const inProgress = summary.tasks.filter(t => t.state === 'IMAGE_PROCESSING_STARTED');
     const finished = summary.tasks.filter(
       t => t.state === 'IMAGE_PROCESSING_FINISHED' || t.state === 'IMAGE_PROCESSING_FAILED'
@@ -221,7 +221,7 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
   const renderTaskRow = (task: ProcessingTask, selectable: boolean = false) => {
     const status = getTaskStatusInfo(task);
     const isSelected = selectedTasks.has(task.task_id);
-    const canSelect = selectable && task.state === 'IMAGE_UPLOADED' && task.image_count >= MIN_IMAGES_FOR_ODM;
+    const canSelect = selectable && task.state === 'READY_FOR_PROCESSING' && task.image_count >= MIN_IMAGES_FOR_ODM;
     const isFailed = task.state === 'IMAGE_PROCESSING_FAILED';
 
     return (
@@ -248,7 +248,7 @@ const ImageProcessing = ({ projectId, batchId }: ImageProcessingProps) => {
           <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
             <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
               <span className={`material-icons naxatw-text-lg ${status.iconClass}`}>
-                {task.state === 'IMAGE_UPLOADED' ? 'check_circle' : status.icon}
+                {task.state === 'READY_FOR_PROCESSING' ? 'check_circle' : status.icon}
               </span>
               <span className="naxatw-font-medium naxatw-text-gray-700">
                 Task #{task.task_index}

@@ -11,7 +11,7 @@ import { formatString } from '@Utils/index';
 import ApprovalSection from './ApprovalSection';
 
 const statusAfterImageUploaded = [
-  'IMAGE_UPLOADED',
+  'READY_FOR_PROCESSING',
   'IMAGE_PROCESSING_FAILED',
   'IMAGE_PROCESSING_STARTED',
   'IMAGE_PROCESSING_FINISHED',

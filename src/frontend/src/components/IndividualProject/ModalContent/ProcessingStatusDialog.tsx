@@ -15,12 +15,12 @@ import { toggleModal } from '@Store/actions/common';
 import { setProjectState } from '@Store/actions/project';
 
 const stateColors: Record<string, string> = {
-  IMAGE_UPLOADED: '#9ec7ff',
+  READY_FOR_PROCESSING: '#9ec7ff',
   IMAGE_PROCESSING_STARTED: '#9C77B2',
   IMAGE_PROCESSING_FINISHED: '#ACD2C4',
-  IMAGE_PROCESSING_FAILED: '#f00000',
-  LOCKED_FOR_MAPPING: '#98BBC8',
-  UNFLYABLE_TASK: '#9EA5AD',
+  IMAGE_PROCESSING_FAILED: '#D73F3F',
+  LOCKED: '#98BBC8',
+  HAS_ISSUES: '#D73F3F',
 };
 
 type ProcessingDialogTask = {
@@ -254,7 +254,7 @@ const ProcessingStatusDialog = () => {
         .filter(
           (task) =>
             task.assigned_images > 0 ||
-            task.task_state === 'IMAGE_UPLOADED' ||
+            task.task_state === 'READY_FOR_PROCESSING' ||
             task.task_state === 'IMAGE_PROCESSING_STARTED' ||
             task.task_state === 'IMAGE_PROCESSING_FINISHED' ||
             task.task_state === 'IMAGE_PROCESSING_FAILED',
@@ -279,7 +279,7 @@ const ProcessingStatusDialog = () => {
       .filter(
         (t: any) =>
           t.image_count > 0 ||
-          t.state === 'IMAGE_UPLOADED' ||
+          t.state === 'READY_FOR_PROCESSING' ||
           t.state === 'IMAGE_PROCESSING_STARTED' ||
           t.state === 'IMAGE_PROCESSING_FINISHED' ||
           t.state === 'IMAGE_PROCESSING_FAILED',
@@ -309,7 +309,7 @@ const ProcessingStatusDialog = () => {
 
       const next = new Set(prev);
       taskList.forEach((task) => {
-        if (next.has(task.task_id) && task.state !== 'IMAGE_UPLOADED') {
+        if (next.has(task.task_id) && task.state !== 'READY_FOR_PROCESSING') {
           next.delete(task.task_id);
         }
       });

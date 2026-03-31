@@ -70,7 +70,7 @@ class DbOrganisation(Base):
 
 
 class DbTask(Base):
-    """Describes an individual mapping Task."""
+    """Describes an individual drone flight Task."""
 
     __tablename__ = "tasks"
 
@@ -95,7 +95,7 @@ class DbTask(Base):
 
 
 class DbProject(Base):
-    """Describes a Mapping Project."""
+    """Describes a Drone Project."""
 
     __tablename__ = "projects"
 

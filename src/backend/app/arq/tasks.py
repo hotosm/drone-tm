@@ -107,7 +107,7 @@ def generate_thumbnail(
         raise ValueError(f"Failed to generate thumbnail: {e}") from e
 
 
-async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
+async def sleep_task(ctx: Dict[Any, Any], **_kwargs: Any) -> Dict[str, str]:
     """Test task to sleep for 1 minute"""
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting sleep_task (Job ID: {job_id})")
@@ -121,7 +121,9 @@ async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
         raise
 
 
-async def count_project_tasks(ctx: Dict[Any, Any], project_id: str) -> Dict[str, Any]:
+async def count_project_tasks(
+    ctx: Dict[Any, Any], project_id: str, **_kwargs: Any
+) -> Dict[str, Any]:
     """Example task that counts tasks for a given project"""
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting count_project_tasks (Job ID: {job_id})")
@@ -207,6 +209,7 @@ async def process_uploaded_image(
     filename: str,
     uploaded_by: str,
     batch_id: Optional[str] = None,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Process an uploaded image after it lands in S3 (ARQ worker).
 
@@ -407,6 +410,7 @@ async def classify_image_batch(
     ctx: Dict[Any, Any],
     project_id: str,
     batch_id: str,
+    **_kwargs: Any,
 ) -> Dict:
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting batch classification job {job_id} for batch {batch_id}")
@@ -477,6 +481,7 @@ async def process_batch_images(
     ctx: Dict[Any, Any],
     project_id: str,
     batch_id: str,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Background task to move batch images to task folders and trigger ODM processing.
 
@@ -605,6 +610,7 @@ async def delete_batch_images(
     ctx: Dict[Any, Any],
     project_id: str,
     batch_id: str,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Background task to delete all images in a batch from both database and S3.
 
@@ -647,7 +653,7 @@ async def delete_batch_images(
 
 
 async def process_project_task_metrics(
-    ctx: Dict[Any, Any], project_id: str
+    ctx: Dict[Any, Any], project_id: str, **_kwargs: Any
 ) -> Dict[str, Any]:
     """Process project task metrics in the ARQ worker."""
     job_id = ctx.get("job_id", "unknown")

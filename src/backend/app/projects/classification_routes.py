@@ -587,7 +587,7 @@ async def mark_task_verified(
 ):
     """Mark a task as verified/fully flown after visual inspection.
 
-    This inserts a new task event with IMAGE_UPLOADED state, indicating that
+    This inserts a new task event with READY_FOR_PROCESSING state, indicating that
     the user has verified that all required images are present and the task
     is ready for processing. After marking, it also moves the task's images
     from the upload staging area to the task's images folder so they are
@@ -611,7 +611,7 @@ async def mark_task_verified(
                     detail="Task not found in this project",
                 )
 
-            # Insert a new task event to mark the task as IMAGE_UPLOADED
+            # Insert a new task event to mark the task as READY_FOR_PROCESSING
             await cur.execute(
                 """
                 INSERT INTO task_events (
@@ -632,7 +632,7 @@ async def mark_task_verified(
                     "project_id": str(project_id),
                     "task_id": str(task_id),
                     "user_id": str(user.id),
-                    "state": State.IMAGE_UPLOADED.name,
+                    "state": State.READY_FOR_PROCESSING.name,
                     "comment": "Task marked as verified via image classification workflow",
                 },
             )
@@ -657,14 +657,14 @@ async def mark_task_verified(
         await db.commit()
 
         log.info(
-            f"Task {task_id} marked as verified (IMAGE_UPLOADED) by user {user.id}, "
+            f"Task {task_id} marked as verified (READY_FOR_PROCESSING) by user {user.id}, "
             f"{move_result.get('moved_count', 0)} images moved"
         )
 
         return {
             "message": "Task marked as fully flown",
             "task_id": str(task_id),
-            "state": State.IMAGE_UPLOADED.name,
+            "state": State.READY_FOR_PROCESSING.name,
             "images_moved": move_result.get("moved_count", 0),
         }
 

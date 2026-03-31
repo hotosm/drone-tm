@@ -166,7 +166,7 @@ export const getBatchMapData = async (
 };
 
 export type TaskProcessingState =
-  | 'IMAGE_UPLOADED'
+  | 'READY_FOR_PROCESSING'
   | 'IMAGE_PROCESSING_STARTED'
   | 'IMAGE_PROCESSING_FINISHED'
   | 'IMAGE_PROCESSING_FAILED';

@@ -233,7 +233,7 @@ export const contributionsInfo = [
   {
     key: 'Approval for task lock',
     description:
-      'Approval required tasks should be approved from project creator to proceed the mapping.',
+      'Approval required tasks should be approved from project creator to proceed with flying.',
   },
 ];
 
