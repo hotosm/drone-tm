@@ -1,13 +1,15 @@
 import { FlexRow } from '@Components/common/Layouts';
 import { Link } from 'react-router-dom';
+import packageInfo from '../../../../package.json';
 
 export default function Navbar() {
   return (
     <header>
       <FlexRow
         gap={10}
-        className="naxatw-justify-center naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white lg:naxatw-justify-end"
+        className="naxatw-justify-between naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white"
       >
+        <span className="naxatw-opacity-75">Version {packageInfo.version}</span>
         <FlexRow
           gap={5}
           className="naxatw-h-fit naxatw-text-xs naxatw-leading-none"
