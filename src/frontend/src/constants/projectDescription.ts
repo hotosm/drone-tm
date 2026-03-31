@@ -28,9 +28,9 @@ export const getLayerOptionsByStatus = (status: string) => {
     HAS_IMAGERY: {
       type: 'fill',
       paint: {
-        'fill-color': '#a8c8d8',
+        'fill-color': '#98BBC8',
         'fill-outline-color': '#484848',
-        'fill-opacity': 0.6,
+        'fill-opacity': 0.8,
       },
     },
     IMAGE_PROCESSING_FINISHED: {

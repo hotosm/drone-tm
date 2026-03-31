@@ -23,14 +23,14 @@ const Legend = () => {
             {/* AWAITING_APPROVAL */}
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#F3C5C5]" />
-              <p className="naxatw-text-sm">Lock Approval Requested</p>
+              <p className="naxatw-text-sm">Awaiting Approval</p>
             </div>
-            {/* LOCKED */}
+            {/* LOCKED / HAS_IMAGERY */}
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#98BBC8]">
                 <img src={lock} alt="area-icon" className="naxatw-p-0.5" />
               </div>
-              <p className="naxatw-text-sm">Locked Task</p>
+              <p className="naxatw-text-sm">In Progress</p>
             </div>
             {/* FULLY_FLOWN */}
             <div className="naxatw-flex naxatw-gap-2">
@@ -50,17 +50,17 @@ const Legend = () => {
             {/* HAS_ISSUES / IMAGE_PROCESSING_FAILED */}
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#D73F3F] naxatw-opacity-60" />
-              <p className="naxatw-text-sm">Issue</p>
+              <p className="naxatw-text-sm">Has Issues</p>
             </div>
             {/* IMAGE_PROCESSING_FINISHED */}
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#ACD2C4]" />
-              <p className="naxatw-text-sm">Finished Task</p>
+              <p className="naxatw-text-sm">Completed</p>
             </div>
             {/* UNLOCKED */}
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-border naxatw-border-[#68707F]" />
-              <p className="naxatw-text-sm">Not Started</p>
+              <p className="naxatw-text-sm">Available</p>
             </div>
             {/* Mentioned / assigned to you */}
             <div className="naxatw-flex naxatw-gap-2">

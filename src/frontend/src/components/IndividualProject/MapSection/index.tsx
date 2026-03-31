@@ -249,46 +249,91 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
         ? 'you'
         : properties?.locked_user_name;
       const byLocker = properties.locked_user_name
-        ? `by ${lockerName}`
+        ? ` by ${lockerName}`
         : '';
       const lockComment = properties?.lock_comment;
 
-      const popupText = (taskStatus: string) => {
+      const statusLabel = (taskStatus: string) => {
+        switch (taskStatus) {
+          case 'UNLOCKED': return 'Available';
+          case 'AWAITING_APPROVAL': return 'Awaiting Approval';
+          case 'LOCKED': return 'In Progress';
+          case 'FULLY_FLOWN': return 'Fully Flown';
+          case 'HAS_IMAGERY': return 'In Progress';
+          case 'HAS_ISSUES': return 'Has Issues';
+          case 'READY_FOR_PROCESSING': return 'Ready for Processing';
+          case 'IMAGE_PROCESSING_STARTED': return 'Processing';
+          case 'IMAGE_PROCESSING_FINISHED': return 'Completed';
+          case 'IMAGE_PROCESSING_FAILED': return 'Has Issues';
+          default: return 'Unknown';
+        }
+      };
+
+      const statusColor = (taskStatus: string) => {
+        switch (taskStatus) {
+          case 'UNLOCKED': return { bg: '#f0f0f0', text: '#484848' };
+          case 'AWAITING_APPROVAL': return { bg: '#F3C5C5', text: '#7a2020' };
+          case 'LOCKED': return { bg: '#98BBC8', text: '#1a3a4a' };
+          case 'FULLY_FLOWN': return { bg: '#176149', text: '#ffffff' };
+          case 'HAS_IMAGERY': return { bg: '#98BBC8', text: '#1a3a4a' };
+          case 'HAS_ISSUES': return { bg: '#D73F3F', text: '#ffffff' };
+          case 'READY_FOR_PROCESSING': return { bg: '#9ec7ff', text: '#1a3a6a' };
+          case 'IMAGE_PROCESSING_STARTED': return { bg: '#9C77B2', text: '#ffffff' };
+          case 'IMAGE_PROCESSING_FINISHED': return { bg: '#ACD2C4', text: '#1a3a2a' };
+          case 'IMAGE_PROCESSING_FAILED': return { bg: '#D73F3F', text: '#ffffff' };
+          default: return { bg: '#e0e0e0', text: '#484848' };
+        }
+      };
+
+      const popupDescription = (taskStatus: string) => {
         if (projectData?.regulator_approval_status === 'PENDING')
           return `Unable to proceed, local regulator's approval is pending.`;
         if (projectData?.regulator_approval_status === 'REJECTED')
           return 'Unable to proceed, local regulators rejected the project';
         switch (taskStatus) {
           case 'UNLOCKED':
-            return 'This task is available for flying';
+            return 'This task is available for flying.';
           case 'AWAITING_APPROVAL':
-            return `This task is awaiting lock approval ${byLocker}`;
+            return `Awaiting lock approval${byLocker}.`;
           case 'LOCKED':
-            return `This task is locked for flying ${byLocker}`;
+            return `Locked for flying${byLocker}.`;
+          case 'FULLY_FLOWN':
+            return `Flown in the field${byLocker}, imagery not yet uploaded.`;
+          case 'HAS_IMAGERY':
+            return `Some imagery has been uploaded${byLocker}.`;
           case 'HAS_ISSUES':
-            return 'This task is not flyable';
+            return 'This task has been flagged as not flyable.';
           case 'READY_FOR_PROCESSING':
-            return `This task's images have been uploaded ${byLocker}`;
+            return `Images uploaded${byLocker}, ready for processing.`;
           case 'IMAGE_PROCESSING_STARTED':
-            return `This task is started ${byLocker}`;
+            return `Image processing in progress${byLocker}.`;
           case 'IMAGE_PROCESSING_FINISHED':
-            return `This task is completed ${byLocker}`;
+            return `Processing complete${byLocker}.`;
           case 'IMAGE_PROCESSING_FAILED':
-            return `The image processing task started ${byLocker} has failed.`;
+            return `Image processing failed${byLocker}.`;
           default:
             return '';
         }
       };
 
-      const statusText = popupText(status);
+      const colors = statusColor(status);
+      const description = popupDescription(status);
       const showComment = lockComment && status !== 'UNLOCKED';
       const renderedComment = renderCommentMentions(lockComment);
 
       return (
-        <div>
-          <h6>{statusText}</h6>
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
+          <span
+            className="naxatw-inline-block naxatw-w-fit naxatw-rounded-full naxatw-px-2.5 naxatw-py-0.5 naxatw-text-xs naxatw-font-semibold"
+            style={{ backgroundColor: colors.bg, color: colors.text }}
+          >
+            {statusLabel(status)}
+          </span>
+          {description && (
+            <p className="naxatw-text-xs naxatw-text-grey-800">{description}</p>
+          )}
           {showComment && (
-            <p className="naxatw-mt-1 naxatw-text-xs naxatw-italic naxatw-text-grey-600">
+            <p className="naxatw-text-xs naxatw-italic naxatw-text-grey-600">
               {renderedComment}
             </p>
           )}
@@ -445,6 +490,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
                 )}
                 hasImage={
                   taskStatusObj?.[`${task?.id}`] === 'LOCKED' ||
+                  taskStatusObj?.[`${task?.id}`] === 'HAS_IMAGERY' ||
                   false
                 }
                 image={lock}

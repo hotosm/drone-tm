@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState, useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import {
@@ -32,6 +32,7 @@ export const UploadImageryDialog = ({
   projectId,
 }: IUploadImageryDialogProps) => {
   const dispatch = useTypedDispatch();
+  const queryClient = useQueryClient();
   const { currentStep, batchId, isClassifying, isClassificationComplete } = useTypedSelector(
     (state) => state.imageProcessingWorkflow
   );
@@ -85,6 +86,8 @@ export const UploadImageryDialog = ({
       setShowAbortConfirmation(true);
       return;
     }
+    // Refetch task states so the map immediately reflects any status changes
+    queryClient.invalidateQueries({ queryKey: ['project-task-states'] });
     dispatch(resetWorkflow());
     onClose();
   };
@@ -102,6 +105,8 @@ export const UploadImageryDialog = ({
     // Images are moved to task folders only when tasks are marked as verified
     // in the Verify Imagery dialog, so no finalization needed here.
     toast.success('Upload complete. Open Verify Imagery to review and mark tasks as fully flown.');
+    // Refetch task states so the map immediately reflects HAS_IMAGERY status
+    queryClient.invalidateQueries({ queryKey: ['project-task-states'] });
     dispatch(resetWorkflow());
     onClose();
   };
