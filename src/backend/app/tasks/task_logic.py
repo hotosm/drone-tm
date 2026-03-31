@@ -378,7 +378,7 @@ async def handle_event(
             # Use user-provided comment if present, otherwise use auto-generated message
             comment = detail.comment if detail.comment else message
 
-            # Perform the mapping request
+            # Perform the flight request
             data = await request_mapping(
                 db,
                 project_id,
@@ -418,7 +418,7 @@ async def handle_event(
             if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only the project creator can approve the mapping.",
+                    detail="Only the project creator can approve the flight request.",
                 )
 
             requested_user_id = await DbUser.get_requested_user_id(
@@ -429,8 +429,8 @@ async def handle_event(
                 folder_name="mapping",
                 template_name="approved_or_rejected.html",
                 context={
-                    "email_subject": "Mapping Request Approved",
-                    "email_body": "We are pleased to inform you that your mapping request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
+                    "email_subject": "Flight Request Approved",
+                    "email_body": "We are pleased to inform you that your flight request has been approved. Your contribution is invaluable to our efforts in improving humanitarian responses worldwide.",
                     "task_status": "approved",
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],
@@ -466,7 +466,7 @@ async def handle_event(
             if user_id != project["author_id"]:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only the project creator can approve the mapping.",
+                    detail="Only the project creator can reject the flight request.",
                 )
 
             requested_user_id = await DbUser.get_requested_user_id(
@@ -477,8 +477,8 @@ async def handle_event(
                 folder_name="mapping",
                 template_name="approved_or_rejected.html",
                 context={
-                    "email_subject": "Mapping Request Rejected",
-                    "email_body": "We are sorry to inform you that your mapping request has been rejected.",
+                    "email_subject": "Flight Request Rejected",
+                    "email_body": "We are sorry to inform you that your flight request has been rejected.",
                     "task_status": "rejected",
                     "name": user_data.name,
                     "drone_operator_name": drone_operator["name"],

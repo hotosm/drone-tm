@@ -31,7 +31,7 @@ class TaskSplitType(IntEnum):
 
 
 class ProjectStatus(IntEnum):
-    """Enum to describes all possible states of a Mapping Project."""
+    """Enum to describe all possible states of a Drone Project."""
 
     ARCHIVED = 0
     PUBLISHED = 1
@@ -64,7 +64,7 @@ class ProjectVisibility(IntEnum):
 
 
 class MappingLevel(IntEnum):
-    """The mapping level the mapper has achieved."""
+    """The experience level the drone operator has achieved."""
 
     BEGINNER = 1
     INTERMEDIATE = 2
