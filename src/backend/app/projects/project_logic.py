@@ -333,8 +333,16 @@ async def process_drone_images(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     user_id: str,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
-    """Process drone images using ODM"""
+    """Process drone images using ODM.
+
+    NOTE: **_kwargs absorbs extra keys (e.g. ``_carrier``) that OpenTelemetry's
+    now-removed ArqInstrumentor injected into job payloads stored in Redis.
+    Without it, stale jobs enqueued before the instrumentor was removed crash
+    with ``TypeError: got an unexpected keyword argument '_carrier'``.
+    All other ARQ worker functions use **_kwargs for the same reason.
+    """
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting process_drone_images (Job ID: {job_id})")
 
@@ -493,7 +501,11 @@ async def update_processing_status(
 
 
 async def process_all_drone_images(
-    ctx: Dict[Any, Any], project_id: uuid.UUID, tasks: list, user_id: str
+    ctx: Dict[Any, Any],
+    project_id: uuid.UUID,
+    tasks: list,
+    user_id: str,
+    **_kwargs: Any,
 ):
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting process_drone_images_for_a_project (Job ID: {job_id})")

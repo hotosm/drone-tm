@@ -169,7 +169,9 @@ async def enqueue_dem_download(
         raise
 
 
-async def download_and_upload_dem(ctx, coordinates_str: str, project_id: str):
+async def download_and_upload_dem(
+    ctx, coordinates_str: str, project_id: str, **_kwargs
+):
     """
     ARQ worker function to download DEM tiles and upload to S3.
 
