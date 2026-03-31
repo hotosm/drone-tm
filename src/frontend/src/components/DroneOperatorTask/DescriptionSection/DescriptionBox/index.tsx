@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import {
   useGetIndividualTaskQuery,
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
+import { postTaskStatus } from '@Services/project';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import {
@@ -22,6 +24,7 @@ import ProgressBar from './ProgessBar';
 const DescriptionBox = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [flyable, setFlyable] = useState('yes');
   const { taskId, projectId } = useParams();
   const waypointMode = useTypedSelector(
@@ -175,7 +178,60 @@ const DescriptionBox = () => {
 
   const hasImages = taskAssetsInformation?.image_count > 0;
   const isLocked = taskAssetsInformation?.state === 'LOCKED';
+  const isFullyFlown = taskAssetsInformation?.state === 'FULLY_FLOWN';
   const hasAssets = !!taskAssetsInformation?.assets_url;
+
+  const { mutate: markFlown, isPending: isMarkingFlown } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
+    mutationFn: postTaskStatus,
+    onSuccess: () => {
+      toast.success('Task marked as fully flown');
+      queryClient.invalidateQueries({ queryKey: ['task-assets-info'] });
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.detail || err?.message || 'Failed to mark task as fully flown',
+      );
+    },
+  });
+
+  const { mutate: unmarkFlown, isPending: isUnmarkingFlown } = useMutation<
+    any,
+    any,
+    any,
+    unknown
+  >({
+    mutationFn: postTaskStatus,
+    onSuccess: () => {
+      toast.success('Task reverted to locked');
+      queryClient.invalidateQueries({ queryKey: ['task-assets-info'] });
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.detail || err?.message || 'Failed to revert task',
+      );
+    },
+  });
+
+  const handleMarkFlown = () => {
+    markFlown({
+      projectId,
+      taskId,
+      data: { event: 'mark_flown', updated_at: new Date().toISOString() },
+    });
+  };
+
+  const handleUnmarkFlown = () => {
+    unmarkFlown({
+      projectId,
+      taskId,
+      data: { event: 'unmark_flown', updated_at: new Date().toISOString() },
+    });
+  };
 
   return (
     <>
@@ -191,6 +247,32 @@ const DescriptionBox = () => {
           *This flight time was calculated using an average ground speed of 11.5 m/s.
         </p>
       </div>
+
+      {isLocked && (
+        <Button
+          variant="ghost"
+          className="naxatw-mr-3 naxatw-mt-5 naxatw-w-[calc(100%-0.75rem)] naxatw-bg-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-white hover:naxatw-opacity-90 disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-60"
+          leftIcon="flight_land"
+          iconClassname="naxatw-text-[1.375rem]"
+          onClick={handleMarkFlown}
+          disabled={isMarkingFlown}
+        >
+          {isMarkingFlown ? 'Marking...' : 'Mark as Fully Flown'}
+        </Button>
+      )}
+
+      {isFullyFlown && (
+        <Button
+          variant="outline"
+          className="naxatw-mr-3 naxatw-mt-5 naxatw-w-[calc(100%-0.75rem)] naxatw-border-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-red hover:naxatw-bg-red hover:naxatw-text-white disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-60"
+          leftIcon="undo"
+          iconClassname="naxatw-text-[1.375rem]"
+          onClick={handleUnmarkFlown}
+          disabled={isUnmarkingFlown}
+        >
+          {isUnmarkingFlown ? 'Reverting...' : 'Not Fully Flown'}
+        </Button>
+      )}
 
       {(isLocked || hasImages) && (
         <div className="naxatw-mt-4 naxatw-rounded-lg naxatw-border naxatw-border-amber-200 naxatw-bg-amber-50 naxatw-p-4">

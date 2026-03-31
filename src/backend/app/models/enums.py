@@ -157,6 +157,7 @@ class EventType(StrEnum):
     - ``unlock`` -- Unlock a locked task.
     - ``split`` -- Split a task (TODO: not yet implemented).
     - ``image_processing_start`` -- Start image processing in ODM.
+    - ``unmark_flown`` -- Revert a fully flown task back to locked.
 
     Note that ``task_id`` must be specified in the endpoint too.
     """
@@ -165,6 +166,7 @@ class EventType(StrEnum):
     REJECT = "reject"
     FLY = "fly"
     MARK_FLOWN = "mark_flown"
+    UNMARK_FLOWN = "unmark_flown"
     MARK_ISSUE = "mark_issue"
     SPLIT = "split"
     ASSIGN = "assign"

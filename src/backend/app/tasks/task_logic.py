@@ -518,6 +518,18 @@ async def handle_event(
                 detail.updated_at,
             )
 
+        case EventType.UNMARK_FLOWN:
+            return await update_task_state(
+                db,
+                project_id,
+                task_id,
+                user_id,
+                "Task reverted from fully flown back to locked",
+                State.FULLY_FLOWN,
+                State.LOCKED,
+                detail.updated_at,
+            )
+
         case EventType.MARK_ISSUE:
             author = await DbUser.get_user_by_id(db, project["author_id"])
 
