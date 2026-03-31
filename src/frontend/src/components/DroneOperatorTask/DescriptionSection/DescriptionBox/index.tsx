@@ -274,7 +274,7 @@ const DescriptionBox = () => {
         </Button>
       )}
 
-      {(isLocked || hasImages) && (
+      {(isLocked || isFullyFlown || hasImages) && (
         <div className="naxatw-mt-4 naxatw-rounded-lg naxatw-border naxatw-border-amber-200 naxatw-bg-amber-50 naxatw-p-4">
           <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
             <span className="material-icons naxatw-text-[1.25rem] naxatw-text-amber-600">
