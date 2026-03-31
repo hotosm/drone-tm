@@ -317,6 +317,15 @@ async def preview_split_by_square(
     return await project_logic.preview_split_by_square(result_geojson, dimension)
 
 
+@router.post("/normalize-aoi/", tags=["Projects"])
+async def normalize_project_aoi(
+    user: Annotated[AuthUser, Depends(login_required)],
+    aoi: Annotated[geojson.FeatureCollection, Depends(normalize_aoi)],
+):
+    """Normalise an uploaded AOI and return a merged single-polygon FeatureCollection."""
+    return aoi
+
+
 @router.post(
     "/generate-presigned-url/",
     tags=["Image Upload"],

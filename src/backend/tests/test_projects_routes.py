@@ -189,6 +189,119 @@ async def test_preview_split_multi_feature(client):
     assert len(body["features"]) > 0
 
 
+@pytest.mark.asyncio
+async def test_normalize_aoi_merges_multi_feature_upload(client):
+    """Multipart AOIs should be merged before being returned to the frontend."""
+    multi_featcol = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.319, 27.705],
+                                [85.320, 27.705],
+                                [85.320, 27.706],
+                                [85.319, 27.706],
+                                [85.319, 27.705],
+                            ]
+                        ],
+                    },
+                },
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.320, 27.705],
+                                [85.321, 27.705],
+                                [85.321, 27.706],
+                                [85.320, 27.706],
+                                [85.320, 27.705],
+                            ]
+                        ],
+                    },
+                },
+            ],
+        }
+    ).encode("utf-8")
+
+    files = {
+        "project_geojson": (
+            "aoi.geojson",
+            BytesIO(multi_featcol),
+            "application/geo+json",
+        ),
+    }
+    response = await client.post("/api/projects/normalize-aoi/", files=files)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) == 1
+    assert body["features"][0]["geometry"]["type"] == "Polygon"
+
+
+@pytest.mark.asyncio
+async def test_normalize_aoi_converts_multipolygon_upload(client):
+    """A single-feature MultiPolygon AOI should be coerced to one Polygon."""
+    multipolygon = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [85.319, 27.705],
+                                    [85.320, 27.705],
+                                    [85.320, 27.706],
+                                    [85.319, 27.706],
+                                    [85.319, 27.705],
+                                ]
+                            ],
+                            [
+                                [
+                                    [85.321, 27.705],
+                                    [85.322, 27.705],
+                                    [85.322, 27.706],
+                                    [85.321, 27.706],
+                                    [85.321, 27.705],
+                                ]
+                            ],
+                        ],
+                    },
+                }
+            ],
+        }
+    ).encode("utf-8")
+
+    files = {
+        "project_geojson": (
+            "aoi.geojson",
+            BytesIO(multipolygon),
+            "application/geo+json",
+        ),
+    }
+    response = await client.post("/api/projects/normalize-aoi/", files=files)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) == 1
+    assert body["features"][0]["geometry"]["type"] == "Polygon"
+
+
 if __name__ == "__main__":
     """Main func if file invoked directly."""
     pytest.main()

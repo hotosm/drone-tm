@@ -118,17 +118,32 @@ async def normalize_aoi(
     if not features:
         raise HTTPException(status_code=400, detail="GeoJSON contains no geometries")
 
-    # Merge multiple features into one polygon via PostGIS ST_UnaryUnion.
-    # Once geojson-aoi-parser fully implements merge=True this block can be removed.
-    if len(features) > 1:
+    feature_geom_types = {
+        feature.get("geometry", {}).get("type")
+        for feature in features
+        if feature.get("geometry")
+    }
+
+    # Merge multipart AOIs into a single polygon via PostGIS.
+    # geojson-aoi-parser currently normalizes structure, but may still return
+    # either multiple features or a single MultiPolygon geometry.
+    # Once merge=True guarantees a single Polygon this block can be removed.
+    if len(features) > 1 or "MultiPolygon" in feature_geom_types:
         geom_jsons = [json.dumps(f["geometry"]) for f in features]
         async with db.cursor() as cur:
             await cur.execute(
                 """
                 SELECT ST_AsGeoJSON(
-                    ST_UnaryUnion(ST_Collect(ST_GeomFromGeoJSON(geom)))
+                    CASE
+                        WHEN ST_GeometryType(merged_geom) = 'ST_MultiPolygon'
+                            THEN ST_ConvexHull(merged_geom)
+                        ELSE merged_geom
+                    END
                 )
-                FROM unnest(%s::text[]) AS geom
+                FROM (
+                    SELECT ST_UnaryUnion(ST_Collect(ST_GeomFromGeoJSON(geom))) AS merged_geom
+                    FROM unnest(%s::text[]) AS geom
+                ) merged
                 """,
                 (geom_jsons,),
             )

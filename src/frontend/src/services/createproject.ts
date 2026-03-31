@@ -12,6 +12,9 @@ export const postCreateProject = (data: any) =>
     // headers: { 'Content-Type': 'application/json' },
   });
 
+export const postNormalizeAoi = (data: any) =>
+  authenticated(api).post('/projects/normalize-aoi/', data);
+
 export const postPreviewSplitBySquare = (data: any) =>
   authenticated(api).post('/projects/preview-split-by-square/', data);
 
