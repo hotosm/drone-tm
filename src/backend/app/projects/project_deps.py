@@ -126,7 +126,7 @@ async def normalize_aoi(
             await cur.execute(
                 """
                 SELECT ST_AsGeoJSON(
-                    ST_UnaryUnion(array_agg(ST_GeomFromGeoJSON(geom)))
+                    ST_UnaryUnion(ST_Collect(ST_GeomFromGeoJSON(geom)))
                 )
                 FROM unnest(%s::text[]) AS geom
                 """,

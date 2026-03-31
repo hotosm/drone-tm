@@ -302,7 +302,7 @@ async def preview_split_by_square(
                     SELECT ST_AsGeoJSON(
                         ST_Difference(
                             ST_GeomFromGeoJSON(%(aoi)s),
-                            ST_UnaryUnion(array_agg(ST_GeomFromGeoJSON(nfz)))
+                            ST_UnaryUnion(ST_Collect(ST_GeomFromGeoJSON(nfz)))
                         )
                     )
                     FROM unnest(%(nfz_geoms)s::text[]) AS nfz
