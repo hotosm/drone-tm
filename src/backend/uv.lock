@@ -769,6 +769,7 @@ dependencies = [
     { name = "gdal" },
     { name = "geoalchemy2" },
     { name = "geojson" },
+    { name = "geojson-aoi-parser" },
     { name = "geojson-pydantic" },
     { name = "itsdangerous" },
     { name = "jinja2" },
@@ -842,6 +843,7 @@ requires-dist = [
     { name = "gdal", specifier = "==3.10.3" },
     { name = "geoalchemy2", specifier = "==0.14.2" },
     { name = "geojson", specifier = "==3.1.0" },
+    { name = "geojson-aoi-parser", specifier = ">=0.3.5" },
     { name = "geojson-pydantic", specifier = "==1.1.0" },
     { name = "itsdangerous", specifier = "==2.2.0" },
     { name = "jinja2", specifier = "==3.1.4" },
@@ -1066,6 +1068,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0f/34/0ea653dec93d3a360856e629a897a1d3ab534f2952852bb59d55853055ed/geojson-3.1.0.tar.gz", hash = "sha256:58a7fa40727ea058efc28b0e9ff0099eadf6d0965e04690830208d3ef571adac", size = 24492, upload-time = "2023-11-05T21:06:50.615Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8e/1b/4f57660aa148d3e3043d048b7e1ab87dfeb85204d0fdb5b4e19c08202162/geojson-3.1.0-py3-none-any.whl", hash = "sha256:68a9771827237adb8c0c71f8527509c8f5bef61733aa434cefc9c9d4f0ebe8f3", size = 15044, upload-time = "2023-11-05T21:15:41.659Z" },
+]
+
+[[package]]
+name = "geojson-aoi-parser"
+version = "0.3.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "psycopg" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/72/23ea59fc5d8408e1b20de9c7d45b7977b8979e1ea2d50278c44082182bfa/geojson_aoi_parser-0.3.5.tar.gz", hash = "sha256:4005883ab0eab4b2f8273ac19277e75e521e4aeafcbabcd106a01019f826e783", size = 76172 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/a3/73b1d460a243939221815e3d65710cd13fce0f26c0621a44cb7c43ca8813/geojson_aoi_parser-0.3.5-py3-none-any.whl", hash = "sha256:37d73f096c34ba12dba653198fd52369edf6edc713a3591284ececdb4093296e", size = 29266 },
 ]
 
 [[package]]
