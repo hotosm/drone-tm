@@ -1,6 +1,6 @@
 {
   "name": "drone-tm",
-  "version": "2026.1.2",
+  "version": "2026.1.3",
   "private": true,
   "license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "scripts": {

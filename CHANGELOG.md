@@ -1,3 +1,23 @@
+## 2026.1.3 (2026-03-31)
+
+### Feat
+
+- add option to mark task as 'fully flown' on task detail page
+
+### Fix
+
+- **backend**: ensure UNLOCKED tasks transition to HAS_IMAGERY on image upload
+- **frontend**: remove 'Something went wrong' fallback, replace with spinner
+- **frontend**: don't hide the project page redirect on mark fully flown
+- **frontend**: fix #530 when drawing geoms during project creation
+- **backend**: properly fix log propagation for psycopg_pool
+
+### Refactor
+
+- **frontend**: tweaks to ui / comments for task popup
+- **frontend**: tweaks to the ui for statuses project map
+- redesign the events and task states throughout the app + `FULLY_FLOWN` state (#757)
+
 ## 2026.1.2 (2026-03-30)
 
 ### Feat
