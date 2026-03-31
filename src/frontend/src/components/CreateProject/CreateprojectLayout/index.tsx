@@ -376,9 +376,14 @@ const CreateprojectLayout = () => {
                 !capturedProjectMap ||
                 isFetchingCountry
               }
-              disabled={isPending || isCreatingProject || !capturedProjectMap}
+              disabled={
+                isPending ||
+                isCreatingProject ||
+                !capturedProjectMap ||
+                (activeStep === 4 && !splitGeojson)
+              }
             >
-              {activeStep === 5 ? 'Save' : 'Next'}
+              {activeStep === 5 ? 'Create' : 'Next'}
             </Button>
           </FlexRow>
         </div>
