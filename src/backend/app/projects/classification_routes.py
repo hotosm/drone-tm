@@ -633,7 +633,7 @@ async def mark_task_verified(
                     "task_id": str(task_id),
                     "user_id": str(user.id),
                     "state": State.READY_FOR_PROCESSING.name,
-                    "comment": "Task marked as verified via image classification workflow",
+                    "comment": "Images verified and task ready for processing",
                 },
             )
 

@@ -300,11 +300,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           case 'FULLY_FLOWN':
             return `Flown in the field${byLocker}, imagery not yet uploaded.`;
           case 'HAS_IMAGERY':
-            return `Some imagery has been uploaded${byLocker}.`;
+            return `Images matched to this task area${byLocker}.`;
           case 'HAS_ISSUES':
             return 'This task has been flagged as not flyable.';
           case 'READY_FOR_PROCESSING':
-            return `Images uploaded${byLocker}, ready for processing.`;
+            return `Images verified and ready for processing${byLocker}.`;
           case 'IMAGE_PROCESSING_STARTED':
             return `Image processing in progress${byLocker}.`;
           case 'IMAGE_PROCESSING_FINISHED':

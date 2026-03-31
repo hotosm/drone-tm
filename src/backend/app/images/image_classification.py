@@ -872,7 +872,7 @@ class ImageClassifier:
                             await cur.execute(
                                 """
                                 INSERT INTO task_events (event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
-                                VALUES (gen_random_uuid(), %(project_id)s, %(task_id)s, %(user_id)s, 'HAS_IMAGERY', 'Images classified to task', NOW(), NOW())
+                                VALUES (gen_random_uuid(), %(project_id)s, %(task_id)s, %(user_id)s, 'HAS_IMAGERY', 'Images matched to task area', NOW(), NOW())
                                 """,
                                 {
                                     "project_id": str(project_id),
