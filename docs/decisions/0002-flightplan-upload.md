@@ -186,5 +186,22 @@ the need for users to mess with copying a file directly onto their device storag
 - ❌ user experience isn't as good as it could be.
 - ❌ not quite as easy to add new drone support, as we need to do a lot of
   trial-and-error for the file format / apps.
+- ❌ field use has confirmed that flightplan transfer is still more complex and
+  error-prone than it should be, especially when operators must fall back to
+  manual file handling or controller-specific workarounds.
+- ❌ reliability problems in the transfer / flying workflow can have a high
+  operational cost, including losing an entire planned flying day.
 
 We will revisit this strategy in future, and perhaps update in a new MADR document.
+
+## Field Feedback Since Decision
+
+Feedback from live campaign use in 2025 reinforced that the short-term
+official-app workaround is viable, but still carries substantial operational
+friction:
+
+- Flightplan transfer should be simplified further; the current process still
+  creates too many opportunities for operator error.
+- Transfer and controller workflows need to be treated as reliability-critical,
+  not just "good enough" integration details, because failures can stop field
+  operations entirely for the day.
