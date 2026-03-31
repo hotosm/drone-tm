@@ -89,6 +89,7 @@ nav:
           - Manual Flightplan Generation: manuals/generate-flightplans.md
       - Processing Imagery:
           - Ground Control Points: manuals/ground-control-points.md
+          - Processing External Imagery: manuals/processing-external-imagery.md
           - Correcting Orthomosaics: manuals/correcting-stitching-orthomosaics.md
       - Building Drones: manuals/custom-drones.md
   - Developer Guide:
