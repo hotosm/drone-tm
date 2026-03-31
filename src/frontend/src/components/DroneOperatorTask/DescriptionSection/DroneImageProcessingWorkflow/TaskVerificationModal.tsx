@@ -15,6 +15,8 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import { setProjectState } from '@Store/actions/project';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 
 interface TaskVerificationModalProps {
   isOpen: boolean;
@@ -34,6 +36,8 @@ const TaskVerificationModal = ({
   onVerified,
 }: TaskVerificationModalProps) => {
   const queryClient = useQueryClient();
+  const dispatch = useTypedDispatch();
+  const tasksData = useTypedSelector(state => state.project.tasksData);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isStyleReady, setIsStyleReady] = useState(false);
@@ -273,8 +277,52 @@ const TaskVerificationModal = ({
   const verifyMutation = useMutation({
     mutationFn: () => markTaskAsVerified(projectId, taskId),
     onSuccess: () => {
-      toast.success(`Task #${taskIndex} marked as fully flown`);
+      const nextState = 'READY_FOR_PROCESSING';
+
+      queryClient.setQueryData(['project-task-states', projectId], (existing: any) => {
+        if (Array.isArray(existing)) {
+          return existing.map((task: Record<string, any>) =>
+            task.task_id === taskId ? { ...task, state: nextState } : task,
+          );
+        }
+
+        if (Array.isArray(existing?.data)) {
+          return {
+            ...existing,
+            data: existing.data.map((task: Record<string, any>) =>
+              task.task_id === taskId ? { ...task, state: nextState } : task,
+            ),
+          };
+        }
+
+        return existing;
+      });
+
+      if (tasksData) {
+        dispatch(
+          setProjectState({
+            tasksData: tasksData.map((task: Record<string, any>) =>
+              task.id === taskId
+                ? {
+                    ...task,
+                    state: nextState,
+                    outline: {
+                      ...task.outline,
+                      properties: {
+                        ...task.outline.properties,
+                        state: nextState,
+                      },
+                    },
+                  }
+                : task,
+            ),
+          }),
+        );
+      }
+
+      toast.success(`Task #${taskIndex} marked ready for processing`);
       queryClient.invalidateQueries({ queryKey: ['taskVerification'] });
+      queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
@@ -365,7 +413,7 @@ const TaskVerificationModal = ({
               Verify Task #{taskIndex}
             </h2>
             <p className="naxatw-text-sm naxatw-text-gray-500">
-              Review images on the map and verify coverage before processing
+              Review images on the map and verify coverage before marking ready for processing
             </p>
           </div>
           <button
@@ -576,7 +624,7 @@ const TaskVerificationModal = ({
               disabled={verifyMutation.isPending || !verificationData?.images.length}
               leftIcon={verifyMutation.isPending ? 'sync' : 'check_circle'}
             >
-              {verifyMutation.isPending ? 'Verifying...' : 'Mark Fully Flown'}
+              {verifyMutation.isPending ? 'Updating...' : 'Mark Ready For Processing'}
             </Button>
           </FlexRow>
         </div>

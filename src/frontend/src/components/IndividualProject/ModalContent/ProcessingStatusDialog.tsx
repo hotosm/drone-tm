@@ -39,7 +39,7 @@ type ProcessingDialogProjectDetail = {
 
 const ProcessingStatusDialog = () => {
   const { pathname } = useLocation();
-  const projectId = useMemo(() => {
+  const projectRouteId = useMemo(() => {
     const projectMatch = matchPath('/projects/:id', pathname);
     const approvalMatch = matchPath('/projects/:id/approval', pathname);
     return projectMatch?.params.id || approvalMatch?.params.id || '';
@@ -53,10 +53,11 @@ const ProcessingStatusDialog = () => {
   );
 
   // allTaskAssets: S3-based data (assets_url, image_count from disk, state)
-  const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
-  const { data: projectDetail } = useGetProjectsDetailQuery(projectId) as {
+  const { data: projectDetail } = useGetProjectsDetailQuery(projectRouteId) as {
     data?: ProcessingDialogProjectDetail;
   };
+  const projectId = (projectDetail as any)?.id || projectRouteId;
+  const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
 
   // Backend summary: authoritative source for has_ready_imagery
   const { data: taskSummary } = useQuery<TaskImagerySummary[]>({

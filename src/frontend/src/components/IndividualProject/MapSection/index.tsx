@@ -35,9 +35,11 @@ import LockTaskDialog from '../ModalContent/LockTaskDialog';
 import Icon from '@Components/common/Icon';
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
-  const { id } = useParams();
+  const { id: urlId } = useParams();
   const navigate = useNavigate();
   const dispatch = useTypedDispatch();
+  // Use UUID from project data for API calls, URL param (slug) for navigation
+  const projectUuid = projectData?.id || urlId;
   const [taskStatusObj, setTaskStatusObj] = useState<Record<
     string,
     any
@@ -75,8 +77,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     state => state.project.visibleOrthophotoList,
   );
 
-  const { data: taskStates } = useGetTaskStatesQuery(id as string, {
-    enabled: !!tasksData,
+  const { data: taskStates } = useGetTaskStatesQuery(projectUuid as string, {
+    enabled: !!tasksData && !!projectUuid,
     refetchInterval: 30000,
   });
   const signedInAs = localStorage.getItem('signedInAs');
@@ -355,7 +357,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const handleTaskLockClick = () => {
     pendingLockCommentRef.current = '';
     lockTask({
-      projectId: id,
+      projectId: projectUuid,
       taskId: selectedTaskId,
       data: { event: 'request', updated_at: new Date().toISOString() },
     });
@@ -368,7 +370,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const handleLockTaskWithComment = (comment: string) => {
     pendingLockCommentRef.current = comment;
     lockTask({
-      projectId: id,
+      projectId: projectUuid,
       taskId: selectedTaskId,
       data: {
         event: 'request',
@@ -380,7 +382,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
 
   const handleTaskUnLockClick = () => {
     unLockTask({
-      projectId: id,
+      projectId: projectUuid,
       taskId: selectedTaskId,
       data: { event: 'unlock', updated_at: new Date().toISOString() },
     });
@@ -639,7 +641,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             taskStatusObj?.[selectedTaskId] === 'UNLOCKED' ||
             !taskStatusObj?.[selectedTaskId]
               ? handleTaskLockClick()
-              : navigate(`/projects/${id}/tasks/${selectedTaskId}`)
+              : navigate(`/projects/${projectData?.slug || urlId}/tasks/${selectedTaskIndex}`)
           }
           hasSecondaryButton={
             (taskStatusObj?.[selectedTaskId] === 'UNLOCKED' ||

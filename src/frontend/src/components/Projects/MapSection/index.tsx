@@ -118,7 +118,7 @@ const ProjectsMapSection = ({
           setProjectProperties(properties);
         }}
         buttonText="Go To Project"
-        handleBtnClick={() => navigate(`./${projectProperties?.id}`)}
+        handleBtnClick={() => navigate(`./${projectProperties?.slug || projectProperties?.id}`)}
         getCoordOnProperties
       />
     </MapContainer>

@@ -170,7 +170,7 @@ const IndividualProject = () => {
   }, [dispatch, queryClient, id]);
 
   const handleDeleteProject = () => {
-    mutate(id as string);
+    mutate(projectData?.id || (id as string));
   };
 
   const downloadProjectTaskGeojson = () => {
@@ -282,7 +282,7 @@ const IndividualProject = () => {
             <GcpEditor
               finalButtonText="Save GCP"
               // eslint-disable-next-line camelcase
-              rawImageUrl={`${API_URL}/gcp/find-project-images/?project_id=${id}`}
+              rawImageUrl={`${API_URL}/gcp/find-project-images/?project_id=${projectData?.id || id}`}
             />
           </div>
         ) : (
@@ -368,13 +368,13 @@ const IndividualProject = () => {
       <UploadImageryDialog
         isOpen={isUploadDialogOpen}
         onClose={() => setIsUploadDialogOpen(false)}
-        projectId={id as string}
+        projectId={projectData?.id || (id as string)}
       />
 
       <VerifyImageryDialog
         isOpen={isVerifyDialogOpen}
         onClose={() => setIsVerifyDialogOpen(false)}
-        projectId={id as string}
+        projectId={projectData?.id || (id as string)}
       />
     </>
   );

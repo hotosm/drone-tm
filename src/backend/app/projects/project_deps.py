@@ -42,16 +42,23 @@ async def get_tasks_by_project_id(project_id: UUID, db: Connection):
 
 async def get_project_by_id(
     project_id: Annotated[
-        UUID,
+        str,
         Path(
-            description="The project ID in UUID format.",
+            description="The project ID (UUID) or slug.",
         ),
     ],
     db: Annotated[Connection, Depends(database.get_db)],
 ) -> DbProject:
-    """Get a single project by id."""
+    """Get a single project by id or slug."""
     try:
-        return await DbProject.one(db, project_id)
+        # Try UUID first (str() handles callers that pass a UUID object)
+        parsed_id = UUID(str(project_id))
+        return await DbProject.one(db, parsed_id)
+    except (ValueError, KeyError):
+        pass
+    # Fall back to slug lookup
+    try:
+        return await DbProject.one_by_slug(db, project_id)
     except KeyError as e:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN) from e
 

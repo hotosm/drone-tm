@@ -1,13 +1,12 @@
 /* eslint-disable no-nested-ternary */
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useTypedSelector } from '@Store/hooks';
 import { toast } from 'react-toastify';
-import { useGetIndividualTaskQuery } from '@Api/tasks';
 import { Button } from '@Components/RadixComponents/Button';
 import Modal from '@Components/common/Modal';
 import useWindowDimensions from '@Hooks/useWindowDimensions';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import useTaskParams from '@Hooks/useTaskParams';
 import MapSection from '../MapSection/MapSection';
 import DescriptionBox from './DescriptionBox';
 import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from '@Utils/adb';
@@ -16,7 +15,13 @@ import { getRuntimeConfig } from '@/runtimeConfig';
 const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 const DroneOperatorDescriptionBox = () => {
-  const { taskId, projectId } = useParams();
+  const {
+    projectId,
+    taskId,
+    projectSlug,
+    taskIndex,
+    taskData: taskDescription,
+  } = useTaskParams();
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
   const [showMissingDemModal, setShowMissingDemModal] =
@@ -39,8 +44,6 @@ const DroneOperatorDescriptionBox = () => {
     state => state.droneOperatorTask.gimbalAngle,
   );
 
-  const { data: taskDescription }: Record<string, any> =
-    useGetIndividualTaskQuery(taskId as string);
   const rotatedFlightPlanData = useTypedSelector(
     state => state.droneOperatorTask.rotatedFlightPlan,
   );
@@ -92,7 +95,7 @@ const DroneOperatorDescriptionBox = () => {
 
     const disposition = response.headers.get('content-disposition');
     const match = disposition?.match(/filename="?([^"]+)"?/i);
-    const filename = match?.[1] ?? `${taskId}.kmz`;
+    const filename = match?.[1] ?? `${taskIndex}.kmz`;
     const blob = await response.blob();
     return { filename, blob };
   };
@@ -143,7 +146,7 @@ const DroneOperatorDescriptionBox = () => {
     const url = window.URL.createObjectURL(fileBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `flight_plan-${projectId}-${taskId}-${waypointMode}.geojson`;
+    link.download = `flight_plan-${projectSlug}-${taskIndex}-${waypointMode}.geojson`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -165,7 +168,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `task_area-${projectId}-${taskId}.kml`;
+        link.download = `task_area-${projectSlug}-${taskIndex}.kml`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -192,7 +195,7 @@ const DroneOperatorDescriptionBox = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `task_area-${projectId}-${taskId}.geojson`;
+        link.download = `task_area-${projectSlug}-${taskIndex}.geojson`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -253,7 +256,7 @@ const DroneOperatorDescriptionBox = () => {
       <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-3 lg:naxatw-gap-5">
         <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-self-stretch">
           <p className="naxatw-text-[0.875rem] naxatw-font-normal naxatw-leading-normal naxatw-text-[#484848]">
-            Task #{taskDescription?.project_task_index}
+            Task #{(taskDescription as any)?.project_task_index}
           </p>
 
           <div className="naxatw-relative">

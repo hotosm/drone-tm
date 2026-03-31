@@ -87,7 +87,7 @@ export const UploadImageryDialog = ({
       return;
     }
     // Refetch task states so the map immediately reflects any status changes
-    queryClient.invalidateQueries({ queryKey: ['project-task-states'] });
+    queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
     dispatch(resetWorkflow());
     onClose();
   };
@@ -104,9 +104,9 @@ export const UploadImageryDialog = ({
   const handleFinish = async () => {
     // Images are moved to task folders only when tasks are marked as verified
     // in the Verify Imagery dialog, so no finalization needed here.
-    toast.success('Upload complete. Open Verify Imagery to review and mark tasks as fully flown.');
+    toast.success('Upload complete. Open Verify Imagery to review and mark tasks ready for processing.');
     // Refetch task states so the map immediately reflects HAS_IMAGERY status
-    queryClient.invalidateQueries({ queryKey: ['project-task-states'] });
+    queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
     dispatch(resetWorkflow());
     onClose();
   };

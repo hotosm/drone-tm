@@ -85,6 +85,50 @@ async def test_read_project(client, create_test_project):
 
 
 @pytest.mark.asyncio
+async def test_read_project_by_slug(client, db, create_test_project):
+    """Project detail endpoint should accept the stored slug."""
+    project = await project_schemas.DbProject.one(db, create_test_project)
+
+    response = await client.get(f"/api/projects/{project.slug}")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == create_test_project
+
+
+@pytest.mark.asyncio
+async def test_project_slug_uses_name_without_timestamp():
+    """New project slugs should be clean slugified names."""
+    project = project_schemas.ProjectIn(
+        name="My Project",
+        description="",
+        outline={
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [-69.49779538720068, 18.629654277305633],
+                                [-69.48497355306813, 18.616997544638636],
+                                [-69.54053483430786, 18.608390428368665],
+                                [-69.5410690773959, 18.614466085056165],
+                                [-69.49779538720068, 18.629654277305633],
+                            ]
+                        ],
+                    },
+                }
+            ],
+        },
+        final_output=["ORTHOPHOTO_2D"],
+    )
+
+    assert project.slug == "my-project"
+
+
+@pytest.mark.asyncio
 async def test_read_project_includes_has_gcp_flag(
     client, create_test_project, monkeypatch
 ):

@@ -3,6 +3,7 @@ import {
   getAllTaskAssetsInfo,
   getIndividualTask,
   getTaskAssetsInfo,
+  getTaskByProjectAndIndex,
   getTaskWaypoint,
 } from '@Services/tasks';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
@@ -52,6 +53,20 @@ export const useGetIndividualTaskQuery = (
     queryKey: ['task-description'],
     enabled: !!taskId,
     queryFn: () => getIndividualTask(taskId),
+    select: (res: any) => res.data,
+    ...queryOptions,
+  });
+};
+
+export const useGetTaskByIndexQuery = (
+  projectId: string,
+  taskIndex: string,
+  queryOptions?: Partial<UseQueryOptions>,
+) => {
+  return useQuery({
+    queryKey: ['task-by-index', projectId, taskIndex],
+    enabled: !!(projectId && taskIndex),
+    queryFn: () => getTaskByProjectAndIndex(projectId, taskIndex),
     select: (res: any) => res.data,
     ...queryOptions,
   });

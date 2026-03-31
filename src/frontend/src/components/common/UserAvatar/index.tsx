@@ -17,10 +17,9 @@ export default function UserAvatar({
         src={imageSource}
         alt="profile"
         className="naxatw-h-full naxatw-w-full"
-        // @ts-ignore
-        onError={({ e }) => {
-          e.onerror = null; // prevents looping
-          e.src = avatarImage;
+        onError={(e) => {
+          e.currentTarget.onerror = null; // prevents looping
+          e.currentTarget.src = avatarImage;
         }}
       />
     </div>

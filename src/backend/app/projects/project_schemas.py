@@ -147,31 +147,15 @@ class ProjectIn(BaseModel):
     @computed_field
     @property
     def slug(self) -> str:
-        """Generate a unique slug based on the provided name.
+        """Generate a URL-friendly slug from the project name.
 
-        The slug is created by converting the given name into a URL-friendly format and appending
-        the current date and time to ensure uniqueness. The date and time are formatted as
-        "ddmmyyyyHHMM" to create a timestamp.
-
-        Args:
-            name (str): The name from which the slug will be generated.
-
-        Returns:
-            str: The generated slug, which includes the URL-friendly version of the name and
-                a timestamp. If an error occurs during the generation, an empty string is returned.
-
-        Raises:
-            Exception: If an error occurs during the slug generation process.
+        Since project names are enforced as unique, the slug is simply the
+        slugified name without any timestamp suffix.
         """
         try:
-            slug = slugify(self.name)
-            now = datetime.now()
-            date_time_str = now.strftime("%d%m%Y%H%M")
-            slug_with_date = f"{slug}-{date_time_str}"
-            return slug_with_date
+            return slugify(self.name)
         except Exception as e:
             log.error(f"An error occurred while generating the slug: {e}")
-
         return ""
 
     @model_validator(mode="before")
@@ -390,6 +374,19 @@ class DbProject(BaseModel):
             project_record.tasks = task_records if task_records is not None else []
             project_record.task_count = len(task_records)
             return project_record
+
+    @staticmethod
+    async def one_by_slug(db: Connection, slug: str):
+        """Get a single project & all associated tasks by slug."""
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT id FROM projects WHERE slug = %(slug)s",
+                {"slug": slug},
+            )
+            row = await cur.fetchone()
+        if not row:
+            raise KeyError(f"Project with slug {slug} not found.")
+        return await DbProject.one(db, row["id"])
 
     async def all(
         db: Connection,

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import {
-  useGetIndividualTaskQuery,
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
@@ -16,6 +15,7 @@ import {
   setSelectedTaskDetailToViewOrthophoto,
 } from '@Store/actions/droneOperatorTask';
 import { useTypedSelector } from '@Store/hooks';
+import useTaskParams from '@Hooks/useTaskParams';
 import DescriptionBoxComponent from './DescriptionComponent';
 import QuestionBox from '../QuestionBox';
 import UploadsInformation from '../UploadsInformation';
@@ -26,7 +26,7 @@ const DescriptionBox = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [flyable, setFlyable] = useState('yes');
-  const { taskId, projectId } = useParams();
+  const { taskId, projectId, projectSlug, taskIndex, taskData } = useTaskParams();
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
   );
@@ -65,85 +65,85 @@ const DescriptionBox = () => {
     dispatch(resetFilesExifData());
   }, [dispatch]);
 
-  const { data: taskQueryData }: Record<string, any> =
-    useGetIndividualTaskQuery(taskId as string, {
-      select: (data: any) => {
-        const { data: taskData } = data;
+  const taskQueryData = useMemo(() => {
+    const resolvedTaskData = taskData as any;
 
-        const taskDescription = [
+    const taskDescription = [
+      {
+        id: 1,
+        title: 'Task Description',
+        data: [
           {
-            id: 1,
-            title: 'Task Description',
-            data: [
-              {
-                name: 'Created date',
-                value: taskData?.created_at
-                  ? taskData?.created_at?.slice(0, 10) || '-'
-                  : null,
-              },
-              {
-                name: 'Task locked date',
-                value: taskData?.updated_at
-                  ? taskData?.updated_at?.slice(0, 10) || '-'
-                  : null,
-              },
-              {
-                name: 'Total task area',
-                value: taskData?.total_area_sqkm
-                  ? `${Number(taskData?.total_area_sqkm)?.toFixed(3)} km²`
-                  : null,
-              },
-              {
-                name: 'Total waypoints count',
-                value: taskWayPoints?.length,
-              },
-              {
-                name: 'Est. flight time*',
-                value: taskData?.flight_time_minutes
-                  ? `${Number(taskData?.flight_time_minutes)?.toFixed(3)} minutes`
-                  : null,
-              },
-            ],
+            name: 'Created date',
+            value: resolvedTaskData?.created_at
+              ? resolvedTaskData?.created_at?.slice(0, 10) || '-'
+              : null,
           },
           {
-            id: 2,
-            title: 'Flight Parameters',
-            data: [
-              { name: 'Altitude', value: taskData?.altitude || null },
-              {
-                name: 'Gimble Angle',
-                value: taskData?.gimble_angles_degrees
-                  ? `${taskData?.gimble_angles_degrees} degree`
-                  : null,
-              },
-              {
-                name: 'Front Overlap',
-                value: taskData?.front_overlap
-                  ? `${taskData?.front_overlap}%`
-                  : null,
-              },
-              {
-                name: 'Side Overlap',
-                value: taskData?.side_overlap
-                  ? `${taskData?.side_overlap}%`
-                  : null,
-              },
-              {
-                name: 'GSD',
-                value: taskData?.gsd_cm_px ? `${taskData?.gsd_cm_px} cm` : null,
-              },
-              {
-                name: 'Starting Point Altitude',
-                value: taskData?.starting_point_altitude
-                  ? `${taskData?.starting_point_altitude}`
-                  : null,
-              },
-            ],
+            name: 'Task locked date',
+            value: resolvedTaskData?.updated_at
+              ? resolvedTaskData?.updated_at?.slice(0, 10) || '-'
+              : null,
           },
-        ];
-        return { taskDescription, taskData };
+          {
+            name: 'Total task area',
+            value: resolvedTaskData?.total_area_sqkm
+              ? `${Number(resolvedTaskData?.total_area_sqkm)?.toFixed(3)} km²`
+              : null,
+          },
+          {
+            name: 'Total waypoints count',
+            value: taskWayPoints?.length,
+          },
+          {
+            name: 'Est. flight time*',
+            value: resolvedTaskData?.flight_time_minutes
+              ? `${Number(resolvedTaskData?.flight_time_minutes)?.toFixed(3)} minutes`
+              : null,
+          },
+        ],
       },
-    });
+      {
+        id: 2,
+        title: 'Flight Parameters',
+        data: [
+          { name: 'Altitude', value: resolvedTaskData?.altitude || null },
+          {
+            name: 'Gimble Angle',
+            value: resolvedTaskData?.gimble_angles_degrees
+              ? `${resolvedTaskData?.gimble_angles_degrees} degree`
+              : null,
+          },
+          {
+            name: 'Front Overlap',
+            value: resolvedTaskData?.front_overlap
+              ? `${resolvedTaskData?.front_overlap}%`
+              : null,
+          },
+          {
+            name: 'Side Overlap',
+            value: resolvedTaskData?.side_overlap
+              ? `${resolvedTaskData?.side_overlap}%`
+              : null,
+          },
+          {
+            name: 'GSD',
+            value: resolvedTaskData?.gsd_cm_px
+              ? `${resolvedTaskData?.gsd_cm_px} cm`
+              : null,
+          },
+          {
+            name: 'Starting Point Altitude',
+            value: resolvedTaskData?.starting_point_altitude
+              ? `${resolvedTaskData?.starting_point_altitude}`
+              : null,
+          },
+        ],
+      },
+    ];
+
+    return { taskDescription, taskData: resolvedTaskData };
+  }, [taskData, taskWayPoints]);
 
   const taskDescription = taskQueryData?.taskDescription;
 
@@ -292,7 +292,7 @@ const DescriptionBox = () => {
                 variant="outline"
                 className="naxatw-mt-3 naxatw-border-amber-300 naxatw-bg-white naxatw-text-amber-900"
                 rightIcon="open_in_new"
-                onClick={() => navigate(`/projects/${projectId}`)}
+                onClick={() => navigate(`/projects/${projectSlug}`)}
               >
                 Open Project Page
               </Button>

@@ -16,6 +16,11 @@ export const getTaskWaypoint = (
 export const getIndividualTask = (taskId: string) =>
   authenticated(api).get(`/tasks/${taskId}`);
 
+export const getTaskByProjectAndIndex = (
+  projectId: string,
+  taskIndex: string | number,
+) => authenticated(api).get(`/tasks/project/${projectId}/${taskIndex}`);
+
 // TODO refactor this out and replace with getTaskWaypoint?
 // This is used to update the take off point
 export const postTaskWaypoint = (payload: Record<string, any>) => {
