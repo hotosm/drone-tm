@@ -832,7 +832,9 @@ class ImageClassifier:
             try:
                 async with db_pool.connection() as db:
                     async with db.cursor(row_factory=dict_row) as cur:
-                        # Find tasks that received images in this batch and are in LOCKED or FULLY_FLOWN state
+                        # Find tasks that received images in this batch and are eligible
+                        # for transition to HAS_IMAGERY.  Tasks with no task_events rows
+                        # are implicitly UNLOCKED and should also be transitioned.
                         await cur.execute(
                             """
                             WITH affected_tasks AS (
@@ -849,9 +851,14 @@ class ImageClassifier:
                                 WHERE te.task_id IN (SELECT task_id FROM affected_tasks)
                                 ORDER BY te.task_id, te.created_at DESC
                             )
-                            SELECT cs.task_id, cs.user_id
-                            FROM current_states cs
-                            WHERE cs.state::text IN ('LOCKED', 'FULLY_FLOWN')
+                            SELECT
+                                at.task_id,
+                                COALESCE(cs.user_id, p.author_id) AS user_id
+                            FROM affected_tasks at
+                            LEFT JOIN current_states cs ON cs.task_id = at.task_id
+                            JOIN projects p ON p.id = %(project_id)s::uuid
+                            WHERE cs.state IS NULL
+                               OR cs.state::text IN ('UNLOCKED', 'LOCKED', 'FULLY_FLOWN')
                             """,
                             {
                                 "batch_id": str(batch_id),
