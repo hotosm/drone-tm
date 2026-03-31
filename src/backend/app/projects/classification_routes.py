@@ -50,6 +50,14 @@ class FlightGapDetectionRequest(BaseModel):
     drone_type: DroneType | None = None
 
 
+class FlightGapDownloadPlanRequest(BaseModel):
+    manual_gap_polygons: dict | None = None
+    gap_type: str | None = None
+    drone_type: DroneType | None = None
+    altitude: float | None = None
+    rotation: float | None = None
+    overlap: float | None = None
+
 @router.get("/{project_id}/latest-batch/", tags=["Image Classification"])
 async def get_latest_batch(
     project_id: UUID,
@@ -704,13 +712,11 @@ async def detect_task_flight_gaps(
     request: FlightGapDetectionRequest | None = None,
 ):
     """Conduct flight gap analysis across all uploaded imagery for a task."""
-    manual_gap_polygons = request.manual_gap_polygons if request else None
     drone_type_override = request.drone_type if request else None
     result = await identify_flight_gaps(
         db,
         project_id,
         task_id,
-        manual_gap_polygons,
         drone_type_override=drone_type_override,
     )
 
@@ -723,57 +729,81 @@ async def detect_task_flight_gaps(
     drone_type = result.get("drone_type")
     drone_type_value = drone_type.value if isinstance(drone_type, DroneType) else None
 
-    flightplan_url = None
-
-    if result.get("kmz_bytes") and drone_type_value:
-        flightplan_config = get_flightplan_output_config(drone_type)
-        file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
-        with open(file_path, "wb") as f:
-            f.write(result["kmz_bytes"])
-        flightplan_url = (
-            f"/api/projects/tasks/{task_id}/{drone_type_value}/download-reflight-plan/"
-            f"?project_id={project_id}"
-        )
-
     return {
         "task_id": str(task_id),
         "message": result.get("message"),
         "task_geometry": result.get("task_geometry"),
         "gap_polygons": result.get("gap_polygons"),
+        "gap_type": result.get("gap_type"),
         "drone_type": drone_type_value,
         "images": result.get("images"),
-        "flightplan_url": flightplan_url,
+        "altitude": result.get("altitude"),
+        "rotation": result.get("rotation"),
+        "overlap": result.get("overlap")
     }
 
 
-@router.get(
-    "/tasks/{task_id}/{drone_type}/download-reflight-plan/",
+@router.post(
+    "/{project_id}/imagery/task/{task_id}/generate-flightplan/",
     tags=["Image Classification"],
 )
-async def download_reflight_plan(project_id: UUID, task_id: UUID, drone_type: str):
+async def download_reflight_plan(
+    project_id: UUID, 
+    task_id: UUID, 
+    db: Annotated[Connection, Depends(database.get_db)],
+    request: FlightGapDownloadPlanRequest | None = None,
+    ):
     """Download a reconstructed flight plan based on identified flight gaps."""
+    manual_gap_polygons = request.manual_gap_polygons if request else None
+    gap_type = request.gap_type 
+    drone_type_override = request.drone_type
+    altitude_override = request.altitude
+    rotation_override = request.rotation
+    overlap_override = request.overlap
 
     try:
-        drone_model = drone_type.upper().replace(" ", "_")
+        drone_model = drone_type_override.upper().replace(" ", "_")
         flight_drone_type = DroneType(drone_model)
     except Exception:
-        log.error(f"Could not find drone type {drone_type}")
+        log.error(f"Could not find drone type {drone_type_override}")
         raise HTTPException(
-            status_code=400, detail=f"Unsupported drone type: {drone_type}"
+            status_code=400, detail=f"Unsupported drone type: {drone_type_override}"
         )
+
+    result = await identify_flight_gaps(
+        db,
+        project_id,
+        task_id,
+        manual_gap_polygons,
+        gap_type=gap_type, 
+        drone_type_override=drone_type_override,
+        altitude_override=altitude_override,
+        rotation_override=rotation_override,
+        overlap_override=overlap_override
+    )
+
+    if not result: 
+        raise HTTPException(
+            status_code=400,
+            detail="Could not generate a flightplan with the provided parameters.",
+        )
+    
+    kmz_bytes = result.get("kmz_bytes")
+
+    if not kmz_bytes:
+        raise HTTPException(
+            status_code=400, 
+            detail="The flightplan generator could not produce a file with the provided data."
+    )
 
     flightplan_config = get_flightplan_output_config(flight_drone_type)
     file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
 
-    if not os.path.exists(file_path):
-        log.error(f"Flight plan file not found: {file_path}")
-        raise HTTPException(
-            status_code=404,
-            detail="Flight plan file not found. Please run 'Find Gaps' again.",
-        )
+    with open (file_path, "wb") as f: 
+        f.write(result['kmz_bytes'])
 
     return build_flightplan_download_response(
         file_path,
         drone_type=flight_drone_type,
-        filename_stem=f"reflight_task_{task_id}_{drone_type}_project_{project_id}",
+        filename_stem=f"reflight_task_{task_id}_{flight_drone_type}_project_{project_id}",
     )

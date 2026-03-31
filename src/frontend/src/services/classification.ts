@@ -378,7 +378,11 @@ export interface FlightGapDetectionData {
   message: string;
   task_geometry: GeoJSON.Feature;
   gap_polygons: GeoJSON.FeatureCollection;
+  gap_type: string;
   drone_type: string | null;
+  altitude: number | null;
+  rotation: number | null;
+  overlap: number | null;
   images: GeoJSON.FeatureCollection;
   flightplan_url: string | null;
 }
@@ -404,6 +408,37 @@ export const getFlightGapDetectionData = async (
         'Content-Type': 'application/json',
       },
     },
+  );
+  return response.data;
+};
+
+export interface FlightGapGenerationPlan {
+  manualGapPolygons?: GeoJSON.FeatureCollection | null;
+  gapType?: string | null;
+  droneType?: string | null;
+  altitude?: number | null;
+  rotation?: number | null;
+  overlap?: number | null;
+}
+
+export const downloadFlightGapGenerationPlan = async (
+  projectId: string,
+  taskId: string,
+  request: FlightGapGenerationPlan = {},
+): Promise<Blob> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/imagery/task/${taskId}/generate-flightplan/`,
+    {
+      manual_gap_polygons: request.manualGapPolygons ?? null,
+      gap_type: request.gapType ?? null,
+      drone_type: request.droneType ?? null,
+      altitude: request.altitude ?? null,
+      rotation: request.rotation ?? null, 
+      overlap: request.overlap ?? null
+    },
+    { responseType: 'blob', 
+      headers: { 'Content-Type': 'application/json' }
+    }
   );
   return response.data;
 };

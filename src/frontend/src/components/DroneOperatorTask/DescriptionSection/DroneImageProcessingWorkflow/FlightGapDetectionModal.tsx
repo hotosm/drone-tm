@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import {
   FlightGapDetectionData,
   getFlightGapDetectionData,
+  downloadFlightGapGenerationPlan
 } from '@Services/classification';
 import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
@@ -43,31 +44,6 @@ const FlightGapDetectionModal = ({
   const [currentGapData, setCurrentGapData] = useState<FlightGapDetectionData | null>(gapAnalysisData);
   const [selectedDroneType, setSelectedDroneType] = useState<string | null>(gapAnalysisData?.drone_type ?? null);
   const hasFitRef = useRef(false);
-
-  const downloadFlightPlan = useCallback(async (flightplanUrl: string) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(flightplanUrl, {
-      method: 'GET',
-      headers: token ? { 'Access-Token': token } : undefined,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to download flight plan: ${response.status} ${response.statusText}`);
-    }
-
-    const blob = await response.blob();
-    const disposition = response.headers.get('content-disposition');
-    const match = disposition?.match(/filename="?([^"]+)"?/i);
-    const filename = match?.[1] ?? `reflight-task-${taskIndex}`;
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(blobUrl);
-  }, [taskIndex]);
 
   // Reset map when modal closes
   useEffect(() => {
@@ -231,16 +207,7 @@ const FlightGapDetectionModal = ({
         setCurrentGapData(data);
         setManualGapData(data.gap_polygons);
         setSelectedDroneType(data.drone_type ?? selectedDroneType);
-        if (data.flightplan_url) {
-          downloadFlightPlan(data.flightplan_url)
-            .then(() => {
-              toast.success('Flight plan generated and downloaded.');
-            })
-            .catch((error: Error) => {
-              toast.error(error.message || 'Flight plan was generated but download failed.');
-            });
-          return;
-        }
+
         toast.info(data.message || 'Gaps updated. No flight plan generated.');
       },
       onError: (error: any) => {
@@ -249,32 +216,37 @@ const FlightGapDetectionModal = ({
       },
     });
 
-  const handleFinalizeGaps = () => {
-    if (!selectedDroneType) {
-      toast.error('Select a drone model to generate the flight plan.');
-      return;
+  const handleDownloadPlan = async () => {
+    if (!currentGapData || !selectedDroneType) {
+    toast.error('Please select a drone model first.');
+    return;
     }
 
-    if (manualGapData) {
-      finalizeGapMutation.mutate(manualGapData);
-    }
-    else {
-      toast.error('Gap polygons not found.');
-    }
-  };
+      try {
+        const blob = await downloadFlightGapGenerationPlan(projectId, taskId, {
+        manualGapPolygons: manualGapData, 
+        gapType: currentGapData.gap_type,
+        droneType: selectedDroneType,
+        altitude: currentGapData.altitude, 
+        rotation: currentGapData.rotation, 
+        overlap: currentGapData.overlap
+      });
 
-  const handleDownloadPlan = () => {
-    if (currentGapData?.flightplan_url) {
-      downloadFlightPlan(currentGapData.flightplan_url)
-        .catch((error: Error) => {
-          toast.error(error.message || 'Failed to download flight plan.');
-        });
-    }
-    else {
-      toast.error('Flight plan URL not found.');
-    }
-  };
-
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reflight_task_${taskIndex}.kmz`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Flight plan downloaded.');
+  } catch (error: any) {
+    toast.error('Failed to generate flight plan.');
+  }
+};
+      
   if (!isOpen || !currentGapData) return null;
 
   const imageGeoJsonData = imagesGeoJson();
@@ -283,7 +255,6 @@ const FlightGapDetectionModal = ({
     features: [currentGapData.task_geometry],
   } as unknown as GeojsonType;
 
-  const isDownloadReady = !!currentGapData.flightplan_url;
 
   return (
     <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[9999] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
@@ -429,6 +400,7 @@ const FlightGapDetectionModal = ({
                     selectedOption={selectedDroneType}
                     onChange={(value: string | number) => {
                       setSelectedDroneType(String(value));
+                      finalizeGapMutation.mutate(manualGapData); 
                     }}
                     className="naxatw-w-full naxatw-bg-[#F4F7FE]"
                     placeholder="Select model"
@@ -482,28 +454,13 @@ const FlightGapDetectionModal = ({
             >
               Cancel
             </Button>
-            {isDownloadReady ?
-            (
-              <Button
-                variant="ghost"
-                className="naxatw-border naxatw-border-gray-300"
-                onClick={handleDownloadPlan}
-              >
-                Download Flight Plan
-              </Button>
-              )
-               :
-               (
-                <Button
-                variant="ghost"
-                className="naxatw-border naxatw-border-gray-300"
-                onClick={handleFinalizeGaps}
-                withLoader
-                isLoading={finalizeGapMutation.isPending}
-              >
-                Generate Flightplan
-                </Button>
-                )}
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-gray-300"
+              onClick={handleDownloadPlan}
+            >
+              Download Flight Plan
+            </Button>
           </FlexRow>
         </div>
       </div>
