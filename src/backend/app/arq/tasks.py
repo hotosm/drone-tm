@@ -1,13 +1,18 @@
 import asyncio
+import base64
 import io
+import zipfile
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
 
+import aiohttp
 from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings, log_redis_info
 from fastapi import HTTPException
 from loguru import logger as log
 from PIL import Image
+from psycopg.rows import dict_row
 
 from app.config import settings
 from app.db.database import get_db_connection_pool
@@ -26,7 +31,12 @@ from app.projects.project_logic import (
     process_drone_images,
     process_task_metrics,
 )
-from app.s3 import async_get_obj_from_bucket, s3_client
+from app.s3 import (
+    add_obj_to_bucket,
+    async_get_obj_from_bucket,
+    generate_presigned_get_url,
+    s3_client,
+)
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
 
@@ -699,6 +709,175 @@ async def process_project_task_metrics(
         raise
 
 
+def _zip_plugin_dir() -> Optional[str]:
+    """Zip the QField plugin directory and return base64-encoded bytes.
+
+    Uses the bundled plugin directory at ``/project/src/qfield-plugin``.
+    Returns None if the directory does not exist or is empty.
+    """
+    plugin_dir = Path("/project/src/qfield-plugin")
+
+    if not plugin_dir.is_dir():
+        log.warning("QField plugin directory not found; project will have no plugin")
+        return None
+
+    buf = io.BytesIO()
+    file_count = 0
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(plugin_dir.rglob("*")):
+            if file_path.is_file():
+                arc_name = str(file_path.relative_to(plugin_dir))
+                zf.write(file_path, arc_name)
+                file_count += 1
+
+    if file_count == 0:
+        log.warning("QField plugin directory is empty: %s", plugin_dir)
+        return None
+
+    log.info("Zipped %d plugin files from %s", file_count, plugin_dir)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+async def generate_qfield_project(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """Generate a QField project via the QGIS container and upload to S3.
+
+    Fetches task geometries and project info from the DB, sends them to
+    the QGIS container's /drone endpoint, and uploads the resulting zip
+    to the publicuploads/ prefix in S3.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        f"Starting generate_qfield_project (Job ID: {job_id}): project={project_id}"
+    )
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                # Fetch project info
+                await cur.execute(
+                    "SELECT id, name, ST_AsGeoJSON(outline)::jsonb AS outline, dem_url FROM projects WHERE id = %s",
+                    (project_id,),
+                )
+                project = await cur.fetchone()
+                if not project:
+                    raise RuntimeError(f"Project {project_id} not found")
+
+                # Fetch tasks as GeoJSON FeatureCollection
+                await cur.execute(
+                    """
+                    SELECT json_build_object(
+                        'type', 'FeatureCollection',
+                        'features', COALESCE(json_agg(
+                            json_build_object(
+                                'type', 'Feature',
+                                'geometry', ST_AsGeoJSON(outline)::json,
+                                'properties', json_build_object(
+                                    'project_task_id', project_task_index
+                                )
+                            )
+                        ), '[]'::json)
+                    ) AS geojson
+                    FROM tasks
+                    WHERE project_id = %s
+                    """,
+                    (project_id,),
+                )
+                row = await cur.fetchone()
+                tasks_geojson = row["geojson"]
+
+                # Compute extent from project outline
+                await cur.execute(
+                    """
+                    SELECT ST_XMin(outline), ST_YMin(outline),
+                           ST_XMax(outline), ST_YMax(outline)
+                    FROM projects WHERE id = %s
+                    """,
+                    (project_id,),
+                )
+                ext = await cur.fetchone()
+                extent_str = f"{ext['st_xmin']},{ext['st_ymin']},{ext['st_xmax']},{ext['st_ymax']}"
+
+        # Build request payload for the QGIS container
+        project_name = project["name"] or f"project-{project_id[:8]}"
+        # Sanitize project name for filesystem use
+        safe_name = "".join(
+            c if c.isalnum() or c in " -_" else "_" for c in project_name
+        ).strip()
+        if not safe_name:
+            safe_name = f"project-{project_id[:8]}"
+
+        payload = {
+            "project_id": project_id,
+            "project_name": safe_name,
+            "tasks_geojson": tasks_geojson,
+            "extent": extent_str,
+            "flight_params": {},
+            "dem_url": None,
+            "plugin_zip": None,
+        }
+
+        # If project has a DEM, generate an internal presigned URL for the QGIS container
+        dem_url = project.get("dem_url")
+        if dem_url:
+            # dem_url is stored as an S3 key like "projects/{id}/dem.tif"
+            if not dem_url.startswith("http"):
+                dem_url = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, dem_url, expires_hours=2, internal=True
+                )
+            payload["dem_url"] = dem_url
+
+        # Bundle the QField plugin directory into a zip and base64-encode it
+        plugin_b64 = _zip_plugin_dir()
+        if plugin_b64:
+            payload["plugin_zip"] = plugin_b64
+
+        # Call QGIS container
+        qgis_url = f"{settings.QGIS_URL}/drone"
+        log.info(f"Calling QGIS container at {qgis_url} for project {project_id}")
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                qgis_url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=300),
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    raise RuntimeError(f"QGIS container returned {resp.status}: {body}")
+                zip_bytes = await resp.read()
+
+        log.info(f"Received {len(zip_bytes)} bytes from QGIS container")
+
+        # Upload to S3
+        s3_key = f"publicuploads/qfield/{project_id}.zip"
+        add_obj_to_bucket(
+            settings.S3_BUCKET_NAME,
+            io.BytesIO(zip_bytes),
+            s3_key,
+            content_type="application/zip",
+        )
+        log.info(f"Uploaded QField project to s3://{settings.S3_BUCKET_NAME}/{s3_key}")
+
+        return {
+            "status": "success",
+            "message": "QField project generated",
+            "project_id": project_id,
+            "s3_key": s3_key,
+        }
+
+    except Exception as e:
+        log.error(f"Failed to generate QField project (Job: {job_id}): {str(e)}")
+        raise
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -714,6 +893,7 @@ class WorkerSettings:
         delete_batch_images,
         process_project_task_metrics,
         download_and_upload_dem,
+        generate_qfield_project,
     ]
 
     queue_name = "default_queue"

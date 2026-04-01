@@ -772,16 +772,6 @@ const ProcessingStatusDialog = () => {
                       {queueInfo?.total_failed} failed
                     </span>
                   )}
-                  {(queueInfo?.total_completed ?? 0) > 0 && (
-                    <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-green-800">
-                      {queueInfo?.total_completed} completed
-                    </span>
-                  )}
-                  {(queueInfo?.total_canceled ?? 0) > 0 && (
-                    <span className="naxatw-rounded-full naxatw-bg-gray-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-gray-600">
-                      {queueInfo?.total_canceled} canceled
-                    </span>
-                  )}
                   <span className="naxatw-rounded-full naxatw-bg-gray-200 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-gray-700">
                     {queueInfo?.total_tasks ?? 0} total
                   </span>

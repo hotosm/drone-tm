@@ -83,6 +83,13 @@ Create the name of the worker service
 {{- end }}
 
 {{/*
+Create the name of the qgis service
+*/}}
+{{- define "drone-tm.qgis.fullname" -}}
+{{- printf "%s-qgis" (include "drone-tm.fullname" .) }}
+{{- end }}
+
+{{/*
 Name of the main app Secret containing env vars
 */}}
 {{- define "drone-tm.secretName" -}}

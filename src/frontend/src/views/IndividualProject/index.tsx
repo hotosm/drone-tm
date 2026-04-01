@@ -31,6 +31,8 @@ import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
 import { UploadImageryDialog, VerifyImageryDialog } from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
+import QFieldExportDialog from '@Components/IndividualProject/QFieldExport';
+import QFieldLogo from '@Components/IndividualProject/QFieldExport/QFieldLogo';
 import { getRuntimeConfig } from '@/runtimeConfig';
 
 // eslint-disable-next-line camelcase
@@ -94,6 +96,7 @@ const IndividualProject = () => {
     useState<boolean>(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
+  const [showQFieldDialog, setShowQFieldDialog] = useState(false);
   const Token = localStorage.getItem('token');
 
   const individualProjectActiveTab = useTypedSelector(
@@ -263,6 +266,19 @@ const IndividualProject = () => {
                   >
                     🖨️ Project printout
                   </div>
+                  <div
+                    className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={() => {}}
+                    onClick={() => {
+                      setShowQFieldDialog(true);
+                      setShowDownloadOptions(false);
+                    }}
+                  >
+                    <QFieldLogo />
+                    Export for QField
+                  </div>
                 </div>
               )}
             </div>
@@ -374,6 +390,12 @@ const IndividualProject = () => {
       <VerifyImageryDialog
         isOpen={isVerifyDialogOpen}
         onClose={() => setIsVerifyDialogOpen(false)}
+        projectId={projectData?.id || (id as string)}
+      />
+
+      <QFieldExportDialog
+        show={showQFieldDialog}
+        onClose={() => setShowQFieldDialog(false)}
         projectId={projectData?.id || (id as string)}
       />
     </>

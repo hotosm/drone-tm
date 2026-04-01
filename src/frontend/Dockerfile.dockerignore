@@ -1,0 +1,7 @@
+**
+!frontend
+!frontend/**
+!gcp-editor
+!gcp-editor/**
+!pnpm-workspace.yaml
+!pnpm-lock.yaml

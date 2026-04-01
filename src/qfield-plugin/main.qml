@@ -429,11 +429,30 @@ Item {
       // Scroll dialog to reveal the Copy/Close buttons
       flightplanDialog.scrollToBottom()
 
-      // Load GeoJSON as visualization layer
+      // Load GeoJSON as visualization layer inside a "Flightplans" group
       try {
         var vectorLayer = LayerUtils.loadVectorLayer(geojsonPath, 'flightplan_' + taskId)
         if (vectorLayer) {
           ProjectUtils.addMapLayer(qgisProject, vectorLayer)
+
+          // Move the layer into a "Flightplans" group (create if needed)
+          try {
+            var root = qgisProject.layerTreeRoot
+            var group = root.findGroup("Flightplans")
+            if (!group) {
+              group = root.addGroup("Flightplans")
+              log("Created 'Flightplans' layer group")
+            }
+            var layerNode = root.findLayer(vectorLayer.id)
+            if (layerNode) {
+              var clone = layerNode.clone()
+              group.insertChildNode(0, clone)
+              root.removeChildNode(layerNode)
+            }
+          } catch (ge) {
+            log("Could not move layer to group: " + ge)
+          }
+
           log("Flightplan layer added")
         }
       } catch (e) {
@@ -551,19 +570,53 @@ Item {
   ]
 
   function copyToFlightController() {
-    if (!lastKmzData) {
+    if (!lastKmzPath) {
       mainWindow.displayToast(qsTr('No flightplan generated yet'))
       return
     }
 
-    log("Attempting to copy KMZ to flight controller...")
+    log("Attempting to export KMZ to flight controller...")
 
-    // Scan for DJI waypoint directory and existing mission UUIDs
+    // First try the direct-write path (works when QField runs on the DJI RC
+    // itself or the controller is mounted with relaxed scoped-storage rules).
+    if (lastKmzData && _tryDirectCopyToController()) {
+      return
+    }
+
+    // Fall back to the platform file-picker so the user can choose where to
+    // save.  platformUtilities.exportDatasetTo() shows Android's SAF folder
+    // picker and copies the file for us (not yet available on iOS).
+    try {
+      if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
+        log("Opening file picker via platformUtilities.exportDatasetTo")
+        platformUtilities.exportDatasetTo(lastKmzPath)
+        mainWindow.displayToast(qsTr('Choose a location to save the KMZ'))
+        flightplanDialog.generationState = "manual_transfer"
+        flightplanDialog.resultMessage = qsTr('Save the KMZ file, then copy it to your controller')
+        return
+      }
+    } catch (e) {
+      log("platformUtilities.exportDatasetTo failed: " + e)
+    }
+
+    // Neither method worked
+    log("Could not export KMZ via direct copy or file picker")
+    mainWindow.displayToast(
+      qsTr('DJI controller not found - see transfer options below')
+    )
+    flightplanDialog.generationState = "transfer_failed"
+    flightplanDialog.resultMessage = qsTr(
+      'Could not find DJI controller storage. The KMZ is saved in the project flightplans/ folder.'
+    )
+  }
+
+  function _tryDirectCopyToController() {
+    // Scan for DJI waypoint directory and write directly.
+    // This may fail on modern Android due to scoped storage restrictions.
     for (var p = 0; p < djiWaypointPaths.length; p++) {
       var basePath = djiWaypointPaths[p]
       var uuids = listDirectory(basePath)
       if (uuids.length > 0) {
-        // Use the most recent (first) UUID directory
         var uuid = uuids[0]
         var targetPath = basePath + "/" + uuid + "/" + uuid + ".kmz"
         log("Found DJI waypoint dir: " + basePath + ", UUID: " + uuid)
@@ -572,7 +625,7 @@ Item {
           mainWindow.displayToast(qsTr('Copied to flight controller'))
           flightplanDialog.resultMessage = qsTr('Copied to flight controller')
           log("KMZ copied to: " + targetPath)
-          return
+          return true
         }
       }
     }
@@ -581,7 +634,6 @@ Item {
     var storageVolumes = listDirectory("/storage")
     for (var v = 0; v < storageVolumes.length; v++) {
       var vol = storageVolumes[v]
-      // Skip emulated (internal) storage and self
       if (vol === "emulated" || vol === "self") continue
 
       var volWaypointPath = "/storage/" + vol + "/Android/data/dji.go.v5/files/waypoint"
@@ -595,20 +647,12 @@ Item {
           mainWindow.displayToast(qsTr('Copied to flight controller'))
           flightplanDialog.resultMessage = qsTr('Copied to flight controller')
           log("KMZ copied to: " + volTarget)
-          return
+          return true
         }
       }
     }
 
-    // No DJI path found
-    log("Could not find DJI waypoint directory on any storage")
-    mainWindow.displayToast(
-      qsTr('DJI controller not found - see transfer options below')
-    )
-    flightplanDialog.generationState = "transfer_failed"
-    flightplanDialog.resultMessage = qsTr(
-      'Could not find DJI controller storage. The KMZ is saved in the project flightplans/ folder.'
-    )
+    return false
   }
 
   function listDirectory(path) {
