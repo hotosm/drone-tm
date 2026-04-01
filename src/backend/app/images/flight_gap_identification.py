@@ -331,7 +331,7 @@ def _generate_reconstruction_flightplan(
     global_side_median: float,
     drone_type: DroneType,
     average_altitude,
-    average_azimuth
+    average_azimuth,
 ):
     """
     Generates a kmz flight plan to cover detected missing imagery gaps.
@@ -434,11 +434,11 @@ async def identify_flight_gaps(
     db: Connection,
     project_id: UUID,
     task_id: UUID,
-    manual_gaps= None,
+    manual_gaps=None,
     gap_type: str | None = None,
     drone_type_override: DroneType | None = None,
     altitude_override: float | None = None,
-    rotation_override:  float | None = None,
+    rotation_override: float | None = None,
     overlap_override: float | None = None,
 ):
     """
@@ -551,10 +551,10 @@ async def identify_flight_gaps(
     # Setting all global and tracking variables
     MIN_DISTANCE_METERS = 5.0
     LEG_SAMPLE_COUNT = 3  # Ensures enough into the trajectory to compare azimuths'
-    MIN_GAP_IMAGES = 3 # Minimum missing imagery to create a suggested flightplan
+    MIN_GAP_IMAGES = 3  # Minimum missing imagery to create a suggested flightplan
     GAP_EXCEED_BASELINE = 1.5  # Threshold when to detect a missing 'gap'
-    MIN_SEGMENT_SIZE = 20 # Main gap analysis
-    SPARSE_SEGMENT_MAX_IMAGES = 5 # Sparse gap analysis
+    MIN_SEGMENT_SIZE = 20  # Main gap analysis
+    SPARSE_SEGMENT_MAX_IMAGES = 5  # Sparse gap analysis
     MINIMUM_ALTITUDE = 60  # Fallback altitude value
 
     all_potential_gaps = []
@@ -574,7 +574,7 @@ async def identify_flight_gaps(
     confirmed_gaps = None
     sparse_rotation = None
     result = None
-    
+
     # If no gaps, run analysis
     if not manual_gaps:
         # Fetch project images
@@ -590,7 +590,9 @@ async def identify_flight_gaps(
         # Finding drone type
         db_drone_model = None
         for row in project_image_results:
-            db_drone_model = row.get("drone_model_name") or row.get("exif_drone_model_name")
+            db_drone_model = row.get("drone_model_name") or row.get(
+                "exif_drone_model_name"
+            )
             if db_drone_model is not None:
                 break
 
@@ -600,7 +602,7 @@ async def identify_flight_gaps(
                 log.error(f"Could not find drone type {db_drone_model}")
         elif not db_drone_model and flight_drone_type is None:
             log.error("No drone model found in image metadata")
-            
+
         # Fetching altitudes
         for images in project_image_results:
             if images["altitude_m"] is not None:
@@ -608,7 +610,7 @@ async def identify_flight_gaps(
             else:
                 log.error("No altitiude found for image")
 
-    # Executing analysis 
+        # Executing analysis
         # Group by segment
         segments_map: dict[int, list[dict]] = {}
         for row in project_image_results:
@@ -823,7 +825,7 @@ async def identify_flight_gaps(
                         )
 
                 previous_leg = leg
-    
+
     # Fetch the task aoi
     task_outline_query = """
                     SELECT
@@ -837,52 +839,51 @@ async def identify_flight_gaps(
 
     if task_row and task_row["geometry"]:
         task_aoi_outline = shape(task_row["geometry"])
-    
+
     # If override parameters provided, set gap geometries
-    if (
-        manual_gaps 
-        and gap_type
-        and flight_drone_type
-        and overall_average_altitude
-    ): 
-        log.info(f"Entering overriden result to download flightplan.")
-        manual_geom = unary_union([
-            shape(f["geometry"]) for f in manual_gaps.get("features", [])
-        ])
+    if manual_gaps and gap_type and flight_drone_type and overall_average_altitude:
+        log.info("Entering overridden result to download flightplan.")
+        manual_geom = unary_union(
+            [shape(f["geometry"]) for f in manual_gaps.get("features", [])]
+        )
 
         if gap_type == "sparse":
             sparse_gap_geometry = manual_geom
             result = _generate_flightplan_for_geometry(
-                    sparse_gap_geometry,
-                    drone_type=flight_drone_type,
-                    average_altitude=overall_average_altitude,
-                    rotation_angle=overall_rotation,
-                ) 
-            
+                sparse_gap_geometry,
+                drone_type=flight_drone_type,
+                average_altitude=overall_average_altitude,
+                rotation_angle=overall_rotation,
+            )
+
         elif gap_type == "main":
             confirmed_gaps = manual_geom
             result = _generate_reconstruction_flightplan(
-                    confirmed_gaps,
-                    task_aoi_outline,
-                    global_side_overlap_median,
-                    flight_drone_type,
-                    overall_average_altitude,
-                    overall_rotation
-                )
-            
-    # Finalizing variables to be passed into flight gap generation 
+                confirmed_gaps,
+                task_aoi_outline,
+                global_side_overlap_median,
+                flight_drone_type,
+                overall_average_altitude,
+                overall_rotation,
+            )
+
+    # Finalizing variables to be passed into flight gap generation
     if global_side_overlap_median is None and overall_average_altitude is None:
         # Overall average altitude detection
         if len(all_altitudes) > 0:
             overall_average_altitude = np.mean(all_altitudes)
         else:
             overall_average_altitude = MINIMUM_ALTITUDE
-            log.error(f"Altitude values not found, falling to MINIMUM ALTITUDE: {MINIMUM_ALTITUDE}.")
+            log.error(
+                f"Altitude values not found, falling to MINIMUM ALTITUDE: {MINIMUM_ALTITUDE}."
+            )
 
         # Calculating theoretical spacing overall (70%) for side overlap median then overriding if values exist
         if flight_drone_type:
             specs = DRONE_PARAMS[flight_drone_type]
-            horizontal_footprint = 2 * overall_average_altitude * specs["HORIZONTAL_FOV"]
+            horizontal_footprint = (
+                2 * overall_average_altitude * specs["HORIZONTAL_FOV"]
+            )
             global_side_overlap_median = horizontal_footprint * 0.30
 
         if len(all_side_overlap_medians) > 0:
@@ -890,7 +891,7 @@ async def identify_flight_gaps(
 
         elif flight_drone_type is None:
             log.error("No drone type found and no side overlap medians available.")
-     
+
     # Process for confirming gaps and triggering reconstruction of flightplan
     # Getting all image points for UI
     image_features = [
@@ -917,13 +918,14 @@ async def identify_flight_gaps(
     images_geojson = {"type": "FeatureCollection", "features": image_features}
 
     # Sparse-coverage gap analysis
-    if gap_type == "sparse" or 0 < len(project_image_results) <= SPARSE_SEGMENT_MAX_IMAGES: 
-        if (
-            not manual_gaps
-            and not gap_type
-            and flight_drone_type
-        ):
-            log.info(f"Processing sparse-coverage gap analysis on {len(project_image_results)} images...")
+    if (
+        gap_type == "sparse"
+        or 0 < len(project_image_results) <= SPARSE_SEGMENT_MAX_IMAGES
+    ):
+        if not manual_gaps and not gap_type and flight_drone_type:
+            log.info(
+                f"Processing sparse-coverage gap analysis on {len(project_image_results)} images..."
+            )
             sparse_gap_geometry = _detect_sparse_coverage_gap(
                 task_aoi_outline,
                 project_image_results,
@@ -938,7 +940,9 @@ async def identify_flight_gaps(
                     if row.get("yaw_deg") is not None
                 ]
 
-                sparse_rotation = circular_mean_list(sparse_yaws) if sparse_yaws else None
+                sparse_rotation = (
+                    circular_mean_list(sparse_yaws) if sparse_yaws else None
+                )
                 overall_rotation = sparse_rotation
 
                 result = _generate_flightplan_for_geometry(
@@ -949,7 +953,7 @@ async def identify_flight_gaps(
                 )
 
         if result:
-            log.info(f"Successfully identified sparse-coverage gaps.")
+            log.info("Successfully identified sparse-coverage gaps.")
 
             return {
                 "message": "Successfully identified sparse-coverage gaps.",
@@ -959,7 +963,7 @@ async def identify_flight_gaps(
                 "drone_type": flight_drone_type,
                 "altitude": overall_average_altitude,
                 "rotation": sparse_rotation,
-                "overlap": global_side_overlap_median, 
+                "overlap": global_side_overlap_median,
                 "kmz_bytes": result["kmz_bytes"],
                 "images": images_geojson,
             }
@@ -972,21 +976,20 @@ async def identify_flight_gaps(
             "gap_type": "sparse",
             "drone_type": flight_drone_type,
             "altitude": overall_average_altitude,
-            "rotation": sparse_rotation, 
-            "overlap": global_side_overlap_median, 
+            "rotation": sparse_rotation,
+            "overlap": global_side_overlap_median,
             "kmz_bytes": None,
             "images": images_geojson,
         }
-    
+
     # Main-coverage gap analysis
     if gap_type == "main" or len(all_potential_gaps) > MIN_GAP_IMAGES:
         # Filter potential gaps to find those that intersect with task AOI
         confirmed_gaps = _validate_gaps_in_task_aoi(
             task_aoi_outline, all_potential_gaps
-            )
-        
-        if not gap_type and flight_drone_type: 
+        )
 
+        if not gap_type and flight_drone_type:
             approximate_horizontal_footprint = None
 
             if global_side_overlap_median:
@@ -1014,7 +1017,9 @@ async def identify_flight_gaps(
                     f"Task {task_id}: {len(confirmed_gaps)} gaps confirmed. Generating reconstruction plan."
                 )
 
-                overall_rotation = circular_mean_list([gap["azimuth"] for gap in confirmed_gaps])
+                overall_rotation = circular_mean_list(
+                    [gap["azimuth"] for gap in confirmed_gaps]
+                )
 
                 result = _generate_reconstruction_flightplan(
                     confirmed_gaps,
@@ -1022,7 +1027,7 @@ async def identify_flight_gaps(
                     global_side_overlap_median,
                     flight_drone_type,
                     overall_average_altitude,
-                    overall_rotation
+                    overall_rotation,
                 )
 
         if result:

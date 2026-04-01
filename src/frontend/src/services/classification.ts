@@ -433,10 +433,10 @@ export const downloadFlightGapGenerationPlan = async (
       gap_type: request.gapType ?? null,
       drone_type: request.droneType ?? null,
       altitude: request.altitude ?? null,
-      rotation: request.rotation ?? null, 
+      rotation: request.rotation ?? null,
       overlap: request.overlap ?? null
     },
-    { responseType: 'blob', 
+    { responseType: 'blob',
       headers: { 'Content-Type': 'application/json' }
     }
   );

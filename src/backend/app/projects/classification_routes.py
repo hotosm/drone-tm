@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from typing import Annotated, Optional
 from uuid import UUID
@@ -57,6 +56,7 @@ class FlightGapDownloadPlanRequest(BaseModel):
     altitude: float | None = None
     rotation: float | None = None
     overlap: float | None = None
+
 
 @router.get("/{project_id}/latest-batch/", tags=["Image Classification"])
 async def get_latest_batch(
@@ -739,7 +739,7 @@ async def detect_task_flight_gaps(
         "images": result.get("images"),
         "altitude": result.get("altitude"),
         "rotation": result.get("rotation"),
-        "overlap": result.get("overlap")
+        "overlap": result.get("overlap"),
     }
 
 
@@ -748,14 +748,14 @@ async def detect_task_flight_gaps(
     tags=["Image Classification"],
 )
 async def download_reflight_plan(
-    project_id: UUID, 
-    task_id: UUID, 
+    project_id: UUID,
+    task_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     request: FlightGapDownloadPlanRequest | None = None,
-    ):
+):
     """Download a reconstructed flight plan based on identified flight gaps."""
     manual_gap_polygons = request.manual_gap_polygons if request else None
-    gap_type = request.gap_type 
+    gap_type = request.gap_type
     drone_type_override = request.drone_type
     altitude_override = request.altitude
     rotation_override = request.rotation
@@ -775,32 +775,32 @@ async def download_reflight_plan(
         project_id,
         task_id,
         manual_gap_polygons,
-        gap_type=gap_type, 
+        gap_type=gap_type,
         drone_type_override=drone_type_override,
         altitude_override=altitude_override,
         rotation_override=rotation_override,
-        overlap_override=overlap_override
+        overlap_override=overlap_override,
     )
 
-    if not result: 
+    if not result:
         raise HTTPException(
             status_code=400,
             detail="Could not generate a flightplan with the provided parameters.",
         )
-    
+
     kmz_bytes = result.get("kmz_bytes")
 
     if not kmz_bytes:
         raise HTTPException(
-            status_code=400, 
-            detail="The flightplan generator could not produce a file with the provided data."
-    )
+            status_code=400,
+            detail="The flightplan generator could not produce a file with the provided data.",
+        )
 
     flightplan_config = get_flightplan_output_config(flight_drone_type)
     file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
 
-    with open (file_path, "wb") as f: 
-        f.write(result['kmz_bytes'])
+    with open(file_path, "wb") as f:
+        f.write(result["kmz_bytes"])
 
     return build_flightplan_download_response(
         file_path,

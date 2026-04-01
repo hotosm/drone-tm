@@ -224,11 +224,11 @@ const FlightGapDetectionModal = ({
 
       try {
         const blob = await downloadFlightGapGenerationPlan(projectId, taskId, {
-        manualGapPolygons: manualGapData, 
+        manualGapPolygons: manualGapData,
         gapType: currentGapData.gap_type,
         droneType: selectedDroneType,
-        altitude: currentGapData.altitude, 
-        rotation: currentGapData.rotation, 
+        altitude: currentGapData.altitude,
+        rotation: currentGapData.rotation,
         overlap: currentGapData.overlap
       });
 
@@ -240,13 +240,13 @@ const FlightGapDetectionModal = ({
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
       toast.success('Flight plan downloaded.');
   } catch (error: any) {
     toast.error('Failed to generate flight plan.');
   }
 };
-      
+
   if (!isOpen || !currentGapData) return null;
 
   const imageGeoJsonData = imagesGeoJson();
@@ -400,7 +400,7 @@ const FlightGapDetectionModal = ({
                     selectedOption={selectedDroneType}
                     onChange={(value: string | number) => {
                       setSelectedDroneType(String(value));
-                      finalizeGapMutation.mutate(manualGapData); 
+                      finalizeGapMutation.mutate(manualGapData);
                     }}
                     className="naxatw-w-full naxatw-bg-[#F4F7FE]"
                     placeholder="Select model"
