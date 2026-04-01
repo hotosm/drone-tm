@@ -1,3 +1,24 @@
+## 2026.2.0 (2026-04-01)
+
+### Feat
+
+- fix processing issues with webhook, ODM job queue, CTRL+click for custom ODM
+
+### Fix
+
+- only display odm task queue for pending, queued, failed
+- **frontend**: display the project/task uuid on the detail pages
+- fix #426 fix #190, user friendly urls instead of UUIDs (internal only)
+- **frontend**: properly fix ##606 for multipolygon aoi merging
+- **backend**: PostGIS functions for geom merge project creation
+- **frontend**: add app version number to top left, better indicate when updated
+- **frontend**: fix #277 for better use creation flow
+- **#735**: integrate geojson-aoi-parser for robust AOI parsing (#752)
+
+### Refactor
+
+- **drone-flightplan**: cleanup some missing print statements
+
 ## 2026.1.3 (2026-03-31)
 
 ### Feat
