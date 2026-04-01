@@ -97,8 +97,12 @@ def _presign_client_for_download() -> Minio:
 def build_browser_object_url(bucket_name: str, object_name: str) -> str:
     """Browser-facing URL for an object (no signing), using S3_ENDPOINT_DOWNLOAD.
 
-    Note: S3_ENDPOINT_DOWNLOAD is treated as the base S3 endpoint, and URLs are
-    generated in path-style form: `<base>/<bucket>/<key>`.
+    When a CDN like CloudFront is configured (S3_ENDPOINT_DOWNLOAD differs from
+    S3_ENDPOINT_UPLOAD), the bucket is already the CDN origin, so the URL omits
+    the bucket name: `<cdn>/<key>`.
+
+    For local/MinIO (endpoints are the same), path-style URLs are used:
+    `<base>/<bucket>/<key>`.
 
     Args:
         bucket_name: Name of the S3 bucket
@@ -109,6 +113,9 @@ def build_browser_object_url(bucket_name: str, object_name: str) -> str:
     """
     object_name = _normalize_object_name(object_name)
     base = settings.S3_ENDPOINT_DOWNLOAD.rstrip("/")
+    # CDN (e.g. CloudFront) already points at the bucket; don't repeat it
+    if settings.S3_ENDPOINT_DOWNLOAD != settings.S3_ENDPOINT_UPLOAD:
+        return f"{base}/{object_name}"
     return f"{base}/{bucket_name}/{object_name}"
 
 
