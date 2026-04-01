@@ -3,10 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import {
-  useGetTaskAssetsInfo,
-  useGetTaskWaypointQuery,
-} from '@Api/tasks';
+import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from '@Api/tasks';
 import { postTaskStatus } from '@Services/project';
 import { formatString } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
@@ -26,7 +23,7 @@ const DescriptionBox = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [flyable, setFlyable] = useState('yes');
-  const { taskId, projectId, projectSlug, taskIndex, taskData } = useTaskParams();
+  const { taskId, projectId, projectSlug, taskData } = useTaskParams();
   const waypointMode = useTypedSelector(
     state => state.droneOperatorTask.waypointMode,
   );
@@ -54,12 +51,8 @@ const DescriptionBox = () => {
     },
   );
 
-  const {
-    data: taskAssetsInformation,
-  }: Record<string, any> = useGetTaskAssetsInfo(
-    projectId as string,
-    taskId as string,
-  );
+  const { data: taskAssetsInformation }: Record<string, any> =
+    useGetTaskAssetsInfo(projectId as string, taskId as string);
 
   useEffect(() => {
     dispatch(resetFilesExifData());
@@ -73,6 +66,10 @@ const DescriptionBox = () => {
         id: 1,
         title: 'Task Description',
         data: [
+          {
+            name: 'Task ID',
+            value: resolvedTaskData?.id || taskId || null,
+          },
           {
             name: 'Created date',
             value: resolvedTaskData?.created_at
@@ -143,7 +140,7 @@ const DescriptionBox = () => {
     ];
 
     return { taskDescription, taskData: resolvedTaskData };
-  }, [taskData, taskWayPoints]);
+  }, [taskData, taskId, taskWayPoints]);
 
   const taskDescription = taskQueryData?.taskDescription;
 
@@ -194,7 +191,9 @@ const DescriptionBox = () => {
     },
     onError: (err: any) => {
       toast.error(
-        err?.response?.data?.detail || err?.message || 'Failed to mark task as fully flown',
+        err?.response?.data?.detail ||
+          err?.message ||
+          'Failed to mark task as fully flown',
       );
     },
   });
@@ -244,7 +243,8 @@ const DescriptionBox = () => {
           />
         ))}
         <p className="naxatw-text-[0.75rem] naxatw-text-[#212121]">
-          *This flight time was calculated using an average ground speed of 11.5 m/s.
+          *This flight time was calculated using an average ground speed of 11.5
+          m/s.
         </p>
       </div>
 

@@ -77,6 +77,13 @@ const DescriptionSection = ({
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-text-sm">
         <p>{projectData?.description || ''}</p>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+          {projectData?.id && (
+            <div className="naxatw-flex naxatw-gap-2">
+              <p className="naxatw-w-[146px]">Project ID</p>
+              <p>:</p>
+              <p className="naxatw-font-semibold">{projectData.id}</p>
+            </div>
+          )}
           {descriptionItems.map(descriptionItem => {
             if (
               projectData?.[descriptionItem.key] ||
