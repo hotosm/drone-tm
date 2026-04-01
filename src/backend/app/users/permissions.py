@@ -80,7 +80,6 @@ class IsSuperUser(BasePermission):
     async def has_permission(
         self, user: Optional[DbUser], obj: Optional[Any] = None
     ) -> bool:
-        print("user", user)
         return user and user.is_superuser
 
 
