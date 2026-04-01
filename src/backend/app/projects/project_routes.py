@@ -74,6 +74,8 @@ ODM_STATUS_LABELS = {
     50: "Canceled",
 }
 
+ODM_QUEUE_DISPLAY_CODES = {10, 20, 30}
+
 
 def _parse_odm_status(raw_status) -> tuple[int, str]:
     """Parse a NodeODM status field into (status_code, status_label).
@@ -89,6 +91,25 @@ def _parse_odm_status(raw_status) -> tuple[int, str]:
         code = 0
     label = ODM_STATUS_LABELS.get(code, f"Unknown ({code})")
     return code, label
+
+
+def _extract_valid_odm_task_info(payload: dict | None) -> dict | None:
+    """Return only real NodeODM task info payloads.
+
+    NodeODM can return HTTP 200 with an error JSON for deleted tasks, for example
+    ``{"error": "<uuid> not found"}``. Those payloads should be treated as
+    missing task info so the DB-backed fallback logic can classify the task.
+    """
+    if not isinstance(payload, dict):
+        return None
+
+    raw_status = payload.get("status")
+    if isinstance(raw_status, dict) and "code" in raw_status:
+        return payload
+    if isinstance(raw_status, (int, float)):
+        return payload
+
+    return None
 
 
 @router.get(
@@ -1122,7 +1143,9 @@ async def get_odm_queue_info(
                 try:
                     async with session.get(odm_task_url(odm_uuid)) as resp:
                         if resp.status == 200:
-                            return odm_uuid, await resp.json()
+                            return odm_uuid, _extract_valid_odm_task_info(
+                                await resp.json()
+                            )
                         log.warning(
                             "NodeODM /task/{}/info returned status {}",
                             odm_uuid,
@@ -1149,7 +1172,6 @@ async def get_odm_queue_info(
         )
 
     # Build task list and reconcile stuck states
-    tasks: list[project_schemas.OdmQueueTask] = []
     groups_map: dict[int, list[project_schemas.OdmQueueTask]] = defaultdict(list)
 
     for db_task in all_odm_tasks:
@@ -1162,11 +1184,18 @@ async def get_odm_queue_info(
         if odm_info:
             status_code, status_label = _parse_odm_status(odm_info.get("status"))
             name = odm_info.get("name") or f"Task {task_index}"
+            display_status_code = status_code
+            display_status_label = status_label
+
+            if status_code == 50:
+                display_status_code = 30
+                display_status_label = "Failed (canceled)"
+
             t = project_schemas.OdmQueueTask(
                 uuid=odm_uuid,
                 name=name,
-                status_code=status_code,
-                status_label=status_label,
+                status_code=display_status_code,
+                status_label=display_status_label,
                 images_count=odm_info.get("imagesCount"),
                 progress=odm_info.get("progress"),
                 date_created=odm_info.get("dateCreated"),
@@ -1251,8 +1280,7 @@ async def get_odm_queue_info(
                 except Exception as e:
                     log.error("Failed to reconcile lost task {}: {}", dtm_task_id, e)
             elif db_state == "IMAGE_PROCESSING_FINISHED":
-                status_code = 40
-                status_label = "Completed"
+                continue
             elif db_state == "IMAGE_PROCESSING_FAILED":
                 status_code = 30
                 status_label = "Failed"
@@ -1269,15 +1297,15 @@ async def get_odm_queue_info(
                 task_index=task_index,
             )
 
-        tasks.append(t)
-        groups_map[t.status_code].append(t)
+        if t.status_code in ODM_QUEUE_DISPLAY_CODES:
+            groups_map[t.status_code].append(t)
 
     # Sort each group by task_index
     for code in groups_map:
         groups_map[code].sort(key=lambda t: t.task_index or 0)
 
-    # Build ordered groups: Running, Queued, Failed, Completed, Canceled
-    display_order = [20, 10, 30, 40, 50]
+    # Build ordered groups: Running, Queued, Failed
+    display_order = [20, 10, 30]
     groups = []
     for code in display_order:
         if code in groups_map:
@@ -1304,8 +1332,8 @@ async def get_odm_queue_info(
     queued_count = len(groups_map.get(10, []))
     running_count = len(groups_map.get(20, []))
     failed_count = len(groups_map.get(30, []))
-    completed_count = len(groups_map.get(40, []))
-    canceled_count = len(groups_map.get(50, []))
+    completed_count = 0
+    canceled_count = 0
 
     # Queue position for a specific task
     queue_position = None
@@ -1332,7 +1360,7 @@ async def get_odm_queue_info(
         failed_count,
         completed_count,
         canceled_count,
-        len(tasks),
+        queued_count + running_count + failed_count,
         len(reconciled),
     )
 
@@ -1342,7 +1370,7 @@ async def get_odm_queue_info(
         total_failed=failed_count,
         total_completed=completed_count,
         total_canceled=canceled_count,
-        total_tasks=len(tasks),
+        total_tasks=queued_count + running_count + failed_count,
         queue_position=queue_position,
         groups=groups,
     )

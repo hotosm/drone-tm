@@ -346,6 +346,127 @@ async def test_normalize_aoi_converts_multipolygon_upload(client):
     assert body["features"][0]["geometry"]["type"] == "Polygon"
 
 
+@pytest.mark.asyncio
+async def test_odm_queue_info_omits_deleted_completed_tasks(
+    client, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = "dbb3daa4-d1b1-4838-80b3-83bfcd750796"
+    odm_task_uuid = "0126d773-777c-4ad4-848c-2c972d050cbe"
+    outline = json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-69.49779538720068, 18.629654277305633],
+                    [-69.48497355306813, 18.616997544638636],
+                    [-69.54053483430786, 18.608390428368665],
+                    [-69.5410690773959, 18.614466085056165],
+                    [-69.49779538720068, 18.629654277305633],
+                ]
+            ],
+        }
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline,
+                odm_task_uuid,
+                assets_url
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326),
+                %s,
+                %s
+            )
+            """,
+            (
+                task_id,
+                project_id,
+                15,
+                outline,
+                odm_task_uuid,
+                f"projects/{project_id}/{task_id}/assets.zip",
+            ),
+        )
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id,
+                project_id,
+                task_id,
+                user_id,
+                state,
+                comment,
+                updated_at,
+                created_at
+            )
+            VALUES (
+                gen_random_uuid(),
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            )
+            """,
+            (
+                project_id,
+                task_id,
+                auth_user.id,
+                "IMAGE_PROCESSING_FINISHED",
+                "Task completed.",
+            ),
+        )
+    await db.commit()
+
+    class FakeResponse:
+        status = 200
+
+        async def json(self):
+            return {"error": f"{odm_task_uuid} not found"}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, _url):
+            return FakeResponse()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(project_routes.aiohttp, "ClientSession", FakeSession)
+
+    response = await client.get(f"/api/projects/odm/queue-info/{project_id}/")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_completed"] == 0
+    assert body["total_canceled"] == 0
+    assert body["total_tasks"] == 0
+    assert body["groups"] == []
+
+
 if __name__ == "__main__":
     """Main func if file invoked directly."""
     pytest.main()
