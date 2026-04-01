@@ -210,6 +210,42 @@ worker:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
 
+qgis:
+  # Deploy the QGIS project packaging service alongside the app.
+  # When enabled, the worker gets QGIS_URL automatically pointed at this
+  # in-cluster Service unless env.QGIS_URL explicitly overrides it.
+  enabled: true
+
+  # One replica is the default because packaging requests are serialized
+  # through the service and throughput is expected to be low initially.
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/hotosm/qfield-project-packager
+    tag: "26.3"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env: {}
+
+  resources: {}
+
+  livenessProbe:
+    tcpSocket:
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
 podDisruptionBudget:
   backend:
     enabled: false

@@ -11,10 +11,10 @@ jobs:
   backend-build:
     uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.6.0
     with:
-      context: ./src/backend
+      context: ./src
       build_target: service
       image_name: ghcr.io/${{ github.repository }}/backend
-      dockerfile: Dockerfile
+      dockerfile: backend/Dockerfile
       extra_build_args: MONITORING=sentry
       scan_image: false
       multi_arch: true

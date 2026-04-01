@@ -14,8 +14,8 @@ services:
   backend:
     image: ghcr.io/hotosm/drone-tm/backend:debug
     build:
-      context: src/backend
-      dockerfile: Dockerfile
+      context: src
+      dockerfile: backend/Dockerfile
       args:
         - MONITORING=${MONITORING}
     depends_on:
@@ -159,9 +159,14 @@ services:
         condition: service_started
       nodeodm:
         condition: service_started
+      qgis-packager:
+        condition: service_healthy
     volumes:
       - ./src/backend:/project/src/backend
+      - ./src/qfield-plugin:/project/src/qfield-plugin
     env_file: .env
+    environment:
+      QGIS_URL: ${QGIS_URL:-http://localhost:8080}
     network_mode: service:backend
     restart: unless-stopped
     healthcheck:
@@ -175,6 +180,19 @@ services:
     image: ghcr.io/dragonflydb/dragonfly:v1.36.0
     network_mode: service:backend
     restart: unless-stopped
+
+  qgis-packager:
+    image: "ghcr.io/hotosm/qfield-project-packager:26.3"
+    environment:
+      LOG_LEVEL: DEBUG
+    network_mode: service:backend
+    restart: unless-stopped
+    healthcheck:
+      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      start_period: 10s
+      interval: 5s
+      retries: 5
+      timeout: 5s
 
   # This container does the actual imagery processing (not persistent, scalable)
   nodeodm:

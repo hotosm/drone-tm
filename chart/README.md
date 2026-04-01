@@ -17,6 +17,20 @@ helm upgrade --install drone-tm ./chart -f values-prod.yaml --namespace drone
 - **DragonflyDB**: Caching and task queue
 - **PostgreSQL**: Database with PostGIS extension (optional, for local dev)
 
+## QGIS Worker
+
+The chart can deploy a dedicated QGIS packaging service alongside the app. When
+`qgis.enabled=true`, the worker Deployment gets `QGIS_URL` automatically set to
+the in-cluster qgis Service unless you explicitly provide `env.QGIS_URL`.
+
+`qgis.replicaCount` defaults to `1`.
+
+You must set `qgis.image.repository` to a published qgis wrapper image before
+installing or upgrading if you want to override the default. By default the
+chart uses `ghcr.io/hotosm/qfield-project-packager:26.3` and leaves `qgis.enabled=true`.
+
+The image is currently built and published from the `field-tm` git repository.
+
 ## Frontend Deployment
 
 Controlled by `frontend.mode`:

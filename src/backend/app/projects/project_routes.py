@@ -39,6 +39,8 @@ from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
 from app.s3 import (
     abort_multipart_upload,
+    build_browser_object_url,
+    check_file_exists,
     complete_multipart_upload,
     generate_presigned_put_url,
     generate_presigned_multipart_upload_url,
@@ -852,6 +854,58 @@ async def upload_imagery_to_oam(
 
     background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
     return {"message": "Uploading to OAM Started", "status": OAMUploadStatus.UPLOADING}
+
+
+@router.post("/{project_id}/generate-qfield-project", tags=["Projects"])
+async def generate_qfield_project(
+    project_id: Annotated[UUID, Path(description="The project ID in UUID format.")],
+    db: Annotated[Connection, Depends(database.get_db)],
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """Enqueue a QField project generation job.
+
+    Triggers the QGIS container to build a QField-ready zip and upload it
+    to S3 under publicuploads/qfield/{project_id}.zip.
+    """
+    # Verify project exists
+    project = await project_schemas.DbProject.one(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Project {project_id} not found",
+        )
+
+    job = await redis.enqueue_job(
+        "generate_qfield_project",
+        str(project_id),
+        _queue_name="default_queue",
+    )
+
+    return {
+        "message": "QField project generation started",
+        "job_id": job.job_id,
+        "project_id": str(project_id),
+    }
+
+
+@router.get("/{project_id}/qfield-project-status", tags=["Projects"])
+async def qfield_project_status(
+    project_id: Annotated[UUID, Path(description="The project ID in UUID format.")],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """Check if a QField project zip exists in S3.
+
+    Returns the public download URL if the zip is available.
+    """
+    s3_key = f"publicuploads/qfield/{project_id}.zip"
+    exists = check_file_exists(settings.S3_BUCKET_NAME, s3_key)
+
+    if not exists:
+        return {"exists": False, "url": None}
+
+    url = build_browser_object_url(settings.S3_BUCKET_NAME, s3_key)
+    return {"exists": True, "url": url}
 
 
 @router.post("/initiate-multipart-upload/", tags=["Image Upload"])
