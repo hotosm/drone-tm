@@ -320,12 +320,30 @@ const TaskVerificationModal = ({
         );
       }
 
+      // Optimistically update project-detail cache so the Processing
+      // button becomes available immediately (before the refetch lands).
+      // Use setQueriesData (partial match) because the cache key may use
+      // either the project UUID or a slug, depending on how the user navigated.
+      queryClient.setQueriesData<any>({ queryKey: ['project-detail'] }, (existing: any) => {
+        const data = existing?.data ?? existing;
+        if (data?.tasks && Array.isArray(data.tasks)) {
+          const updatedTasks = data.tasks.map((task: Record<string, any>) =>
+            task.id === taskId ? { ...task, state: nextState } : task,
+          );
+          if (existing?.data) {
+            return { ...existing, data: { ...data, tasks: updatedTasks } };
+          }
+          return { ...data, tasks: updatedTasks };
+        }
+        return existing;
+      });
+
       toast.success(`Task #${taskIndex} marked ready for processing`);
       queryClient.invalidateQueries({ queryKey: ['taskVerification'] });
       queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-detail'] });
       queryClient.invalidateQueries({
         queryKey: ['projectTaskImagerySummary', projectId],
       });

@@ -799,3 +799,34 @@ class CompleteMultipartUploadRequest(BaseModel):
 class AbortMultipartUploadRequest(BaseModel):
     upload_id: str
     file_key: str
+
+
+class OdmQueueTask(BaseModel):
+    uuid: str
+    name: Optional[str] = None
+    status_code: int
+    status_label: str
+    images_count: Optional[int] = None
+    progress: Optional[float] = None
+    date_created: Optional[Union[str, int]] = None
+    processing_time: Optional[int] = None
+    dtm_task_id: Optional[str] = None
+    task_index: Optional[int] = None
+
+
+class OdmStatusGroup(BaseModel):
+    status_code: int
+    status_label: str
+    count: int
+    tasks: List[OdmQueueTask]
+
+
+class OdmQueueInfo(BaseModel):
+    total_queued: int
+    total_running: int
+    total_failed: int
+    total_completed: int
+    total_canceled: int
+    total_tasks: int
+    queue_position: Optional[int] = None
+    groups: List[OdmStatusGroup]

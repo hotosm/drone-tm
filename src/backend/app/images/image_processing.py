@@ -390,7 +390,6 @@ async def process_assets_from_odm(
     state=None,
     message=None,
     dtm_task_id=None,
-    dtm_user_id=None,
     odm_status_code: Optional[int] = None,
 ):
     """Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
@@ -402,11 +401,11 @@ async def process_assets_from_odm(
     :param state: Current state of the task.
     :param message: Message to log upon completion.
     :param dtm_task_id: Task ID for state updates.
-    :param dtm_user_id: User ID for state updates.
     """
     log.info(f"Starting processing for project {dtm_project_id}")
     node = Node.from_url(node_odm_url)
     output_file_path = f"/tmp/{uuid.uuid4()}"
+    task = None
 
     try:
         os.makedirs(output_file_path, exist_ok=True)
@@ -499,6 +498,27 @@ async def process_assets_from_odm(
 
     except Exception as e:
         log.error(f"Error during processing for project {dtm_project_id}: {e}")
+        if state and dtm_task_id:
+            try:
+                pool = await database.get_db_connection_pool()
+                async with pool as pool_instance:
+                    async with pool_instance.connection() as conn:
+                        await task_logic.update_task_state_system(
+                            db=conn,
+                            project_id=dtm_project_id,
+                            task_id=dtm_task_id,
+                            comment=f"Image processing failed: {e}",
+                            initial_state=state,
+                            final_state=State.IMAGE_PROCESSING_FAILED,
+                            updated_at=timestamp(),
+                        )
+                        log.info(
+                            f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FAILED."
+                        )
+            except Exception as state_err:
+                log.error(
+                    f"Failed to update task {dtm_task_id} state to FAILED: {state_err}"
+                )
 
     finally:
         if task:

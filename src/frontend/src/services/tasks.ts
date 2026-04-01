@@ -49,8 +49,13 @@ export const getTaskAssetsInfo = (projectId: string, taskId: string) =>
 export const getAllTaskAssetsInfo = (projectId: string) =>
   authenticated(api).get(`/projects/assets/${projectId}/`);
 
-export const postProcessImagery = (projectId: string, taskId: string) =>
-  authenticated(api).post(`/projects/process_imagery/${projectId}/${taskId}/`);
+export const postProcessImagery = (projectId: string, taskId: string, odmUrl?: string) =>
+  authenticated(api).post(
+    `/projects/process_imagery/${projectId}/${taskId}/${odmUrl ? `?odm_url=${encodeURIComponent(odmUrl)}` : ''}`,
+  );
+
+export const getOdmQueueInfo = (projectId: string) =>
+  authenticated(api).get(`/projects/odm/queue-info/${projectId}/`);
 
 export const postRotatedTaskWayPoint = (payload: Record<string, any>) => {
   const { taskId, data } = payload;

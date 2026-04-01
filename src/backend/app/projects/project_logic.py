@@ -3,7 +3,7 @@ import os
 import shutil
 import uuid
 from io import BytesIO
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import geojson
 import pyproj
@@ -333,6 +333,7 @@ async def process_drone_images(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     user_id: str,
+    odm_url: Optional[str] = None,
     **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Process drone images using ODM.
@@ -414,8 +415,10 @@ async def process_drone_images(
                 )
 
             # Initialize the processor with the database connection
+            node_odm_endpoint = odm_url or settings.ODM_ENDPOINT
+            log.info(f"Using NodeODM endpoint: {node_odm_endpoint}")
             processor = DroneImageProcessor(
-                node_odm_url=settings.ODM_ENDPOINT,
+                node_odm_url=node_odm_endpoint,
                 project_id=project_id,
                 task_id=task_id,
                 user_id=user_id,
@@ -429,8 +432,14 @@ async def process_drone_images(
                 {"name": "orthophoto-resolution", "value": 5},
             ]
 
-            # Use internal backend URL for Docker-internal webhooks
-            webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
+            # Use public URL when processing on an external NodeODM, internal otherwise
+            if odm_url:
+                from urllib.parse import quote
+
+                base_url = settings.PUBLIC_BASE_URL
+                webhook_url = f"{base_url}/api/projects/odm/webhook/{project_id}/{task_id}/?odm_url={quote(odm_url, safe='')}"
+            else:
+                webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{project_id}/{task_id}/"
 
             result = await processor.process_images_from_s3(
                 settings.S3_BUCKET_NAME,
@@ -438,6 +447,16 @@ async def process_drone_images(
                 options=options,
                 webhook=webhook_url,
             )
+
+            await update_task_field(
+                conn,
+                project_id,
+                task_id,
+                "odm_task_uuid",
+                str(result.uuid),
+            )
+            await conn.commit()
+            log.info(f"Stored ODM task UUID {result.uuid} for task {task_id}")
 
             return {
                 "job_id": job_id,
@@ -484,10 +503,10 @@ async def process_drone_images(
 async def update_processing_status(
     db: Connection, project_id: uuid.UUID, status: ImageProcessingStatus
 ):
-    print("status = ", status.name)
     """
     Update the processing status to the specified status in the database.
     """
+    log.debug(f"status = {status.name}")
     await db.execute(
         """
         UPDATE projects
@@ -528,7 +547,9 @@ async def process_all_drone_images(
                 {"name": "dsm", "value": True},
                 {"name": "orthophoto-resolution", "value": 5},
             ]
-            webhook_url = f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
+            webhook_url = (
+                f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{project_id}/"
+            )
             await processor.process_images_for_all_tasks(
                 settings.S3_BUCKET_NAME,
                 name_prefix=f"DTM-Task-{project_id}",
@@ -573,7 +594,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
         except S3Error as e:
             if e.code == "NoSuchKey":
                 # The object does not exist
-                log.info(
+                log.debug(
                     f"Assets ZIP file not found for project {project_id}, task {task_id}."
                 )
                 presigned_url = None
@@ -690,7 +711,11 @@ async def get_all_tasks_for_project(project_id, db):
 
 
 async def update_task_field(
-    db: Connection, project_id: uuid.UUID, task_id: uuid.UUID, column: Any, value: str
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    column: Any,
+    value: Any,
 ):
     """Generic function to update a field(assets_url and total_image_count) in the tasks table."""
     async with db.cursor() as cur:
@@ -707,6 +732,35 @@ async def update_task_field(
             },
         )
     return True
+
+
+async def get_active_odm_tasks(db: Connection, project_id: uuid.UUID):
+    """Return project tasks currently marked as ODM-processing with a stored ODM UUID."""
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            WITH latest_state AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id,
+                    te.state
+                FROM task_events te
+                ORDER BY te.task_id, te.created_at DESC
+            )
+            SELECT
+                t.id,
+                t.project_task_index,
+                t.odm_task_uuid
+            FROM tasks t
+            JOIN latest_state ls ON ls.task_id = t.id
+            WHERE
+                t.project_id = %(project_id)s
+                AND ls.state = 'IMAGE_PROCESSING_STARTED'
+                AND t.odm_task_uuid IS NOT NULL
+            ORDER BY t.project_task_index;
+            """,
+            {"project_id": project_id},
+        )
+        return await cur.fetchall()
 
 
 async def process_waypoints_and_waylines(
