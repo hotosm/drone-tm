@@ -1,4 +1,5 @@
 import json
+import uuid
 from io import BytesIO
 
 import pytest
@@ -351,8 +352,8 @@ async def test_odm_queue_info_omits_deleted_completed_tasks(
     client, db, auth_user, create_test_project, monkeypatch
 ):
     project_id = create_test_project
-    task_id = "dbb3daa4-d1b1-4838-80b3-83bfcd750796"
-    odm_task_uuid = "0126d773-777c-4ad4-848c-2c972d050cbe"
+    task_id = str(uuid.uuid4())
+    odm_task_uuid = str(uuid.uuid4())
     outline = json.dumps(
         {
             "type": "Polygon",

@@ -101,16 +101,18 @@ async def test_process_drone_images_moves_staged_task_images_before_odm(monkeypa
         )
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
+    class _FakeOdmResult:
+        uuid = "fake-odm-uuid"
+
     class FakeProcessor:
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
         async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            return {
-                "bucket_name": bucket_name,
-                "name": name,
-                "webhook": webhook,
-            }
+            return _FakeOdmResult()
+
+    async def fake_update_task_field(*args, **kwargs):
+        return None
 
     monkeypatch.setattr(
         project_logic.ImageClassifier,
@@ -118,6 +120,7 @@ async def test_process_drone_images_moves_staged_task_images_before_odm(monkeypa
         fake_move_task_images_to_folder,
     )
     monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
+    monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
     from app.tasks import task_logic
 
@@ -247,12 +250,18 @@ async def test_process_drone_images_retries_from_failed_state(monkeypatch):
             return None
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
+    class _FakeOdmResult:
+        uuid = "fake-odm-uuid"
+
     class FakeProcessor:
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
         async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            return {"bucket_name": bucket_name, "name": name, "webhook": webhook}
+            return _FakeOdmResult()
+
+    async def fake_update_task_field(*args, **kwargs):
+        return None
 
     monkeypatch.setattr(
         project_logic.ImageClassifier,
@@ -260,6 +269,7 @@ async def test_process_drone_images_retries_from_failed_state(monkeypatch):
         fake_move_task_images_to_folder,
     )
     monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
+    monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
     from app.tasks import task_logic
 
@@ -317,12 +327,18 @@ async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
             return None
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
+    class _FakeOdmResult:
+        uuid = "fake-odm-uuid"
+
     class FakeProcessor:
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
         async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            return {"bucket_name": bucket_name, "name": name, "webhook": webhook}
+            return _FakeOdmResult()
+
+    async def fake_update_task_field(*args, **kwargs):
+        return None
 
     monkeypatch.setattr(
         project_logic.ImageClassifier,
@@ -330,6 +346,7 @@ async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
         fake_move_task_images_to_folder,
     )
     monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
+    monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
     from app.tasks import task_logic
 
@@ -472,7 +489,6 @@ async def test_process_assets_from_odm_does_not_mark_single_task_project_complet
         state=State.IMAGE_PROCESSING_STARTED,
         message="Task completed.",
         dtm_task_id=task_id,
-        dtm_user_id="user-123",
         odm_status_code=40,
     )
 
