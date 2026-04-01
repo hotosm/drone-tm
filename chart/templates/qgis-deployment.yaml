@@ -1,0 +1,71 @@
+{{- if .Values.qgis.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "drone-tm.qgis.fullname" . }}
+  labels:
+    {{- include "drone-tm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: qgis
+spec:
+  replicas: {{ .Values.qgis.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "drone-tm.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: qgis
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "drone-tm.labels" . | nindent 8 }}
+        app.kubernetes.io/component: qgis
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: qgis
+          image: "{{ .Values.qgis.image.repository }}:{{ .Values.qgis.image.tag }}"
+          imagePullPolicy: {{ .Values.qgis.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.qgis.service.port }}
+              protocol: TCP
+          {{- $extraEnvFrom := (.Values.extraEnvFrom | default list) -}}
+          {{- include "drone-tm.renderEnvFrom" (dict "root" . "extraEnvFrom" $extraEnvFrom) | nindent 10 }}
+          env:
+            {{- include "drone-tm.renderEnv" (.Values.env | default dict) | nindent 12 }}
+            {{- include "drone-tm.renderEnv" (.Values.qgis.env | default dict) | nindent 12 }}
+          resources:
+            {{- toYaml .Values.qgis.resources | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.qgis.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.qgis.readinessProbe | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

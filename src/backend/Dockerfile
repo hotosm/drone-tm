@@ -48,8 +48,8 @@ ENV PATH="/bin:$PATH" \
 STOPSIGNAL SIGINT
 
 # Copy files needed for building the project
-COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
-COPY packages /project/packages
+COPY backend/pyproject.toml backend/alembic.ini backend/uv.lock /project/
+COPY backend/packages /project/packages
 
 ARG MONITORING
 
@@ -57,8 +57,8 @@ ARG INSTALL_TEST=false
 
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=uv.lock,target=uv.lock <<EOT
+    --mount=type=bind,source=backend/pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=backend/uv.lock,target=uv.lock <<EOT
     set -e
     EXTRA_GROUPS=""
     if [ "$MONITORING" = "sentry" ]; then
@@ -115,7 +115,8 @@ WORKDIR /project/src/backend
 COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
 
 # Copy the source files to the final image
-COPY . /project/src/backend
+COPY backend /project/src/backend
+COPY qfield-plugin /project/src/qfield-plugin
 
 VOLUME /project/src/backend/frontend_html
 

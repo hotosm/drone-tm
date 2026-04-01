@@ -395,6 +395,20 @@ QfDialog {
         Layout.fillWidth: true
       }
 
+      // --- Manual transfer help (file picker was used) ---
+      Label {
+        visible: generationState === "manual_transfer"
+        text: qsTr("A file picker was opened to save the KMZ. To load it on your DJI controller:\n\n" +
+          "1. Save the file to a location you can find (e.g. Downloads)\n" +
+          "2. Connect the controller via USB or use a file manager app\n" +
+          "3. Copy the .kmz to:\n" +
+          "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n\n" +
+          "Tip: The controller must have at least one prior waypoint mission for the waypoint directory to exist.")
+        font.pixelSize: Theme.defaultFont.pixelSize * 0.8
+        wrapMode: Text.WordWrap
+        Layout.fillWidth: true
+      }
+
       // --- Controller transfer failure help ---
       Label {
         visible: generationState === "transfer_failed"
@@ -421,10 +435,10 @@ QfDialog {
         }
       }
 
-      // --- Retry Copy Button (shown after transfer failure) ---
+      // --- Retry Copy Button (shown after transfer failure or manual transfer) ---
       QfButton {
         Layout.fillWidth: true
-        visible: generationState === "transfer_failed"
+        visible: generationState === "transfer_failed" || generationState === "manual_transfer"
         text: qsTr("Retry Copy to Controller")
 
         onClicked: {
