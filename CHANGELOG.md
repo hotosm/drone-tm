@@ -1,3 +1,13 @@
+## 2026.2.1 (2026-04-02)
+
+### Feat
+
+- **frontend**: wrapping flight gap identification in UI (#738)
+
+### Fix
+
+- **backend**: s3 urls don't need path bucket prefix when using cloudfront
+
 ## 2026.2.0 (2026-04-01)
 
 ### Feat
