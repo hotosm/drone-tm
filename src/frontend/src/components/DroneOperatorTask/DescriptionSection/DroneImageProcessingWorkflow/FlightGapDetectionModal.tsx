@@ -401,7 +401,7 @@ const FlightGapDetectionModal = ({
                     selectedOption={selectedDroneType}
                     onChange={(value: string | number) => {
                       setSelectedDroneType(String(value));
-                      finalizeGapMutation.mutate(manualGapData);
+                      if (manualGapData) finalizeGapMutation.mutate(manualGapData);
                     }}
                     className="naxatw-w-full naxatw-bg-[#F4F7FE]"
                     placeholder="Select model"
