@@ -1,9 +1,10 @@
+import os
 from datetime import datetime
 from typing import Annotated, Optional
 from uuid import UUID
 
 from arq import ArqRedis
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger as log
 from psycopg import Connection
 from pydantic import BaseModel
@@ -751,6 +752,7 @@ async def download_reflight_plan(
     project_id: UUID,
     task_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
+    background_tasks: BackgroundTasks,
     request: FlightGapDownloadPlanRequest | None = None,
 ):
     """Download a reconstructed flight plan based on identified flight gaps."""
@@ -761,14 +763,11 @@ async def download_reflight_plan(
     rotation_override = request.rotation
     overlap_override = request.overlap
 
-    try:
-        drone_model = drone_type_override.upper().replace(" ", "_")
-        flight_drone_type = DroneType(drone_model)
-    except Exception:
-        log.error(f"Could not find drone type {drone_type_override}")
+    if not drone_type_override:
         raise HTTPException(
-            status_code=400, detail=f"Unsupported drone type: {drone_type_override}"
+            status_code=400, detail="Drone type is required to generate a flightplan."
         )
+    flight_drone_type = drone_type_override
 
     result = await identify_flight_gaps(
         db,
@@ -801,6 +800,8 @@ async def download_reflight_plan(
 
     with open(file_path, "wb") as f:
         f.write(result["kmz_bytes"])
+
+    background_tasks.add_task(os.remove, file_path)
 
     return build_flightplan_download_response(
         file_path,

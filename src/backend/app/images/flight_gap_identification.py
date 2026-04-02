@@ -608,7 +608,7 @@ async def identify_flight_gaps(
             if images["altitude_m"] is not None:
                 all_altitudes.append(images["altitude_m"])
             else:
-                log.error("No altitiude found for image")
+                log.error("No altitude found for image")
 
         # Executing analysis
         # Group by segment
@@ -837,8 +837,10 @@ async def identify_flight_gaps(
         await cur.execute(task_outline_query, {"task_id": task_id})
         task_row = await cur.fetchone()
 
-    if task_row and task_row["geometry"]:
-        task_aoi_outline = shape(task_row["geometry"])
+    if not task_row or not task_row["geometry"]:
+        log.error(f"Task {task_id}: No geometry found for task")
+        return None
+    task_aoi_outline = shape(task_row["geometry"])
 
     # If override parameters provided, set gap geometries
     if manual_gaps and gap_type and flight_drone_type and overall_average_altitude:
@@ -1075,7 +1077,7 @@ async def identify_flight_gaps(
         "gap_type": None,
         "drone_type": flight_drone_type,
         "altitude": overall_average_altitude,
-        "azimuth": None,
+        "rotation": None,
         "overlap": global_side_overlap_median,
         "kmz_bytes": None,
         "images": images_geojson,

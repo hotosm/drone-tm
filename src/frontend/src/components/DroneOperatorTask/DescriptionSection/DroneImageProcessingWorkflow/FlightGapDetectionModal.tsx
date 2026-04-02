@@ -243,7 +243,8 @@ const FlightGapDetectionModal = ({
 
       toast.success('Flight plan downloaded.');
   } catch (error: any) {
-    toast.error('Failed to generate flight plan.');
+    const detail = error?.response?.data?.detail;
+    toast.error(detail || 'Failed to generate flight plan.');
   }
 };
 
