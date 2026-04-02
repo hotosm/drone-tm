@@ -3,11 +3,13 @@ import zipfile
 
 import pytest
 
+from drone_flightplan.drone_type import DroneType
+
 from app.images.flight_gap_identification import identify_flight_gaps
 
 
 def assert_is_valid_flightplan(buffer: bytes):
-    """Verifies the result is a valid KMZ archive containing flight instructions."""
+    """Verifies the result is a valid KMZ bytes containing flight instructions."""
 
     assert isinstance(buffer, bytes)
     assert buffer.startswith(b"PK")
@@ -15,10 +17,9 @@ def assert_is_valid_flightplan(buffer: bytes):
     with zipfile.ZipFile(io.BytesIO(buffer)) as z:
         filenames = [f.lower() for f in z.namelist()]
         valid_extensions = [".kml", ".wpml", ".plan", ".json"]
-
         assert any(
             any(extension in f for extension in valid_extensions) for f in filenames
-        )
+        ), f"No valid flight plan files found in KMZ. Files: {filenames}"
 
 
 @pytest.mark.asyncio
@@ -53,9 +54,10 @@ async def test_north_wrap_around(db, load_freetown_into_db):
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=north_path
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
-    assert_is_valid_flightplan(result)
+    assert "type" in result["gap_polygons"]
+    assert "images" in result
 
 
 @pytest.mark.asyncio
@@ -86,9 +88,9 @@ async def test_gap_missing_flight_leg(db, load_freetown_into_db):
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=side_gap_metadata
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
-    assert_is_valid_flightplan(result)
+    assert_is_valid_flightplan(result["kmz_bytes"])
 
 
 @pytest.mark.asyncio
@@ -103,10 +105,30 @@ async def test_front_overlap_gap_logic(
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=gapped_metadata
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
-    assert len(result) > 100
-    assert_is_valid_flightplan(result)
+    assert len(result["kmz_bytes"]) > 100
+    assert_is_valid_flightplan(result["kmz_bytes"])
+
+
+@pytest.mark.asyncio
+async def test_sparse_two_image_task_detects_uncovered_gap(
+    db, load_freetown_into_db, freetown_dataset_loader
+):
+    """Very small image sets should still detect major uncovered task area."""
+    freetown_meta = freetown_dataset_loader(apply_gaps=False)
+    sparse_metadata = freetown_meta[:2]
+
+    project_id, batch_id, task_id = await load_freetown_into_db(
+        manual_metadata=sparse_metadata
+    )
+    result = await identify_flight_gaps(db, project_id, task_id)
+
+    assert batch_id is not None
+    assert result["message"] == "Successfully identified sparse-coverage gaps."
+    assert result["gap_polygons"]["type"] == "FeatureCollection"
+    assert result["gap_polygons"]["features"]
+    assert_is_valid_flightplan(result["kmz_bytes"])
 
 
 @pytest.mark.asyncio
@@ -121,9 +143,9 @@ async def test_side_overlap_gap_logic(
     project_id, batch_id, task_id = await load_freetown_into_db(
         manual_metadata=gapped_metadata
     )
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
-    assert_is_valid_flightplan(result)
+    assert_is_valid_flightplan(result["kmz_bytes"])
 
 
 @pytest.mark.asyncio
@@ -146,15 +168,93 @@ async def test_gap_outside_aoi_ignored(db, load_freetown_into_db):
         )
     await db.commit()
 
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
-    # Result must be None
-    assert result is None
+    result = await identify_flight_gaps(db, project_id, task_id)
+
+    assert result["kmz_bytes"] is None
+    assert result["message"] == "No gaps detected"
+
+    assert result["gap_polygons"]["type"] == "FeatureCollection"
 
 
 @pytest.mark.asyncio
 async def test_freetown_dataset_gap_full_verification(db, load_freetown_into_db):
     """Tests the official 'images-to-delete-for-gaps.txt' gap."""
     project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
-    result = await identify_flight_gaps(db, project_id, batch_id, task_id)
+    result = await identify_flight_gaps(db, project_id, task_id)
 
-    assert_is_valid_flightplan(result)
+    assert_is_valid_flightplan(result["kmz_bytes"])
+    assert "Successfully identified" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_project_level_gap_detection_without_batch_filter(
+    db, load_freetown_into_db
+):
+    """Project-level gap analysis should work across uploaded imagery for a task."""
+    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+
+    result = await identify_flight_gaps(db, project_id, task_id)
+
+    assert batch_id is not None
+    assert "images" in result
+    assert_is_valid_flightplan(result["kmz_bytes"])
+
+
+@pytest.mark.asyncio
+async def test_gap_detection_falls_back_to_exif_drone_model(db, load_freetown_into_db):
+    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+
+    async with db.cursor() as cur:
+        await cur.execute("DELETE FROM drone_flights WHERE task_id = %s", (task_id,))
+        await cur.execute(
+            """
+            UPDATE project_images
+            SET exif = exif || '{"Model":"DJI Air 3"}'::jsonb
+            WHERE project_id = %s AND task_id = %s
+            """,
+            (project_id, task_id),
+        )
+    await db.commit()
+
+    result = await identify_flight_gaps(db, project_id, task_id)
+
+    assert result["drone_type"] == DroneType.DJI_AIR_3
+    assert_is_valid_flightplan(result["kmz_bytes"])
+
+
+@pytest.mark.asyncio
+async def test_gap_detection_without_drone_metadata_returns_clean_response(
+    db, load_freetown_into_db
+):
+    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=False)
+
+    async with db.cursor() as cur:
+        await cur.execute("DELETE FROM drone_flights WHERE task_id = %s", (task_id,))
+    await db.commit()
+
+    result = await identify_flight_gaps(db, project_id, task_id)
+
+    assert batch_id is not None
+    assert result["drone_type"] is None
+    assert result["kmz_bytes"] is None
+    assert result["message"] == "Missing drone metadata"
+
+
+@pytest.mark.asyncio
+async def test_gap_detection_accepts_explicit_drone_override(db, load_freetown_into_db):
+    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+
+    async with db.cursor() as cur:
+        await cur.execute("DELETE FROM drone_flights WHERE task_id = %s", (task_id,))
+    await db.commit()
+
+    result = await identify_flight_gaps(
+        db,
+        project_id,
+        task_id,
+        drone_type_override=DroneType.DJI_AIR_3,
+    )
+
+    assert batch_id is not None
+    assert result["drone_type"] == DroneType.DJI_AIR_3
+    assert_is_valid_flightplan(result["kmz_bytes"])

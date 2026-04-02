@@ -30,9 +30,12 @@ import { setProjectState } from '@Store/actions/project';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { UploadImageryDialog, VerifyImageryDialog } from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
 import QFieldExportDialog from '@Components/IndividualProject/QFieldExport';
 import QFieldLogo from '@Components/IndividualProject/QFieldExport/QFieldLogo';
+import {
+  UploadImageryDialog,
+  VerifyImageryDialog,
+} from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
 import { getRuntimeConfig } from '@/runtimeConfig';
 
 // eslint-disable-next-line camelcase

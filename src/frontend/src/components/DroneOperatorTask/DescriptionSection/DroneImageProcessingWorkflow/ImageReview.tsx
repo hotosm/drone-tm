@@ -2,7 +2,17 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike, Popup } from 'maplibre-gl';
 import bbox from '@turf/bbox';
-import { getProjectReview, getProjectMapData, acceptImage, ProjectReviewData, ProjectMapData, TaskGroup, TaskGroupImage, getBatchReview, getBatchMapData } from '@Services/classification';
+import {
+  getProjectReview,
+  getProjectMapData,
+  acceptImage,
+  ProjectReviewData,
+  ProjectMapData,
+  TaskGroup,
+  TaskGroupImage,
+  getBatchReview,
+  getBatchMapData,
+} from '@Services/classification';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import Accordion from '@Components/common/Accordion';
 import { Button } from '@Components/RadixComponents/Button';
@@ -78,7 +88,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     taskId: '',
     taskIndex: 0,
   });
-
   // Refs for sidebar scrolling
   const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -733,7 +742,6 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   </FlexRow>
                 }
               >
-                {/* Verify Task Button - Only for actual tasks in project-level view (not batch-scoped upload step 3) */}
                 {group.task_id && !batchId && (
                   <div className="naxatw-mb-4">
                     <Button

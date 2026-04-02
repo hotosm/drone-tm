@@ -198,18 +198,6 @@ const DescriptionSection = ({
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
           </button>
 
-          {/* Step 4: Identify Flight Gaps (future) */}
-          <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-p-3 naxatw-opacity-50">
-            <div className="naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-gray-300 naxatw-text-sm naxatw-font-bold naxatw-text-white">
-              4
-            </div>
-            <div className="naxatw-flex-1">
-              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">Identify Flight Gaps</p>
-              <p className="naxatw-text-xs naxatw-text-gray-400">
-                Coming soon
-              </p>
-            </div>
-          </div>
         </div>
       )}
 
