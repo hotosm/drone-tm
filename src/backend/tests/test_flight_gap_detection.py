@@ -237,7 +237,7 @@ async def test_gap_detection_without_drone_metadata_returns_clean_response(
     assert batch_id is not None
     assert result["drone_type"] is None
     assert result["kmz_bytes"] is None
-    assert result["message"] == "Missing drone metadata"
+    assert result["message"] == "Select a drone model to generate a reflight plan."
 
 
 @pytest.mark.asyncio
