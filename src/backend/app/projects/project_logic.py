@@ -614,32 +614,28 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 log.error(f"An error occurred while accessing assets: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-        # Generate a presigned URL for the orthophoto (task-level preferred; fallback to project-level)
+        # Generate a presigned URL for the orthophoto.
+        # New layout: COG lives inside odm/ tree.  Fall back to legacy
+        # orthophoto/ path for tasks processed before this change.
         orthophoto_url = None
         try:
-            task_ortho_path = (
-                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
-            )
-            project_ortho_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
-
-            # Prefer per-task orthophoto if it exists
-            try:
-                get_object_metadata(settings.S3_BUCKET_NAME, task_ortho_path)
-                orthophoto_url = maybe_presign_s3_key(task_ortho_path, expires_hours=12)
-            except S3Error as e:
-                if e.code != "NoSuchKey":
-                    raise
-
-                # Fallback to project-level orthophoto if present (e.g. single-task projects)
+            candidates = [
+                # New: COG inside odm/ tree (task-level)
+                f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif",
+                # Legacy: separate orthophoto/ dir (task-level)
+                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif",
+                # New: COG inside odm/ tree (project-level fallback)
+                f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif",
+                # Legacy: separate orthophoto/ dir (project-level fallback)
+                f"projects/{project_id}/orthophoto/odm_orthophoto.tif",
+            ]
+            for path in candidates:
                 try:
-                    get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_path)
-                    orthophoto_url = maybe_presign_s3_key(
-                        project_ortho_path, expires_hours=12
-                    )
-                except S3Error as e2:
-                    if e2.code == "NoSuchKey":
-                        orthophoto_url = None
-                    else:
+                    get_object_metadata(settings.S3_BUCKET_NAME, path)
+                    orthophoto_url = maybe_presign_s3_key(path, expires_hours=12)
+                    break
+                except S3Error as e:
+                    if e.code != "NoSuchKey":
                         raise
         except Exception as e:
             # Do not fail the whole endpoint if orthophoto is missing; just omit it.

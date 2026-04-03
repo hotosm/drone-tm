@@ -368,15 +368,18 @@ def extract_and_upload_odm_assets(
 ) -> bool:
     """Extract files from an ODM zip one-by-one and upload each to S3.
 
-    Uploads individual files under ``projects/{pid}/{tid}/odm/``, reprojects
-    the orthophoto to EPSG:3857 COG at
-    ``projects/{pid}/{tid}/orthophoto/odm_orthophoto.tif``, and copies
-    ``images.json`` to the task root for backward compatibility.
+    Uploads individual files under ``projects/{pid}/{tid}/odm/``.  The raw
+    orthophoto is **not** uploaded; instead it is reprojected to EPSG:3857
+    COG and the COG is stored at
+    ``projects/{pid}/{tid}/odm/odm_orthophoto/odm_orthophoto.tif``,
+    eliminating the previous duplication into a separate ``orthophoto/``
+    prefix.  ``images.json`` is also copied to the task root for backward
+    compatibility.
 
     Uses a single pass over the zip.  The orthophoto and images.json are
-    *kept* on disk after upload so that post-processing (reprojection,
-    backward-compat copy) can happen after the zip is deleted - cutting
-    peak disk usage roughly in half for large archives.
+    *kept* on disk (without uploading the raw ortho) so that
+    post-processing can happen after the zip is deleted - cutting peak
+    disk usage roughly in half for large archives.
 
     Returns True on success.
     """
@@ -395,6 +398,8 @@ def extract_and_upload_odm_assets(
 
     # Single pass: extract, upload, and delete - except orthophoto & images.json
     # which we keep for post-processing after the zip is removed.
+    # The raw orthophoto is NOT uploaded here; it is replaced by the
+    # reprojected COG after the zip is deleted (saves ~50% ortho storage).
     with zipfile.ZipFile(zip_path, "r") as zf:
         for member in zf.namelist():
             if member.endswith("/"):
@@ -407,21 +412,25 @@ def extract_and_upload_odm_assets(
                 continue
 
             extracted_path = zf.extract(member, temp_dir)
+
+            # Keep orthophoto on disk only (don't upload raw - COG replaces it later)
+            if member == ortho_member:
+                ortho_local = extracted_path
+                continue
+
             s3_key = f"{odm_prefix}{member}"
             try:
                 add_file_to_bucket(settings.S3_BUCKET_NAME, extracted_path, s3_key)
                 log.debug(f"Uploaded ODM asset: {s3_key}")
             except Exception:
                 # Clean up even on upload failure for non-kept files
-                if member != ortho_member and member != "images.json":
+                if member != "images.json":
                     if os.path.exists(extracted_path):
                         os.remove(extracted_path)
                 raise
 
-            # Keep orthophoto and images.json on disk for post-processing
-            if member == ortho_member:
-                ortho_local = extracted_path
-            elif member == "images.json":
+            # Keep images.json on disk for post-processing
+            if member == "images.json":
                 ij_local = extracted_path
             else:
                 os.remove(extracted_path)
@@ -432,16 +441,15 @@ def extract_and_upload_odm_assets(
         os.remove(zip_path)
         log.info(f"Deleted zip {zip_path} to free disk before reprojection")
 
-    # Reproject orthophoto.
+    # Reproject orthophoto and upload the COG directly into the odm/ tree,
+    # replacing the raw version (which was intentionally not uploaded above).
     if ortho_local and os.path.exists(ortho_local):
         reprojected_path = os.path.join(temp_dir, "odm_orthophoto_3857.tif")
         try:
             reproject_to_web_mercator(ortho_local, reprojected_path)
-            s3_ortho = (
-                f"projects/{project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
-            )
+            s3_ortho = f"{odm_prefix}{ortho_member}"
             add_file_to_bucket(settings.S3_BUCKET_NAME, reprojected_path, s3_ortho)
-            log.info(f"Uploaded reprojected orthophoto to {s3_ortho}")
+            log.info(f"Uploaded reprojected COG orthophoto to {s3_ortho}")
         finally:
             if os.path.exists(ortho_local):
                 os.remove(ortho_local)
@@ -588,7 +596,9 @@ async def process_assets_from_odm(
                 partial_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
                 delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
 
-                # Also remove derived files written outside the odm/ prefix
+                # Also remove derived files written outside the odm/ prefix,
+                # including the legacy orthophoto/ path to prevent stale
+                # fallback serving after a failed reprocess.
                 client = s3_client()
                 for stale_key in (
                     f"projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif",

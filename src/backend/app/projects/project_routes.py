@@ -8,7 +8,6 @@ from typing import Annotated, Dict, List, Optional
 from uuid import UUID
 
 import aiohttp
-from app.images import image_processing
 import geojson
 from arq import ArqRedis
 from fastapi import (
@@ -586,7 +585,7 @@ async def process_all_imagery(
 async def odm_webhook_for_processing_whole_project(
     request: Request,
     dtm_project_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
+    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
 ):
     payload = await request.json()
     odm_task_id = payload.get("uuid")
@@ -602,12 +601,14 @@ async def odm_webhook_for_processing_whole_project(
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
     if status["code"] in {30, 40}:
-        background_tasks.add_task(
-            image_processing.process_assets_from_odm,
+        await redis_pool.enqueue_job(
+            "process_odm_webhook_assets",
             node_odm_url=settings.ODM_ENDPOINT,
-            dtm_project_id=dtm_project_id,
+            dtm_project_id=str(dtm_project_id),
             odm_task_id=odm_task_id,
             odm_status_code=status["code"],
+            _job_id=f"odm-assets:project:{dtm_project_id}",
+            _queue_name="default_queue",
         )
 
     return {"message": "Webhook received", "task_id": dtm_project_id}
@@ -622,7 +623,7 @@ async def odm_webhook_for_processing_a_single_task(
     db: Annotated[Connection, Depends(database.get_db)],
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
+    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
     odm_url: Optional[str] = Query(None, description="Custom NodeODM server URL"),
 ):
     payload = await request.json()
@@ -651,15 +652,17 @@ async def odm_webhook_for_processing_a_single_task(
     )
 
     if status["code"] == 40:
-        background_tasks.add_task(
-            image_processing.process_assets_from_odm,
+        await redis_pool.enqueue_job(
+            "process_odm_webhook_assets",
             node_odm_url=node_odm_endpoint,
-            dtm_project_id=dtm_project_id,
+            dtm_project_id=str(dtm_project_id),
             odm_task_id=odm_task_id,
-            state=state_value,
+            state_name=state_value.name,
             message="Task completed.",
-            dtm_task_id=dtm_task_id,
+            dtm_task_id=str(dtm_task_id),
             odm_status_code=40,
+            _job_id=f"odm-assets:task:{dtm_task_id}",
+            _queue_name="default_queue",
         )
 
     elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
@@ -673,15 +676,17 @@ async def odm_webhook_for_processing_a_single_task(
             State.IMAGE_PROCESSING_FAILED,
             timestamp(),
         )
-        background_tasks.add_task(
-            image_processing.process_assets_from_odm,
+        await redis_pool.enqueue_job(
+            "process_odm_webhook_assets",
             node_odm_url=node_odm_endpoint,
-            dtm_project_id=dtm_project_id,
+            dtm_project_id=str(dtm_project_id),
             odm_task_id=odm_task_id,
-            state=state_value,
+            state_name=state_value.name,
             message="Image processing failed.",
-            dtm_task_id=dtm_task_id,
+            dtm_task_id=str(dtm_task_id),
             odm_status_code=30,
+            _job_id=f"odm-assets:task:{dtm_task_id}",
+            _queue_name="default_queue",
         )
 
     return {"message": "Webhook received", "odm_task_id": odm_task_id}
@@ -1177,7 +1182,7 @@ async def get_odm_queue_info(
     ],
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    background_tasks: BackgroundTasks,
+    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
     task_id: Optional[uuid.UUID] = Query(
         default=None,
         description="DTM task ID to find its approximate queue position.",
@@ -1326,15 +1331,17 @@ async def get_odm_queue_info(
                 if status_code == 40:
                     # Completed on NodeODM but webhook was missed.
                     # Trigger the same asset-download pipeline the webhook uses.
-                    background_tasks.add_task(
-                        image_processing.process_assets_from_odm,
+                    await redis_pool.enqueue_job(
+                        "process_odm_webhook_assets",
                         node_odm_url=odm_url,
-                        dtm_project_id=project.id,
+                        dtm_project_id=str(project.id),
                         odm_task_id=odm_uuid,
-                        state=State.IMAGE_PROCESSING_STARTED,
+                        state_name=State.IMAGE_PROCESSING_STARTED.name,
                         message="Reconciled: processing completed on NodeODM (missed webhook).",
-                        dtm_task_id=dtm_task_id,
+                        dtm_task_id=str(dtm_task_id),
                         odm_status_code=40,
+                        _job_id=f"odm-assets:task:{dtm_task_id}",
+                        _queue_name="default_queue",
                     )
                     reconciled.append(
                         f"Task {task_index} ({dtm_task_id}): STARTED -> downloading assets (missed webhook)"

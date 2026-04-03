@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from loguru import logger as log
 
+from app.arq.tasks import get_redis_pool
 from app.projects import project_routes
 from app.projects import project_schemas
 
@@ -466,6 +467,144 @@ async def test_odm_queue_info_omits_deleted_completed_tasks(
     assert body["total_canceled"] == 0
     assert body["total_tasks"] == 0
     assert body["groups"] == []
+
+
+@pytest.mark.asyncio
+async def test_odm_queue_info_enqueues_missed_webhook_processing(
+    client, app, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = str(uuid.uuid4())
+    odm_task_uuid = str(uuid.uuid4())
+    outline = json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-69.49779538720068, 18.629654277305633],
+                    [-69.48497355306813, 18.616997544638636],
+                    [-69.54053483430786, 18.608390428368665],
+                    [-69.5410690773959, 18.614466085056165],
+                    [-69.49779538720068, 18.629654277305633],
+                ]
+            ],
+        }
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline,
+                odm_task_uuid
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326),
+                %s
+            )
+            """,
+            (
+                task_id,
+                project_id,
+                15,
+                outline,
+                odm_task_uuid,
+            ),
+        )
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id,
+                project_id,
+                task_id,
+                user_id,
+                state,
+                comment,
+                updated_at,
+                created_at
+            )
+            VALUES (
+                gen_random_uuid(),
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            )
+            """,
+            (
+                project_id,
+                task_id,
+                auth_user.id,
+                "IMAGE_PROCESSING_STARTED",
+                "Task started.",
+            ),
+        )
+    await db.commit()
+
+    class FakeResponse:
+        status = 200
+
+        async def json(self):
+            return {"status": {"code": 40}}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, _url):
+            return FakeResponse()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeRedis:
+        def __init__(self):
+            self.jobs = []
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.jobs.append((args, kwargs))
+
+    fake_redis = FakeRedis()
+
+    monkeypatch.setattr(project_routes.aiohttp, "ClientSession", FakeSession)
+    app.dependency_overrides[get_redis_pool] = lambda: fake_redis
+
+    response = await client.get(f"/api/projects/odm/queue-info/{project_id}/")
+
+    assert response.status_code == 200
+    assert len(fake_redis.jobs) == 1
+
+    job_args, job_kwargs = fake_redis.jobs[0]
+    assert job_args == ("process_odm_webhook_assets",)
+    assert job_kwargs == {
+        "node_odm_url": project_routes.settings.ODM_ENDPOINT,
+        "dtm_project_id": project_id,
+        "odm_task_id": odm_task_uuid,
+        "state_name": "IMAGE_PROCESSING_STARTED",
+        "message": "Reconciled: processing completed on NodeODM (missed webhook).",
+        "dtm_task_id": task_id,
+        "odm_status_code": 40,
+        "_job_id": f"odm-assets:task:{task_id}",
+        "_queue_name": "default_queue",
+    }
 
 
 if __name__ == "__main__":

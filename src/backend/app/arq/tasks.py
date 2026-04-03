@@ -44,7 +44,10 @@ from app.s3 import (
 )
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
-from app.images.image_processing import extract_and_upload_odm_assets
+from app.images.image_processing import (
+    extract_and_upload_odm_assets,
+    process_assets_from_odm,
+)
 from app.models.enums import State
 from app.tasks import task_logic
 from app.utils import timestamp
@@ -1007,7 +1010,9 @@ async def process_imported_odm_assets(
             partial_prefix = f"projects/{project_id}/{task_id}/odm/"
             delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
 
-            # Also remove derived files written outside the odm/ prefix
+            # Also remove derived files written outside the odm/ prefix,
+            # including the legacy orthophoto/ path to prevent stale
+            # fallback serving after a failed import.
             cleanup_client = s3_client()
             for stale_key in (
                 f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif",
@@ -1059,6 +1064,76 @@ async def process_imported_odm_assets(
             shutil.rmtree(temp_dir)
 
 
+async def process_odm_webhook_assets(
+    ctx: Dict[Any, Any],
+    node_odm_url: str,
+    dtm_project_id: str,
+    odm_task_id: str,
+    state_name: Optional[str] = None,
+    message: Optional[str] = None,
+    dtm_task_id: Optional[str] = None,
+    odm_status_code: Optional[int] = None,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """ARQ wrapper for process_assets_from_odm (webhook flow).
+
+    Offloads the heavy zip download, extraction, and GDAL reprojection
+    from the API server to the worker so it doesn't trigger liveness
+    probe failures.
+
+    Uses a Redis lock (SET NX) to prevent concurrent processing of the
+    same task, in addition to arq's ``_job_id`` dedup at enqueue time.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        "Starting process_odm_webhook_assets (Job ID: {}): project={} odm_task={}",
+        job_id,
+        dtm_project_id,
+        odm_task_id,
+    )
+
+    # Distributed lock: prevent two workers from processing the same
+    # task concurrently (belt-and-suspenders alongside _job_id dedup).
+    lock_target = dtm_task_id or dtm_project_id
+    lock_key = f"lock:odm-assets:{lock_target}"
+    redis = ctx.get("redis")
+    lock_acquired = False
+    if redis:
+        lock_acquired = await redis.set(
+            lock_key,
+            job_id,
+            nx=True,
+            ex=3600,  # 1 hour TTL
+        )
+        if not lock_acquired:
+            log.warning(
+                "Skipping process_odm_webhook_assets for {}: "
+                "another job already holds the lock",
+                lock_target,
+            )
+            return {"status": "skipped", "reason": "concurrent_lock"}
+
+    try:
+        project_uuid = UUID(dtm_project_id)
+        task_uuid = UUID(dtm_task_id) if dtm_task_id else None
+        state = State[state_name] if state_name else None
+
+        await process_assets_from_odm(
+            node_odm_url=node_odm_url,
+            dtm_project_id=project_uuid,
+            odm_task_id=odm_task_id,
+            state=state,
+            message=message,
+            dtm_task_id=task_uuid,
+            odm_status_code=odm_status_code,
+        )
+
+        return {"status": "completed", "project_id": dtm_project_id}
+    finally:
+        if redis and lock_acquired:
+            await redis.delete(lock_key)
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -1076,6 +1151,7 @@ class WorkerSettings:
         download_and_upload_dem,
         generate_qfield_project,
         process_imported_odm_assets,
+        process_odm_webhook_assets,
     ]
 
     queue_name = "default_queue"
