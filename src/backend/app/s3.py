@@ -1,10 +1,12 @@
 from datetime import timedelta
+from functools import lru_cache
 from io import BytesIO
 from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from minio import Minio
+from minio.deleteobjects import DeleteObject
 from minio.commonconfig import CopySource
 from minio.datatypes import Part
 from minio.error import S3Error
@@ -39,8 +41,12 @@ def _parse_endpoint(endpoint: str) -> tuple[str, bool]:
         )
 
 
+@lru_cache(maxsize=4)
 def _create_client(endpoint: str) -> Minio:
-    """Create a MinIO client for the given endpoint.
+    """Create (or return cached) a MinIO client for the given endpoint.
+
+    Clients are cached per endpoint URL so we don't create a new TCP
+    connection pool on every S3 operation.
 
     Args:
         endpoint: Full URL string for the S3-compatible endpoint
@@ -367,6 +373,32 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return client.list_objects(bucket_name, prefix=prefix, recursive=True)
 
 
+def delete_objects_by_prefix(bucket_name: str, prefix: str) -> int:
+    """Delete all objects under a given S3 prefix.
+
+    Args:
+        bucket_name: The name of the S3 bucket
+        prefix: The prefix whose objects should be deleted
+
+    Returns:
+        int: Number of objects deleted
+    """
+    client = s3_client()
+    objects = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
+    if not objects:
+        return 0
+
+    delete_list = [DeleteObject(obj.object_name) for obj in objects if not obj.is_dir]
+    errors = list(client.remove_objects(bucket_name, delete_list))
+    if errors:
+        for err in errors:
+            log.warning(f"Failed to delete {err.name}: {err.message}")
+
+    deleted = len(delete_list) - len(errors)
+    log.info(f"Deleted {deleted} objects under prefix {prefix}")
+    return deleted
+
+
 def get_object_metadata(bucket_name: str, object_name: str):
     """Get object metadata from an S3 bucket.
 
@@ -379,19 +411,6 @@ def get_object_metadata(bucket_name: str, object_name: str):
     """
     client = s3_client()
     return client.stat_object(bucket_name, object_name)
-
-
-def get_assets_url_for_project(project_id: str):
-    """Generate browser URL for project assets.zip.
-
-    Args:
-        project_id: The unique identifier for the project
-
-    Returns:
-        str: URL to download the assets (presigned or direct/CDN depending on config)
-    """
-    project_assets_path = f"projects/{project_id}/assets.zip"
-    return maybe_presign_s3_key(project_assets_path, expires_hours=3)  # type: ignore[return-value]
 
 
 def get_orthophoto_url_for_project(project_id: str):

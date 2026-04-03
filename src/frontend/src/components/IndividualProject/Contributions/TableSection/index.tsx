@@ -2,7 +2,7 @@ import DataTable from '@Components/common/DataTable';
 import Icon from '@Components/common/Icon';
 import { setProjectState } from '@Store/actions/project';
 import { useTypedSelector } from '@Store/hooks';
-import { formatString } from '@Utils/index';
+import { formatString, buildDownloadUrl } from '@Utils/index';
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
@@ -38,8 +38,8 @@ const contributionsDataColumns = [
         if (!rowData?.assets_url) return;
         try {
           const link = document.createElement('a');
-          link.href = rowData?.assets_url;
-          link.download = 'assets.zip';
+          link.href = buildDownloadUrl(rowData.assets_url);
+          link.setAttribute('download', '');
           document.body.appendChild(link);
           link.click();
           link.remove();

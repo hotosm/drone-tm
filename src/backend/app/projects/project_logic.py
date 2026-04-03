@@ -34,6 +34,7 @@ from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
 from app.images.image_processing import DroneImageProcessor
 from app.s3 import (
+    s3_client,
     add_obj_to_bucket,
     maybe_presign_s3_key,
     get_file_from_bucket,
@@ -583,24 +584,34 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
             1 for obj in objects if obj.object_name.lower().endswith(image_extensions)
         )
 
-        # Generate a presigned URL for the assets ZIP file
+        # Check for ODM assets under the new individual-file layout first,
+        # then fall back to the legacy monolithic assets.zip.
+        # Use a single-object probe instead of listing the entire prefix.
+        presigned_url = None
+        odm_prefix = f"projects/{project_id}/{task_id}/odm/"
         try:
-            # Check if the object exists
-            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
-            get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
-
-            # If it exists, generate the presigned URL
-            presigned_url = maybe_presign_s3_key(assets_path, expires_hours=2)
+            odm_probe = next(
+                s3_client().list_objects(
+                    settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=False
+                ),
+                None,
+            )
+            if odm_probe is not None:
+                # New layout: point to the streaming export endpoint
+                presigned_url = (
+                    f"{settings.API_PREFIX}/projects/odm/export/{project_id}/{task_id}/"
+                )
+            else:
+                # Fallback: legacy assets.zip
+                assets_path = f"projects/{project_id}/{task_id}/assets.zip"
+                get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
+                presigned_url = maybe_presign_s3_key(assets_path, expires_hours=2)
         except S3Error as e:
             if e.code == "NoSuchKey":
-                # The object does not exist
-                log.debug(
-                    f"Assets ZIP file not found for project {project_id}, task {task_id}."
-                )
+                log.debug(f"Assets not found for project {project_id}, task {task_id}.")
                 presigned_url = None
             else:
-                # An unexpected error occurred
-                log.error(f"An error occurred while accessing assets file: {e}")
+                log.error(f"An error occurred while accessing assets: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
         # Generate a presigned URL for the orthophoto (task-level preferred; fallback to project-level)
