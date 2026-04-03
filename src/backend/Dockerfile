@@ -124,4 +124,4 @@ VOLUME /project/src/backend/frontend_html
 ENTRYPOINT [ "/project/src/backend/docker-entrypoint.sh" ]
 
 CMD ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
-    "--log-level", "info", "--reload"]
+    "--log-level", "info"]

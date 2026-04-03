@@ -18,6 +18,19 @@ services:
       dockerfile: backend/Dockerfile
       args:
         - MONITORING=${MONITORING}
+    # Override to include --reload hot-reloading
+    command:
+      [
+        "uvicorn",
+        "app.main:api",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--log-level",
+        "info",
+        "--reload",
+      ]
     depends_on:
       db:
         condition: service_healthy
