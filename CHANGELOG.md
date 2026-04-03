@@ -1,3 +1,10 @@
+## 2026.2.2 (2026-04-03)
+
+### Fix
+
+- out of memory error during ODM assets.zip extraction, robust stream-zip implementation (#768)
+- **backend**: add lru_cache to s3 client init (prevent multiple inits)
+
 ## 2026.2.1 (2026-04-02)
 
 ### Feat
