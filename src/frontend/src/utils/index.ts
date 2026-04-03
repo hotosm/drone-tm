@@ -1,6 +1,7 @@
 /* eslint-disable import/prefer-default-export */
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { getRuntimeConfig } from '@/runtimeConfig';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -232,6 +233,31 @@ export function findNearestCoordinate(
 
   // Return the nearest coordinate
   return distance1 <= distance2 ? 'first' : 'second';
+}
+
+/**
+ * Builds a download URL for assets. Presigned S3 URLs (https://) are used
+ * as-is. Relative API paths (e.g. /projects/odm/export/...) get the API
+ * base URL prepended and an auth token appended as a query parameter so
+ * that browser <a> tag downloads work without custom headers.
+ */
+export function buildDownloadUrl(assetsUrl: string): string {
+  if (assetsUrl.startsWith('http')) return assetsUrl;
+
+  const apiBase = getRuntimeConfig('VITE_API_URL', '/api');
+  const normalizedApiBase = apiBase.endsWith('/api')
+    ? apiBase.slice(0, -4)
+    : apiBase;
+
+  const base = assetsUrl.startsWith('/api/')
+    ? `${normalizedApiBase}${assetsUrl}`
+    : `${apiBase}${assetsUrl}`;
+
+  const token = localStorage.getItem('token');
+  if (!token) return base;
+
+  const separator = base.includes('?') ? '&' : '?';
+  return `${base}${separator}token=${encodeURIComponent(token)}`;
 }
 
 export function swapFirstAndLast<T>(arr: T[]): T[] {

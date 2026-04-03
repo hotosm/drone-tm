@@ -5,6 +5,9 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
+import os
+import shutil
+import tempfile
 
 import aiohttp
 from arq import ArqRedis, create_pool
@@ -36,9 +39,16 @@ from app.s3 import (
     async_get_obj_from_bucket,
     generate_presigned_get_url,
     s3_client,
+    get_file_from_bucket,
+    delete_objects_by_prefix,
 )
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
+from app.images.image_processing import extract_and_upload_odm_assets
+from app.models.enums import State
+from app.tasks import task_logic
+from app.utils import timestamp
+from app.projects import project_logic
 
 
 THUMBNAIL_SIZE = (200, 200)
@@ -878,6 +888,177 @@ async def generate_qfield_project(
         raise
 
 
+async def process_imported_odm_assets(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    task_id: str,
+    s3_zip_key: str,
+    user_id: str,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """Process an ODM zip uploaded by the user (import flow).
+
+    Downloads the zip from S3, validates it contains an orthophoto,
+    extracts individual files to S3 under ``odm/``, reprojects the
+    orthophoto, and cleans up the temporary upload.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting process_imported_odm_assets (Job ID: {job_id}): task={task_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        # Download the uploaded zip from S3
+        zip_path = os.path.join(temp_dir, "odm_import.zip")
+        result = get_file_from_bucket(settings.S3_BUCKET_NAME, s3_zip_key, zip_path)
+        if result is False:
+            raise FileNotFoundError(f"Could not download ODM zip from {s3_zip_key}")
+
+        # Validate the zip contains an orthophoto
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            if "odm_orthophoto/odm_orthophoto.tif" not in zf.namelist():
+                raise ValueError(
+                    "Invalid ODM zip: missing odm_orthophoto/odm_orthophoto.tif"
+                )
+
+        pid = UUID(project_id)
+        tid = UUID(task_id)
+
+        # Transition task state to IMAGE_PROCESSING_STARTED
+        async with db_pool.connection() as conn:
+            result = await task_logic.update_task_state_system(
+                conn,
+                pid,
+                tid,
+                "ODM import processing started",
+                State.READY_FOR_PROCESSING,
+                State.IMAGE_PROCESSING_STARTED,
+                timestamp(),
+            )
+            if result is None:
+                result = await task_logic.update_task_state_system(
+                    conn,
+                    pid,
+                    tid,
+                    "ODM import retry",
+                    State.IMAGE_PROCESSING_FAILED,
+                    State.IMAGE_PROCESSING_STARTED,
+                    timestamp(),
+                )
+            if result is None:
+                raise RuntimeError(
+                    "Cannot start import: task is not in a valid state "
+                    "(expected READY_FOR_PROCESSING or IMAGE_PROCESSING_FAILED)"
+                )
+            await conn.commit()
+
+        # Extract and upload all ODM assets
+        extract_and_upload_odm_assets(zip_path, temp_dir, pid, tid)
+
+        # Delete the temporary uploaded zip from S3
+        try:
+            client = s3_client()
+            client.remove_object(settings.S3_BUCKET_NAME, s3_zip_key)
+            log.info(f"Deleted temporary import zip from S3: {s3_zip_key}")
+        except Exception as e:
+            log.warning(f"Failed to delete import zip {s3_zip_key}: {e}")
+
+        # Transition task state to IMAGE_PROCESSING_FINISHED
+        async with db_pool.connection() as conn:
+            await task_logic.update_task_state_system(
+                conn,
+                pid,
+                tid,
+                "ODM import completed",
+                State.IMAGE_PROCESSING_STARTED,
+                State.IMAGE_PROCESSING_FINISHED,
+                timestamp(),
+            )
+
+            assets_prefix = f"projects/{project_id}/{task_id}/odm/"
+            await project_logic.update_task_field(
+                conn, pid, tid, "assets_url", assets_prefix
+            )
+            await conn.commit()
+
+        log.info(f"ODM import complete for task {task_id}")
+        return {
+            "message": "ODM import completed",
+            "project_id": project_id,
+            "task_id": task_id,
+        }
+
+    except Exception as e:
+        log.error(f"ODM import failed (Job: {job_id}): {e}")
+
+        # Clean up the temporary zip from S3 on failure
+        try:
+            client = s3_client()
+            client.remove_object(settings.S3_BUCKET_NAME, s3_zip_key)
+            log.info(f"Cleaned up import zip from S3 after failure: {s3_zip_key}")
+        except Exception as cleanup_err:
+            log.warning(f"Failed to clean up import zip {s3_zip_key}: {cleanup_err}")
+
+        # Clean up any partially-uploaded ODM assets and derived files
+        try:
+            partial_prefix = f"projects/{project_id}/{task_id}/odm/"
+            delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
+
+            # Also remove derived files written outside the odm/ prefix
+            cleanup_client = s3_client()
+            for stale_key in (
+                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif",
+                f"projects/{project_id}/{task_id}/images.json",
+            ):
+                try:
+                    cleanup_client.remove_object(settings.S3_BUCKET_NAME, stale_key)
+                except Exception:
+                    pass
+
+            log.info(
+                f"Cleaned up partial ODM assets and derived files for task {task_id}"
+            )
+        except Exception as cleanup_err:
+            log.warning(f"Failed to clean up partial ODM assets: {cleanup_err}")
+
+        # Try to mark task as failed - attempt from both possible
+        # pre-failure states so early failures (before the state
+        # transition to IMAGE_PROCESSING_STARTED) are also recorded.
+        try:
+            async with db_pool.connection() as conn:
+                result = await task_logic.update_task_state_system(
+                    conn,
+                    UUID(project_id),
+                    UUID(task_id),
+                    f"ODM import failed: {e}",
+                    State.IMAGE_PROCESSING_STARTED,
+                    State.IMAGE_PROCESSING_FAILED,
+                    timestamp(),
+                )
+                if result is None:
+                    # Failure happened before state moved to STARTED
+                    await task_logic.update_task_state_system(
+                        conn,
+                        UUID(project_id),
+                        UUID(task_id),
+                        f"ODM import failed: {e}",
+                        State.READY_FOR_PROCESSING,
+                        State.IMAGE_PROCESSING_FAILED,
+                        timestamp(),
+                    )
+                await conn.commit()
+        except Exception as state_err:
+            log.error(f"Failed to update task state after import failure: {state_err}")
+        raise
+
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -894,6 +1075,7 @@ class WorkerSettings:
         process_project_task_metrics,
         download_and_upload_dem,
         generate_qfield_project,
+        process_imported_odm_assets,
     ]
 
     queue_name = "default_queue"

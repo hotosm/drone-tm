@@ -7,7 +7,7 @@ import { descriptionItems } from '@Constants/projectDescription';
 import { toggleModal } from '@Store/actions/common';
 import { useGetUserDetailsQuery } from '@Api/projects';
 import Skeleton from '@Components/RadixComponents/Skeleton';
-import { formatString } from '@Utils/index';
+import { formatString, buildDownloadUrl } from '@Utils/index';
 import ApprovalSection from './ApprovalSection';
 
 const statusAfterImageUploaded = [
@@ -50,7 +50,7 @@ const DescriptionSection = ({
     if (!projectData?.assets_url) return;
     try {
       const link = document.createElement('a');
-      link.href = projectData?.assets_url;
+      link.href = buildDownloadUrl(projectData.assets_url);
       link.setAttribute('download', '');
       document.body.appendChild(link);
       link.click();

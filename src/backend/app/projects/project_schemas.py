@@ -34,9 +34,9 @@ from app.models.enums import (
 from app.config import settings
 from app.s3 import (
     check_file_exists,
-    get_assets_url_for_project,
     get_orthophoto_url_for_project,
     maybe_presign_s3_key,
+    s3_client,
 )
 from app.utils import (
     merge_multipolygon,
@@ -190,11 +190,17 @@ class TaskOut(BaseModel):
 
     @model_validator(mode="after")
     def set_assets_url(cls, values):
-        """Set image_url before rendering the model."""
+        """Set assets_url to a browser-usable URL."""
         assets_url = values.assets_url
         if assets_url:
-            # `assets_url` is typically stored as an S3 key in the DB.
-            values.assets_url = maybe_presign_s3_key(assets_url, 2)
+            # New ODM layout stores an S3 prefix ending in odm/ - convert to
+            # the streaming export endpoint URL.
+            if assets_url.startswith("projects/") and assets_url.endswith("/odm/"):
+                parts = assets_url.split("/")
+                if len(parts) >= 4:
+                    values.assets_url = f"{settings.API_PREFIX}/projects/odm/export/{parts[1]}/{parts[2]}/"
+            elif not assets_url.startswith("http"):
+                values.assets_url = maybe_presign_s3_key(assets_url, 2)
 
         return values
 
@@ -703,10 +709,24 @@ class ProjectInfo(BaseModel):
             values.assets_url = None
             return values
 
-        values.assets_url = safe_url(
-            lambda: get_assets_url_for_project(project_id),
-            label="assets_url",
-        )
+        # Project-level final processing stores individual files under
+        # projects/{pid}/odm/.  Probe for at least one object.
+        odm_prefix = f"projects/{project_id}/odm/"
+        try:
+            probe = next(
+                s3_client().list_objects(
+                    settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=False
+                ),
+                None,
+            )
+            if probe is not None:
+                values.assets_url = (
+                    f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
+                )
+            else:
+                values.assets_url = None
+        except Exception:
+            values.assets_url = None
 
         return values
 
@@ -778,6 +798,7 @@ class MultipartUploadRequest(BaseModel):
     task_id: Optional[uuid.UUID] = None
     file_name: str
     staging: bool = False  # If True, upload to user-uploads staging directory
+    purpose: str = "image"  # "image" or "odm_import"
 
 
 class SignPartUploadRequest(BaseModel):
@@ -794,6 +815,8 @@ class CompleteMultipartUploadRequest(BaseModel):
     project_id: uuid.UUID
     filename: str
     batch_id: Optional[uuid.UUID] = None  # Optional batch ID for grouping uploads
+    purpose: str = "image"  # "image" or "odm_import"
+    task_id: Optional[uuid.UUID] = None  # Required when purpose="odm_import"
 
 
 class AbortMultipartUploadRequest(BaseModel):
