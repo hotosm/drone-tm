@@ -58,7 +58,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
                   role="presentation"
                   onClick={() =>
                     navigate(
-                      `/projects/${task.project_id}/tasks/${task.task_id}`,
+                      `/projects/${task.project_slug || task.project_id}/tasks/${task.project_task_index}`,
                     )
                   }
                 >

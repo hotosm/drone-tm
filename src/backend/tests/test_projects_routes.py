@@ -1,10 +1,12 @@
 import json
+import uuid
 from io import BytesIO
 
 import pytest
 from fastapi import HTTPException
 from loguru import logger as log
 
+from app.arq.tasks import get_redis_pool
 from app.projects import project_routes
 from app.projects import project_schemas
 
@@ -85,6 +87,50 @@ async def test_read_project(client, create_test_project):
 
 
 @pytest.mark.asyncio
+async def test_read_project_by_slug(client, db, create_test_project):
+    """Project detail endpoint should accept the stored slug."""
+    project = await project_schemas.DbProject.one(db, create_test_project)
+
+    response = await client.get(f"/api/projects/{project.slug}")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == create_test_project
+
+
+@pytest.mark.asyncio
+async def test_project_slug_uses_name_without_timestamp():
+    """New project slugs should be clean slugified names."""
+    project = project_schemas.ProjectIn(
+        name="My Project",
+        description="",
+        outline={
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [-69.49779538720068, 18.629654277305633],
+                                [-69.48497355306813, 18.616997544638636],
+                                [-69.54053483430786, 18.608390428368665],
+                                [-69.5410690773959, 18.614466085056165],
+                                [-69.49779538720068, 18.629654277305633],
+                            ]
+                        ],
+                    },
+                }
+            ],
+        },
+        final_output=["ORTHOPHOTO_2D"],
+    )
+
+    assert project.slug == "my-project"
+
+
+@pytest.mark.asyncio
 async def test_read_project_includes_has_gcp_flag(
     client, create_test_project, monkeypatch
 ):
@@ -122,6 +168,443 @@ async def test_create_terrain_follow_project_succeeds_when_redis_unavailable(
         files={"project_info": (None, project_info_json, "application/json")},
     )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_preview_split_multi_feature(client):
+    """Uploading a multi-feature FeatureCollection should not error.
+
+    Regression test for #735 - FeatureCollections exported by QGIS
+    contain multiple features and previously only the first was used.
+    """
+    multi_featcol = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.319, 27.705],
+                                [85.320, 27.705],
+                                [85.320, 27.706],
+                                [85.319, 27.706],
+                                [85.319, 27.705],
+                            ]
+                        ],
+                    },
+                },
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.320, 27.705],
+                                [85.321, 27.705],
+                                [85.321, 27.706],
+                                [85.320, 27.706],
+                                [85.320, 27.705],
+                            ]
+                        ],
+                    },
+                },
+            ],
+        }
+    ).encode("utf-8")
+
+    files = {
+        "project_geojson": (
+            "aoi.geojson",
+            BytesIO(multi_featcol),
+            "application/geo+json",
+        ),
+    }
+    response = await client.post(
+        "/api/projects/preview-split-by-square/",
+        files=files,
+        data={"dimension": 100},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_normalize_aoi_merges_multi_feature_upload(client):
+    """Multipart AOIs should be merged before being returned to the frontend."""
+    multi_featcol = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.319, 27.705],
+                                [85.320, 27.705],
+                                [85.320, 27.706],
+                                [85.319, 27.706],
+                                [85.319, 27.705],
+                            ]
+                        ],
+                    },
+                },
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.320, 27.705],
+                                [85.321, 27.705],
+                                [85.321, 27.706],
+                                [85.320, 27.706],
+                                [85.320, 27.705],
+                            ]
+                        ],
+                    },
+                },
+            ],
+        }
+    ).encode("utf-8")
+
+    files = {
+        "project_geojson": (
+            "aoi.geojson",
+            BytesIO(multi_featcol),
+            "application/geo+json",
+        ),
+    }
+    response = await client.post("/api/projects/normalize-aoi/", files=files)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) == 1
+    assert body["features"][0]["geometry"]["type"] == "Polygon"
+
+
+@pytest.mark.asyncio
+async def test_normalize_aoi_converts_multipolygon_upload(client):
+    """A single-feature MultiPolygon AOI should be coerced to one Polygon."""
+    multipolygon = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [
+                            [
+                                [
+                                    [85.319, 27.705],
+                                    [85.320, 27.705],
+                                    [85.320, 27.706],
+                                    [85.319, 27.706],
+                                    [85.319, 27.705],
+                                ]
+                            ],
+                            [
+                                [
+                                    [85.321, 27.705],
+                                    [85.322, 27.705],
+                                    [85.322, 27.706],
+                                    [85.321, 27.706],
+                                    [85.321, 27.705],
+                                ]
+                            ],
+                        ],
+                    },
+                }
+            ],
+        }
+    ).encode("utf-8")
+
+    files = {
+        "project_geojson": (
+            "aoi.geojson",
+            BytesIO(multipolygon),
+            "application/geo+json",
+        ),
+    }
+    response = await client.post("/api/projects/normalize-aoi/", files=files)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) == 1
+    assert body["features"][0]["geometry"]["type"] == "Polygon"
+
+
+@pytest.mark.asyncio
+async def test_odm_queue_info_omits_deleted_completed_tasks(
+    client, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = str(uuid.uuid4())
+    odm_task_uuid = str(uuid.uuid4())
+    outline = json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-69.49779538720068, 18.629654277305633],
+                    [-69.48497355306813, 18.616997544638636],
+                    [-69.54053483430786, 18.608390428368665],
+                    [-69.5410690773959, 18.614466085056165],
+                    [-69.49779538720068, 18.629654277305633],
+                ]
+            ],
+        }
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline,
+                odm_task_uuid,
+                assets_url
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326),
+                %s,
+                %s
+            )
+            """,
+            (
+                task_id,
+                project_id,
+                15,
+                outline,
+                odm_task_uuid,
+                f"projects/{project_id}/{task_id}/assets.zip",
+            ),
+        )
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id,
+                project_id,
+                task_id,
+                user_id,
+                state,
+                comment,
+                updated_at,
+                created_at
+            )
+            VALUES (
+                gen_random_uuid(),
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            )
+            """,
+            (
+                project_id,
+                task_id,
+                auth_user.id,
+                "IMAGE_PROCESSING_FINISHED",
+                "Task completed.",
+            ),
+        )
+    await db.commit()
+
+    class FakeResponse:
+        status = 200
+
+        async def json(self):
+            return {"error": f"{odm_task_uuid} not found"}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, _url):
+            return FakeResponse()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(project_routes.aiohttp, "ClientSession", FakeSession)
+
+    response = await client.get(f"/api/projects/odm/queue-info/{project_id}/")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_completed"] == 0
+    assert body["total_canceled"] == 0
+    assert body["total_tasks"] == 0
+    assert body["groups"] == []
+
+
+@pytest.mark.asyncio
+async def test_odm_queue_info_enqueues_missed_webhook_processing(
+    client, app, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = str(uuid.uuid4())
+    odm_task_uuid = str(uuid.uuid4())
+    outline = json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-69.49779538720068, 18.629654277305633],
+                    [-69.48497355306813, 18.616997544638636],
+                    [-69.54053483430786, 18.608390428368665],
+                    [-69.5410690773959, 18.614466085056165],
+                    [-69.49779538720068, 18.629654277305633],
+                ]
+            ],
+        }
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline,
+                odm_task_uuid
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326),
+                %s
+            )
+            """,
+            (
+                task_id,
+                project_id,
+                15,
+                outline,
+                odm_task_uuid,
+            ),
+        )
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id,
+                project_id,
+                task_id,
+                user_id,
+                state,
+                comment,
+                updated_at,
+                created_at
+            )
+            VALUES (
+                gen_random_uuid(),
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            )
+            """,
+            (
+                project_id,
+                task_id,
+                auth_user.id,
+                "IMAGE_PROCESSING_STARTED",
+                "Task started.",
+            ),
+        )
+    await db.commit()
+
+    class FakeResponse:
+        status = 200
+
+        async def json(self):
+            return {"status": {"code": 40}}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, _url):
+            return FakeResponse()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeRedis:
+        def __init__(self):
+            self.jobs = []
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.jobs.append((args, kwargs))
+
+    fake_redis = FakeRedis()
+
+    monkeypatch.setattr(project_routes.aiohttp, "ClientSession", FakeSession)
+    app.dependency_overrides[get_redis_pool] = lambda: fake_redis
+
+    response = await client.get(f"/api/projects/odm/queue-info/{project_id}/")
+
+    assert response.status_code == 200
+    assert len(fake_redis.jobs) == 1
+
+    job_args, job_kwargs = fake_redis.jobs[0]
+    assert job_args == ("process_odm_webhook_assets",)
+    assert job_kwargs == {
+        "node_odm_url": project_routes.settings.ODM_ENDPOINT,
+        "dtm_project_id": project_id,
+        "odm_task_id": odm_task_uuid,
+        "state_name": "IMAGE_PROCESSING_STARTED",
+        "message": "Reconciled: processing completed on NodeODM (missed webhook).",
+        "dtm_task_id": task_id,
+        "odm_status_code": 40,
+        "_job_id": f"odm-assets:task:{task_id}",
+        "_queue_name": "default_queue",
+    }
 
 
 if __name__ == "__main__":

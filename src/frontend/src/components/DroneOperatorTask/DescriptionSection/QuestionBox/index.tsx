@@ -7,7 +7,8 @@ import { useTypedDispatch } from '@Store/hooks';
 import { postUnflyableComment } from '@Services/droneOperator';
 import { toast } from 'react-toastify';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import useTaskParams from '@Hooks/useTaskParams';
 import RadioButton from '@Components/common/RadioButton';
 // import UploadsBox from '../UploadsBox'; // Disabled - use Drone Upload Workflow instead
 
@@ -22,7 +23,7 @@ const QuestionBox = ({
   setFlyable,
   haveNoImages,
 }: IQuestionBoxProps) => {
-  const { projectId, taskId } = useParams();
+  const { projectId, taskId, projectSlug } = useTaskParams();
   const navigate = useNavigate();
 
   const dispatch = useTypedDispatch();
@@ -41,7 +42,7 @@ const QuestionBox = ({
     onSuccess: () => {
       // Optionally, refetch queries or show a success message
       toast.success('Comment Added successfully');
-      navigate(`/projects/${projectId}`);
+      navigate(`/projects/${projectSlug}`);
     },
     onError: (error: Record<string, any>) => {
       // Handle error

@@ -55,7 +55,7 @@ export const useGetTaskStatesQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ['project-task-states'],
+    queryKey: ['project-task-states', projectId],
     queryFn: () => getTaskStates(projectId),
     select: (res: any) => res.data,
     enabled: !!projectId,

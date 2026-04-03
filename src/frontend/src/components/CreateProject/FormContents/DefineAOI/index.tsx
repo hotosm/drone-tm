@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
 import { Controller } from 'react-hook-form';
 import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
@@ -16,6 +17,8 @@ import { validateGeoJSON } from '@Utils/convertLayerUtils';
 import { toast } from 'react-toastify';
 import SwitchTab from '@Components/common/SwitchTab';
 import { uploadOrDrawAreaOptions } from '@Constants/createProject';
+import prepareFormData from '@Utils/prepareFormData';
+import { postNormalizeAoi } from '@Services/createproject';
 import MapSection from './MapSection';
 
 function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
@@ -40,21 +43,35 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
 
   const { setValue, control, errors } = formProps;
 
-  const handleProjectAreaFileChange = (file: Record<string, any>[]) => {
+  const { mutate: normalizeAoi, isPending: isNormalizingAoi } = useMutation({
+    mutationFn: postNormalizeAoi,
+    onSuccess: response => {
+      dispatch(setCreateProjectState({ projectArea: response.data }));
+      setValue('outline', response.data);
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.detail || err?.message || 'Failed to normalize AOI',
+      );
+    },
+  });
+
+  const handleProjectAreaFileChange = async (file: Record<string, any>[]) => {
     if (!file) return;
-    const geojson: any = validateGeoJSON(file[0]?.file);
+    const uploadedFile = file[0]?.file;
+    if (!uploadedFile) return;
 
     try {
-      geojson.then((z: any) => {
-        if (isAllGeoJSON(z) && !Array.isArray(z)) {
-          const convertedGeojson = flatten(z);
-          dispatch(setCreateProjectState({ projectArea: convertedGeojson }));
-          setValue('outline', convertedGeojson);
-        }
-      });
+      const geojson: any = await validateGeoJSON(uploadedFile);
+      if (isAllGeoJSON(geojson) && !Array.isArray(geojson)) {
+        normalizeAoi(
+          prepareFormData({
+            project_geojson: uploadedFile,
+          }),
+        );
+      }
     } catch (err: any) {
-      // eslint-disable-next-line no-console
-      console.log(err);
+      toast.error(err?.message || 'Invalid geojson');
     }
   };
 
@@ -168,6 +185,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                           fileAccept=".geojson"
                           placeholder="Upload project area (.geojson file)"
                           isValid={validateAreaOfFileUpload}
+                          disabled={isNormalizingAoi}
                           {...formProps}
                         />
                       );

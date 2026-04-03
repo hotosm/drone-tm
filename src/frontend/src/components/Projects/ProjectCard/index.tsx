@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 interface IProjectCardProps {
   id: number;
+  slug: string;
   title: string;
   description: string;
   imageUrl: string | null;
@@ -14,6 +15,7 @@ interface IProjectCardProps {
 
 export default function ProjectCard({
   id,
+  slug,
   title,
   description,
   imageUrl,
@@ -23,7 +25,7 @@ export default function ProjectCard({
 }: IProjectCardProps) {
   const navigate = useNavigate();
   const onProjectCardClick = () => {
-    navigate(`/projects/${id}`);
+    navigate(`/projects/${slug || id}`);
   };
 
   return (

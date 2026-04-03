@@ -102,13 +102,15 @@ To get started with DroneTM:
 |✅| 🖥️ support retries for dropped connections during photo uploads | Since [v2025.6.0][5] |
 |✅| 🖥️ user feedback if photos have issues on upload (gimbal angle, blurry, etc) | Since [v2025.6.0][5] |
 |✅| 📱 flight plans working on Potensic Atom 2 | Since [v2025.6.0][5] |
+|✅| 🖥️ task assignment and @username mentions in task comments | [v2025.1.3][6] |
+|✅| 📱 entirely offline flightplan generation, directly on device, via QField | [v2026.2.0][7] |
+|✅| 🖥️ improved user feedback and retry capabilities during imagery processing | [v2026.2.0][7] |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
 |⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
-|⚙️| 📱 entirely offline flightplan generation, directly on device | |
+|⚙️| 🖥️ identify flight gaps in the captured imagery, generating a second flightplan | |
 | | 📱 allow modification and division of flightplans by user before flight | |
 | | 🖥️ user access management for each part of the UI | |
-| | 🖥️ improved user feedback and retry capabilities during imagery processing | |
 | | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
 | | 🖥️ better usage of 3D model data collected by drones | |
@@ -168,3 +170,5 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [3]: https://github.com/hotosm/drone-tm/releases/tag/v2025.3.1
 [4]: https://github.com/hotosm/drone-tm/releases/tag/v2025.4.0
 [5]: https://github.com/hotosm/drone-tm/releases/tag/v2025.6.0
+[6]: https://github.com/hotosm/drone-tm/releases/tag/2026.1.3
+[7]: https://github.com/hotosm/drone-tm/releases/tag/2026.2.0

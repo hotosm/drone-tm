@@ -16,6 +16,11 @@ export const getTaskWaypoint = (
 export const getIndividualTask = (taskId: string) =>
   authenticated(api).get(`/tasks/${taskId}`);
 
+export const getTaskByProjectAndIndex = (
+  projectId: string,
+  taskIndex: string | number,
+) => authenticated(api).get(`/tasks/project/${projectId}/${taskIndex}`);
+
 // TODO refactor this out and replace with getTaskWaypoint?
 // This is used to update the take off point
 export const postTaskWaypoint = (payload: Record<string, any>) => {
@@ -44,8 +49,13 @@ export const getTaskAssetsInfo = (projectId: string, taskId: string) =>
 export const getAllTaskAssetsInfo = (projectId: string) =>
   authenticated(api).get(`/projects/assets/${projectId}/`);
 
-export const postProcessImagery = (projectId: string, taskId: string) =>
-  authenticated(api).post(`/projects/process_imagery/${projectId}/${taskId}/`);
+export const postProcessImagery = (projectId: string, taskId: string, odmUrl?: string) =>
+  authenticated(api).post(
+    `/projects/process_imagery/${projectId}/${taskId}/${odmUrl ? `?odm_url=${encodeURIComponent(odmUrl)}` : ''}`,
+  );
+
+export const getOdmQueueInfo = (projectId: string) =>
+  authenticated(api).get(`/projects/odm/queue-info/${projectId}/`);
 
 export const postRotatedTaskWayPoint = (payload: Record<string, any>) => {
   const { taskId, data } = payload;

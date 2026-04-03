@@ -1,3 +1,67 @@
+## 2026.2.3 (2026-04-03)
+
+### Fix
+
+- **backend**: move odm asset processing to arq worker to avoid livenessProbe timeouts
+
+## 2026.2.2 (2026-04-03)
+
+### Fix
+
+- out of memory error during ODM assets.zip extraction, robust stream-zip implementation (#768)
+- **backend**: add lru_cache to s3 client init (prevent multiple inits)
+
+## 2026.2.1 (2026-04-02)
+
+### Feat
+
+- **frontend**: wrapping flight gap identification in UI (#738)
+
+### Fix
+
+- **backend**: s3 urls don't need path bucket prefix when using cloudfront
+
+## 2026.2.0 (2026-04-01)
+
+### Feat
+
+- fix processing issues with webhook, ODM job queue, CTRL+click for custom ODM
+
+### Fix
+
+- only display odm task queue for pending, queued, failed
+- **frontend**: display the project/task uuid on the detail pages
+- fix #426 fix #190, user friendly urls instead of UUIDs (internal only)
+- **frontend**: properly fix ##606 for multipolygon aoi merging
+- **backend**: PostGIS functions for geom merge project creation
+- **frontend**: add app version number to top left, better indicate when updated
+- **frontend**: fix #277 for better use creation flow
+- **#735**: integrate geojson-aoi-parser for robust AOI parsing (#752)
+
+### Refactor
+
+- **drone-flightplan**: cleanup some missing print statements
+
+## 2026.1.3 (2026-03-31)
+
+### Feat
+
+- add option to mark task as 'fully flown' on task detail page
+
+### Fix
+
+- **backend**: ensure UNLOCKED tasks transition to HAS_IMAGERY on image upload
+- **frontend**: remove 'Something went wrong' fallback, replace with spinner
+- **frontend**: don't hide the project page redirect on mark fully flown
+- **frontend**: fix #530 when drawing geoms during project creation
+- **backend**: properly fix log propagation for psycopg_pool
+
+### Refactor
+
+- **frontend**: tweaks to ui / comments for task popup
+- **frontend**: tweaks to the ui for statuses project map
+- redesign the events and task states throughout the app + `FULLY_FLOWN` state (#757)
+
 ## 2026.1.2 (2026-03-30)
 
 ### Feat

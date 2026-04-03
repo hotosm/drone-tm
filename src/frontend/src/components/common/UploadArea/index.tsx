@@ -28,6 +28,7 @@ interface IFileUploadProps extends UseFormPropsType {
   fileAccept?: string;
   data?: [];
   placeholder?: string;
+  disabled?: boolean;
   onChange?: any;
   isValid?: // eslint-disable-next-line no-unused-vars
   | ((value: any) => boolean | undefined)
@@ -43,6 +44,7 @@ export default function FileUpload({
   fileAccept = 'image/*',
   data,
   placeholder,
+  disabled = false,
   onChange,
   isValid = () => true,
 }: IFileUploadProps) {
@@ -122,9 +124,13 @@ export default function FileUpload({
   return (
     <FlexColumn gap={2}>
       <FlexColumn
-        className="naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border-2 naxatw-border-dashed naxatw-bg-white naxatw-px-1.5 naxatw-py-2.5"
+        className={`naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border-2 naxatw-border-dashed naxatw-bg-white naxatw-px-1.5 naxatw-py-2.5 ${
+          disabled
+            ? 'naxatw-cursor-not-allowed naxatw-opacity-60'
+            : 'naxatw-cursor-pointer'
+        }`}
         //   @ts-ignore
-        onClick={onFileUpload}
+        onClick={disabled ? undefined : onFileUpload}
       >
         <Icon name="backup" className="naxatw-text-3xl naxatw-text-red" />
         <p className="naxatw-mt-1 naxatw-text-center naxatw-text-xs naxatw-leading-4 naxatw-text-grey-600">
@@ -137,6 +143,7 @@ export default function FileUpload({
           multiple={multiple}
           onChange={handleFileUpload}
           accept={fileAccept}
+          disabled={disabled}
         />
       </FlexColumn>
       <FlexColumn

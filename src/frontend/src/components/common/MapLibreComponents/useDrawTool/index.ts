@@ -118,10 +118,12 @@ export default function useDrawTool({
     if (!map || !geojson || !enable || !isDrawLayerAdded || isFeatureSelected)
       return () => {};
     const featureCollection = draw.getAll();
-    const { geometry } = featureCollection.features[0];
+    const firstFeature = featureCollection.features[0];
+    if (!firstFeature) return () => {};
+    const { geometry } = firstFeature;
     if (!lineStringTypes.includes(geometry.type)) return () => {};
     // @ts-ignore
-    const coordinates = featureCollection.features[0].geometry?.coordinates;
+    const coordinates = firstFeature.geometry?.coordinates;
     const firstCoords = coordinates[0];
     const lastCoords = coordinates[coordinates.length - 1];
     map.addSource('line-start-point', {
@@ -177,7 +179,9 @@ export default function useDrawTool({
     if (!map || !enable || !geojson || !isDrawLayerAdded || isFeatureSelected)
       return () => {};
     const featureCollection = draw.getAll();
-    const { geometry } = featureCollection.features[0];
+    const firstFeature = featureCollection.features[0];
+    if (!firstFeature) return () => {};
+    const { geometry } = firstFeature;
     if (!lineStringTypes.includes(geometry.type)) return () => {};
     map.loadImage(DirectionArrow).then(({ data }) => {
       if (map.getLayer('arrowId')) return;

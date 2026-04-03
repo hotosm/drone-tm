@@ -61,27 +61,36 @@ def healthcheck_log_filter(record):
 
 def get_logger():
     """Override FastAPI logger with custom loguru."""
-    # Hook all other loggers into ours
-    logger_name_list = [name for name in logging.root.manager.loggerDict]
-    for logger_name in logger_name_list:
-        logging.getLogger(logger_name).setLevel(10)
-        logging.getLogger(logger_name).handlers = []
-        if logger_name == "sqlalchemy":
-            # Don't hook sqlalchemy, very verbose
-            continue
-        if logger_name == "urllib3":
-            # Don't hook urllib3, called on each OTEL trace
-            continue
-        if logger_name == "psycopg_pool":
-            # Every time a connection is requested/returned it's logged at INFO...
-            logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+    SILENCED_LOGGERS = {"psycopg.pool", "psycopg_pool"}
+    SKIPPED_LOGGERS = {"sqlalchemy", "urllib3"}
+    FRAMEWORK_LOGGERS = {"uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"}
+
+    # Silence psycopg pool loggers - otherwise very noisy INFO logs
+    for logger_name in SILENCED_LOGGERS:
+        silenced = logging.getLogger(logger_name)
+        silenced.handlers = []
+        silenced.setLevel(logging.WARNING)
+        silenced.propagate = False  # Prevent bubbling up to root
+
+    # Hook all other known loggers into loguru via InterceptHandler
+    for logger_name in set(logging.root.manager.loggerDict):
+        if logger_name in SILENCED_LOGGERS or logger_name in SKIPPED_LOGGERS:
             continue
 
-        if logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"]:
-            logging.getLogger(logger_name).addHandler(InterceptHandler())
+        stdlib_log = logging.getLogger(logger_name)
+        stdlib_log.handlers = []
+        stdlib_log.setLevel(logging.DEBUG)
 
-        if "." not in logger_name:
-            logging.getLogger(logger_name).addHandler(InterceptHandler())
+        is_top_level = "." not in logger_name
+        is_framework = logger_name in FRAMEWORK_LOGGERS
+
+        if is_top_level or is_framework:
+            stdlib_log.addHandler(InterceptHandler())
+
+    # Catch-all: intercept any logger not yet instantiated
+    logging.getLogger().handlers = [InterceptHandler()]
+    logging.getLogger().setLevel(logging.DEBUG)
 
     log.remove()
     log.add(

@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import useTaskParams from '@Hooks/useTaskParams';
 import { FeatureCollection } from 'geojson';
 import { toast } from 'react-toastify';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,7 +16,7 @@ import { point } from '@turf/helpers';
 import { coordAll } from '@turf/meta';
 import { useTypedSelector } from '@Store/hooks';
 import {
-  useGetIndividualTaskQuery,
+  useGetTaskByIndexQuery,
   useGetTaskAssetsInfo,
   useGetTaskWaypointQuery,
 } from '@Api/tasks';
@@ -67,7 +67,7 @@ import Icon from '@Components/common/Icon';
 const MapSection = ({ className }: { className?: string }) => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
-  const { projectId, taskId } = useParams();
+  const { projectId, taskId, taskData, taskIndex } = useTaskParams();
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const [showFlightPlan, setShowFlightPlan] = useState(true);
   const [showTaskArea, setShowTaskArea] = useState(true);
@@ -228,29 +228,25 @@ const MapSection = ({ className }: { className?: string }) => {
       },
     });
 
-  const {
-    data: taskDataPolygon,
-    isFetching: taskDataPolygonIsFetching,
-  }: Record<string, any> = useGetIndividualTaskQuery(taskId as string, {
-    select: (projectRes: any) => {
-      const taskPolygon = projectRes.data;
-      const { geometry } = taskPolygon.outline;
-      const taskAreaPolygon = {
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: geometry.coordinates,
-            },
-            properties: {},
+  const taskDataPolygon = useMemo(() => {
+    const geometry = (taskData as any)?.outline?.geometry;
+    if (!geometry) return null;
+
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: geometry.coordinates,
           },
-        ],
-      };
-      return taskAreaPolygon;
-    },
-  });
+          properties: {},
+        },
+      ],
+    };
+  }, [taskData]);
+  const taskDataPolygonIsFetching = !taskDataPolygon;
 
   useEffect(() => {
     if (taskDataPolygon) {
@@ -719,7 +715,7 @@ const MapSection = ({ className }: { className?: string }) => {
         <VectorLayer
           map={map as Map}
           id="task-polygon"
-          visibleOnMap={taskDataPolygon && !taskDataPolygonIsFetching}
+          visibleOnMap={!!taskDataPolygon && !taskDataPolygonIsFetching}
           geojson={taskDataPolygon as GeojsonType}
           interactions={['feature']}
           layerOptions={{

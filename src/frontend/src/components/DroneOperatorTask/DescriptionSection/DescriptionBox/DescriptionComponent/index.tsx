@@ -23,13 +23,13 @@ const DescriptionBoxComponent = ({
                   className="naxatw-flex naxatw-w-full naxatw-gap-2"
                   key={item.name}
                 >
-                  <p className="naxatw-w-[6.875rem] naxatw-text-[0.75rem] naxatw-text-[#484848]">
+                  <p className="naxatw-w-[6.875rem] naxatw-flex-shrink-0 naxatw-text-[0.75rem] naxatw-text-[#484848]">
                     {item.name}
                   </p>
-                  <p className="naxatw-text-[0.75rem] naxatw-text-[#484848]">
+                  <p className="naxatw-flex-shrink-0 naxatw-text-[0.75rem] naxatw-text-[#484848]">
                     :
                   </p>
-                  <p className="naxatw-text-[0.75rem] naxatw-text-[#484848]">
+                  <p className="naxatw-min-w-0 naxatw-break-all naxatw-text-[0.75rem] naxatw-text-[#484848]">
                     {item.value}
                   </p>
                 </div>

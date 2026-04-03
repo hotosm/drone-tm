@@ -48,8 +48,8 @@ ENV PATH="/bin:$PATH" \
 STOPSIGNAL SIGINT
 
 # Copy files needed for building the project
-COPY ./pyproject.toml ./alembic.ini ./uv.lock /project/
-COPY packages /project/packages
+COPY backend/pyproject.toml backend/alembic.ini backend/uv.lock /project/
+COPY backend/packages /project/packages
 
 ARG MONITORING
 
@@ -116,7 +116,8 @@ WORKDIR /project/src/backend
 COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
 
 # Copy the source files to the final image
-COPY . /project/src/backend
+COPY backend /project/src/backend
+COPY qfield-plugin /project/src/qfield-plugin
 
 VOLUME /project/src/backend/frontend_html
 
@@ -124,4 +125,4 @@ VOLUME /project/src/backend/frontend_html
 ENTRYPOINT [ "/project/src/backend/docker-entrypoint.sh" ]
 
 CMD ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
-    "--log-level", "info", "--reload"]
+    "--log-level", "info"]

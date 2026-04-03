@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/prefer-default-export
 export const getLayerOptionsByStatus = (status: string) => {
   const layerOptions = {
-    LOCKED_FOR_MAPPING: {
+    LOCKED: {
       type: 'fill',
       paint: {
         'fill-color': '#98BBC8',
@@ -9,7 +9,7 @@ export const getLayerOptionsByStatus = (status: string) => {
         'fill-opacity': 0.8,
       },
     },
-    REQUEST_FOR_MAPPING: {
+    AWAITING_APPROVAL: {
       type: 'fill',
       paint: {
         'fill-color': '#F3C5C5',
@@ -17,12 +17,20 @@ export const getLayerOptionsByStatus = (status: string) => {
         'fill-opacity': 0.7,
       },
     },
-    UNLOCKED_TO_VALIDATE: {
+    FULLY_FLOWN: {
       type: 'fill',
       paint: {
         'fill-color': '#176149',
         'fill-outline-color': '#484848',
         'fill-opacity': 0.5,
+      },
+    },
+    HAS_IMAGERY: {
+      type: 'fill',
+      paint: {
+        'fill-color': '#98BBC8',
+        'fill-outline-color': '#484848',
+        'fill-opacity': 0.8,
       },
     },
     IMAGE_PROCESSING_FINISHED: {
@@ -33,7 +41,7 @@ export const getLayerOptionsByStatus = (status: string) => {
         'fill-opacity': 0.7,
       },
     },
-    IMAGE_UPLOADED: {
+    READY_FOR_PROCESSING: {
       type: 'fill',
       paint: {
         'fill-color': '#9ec7ff',
@@ -52,15 +60,15 @@ export const getLayerOptionsByStatus = (status: string) => {
     IMAGE_PROCESSING_FAILED: {
       type: 'fill',
       paint: {
-        'fill-color': '#f00000',
+        'fill-color': '#D73F3F',
         'fill-outline-color': '#484848',
         'fill-opacity': 0.5,
       },
     },
-    UNFLYABLE_TASK: {
+    HAS_ISSUES: {
       type: 'fill',
       paint: {
-        'fill-color': '#9EA5AD',
+        'fill-color': '#D73F3F',
         'fill-outline-color': '#484848',
         'fill-opacity': 0.7,
       },
@@ -86,12 +94,12 @@ export const showPrimaryButton = (
   author: any,
 ) => {
   switch (status) {
-    case 'UNLOCKED_TO_MAP':
+    case 'UNLOCKED':
       return true;
-    case 'LOCKED_FOR_MAPPING':
+    case 'LOCKED':
       if (lockedUser === currentUser || author === currentUser) return true;
       return false;
-    case 'IMAGE_UPLOADED':
+    case 'READY_FOR_PROCESSING':
       if (lockedUser === currentUser || author === currentUser) return true;
       return false;
     case 'IMAGE_PROCESSING_STARTED':

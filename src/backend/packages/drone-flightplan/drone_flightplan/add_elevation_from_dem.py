@@ -100,7 +100,7 @@ def add_elevation_from_dem(raster_file, points, outfile) -> int:
         fd = pointLD.GetFieldDefn(i)
         fields.append(fd)
     for fd in fields:
-        print(f"Adding field {fd.name} of type {fd.GetTypeName()}.")
+        log.debug(f"Adding field {fd.name} of type {fd.GetTypeName()}.")
         outLayer.CreateField(fd)
     featureDefn = outLayer.GetLayerDefn()
 

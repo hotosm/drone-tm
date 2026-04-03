@@ -115,3 +115,19 @@ to get around the limitations of the platform (until it's improved).
   beginning, delete again, etc).
 - Save the waypoint flight and fly it again with only the required
   points.
+
+## End-of-Day Debrief
+
+Especially during the first days of a project, the team should hold a short
+debrief at the end of each mapping day.
+
+Use this time to share any issues or lessons from the field, such as:
+
+- flightplan transfer problems
+- battery performance and charging constraints
+- takeoff / landing considerations
+- weather, signal, or access issues
+- changes to methods that made flying safer or more efficient
+
+A short daily discussion helps the team identify repeated problems early and
+adapt the workflow before they affect more flights.

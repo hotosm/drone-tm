@@ -7,11 +7,11 @@ import { descriptionItems } from '@Constants/projectDescription';
 import { toggleModal } from '@Store/actions/common';
 import { useGetUserDetailsQuery } from '@Api/projects';
 import Skeleton from '@Components/RadixComponents/Skeleton';
-import { formatString } from '@Utils/index';
+import { formatString, buildDownloadUrl } from '@Utils/index';
 import ApprovalSection from './ApprovalSection';
 
 const statusAfterImageUploaded = [
-  'IMAGE_UPLOADED',
+  'READY_FOR_PROCESSING',
   'IMAGE_PROCESSING_FAILED',
   'IMAGE_PROCESSING_STARTED',
   'IMAGE_PROCESSING_FINISHED',
@@ -50,7 +50,7 @@ const DescriptionSection = ({
     if (!projectData?.assets_url) return;
     try {
       const link = document.createElement('a');
-      link.href = projectData?.assets_url;
+      link.href = buildDownloadUrl(projectData.assets_url);
       link.setAttribute('download', '');
       document.body.appendChild(link);
       link.click();
@@ -77,6 +77,13 @@ const DescriptionSection = ({
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-text-sm">
         <p>{projectData?.description || ''}</p>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+          {projectData?.id && (
+            <div className="naxatw-flex naxatw-gap-2">
+              <p className="naxatw-w-[146px]">Project ID</p>
+              <p>:</p>
+              <p className="naxatw-font-semibold">{projectData.id}</p>
+            </div>
+          )}
           {descriptionItems.map(descriptionItem => {
             if (
               projectData?.[descriptionItem.key] ||
@@ -191,18 +198,6 @@ const DescriptionSection = ({
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
           </button>
 
-          {/* Step 4: Identify Flight Gaps (future) */}
-          <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-dashed naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-p-3 naxatw-opacity-50">
-            <div className="naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-gray-300 naxatw-text-sm naxatw-font-bold naxatw-text-white">
-              4
-            </div>
-            <div className="naxatw-flex-1">
-              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-500">Identify Flight Gaps</p>
-              <p className="naxatw-text-xs naxatw-text-gray-400">
-                Coming soon
-              </p>
-            </div>
-          </div>
         </div>
       )}
 

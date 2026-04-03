@@ -1,6 +1,6 @@
 {
   "name": "drone-tm",
-  "version": "2026.1.2",
+  "version": "2026.2.3",
   "private": true,
   "license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "scripts": {
@@ -61,6 +61,7 @@
     "html2canvas": "^1.4.1",
     "mapbox-gl-draw-cut-line-mode": "^1.2.0",
     "maplibre-gl": "^4.7.1",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.0.0",
     "react-datepicker": "^8.0.0",
     "react-dom": "^19.0.0",

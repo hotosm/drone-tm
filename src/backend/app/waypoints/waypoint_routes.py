@@ -16,7 +16,7 @@ from drone_flightplan import (
     create_placemarks,
     create_waypoint,
 )
-from drone_flightplan.drone_type import DroneType, DRONE_PARAMS
+from drone_flightplan.drone_type import DroneType
 from drone_flightplan.enums import GimbalAngle, FlightMode
 from drone_flightplan.output.dji import create_wpml
 
@@ -32,6 +32,7 @@ from app.tasks.task_logic import (
 )
 from app.utils import merge_multipolygon, calculate_flight_time_from_placemarks
 from app.waypoints import waypoint_schemas
+from app.waypoints.flightplan_output import build_flightplan_download_response
 from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
@@ -183,55 +184,11 @@ async def get_task_flightplan(
 
     # If the user needs a download, wrap in correct response
     if download:
-        output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
-
-        if output_format == "DJI_WMPL":
-            return FileResponse(
-                outpath,
-                media_type="application/vnd.google-earth.kmz",
-                filename=(
-                    f"task-{project_task_index}-{mode.name}-project-{project_id}.kmz"
-                ),
-            )
-
-        elif output_format == "POTENSIC_SQLITE":
-            return FileResponse(
-                outpath,
-                media_type="application/vnd.sqlite3",
-                filename="map.db",
-            )
-
-        elif output_format == "POTENSIC_JSON":
-            return FileResponse(
-                outpath,
-                media_type="application/zip",
-                filename=(
-                    f"task-{project_task_index}-{mode.name}-project-{project_id}.zip"
-                ),
-            )
-
-        elif output_format == "QGROUNDCONTROL":
-            return FileResponse(
-                outpath,
-                media_type="application/json",
-                filename=(
-                    f"task-{project_task_index}-{mode.name}-project-{project_id}.plan"
-                ),
-            )
-
-        elif output_format == "LITCHI":
-            return FileResponse(
-                outpath,
-                media_type="text/csv",
-                filename=(
-                    f"task-{project_task_index}-{mode.name}-project-{project_id}.csv"
-                ),
-            )
-
-        else:
-            msg = f"Unsupported output format / drone type: {output_format}"
-            log.error(msg)
-            raise HTTPException(status_code=400, detail=msg)
+        return build_flightplan_download_response(
+            outpath,
+            drone_type=drone_type,
+            filename_stem=f"task-{project_task_index}-{mode.name}-project-{project_id}",
+        )
 
     # If not downloading, re-create placemarks for metadata calcs,
     # as create_flightplan handles placemarks internally
@@ -383,8 +340,10 @@ async def generate_wmpl_kmz(
             drone_type=drone_type,
         )
 
-        return FileResponse(
-            output_file, media_type="application/zip", filename="output.kmz"
+        return build_flightplan_download_response(
+            output_file,
+            drone_type=drone_type,
+            filename_stem="output",
         )
 
 

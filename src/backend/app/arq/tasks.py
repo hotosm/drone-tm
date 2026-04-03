@@ -1,13 +1,21 @@
 import asyncio
+import base64
 import io
+import zipfile
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
+import os
+import shutil
+import tempfile
 
+import aiohttp
 from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings, log_redis_info
 from fastapi import HTTPException
 from loguru import logger as log
 from PIL import Image
+from psycopg.rows import dict_row
 
 from app.config import settings
 from app.db.database import get_db_connection_pool
@@ -26,9 +34,24 @@ from app.projects.project_logic import (
     process_drone_images,
     process_task_metrics,
 )
-from app.s3 import async_get_obj_from_bucket, s3_client
+from app.s3 import (
+    add_obj_to_bucket,
+    async_get_obj_from_bucket,
+    generate_presigned_get_url,
+    s3_client,
+    get_file_from_bucket,
+    delete_objects_by_prefix,
+)
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
+from app.images.image_processing import (
+    extract_and_upload_odm_assets,
+    process_assets_from_odm,
+)
+from app.models.enums import State
+from app.tasks import task_logic
+from app.utils import timestamp
+from app.projects import project_logic
 
 
 THUMBNAIL_SIZE = (200, 200)
@@ -107,7 +130,7 @@ def generate_thumbnail(
         raise ValueError(f"Failed to generate thumbnail: {e}") from e
 
 
-async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
+async def sleep_task(ctx: Dict[Any, Any], **_kwargs: Any) -> Dict[str, str]:
     """Test task to sleep for 1 minute"""
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting sleep_task (Job ID: {job_id})")
@@ -121,7 +144,9 @@ async def sleep_task(ctx: Dict[Any, Any]) -> Dict[str, str]:
         raise
 
 
-async def count_project_tasks(ctx: Dict[Any, Any], project_id: str) -> Dict[str, Any]:
+async def count_project_tasks(
+    ctx: Dict[Any, Any], project_id: str, **_kwargs: Any
+) -> Dict[str, Any]:
     """Example task that counts tasks for a given project"""
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting count_project_tasks (Job ID: {job_id})")
@@ -207,6 +232,7 @@ async def process_uploaded_image(
     filename: str,
     uploaded_by: str,
     batch_id: Optional[str] = None,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Process an uploaded image after it lands in S3 (ARQ worker).
 
@@ -407,6 +433,7 @@ async def classify_image_batch(
     ctx: Dict[Any, Any],
     project_id: str,
     batch_id: str,
+    **_kwargs: Any,
 ) -> Dict:
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting batch classification job {job_id} for batch {batch_id}")
@@ -477,6 +504,7 @@ async def process_batch_images(
     ctx: Dict[Any, Any],
     project_id: str,
     batch_id: str,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Background task to move batch images to task folders and trigger ODM processing.
 
@@ -605,6 +633,7 @@ async def delete_batch_images(
     ctx: Dict[Any, Any],
     project_id: str,
     batch_id: str,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Background task to delete all images in a batch from both database and S3.
 
@@ -647,7 +676,7 @@ async def delete_batch_images(
 
 
 async def process_project_task_metrics(
-    ctx: Dict[Any, Any], project_id: str
+    ctx: Dict[Any, Any], project_id: str, **_kwargs: Any
 ) -> Dict[str, Any]:
     """Process project task metrics in the ARQ worker."""
     job_id = ctx.get("job_id", "unknown")
@@ -693,6 +722,418 @@ async def process_project_task_metrics(
         raise
 
 
+def _zip_plugin_dir() -> Optional[str]:
+    """Zip the QField plugin directory and return base64-encoded bytes.
+
+    Uses the bundled plugin directory at ``/project/src/qfield-plugin``.
+    Returns None if the directory does not exist or is empty.
+    """
+    plugin_dir = Path("/project/src/qfield-plugin")
+
+    if not plugin_dir.is_dir():
+        log.warning("QField plugin directory not found; project will have no plugin")
+        return None
+
+    buf = io.BytesIO()
+    file_count = 0
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(plugin_dir.rglob("*")):
+            if file_path.is_file():
+                arc_name = str(file_path.relative_to(plugin_dir))
+                zf.write(file_path, arc_name)
+                file_count += 1
+
+    if file_count == 0:
+        log.warning("QField plugin directory is empty: %s", plugin_dir)
+        return None
+
+    log.info("Zipped %d plugin files from %s", file_count, plugin_dir)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+async def generate_qfield_project(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """Generate a QField project via the QGIS container and upload to S3.
+
+    Fetches task geometries and project info from the DB, sends them to
+    the QGIS container's /drone endpoint, and uploads the resulting zip
+    to the publicuploads/ prefix in S3.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        f"Starting generate_qfield_project (Job ID: {job_id}): project={project_id}"
+    )
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                # Fetch project info
+                await cur.execute(
+                    "SELECT id, name, ST_AsGeoJSON(outline)::jsonb AS outline, dem_url FROM projects WHERE id = %s",
+                    (project_id,),
+                )
+                project = await cur.fetchone()
+                if not project:
+                    raise RuntimeError(f"Project {project_id} not found")
+
+                # Fetch tasks as GeoJSON FeatureCollection
+                await cur.execute(
+                    """
+                    SELECT json_build_object(
+                        'type', 'FeatureCollection',
+                        'features', COALESCE(json_agg(
+                            json_build_object(
+                                'type', 'Feature',
+                                'geometry', ST_AsGeoJSON(outline)::json,
+                                'properties', json_build_object(
+                                    'project_task_id', project_task_index
+                                )
+                            )
+                        ), '[]'::json)
+                    ) AS geojson
+                    FROM tasks
+                    WHERE project_id = %s
+                    """,
+                    (project_id,),
+                )
+                row = await cur.fetchone()
+                tasks_geojson = row["geojson"]
+
+                # Compute extent from project outline
+                await cur.execute(
+                    """
+                    SELECT ST_XMin(outline), ST_YMin(outline),
+                           ST_XMax(outline), ST_YMax(outline)
+                    FROM projects WHERE id = %s
+                    """,
+                    (project_id,),
+                )
+                ext = await cur.fetchone()
+                extent_str = f"{ext['st_xmin']},{ext['st_ymin']},{ext['st_xmax']},{ext['st_ymax']}"
+
+        # Build request payload for the QGIS container
+        project_name = project["name"] or f"project-{project_id[:8]}"
+        # Sanitize project name for filesystem use
+        safe_name = "".join(
+            c if c.isalnum() or c in " -_" else "_" for c in project_name
+        ).strip()
+        if not safe_name:
+            safe_name = f"project-{project_id[:8]}"
+
+        payload = {
+            "project_id": project_id,
+            "project_name": safe_name,
+            "tasks_geojson": tasks_geojson,
+            "extent": extent_str,
+            "flight_params": {},
+            "dem_url": None,
+            "plugin_zip": None,
+        }
+
+        # If project has a DEM, generate an internal presigned URL for the QGIS container
+        dem_url = project.get("dem_url")
+        if dem_url:
+            # dem_url is stored as an S3 key like "projects/{id}/dem.tif"
+            if not dem_url.startswith("http"):
+                dem_url = generate_presigned_get_url(
+                    settings.S3_BUCKET_NAME, dem_url, expires_hours=2, internal=True
+                )
+            payload["dem_url"] = dem_url
+
+        # Bundle the QField plugin directory into a zip and base64-encode it
+        plugin_b64 = _zip_plugin_dir()
+        if plugin_b64:
+            payload["plugin_zip"] = plugin_b64
+
+        # Call QGIS container
+        qgis_url = f"{settings.QGIS_URL}/drone"
+        log.info(f"Calling QGIS container at {qgis_url} for project {project_id}")
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                qgis_url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=300),
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    raise RuntimeError(f"QGIS container returned {resp.status}: {body}")
+                zip_bytes = await resp.read()
+
+        log.info(f"Received {len(zip_bytes)} bytes from QGIS container")
+
+        # Upload to S3
+        s3_key = f"publicuploads/qfield/{project_id}.zip"
+        add_obj_to_bucket(
+            settings.S3_BUCKET_NAME,
+            io.BytesIO(zip_bytes),
+            s3_key,
+            content_type="application/zip",
+        )
+        log.info(f"Uploaded QField project to s3://{settings.S3_BUCKET_NAME}/{s3_key}")
+
+        return {
+            "status": "success",
+            "message": "QField project generated",
+            "project_id": project_id,
+            "s3_key": s3_key,
+        }
+
+    except Exception as e:
+        log.error(f"Failed to generate QField project (Job: {job_id}): {str(e)}")
+        raise
+
+
+async def process_imported_odm_assets(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    task_id: str,
+    s3_zip_key: str,
+    user_id: str,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """Process an ODM zip uploaded by the user (import flow).
+
+    Downloads the zip from S3, validates it contains an orthophoto,
+    extracts individual files to S3 under ``odm/``, reprojects the
+    orthophoto, and cleans up the temporary upload.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting process_imported_odm_assets (Job ID: {job_id}): task={task_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        # Download the uploaded zip from S3
+        zip_path = os.path.join(temp_dir, "odm_import.zip")
+        result = get_file_from_bucket(settings.S3_BUCKET_NAME, s3_zip_key, zip_path)
+        if result is False:
+            raise FileNotFoundError(f"Could not download ODM zip from {s3_zip_key}")
+
+        # Validate the zip contains an orthophoto
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            if "odm_orthophoto/odm_orthophoto.tif" not in zf.namelist():
+                raise ValueError(
+                    "Invalid ODM zip: missing odm_orthophoto/odm_orthophoto.tif"
+                )
+
+        pid = UUID(project_id)
+        tid = UUID(task_id)
+
+        # Transition task state to IMAGE_PROCESSING_STARTED
+        async with db_pool.connection() as conn:
+            result = await task_logic.update_task_state_system(
+                conn,
+                pid,
+                tid,
+                "ODM import processing started",
+                State.READY_FOR_PROCESSING,
+                State.IMAGE_PROCESSING_STARTED,
+                timestamp(),
+            )
+            if result is None:
+                result = await task_logic.update_task_state_system(
+                    conn,
+                    pid,
+                    tid,
+                    "ODM import retry",
+                    State.IMAGE_PROCESSING_FAILED,
+                    State.IMAGE_PROCESSING_STARTED,
+                    timestamp(),
+                )
+            if result is None:
+                raise RuntimeError(
+                    "Cannot start import: task is not in a valid state "
+                    "(expected READY_FOR_PROCESSING or IMAGE_PROCESSING_FAILED)"
+                )
+            await conn.commit()
+
+        # Extract and upload all ODM assets
+        extract_and_upload_odm_assets(zip_path, temp_dir, pid, tid)
+
+        # Delete the temporary uploaded zip from S3
+        try:
+            client = s3_client()
+            client.remove_object(settings.S3_BUCKET_NAME, s3_zip_key)
+            log.info(f"Deleted temporary import zip from S3: {s3_zip_key}")
+        except Exception as e:
+            log.warning(f"Failed to delete import zip {s3_zip_key}: {e}")
+
+        # Transition task state to IMAGE_PROCESSING_FINISHED
+        async with db_pool.connection() as conn:
+            await task_logic.update_task_state_system(
+                conn,
+                pid,
+                tid,
+                "ODM import completed",
+                State.IMAGE_PROCESSING_STARTED,
+                State.IMAGE_PROCESSING_FINISHED,
+                timestamp(),
+            )
+
+            assets_prefix = f"projects/{project_id}/{task_id}/odm/"
+            await project_logic.update_task_field(
+                conn, pid, tid, "assets_url", assets_prefix
+            )
+            await conn.commit()
+
+        log.info(f"ODM import complete for task {task_id}")
+        return {
+            "message": "ODM import completed",
+            "project_id": project_id,
+            "task_id": task_id,
+        }
+
+    except Exception as e:
+        log.error(f"ODM import failed (Job: {job_id}): {e}")
+
+        # Clean up the temporary zip from S3 on failure
+        try:
+            client = s3_client()
+            client.remove_object(settings.S3_BUCKET_NAME, s3_zip_key)
+            log.info(f"Cleaned up import zip from S3 after failure: {s3_zip_key}")
+        except Exception as cleanup_err:
+            log.warning(f"Failed to clean up import zip {s3_zip_key}: {cleanup_err}")
+
+        # Clean up any partially-uploaded ODM assets and derived files
+        try:
+            partial_prefix = f"projects/{project_id}/{task_id}/odm/"
+            delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
+
+            # Also remove derived files written outside the odm/ prefix,
+            # including the legacy orthophoto/ path to prevent stale
+            # fallback serving after a failed import.
+            cleanup_client = s3_client()
+            for stale_key in (
+                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif",
+                f"projects/{project_id}/{task_id}/images.json",
+            ):
+                try:
+                    cleanup_client.remove_object(settings.S3_BUCKET_NAME, stale_key)
+                except Exception:
+                    pass
+
+            log.info(
+                f"Cleaned up partial ODM assets and derived files for task {task_id}"
+            )
+        except Exception as cleanup_err:
+            log.warning(f"Failed to clean up partial ODM assets: {cleanup_err}")
+
+        # Try to mark task as failed - attempt from both possible
+        # pre-failure states so early failures (before the state
+        # transition to IMAGE_PROCESSING_STARTED) are also recorded.
+        try:
+            async with db_pool.connection() as conn:
+                result = await task_logic.update_task_state_system(
+                    conn,
+                    UUID(project_id),
+                    UUID(task_id),
+                    f"ODM import failed: {e}",
+                    State.IMAGE_PROCESSING_STARTED,
+                    State.IMAGE_PROCESSING_FAILED,
+                    timestamp(),
+                )
+                if result is None:
+                    # Failure happened before state moved to STARTED
+                    await task_logic.update_task_state_system(
+                        conn,
+                        UUID(project_id),
+                        UUID(task_id),
+                        f"ODM import failed: {e}",
+                        State.READY_FOR_PROCESSING,
+                        State.IMAGE_PROCESSING_FAILED,
+                        timestamp(),
+                    )
+                await conn.commit()
+        except Exception as state_err:
+            log.error(f"Failed to update task state after import failure: {state_err}")
+        raise
+
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+
+
+async def process_odm_webhook_assets(
+    ctx: Dict[Any, Any],
+    node_odm_url: str,
+    dtm_project_id: str,
+    odm_task_id: str,
+    state_name: Optional[str] = None,
+    message: Optional[str] = None,
+    dtm_task_id: Optional[str] = None,
+    odm_status_code: Optional[int] = None,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """ARQ wrapper for process_assets_from_odm (webhook flow).
+
+    Offloads the heavy zip download, extraction, and GDAL reprojection
+    from the API server to the worker so it doesn't trigger liveness
+    probe failures.
+
+    Uses a Redis lock (SET NX) to prevent concurrent processing of the
+    same task, in addition to arq's ``_job_id`` dedup at enqueue time.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        "Starting process_odm_webhook_assets (Job ID: {}): project={} odm_task={}",
+        job_id,
+        dtm_project_id,
+        odm_task_id,
+    )
+
+    # Distributed lock: prevent two workers from processing the same
+    # task concurrently (belt-and-suspenders alongside _job_id dedup).
+    lock_target = dtm_task_id or dtm_project_id
+    lock_key = f"lock:odm-assets:{lock_target}"
+    redis = ctx.get("redis")
+    lock_acquired = False
+    if redis:
+        lock_acquired = await redis.set(
+            lock_key,
+            job_id,
+            nx=True,
+            ex=3600,  # 1 hour TTL
+        )
+        if not lock_acquired:
+            log.warning(
+                "Skipping process_odm_webhook_assets for {}: "
+                "another job already holds the lock",
+                lock_target,
+            )
+            return {"status": "skipped", "reason": "concurrent_lock"}
+
+    try:
+        project_uuid = UUID(dtm_project_id)
+        task_uuid = UUID(dtm_task_id) if dtm_task_id else None
+        state = State[state_name] if state_name else None
+
+        await process_assets_from_odm(
+            node_odm_url=node_odm_url,
+            dtm_project_id=project_uuid,
+            odm_task_id=odm_task_id,
+            state=state,
+            message=message,
+            dtm_task_id=task_uuid,
+            odm_status_code=odm_status_code,
+        )
+
+        return {"status": "completed", "project_id": dtm_project_id}
+    finally:
+        if redis and lock_acquired:
+            await redis.delete(lock_key)
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -708,6 +1149,9 @@ class WorkerSettings:
         delete_batch_images,
         process_project_task_metrics,
         download_and_upload_dem,
+        generate_qfield_project,
+        process_imported_odm_assets,
+        process_odm_webhook_assets,
     ]
 
     queue_name = "default_queue"

@@ -4,23 +4,23 @@ import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGetProjectsDetailQuery } from '@Api/projects';
-import { useGetAllTaskAssetsInfo } from '@Api/tasks';
+import { useGetAllTaskAssetsInfo, useGetOdmQueueInfo } from '@Api/tasks';
 import { postProcessImagery } from '@Services/tasks';
 import { processAllImagery, saveGcpFile } from '@Services/project';
 import { getProjectTaskImagerySummary, TaskImagerySummary } from '@Services/classification';
-import { formatString } from '@Utils/index';
+import { formatString, buildDownloadUrl } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import Icon from '@Components/common/Icon';
 import { toggleModal } from '@Store/actions/common';
 import { setProjectState } from '@Store/actions/project';
 
 const stateColors: Record<string, string> = {
-  IMAGE_UPLOADED: '#9ec7ff',
+  READY_FOR_PROCESSING: '#9ec7ff',
   IMAGE_PROCESSING_STARTED: '#9C77B2',
   IMAGE_PROCESSING_FINISHED: '#ACD2C4',
-  IMAGE_PROCESSING_FAILED: '#f00000',
-  LOCKED_FOR_MAPPING: '#98BBC8',
-  UNFLYABLE_TASK: '#9EA5AD',
+  IMAGE_PROCESSING_FAILED: '#D73F3F',
+  LOCKED: '#98BBC8',
+  HAS_ISSUES: '#D73F3F',
 };
 
 type ProcessingDialogTask = {
@@ -37,9 +37,39 @@ type ProcessingDialogProjectDetail = {
   has_gcp?: boolean;
 };
 
+type OdmQueueTask = {
+  uuid: string;
+  name?: string;
+  images_count?: number;
+  status_label: string;
+  status_code: number;
+  progress?: number;
+  processing_time?: number;
+  dtm_task_id?: string;
+  task_index?: number;
+};
+
+type OdmStatusGroup = {
+  status_code: number;
+  status_label: string;
+  count: number;
+  tasks: OdmQueueTask[];
+};
+
+type OdmQueueInfo = {
+  total_queued: number;
+  total_running: number;
+  total_failed: number;
+  total_completed: number;
+  total_canceled: number;
+  total_tasks: number;
+  queue_position?: number;
+  groups: OdmStatusGroup[];
+};
+
 const ProcessingStatusDialog = () => {
   const { pathname } = useLocation();
-  const projectId = useMemo(() => {
+  const projectRouteId = useMemo(() => {
     const projectMatch = matchPath('/projects/:id', pathname);
     const approvalMatch = matchPath('/projects/:id/approval', pathname);
     return projectMatch?.params.id || approvalMatch?.params.id || '';
@@ -51,12 +81,14 @@ const ProcessingStatusDialog = () => {
   const [processingTasks, setProcessingTasks] = useState<Set<string>>(
     new Set(),
   );
+  const [showQueueInfo, setShowQueueInfo] = useState(false);
 
   // allTaskAssets: S3-based data (assets_url, image_count from disk, state)
-  const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
-  const { data: projectDetail } = useGetProjectsDetailQuery(projectId) as {
+  const { data: projectDetail } = useGetProjectsDetailQuery(projectRouteId) as {
     data?: ProcessingDialogProjectDetail;
   };
+  const projectId = (projectDetail as any)?.id || projectRouteId;
+  const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
 
   // Backend summary: authoritative source for has_ready_imagery
   const { data: taskSummary } = useQuery<TaskImagerySummary[]>({
@@ -65,6 +97,18 @@ const ProcessingStatusDialog = () => {
     enabled: !!projectId,
     refetchInterval: 30000,
   });
+
+  const {
+    data: queueInfo,
+    refetch: refetchQueueInfo,
+    isFetching: isQueueFetching,
+    dataUpdatedAt: queueUpdatedAt,
+  } = useGetOdmQueueInfo(projectId, showQueueInfo) as {
+    data?: OdmQueueInfo;
+    refetch: () => Promise<any>;
+    isFetching: boolean;
+    dataUpdatedAt: number;
+  };
 
   // Build a lookup from task_id → has_ready_imagery so the backend is the
   // single source of truth for readiness decisions.
@@ -79,8 +123,8 @@ const ProcessingStatusDialog = () => {
   }, [taskSummary]);
 
   const { mutateAsync: processTask } = useMutation({
-    mutationFn: ({ taskId }: { taskId: string }) =>
-      postProcessImagery(projectId, taskId),
+    mutationFn: ({ taskId, odmUrl }: { taskId: string; odmUrl?: string }) =>
+      postProcessImagery(projectId, taskId, odmUrl),
   });
 
   const { mutate: startAllImageProcessing, isPending: isProcessingAll } =
@@ -148,10 +192,10 @@ const ProcessingStatusDialog = () => {
   }, [selectedTasks, processTask, queryClient, projectId]);
 
   const handleProcessSingle = useCallback(
-    async (taskId: string) => {
+    async (taskId: string, odmUrl?: string) => {
       setProcessingTasks(prev => new Set(prev).add(taskId));
       try {
-        await processTask({ taskId });
+        await processTask({ taskId, odmUrl });
         toast.success(`Task processing started`);
         queryClient.invalidateQueries({
           queryKey: ['all-task-assets-info', projectId],
@@ -174,7 +218,7 @@ const ProcessingStatusDialog = () => {
   const handleDownloadAssets = useCallback((assetsUrl: string) => {
     try {
       const link = document.createElement('a');
-      link.href = assetsUrl;
+      link.href = buildDownloadUrl(assetsUrl);
       link.setAttribute('download', '');
       document.body.appendChild(link);
       link.click();
@@ -254,7 +298,7 @@ const ProcessingStatusDialog = () => {
         .filter(
           (task) =>
             task.assigned_images > 0 ||
-            task.task_state === 'IMAGE_UPLOADED' ||
+            task.task_state === 'READY_FOR_PROCESSING' ||
             task.task_state === 'IMAGE_PROCESSING_STARTED' ||
             task.task_state === 'IMAGE_PROCESSING_FINISHED' ||
             task.task_state === 'IMAGE_PROCESSING_FAILED',
@@ -279,7 +323,7 @@ const ProcessingStatusDialog = () => {
       .filter(
         (t: any) =>
           t.image_count > 0 ||
-          t.state === 'IMAGE_UPLOADED' ||
+          t.state === 'READY_FOR_PROCESSING' ||
           t.state === 'IMAGE_PROCESSING_STARTED' ||
           t.state === 'IMAGE_PROCESSING_FINISHED' ||
           t.state === 'IMAGE_PROCESSING_FAILED',
@@ -309,7 +353,7 @@ const ProcessingStatusDialog = () => {
 
       const next = new Set(prev);
       taskList.forEach((task) => {
-        if (next.has(task.task_id) && task.state !== 'IMAGE_UPLOADED') {
+        if (next.has(task.task_id) && task.state !== 'READY_FOR_PROCESSING') {
           next.delete(task.task_id);
         }
       });
@@ -364,18 +408,33 @@ const ProcessingStatusDialog = () => {
   }, [isProcessingAll, totalTaskCount, taskSummary, allTasksProcessed]);
 
   const hasSavedGcp = Boolean(projectDetail?.has_gcp);
+  const queueLastUpdated = queueUpdatedAt
+    ? new Date(queueUpdatedAt).toLocaleTimeString()
+    : null;
 
   return (
-    <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
+    <>
+      <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
       {/* Per-task processing section */}
-      <div>
-        <h3 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
-          Task Processing (Quick Orthophoto)
-        </h3>
-        <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-          Processes images for each task individually to produce a quick
-          preview orthophoto.
-        </p>
+      <div className="naxatw-flex naxatw-items-start naxatw-justify-between naxatw-gap-3">
+        <div>
+          <h3 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
+            Task Processing (Quick Orthophoto)
+          </h3>
+          <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
+            Processes images for each task individually to produce a quick
+            preview orthophoto.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="naxatw-h-8 naxatw-shrink-0 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
+          leftIcon="queue"
+          iconClassname="!naxatw-text-sm"
+          onClick={() => setShowQueueInfo(true)}
+        >
+          View Queue
+        </Button>
       </div>
 
       {/* Task table */}
@@ -510,7 +569,18 @@ const ProcessingStatusDialog = () => {
                                 : 'play_arrow'
                             }
                             iconClassname="!naxatw-text-sm"
-                            onClick={() => handleProcessSingle(task.task_id)}
+                            onClick={(e) => {
+                              if (e.ctrlKey || e.metaKey) {
+                                const odmUrl = window.prompt(
+                                  'Enter a NodeODM server URL for processing\n(e.g. https://odm.example.com/?token=YOUR_TOKEN)',
+                                );
+                                if (odmUrl !== null) {
+                                  handleProcessSingle(task.task_id, odmUrl || undefined);
+                                }
+                              } else {
+                                handleProcessSingle(task.task_id);
+                              }
+                            }}
                           >
                             {getProcessButtonLabel(task)}
                           </Button>
@@ -541,14 +611,16 @@ const ProcessingStatusDialog = () => {
       )}
 
       {/* Status summary */}
-      <p className="naxatw-text-center naxatw-text-xs naxatw-text-gray-500">
-        {processedCount}/{taskList.length} tasks processed
-        {taskList.length < totalTaskCount && (
-          <span className="naxatw-ml-1">
-            ({totalTaskCount - taskList.length} tasks awaiting imagery)
-          </span>
-        )}
-      </p>
+      <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-1">
+        <p className="naxatw-text-center naxatw-text-xs naxatw-text-gray-500">
+          {processedCount}/{taskList.length} tasks processed
+          {taskList.length < totalTaskCount && (
+            <span className="naxatw-ml-1">
+              ({totalTaskCount - taskList.length} tasks awaiting imagery)
+            </span>
+          )}
+        </p>
+      </div>
 
       {taskList.length === 0 && (
         <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2 naxatw-py-6 naxatw-text-gray-500">
@@ -559,7 +631,7 @@ const ProcessingStatusDialog = () => {
             No tasks are ready for processing yet.
           </p>
           <p className="naxatw-text-xs">
-            Upload imagery and mark tasks as fully flown in the Verify Imagery step first.
+            Upload imagery and mark tasks ready for processing in the Verify Imagery step first.
           </p>
         </div>
       )}
@@ -653,7 +725,174 @@ const ProcessingStatusDialog = () => {
           Start Final Processing
         </Button>
       </div>
-    </div>
+      </div>
+
+      {showQueueInfo && (
+        <>
+          <button
+            type="button"
+            aria-label="Close queue panel"
+            className="naxatw-fixed naxatw-inset-0 naxatw-z-[11111] naxatw-bg-black/20"
+            onClick={() => setShowQueueInfo(false)}
+          />
+          <div className="naxatw-fixed naxatw-inset-y-0 naxatw-right-0 naxatw-z-[11112] naxatw-flex naxatw-w-full naxatw-justify-end">
+            <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-max-w-xl naxatw-flex-col naxatw-border-l naxatw-border-gray-200 naxatw-bg-white naxatw-shadow-2xl">
+              <div className="naxatw-flex naxatw-items-start naxatw-justify-between naxatw-border-b naxatw-border-gray-200 naxatw-px-5 naxatw-py-4">
+                <div>
+                  <h3 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
+                    ODM Processing Queue
+                  </h3>
+                  <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
+                    Monitor active processing and refresh to see queue movement.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="naxatw-rounded-full naxatw-p-2 naxatw-text-gray-500 hover:naxatw-bg-gray-100"
+                  onClick={() => setShowQueueInfo(false)}
+                >
+                  <span className="material-icons">close</span>
+                </button>
+              </div>
+
+              <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-gap-3 naxatw-border-b naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-px-5 naxatw-py-3">
+                <div className="naxatw-flex naxatw-flex-wrap naxatw-items-center naxatw-gap-2 naxatw-text-xs">
+                  {(queueInfo?.total_running ?? 0) > 0 && (
+                    <span className="naxatw-rounded-full naxatw-bg-purple-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-purple-800">
+                      {queueInfo?.total_running} running
+                    </span>
+                  )}
+                  {(queueInfo?.total_queued ?? 0) > 0 && (
+                    <span className="naxatw-rounded-full naxatw-bg-yellow-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-yellow-800">
+                      {queueInfo?.total_queued} queued
+                    </span>
+                  )}
+                  {(queueInfo?.total_failed ?? 0) > 0 && (
+                    <span className="naxatw-rounded-full naxatw-bg-red-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-red-800">
+                      {queueInfo?.total_failed} failed
+                    </span>
+                  )}
+                  <span className="naxatw-rounded-full naxatw-bg-gray-200 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-gray-700">
+                    {queueInfo?.total_tasks ?? 0} total
+                  </span>
+                </div>
+                <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
+                  {queueLastUpdated && (
+                    <span className="naxatw-text-xs naxatw-text-gray-500">
+                      Updated {queueLastUpdated}
+                    </span>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="naxatw-h-8 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
+                    leftIcon={isQueueFetching ? 'sync' : 'refresh'}
+                    iconClassname={isQueueFetching ? 'naxatw-animate-spin !naxatw-text-sm' : '!naxatw-text-sm'}
+                    onClick={() => refetchQueueInfo()}
+                    disabled={isQueueFetching}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
+              <div className="naxatw-flex-1 naxatw-overflow-y-auto naxatw-px-5 naxatw-py-4">
+                {!queueInfo && isQueueFetching ? (
+                  <p className="naxatw-text-sm naxatw-text-gray-500">
+                    Loading queue info...
+                  </p>
+                ) : !queueInfo || queueInfo.groups.length === 0 ? (
+                  <div className="naxatw-flex naxatw-h-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-text-center">
+                    <span className="material-icons naxatw-text-4xl naxatw-text-gray-300">
+                      queue
+                    </span>
+                    <p className="naxatw-text-sm naxatw-text-gray-700">
+                      No tasks on the processing server.
+                    </p>
+                    <p className="naxatw-text-xs naxatw-text-gray-500">
+                      Refresh this panel to check for queue changes.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
+                    {queueInfo.groups.map((group: OdmStatusGroup) => {
+                      const groupStyles: Record<number, { bg: string; text: string; headerBg: string; icon?: string }> = {
+                        20: { bg: 'naxatw-bg-purple-50', text: 'naxatw-text-purple-800', headerBg: 'naxatw-bg-purple-100', icon: 'sync' },
+                        10: { bg: 'naxatw-bg-yellow-50', text: 'naxatw-text-yellow-800', headerBg: 'naxatw-bg-yellow-100', icon: 'schedule' },
+                        30: { bg: 'naxatw-bg-red-50', text: 'naxatw-text-red-800', headerBg: 'naxatw-bg-red-100', icon: 'error_outline' },
+                        40: { bg: 'naxatw-bg-green-50', text: 'naxatw-text-green-800', headerBg: 'naxatw-bg-green-100', icon: 'check_circle' },
+                        50: { bg: 'naxatw-bg-gray-50', text: 'naxatw-text-gray-600', headerBg: 'naxatw-bg-gray-100', icon: 'cancel' },
+                      };
+                      const style = groupStyles[group.status_code] || { bg: 'naxatw-bg-gray-50', text: 'naxatw-text-gray-700', headerBg: 'naxatw-bg-gray-100' };
+
+                      return (
+                        <div key={group.status_code} className={`naxatw-overflow-hidden naxatw-rounded-lg naxatw-border naxatw-border-gray-200 ${style.bg}`}>
+                          <div className={`naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 ${style.headerBg}`}>
+                            {style.icon && (
+                              <Icon
+                                name={style.icon}
+                                className={`!naxatw-text-base ${style.text} ${group.status_code === 20 ? 'naxatw-animate-spin' : ''}`}
+                              />
+                            )}
+                            <span className={`naxatw-text-sm naxatw-font-semibold ${style.text}`}>
+                              {group.status_label}
+                            </span>
+                            <span className={`naxatw-rounded-full naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-medium ${style.headerBg} ${style.text}`}>
+                              {group.count}
+                            </span>
+                          </div>
+                          <table className="naxatw-w-full naxatw-text-sm">
+                            <thead>
+                              <tr className="naxatw-border-b naxatw-border-gray-200">
+                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">#</th>
+                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">Name</th>
+                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">Images</th>
+                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-right naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
+                                  {group.status_code === 20 ? 'Progress' : 'Time'}
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.tasks.map((task: OdmQueueTask, index: number) => (
+                                <tr key={task.uuid} className="naxatw-border-b naxatw-border-gray-100 last:naxatw-border-0">
+                                  <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-500">{index + 1}</td>
+                                  <td className="naxatw-max-w-[220px] naxatw-truncate naxatw-px-3 naxatw-py-2 naxatw-font-medium naxatw-text-gray-900">
+                                    {task.task_index != null ? `Task ${task.task_index}` : task.name || task.uuid.slice(0, 8)}
+                                  </td>
+                                  <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-600">{task.images_count ?? '-'}</td>
+                                  <td className="naxatw-px-3 naxatw-py-2 naxatw-text-right naxatw-text-gray-600">
+                                    {group.status_code === 20 && task.progress != null
+                                      ? `${Math.round(task.progress)}%`
+                                      : task.processing_time != null
+                                        ? `${Math.round(task.processing_time / 1000)}s`
+                                        : '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="naxatw-border-t naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-px-5 naxatw-py-3">
+                {queueInfo?.queue_position != null ? (
+                  <p className="naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
+                    Your project is approximately #{queueInfo.queue_position} in the queue.
+                  </p>
+                ) : (
+                  <p className="naxatw-text-sm naxatw-text-gray-500">
+                    Queue position will appear here when this project has an active ODM job.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 };
 

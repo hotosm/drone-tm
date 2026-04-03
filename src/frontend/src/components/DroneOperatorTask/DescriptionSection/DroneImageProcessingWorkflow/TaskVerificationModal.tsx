@@ -8,6 +8,8 @@ import {
   markTaskAsVerified,
   deleteTaskImage,
   TaskVerificationData,
+  FlightGapDetectionData,
+  getFlightGapDetectionData,
 } from '@Services/classification';
 import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
@@ -15,6 +17,9 @@ import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
 import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
 import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
 import { GeojsonType } from '@Components/common/MapLibreComponents/types';
+import { setProjectState } from '@Store/actions/project';
+import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
+import FlightGapDetectionModal from './FlightGapDetectionModal';
 
 interface TaskVerificationModalProps {
   isOpen: boolean;
@@ -34,10 +39,19 @@ const TaskVerificationModal = ({
   onVerified,
 }: TaskVerificationModalProps) => {
   const queryClient = useQueryClient();
+  const dispatch = useTypedDispatch();
+  const tasksData = useTypedSelector(state => state.project.tasksData);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isStyleReady, setIsStyleReady] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [flightGapModal, setFlightGapModal] = useState<{
+    isOpen: boolean;
+    gapData: FlightGapDetectionData | null;
+  }>({
+    isOpen: false,
+    gapData: null,
+  });
   const popupRef = useRef<Popup | null>(null);
   const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hasFitRef = useRef(false);
@@ -57,6 +71,9 @@ const TaskVerificationModal = ({
       setIsMapLoaded(false);
       setIsStyleReady(false);
       hasFitRef.current = false;
+    }
+    if (!isOpen) {
+      setFlightGapModal({ isOpen: false, gapData: null });
     }
   }, [isOpen]);
 
@@ -273,11 +290,73 @@ const TaskVerificationModal = ({
   const verifyMutation = useMutation({
     mutationFn: () => markTaskAsVerified(projectId, taskId),
     onSuccess: () => {
-      toast.success(`Task #${taskIndex} marked as fully flown`);
+      const nextState = 'READY_FOR_PROCESSING';
+
+      queryClient.setQueryData(['project-task-states', projectId], (existing: any) => {
+        if (Array.isArray(existing)) {
+          return existing.map((task: Record<string, any>) =>
+            task.task_id === taskId ? { ...task, state: nextState } : task,
+          );
+        }
+
+        if (Array.isArray(existing?.data)) {
+          return {
+            ...existing,
+            data: existing.data.map((task: Record<string, any>) =>
+              task.task_id === taskId ? { ...task, state: nextState } : task,
+            ),
+          };
+        }
+
+        return existing;
+      });
+
+      if (tasksData) {
+        dispatch(
+          setProjectState({
+            tasksData: tasksData.map((task: Record<string, any>) =>
+              task.id === taskId
+                ? {
+                    ...task,
+                    state: nextState,
+                    outline: {
+                      ...task.outline,
+                      properties: {
+                        ...task.outline.properties,
+                        state: nextState,
+                      },
+                    },
+                  }
+                : task,
+            ),
+          }),
+        );
+      }
+
+      // Optimistically update project-detail cache so the Processing
+      // button becomes available immediately (before the refetch lands).
+      // Use setQueriesData (partial match) because the cache key may use
+      // either the project UUID or a slug, depending on how the user navigated.
+      queryClient.setQueriesData<any>({ queryKey: ['project-detail'] }, (existing: any) => {
+        const data = existing?.data ?? existing;
+        if (data?.tasks && Array.isArray(data.tasks)) {
+          const updatedTasks = data.tasks.map((task: Record<string, any>) =>
+            task.id === taskId ? { ...task, state: nextState } : task,
+          );
+          if (existing?.data) {
+            return { ...existing, data: { ...data, tasks: updatedTasks } };
+          }
+          return { ...data, tasks: updatedTasks };
+        }
+        return existing;
+      });
+
+      toast.success(`Task #${taskIndex} marked ready for processing`);
       queryClient.invalidateQueries({ queryKey: ['taskVerification'] });
+      queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project-detail', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-detail'] });
       queryClient.invalidateQueries({
         queryKey: ['projectTaskImagerySummary', projectId],
       });
@@ -303,6 +382,28 @@ const TaskVerificationModal = ({
     },
     onError: (error: any) => {
       const message = error?.response?.data?.detail || error.message || 'Failed to delete image';
+      toast.error(message);
+    },
+  });
+
+  const flightGapAnalysisMutation = useMutation<
+    FlightGapDetectionData,
+    Error,
+    void
+  >({
+    mutationFn: () =>
+      getFlightGapDetectionData(projectId, taskId),
+    onSuccess: (data) => {
+      setFlightGapModal({
+        isOpen: true,
+        gapData: data,
+      });
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.detail ||
+        error.message ||
+        'Failed to run flight gap analysis';
       toast.error(message);
     },
   });
@@ -354,6 +455,7 @@ const TaskVerificationModal = ({
   const imageGeoJsonData = imagesGeoJson();
   const coveragePercentage = verificationData?.coverage_percentage ?? 0;
   const isLowCoverage = coveragePercentage < 100;
+  const isAlreadyVerified = verificationData?.is_verified ?? false;
 
   return (
     <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[9999] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
@@ -365,7 +467,7 @@ const TaskVerificationModal = ({
               Verify Task #{taskIndex}
             </h2>
             <p className="naxatw-text-sm naxatw-text-gray-500">
-              Review images on the map and verify coverage before processing
+              Review images on the map and verify coverage before marking ready for processing
             </p>
           </div>
           <button
@@ -570,17 +672,43 @@ const TaskVerificationModal = ({
               Cancel
             </Button>
             <Button
+              variant="outline"
+              className="naxatw-border-red-600 naxatw-text-red-700 hover:naxatw-bg-red-50 disabled:naxatw-opacity-50"
+              onClick={() => flightGapAnalysisMutation.mutate()}
+              disabled={flightGapAnalysisMutation.isPending || !verificationData?.images.length}
+              leftIcon={flightGapAnalysisMutation.isPending ? 'sync' : 'search'}
+            >
+              {flightGapAnalysisMutation.isPending ? 'Finding Gaps...' : 'Identify Flight Gaps'}
+            </Button>
+            <Button
               variant="ghost"
               className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700 disabled:naxatw-opacity-50"
               onClick={() => verifyMutation.mutate()}
-              disabled={verifyMutation.isPending || !verificationData?.images.length}
+              disabled={
+                verifyMutation.isPending ||
+                !verificationData?.images.length ||
+                isAlreadyVerified
+              }
               leftIcon={verifyMutation.isPending ? 'sync' : 'check_circle'}
             >
-              {verifyMutation.isPending ? 'Verifying...' : 'Mark Fully Flown'}
+              {verifyMutation.isPending
+                ? 'Verifying...'
+                : isAlreadyVerified
+                  ? 'Already Fully Flown'
+                  : 'Mark Fully Flown'}
             </Button>
           </FlexRow>
         </div>
       </div>
+
+      <FlightGapDetectionModal
+        isOpen={flightGapModal.isOpen}
+        onClose={() => setFlightGapModal({ isOpen: false, gapData: null })}
+        projectId={projectId}
+        taskId={taskId}
+        taskIndex={taskIndex}
+        gapAnalysisData={flightGapModal.gapData}
+      />
     </div>
   );
 };

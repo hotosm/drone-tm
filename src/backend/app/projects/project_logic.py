@@ -3,7 +3,7 @@ import os
 import shutil
 import uuid
 from io import BytesIO
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import geojson
 import pyproj
@@ -34,6 +34,7 @@ from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
 from app.images.image_processing import DroneImageProcessor
 from app.s3 import (
+    s3_client,
     add_obj_to_bucket,
     maybe_presign_s3_key,
     get_file_from_bucket,
@@ -58,8 +59,8 @@ async def get_centroids(db: Connection):
                     p.name,
                     ST_AsGeoJSON(p.centroid)::jsonb AS centroid,
                     COUNT(t.id) AS total_task_count,
-                    COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK', 'IMAGE_PROCESSING_STARTED') THEN 1 END) AS ongoing_task_count,
-                    COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
+                    COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES', 'IMAGE_PROCESSING_STARTED') THEN 1 END) AS ongoing_task_count,
+                    COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count
                 FROM
                     projects p
                 LEFT JOIN
@@ -333,8 +334,17 @@ async def process_drone_images(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     user_id: str,
+    odm_url: Optional[str] = None,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
-    """Process drone images using ODM"""
+    """Process drone images using ODM.
+
+    NOTE: **_kwargs absorbs extra keys (e.g. ``_carrier``) that OpenTelemetry's
+    now-removed ArqInstrumentor injected into job payloads stored in Redis.
+    Without it, stale jobs enqueued before the instrumentor was removed crash
+    with ``TypeError: got an unexpected keyword argument '_carrier'``.
+    All other ARQ worker functions use **_kwargs for the same reason.
+    """
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting process_drone_images (Job ID: {job_id})")
 
@@ -343,7 +353,7 @@ async def process_drone_images(
         async with pool.connection() as conn:
             # Update task state to IMAGE_PROCESSING_STARTED first, so that any
             # failure below can be correctly transitioned to IMAGE_PROCESSING_FAILED.
-            # Support fresh processing (IMAGE_UPLOADED), retries from failure
+            # Support fresh processing (READY_FOR_PROCESSING), retries from failure
             # (IMAGE_PROCESSING_FAILED), and reruns after completion
             # (IMAGE_PROCESSING_FINISHED) when new imagery has been verified.
             from app.tasks import task_logic
@@ -354,7 +364,7 @@ async def process_drone_images(
                 project_id,
                 task_id,
                 "ODM processing started",
-                State.IMAGE_UPLOADED,
+                State.READY_FOR_PROCESSING,
                 State.IMAGE_PROCESSING_STARTED,
                 timestamp(),
             )
@@ -381,7 +391,7 @@ async def process_drone_images(
             if result is None:
                 raise RuntimeError(
                     "Cannot start processing: task is not in a valid state "
-                    "(expected IMAGE_UPLOADED, IMAGE_PROCESSING_FAILED, "
+                    "(expected READY_FOR_PROCESSING, IMAGE_PROCESSING_FAILED, "
                     "or IMAGE_PROCESSING_FINISHED)"
                 )
             await conn.commit()
@@ -406,8 +416,10 @@ async def process_drone_images(
                 )
 
             # Initialize the processor with the database connection
+            node_odm_endpoint = odm_url or settings.ODM_ENDPOINT
+            log.info(f"Using NodeODM endpoint: {node_odm_endpoint}")
             processor = DroneImageProcessor(
-                node_odm_url=settings.ODM_ENDPOINT,
+                node_odm_url=node_odm_endpoint,
                 project_id=project_id,
                 task_id=task_id,
                 user_id=user_id,
@@ -421,8 +433,14 @@ async def process_drone_images(
                 {"name": "orthophoto-resolution", "value": 5},
             ]
 
-            # Use internal backend URL for Docker-internal webhooks
-            webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{user_id}/{project_id}/{task_id}/"
+            # Use public URL when processing on an external NodeODM, internal otherwise
+            if odm_url:
+                from urllib.parse import quote
+
+                base_url = settings.PUBLIC_BASE_URL
+                webhook_url = f"{base_url}/api/projects/odm/webhook/{project_id}/{task_id}/?odm_url={quote(odm_url, safe='')}"
+            else:
+                webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{project_id}/{task_id}/"
 
             result = await processor.process_images_from_s3(
                 settings.S3_BUCKET_NAME,
@@ -430,6 +448,16 @@ async def process_drone_images(
                 options=options,
                 webhook=webhook_url,
             )
+
+            await update_task_field(
+                conn,
+                project_id,
+                task_id,
+                "odm_task_uuid",
+                str(result.uuid),
+            )
+            await conn.commit()
+            log.info(f"Stored ODM task UUID {result.uuid} for task {task_id}")
 
             return {
                 "job_id": job_id,
@@ -476,10 +504,10 @@ async def process_drone_images(
 async def update_processing_status(
     db: Connection, project_id: uuid.UUID, status: ImageProcessingStatus
 ):
-    print("status = ", status.name)
     """
     Update the processing status to the specified status in the database.
     """
+    log.debug(f"status = {status.name}")
     await db.execute(
         """
         UPDATE projects
@@ -493,7 +521,11 @@ async def update_processing_status(
 
 
 async def process_all_drone_images(
-    ctx: Dict[Any, Any], project_id: uuid.UUID, tasks: list, user_id: str
+    ctx: Dict[Any, Any],
+    project_id: uuid.UUID,
+    tasks: list,
+    user_id: str,
+    **_kwargs: Any,
 ):
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting process_drone_images_for_a_project (Job ID: {job_id})")
@@ -516,7 +548,9 @@ async def process_all_drone_images(
                 {"name": "dsm", "value": True},
                 {"name": "orthophoto-resolution", "value": 5},
             ]
-            webhook_url = f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{user_id}/{project_id}/"
+            webhook_url = (
+                f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{project_id}/"
+            )
             await processor.process_images_for_all_tasks(
                 settings.S3_BUCKET_NAME,
                 name_prefix=f"DTM-Task-{project_id}",
@@ -550,52 +584,58 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
             1 for obj in objects if obj.object_name.lower().endswith(image_extensions)
         )
 
-        # Generate a presigned URL for the assets ZIP file
+        # Check for ODM assets under the new individual-file layout first,
+        # then fall back to the legacy monolithic assets.zip.
+        # Use a single-object probe instead of listing the entire prefix.
+        presigned_url = None
+        odm_prefix = f"projects/{project_id}/{task_id}/odm/"
         try:
-            # Check if the object exists
-            assets_path = f"projects/{project_id}/{task_id}/assets.zip"
-            get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
-
-            # If it exists, generate the presigned URL
-            presigned_url = maybe_presign_s3_key(assets_path, expires_hours=2)
+            odm_probe = next(
+                s3_client().list_objects(
+                    settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=False
+                ),
+                None,
+            )
+            if odm_probe is not None:
+                # New layout: point to the streaming export endpoint
+                presigned_url = (
+                    f"{settings.API_PREFIX}/projects/odm/export/{project_id}/{task_id}/"
+                )
+            else:
+                # Fallback: legacy assets.zip
+                assets_path = f"projects/{project_id}/{task_id}/assets.zip"
+                get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
+                presigned_url = maybe_presign_s3_key(assets_path, expires_hours=2)
         except S3Error as e:
             if e.code == "NoSuchKey":
-                # The object does not exist
-                log.info(
-                    f"Assets ZIP file not found for project {project_id}, task {task_id}."
-                )
+                log.debug(f"Assets not found for project {project_id}, task {task_id}.")
                 presigned_url = None
             else:
-                # An unexpected error occurred
-                log.error(f"An error occurred while accessing assets file: {e}")
+                log.error(f"An error occurred while accessing assets: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-        # Generate a presigned URL for the orthophoto (task-level preferred; fallback to project-level)
+        # Generate a presigned URL for the orthophoto.
+        # New layout: COG lives inside odm/ tree.  Fall back to legacy
+        # orthophoto/ path for tasks processed before this change.
         orthophoto_url = None
         try:
-            task_ortho_path = (
-                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif"
-            )
-            project_ortho_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
-
-            # Prefer per-task orthophoto if it exists
-            try:
-                get_object_metadata(settings.S3_BUCKET_NAME, task_ortho_path)
-                orthophoto_url = maybe_presign_s3_key(task_ortho_path, expires_hours=12)
-            except S3Error as e:
-                if e.code != "NoSuchKey":
-                    raise
-
-                # Fallback to project-level orthophoto if present (e.g. single-task projects)
+            candidates = [
+                # New: COG inside odm/ tree (task-level)
+                f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif",
+                # Legacy: separate orthophoto/ dir (task-level)
+                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif",
+                # New: COG inside odm/ tree (project-level fallback)
+                f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif",
+                # Legacy: separate orthophoto/ dir (project-level fallback)
+                f"projects/{project_id}/orthophoto/odm_orthophoto.tif",
+            ]
+            for path in candidates:
                 try:
-                    get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_path)
-                    orthophoto_url = maybe_presign_s3_key(
-                        project_ortho_path, expires_hours=12
-                    )
-                except S3Error as e2:
-                    if e2.code == "NoSuchKey":
-                        orthophoto_url = None
-                    else:
+                    get_object_metadata(settings.S3_BUCKET_NAME, path)
+                    orthophoto_url = maybe_presign_s3_key(path, expires_hours=12)
+                    break
+                except S3Error as e:
+                    if e.code != "NoSuchKey":
                         raise
         except Exception as e:
             # Do not fail the whole endpoint if orthophoto is missing; just omit it.
@@ -661,14 +701,14 @@ def generate_square_geojson(center_lat, center_lon, side_length_meters):
 
 async def get_all_tasks_for_project(project_id, db):
     """Get all unique tasks associated with the project ID
-    that are in state IMAGE_UPLOADED.
+    that are in state READY_FOR_PROCESSING.
     """
     async with db.cursor() as cur:
         query = """
         SELECT DISTINCT ON (t.id) t.id
         FROM tasks t
         JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id = %s AND te.state = 'IMAGE_UPLOADED'
+        WHERE t.project_id = %s AND te.state::text = 'READY_FOR_PROCESSING'
         ORDER BY t.id, te.created_at DESC;
         """
         await cur.execute(query, (project_id,))
@@ -678,7 +718,11 @@ async def get_all_tasks_for_project(project_id, db):
 
 
 async def update_task_field(
-    db: Connection, project_id: uuid.UUID, task_id: uuid.UUID, column: Any, value: str
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    column: Any,
+    value: Any,
 ):
     """Generic function to update a field(assets_url and total_image_count) in the tasks table."""
     async with db.cursor() as cur:
@@ -697,27 +741,51 @@ async def update_task_field(
     return True
 
 
+async def get_active_odm_tasks(db: Connection, project_id: uuid.UUID):
+    """Return project tasks currently marked as ODM-processing with a stored ODM UUID."""
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            WITH latest_state AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id,
+                    te.state
+                FROM task_events te
+                ORDER BY te.task_id, te.created_at DESC
+            )
+            SELECT
+                t.id,
+                t.project_task_index,
+                t.odm_task_uuid
+            FROM tasks t
+            JOIN latest_state ls ON ls.task_id = t.id
+            WHERE
+                t.project_id = %(project_id)s
+                AND ls.state = 'IMAGE_PROCESSING_STARTED'
+                AND t.odm_task_uuid IS NOT NULL
+            ORDER BY t.project_task_index;
+            """,
+            {"project_id": project_id},
+        )
+        return await cur.fetchall()
+
+
 async def process_waypoints_and_waylines(
     side_overlap: float,
     front_overlap: float,
     altitude_from_ground: float,
     gsd_cm_px: float,
     meters: float,
-    project_geojson: UploadFile,
+    boundary: dict,
     is_terrain_follow: bool,
     dem: UploadFile,
 ):
-    """Processes and returns counts of waypoints and waylines."""
-    # Validate the input GeoJSON file
-    file_name = os.path.splitext(project_geojson.filename)
-    file_ext = file_name[1]
-    allowed_extensions = [".geojson", ".json"]
-    if file_ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+    """Processes and returns counts of waypoints and waylines.
 
-    # Generate square boundary GeoJSON
-    content = project_geojson.file.read()
-    boundary = geojson.loads(content)
+    Args:
+        boundary: A normalised FeatureCollection containing one Polygon
+            feature (already parsed and merged by normalize_aoi).
+    """
     geometry = shape(boundary["features"][0]["geometry"])
     centroid = geometry.centroid
     center_lon = centroid.x

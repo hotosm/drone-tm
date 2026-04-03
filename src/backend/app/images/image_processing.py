@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import aiohttp
-from asgiref.sync import async_to_sync
 from loguru import logger as log
 from osgeo import gdal
 from psycopg import Connection
@@ -20,10 +19,11 @@ from app.models.enums import ImageProcessingStatus, State
 from app.projects import project_logic
 from app.s3 import (
     add_file_to_bucket,
-    copy_file_within_bucket,
+    delete_objects_by_prefix,
     generate_presigned_get_url,
     get_file_from_bucket,
     list_objects_from_bucket,
+    s3_client,
 )
 from app.tasks import task_logic
 from app.utils import timestamp
@@ -314,33 +314,6 @@ class DroneImageProcessor:
             bucket_name, name=name, options=options, webhook=webhook
         )
 
-        #   If webhook is passed, webhook does this job.
-        if not webhook:
-            # Monitor task progress
-            self.monitor_task(task)
-
-            # Optionally, download results
-            output_file_path = f"/tmp/{self.project_id}"
-            path_to_download = self.download_results(task, output_path=output_file_path)
-
-            # Upload the results into s3
-            s3_path = f"projects/{self.project_id}/{self.task_id}/assets.zip"
-            add_file_to_bucket(bucket_name, path_to_download, s3_path)
-            # now update the task as completed in Db.
-            # Call the async function using asyncio
-
-            # Update background task status to COMPLETED
-            update_task_status_sync = async_to_sync(task_logic.update_task_state)
-            update_task_status_sync(
-                self.db,
-                self.project_id,
-                self.task_id,
-                self.user_id,
-                "Task completed.",
-                State.IMAGE_UPLOADED,
-                State.IMAGE_PROCESSING_FINISHED,
-                timestamp(),
-            )
         return task
 
     async def process_images_for_all_tasks(
@@ -366,22 +339,139 @@ def reproject_to_web_mercator(input_file, output_file):
         output_file (str): Path to the output reprojected COG file.
     """
     try:
-        # Define the target projection (Web Mercator)
+        # Cap GDAL block cache to 256 MB so large orthophotos don't OOM
+        gdal.SetConfigOption("GDAL_CACHEMAX", "256")
+
         target_srs = "EPSG:3857"
 
-        # Use gdal.Warp to perform the reprojection
         gdal.Warp(
             output_file,
             input_file,
             dstSRS=target_srs,
-            format="COG",  # Output format as Cloud Optimized GeoTIFF
-            resampleAlg="near",  # Resampling method, 'near' for nearest neighbor
+            format="COG",
+            resampleAlg="near",
+            warpMemoryLimit=256 * 1024 * 1024,
+            creationOptions=["COMPRESS=DEFLATE", "BIGTIFF=YES"],
         )
         log.info(f"File reprojected to Web Mercator and saved as {output_file}")
 
     except Exception as e:
         log.error(f"An error occurred during reprojection: {e}")
         raise
+
+
+def extract_and_upload_odm_assets(
+    zip_path: str,
+    temp_dir: str,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID | None,
+) -> bool:
+    """Extract files from an ODM zip one-by-one and upload each to S3.
+
+    Uploads individual files under ``projects/{pid}/{tid}/odm/``.  The raw
+    orthophoto is **not** uploaded; instead it is reprojected to EPSG:3857
+    COG and the COG is stored at
+    ``projects/{pid}/{tid}/odm/odm_orthophoto/odm_orthophoto.tif``,
+    eliminating the previous duplication into a separate ``orthophoto/``
+    prefix.  ``images.json`` is also copied to the task root for backward
+    compatibility.
+
+    Uses a single pass over the zip.  The orthophoto and images.json are
+    *kept* on disk (without uploading the raw ortho) so that
+    post-processing can happen after the zip is deleted - cutting peak
+    disk usage roughly in half for large archives.
+
+    Returns True on success.
+    """
+    task_segment = f"{task_id}/" if task_id else ""
+    odm_prefix = f"projects/{project_id}/{task_segment}odm/"
+
+    # Clear any existing objects under the prefix so retries/reimports
+    # produce a clean set rather than a union of old and new files.
+    existing = delete_objects_by_prefix(settings.S3_BUCKET_NAME, odm_prefix)
+    if existing:
+        log.info(f"Cleared {existing} existing objects under {odm_prefix}")
+
+    ortho_member = "odm_orthophoto/odm_orthophoto.tif"
+    ortho_local: str | None = None
+    ij_local: str | None = None
+
+    # Single pass: extract, upload, and delete - except orthophoto & images.json
+    # which we keep for post-processing after the zip is removed.
+    # The raw orthophoto is NOT uploaded here; it is replaced by the
+    # reprojected COG after the zip is deleted (saves ~50% ortho storage).
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for member in zf.namelist():
+            if member.endswith("/"):
+                continue
+
+            # Reject path-traversal attempts (absolute paths or ../ components)
+            resolved = os.path.realpath(os.path.join(temp_dir, member))
+            if not resolved.startswith(os.path.realpath(temp_dir) + os.sep):
+                log.warning(f"Skipping zip member with unsafe path: {member}")
+                continue
+
+            extracted_path = zf.extract(member, temp_dir)
+
+            # Keep orthophoto on disk only (don't upload raw - COG replaces it later)
+            if member == ortho_member:
+                ortho_local = extracted_path
+                continue
+
+            s3_key = f"{odm_prefix}{member}"
+            try:
+                add_file_to_bucket(settings.S3_BUCKET_NAME, extracted_path, s3_key)
+                log.debug(f"Uploaded ODM asset: {s3_key}")
+            except Exception:
+                # Clean up even on upload failure for non-kept files
+                if member != "images.json":
+                    if os.path.exists(extracted_path):
+                        os.remove(extracted_path)
+                raise
+
+            # Keep images.json on disk for post-processing
+            if member == "images.json":
+                ij_local = extracted_path
+            else:
+                os.remove(extracted_path)
+
+    # Delete the zip now to free disk before the expensive reprojection.
+    # The orthophoto and images.json we kept are independent of the zip.
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+        log.info(f"Deleted zip {zip_path} to free disk before reprojection")
+
+    # Reproject orthophoto and upload the COG directly into the odm/ tree,
+    # replacing the raw version (which was intentionally not uploaded above).
+    if ortho_local and os.path.exists(ortho_local):
+        reprojected_path = os.path.join(temp_dir, "odm_orthophoto_3857.tif")
+        try:
+            reproject_to_web_mercator(ortho_local, reprojected_path)
+            s3_ortho = f"{odm_prefix}{ortho_member}"
+            add_file_to_bucket(settings.S3_BUCKET_NAME, reprojected_path, s3_ortho)
+            log.info(f"Uploaded reprojected COG orthophoto to {s3_ortho}")
+        finally:
+            if os.path.exists(ortho_local):
+                os.remove(ortho_local)
+            if os.path.exists(reprojected_path):
+                os.remove(reprojected_path)
+    else:
+        raise FileNotFoundError(
+            "ODM zip does not contain odm_orthophoto/odm_orthophoto.tif"
+        )
+
+    # Copy images.json to task root for backward compat
+    if ij_local and os.path.exists(ij_local):
+        s3_ij = f"projects/{project_id}/{task_segment}images.json"
+        try:
+            add_file_to_bucket(settings.S3_BUCKET_NAME, ij_local, s3_ij)
+            log.info(f"Uploaded images.json to {s3_ij}")
+        finally:
+            os.remove(ij_local)
+    else:
+        log.warning("images.json not found in ODM zip")
+
+    return True
 
 
 async def process_assets_from_odm(
@@ -391,7 +481,6 @@ async def process_assets_from_odm(
     state=None,
     message=None,
     dtm_task_id=None,
-    dtm_user_id=None,
     odm_status_code: Optional[int] = None,
 ):
     """Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
@@ -403,11 +492,37 @@ async def process_assets_from_odm(
     :param state: Current state of the task.
     :param message: Message to log upon completion.
     :param dtm_task_id: Task ID for state updates.
-    :param dtm_user_id: User ID for state updates.
     """
+    # Deduplication: verify the task is still in the expected state before
+    # doing any heavy work.  This prevents double-processing when both a
+    # webhook and the reconciliation loop fire for the same task.
+    if dtm_task_id and state:
+        try:
+            pool = await database.get_db_connection_pool()
+            async with pool as pool_instance:
+                async with pool_instance.connection() as conn:
+                    current = await task_logic.get_task_state(
+                        conn, dtm_project_id, dtm_task_id
+                    )
+                    current_state = current.get("state") if current else None
+                    if current_state and current_state != state.name:
+                        log.warning(
+                            "Skipping process_assets_from_odm for task {}: "
+                            "expected state {} but found {} (already handled)",
+                            dtm_task_id,
+                            state.name,
+                            current_state,
+                        )
+                        return
+        except Exception as e:
+            log.warning(
+                "Could not verify task state before processing (continuing): {}", e
+            )
+
     log.info(f"Starting processing for project {dtm_project_id}")
     node = Node.from_url(node_odm_url)
     output_file_path = f"/tmp/{uuid.uuid4()}"
+    task = None
 
     try:
         os.makedirs(output_file_path, exist_ok=True)
@@ -420,53 +535,23 @@ async def process_assets_from_odm(
             assets_path = task.download_zip(output_file_path)
             if not os.path.exists(assets_path):
                 log.error(f"Downloaded file not found: {assets_path}")
-                raise
+                raise FileNotFoundError(f"Downloaded file not found: {assets_path}")
             log.info(f"Successfully downloaded ZIP to {assets_path}")
 
-            # Construct the S3 path dynamically to avoid empty segments
-            task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-            s3_path = f"projects/{dtm_project_id}/{task_segment}assets.zip"
-            log.info(f"Uploading {assets_path} to S3 path: {s3_path}")
-            add_file_to_bucket(settings.S3_BUCKET_NAME, assets_path, s3_path)
-
-            with zipfile.ZipFile(assets_path, "r") as zip_ref:
-                zip_ref.extractall(output_file_path)
-
-            orthophoto_path = os.path.join(
-                output_file_path, "odm_orthophoto", "odm_orthophoto.tif"
+            # Extract all ODM files individually to S3 under odm/ prefix,
+            # reproject orthophoto to 3857, and copy images.json to task root.
+            # The helper deletes the zip after extraction to free disk before
+            # the expensive GDAL reprojection step.
+            extract_and_upload_odm_assets(
+                assets_path, output_file_path, dtm_project_id, dtm_task_id
             )
-            if not os.path.exists(orthophoto_path):
-                log.error(f"Orthophoto not found at {orthophoto_path}")
-                raise FileNotFoundError("Orthophoto file is missing")
-
-            reproject_to_web_mercator(orthophoto_path, orthophoto_path)
-            s3_ortho_path = (
-                f"projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif"
-            )
-            log.info(f"Uploading reprojected orthophoto to S3 path: {s3_ortho_path}")
-            add_file_to_bucket(settings.S3_BUCKET_NAME, orthophoto_path, s3_ortho_path)
-
-            images_json_path = os.path.join(output_file_path, "images.json")
-            if os.path.exists(images_json_path):
-                s3_images_json_path = (
-                    f"projects/{dtm_project_id}/{task_segment}images.json"
-                )
-                log.info(f"Uploading images.json to S3 path: {s3_images_json_path}")
-                add_file_to_bucket(
-                    settings.S3_BUCKET_NAME, images_json_path, s3_images_json_path
-                )
-            else:
-                log.warning(f"images.json not found in {output_file_path}")
 
             log.info(f"Processing complete for project {dtm_project_id}")
 
             if state and dtm_task_id:
-                # NOTE: This function uses a separate database connection pool because it is called by an internal server
-                # and doesn't rely on FastAPI's request context. This allows independent database access outside FastAPI's lifecycle.
                 pool = await database.get_db_connection_pool()
                 async with pool as pool_instance:
                     async with pool_instance.connection() as conn:
-                        # Use system-level update since this may be called from batch processor
                         await task_logic.update_task_state_system(
                             db=conn,
                             project_id=dtm_project_id,
@@ -480,48 +565,15 @@ async def process_assets_from_odm(
                             f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
                         )
 
-                        s3_path_url = (
-                            f"projects/{dtm_project_id}/{dtm_task_id}/assets.zip"
-                        )
-                        # update the task table
+                        task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
+                        assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
                         await project_logic.update_task_field(
-                            conn, dtm_project_id, dtm_task_id, "assets_url", s3_path_url
+                            conn,
+                            dtm_project_id,
+                            dtm_task_id,
+                            "assets_url",
+                            assets_prefix,
                         )
-
-                        # If the project has only one task, copy the orthophoto and assets to the project level
-                        # Mark the project processing status as completed to avoid redundant processing
-                        tasks = await project_logic.get_all_tasks_for_project(
-                            dtm_project_id, conn
-                        )
-
-                        if len(tasks) == 1:
-                            project_ortho_path = f"projects/{dtm_project_id}/orthophoto/odm_orthophoto.tif"
-                            log.info(
-                                f"Copying orthophoto to project level: {project_ortho_path}"
-                            )
-
-                            ortho_copy_status = copy_file_within_bucket(
-                                settings.S3_BUCKET_NAME,
-                                s3_ortho_path,
-                                project_ortho_path,
-                            )
-
-                            project_assets_path = (
-                                f"projects/{dtm_project_id}/assets.zip"
-                            )
-                            log.info(
-                                f"Copying assets to project level: {project_assets_path}"
-                            )
-
-                            assets_copy_status = copy_file_within_bucket(
-                                settings.S3_BUCKET_NAME, s3_path, project_assets_path
-                            )
-
-                            # Update project processing status if both copies were successful
-                            if ortho_copy_status and assets_copy_status:
-                                await project_logic.update_processing_status(
-                                    conn, dtm_project_id, ImageProcessingStatus.SUCCESS
-                                )
 
             status = ImageProcessingStatus.SUCCESS
         if not dtm_task_id:
@@ -535,6 +587,55 @@ async def process_assets_from_odm(
 
     except Exception as e:
         log.error(f"Error during processing for project {dtm_project_id}: {e}")
+
+        # Clean up any partially-uploaded ODM assets and derived files so a
+        # retry starts clean and stale orthophoto/images.json aren't served.
+        if dtm_task_id:
+            try:
+                task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
+                partial_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
+                delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
+
+                # Also remove derived files written outside the odm/ prefix,
+                # including the legacy orthophoto/ path to prevent stale
+                # fallback serving after a failed reprocess.
+                client = s3_client()
+                for stale_key in (
+                    f"projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif",
+                    f"projects/{dtm_project_id}/{task_segment}images.json",
+                ):
+                    try:
+                        client.remove_object(settings.S3_BUCKET_NAME, stale_key)
+                    except Exception:
+                        pass
+
+                log.info(
+                    f"Cleaned up partial ODM assets and derived files for task {dtm_task_id}"
+                )
+            except Exception as cleanup_err:
+                log.warning(f"Failed to clean up partial ODM assets: {cleanup_err}")
+
+        if state and dtm_task_id:
+            try:
+                pool = await database.get_db_connection_pool()
+                async with pool as pool_instance:
+                    async with pool_instance.connection() as conn:
+                        await task_logic.update_task_state_system(
+                            db=conn,
+                            project_id=dtm_project_id,
+                            task_id=dtm_task_id,
+                            comment=f"Image processing failed: {e}",
+                            initial_state=state,
+                            final_state=State.IMAGE_PROCESSING_FAILED,
+                            updated_at=timestamp(),
+                        )
+                        log.info(
+                            f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FAILED."
+                        )
+            except Exception as state_err:
+                log.error(
+                    f"Failed to update task {dtm_task_id} state to FAILED: {state_err}"
+                )
 
     finally:
         if task:

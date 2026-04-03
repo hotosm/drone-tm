@@ -1,10 +1,12 @@
 from datetime import timedelta
+from functools import lru_cache
 from io import BytesIO
 from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from minio import Minio
+from minio.deleteobjects import DeleteObject
 from minio.commonconfig import CopySource
 from minio.datatypes import Part
 from minio.error import S3Error
@@ -39,8 +41,12 @@ def _parse_endpoint(endpoint: str) -> tuple[str, bool]:
         )
 
 
+@lru_cache(maxsize=4)
 def _create_client(endpoint: str) -> Minio:
-    """Create a MinIO client for the given endpoint.
+    """Create (or return cached) a MinIO client for the given endpoint.
+
+    Clients are cached per endpoint URL so we don't create a new TCP
+    connection pool on every S3 operation.
 
     Args:
         endpoint: Full URL string for the S3-compatible endpoint
@@ -97,10 +103,12 @@ def _presign_client_for_download() -> Minio:
 def build_browser_object_url(bucket_name: str, object_name: str) -> str:
     """Browser-facing URL for an object (no signing), using S3_ENDPOINT_DOWNLOAD.
 
-    Note: S3_ENDPOINT_DOWNLOAD is treated as a URL prefix to the object key (not the bucket).
-    This supports CDNs like CloudFront where objects are served at `https://cdn/<key>`.
-    For direct S3 access, prefer setting S3_ENDPOINT_DOWNLOAD to a bucket-hosted base
-    (e.g. `https://<bucket>.s3.amazonaws.com`) so `<key>` resolves correctly.
+    When a CDN like CloudFront is configured (S3_ENDPOINT_DOWNLOAD differs from
+    S3_ENDPOINT_UPLOAD), the bucket is already the CDN origin, so the URL omits
+    the bucket name: `<cdn>/<key>`.
+
+    For local/MinIO (endpoints are the same), path-style URLs are used:
+    `<base>/<bucket>/<key>`.
 
     Args:
         bucket_name: Name of the S3 bucket
@@ -111,7 +119,10 @@ def build_browser_object_url(bucket_name: str, object_name: str) -> str:
     """
     object_name = _normalize_object_name(object_name)
     base = settings.S3_ENDPOINT_DOWNLOAD.rstrip("/")
-    return f"{base}/{object_name}"
+    # CDN (e.g. CloudFront) already points at the bucket; don't repeat it
+    if settings.S3_ENDPOINT_DOWNLOAD != settings.S3_ENDPOINT_UPLOAD:
+        return f"{base}/{object_name}"
+    return f"{base}/{bucket_name}/{object_name}"
 
 
 def generate_presigned_put_url(
@@ -152,7 +163,7 @@ def generate_presigned_get_url(
 
     By default, uses S3_ENDPOINT_DOWNLOAD (e.g., CloudFront) for browser-facing
     URLs. Pass ``internal=True`` for worker/backend downloads so the URL is
-    signed against S3_ENDPOINT_UPLOAD (the actual S3 endpoint) — S3 presigned
+    signed against S3_ENDPOINT_UPLOAD (the actual S3 endpoint) - S3 presigned
     signatures are bound to the host they were generated for, so a URL signed
     for a CloudFront domain will fail with AccessDenied at the S3 origin.
 
@@ -362,6 +373,32 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return client.list_objects(bucket_name, prefix=prefix, recursive=True)
 
 
+def delete_objects_by_prefix(bucket_name: str, prefix: str) -> int:
+    """Delete all objects under a given S3 prefix.
+
+    Args:
+        bucket_name: The name of the S3 bucket
+        prefix: The prefix whose objects should be deleted
+
+    Returns:
+        int: Number of objects deleted
+    """
+    client = s3_client()
+    objects = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
+    if not objects:
+        return 0
+
+    delete_list = [DeleteObject(obj.object_name) for obj in objects if not obj.is_dir]
+    errors = list(client.remove_objects(bucket_name, delete_list))
+    if errors:
+        for err in errors:
+            log.warning(f"Failed to delete {err.name}: {err.message}")
+
+    deleted = len(delete_list) - len(errors)
+    log.info(f"Deleted {deleted} objects under prefix {prefix}")
+    return deleted
+
+
 def get_object_metadata(bucket_name: str, object_name: str):
     """Get object metadata from an S3 bucket.
 
@@ -376,19 +413,6 @@ def get_object_metadata(bucket_name: str, object_name: str):
     return client.stat_object(bucket_name, object_name)
 
 
-def get_assets_url_for_project(project_id: str):
-    """Generate browser URL for project assets.zip.
-
-    Args:
-        project_id: The unique identifier for the project
-
-    Returns:
-        str: URL to download the assets (presigned or direct/CDN depending on config)
-    """
-    project_assets_path = f"projects/{project_id}/assets.zip"
-    return maybe_presign_s3_key(project_assets_path, expires_hours=3)  # type: ignore[return-value]
-
-
 def get_orthophoto_url_for_project(project_id: str):
     """Generate browser URL for project orthophoto.
 
@@ -398,13 +422,17 @@ def get_orthophoto_url_for_project(project_id: str):
     Returns:
         str | None: URL to download the orthophoto, or None if not found
     """
-    project_orthophoto_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
+    # COG orthophoto now lives inside the odm/ tree; fall back to the
+    # legacy orthophoto/ path for projects processed before this change.
+    odm_ortho_path = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+    legacy_ortho_path = f"projects/{project_id}/orthophoto/odm_orthophoto.tif"
 
-    if not check_file_exists(settings.S3_BUCKET_NAME, project_orthophoto_path):
-        log.warning("Orthophoto not found in S3 bucket")
-        return None
+    for path in (odm_ortho_path, legacy_ortho_path):
+        if check_file_exists(settings.S3_BUCKET_NAME, path):
+            return maybe_presign_s3_key(path, expires_hours=12)
 
-    return maybe_presign_s3_key(project_orthophoto_path, expires_hours=12)
+    log.warning("Orthophoto not found in S3 bucket")
+    return None
 
 
 def copy_file_within_bucket(

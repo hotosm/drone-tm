@@ -15,7 +15,8 @@ services:
       file: compose.yaml
       service: backend
     build:
-      context: src/backend
+      context: src
+      dockerfile: backend/Dockerfile
       args:
         INSTALL_TEST: "true"
     environment:
@@ -67,6 +68,11 @@ services:
     extends:
       file: compose.yaml
       service: dragonfly
+
+  qgis-packager:
+    extends:
+      file: compose.yaml
+      service: qgis-packager
 
   nodeodm:
     extends:

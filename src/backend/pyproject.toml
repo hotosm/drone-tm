@@ -1,6 +1,6 @@
 [project]
 name = "drone-tm"
-version = "2026.1.2"
+version = "2026.2.3"
 description = "Community-driven drone imagery generation"
 authors = [
     {name = "HOTOSM", email = "sysadmin@hotosm.org"},
@@ -41,8 +41,10 @@ dependencies = [
     "redis==5.2.1",
     "numpy==2.2.6",
     "opencv-python-headless==4.12.0.88",
-    "drone-flightplan",
+    "stream-zip>=0.0.84",
     "hotosm-auth[fastapi]==0.2.10",
+    "geojson-aoi-parser>=0.3.5",
+    "drone-flightplan",
 ]
 requires-python = ">=3.11"
 license = {text = "AGPL-3.0-only"}
@@ -80,7 +82,6 @@ monitoring = [
     "opentelemetry-instrumentation-logging==0.60b1",
     "opentelemetry-instrumentation-psycopg==0.60b1",
     "opentelemetry-instrumentation-requests==0.60b1",
-    "opentelemetry-instrumentation-arq==0.50b1",
 ]
 
 [tool.uv.sources]
@@ -91,7 +92,7 @@ members = ["packages/*"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "2026.1.2"
+version = "2026.2.3"
 version_provider = "uv"
 version_files = [
     "pyproject.toml:version",

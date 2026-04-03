@@ -1,11 +1,13 @@
+import asyncio
 import json
-import os
 import uuid
+from collections import defaultdict
+from urllib.parse import urlparse, urlunparse
 from datetime import timedelta
 from typing import Annotated, Dict, List, Optional
 from uuid import UUID
 
-from app.images import image_processing
+import aiohttp
 import geojson
 from arq import ArqRedis
 from fastapi import (
@@ -22,21 +24,24 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.responses import StreamingResponse
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
 from psycopg import Connection
-from shapely.geometry import mapping, shape
-from shapely.ops import unary_union
-
+from psycopg.rows import dict_row
+from stream_zip import NO_COMPRESSION_64, stream_zip
 from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.db import database
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
 from app.projects import project_deps, project_logic, project_schemas
+from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
 from app.s3 import (
     abort_multipart_upload,
+    build_browser_object_url,
+    check_file_exists,
     complete_multipart_upload,
     generate_presigned_put_url,
     generate_presigned_multipart_upload_url,
@@ -51,6 +56,7 @@ from app.users.permissions import (
     check_permissions,
 )
 from app.users.user_deps import login_required
+from app.users.user_logic import verify_token
 from app.users.user_schemas import AuthUser
 from app.utils import (
     geojson_to_kml,
@@ -62,6 +68,52 @@ router = APIRouter(
     prefix="/projects",
     responses={404: {"description": "Not found"}},
 )
+
+
+ODM_STATUS_LABELS = {
+    10: "Queued",
+    20: "Running",
+    30: "Failed",
+    40: "Completed",
+    50: "Canceled",
+}
+
+ODM_QUEUE_DISPLAY_CODES = {10, 20, 30}
+
+
+def _parse_odm_status(raw_status) -> tuple[int, str]:
+    """Parse a NodeODM status field into (status_code, status_label).
+
+    NodeODM returns status as an object like ``{"code": 20}`` or as a plain
+    integer.  We normalise both forms into an ``(int, str)`` pair.
+    """
+    if isinstance(raw_status, dict):
+        code = raw_status.get("code", 0)
+    elif isinstance(raw_status, (int, float)):
+        code = int(raw_status)
+    else:
+        code = 0
+    label = ODM_STATUS_LABELS.get(code, f"Unknown ({code})")
+    return code, label
+
+
+def _extract_valid_odm_task_info(payload: dict | None) -> dict | None:
+    """Return only real NodeODM task info payloads.
+
+    NodeODM can return HTTP 200 with an error JSON for deleted tasks, for example
+    ``{"error": "<uuid> not found"}``. Those payloads should be treated as
+    missing task info so the DB-backed fallback logic can classify the task.
+    """
+    if not isinstance(payload, dict):
+        return None
+
+    raw_status = payload.get("status")
+    if isinstance(raw_status, dict) and "code" in raw_status:
+        return payload
+    if isinstance(raw_status, (int, float)):
+        return payload
+
+    return None
 
 
 @router.get(
@@ -279,43 +331,54 @@ async def upload_project_task_boundaries(
 
 @router.post("/preview-split-by-square/", tags=["Projects"])
 async def preview_split_by_square(
+    db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
-    project_geojson: UploadFile = File(...),
+    aoi: Annotated[geojson.FeatureCollection, Depends(normalize_aoi)],
     no_fly_zones: UploadFile = File(default=None),
     dimension: int = Form(100),
 ):
-    """Preview splitting by square."""
-    # Validating for .geojson File.
-    file_name = os.path.splitext(project_geojson.filename)
-    file_ext = file_name[1]
-    allowed_extensions = [".geojson", ".json"]
-    if file_ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail="Provide a valid .geojson file")
+    """Preview splitting by square.
 
-    # read entire file
-    content = await project_geojson.read()
-    boundary = geojson.loads(content)
-    project_shape = shape(boundary["features"][0]["geometry"])
+    The AOI is normalised via geojson-aoi-parser so that any valid GeoJSON
+    type (including multi-feature FeatureCollections exported by QGIS) is
+    accepted and merged into a single Polygon.
+    """
+    aoi_geometry = aoi["features"][0]["geometry"]
 
-    # If no_fly_zones is provided, read and parse it
     if no_fly_zones:
         no_fly_content = await no_fly_zones.read()
         no_fly_zones_geojson = geojson.loads(no_fly_content)
-        no_fly_shapes = [
-            shape(feature["geometry"]) for feature in no_fly_zones_geojson["features"]
-        ]
-        no_fly_union = unary_union(no_fly_shapes)
+        no_fly_features = no_fly_zones_geojson.get("features", [])
+        if no_fly_features:
+            nfz_geoms = [json.dumps(f["geometry"]) for f in no_fly_features]
+            async with db.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT ST_AsGeoJSON(
+                        ST_Difference(
+                            ST_GeomFromGeoJSON(%(aoi)s),
+                            ST_UnaryUnion(ST_Collect(ST_GeomFromGeoJSON(nfz)))
+                        )
+                    )
+                    FROM unnest(%(nfz_geoms)s::text[]) AS nfz
+                    """,
+                    {"aoi": json.dumps(aoi_geometry), "nfz_geoms": nfz_geoms},
+                )
+                row = await cur.fetchone()
+                if row and row[0]:
+                    aoi_geometry = json.loads(row[0])
 
-        # Calculate the difference between the project shape and no-fly zones
-        new_outline = project_shape.difference(no_fly_union)
-    else:
-        new_outline = project_shape
+    result_geojson = geojson.Feature(geometry=aoi_geometry)
+    return await project_logic.preview_split_by_square(result_geojson, dimension)
 
-    result_geojson = geojson.Feature(geometry=mapping(new_outline))
 
-    result = await project_logic.preview_split_by_square(result_geojson, dimension)
-
-    return result
+@router.post("/normalize-aoi/", tags=["Projects"])
+async def normalize_project_aoi(
+    user: Annotated[AuthUser, Depends(login_required)],
+    aoi: Annotated[geojson.FeatureCollection, Depends(normalize_aoi)],
+):
+    """Normalise an uploaded AOI and return a merged single-polygon FeatureCollection."""
+    return aoi
 
 
 @router.post(
@@ -472,6 +535,7 @@ async def process_imagery(
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
     redis_pool: ArqRedis = Depends(get_redis_pool),
+    odm_url: Optional[str] = Query(None, description="Custom NodeODM server URL"),
 ):
     """Start an queue task to process drone imagery."""
     user_id = user_data.id
@@ -480,6 +544,7 @@ async def process_imagery(
         project.id,
         task_id,
         user_id,
+        odm_url,
         _queue_name="default_queue",
     )
 
@@ -516,35 +581,41 @@ async def process_all_imagery(
     }
 
 
-@router.post("/odm/webhook/{dtm_user_id}/{dtm_project_id}/", tags=["Image Processing"])
+@router.post("/odm/webhook/{dtm_project_id}/", tags=["Image Processing"])
 async def odm_webhook_for_processing_whole_project(
     request: Request,
     dtm_project_id: uuid.UUID,
-    dtm_user_id: str,
-    background_tasks: BackgroundTasks,
+    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
 ):
     payload = await request.json()
     odm_task_id = payload.get("uuid")
     status = payload.get("status")
+    log.info(
+        "ODM webhook (whole project): project={} odm_task={} status={}",
+        dtm_project_id,
+        odm_task_id,
+        status,
+    )
 
     if not odm_task_id or not status:
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
     if status["code"] in {30, 40}:
-        log.info(f"Project {dtm_project_id}: Processing status {status['code']}")
-        background_tasks.add_task(
-            image_processing.process_assets_from_odm,
+        await redis_pool.enqueue_job(
+            "process_odm_webhook_assets",
             node_odm_url=settings.ODM_ENDPOINT,
-            dtm_project_id=dtm_project_id,
+            dtm_project_id=str(dtm_project_id),
             odm_task_id=odm_task_id,
             odm_status_code=status["code"],
+            _job_id=f"odm-assets:project:{dtm_project_id}",
+            _queue_name="default_queue",
         )
 
     return {"message": "Webhook received", "task_id": dtm_project_id}
 
 
 @router.post(
-    "/odm/webhook/{dtm_user_id}/{dtm_project_id}/{dtm_task_id}/",
+    "/odm/webhook/{dtm_project_id}/{dtm_task_id}/",
     tags=["Image Processing"],
 )
 async def odm_webhook_for_processing_a_single_task(
@@ -552,30 +623,46 @@ async def odm_webhook_for_processing_a_single_task(
     db: Annotated[Connection, Depends(database.get_db)],
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
-    dtm_user_id: str,
-    background_tasks: BackgroundTasks,
+    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
+    odm_url: Optional[str] = Query(None, description="Custom NodeODM server URL"),
 ):
     payload = await request.json()
     odm_task_id = payload.get("uuid")
     status = payload.get("status")
+    node_odm_endpoint = odm_url or settings.ODM_ENDPOINT
+    log.info(
+        "ODM webhook (single task): project={} task={} odm_task={} status={} odm_url={}",
+        dtm_project_id,
+        dtm_task_id,
+        odm_task_id,
+        status,
+        node_odm_endpoint,
+    )
 
     if not odm_task_id or not status:
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
     current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
     state_value = State[current_state.get("state")]
+    log.info(
+        "ODM webhook: task {} current DB state={}, ODM status code={}",
+        dtm_task_id,
+        state_value,
+        status["code"],
+    )
 
     if status["code"] == 40:
-        background_tasks.add_task(
-            image_processing.process_assets_from_odm,
-            node_odm_url=settings.ODM_ENDPOINT,
-            dtm_project_id=dtm_project_id,
+        await redis_pool.enqueue_job(
+            "process_odm_webhook_assets",
+            node_odm_url=node_odm_endpoint,
+            dtm_project_id=str(dtm_project_id),
             odm_task_id=odm_task_id,
-            state=state_value,
+            state_name=state_value.name,
             message="Task completed.",
-            dtm_task_id=dtm_task_id,
-            dtm_user_id=dtm_user_id,
+            dtm_task_id=str(dtm_task_id),
             odm_status_code=40,
+            _job_id=f"odm-assets:task:{dtm_task_id}",
+            _queue_name="default_queue",
         )
 
     elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
@@ -589,19 +676,20 @@ async def odm_webhook_for_processing_a_single_task(
             State.IMAGE_PROCESSING_FAILED,
             timestamp(),
         )
-        background_tasks.add_task(
-            image_processing.process_assets_from_odm,
-            node_odm_url=settings.ODM_ENDPOINT,
-            dtm_project_id=dtm_project_id,
+        await redis_pool.enqueue_job(
+            "process_odm_webhook_assets",
+            node_odm_url=node_odm_endpoint,
+            dtm_project_id=str(dtm_project_id),
             odm_task_id=odm_task_id,
-            state=state_value,
+            state_name=state_value.name,
             message="Image processing failed.",
-            dtm_task_id=dtm_task_id,
-            dtm_user_id=dtm_user_id,
+            dtm_task_id=str(dtm_task_id),
             odm_status_code=30,
+            _job_id=f"odm-assets:task:{dtm_task_id}",
+            _queue_name="default_queue",
         )
 
-    return {"message": "Webhook received", "task_id": odm_task_id}
+    return {"message": "Webhook received", "odm_task_id": odm_task_id}
 
 
 @router.post("/regulator/comment/{project_id}/", tags=["regulator"])
@@ -675,20 +763,24 @@ async def get_project_waypoints_counts(
     front_overlap: float,
     altitude_from_ground: float,
     gsd_cm_px: float,
+    aoi: Annotated[geojson.FeatureCollection, Depends(normalize_aoi)],
     meters: float = 100,
-    project_geojson: UploadFile = File(...),
     is_terrain_follow: bool = False,
     dem: UploadFile = File(None),
     user_data: AuthUser = Depends(login_required),
 ):
-    """Count waypoints and waylines within AOI."""
+    """Count waypoints and waylines within AOI.
+
+    The AOI is normalised via geojson-aoi-parser so that any valid GeoJSON
+    type is accepted and merged into a single Polygon.
+    """
     return await project_logic.process_waypoints_and_waylines(
         side_overlap,
         front_overlap,
         altitude_from_ground,
         gsd_cm_px,
         meters,
-        project_geojson,
+        aoi,
         is_terrain_follow,
         dem,
     )
@@ -772,9 +864,62 @@ async def upload_imagery_to_oam(
     return {"message": "Uploading to OAM Started", "status": OAMUploadStatus.UPLOADING}
 
 
+@router.post("/{project_id}/generate-qfield-project", tags=["Projects"])
+async def generate_qfield_project(
+    project_id: Annotated[UUID, Path(description="The project ID in UUID format.")],
+    db: Annotated[Connection, Depends(database.get_db)],
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """Enqueue a QField project generation job.
+
+    Triggers the QGIS container to build a QField-ready zip and upload it
+    to S3 under publicuploads/qfield/{project_id}.zip.
+    """
+    # Verify project exists
+    project = await project_schemas.DbProject.one(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Project {project_id} not found",
+        )
+
+    job = await redis.enqueue_job(
+        "generate_qfield_project",
+        str(project_id),
+        _queue_name="default_queue",
+    )
+
+    return {
+        "message": "QField project generation started",
+        "job_id": job.job_id,
+        "project_id": str(project_id),
+    }
+
+
+@router.get("/{project_id}/qfield-project-status", tags=["Projects"])
+async def qfield_project_status(
+    project_id: Annotated[UUID, Path(description="The project ID in UUID format.")],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """Check if a QField project zip exists in S3.
+
+    Returns the public download URL if the zip is available.
+    """
+    s3_key = f"publicuploads/qfield/{project_id}.zip"
+    exists = check_file_exists(settings.S3_BUCKET_NAME, s3_key)
+
+    if not exists:
+        return {"exists": False, "url": None}
+
+    url = build_browser_object_url(settings.S3_BUCKET_NAME, s3_key)
+    return {"exists": True, "url": url}
+
+
 @router.post("/initiate-multipart-upload/", tags=["Image Upload"])
 async def initiate_upload(
     user: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
     data: project_schemas.MultipartUploadRequest,
 ):
     """Initiate a multipart upload for large files.
@@ -786,8 +931,22 @@ async def initiate_upload(
         dict: Upload ID and file key for the multipart upload session.
     """
     try:
-        # Determine file path based on staging flag
-        if data.staging:
+        if data.purpose == "odm_import":
+            # ODM import: upload zip to a temporary location
+            if not data.task_id:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="task_id is required for ODM import",
+                )
+            # Only the project creator or a superuser may import ODM assets
+            project = await project_schemas.DbProject.one(db, data.project_id)
+            if not (user.is_superuser or project.author_id == user.id):
+                raise HTTPException(
+                    status_code=HTTPStatus.FORBIDDEN,
+                    detail="Only the project creator may import ODM assets",
+                )
+            file_key = f"projects/{data.project_id}/{data.task_id}/odm_import.zip"
+        elif data.staging:
             # Upload to staging directory
             file_key = f"projects/{data.project_id}/user-uploads/{data.file_name}"
         else:
@@ -807,6 +966,8 @@ async def initiate_upload(
             "upload_id": upload_id,
             "file_key": file_key,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -850,6 +1011,7 @@ async def sign_part_upload(
 @router.post("/complete-multipart-upload/", tags=["Image Upload"])
 async def complete_upload(
     user: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     data: project_schemas.CompleteMultipartUploadRequest,
 ):
@@ -864,6 +1026,29 @@ async def complete_upload(
         dict: Success message with background job ID.
     """
     try:
+        # For ODM imports, validate authorization BEFORE finalizing the
+        # multipart upload so a rejected request doesn't leave an orphaned
+        # zip object in S3.
+        if data.purpose == "odm_import":
+            if not data.task_id:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="task_id is required for ODM import",
+                )
+            project = await project_schemas.DbProject.one(db, data.project_id)
+            if not (user.is_superuser or project.author_id == user.id):
+                # Abort the multipart upload so no orphaned parts remain
+                try:
+                    abort_multipart_upload(
+                        settings.S3_BUCKET_NAME, data.file_key, data.upload_id
+                    )
+                except Exception:
+                    pass
+                raise HTTPException(
+                    status_code=HTTPStatus.FORBIDDEN,
+                    detail="Only the project creator may import ODM assets",
+                )
+
         # Complete the multipart upload in S3
         complete_multipart_upload(
             settings.S3_BUCKET_NAME,
@@ -871,6 +1056,23 @@ async def complete_upload(
             data.upload_id,
             data.parts,
         )
+
+        if data.purpose == "odm_import":
+            job = await redis.enqueue_job(
+                "process_imported_odm_assets",
+                str(data.project_id),
+                str(data.task_id),
+                data.file_key,
+                str(user.id),
+                _queue_name="default_queue",
+                _defer_by=timedelta(seconds=3),
+            )
+            log.info(f"Queued ODM import job: {job.job_id} for task: {data.task_id}")
+            return {
+                "message": "ODM import queued",
+                "file_key": data.file_key,
+                "job_id": job.job_id,
+            }
 
         # Queue background task to process image (EXIF extraction, hash, duplicate check)
         # NOTE: Each image is queued individually (not batched) to isolate failures.
@@ -896,6 +1098,8 @@ async def complete_upload(
             "file_key": data.file_key,
             "job_id": job.job_id,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         log.error(f"Failed to complete multipart upload: {e}")
         raise HTTPException(
@@ -965,6 +1169,438 @@ async def get_uploaded_parts(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to list parts: {e}",
         )
+
+
+@router.get(
+    "/odm/queue-info/{project_id}/",
+    tags=["Image Processing"],
+    response_model=project_schemas.OdmQueueInfo,
+)
+async def get_odm_queue_info(
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
+    task_id: Optional[uuid.UUID] = Query(
+        default=None,
+        description="DTM task ID to find its approximate queue position.",
+    ),
+):
+    """Get the ODM processing queue info for this project.
+
+    Queries our DB for tasks that have been submitted to NodeODM
+    (have an odm_task_uuid), then fetches each task's real status
+    from NodeODM via /task/{uuid}/info.
+
+    If a task is stuck as IMAGE_PROCESSING_STARTED in our DB but NodeODM
+    reports it as failed/completed/canceled (or doesn't know about it),
+    we reconcile the state automatically.
+    """
+    odm_url = settings.ODM_ENDPOINT
+    if not odm_url:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="ODM endpoint is not configured.",
+        )
+
+    # Parse ODM_ENDPOINT which may contain ?token=xxx and/or trailing slash
+    parsed = urlparse(odm_url)
+    odm_query = parsed.query  # e.g. "token=xxx"
+
+    def odm_task_url(odm_uuid: str) -> str:
+        path = f"{parsed.path.rstrip('/')}/task/{odm_uuid}/info"
+        return urlunparse((parsed.scheme, parsed.netloc, path, "", odm_query, ""))
+
+    # Get all project tasks that have been sent to ODM (any state)
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            WITH latest_state AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id,
+                    te.state
+                FROM task_events te
+                ORDER BY te.task_id, te.created_at DESC
+            )
+            SELECT
+                t.id,
+                t.project_task_index,
+                t.odm_task_uuid,
+                ls.state
+            FROM tasks t
+            JOIN latest_state ls ON ls.task_id = t.id
+            WHERE
+                t.project_id = %(project_id)s
+                AND t.odm_task_uuid IS NOT NULL
+            ORDER BY t.project_task_index;
+            """,
+            {"project_id": project.id},
+        )
+        all_odm_tasks = await cur.fetchall()
+
+    if not all_odm_tasks:
+        return project_schemas.OdmQueueInfo(
+            total_queued=0,
+            total_running=0,
+            total_failed=0,
+            total_completed=0,
+            total_canceled=0,
+            total_tasks=0,
+            queue_position=None,
+            groups=[],
+        )
+
+    # Fetch real status from NodeODM for each task via /task/{uuid}/info
+    odm_info_by_uuid: dict[str, dict] = {}
+    reconciled: list[str] = []
+
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=15)
+        ) as session:
+            # Fetch all task info concurrently
+            async def fetch_task_info(odm_uuid: str) -> tuple[str, dict | None]:
+                try:
+                    async with session.get(odm_task_url(odm_uuid)) as resp:
+                        if resp.status == 200:
+                            return odm_uuid, _extract_valid_odm_task_info(
+                                await resp.json()
+                            )
+                        log.warning(
+                            "NodeODM /task/{}/info returned status {}",
+                            odm_uuid,
+                            resp.status,
+                        )
+                        return odm_uuid, None
+                except Exception as e:
+                    log.warning(
+                        "Failed to fetch NodeODM task info for {}: {}", odm_uuid, e
+                    )
+                    return odm_uuid, None
+
+            results = await asyncio.gather(
+                *[fetch_task_info(t["odm_task_uuid"]) for t in all_odm_tasks]
+            )
+            for odm_uuid, info in results:
+                if info:
+                    odm_info_by_uuid[odm_uuid] = info
+    except aiohttp.ClientError as e:
+        log.warning("Failed to reach NodeODM at {}: {}", odm_url, e)
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to connect to the processing server.",
+        )
+
+    # Build task list and reconcile stuck states
+    groups_map: dict[int, list[project_schemas.OdmQueueTask]] = defaultdict(list)
+
+    for db_task in all_odm_tasks:
+        odm_uuid = db_task["odm_task_uuid"]
+        dtm_task_id = db_task["id"]
+        task_index = db_task["project_task_index"]
+        db_state = db_task["state"]
+        odm_info = odm_info_by_uuid.get(odm_uuid)
+
+        if odm_info:
+            status_code, status_label = _parse_odm_status(odm_info.get("status"))
+            name = odm_info.get("name") or f"Task {task_index}"
+            display_status_code = status_code
+            display_status_label = status_label
+
+            if status_code == 50:
+                display_status_code = 30
+                display_status_label = "Failed (canceled)"
+
+            t = project_schemas.OdmQueueTask(
+                uuid=odm_uuid,
+                name=name,
+                status_code=display_status_code,
+                status_label=display_status_label,
+                images_count=odm_info.get("imagesCount"),
+                progress=odm_info.get("progress"),
+                date_created=odm_info.get("dateCreated"),
+                processing_time=odm_info.get("processingTime"),
+                dtm_task_id=str(dtm_task_id),
+                task_index=task_index,
+            )
+
+            # Reconcile: DB says STARTED but NodeODM says otherwise
+            if db_state == "IMAGE_PROCESSING_STARTED" and status_code in (30, 40, 50):
+                if status_code == 40:
+                    # Completed on NodeODM but webhook was missed.
+                    # Trigger the same asset-download pipeline the webhook uses.
+                    await redis_pool.enqueue_job(
+                        "process_odm_webhook_assets",
+                        node_odm_url=odm_url,
+                        dtm_project_id=str(project.id),
+                        odm_task_id=odm_uuid,
+                        state_name=State.IMAGE_PROCESSING_STARTED.name,
+                        message="Reconciled: processing completed on NodeODM (missed webhook).",
+                        dtm_task_id=str(dtm_task_id),
+                        odm_status_code=40,
+                        _job_id=f"odm-assets:task:{dtm_task_id}",
+                        _queue_name="default_queue",
+                    )
+                    reconciled.append(
+                        f"Task {task_index} ({dtm_task_id}): STARTED -> downloading assets (missed webhook)"
+                    )
+                    log.warning(
+                        "Reconciling completed task (missed webhook): project={} dtm_task={} odm_uuid={}",
+                        project.id,
+                        dtm_task_id,
+                        odm_uuid,
+                    )
+                else:
+                    # Failed or canceled - just flip the state
+                    try:
+                        await task_logic.update_task_state_system(
+                            db,
+                            project.id,
+                            dtm_task_id,
+                            f"Reconciled: NodeODM reports {status_label}",
+                            State.IMAGE_PROCESSING_STARTED,
+                            State.IMAGE_PROCESSING_FAILED,
+                            timestamp(),
+                        )
+                        reconciled.append(
+                            f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED ({status_label})"
+                        )
+                        log.warning(
+                            "Reconciled stuck task: project={} dtm_task={} odm_uuid={} odm_status={}",
+                            project.id,
+                            dtm_task_id,
+                            odm_uuid,
+                            status_label,
+                        )
+                    except Exception as e:
+                        log.error("Failed to reconcile task {}: {}", dtm_task_id, e)
+        else:
+            # NodeODM doesn't know about this task (deleted/expired)
+            if db_state == "IMAGE_PROCESSING_STARTED":
+                # Mark as failed since NodeODM lost it
+                status_code = 30
+                status_label = "Failed (lost)"
+                try:
+                    await task_logic.update_task_state_system(
+                        db,
+                        project.id,
+                        dtm_task_id,
+                        "Reconciled: task not found on NodeODM",
+                        State.IMAGE_PROCESSING_STARTED,
+                        State.IMAGE_PROCESSING_FAILED,
+                        timestamp(),
+                    )
+                    reconciled.append(
+                        f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED (not found on NodeODM)"
+                    )
+                    log.warning(
+                        "Reconciled lost task: project={} dtm_task={} odm_uuid={} not found on NodeODM",
+                        project.id,
+                        dtm_task_id,
+                        odm_uuid,
+                    )
+                except Exception as e:
+                    log.error("Failed to reconcile lost task {}: {}", dtm_task_id, e)
+            elif db_state == "IMAGE_PROCESSING_FINISHED":
+                continue
+            elif db_state == "IMAGE_PROCESSING_FAILED":
+                status_code = 30
+                status_label = "Failed"
+            else:
+                status_code = 0
+                status_label = f"Unknown ({db_state})"
+
+            t = project_schemas.OdmQueueTask(
+                uuid=odm_uuid,
+                name=f"Task {task_index}",
+                status_code=status_code,
+                status_label=status_label,
+                dtm_task_id=str(dtm_task_id),
+                task_index=task_index,
+            )
+
+        if t.status_code in ODM_QUEUE_DISPLAY_CODES:
+            groups_map[t.status_code].append(t)
+
+    # Sort each group by task_index
+    for code in groups_map:
+        groups_map[code].sort(key=lambda t: t.task_index or 0)
+
+    # Build ordered groups: Running, Queued, Failed
+    display_order = [20, 10, 30]
+    groups = []
+    for code in display_order:
+        if code in groups_map:
+            groups.append(
+                project_schemas.OdmStatusGroup(
+                    status_code=code,
+                    status_label=ODM_STATUS_LABELS.get(code, f"Unknown ({code})"),
+                    count=len(groups_map[code]),
+                    tasks=groups_map[code],
+                )
+            )
+    # Include any unexpected status codes at the end
+    for code in sorted(groups_map.keys()):
+        if code not in display_order:
+            groups.append(
+                project_schemas.OdmStatusGroup(
+                    status_code=code,
+                    status_label=ODM_STATUS_LABELS.get(code, f"Unknown ({code})"),
+                    count=len(groups_map[code]),
+                    tasks=groups_map[code],
+                )
+            )
+
+    queued_count = len(groups_map.get(10, []))
+    running_count = len(groups_map.get(20, []))
+    failed_count = len(groups_map.get(30, []))
+    completed_count = 0
+    canceled_count = 0
+
+    # Queue position for a specific task
+    queue_position = None
+    if task_id:
+        queued_tasks = groups_map.get(10, [])
+        for i, t in enumerate(queued_tasks):
+            if t.dtm_task_id == str(task_id):
+                queue_position = i + 1
+                break
+
+    if reconciled:
+        log.info(
+            "Reconciled {} stuck task(s) for project {}: {}",
+            len(reconciled),
+            project.id,
+            reconciled,
+        )
+
+    log.info(
+        "ODM queue info for project_id={}: running={} queued={} failed={} completed={} canceled={} total={} reconciled={}",
+        project.id,
+        running_count,
+        queued_count,
+        failed_count,
+        completed_count,
+        canceled_count,
+        queued_count + running_count + failed_count,
+        len(reconciled),
+    )
+
+    return project_schemas.OdmQueueInfo(
+        total_queued=queued_count,
+        total_running=running_count,
+        total_failed=failed_count,
+        total_completed=completed_count,
+        total_canceled=canceled_count,
+        total_tasks=queued_count + running_count + failed_count,
+        queue_position=queue_position,
+        groups=groups,
+    )
+
+
+@router.get(
+    "/odm/export/{project_id}/{task_id}/",
+    tags=["Image Processing"],
+)
+@router.get(
+    "/odm/export/{project_id}/",
+    tags=["Image Processing"],
+)
+async def export_odm_assets(
+    request: Request,
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: Optional[uuid.UUID] = None,
+    token: Optional[str] = Query(default=None, alias="token"),
+):
+    """Stream-zip all ODM assets for a task (or whole project) into a single download.
+
+    Streams the zip on-the-fly using ``stream-zip`` - no full archive is
+    ever materialised in memory.  ZIP64 extensions are used automatically
+    for large files.
+
+    When ``task_id`` is provided, exports ``projects/{pid}/{tid}/odm/``.
+    When omitted, exports the project-level ``projects/{pid}/odm/`` prefix
+    (produced by final/whole-project processing).
+
+    Accepts auth via the ``access-token`` header (standard) or a ``token``
+    query parameter (for browser ``<a>`` downloads that cannot set headers).
+
+    Restricted to the project creator or superusers.
+    """
+    # Accept token from header or query parameter
+    access_token = request.headers.get("access-token") or token
+    if not access_token:
+        raise HTTPException(status_code=401, detail="No access token provided")
+    try:
+        user_dict = verify_token(access_token)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Access token not valid")
+    user_data = AuthUser(**user_dict)
+
+    if not (user_data.is_superuser or project.author_id == user_data.id):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Only the project creator may export ODM assets",
+        )
+
+    task_segment = f"{task_id}/" if task_id else ""
+    prefix = f"projects/{project.id}/{task_segment}odm/"
+
+    # Probe for at least one object so we can 404 before streaming starts,
+    # then list lazily during the stream to avoid loading all metadata upfront.
+    probe = next(
+        s3_client().list_objects(
+            settings.S3_BUCKET_NAME, prefix=prefix, recursive=False
+        ),
+        None,
+    )
+    if probe is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="No ODM assets found.",
+        )
+
+    filename = (
+        f"odm_assets_{task_id}.zip" if task_id else f"odm_assets_{project_id}.zip"
+    )
+
+    def member_files():
+        for obj in s3_client().list_objects(
+            settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
+        ):
+            if obj.is_dir:
+                continue
+            name = obj.object_name[len(prefix) :]
+            modified = obj.last_modified
+
+            def chunks(object_name=obj.object_name):
+                response = s3_client().get_object(settings.S3_BUCKET_NAME, object_name)
+                try:
+                    while True:
+                        chunk = response.read(65536)
+                        if not chunk:
+                            break
+                        yield chunk
+                finally:
+                    response.close()
+                    response.release_conn()
+
+            yield name, modified, 0o644, NO_COMPRESSION_64, chunks()
+
+    def generate():
+        for chunk in stream_zip(member_files()):
+            yield chunk
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 # Endpoint not used in production but useful to keep around just for testing the

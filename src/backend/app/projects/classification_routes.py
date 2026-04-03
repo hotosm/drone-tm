@@ -1,19 +1,27 @@
+import os
 from datetime import datetime
 from typing import Annotated, Optional
 from uuid import UUID
 
 from arq import ArqRedis
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger as log
 from psycopg import Connection
 from pydantic import BaseModel
+
+from drone_flightplan.drone_type import DroneType
 
 from app.arq.tasks import get_redis_pool
 from app.db import database
 from app.models.enums import HTTPStatus, State
 from app.images.image_classification import ImageClassifier
+from app.images.flight_gap_identification import identify_flight_gaps
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
+from app.waypoints.flightplan_output import (
+    build_flightplan_download_response,
+    get_flightplan_output_config,
+)
 
 
 router = APIRouter(
@@ -35,6 +43,20 @@ class ClassificationStatusResponse(BaseModel):
     unmatched: int
     invalid: int
     images: list[dict]
+
+
+class FlightGapDetectionRequest(BaseModel):
+    manual_gap_polygons: dict | None = None
+    drone_type: DroneType | None = None
+
+
+class FlightGapDownloadPlanRequest(BaseModel):
+    manual_gap_polygons: dict | None = None
+    gap_type: str | None = None
+    drone_type: DroneType | None = None
+    altitude: float | None = None
+    rotation: float | None = None
+    overlap: float | None = None
 
 
 @router.get("/{project_id}/latest-batch/", tags=["Image Classification"])
@@ -587,7 +609,7 @@ async def mark_task_verified(
 ):
     """Mark a task as verified/fully flown after visual inspection.
 
-    This inserts a new task event with IMAGE_UPLOADED state, indicating that
+    This inserts a new task event with READY_FOR_PROCESSING state, indicating that
     the user has verified that all required images are present and the task
     is ready for processing. After marking, it also moves the task's images
     from the upload staging area to the task's images folder so they are
@@ -611,7 +633,7 @@ async def mark_task_verified(
                     detail="Task not found in this project",
                 )
 
-            # Insert a new task event to mark the task as IMAGE_UPLOADED
+            # Insert a new task event to mark the task as READY_FOR_PROCESSING
             await cur.execute(
                 """
                 INSERT INTO task_events (
@@ -632,8 +654,8 @@ async def mark_task_verified(
                     "project_id": str(project_id),
                     "task_id": str(task_id),
                     "user_id": str(user.id),
-                    "state": State.IMAGE_UPLOADED.name,
-                    "comment": "Task marked as verified via image classification workflow",
+                    "state": State.READY_FOR_PROCESSING.name,
+                    "comment": "Images verified and task ready for processing",
                 },
             )
 
@@ -657,14 +679,14 @@ async def mark_task_verified(
         await db.commit()
 
         log.info(
-            f"Task {task_id} marked as verified (IMAGE_UPLOADED) by user {user.id}, "
+            f"Task {task_id} marked as verified (READY_FOR_PROCESSING) by user {user.id}, "
             f"{move_result.get('moved_count', 0)} images moved"
         )
 
         return {
             "message": "Task marked as fully flown",
             "task_id": str(task_id),
-            "state": State.IMAGE_UPLOADED.name,
+            "state": State.READY_FOR_PROCESSING.name,
             "images_moved": move_result.get("moved_count", 0),
         }
 
@@ -677,3 +699,112 @@ async def mark_task_verified(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to mark task as verified: {e}",
         )
+
+
+@router.post(
+    "/{project_id}/imagery/task/{task_id}/find-gaps/",
+    tags=["Image Classification"],
+)
+async def detect_task_flight_gaps(
+    project_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+    request: FlightGapDetectionRequest | None = None,
+):
+    """Conduct flight gap analysis across all uploaded imagery for a task."""
+    drone_type_override = request.drone_type if request else None
+    result = await identify_flight_gaps(
+        db,
+        project_id,
+        task_id,
+        drone_type_override=drone_type_override,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail="Could not perform flight gap analysis for this task.",
+        )
+
+    drone_type = result.get("drone_type")
+    drone_type_value = drone_type.value if isinstance(drone_type, DroneType) else None
+
+    return {
+        "task_id": str(task_id),
+        "message": result.get("message"),
+        "task_geometry": result.get("task_geometry"),
+        "gap_polygons": result.get("gap_polygons"),
+        "gap_type": result.get("gap_type"),
+        "drone_type": drone_type_value,
+        "images": result.get("images"),
+        "altitude": result.get("altitude"),
+        "rotation": result.get("rotation"),
+        "overlap": result.get("overlap"),
+    }
+
+
+@router.post(
+    "/{project_id}/imagery/task/{task_id}/generate-flightplan/",
+    tags=["Image Classification"],
+)
+async def download_reflight_plan(
+    project_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    background_tasks: BackgroundTasks,
+    request: FlightGapDownloadPlanRequest | None = None,
+):
+    """Download a reconstructed flight plan based on identified flight gaps."""
+    manual_gap_polygons = request.manual_gap_polygons if request else None
+    gap_type = request.gap_type
+    drone_type_override = request.drone_type
+    altitude_override = request.altitude
+    rotation_override = request.rotation
+    overlap_override = request.overlap
+
+    if not drone_type_override:
+        raise HTTPException(
+            status_code=400, detail="Drone type is required to generate a flightplan."
+        )
+    flight_drone_type = drone_type_override
+
+    result = await identify_flight_gaps(
+        db,
+        project_id,
+        task_id,
+        manual_gap_polygons,
+        gap_type=gap_type,
+        drone_type_override=drone_type_override,
+        altitude_override=altitude_override,
+        rotation_override=rotation_override,
+        overlap_override=overlap_override,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not generate a flightplan with the provided parameters.",
+        )
+
+    kmz_bytes = result.get("kmz_bytes")
+
+    if not kmz_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="The flightplan generator could not produce a file with the provided data.",
+        )
+
+    flightplan_config = get_flightplan_output_config(flight_drone_type)
+    file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
+
+    with open(file_path, "wb") as f:
+        f.write(result["kmz_bytes"])
+
+    background_tasks.add_task(os.remove, file_path)
+
+    return build_flightplan_download_response(
+        file_path,
+        drone_type=flight_drone_type,
+        filename_stem=f"reflight_task_{task_id}_{flight_drone_type}_project_{project_id}",
+    )

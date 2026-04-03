@@ -34,9 +34,9 @@ from app.models.enums import (
 from app.config import settings
 from app.s3 import (
     check_file_exists,
-    get_assets_url_for_project,
     get_orthophoto_url_for_project,
     maybe_presign_s3_key,
+    s3_client,
 )
 from app.utils import (
     merge_multipolygon,
@@ -147,31 +147,15 @@ class ProjectIn(BaseModel):
     @computed_field
     @property
     def slug(self) -> str:
-        """Generate a unique slug based on the provided name.
+        """Generate a URL-friendly slug from the project name.
 
-        The slug is created by converting the given name into a URL-friendly format and appending
-        the current date and time to ensure uniqueness. The date and time are formatted as
-        "ddmmyyyyHHMM" to create a timestamp.
-
-        Args:
-            name (str): The name from which the slug will be generated.
-
-        Returns:
-            str: The generated slug, which includes the URL-friendly version of the name and
-                a timestamp. If an error occurs during the generation, an empty string is returned.
-
-        Raises:
-            Exception: If an error occurs during the slug generation process.
+        Since project names are enforced as unique, the slug is simply the
+        slugified name without any timestamp suffix.
         """
         try:
-            slug = slugify(self.name)
-            now = datetime.now()
-            date_time_str = now.strftime("%d%m%Y%H%M")
-            slug_with_date = f"{slug}-{date_time_str}"
-            return slug_with_date
+            return slugify(self.name)
         except Exception as e:
             log.error(f"An error occurred while generating the slug: {e}")
-
         return ""
 
     @model_validator(mode="before")
@@ -206,11 +190,17 @@ class TaskOut(BaseModel):
 
     @model_validator(mode="after")
     def set_assets_url(cls, values):
-        """Set image_url before rendering the model."""
+        """Set assets_url to a browser-usable URL."""
         assets_url = values.assets_url
         if assets_url:
-            # `assets_url` is typically stored as an S3 key in the DB.
-            values.assets_url = maybe_presign_s3_key(assets_url, 2)
+            # New ODM layout stores an S3 prefix ending in odm/ - convert to
+            # the streaming export endpoint URL.
+            if assets_url.startswith("projects/") and assets_url.endswith("/odm/"):
+                parts = assets_url.split("/")
+                if len(parts) >= 4:
+                    values.assets_url = f"{settings.API_PREFIX}/projects/odm/export/{parts[1]}/{parts[2]}/"
+            elif not assets_url.startswith("http"):
+                values.assets_url = maybe_presign_s3_key(assets_url, 2)
 
         return values
 
@@ -391,6 +381,19 @@ class DbProject(BaseModel):
             project_record.task_count = len(task_records)
             return project_record
 
+    @staticmethod
+    async def one_by_slug(db: Connection, slug: str):
+        """Get a single project & all associated tasks by slug."""
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT id FROM projects WHERE slug = %(slug)s",
+                {"slug": slug},
+            )
+            row = await cur.fetchone()
+        if not row:
+            raise KeyError(f"Project with slug {slug} not found.")
+        return await DbProject.one(db, row["id"])
+
     async def all(
         db: Connection,
         user_id: Optional[str] = None,
@@ -419,12 +422,12 @@ class DbProject(BaseModel):
                         ST_AsGeoJSON(p.outline)::jsonb AS outline,
                         p.requires_approval_from_manager_for_locking,
                         COUNT(t.id) AS total_task_count,
-                        COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) AS ongoing_task_count,
-                        COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
+                        COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) AS ongoing_task_count,
+                        COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
                         CASE
-                            WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
-                                AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
+                            WHEN COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
+                            WHEN COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) = 0
+                                AND COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
                             ELSE 'ongoing'
                         END AS calculated_status
                     FROM projects p
@@ -468,9 +471,9 @@ class DbProject(BaseModel):
                     SELECT
                         p.id,
                         CASE
-                            WHEN COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state IN ('LOCKED_FOR_MAPPING', 'REQUEST_FOR_MAPPING', 'IMAGE_UPLOADED', 'UNFLYABLE_TASK') THEN 1 END) = 0
-                                AND COUNT(CASE WHEN te.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
+                            WHEN COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
+                            WHEN COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) = 0
+                                AND COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
                             ELSE 'ongoing'
                         END AS calculated_status
                     FROM projects p
@@ -706,10 +709,24 @@ class ProjectInfo(BaseModel):
             values.assets_url = None
             return values
 
-        values.assets_url = safe_url(
-            lambda: get_assets_url_for_project(project_id),
-            label="assets_url",
-        )
+        # Project-level final processing stores individual files under
+        # projects/{pid}/odm/.  Probe for at least one object.
+        odm_prefix = f"projects/{project_id}/odm/"
+        try:
+            probe = next(
+                s3_client().list_objects(
+                    settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=False
+                ),
+                None,
+            )
+            if probe is not None:
+                values.assets_url = (
+                    f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
+                )
+            else:
+                values.assets_url = None
+        except Exception:
+            values.assets_url = None
 
         return values
 
@@ -781,6 +798,7 @@ class MultipartUploadRequest(BaseModel):
     task_id: Optional[uuid.UUID] = None
     file_name: str
     staging: bool = False  # If True, upload to user-uploads staging directory
+    purpose: str = "image"  # "image" or "odm_import"
 
 
 class SignPartUploadRequest(BaseModel):
@@ -797,8 +815,41 @@ class CompleteMultipartUploadRequest(BaseModel):
     project_id: uuid.UUID
     filename: str
     batch_id: Optional[uuid.UUID] = None  # Optional batch ID for grouping uploads
+    purpose: str = "image"  # "image" or "odm_import"
+    task_id: Optional[uuid.UUID] = None  # Required when purpose="odm_import"
 
 
 class AbortMultipartUploadRequest(BaseModel):
     upload_id: str
     file_key: str
+
+
+class OdmQueueTask(BaseModel):
+    uuid: str
+    name: Optional[str] = None
+    status_code: int
+    status_label: str
+    images_count: Optional[int] = None
+    progress: Optional[float] = None
+    date_created: Optional[Union[str, int]] = None
+    processing_time: Optional[int] = None
+    dtm_task_id: Optional[str] = None
+    task_index: Optional[int] = None
+
+
+class OdmStatusGroup(BaseModel):
+    status_code: int
+    status_label: str
+    count: int
+    tasks: List[OdmQueueTask]
+
+
+class OdmQueueInfo(BaseModel):
+    total_queued: int
+    total_running: int
+    total_failed: int
+    total_completed: int
+    total_canceled: int
+    total_tasks: int
+    queue_position: Optional[int] = None
+    groups: List[OdmStatusGroup]

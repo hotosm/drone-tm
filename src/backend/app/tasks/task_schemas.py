@@ -9,6 +9,7 @@ from psycopg.rows import class_row, dict_row
 from pydantic import BaseModel, model_validator
 from pydantic.functional_validators import field_validator
 
+from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State
 from app.s3 import maybe_presign_s3_key
 
@@ -176,12 +177,12 @@ class Task(BaseModel):
             # task ids that are not in task_events table
             remaining_task_ids = [x for x in task_ids if x not in existing_task_ids]
 
-            # Add missing tasks with state as "UNLOCKED_FOR_MAPPING"
+            # Add missing tasks with state as "UNLOCKED"
             remaining_tasks = [
                 {
                     "project_id": str(project_id),
                     "task_id": task_id,
-                    "state": State.UNLOCKED_TO_MAP.name,
+                    "state": State.UNLOCKED.name,
                 }
                 for task_id in remaining_task_ids
             ]
@@ -200,6 +201,7 @@ class UserTasksOut(BaseModel):
     project_id: uuid.UUID
     project_task_index: int
     project_name: str
+    project_slug: Optional[str] = None
     updated_at: Optional[datetime]
     registration_certificate_url: Optional[str] = None
     certificate_url: Optional[str] = None
@@ -226,6 +228,7 @@ class UserTasksOut(BaseModel):
                     tasks.project_task_index AS project_task_index,
                     task_events.project_id AS project_id,
                     projects.name AS project_name,
+                    projects.slug AS project_slug,
                     tasks.total_area_sqkm,
                     tasks.flight_time_minutes,
                     tasks.flight_distance_km,
@@ -245,14 +248,14 @@ class UserTasksOut(BaseModel):
                 WHERE
                     (
                         %(role)s = 'DRONE_PILOT'
-                        AND task_events.user_id = %(user_id)s AND task_events.state NOT IN ('UNLOCKED_TO_MAP')
+                        AND task_events.user_id = %(user_id)s AND task_events.state::text NOT IN ('UNLOCKED')
                     )
                     OR
                     (
                         %(role)s = 'PROJECT_CREATOR'
                         AND (
                             (
-                                task_events.user_id = %(user_id)s AND task_events.state NOT IN ('REQUEST_FOR_MAPPING')
+                                task_events.user_id = %(user_id)s AND task_events.state::text NOT IN ('AWAITING_APPROVAL')
                             )
                             OR
                             (
@@ -293,6 +296,8 @@ class TaskDetailsOut(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     state: State
+    project_id: Optional[uuid.UUID] = None
+    project_slug: Optional[str] = None
     project_name: str
     project_task_index: int
     front_overlap: Optional[float] = None
@@ -303,11 +308,18 @@ class TaskDetailsOut(BaseModel):
 
     @model_validator(mode="after")
     def set_assets_url(cls, values):
-        """Set image_url before rendering the model."""
+        """Set assets_url to a browser-usable URL."""
         assets_url = values.assets_url
         if assets_url:
-            # `assets_url` is stored as an S3 key in the DB; return a browser-usable URL.
-            values.assets_url = maybe_presign_s3_key(assets_url, 2)
+            # New ODM layout stores an S3 prefix ending in odm/ - convert to
+            # the streaming export endpoint URL so the frontend gets a
+            # downloadable link instead of a broken presigned prefix.
+            if assets_url.startswith("projects/") and assets_url.endswith("/odm/"):
+                parts = assets_url.split("/")
+                if len(parts) >= 4:
+                    values.assets_url = f"{settings.API_PREFIX}/projects/odm/export/{parts[1]}/{parts[2]}/"
+            elif not assets_url.startswith("http"):
+                values.assets_url = maybe_presign_s3_key(assets_url, 2)
 
         return values
 
@@ -363,6 +375,8 @@ class TaskDetailsOut(BaseModel):
                         te.created_at,
                         te.updated_at,
                         te.state,
+                        tasks.project_id AS project_id,
+                        projects.slug AS project_slug,
                         projects.name AS project_name,
                         tasks.project_task_index,
                         projects.front_overlap AS front_overlap,
@@ -389,6 +403,82 @@ class TaskDetailsOut(BaseModel):
                 records = await cur.fetchone()
                 return records
 
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Failed to fetch task. {e}",
+            )
+
+    @staticmethod
+    async def get_task_by_project_and_index(
+        db: Connection, project_id: uuid.UUID, task_index: int
+    ):
+        """Get task details by project ID and task index."""
+        try:
+            async with db.cursor(row_factory=class_row(TaskDetailsOut)) as cur:
+                await cur.execute(
+                    """
+                    SELECT
+                        tasks.total_area_sqkm,
+                        tasks.flight_time_minutes,
+                        tasks.flight_distance_km,
+                        tasks.total_image_uploaded,
+                        tasks.assets_url,
+                        jsonb_build_object(
+                            'type', 'Feature',
+                            'geometry', jsonb_build_object(
+                                'type', ST_GeometryType(tasks.outline)::text,
+                                'coordinates', ST_AsGeoJSON(tasks.outline, 8)::jsonb->'coordinates'
+                            ),
+                            'properties', jsonb_build_object(
+                                'id', tasks.id,
+                                'bbox', jsonb_build_array(
+                                    ST_XMin(ST_Envelope(tasks.outline)),
+                                    ST_YMin(ST_Envelope(tasks.outline)),
+                                    ST_XMax(ST_Envelope(tasks.outline)),
+                                    ST_YMax(ST_Envelope(tasks.outline))
+                                )
+                            ),
+                            'id', tasks.id
+                        ) AS outline,
+                        ST_AsGeoJSON(ST_Centroid(tasks.outline))::jsonb AS centroid,
+                        te.created_at,
+                        te.updated_at,
+                        te.state,
+                        tasks.project_id AS project_id,
+                        projects.slug AS project_slug,
+                        projects.name AS project_name,
+                        tasks.project_task_index,
+                        projects.front_overlap AS front_overlap,
+                        projects.side_overlap AS side_overlap,
+                        projects.gsd_cm_px AS gsd_cm_px,
+                        projects.gimble_angles_degrees AS gimble_angles_degrees
+                    FROM tasks
+                    JOIN projects ON tasks.project_id = projects.id
+                    LEFT JOIN (
+                        SELECT DISTINCT ON (te.task_id)
+                            te.task_id,
+                            te.created_at,
+                            te.updated_at,
+                            te.state
+                        FROM task_events te
+                        ORDER BY te.task_id, te.created_at DESC
+                    ) AS te ON te.task_id = tasks.id
+                    WHERE tasks.project_id = %(project_id)s
+                      AND tasks.project_task_index = %(task_index)s;
+                    """,
+                    {"project_id": project_id, "task_index": task_index},
+                )
+                record = await cur.fetchone()
+                if not record:
+                    raise HTTPException(
+                        status_code=HTTPStatus.NOT_FOUND,
+                        detail=f"Task with index {task_index} not found in project.",
+                    )
+                return record
+
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,

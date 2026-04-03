@@ -11,6 +11,7 @@ const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.locati
 if (AUTH_PROVIDER === 'hanko') {
   import('@hotosm/hanko-auth');
 }
+import packageInfo from '../../../../package.json';
 
 export default function Navbar() {
   // Return URL for hanko-auth callback
@@ -31,8 +32,9 @@ export default function Navbar() {
       )}
       <FlexRow
         gap={10}
-        className="naxatw-justify-center naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white lg:naxatw-justify-end"
+        className="naxatw-justify-between naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white"
       >
+        <span className="naxatw-opacity-75">Version {packageInfo.version}</span>
         <FlexRow
           gap={5}
           className="naxatw-h-fit naxatw-text-xs naxatw-leading-none"

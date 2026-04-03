@@ -31,6 +31,10 @@ Remove the battery from the drone, and put it into the charger. Plug the charger
 
     If you want to use a power bank make sure you test it before purchasing or bringing to the field.
 
+    Also note that it has been observed that battery quality can vary between purchases.
+
+    Keep this in mind, and try and factor in an additional battery as a buffer if possible!
+
 Plug the controller into another USB-C power source; it will want to update itself immediately and we don’t want it to run out of power in mid-update.
 
 You will need an **SD card!**
