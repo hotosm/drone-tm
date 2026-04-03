@@ -7,12 +7,14 @@ declare global {
   interface Window {
     __RUNTIME_CONFIG__?: {
       VITE_API_URL?: string;
+      VITE_AUTH_PROVIDER?: string;
+      VITE_HANKO_URL?: string;
     };
   }
 }
 
 export function getRuntimeConfig(
-  key: 'VITE_API_URL',
+  key: 'VITE_API_URL' | 'VITE_AUTH_PROVIDER' | 'VITE_HANKO_URL',
   fallback: string,
 ): string {
   // Check runtime config first (injected by docker-entrypoint.sh)

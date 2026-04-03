@@ -57,8 +57,9 @@ ARG INSTALL_TEST=false
 
 # Install dependencies using uv (caching to improve speed for repeated builds)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=backend/pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=backend/uv.lock,target=uv.lock <<EOT
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=packages,target=packages <<EOT
     set -e
     EXTRA_GROUPS=""
     if [ "$MONITORING" = "sentry" ]; then

@@ -11,6 +11,8 @@ rclone sync /app /frontend_html
 cat > /frontend_html/config.js <<EOF
 window.__RUNTIME_CONFIG__ = {
   VITE_API_URL: "${VITE_API_URL:-/api}",
+  VITE_AUTH_PROVIDER: "${VITE_AUTH_PROVIDER:-legacy}",
+  VITE_HANKO_URL: "${VITE_HANKO_URL:-}",
 };
 EOF
 

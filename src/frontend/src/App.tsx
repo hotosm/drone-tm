@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { initDomToCode } from 'dom-to-code';
 import { ToastContainer } from 'react-toastify';
@@ -29,6 +30,58 @@ import ScrollToTop from '@Components/common/ScrollToTop';
 export default function App() {
   const dispatch = useTypedDispatch();
   const { pathname } = useLocation();
+
+  // Listen for Hanko login event and fetch user profile
+  useEffect(() => {
+    const handleHankoLogin = async () => {
+      // Check if we already have userprofile to avoid duplicate calls
+      const existingProfile = localStorage.getItem('userprofile');
+      if (existingProfile) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/users/my-info/`, {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch user profile');
+        }
+
+        const userDetails = await response.json();
+        localStorage.setItem('userprofile', JSON.stringify(userDetails));
+      } catch (error) {
+        console.error('[App] Failed to fetch user profile:', error);
+      }
+    };
+
+    const authComponent = document.querySelector('hotosm-auth');
+    if (authComponent) {
+      authComponent.addEventListener('hanko-login', handleHankoLogin as EventListener);
+
+      return () => {
+        authComponent.removeEventListener('hanko-login', handleHankoLogin as EventListener);
+      };
+    }
+    return undefined;
+  }, [pathname]);
+
+  // Listen for Hanko logout event and clean localStorage
+  // Listen on document level since the event bubbles up from hotosm-auth component
+  useEffect(() => {
+    const handleHankoLogout = () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userprofile');
+      localStorage.removeItem('signedInAs');
+    };
+
+    document.addEventListener('logout', handleHankoLogout);
+
+    return () => {
+      document.removeEventListener('logout', handleHankoLogout);
+    };
+  }, []);
   const showModal = useTypedSelector(state => state.common.showModal);
   const modalContent = useTypedSelector(state => state.common.modalContent);
   const showPromptDialog = useTypedSelector(
@@ -68,6 +121,7 @@ export default function App() {
     '/login',
     '/forgot-password',
     '/complete-profile',
+    '/hanko-auth',
   ];
 
   return (

@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from loguru import logger as log
 from psycopg import Connection
 from psycopg_pool import AsyncConnectionPool
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.__version__ import __version__
 from app.config import settings, MonitoringTypes
@@ -24,6 +25,14 @@ from app.projects import classification_routes, project_routes
 from app.tasks import task_routes
 from app.users import user_routes
 from app.waypoints import waypoint_routes
+
+# Import auth initialization for Hanko SSO
+from hotosm_auth import AuthConfig
+from hotosm_auth_fastapi import (
+    init_auth,
+    create_admin_mappings_router_psycopg,
+    osm_router,
+)
 
 root = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
@@ -99,6 +108,27 @@ def get_logger():
     )
 
 
+class CORSHeaderMiddleware(BaseHTTPMiddleware):
+    """Ensure CORS headers are added to ALL responses, including errors."""
+
+    async def dispatch(self, request: Request, call_next):
+        # Get origin from request
+        origin = request.headers.get("origin")
+
+        # Call the next middleware/route
+        response = await call_next(request)
+
+        # Add CORS headers if origin is allowed
+        if origin and origin in settings.EXTRA_CORS_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+
+        return response
+
+
 def get_application() -> FastAPI:
     """Get the FastAPI app instance, with settings."""
     api_prefix = settings.API_PREFIX
@@ -121,6 +151,9 @@ def get_application() -> FastAPI:
 
     # Set custom logger
     _app.logger = get_logger()
+
+    # Add custom CORS middleware to ensure headers on ALL responses
+    _app.add_middleware(CORSHeaderMiddleware)
 
     _app.add_middleware(
         CORSMiddleware,
@@ -151,6 +184,20 @@ def get_application() -> FastAPI:
     if os.path.isdir(static_dir):
         _app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    # Admin router for user mappings management (with user enrichment)
+    admin_router = create_admin_mappings_router_psycopg(
+        get_db,
+        app_name="drone-tm",
+        user_table="users",
+        user_id_column="id",
+        user_name_column="name",
+        user_email_column="email_address",
+    )
+    _app.include_router(admin_router, prefix="/api")
+
+    # OSM OAuth router for account linking
+    _app.include_router(osm_router, prefix="/api")
+
     return _app
 
 
@@ -159,6 +206,17 @@ async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
 
+    # Initialize authentication for Hanko SSO
+    if settings.AUTH_PROVIDER == "hanko":
+        log.info("🔧 Initializing Hanko SSO authentication...")
+        auth_config = AuthConfig.from_env()
+        log.info(
+            f"🔧 AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}"
+        )
+        init_auth(auth_config)
+        log.info("✅ Authentication initialized")
+
+    # Initialize Sentry monitoring if enabled
     if (
         settings.MONITORING == MonitoringTypes.SENTRY
         and settings.monitoring_config.SENTRY_DSN

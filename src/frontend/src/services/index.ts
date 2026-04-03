@@ -29,9 +29,27 @@ api.interceptors.response.use(
   async responseError => {
     // handle token expire or invalid token case
     const originalRequest = responseError.config;
+
+    // Handle 401 for Hanko SSO (cookie expired)
+    const token = localStorage.getItem('token');
+    const userprofile = localStorage.getItem('userprofile');
     if (
-      responseError.response.status === 401 &&
-      responseError.response.data.detail === 'Access token not valid' &&
+      responseError.response?.status === 401 &&
+      !token &&
+      userprofile
+    ) {
+      // Hanko session expired - clean up localStorage
+      localStorage.removeItem('userprofile');
+      localStorage.removeItem('signedInAs');
+      toast.error('Session Expired. Please Re-login.');
+      window.location.href = '/';
+      return Promise.reject(responseError);
+    }
+
+    // Handle 401 for legacy token
+    if (
+      responseError.response?.status === 401 &&
+      responseError.response?.data?.detail === 'Access token not valid' &&
       // eslint-disable-next-line no-underscore-dangle
       !originalRequest._retry
     ) {
@@ -64,12 +82,15 @@ api.interceptors.response.use(
 
 export const authenticated = (apiInstance: AxiosInstance) => {
   const token = localStorage.getItem('token');
-  if (!token) return apiInstance;
-  if (process.env.NODE_ENV === 'development') {
+
+  // When using Hanko SSO, we need to send cookies for authentication
+  // Set withCredentials=true to include cookies in CORS requests
+  apiInstance.defaults.withCredentials = true;
+
+  // For legacy authentication, also set Access-Token header if token exists
+  if (token) {
     apiInstance.defaults.headers.common['Access-Token'] = `${token}`;
-  } else {
-    apiInstance.defaults.headers.common['Access-Token'] = `${token}`;
-    apiInstance.defaults.withCredentials = false;
   }
+
   return apiInstance;
 };
