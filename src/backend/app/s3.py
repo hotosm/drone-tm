@@ -1,4 +1,5 @@
 from datetime import timedelta
+from functools import lru_cache
 from io import BytesIO
 from typing import Any
 
@@ -39,8 +40,12 @@ def _parse_endpoint(endpoint: str) -> tuple[str, bool]:
         )
 
 
+@lru_cache(maxsize=4)
 def _create_client(endpoint: str) -> Minio:
-    """Create a MinIO client for the given endpoint.
+    """Create (or return cached) a MinIO client for the given endpoint.
+
+    Clients are cached per endpoint URL so we don't create a new TCP
+    connection pool on every S3 operation.
 
     Args:
         endpoint: Full URL string for the S3-compatible endpoint
