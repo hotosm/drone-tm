@@ -1,3 +1,9 @@
+## 2026.2.3 (2026-04-03)
+
+### Fix
+
+- **backend**: move odm asset processing to arq worker to avoid livenessProbe timeouts
+
 ## 2026.2.2 (2026-04-03)
 
 ### Fix
