@@ -8,7 +8,7 @@ import { useGetAllTaskAssetsInfo, useGetOdmQueueInfo } from '@Api/tasks';
 import { postProcessImagery } from '@Services/tasks';
 import { processAllImagery, saveGcpFile } from '@Services/project';
 import { getProjectTaskImagerySummary, TaskImagerySummary } from '@Services/classification';
-import { formatString } from '@Utils/index';
+import { formatString, buildDownloadUrl } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import Icon from '@Components/common/Icon';
 import { toggleModal } from '@Store/actions/common';
@@ -218,7 +218,7 @@ const ProcessingStatusDialog = () => {
   const handleDownloadAssets = useCallback((assetsUrl: string) => {
     try {
       const link = document.createElement('a');
-      link.href = assetsUrl;
+      link.href = buildDownloadUrl(assetsUrl);
       link.setAttribute('download', '');
       document.body.appendChild(link);
       link.click();

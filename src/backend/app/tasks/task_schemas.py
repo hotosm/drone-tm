@@ -9,6 +9,7 @@ from psycopg.rows import class_row, dict_row
 from pydantic import BaseModel, model_validator
 from pydantic.functional_validators import field_validator
 
+from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State
 from app.s3 import maybe_presign_s3_key
 
@@ -307,11 +308,18 @@ class TaskDetailsOut(BaseModel):
 
     @model_validator(mode="after")
     def set_assets_url(cls, values):
-        """Set image_url before rendering the model."""
+        """Set assets_url to a browser-usable URL."""
         assets_url = values.assets_url
         if assets_url:
-            # `assets_url` is stored as an S3 key in the DB; return a browser-usable URL.
-            values.assets_url = maybe_presign_s3_key(assets_url, 2)
+            # New ODM layout stores an S3 prefix ending in odm/ - convert to
+            # the streaming export endpoint URL so the frontend gets a
+            # downloadable link instead of a broken presigned prefix.
+            if assets_url.startswith("projects/") and assets_url.endswith("/odm/"):
+                parts = assets_url.split("/")
+                if len(parts) >= 4:
+                    values.assets_url = f"{settings.API_PREFIX}/projects/odm/export/{parts[1]}/{parts[2]}/"
+            elif not assets_url.startswith("http"):
+                values.assets_url = maybe_presign_s3_key(assets_url, 2)
 
         return values
 

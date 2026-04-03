@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from '@Api/tasks';
 import { postTaskStatus } from '@Services/project';
-import { formatString } from '@Utils/index';
+import { formatString, buildDownloadUrl } from '@Utils/index';
 import { Button } from '@Components/RadixComponents/Button';
 import {
   resetFilesExifData,
@@ -158,7 +158,7 @@ const DescriptionBox = () => {
     if (!taskAssetsInformation?.assets_url) return;
     try {
       const link = document.createElement('a');
-      link.href = taskAssetsInformation?.assets_url;
+      link.href = buildDownloadUrl(taskAssetsInformation.assets_url);
       link.setAttribute('download', '');
       document.body.appendChild(link);
       link.click();

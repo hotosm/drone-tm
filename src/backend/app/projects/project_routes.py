@@ -25,10 +25,12 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.responses import StreamingResponse
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
+from stream_zip import NO_COMPRESSION_64, stream_zip
 from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.db import database
@@ -55,6 +57,7 @@ from app.users.permissions import (
     check_permissions,
 )
 from app.users.user_deps import login_required
+from app.users.user_logic import verify_token
 from app.users.user_schemas import AuthUser
 from app.utils import (
     geojson_to_kml,
@@ -911,6 +914,7 @@ async def qfield_project_status(
 @router.post("/initiate-multipart-upload/", tags=["Image Upload"])
 async def initiate_upload(
     user: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
     data: project_schemas.MultipartUploadRequest,
 ):
     """Initiate a multipart upload for large files.
@@ -922,8 +926,22 @@ async def initiate_upload(
         dict: Upload ID and file key for the multipart upload session.
     """
     try:
-        # Determine file path based on staging flag
-        if data.staging:
+        if data.purpose == "odm_import":
+            # ODM import: upload zip to a temporary location
+            if not data.task_id:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="task_id is required for ODM import",
+                )
+            # Only the project creator or a superuser may import ODM assets
+            project = await project_schemas.DbProject.one(db, data.project_id)
+            if not (user.is_superuser or project.author_id == user.id):
+                raise HTTPException(
+                    status_code=HTTPStatus.FORBIDDEN,
+                    detail="Only the project creator may import ODM assets",
+                )
+            file_key = f"projects/{data.project_id}/{data.task_id}/odm_import.zip"
+        elif data.staging:
             # Upload to staging directory
             file_key = f"projects/{data.project_id}/user-uploads/{data.file_name}"
         else:
@@ -943,6 +961,8 @@ async def initiate_upload(
             "upload_id": upload_id,
             "file_key": file_key,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -986,6 +1006,7 @@ async def sign_part_upload(
 @router.post("/complete-multipart-upload/", tags=["Image Upload"])
 async def complete_upload(
     user: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     data: project_schemas.CompleteMultipartUploadRequest,
 ):
@@ -1000,6 +1021,29 @@ async def complete_upload(
         dict: Success message with background job ID.
     """
     try:
+        # For ODM imports, validate authorization BEFORE finalizing the
+        # multipart upload so a rejected request doesn't leave an orphaned
+        # zip object in S3.
+        if data.purpose == "odm_import":
+            if not data.task_id:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="task_id is required for ODM import",
+                )
+            project = await project_schemas.DbProject.one(db, data.project_id)
+            if not (user.is_superuser or project.author_id == user.id):
+                # Abort the multipart upload so no orphaned parts remain
+                try:
+                    abort_multipart_upload(
+                        settings.S3_BUCKET_NAME, data.file_key, data.upload_id
+                    )
+                except Exception:
+                    pass
+                raise HTTPException(
+                    status_code=HTTPStatus.FORBIDDEN,
+                    detail="Only the project creator may import ODM assets",
+                )
+
         # Complete the multipart upload in S3
         complete_multipart_upload(
             settings.S3_BUCKET_NAME,
@@ -1007,6 +1051,23 @@ async def complete_upload(
             data.upload_id,
             data.parts,
         )
+
+        if data.purpose == "odm_import":
+            job = await redis.enqueue_job(
+                "process_imported_odm_assets",
+                str(data.project_id),
+                str(data.task_id),
+                data.file_key,
+                str(user.id),
+                _queue_name="default_queue",
+                _defer_by=timedelta(seconds=3),
+            )
+            log.info(f"Queued ODM import job: {job.job_id} for task: {data.task_id}")
+            return {
+                "message": "ODM import queued",
+                "file_key": data.file_key,
+                "job_id": job.job_id,
+            }
 
         # Queue background task to process image (EXIF extraction, hash, duplicate check)
         # NOTE: Each image is queued individually (not batched) to isolate failures.
@@ -1032,6 +1093,8 @@ async def complete_upload(
             "file_key": data.file_key,
             "job_id": job.job_id,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         log.error(f"Failed to complete multipart upload: {e}")
         raise HTTPException(
@@ -1283,7 +1346,7 @@ async def get_odm_queue_info(
                         odm_uuid,
                     )
                 else:
-                    # Failed or canceled — just flip the state
+                    # Failed or canceled - just flip the state
                     try:
                         await task_logic.update_task_state_system(
                             db,
@@ -1427,6 +1490,109 @@ async def get_odm_queue_info(
         total_tasks=queued_count + running_count + failed_count,
         queue_position=queue_position,
         groups=groups,
+    )
+
+
+@router.get(
+    "/odm/export/{project_id}/{task_id}/",
+    tags=["Image Processing"],
+)
+@router.get(
+    "/odm/export/{project_id}/",
+    tags=["Image Processing"],
+)
+async def export_odm_assets(
+    request: Request,
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: Optional[uuid.UUID] = None,
+    token: Optional[str] = Query(default=None, alias="token"),
+):
+    """Stream-zip all ODM assets for a task (or whole project) into a single download.
+
+    Streams the zip on-the-fly using ``stream-zip`` - no full archive is
+    ever materialised in memory.  ZIP64 extensions are used automatically
+    for large files.
+
+    When ``task_id`` is provided, exports ``projects/{pid}/{tid}/odm/``.
+    When omitted, exports the project-level ``projects/{pid}/odm/`` prefix
+    (produced by final/whole-project processing).
+
+    Accepts auth via the ``access-token`` header (standard) or a ``token``
+    query parameter (for browser ``<a>`` downloads that cannot set headers).
+
+    Restricted to the project creator or superusers.
+    """
+    # Accept token from header or query parameter
+    access_token = request.headers.get("access-token") or token
+    if not access_token:
+        raise HTTPException(status_code=401, detail="No access token provided")
+    try:
+        user_dict = verify_token(access_token)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Access token not valid")
+    user_data = AuthUser(**user_dict)
+
+    if not (user_data.is_superuser or project.author_id == user_data.id):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Only the project creator may export ODM assets",
+        )
+
+    task_segment = f"{task_id}/" if task_id else ""
+    prefix = f"projects/{project.id}/{task_segment}odm/"
+
+    # Probe for at least one object so we can 404 before streaming starts,
+    # then list lazily during the stream to avoid loading all metadata upfront.
+    probe = next(
+        s3_client().list_objects(
+            settings.S3_BUCKET_NAME, prefix=prefix, recursive=False
+        ),
+        None,
+    )
+    if probe is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="No ODM assets found.",
+        )
+
+    filename = (
+        f"odm_assets_{task_id}.zip" if task_id else f"odm_assets_{project_id}.zip"
+    )
+
+    def member_files():
+        for obj in s3_client().list_objects(
+            settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
+        ):
+            if obj.is_dir:
+                continue
+            name = obj.object_name[len(prefix) :]
+            modified = obj.last_modified
+
+            def chunks(object_name=obj.object_name):
+                response = s3_client().get_object(settings.S3_BUCKET_NAME, object_name)
+                try:
+                    while True:
+                        chunk = response.read(65536)
+                        if not chunk:
+                            break
+                        yield chunk
+                finally:
+                    response.close()
+                    response.release_conn()
+
+            yield name, modified, 0o644, NO_COMPRESSION_64, chunks()
+
+    def generate():
+        for chunk in stream_zip(member_files()):
+            yield chunk
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 

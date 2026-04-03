@@ -792,6 +792,7 @@ dependencies = [
     { name = "scrapy" },
     { name = "shapely" },
     { name = "sqlalchemy" },
+    { name = "stream-zip" },
     { name = "uvicorn" },
     { name = "watchfiles" },
 ]
@@ -866,6 +867,7 @@ requires-dist = [
     { name = "scrapy", specifier = "==2.14.1" },
     { name = "shapely", specifier = "==2.1.0" },
     { name = "sqlalchemy", specifier = "==2.0.23" },
+    { name = "stream-zip", specifier = ">=0.0.84" },
     { name = "uvicorn", specifier = "==0.30.5" },
     { name = "watchfiles", specifier = "==1.1.1" },
 ]
@@ -1077,9 +1079,9 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "psycopg" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6a/72/23ea59fc5d8408e1b20de9c7d45b7977b8979e1ea2d50278c44082182bfa/geojson_aoi_parser-0.3.5.tar.gz", hash = "sha256:4005883ab0eab4b2f8273ac19277e75e521e4aeafcbabcd106a01019f826e783", size = 76172 }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/72/23ea59fc5d8408e1b20de9c7d45b7977b8979e1ea2d50278c44082182bfa/geojson_aoi_parser-0.3.5.tar.gz", hash = "sha256:4005883ab0eab4b2f8273ac19277e75e521e4aeafcbabcd106a01019f826e783", size = 76172, upload-time = "2025-10-10T23:02:03.242Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/a3/73b1d460a243939221815e3d65710cd13fce0f26c0621a44cb7c43ca8813/geojson_aoi_parser-0.3.5-py3-none-any.whl", hash = "sha256:37d73f096c34ba12dba653198fd52369edf6edc713a3591284ececdb4093296e", size = 29266 },
+    { url = "https://files.pythonhosted.org/packages/96/a3/73b1d460a243939221815e3d65710cd13fce0f26c0621a44cb7c43ca8813/geojson_aoi_parser-0.3.5-py3-none-any.whl", hash = "sha256:37d73f096c34ba12dba653198fd52369edf6edc713a3591284ececdb4093296e", size = 29266, upload-time = "2025-10-10T23:02:02.093Z" },
 ]
 
 [[package]]
@@ -3398,6 +3400,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/61/b5/6bceb93ff20bd7ca36e6f7c540581abb18f53130fabb30ba526e26fd819b/starlette-0.37.2.tar.gz", hash = "sha256:9af890290133b79fc3db55474ade20f6220a364a0402e0b556e7cd5e1e093823", size = 2843736, upload-time = "2024-03-05T16:16:54.267Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fd/18/31fa32ed6c68ba66220204ef0be798c349d0a20c1901f9d4a794e08c76d8/starlette-0.37.2-py3-none-any.whl", hash = "sha256:6fe59f29268538e5d0d182f2791a479a0c64638e6935d1c6989e63fb2699c6ee", size = 71908, upload-time = "2024-03-05T16:16:50.957Z" },
+]
+
+[[package]]
+name = "stream-zip"
+version = "0.0.84"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pycryptodome" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1b/f2/bc3d35c70735fa118eb3a49af8ce786863df87c910c14483daca5d056613/stream_zip-0.0.84.tar.gz", hash = "sha256:32ba07c3c7fe947c0224a9f8e4a228f14080e01b17d8ffc78c16a6043b1fba12", size = 10074, upload-time = "2026-02-04T08:37:41.417Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/8c/e11decad4ab23780503666170b09a8d0d07b15045b522b0ba94fc5df257f/stream_zip-0.0.84-py3-none-any.whl", hash = "sha256:4e3a68aba1aba643035c4b9e219a61de519752693ff727c3268581a1e70f1376", size = 9890, upload-time = "2026-02-04T08:37:39.862Z" },
 ]
 
 [[package]]
