@@ -218,7 +218,7 @@ class DbProject(BaseModel):
     outline: Optional[Polygon | Feature | FeatureCollection]
     centroid: Optional[Point | Feature | Polygon] = None
     no_fly_zones: Optional[MultiPolygon | Polygon | Feature] = None
-    task_count: int = 0
+    total_task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     requires_approval_from_manager_for_locking: Optional[bool] = None
     requires_approval_from_regulator: Optional[bool] = False
@@ -378,7 +378,7 @@ class DbProject(BaseModel):
 
             task_records = await cur.fetchall()
             project_record.tasks = task_records if task_records is not None else []
-            project_record.task_count = len(task_records)
+            project_record.total_task_count = len(task_records)
             return project_record
 
     @staticmethod
