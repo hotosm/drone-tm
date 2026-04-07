@@ -520,14 +520,33 @@ const MapSection = ({ className }: { className?: string }) => {
   // *********rotation end *******************
 
   const getPopupUI = useCallback(() => {
+    const lat = popupData?.coordinates?.lat?.toFixed(8);
+    const lng = popupData?.coordinates?.lng?.toFixed(8);
+    const isTakeOffPoint = popupData?.index === 0;
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
     return (
       <div>
         <center>
           <h3>{popupData?.index}</h3>
-          <p>
-            {popupData?.coordinates?.lat?.toFixed(8)},&nbsp;
-            {popupData?.coordinates?.lng?.toFixed(8)}{' '}
-          </p>
+          <div className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-gap-1">
+            <p>
+              {lat},&nbsp;{lng}
+            </p>
+            <span
+              id="copy-coords-btn"
+              data-coords={`${lat}, ${lng}`}
+              className="naxatw-cursor-pointer naxatw-rounded naxatw-p-0.5 hover:naxatw-bg-grey-200"
+              title="Copy coordinates"
+            >
+              <i
+                className="material-symbols-outlined"
+                style={{ fontSize: '16px' }}
+              >
+                content_copy
+              </i>
+            </span>
+          </div>
         </center>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
           <p className="naxatw-text-base">Speed: {popupData?.speed} m/s</p>
@@ -548,10 +567,41 @@ const MapSection = ({ className }: { className?: string }) => {
               Altitude: {popupData?.altitude} meter
             </p>
           )}
+          {isTakeOffPoint && (
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-gap-1 naxatw-rounded naxatw-bg-red naxatw-px-3 naxatw-py-1.5 naxatw-text-sm naxatw-text-white naxatw-no-underline hover:naxatw-opacity-80"
+            >
+              <i
+                className="material-symbols-outlined"
+                style={{ fontSize: '16px' }}
+              >
+                map
+              </i>
+              Open in Google Maps
+            </a>
+          )}
         </div>
       </div>
     );
   }, [popupData]);
+
+  // attach click handler for copy-coords button in popup (rendered via renderToString)
+  useEffect(() => {
+    function handleCopyCoords(e: MouseEvent) {
+      const btn = (e.target as HTMLElement).closest('#copy-coords-btn');
+      if (!btn) return;
+      const coords = btn.getAttribute('data-coords');
+      if (coords) {
+        navigator.clipboard.writeText(coords);
+        toast.success('Coordinates copied to clipboard');
+      }
+    }
+    document.addEventListener('click', handleCopyCoords);
+    return () => document.removeEventListener('click', handleCopyCoords);
+  }, []);
 
   // toggle layers
 
