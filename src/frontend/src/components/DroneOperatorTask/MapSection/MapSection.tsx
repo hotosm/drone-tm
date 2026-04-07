@@ -639,16 +639,21 @@ const MapSection = ({ className }: { className?: string }) => {
   };
 
   const handleToggleOrthophoto = () => {
-    map?.setLayoutProperty(
+    if (!map) return;
+    const layer = map.getLayer('task-orthophoto');
+    if (!layer) return;
+
+    map.setLayoutProperty(
       'task-orthophoto',
       'visibility',
       showOrthophoto ? 'none' : 'visible',
     );
     setShowOrthophoto(!showOrthophoto);
     if (!showOrthophoto) {
-      map.fitBounds(
-        map.getSource(map.getLayer('task-orthophoto').source).bounds,
-      );
+      const source = map.getSource(layer.source) as any;
+      if (source?.bounds) {
+        map.fitBounds(source.bounds);
+      }
     }
   };
   // end toggle layers
