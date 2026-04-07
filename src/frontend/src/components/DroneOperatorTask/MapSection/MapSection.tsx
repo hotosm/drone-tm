@@ -137,6 +137,17 @@ const MapSection = ({ className }: { className?: string }) => {
     return null;
   }, [taskAssetsInformation?.orthophoto_url]);
 
+  // Don't regenerate the flightplan once processing has started - the
+  // flight is done and the backend call is a waste of resources.
+  // IMAGE_UPLOADED is intentionally excluded: partial uploads may still
+  // need new flights. If a user needs to re-add photos to a processed
+  // task, they must first reset the processing status.
+  const taskState = (taskData as any)?.state;
+  const isPostFlightState =
+    taskState === 'IMAGE_PROCESSING_STARTED' ||
+    taskState === 'IMAGE_PROCESSING_FINISHED' ||
+    taskState === 'IMAGE_PROCESSING_FAILED';
+
   const {
     data: taskWayPointsData,
     isLoading: taskWayPointsLoading,
@@ -151,6 +162,7 @@ const MapSection = ({ className }: { className?: string }) => {
       finalRotationAngle,
       gimbalAngle as string,
       {
+        enabled: !!(projectId && taskId) && !isPostFlightState,
         select: ({ data }: any) => {
           const modifiedTaskWayPointsData = {
             geojsonListOfPoints: data.results,
