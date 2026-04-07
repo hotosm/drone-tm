@@ -1,3 +1,13 @@
+## 2026.2.5 (2026-04-07)
+
+### Fix
+
+- **drone-flightplan**: fix #751 overlap in N-S and E-W not being equal, add comment
+- **drone-flightplan**: better logic to ensure we correctly buffer the aoi for flightplan (all axes)
+- **drone-flightplan**: fix #712 after analysis by @zestyping, missing minus sign
+- **frontend**: fix #748, add google maps deep link + clipboard copy for takeoff coord
+- **frontend**: fix #770 landing page layout
+
 ## 2026.2.4 (2026-04-07)
 
 ### Fix
