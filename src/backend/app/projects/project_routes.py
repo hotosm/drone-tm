@@ -43,6 +43,7 @@ from app.s3 import (
     build_browser_object_url,
     check_file_exists,
     complete_multipart_upload,
+    delete_objects_by_prefix,
     generate_presigned_put_url,
     generate_presigned_multipart_upload_url,
     initiate_multipart_upload,
@@ -232,6 +233,18 @@ async def delete_project_by_id(
     ],
 ):
     project_id = await project_schemas.DbProject.delete(db, project.id)
+
+    # After DB rows are gone, purge all S3 assets under the project prefix.
+    # We do this best-effort: if S3 cleanup fails the DB delete still stands,
+    # and the script in scripts/ can sweep orphaned prefixes later.
+    try:
+        deleted = delete_objects_by_prefix(
+            settings.S3_BUCKET_NAME, f"projects/{project_id}/"
+        )
+        log.info(f"Deleted {deleted} S3 objects for project {project_id}")
+    except Exception as e:
+        log.error(f"S3 cleanup failed for project {project_id}: {e}")
+
     return {"message": f"Project successfully deleted {project_id}"}
 
 
