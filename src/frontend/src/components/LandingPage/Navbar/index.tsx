@@ -7,9 +7,11 @@ export default function Navbar() {
     <header>
       <FlexRow
         gap={10}
-        className="naxatw-justify-between naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white"
+        className="naxatw-justify-between naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-2 sm:naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white"
       >
-        <span className="naxatw-opacity-75">Version {packageInfo.version}</span>
+        <span className="naxatw-opacity-75 naxatw-whitespace-nowrap">
+          v{packageInfo.version}
+        </span>
         <FlexRow
           gap={5}
           className="naxatw-h-fit naxatw-text-xs naxatw-leading-none"
