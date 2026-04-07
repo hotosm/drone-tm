@@ -1005,27 +1005,11 @@ async def process_imported_odm_assets(
         except Exception as cleanup_err:
             log.warning(f"Failed to clean up import zip {s3_zip_key}: {cleanup_err}")
 
-        # Clean up any partially-uploaded ODM assets and derived files
+        # Clean up any partially-uploaded ODM assets
         try:
             partial_prefix = f"projects/{project_id}/{task_id}/odm/"
             delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
-
-            # Also remove derived files written outside the odm/ prefix,
-            # including the legacy orthophoto/ path to prevent stale
-            # fallback serving after a failed import.
-            cleanup_client = s3_client()
-            for stale_key in (
-                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif",
-                f"projects/{project_id}/{task_id}/images.json",
-            ):
-                try:
-                    cleanup_client.remove_object(settings.S3_BUCKET_NAME, stale_key)
-                except Exception:
-                    pass
-
-            log.info(
-                f"Cleaned up partial ODM assets and derived files for task {task_id}"
-            )
+            log.info(f"Cleaned up partial ODM assets for task {task_id}")
         except Exception as cleanup_err:
             log.warning(f"Failed to clean up partial ODM assets: {cleanup_err}")
 

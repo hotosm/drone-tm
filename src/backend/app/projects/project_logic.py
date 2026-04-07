@@ -584,9 +584,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
             1 for obj in objects if obj.object_name.lower().endswith(image_extensions)
         )
 
-        # Check for ODM assets under the new individual-file layout first,
-        # then fall back to the legacy monolithic assets.zip.
-        # Use a single-object probe instead of listing the entire prefix.
+        # Check for ODM assets under the odm/ prefix via a single-object probe.
         presigned_url = None
         odm_prefix = f"projects/{project_id}/{task_id}/odm/"
         try:
@@ -597,37 +595,21 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
                 None,
             )
             if odm_probe is not None:
-                # New layout: point to the streaming export endpoint
                 presigned_url = (
                     f"{settings.API_PREFIX}/projects/odm/export/{project_id}/{task_id}/"
                 )
-            else:
-                # Fallback: legacy assets.zip
-                assets_path = f"projects/{project_id}/{task_id}/assets.zip"
-                get_object_metadata(settings.S3_BUCKET_NAME, assets_path)
-                presigned_url = maybe_presign_s3_key(assets_path, expires_hours=2)
         except S3Error as e:
-            if e.code == "NoSuchKey":
-                log.debug(f"Assets not found for project {project_id}, task {task_id}.")
-                presigned_url = None
-            else:
-                log.error(f"An error occurred while accessing assets: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+            log.error(f"An error occurred while accessing assets: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
-        # Generate a presigned URL for the orthophoto.
-        # New layout: COG lives inside odm/ tree.  Fall back to legacy
-        # orthophoto/ path for tasks processed before this change.
+        # Generate a presigned URL for the orthophoto COG.  Prefer the
+        # task-level file, fall back to a project-level ortho if the task
+        # doesn't have its own (e.g. final project-wide processing).
         orthophoto_url = None
         try:
             candidates = [
-                # New: COG inside odm/ tree (task-level)
                 f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif",
-                # Legacy: separate orthophoto/ dir (task-level)
-                f"projects/{project_id}/{task_id}/orthophoto/odm_orthophoto.tif",
-                # New: COG inside odm/ tree (project-level fallback)
                 f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif",
-                # Legacy: separate orthophoto/ dir (project-level fallback)
-                f"projects/{project_id}/orthophoto/odm_orthophoto.tif",
             ]
             for path in candidates:
                 try:

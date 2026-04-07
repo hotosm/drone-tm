@@ -396,7 +396,7 @@ async def test_odm_queue_info_omits_deleted_completed_tasks(
                 15,
                 outline,
                 odm_task_uuid,
-                f"projects/{project_id}/{task_id}/assets.zip",
+                f"projects/{project_id}/{task_id}/odm/",
             ),
         )
         await cur.execute(
