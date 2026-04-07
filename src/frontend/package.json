@@ -15,6 +15,8 @@
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.1",
     "@hotosm/gcp-editor": "workspace:*",
+    "@hotosm/hanko-auth": "^0.5.2",
+    "@hotosm/tool-menu": "^0.2.6",
     "@hotosm/ui": "^0.9.0",
     "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@mapbox/mapbox-gl-draw-static-mode": "^1.0.1",

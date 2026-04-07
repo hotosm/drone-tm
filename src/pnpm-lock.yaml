@@ -20,6 +20,12 @@ importers:
       '@hotosm/gcp-editor':
         specifier: workspace:*
         version: link:../gcp-editor
+      '@hotosm/hanko-auth':
+        specifier: ^0.5.2
+        version: 0.5.2
+      '@hotosm/tool-menu':
+        specifier: ^0.2.6
+        version: 0.2.7
       '@hotosm/ui':
         specifier: ^0.9.0
         version: 0.9.0(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))
@@ -961,6 +967,11 @@ packages:
       react: '>=17.0.0'
       react-dom: '>=17.0.0'
 
+  '@denysvuika/preact-translate@0.6.0':
+    resolution: {integrity: sha512-LPzcbCc9PD+HghgZe4rjWB3wQm05ibQ37Zvh0K8MwIwbPtMZIz9iBe9+9z9uu8yVFNiuswABvUZKaNrDngqmPw==}
+    peerDependencies:
+      preact: '>=10.13.0'
+
   '@emotion/is-prop-valid@1.4.0':
     resolution: {integrity: sha512-QgD4fyscGcbbKwJmqNvUMSE02OsHUa+lAWKdEUIJKgqe5IwRSKd7+KhibEWdaKwgjLj0DRSHA9biAIqGBk05lw==}
 
@@ -1304,6 +1315,13 @@ packages:
 
   '@geomatico/maplibre-cog-protocol@0.3.1':
     resolution: {integrity: sha512-XeYDScZeMUIEkYR3eXH0HGWoZwBNvq+sKaFTPh5mhiLoA+TeSiBkpl99DScWb5J1SGtEssiLEn6L0Mk30Xtt4g==}
+
+  '@hotosm/hanko-auth@0.5.2':
+    resolution: {integrity: sha512-dCCrNRyH2C2bS3TBDLJrX45rmHPgMzZHp8Il+LvEeh9mHzBB/iXro1bJZj5Fpmdhfy3HVN+v5PE2WhMK3ymznw==}
+
+  '@hotosm/tool-menu@0.2.7':
+    resolution: {integrity: sha512-idPmbJtBfAfmug+vVSKd5QN+ECzvZY+3XQTnO8Mt2tqhNSXFWeYdZg9HVieET2EndW35niwrtpMBQ6IxAaf+4w==}
+    engines: {node: '>=14.17.0'}
 
   '@hotosm/ui@0.9.0':
     resolution: {integrity: sha512-ggUPGl/wqY7ot26GfOq4ZAWqiVhwz2H3niNgAMubYdUZZOqu9Gkk7v1LNdeo8vce5oqpL+WZ79kNXwe4SC+VpA==}
@@ -1957,6 +1975,17 @@ packages:
   '@tanstack/virtual-core@3.13.23':
     resolution: {integrity: sha512-zSz2Z2HNyLjCplANTDyl3BcdQJc2k1+yyFoKhNRmCr7V7dY8o8q5m8uFTI1/Pg1kL+Hgrz6u3Xo6eFUB7l66cg==}
 
+  '@teamhanko/hanko-elements@2.5.0':
+    resolution: {integrity: sha512-lWh9kWp5+ANIjRdxC/ZbNfLHp42GR6zi6wJol0eyLmlMq2yiWyzdXA2MSEh30KtT256qHRhvu+phYx8UFtpO4A==}
+
+  '@teamhanko/hanko-frontend-sdk@2.5.0':
+    resolution: {integrity: sha512-JFgQa/FDZZsRPQ4qVKpFWfSbtsiaOtePITXpnQdK8XngKNU+bLnf/9J+TWq1cOADZHdDD2r/dDWdngku7t2JKw==}
+
+  '@teamhanko/preact-custom-element@4.2.2':
+    resolution: {integrity: sha512-3djCQr25IxQIgpidxD8J0fTQ7/hMuoa5Nmv7delQc6sX4kXgv9e/pE01cywpmGZLi69H1KUH4dmZ4cPPJQrsQQ==}
+    peerDependencies:
+      preact: 10.x
+
   '@transloadit/prettier-bytes@0.3.5':
     resolution: {integrity: sha512-xF4A3d/ZyX2LJWeQZREZQw+qFX4TGQ8bGVP97OLRt6sPO6T0TNHBFTuRHOJh7RNmYOBmQ9MHxpolD9bXihpuVA==}
 
@@ -2100,6 +2129,9 @@ packages:
 
   '@types/geojson@7946.0.8':
     resolution: {integrity: sha512-1rkryxURpr6aWP7R786/UQOkJ3PcpQiWkAXBmdWc7ryFWqN6a4xfK7BtjXvFBKO9LjQ+MWQSWxYeZX1OApnArA==}
+
+  '@types/js-cookie@3.0.6':
+    resolution: {integrity: sha512-wkw9yd1kEXOPnvEeEV1Go1MmxtBJL0RR79aOTAApecWFVu7w0NNXNqhcWgvw2YgZDYadliXkl14pa3WXw5jlCQ==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -5674,6 +5706,10 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
+  '@denysvuika/preact-translate@0.6.0(preact@10.29.0)':
+    dependencies:
+      preact: 10.29.0
+
   '@emotion/is-prop-valid@1.4.0':
     dependencies:
       '@emotion/memoize': 0.9.0
@@ -5875,6 +5911,15 @@ snapshots:
   '@floating-ui/utils@0.2.11': {}
 
   '@geomatico/maplibre-cog-protocol@0.3.1': {}
+
+  '@hotosm/hanko-auth@0.5.2':
+    dependencies:
+      '@teamhanko/hanko-elements': 2.5.0
+      lit: 3.3.2
+
+  '@hotosm/tool-menu@0.2.7':
+    dependencies:
+      lit: 3.3.2
 
   '@hotosm/ui@0.9.0(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))':
     dependencies:
@@ -6436,6 +6481,22 @@ snapshots:
 
   '@tanstack/virtual-core@3.13.23': {}
 
+  '@teamhanko/hanko-elements@2.5.0':
+    dependencies:
+      '@denysvuika/preact-translate': 0.6.0(preact@10.29.0)
+      '@teamhanko/hanko-frontend-sdk': 2.5.0
+      '@teamhanko/preact-custom-element': 4.2.2(preact@10.29.0)
+      classnames: 2.5.1
+      preact: 10.29.0
+
+  '@teamhanko/hanko-frontend-sdk@2.5.0':
+    dependencies:
+      '@types/js-cookie': 3.0.6
+
+  '@teamhanko/preact-custom-element@4.2.2(preact@10.29.0)':
+    dependencies:
+      preact: 10.29.0
+
   '@transloadit/prettier-bytes@0.3.5': {}
 
   '@turf/area@7.3.4':
@@ -6712,6 +6773,8 @@ snapshots:
   '@types/geojson@7946.0.16': {}
 
   '@types/geojson@7946.0.8': {}
+
+  '@types/js-cookie@3.0.6': {}
 
   '@types/json-schema@7.0.15': {}
 

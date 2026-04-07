@@ -1,10 +1,35 @@
 import { FlexRow } from '@Components/common/Layouts';
 import { Link } from 'react-router-dom';
+import { getRuntimeConfig } from '@/runtimeConfig';
+
+// Auth configuration for SSO session verification
+const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
+const HANKO_URL = getRuntimeConfig('VITE_HANKO_URL', 'https://dev.login.hotosm.org');
+const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
+
+// Import Hanko web component for session verification
+if (AUTH_PROVIDER === 'hanko') {
+  import('@hotosm/hanko-auth');
+}
 import packageInfo from '../../../../package.json';
 
 export default function Navbar() {
+  // Return URL for hanko-auth callback
+  const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth`;
+
   return (
     <header>
+      {/* Hidden auth component for session verification - redirects to /hanko-auth if user has SSO session */}
+      {AUTH_PROVIDER === 'hanko' && (
+        <div style={{ display: 'none' }}>
+          <hotosm-auth
+            hanko-url={HANKO_URL}
+            base-path={HANKO_URL}
+            redirect-after-login={hankoReturnUrl}
+            redirect-after-logout={FRONTEND_URL}
+          />
+        </div>
+      )}
       <FlexRow
         gap={10}
         className="naxatw-justify-between naxatw-border-landing-white naxatw-bg-landing-red naxatw-px-2 sm:naxatw-px-20 naxatw-py-2 naxatw-text-xs naxatw-text-landing-white"

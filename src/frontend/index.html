@@ -34,14 +34,14 @@
       href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined|Material+Symbols+Outlined&display=swap"
       rel="stylesheet"
     />
+    <!-- Runtime config MUST load before any JS modules -->
+    <script src="/config.js"></script>
   </head>
 
   <body>
     <div id="backdrop-root"></div>
     <div id="overlay-root"></div>
     <div id="root"></div>
-    <!-- Runtime config loaded before app starts -->
-    <script src="/config.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

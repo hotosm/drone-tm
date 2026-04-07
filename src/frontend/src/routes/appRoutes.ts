@@ -9,6 +9,7 @@ const Dashboard = lazy(() => import('@Views/Dashboard'));
 const CompleteUserProfile = lazy(() => import('@Views/CompleteUserProfile'));
 const CreateProject = lazy(() => import('@Components/CreateProject'));
 const GoogleAuth = lazy(() => import('@Components/GoogleAuth'));
+const HankoAuth = lazy(() => import('@Components/HankoAuth'));
 const IndividualProject = lazy(() => import('@Views/IndividualProject'));
 const TaskDescription = lazy(() => import('@Views/TaskDescription'));
 const UpdateUserProfile = lazy(() => import('@Views/UpdateUserProfile'));
@@ -40,6 +41,12 @@ const appRoutes: IRoute[] = [
     path: '/auth',
     name: 'Google Authentication',
     component: GoogleAuth,
+    authenticated: false,
+  },
+  {
+    path: '/hanko-auth',
+    name: 'Hanko Authentication',
+    component: HankoAuth,
     authenticated: false,
   },
   {

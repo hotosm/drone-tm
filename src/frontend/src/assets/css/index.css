@@ -10,6 +10,7 @@ html,
 body {
   font-family: 'Barlow Condensed', sans-serif;
   box-sizing: border-box;
+  --hot-font-sans: 'Barlow Condensed', sans-serif;
 }
 
 .landing-page p {
@@ -77,12 +78,12 @@ body {
 
 .no-spinner::-webkit-inner-spin-button,
 .no-spinner::-webkit-outer-spin-button {
-    -webkit-appearance: none; /* Chrome, Safari, Edge, Opera */
-    margin: 0;
+  -webkit-appearance: none; /* Chrome, Safari, Edge, Opera */
+  margin: 0;
 }
 
 .no-spinner {
-    -moz-appearance: textfield; /* Firefox */
+  -moz-appearance: textfield; /* Firefox */
 }
 
 #pdf-page-wrapper
@@ -95,4 +96,7 @@ body {
   > div.react-pdf__Page
   > div.react-pdf__Page__annotations.annotationLayer {
   height: 0px !important;
+}
+hotosm-auth {
+  --font-family: var(--hot-font-sans);
 }

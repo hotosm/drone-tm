@@ -73,3 +73,55 @@ def create_reset_password_token(email: str):
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
     return encoded_jwt
+
+
+# Override login_required with Hanko SSO when AUTH_PROVIDER=hanko
+if settings.AUTH_PROVIDER == "hanko":
+    from hotosm_auth_fastapi import CurrentUser, get_mapped_user_id
+    from app.users.hanko_helpers import lookup_user_by_email, create_drone_tm_user
+
+    log.info("Using Hanko SSO authentication")
+
+    async def login_required(
+        hanko_user: CurrentUser,
+        db: Annotated[Connection, Depends(database.get_db)],
+    ) -> AuthUser:
+        """Hanko SSO login dependency."""
+        user_id = await get_mapped_user_id(
+            hanko_user=hanko_user,
+            db_conn=db,
+            app_name="drone-tm",
+            auto_create=True,
+            email_lookup_fn=lookup_user_by_email,
+            user_creator_fn=create_drone_tm_user,
+        )
+
+        user = await DbUser.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return AuthUser(
+            id=user["id"],
+            email=user["email_address"],
+            name=user.get("name"),
+            profile_img=user.get("profile_img"),
+            role="MAPPER",
+        )
+
+    async def login_dependency(
+        hanko_user: CurrentUser,
+        db: Annotated[Connection, Depends(database.get_db)],
+    ) -> DbUser:
+        """Hanko SSO login dependency for permission checks."""
+        user_id = await get_mapped_user_id(
+            hanko_user=hanko_user,
+            db_conn=db,
+            app_name="drone-tm",
+            auto_create=True,
+            email_lookup_fn=lookup_user_by_email,
+            user_creator_fn=create_drone_tm_user,
+        )
+
+        user = await DbUser.one(db, user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
