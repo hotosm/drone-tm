@@ -23,7 +23,6 @@ from app.s3 import (
     generate_presigned_get_url,
     get_file_from_bucket,
     list_objects_from_bucket,
-    s3_client,
 )
 from app.tasks import task_logic
 from app.utils import timestamp
@@ -392,13 +391,12 @@ def extract_and_upload_odm_assets(
     COG and the COG is stored at
     ``projects/{pid}/{tid}/odm/odm_orthophoto/odm_orthophoto.tif``,
     eliminating the previous duplication into a separate ``orthophoto/``
-    prefix.  ``images.json`` is also copied to the task root for backward
-    compatibility.
+    prefix.
 
-    Uses a single pass over the zip.  The orthophoto and images.json are
-    *kept* on disk (without uploading the raw ortho) so that
-    post-processing can happen after the zip is deleted - cutting peak
-    disk usage roughly in half for large archives.
+    Uses a single pass over the zip.  The orthophoto is *kept* on disk
+    (without uploading the raw version) so that reprojection can happen
+    after the zip is deleted - cutting peak disk usage roughly in half
+    for large archives.
 
     Returns True on success.
     """
@@ -413,10 +411,9 @@ def extract_and_upload_odm_assets(
 
     ortho_member = "odm_orthophoto/odm_orthophoto.tif"
     ortho_local: str | None = None
-    ij_local: str | None = None
 
-    # Single pass: extract, upload, and delete - except orthophoto & images.json
-    # which we keep for post-processing after the zip is removed.
+    # Single pass: extract, upload, and delete - except the orthophoto,
+    # which we keep on disk for post-processing after the zip is removed.
     # The raw orthophoto is NOT uploaded here; it is replaced by the
     # reprojected COG after the zip is deleted (saves ~50% ortho storage).
     with zipfile.ZipFile(zip_path, "r") as zf:
@@ -442,20 +439,14 @@ def extract_and_upload_odm_assets(
                 add_file_to_bucket(settings.S3_BUCKET_NAME, extracted_path, s3_key)
                 log.debug(f"Uploaded ODM asset: {s3_key}")
             except Exception:
-                # Clean up even on upload failure for non-kept files
-                if member != "images.json":
-                    if os.path.exists(extracted_path):
-                        os.remove(extracted_path)
+                if os.path.exists(extracted_path):
+                    os.remove(extracted_path)
                 raise
 
-            # Keep images.json on disk for post-processing
-            if member == "images.json":
-                ij_local = extracted_path
-            else:
-                os.remove(extracted_path)
+            os.remove(extracted_path)
 
     # Delete the zip now to free disk before the expensive reprojection.
-    # The orthophoto and images.json we kept are independent of the zip.
+    # The orthophoto we kept is independent of the zip.
     if os.path.exists(zip_path):
         os.remove(zip_path)
         log.info(f"Deleted zip {zip_path} to free disk before reprojection")
@@ -463,9 +454,47 @@ def extract_and_upload_odm_assets(
     # Reproject orthophoto and upload the COG directly into the odm/ tree,
     # replacing the raw version (which was intentionally not uploaded above).
     if ortho_local and os.path.exists(ortho_local):
+        # Log the source orthophoto's dimensions and CRS up front so we can
+        # tell whether a tiny output is caused by a bad source from ODM or
+        # by the reprojection step itself.
+        try:
+            src_ds = gdal.Open(ortho_local)
+            if src_ds is not None:
+                src_proj = src_ds.GetProjection() or "(none)"
+                log.info(
+                    "Source ODM orthophoto: size={}x{}, bands={}, "
+                    "filesize={} bytes, geotransform={}, projection={}",
+                    src_ds.RasterXSize,
+                    src_ds.RasterYSize,
+                    src_ds.RasterCount,
+                    os.path.getsize(ortho_local),
+                    src_ds.GetGeoTransform(),
+                    src_proj[:200],
+                )
+                src_ds = None
+            else:
+                log.warning(f"GDAL could not open source ortho at {ortho_local}")
+        except Exception as inspect_err:
+            log.warning(f"Failed to inspect source ortho: {inspect_err}")
+
         reprojected_path = os.path.join(temp_dir, "odm_orthophoto_3857.tif")
         try:
             reproject_to_web_mercator(ortho_local, reprojected_path)
+
+            # Log reprojected dimensions for comparison.
+            try:
+                out_ds = gdal.Open(reprojected_path)
+                if out_ds is not None:
+                    log.info(
+                        "Reprojected COG orthophoto: size={}x{}, filesize={} bytes",
+                        out_ds.RasterXSize,
+                        out_ds.RasterYSize,
+                        os.path.getsize(reprojected_path),
+                    )
+                    out_ds = None
+            except Exception:
+                pass
+
             s3_ortho = f"{odm_prefix}{ortho_member}"
             add_file_to_bucket(settings.S3_BUCKET_NAME, reprojected_path, s3_ortho)
             log.info(f"Uploaded reprojected COG orthophoto to {s3_ortho}")
@@ -478,17 +507,6 @@ def extract_and_upload_odm_assets(
         raise FileNotFoundError(
             "ODM zip does not contain odm_orthophoto/odm_orthophoto.tif"
         )
-
-    # Copy images.json to task root for backward compat
-    if ij_local and os.path.exists(ij_local):
-        s3_ij = f"projects/{project_id}/{task_segment}images.json"
-        try:
-            add_file_to_bucket(settings.S3_BUCKET_NAME, ij_local, s3_ij)
-            log.info(f"Uploaded images.json to {s3_ij}")
-        finally:
-            os.remove(ij_local)
-    else:
-        log.warning("images.json not found in ODM zip")
 
     return True
 
@@ -557,10 +575,10 @@ async def process_assets_from_odm(
                 raise FileNotFoundError(f"Downloaded file not found: {assets_path}")
             log.info(f"Successfully downloaded ZIP to {assets_path}")
 
-            # Extract all ODM files individually to S3 under odm/ prefix,
-            # reproject orthophoto to 3857, and copy images.json to task root.
-            # The helper deletes the zip after extraction to free disk before
-            # the expensive GDAL reprojection step.
+            # Extract all ODM files individually to S3 under odm/ prefix
+            # and reproject the orthophoto to EPSG:3857.  The helper deletes
+            # the zip after extraction to free disk before the expensive
+            # GDAL reprojection step.
             extract_and_upload_odm_assets(
                 assets_path, output_file_path, dtm_project_id, dtm_task_id
             )
@@ -607,30 +625,13 @@ async def process_assets_from_odm(
     except Exception as e:
         log.error(f"Error during processing for project {dtm_project_id}: {e}")
 
-        # Clean up any partially-uploaded ODM assets and derived files so a
-        # retry starts clean and stale orthophoto/images.json aren't served.
+        # Clean up any partially-uploaded ODM assets so a retry starts clean.
         if dtm_task_id:
             try:
                 task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
                 partial_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
                 delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
-
-                # Also remove derived files written outside the odm/ prefix,
-                # including the legacy orthophoto/ path to prevent stale
-                # fallback serving after a failed reprocess.
-                client = s3_client()
-                for stale_key in (
-                    f"projects/{dtm_project_id}/{task_segment}orthophoto/odm_orthophoto.tif",
-                    f"projects/{dtm_project_id}/{task_segment}images.json",
-                ):
-                    try:
-                        client.remove_object(settings.S3_BUCKET_NAME, stale_key)
-                    except Exception:
-                        pass
-
-                log.info(
-                    f"Cleaned up partial ODM assets and derived files for task {dtm_task_id}"
-                )
+                log.info(f"Cleaned up partial ODM assets for task {dtm_task_id}")
             except Exception as cleanup_err:
                 log.warning(f"Failed to clean up partial ODM assets: {cleanup_err}")
 
