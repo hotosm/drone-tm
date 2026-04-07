@@ -606,6 +606,42 @@ def create_waypoint(
     side_spacing = parameters["side_spacing"]
     forward_spacing = parameters["forward_spacing"]
 
+    # https://github.com/hotosm/drone-tm/issues/751
+    # In waylines mode photos are triggered on a fixed 2s timer, so
+    # the actual E-W photo gap is ground_speed * image_interval. When
+    # ground_speed is clamped (e.g. 11.5 m/s on DJI drones), the real gap
+    # shrinks below forward_spacing and effective E-W overlap creeps above
+    # the requested value. N-S spacing is purely geometric and unaffected,
+    # so we get asymmetric coverage.
+    #
+    # Fix: if the clamp-inflated E-W overlap exceeds the user's requested
+    # N-S overlap, tighten side_spacing to match. If the user asked for
+    # more N-S than E-W, leave it alone. Waypoints mode is untouched (no
+    # timer involved; photos land at the waypoints directly).
+    #
+    # Waypoint mode is not affected. The apparent E-W / N-S gap difference
+    # is purely an result of the the 4:3 sensor.
+    if mode == FlightMode.WAYLINES:
+        image_interval = 2  # seconds; matches default in calculate_parameters
+        ground_speed = parameters["ground_speed"]
+        forward_photo_height = parameters["forward_photo_height"]
+        side_photo_width = parameters["side_photo_width"]
+        actual_forward_spacing = ground_speed * image_interval
+        if (
+            forward_photo_height > 0
+            and side_photo_width > 0
+            and actual_forward_spacing < forward_spacing
+        ):
+            # side_spacing that matches the effective E-W overlap exactly
+            matched_side_spacing = (
+                side_photo_width * actual_forward_spacing / forward_photo_height
+            )
+            # Only tighten N-S if the user's requested side_spacing is
+            # looser than what the effective E-W overlap now demands.
+            if matched_side_spacing < side_spacing:
+                side_spacing = matched_side_spacing
+            forward_spacing = actual_forward_spacing
+
     # Handle FeatureCollection, Feature, Polygon
     if "features" in project_area:
         polygon = shape(project_area["features"][0]["geometry"])
