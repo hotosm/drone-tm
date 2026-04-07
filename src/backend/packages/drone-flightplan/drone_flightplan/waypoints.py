@@ -67,8 +67,8 @@ def generate_grid_in_aoi(
     overlap_threshold = y_spacing * (1 - side_overlap / 100)
 
     # Add a buffer to include edge points during containment tests
-    # This ensures we capture waypoints near the polygon boundary
-    buffered_polygon = add_buffer_to_aoi(aoi_polygon, x_spacing * 0.5)
+    # This ensures we capture waypoints near the polygon boundary.
+    buffered_polygon = add_buffer_to_aoi(aoi_polygon, max(x_spacing, y_spacing) * 0.5)
 
     # Get the centroid for rotation operations
     centroid = aoi_polygon.centroid
