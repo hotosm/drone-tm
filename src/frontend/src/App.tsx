@@ -26,6 +26,9 @@ import {
   getPromptDialogContent,
 } from '@Constants/modalContents';
 import ScrollToTop from '@Components/common/ScrollToTop';
+import { getRuntimeConfig } from '@/runtimeConfig';
+
+const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
 
 export default function App() {
   const dispatch = useTypedDispatch();
@@ -41,7 +44,7 @@ export default function App() {
       }
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/users/my-info/`, {
+        const response = await fetch(`${API_URL}/users/my-info/`, {
           credentials: 'include',
         });
 
