@@ -106,9 +106,15 @@ def generate_grid_in_aoi(
             y = miny + yi * y_spacing
             unrotated_point = Point(x, y)
 
-            # Rotate the point back around the AOI centroid to get final position
+            # Rotate the point back around the AOI centroid to get final position.
+            # NOTE: the polygon was rotated by +rotation_angle to align its longest
+            # edge with the x-axis, so the inverse rotation (-rotation_angle) is
+            # required here to map grid points back into the original frame.
+            # Using +rotation_angle produces a mirror-image grid and can miss
+            # corners on angular AOIs
+            # See issue https://github.com/hotosm/drone-tm/issues/712
             rotated_point = rotate(
-                unrotated_point, rotation_angle, origin=centroid, use_radians=False
+                unrotated_point, -rotation_angle, origin=centroid, use_radians=False
             )
 
             # Alternate flight direction between waylines
@@ -163,7 +169,7 @@ def generate_grid_in_aoi(
             # Determine which direction to extend the grid
             # Based on whether the corner is closer to min or max bounds
             rotated_corner = rotate(
-                corner, -rotation_angle, origin=centroid, use_radians=False
+                corner, rotation_angle, origin=centroid, use_radians=False
             )
 
             # Calculate the y-coordinate for a new wayline near this corner
@@ -180,8 +186,9 @@ def generate_grid_in_aoi(
             for xi in range(xpoints):
                 x = minx + xi * x_spacing
                 unrotated_point = Point(x, new_y)
+                # Inverse-rotate to map grid point back to the original frame
                 rotated_point = rotate(
-                    unrotated_point, rotation_angle, origin=centroid, use_radians=False
+                    unrotated_point, -rotation_angle, origin=centroid, use_radians=False
                 )
 
                 # Only add if inside the buffered polygon and not a duplicate
@@ -387,10 +394,12 @@ def create_path(
         elif angle == 90:
             start_x -= forward_spacing
 
-        # Rotate the point using Shapely's rotate function
+        # Rotate the offset so it points along the flight-line direction in
+        # the original frame. Flight lines are parallel to the rotated-frame
+        # x-axis, which in the original frame is at angle -rotation_angle.
         rotated_start_point = rotate(
             Point(start_x, start_y),
-            rotation_angle,
+            -rotation_angle,
             origin=shapely_point,  # Rotate around the first point
             use_radians=False,
         )
@@ -426,10 +435,12 @@ def create_path(
         elif angle == 90:
             end_x += forward_spacing
 
-        # Rotate the point AFTER applying the offset
+        # Rotate the point AFTER applying the offset. The offset is along the
+        # rotated-frame x-axis; in the original frame that direction is at
+        # angle -rotation_angle.
         rotated_end_point = rotate(
             Point(end_x, end_y),
-            rotation_angle,
+            -rotation_angle,
             origin=shapely_point,  # Rotate around the last point
             use_radians=False,
         )
