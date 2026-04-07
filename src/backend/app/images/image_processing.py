@@ -332,32 +332,51 @@ class DroneImageProcessor:
 
 
 def reproject_to_web_mercator(input_file, output_file):
-    """Reprojects a COG file to Web Mercator (EPSG:3857) using GDAL.
+    """Reproject an orthophoto to Web Mercator (EPSG:3857) as a COG.
+
+    Done in two steps to avoid a known issue where combining the COG
+    driver with Warp + creationOptions + memory caps produces truncated
+    output: first Warp to a plain GeoTIFF, then Translate that to COG.
 
     Args:
-        input_file (str): Path to the input COG file.
-        output_file (str): Path to the output reprojected COG file.
+        input_file (str): Path to the input orthophoto.
+        output_file (str): Path to the final reprojected COG.
     """
+    warped_path = output_file + ".warped.tif"
     try:
-        # Cap GDAL block cache to 256 MB so large orthophotos don't OOM
+        # Cap GDAL block cache so large orthophotos don't OOM the worker.
         gdal.SetConfigOption("GDAL_CACHEMAX", "256")
 
-        target_srs = "EPSG:3857"
-
+        # Step 1: Warp to an intermediate GeoTIFF in EPSG:3857.
         gdal.Warp(
-            output_file,
+            warped_path,
             input_file,
-            dstSRS=target_srs,
-            format="COG",
+            dstSRS="EPSG:3857",
+            format="GTiff",
             resampleAlg="near",
             warpMemoryLimit=256 * 1024 * 1024,
-            creationOptions=["COMPRESS=DEFLATE", "BIGTIFF=YES"],
+            multithread=True,
+            creationOptions=["COMPRESS=DEFLATE", "BIGTIFF=IF_SAFER", "TILED=YES"],
+        )
+
+        # Step 2: Convert the warped GeoTIFF into a proper COG.
+        gdal.Translate(
+            output_file,
+            warped_path,
+            format="COG",
+            creationOptions=["COMPRESS=DEFLATE", "BIGTIFF=IF_SAFER"],
         )
         log.info(f"File reprojected to Web Mercator and saved as {output_file}")
 
     except Exception as e:
         log.error(f"An error occurred during reprojection: {e}")
         raise
+    finally:
+        if os.path.exists(warped_path):
+            try:
+                os.remove(warped_path)
+            except Exception:
+                pass
 
 
 def extract_and_upload_odm_assets(
