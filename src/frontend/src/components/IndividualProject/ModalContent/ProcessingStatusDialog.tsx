@@ -744,6 +744,8 @@ const ProcessingStatusDialog = () => {
                   </h3>
                   <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
                     Monitor active processing and refresh to see queue movement.
+                    Note: newly submitted tasks may take a few minutes to appear
+                    here while images are being prepared and uploaded.
                   </p>
                 </div>
                 <button

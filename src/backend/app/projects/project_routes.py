@@ -1253,7 +1253,11 @@ async def get_odm_queue_info(
         )
 
     # Fetch real status from NodeODM for each task via /task/{uuid}/info
-    odm_info_by_uuid: dict[str, dict] = {}
+    # We use a sentinel to distinguish "fetch failed" (timeout, network error)
+    # from "task genuinely not found on NodeODM" (got a 200 response but no
+    # valid status, or an error JSON like {"error": "uuid not found"}).
+    _FETCH_ERROR = object()
+    odm_info_by_uuid: dict[str, dict | object] = {}
     reconciled: list[str] = []
 
     try:
@@ -1261,7 +1265,9 @@ async def get_odm_queue_info(
             timeout=aiohttp.ClientTimeout(total=15)
         ) as session:
             # Fetch all task info concurrently
-            async def fetch_task_info(odm_uuid: str) -> tuple[str, dict | None]:
+            async def fetch_task_info(
+                odm_uuid: str,
+            ) -> tuple[str, dict | object | None]:
                 try:
                     async with session.get(odm_task_url(odm_uuid)) as resp:
                         if resp.status == 200:
@@ -1273,18 +1279,19 @@ async def get_odm_queue_info(
                             odm_uuid,
                             resp.status,
                         )
-                        return odm_uuid, None
+                        # Non-200 could be transient; treat as fetch error
+                        return odm_uuid, _FETCH_ERROR
                 except Exception as e:
                     log.warning(
                         "Failed to fetch NodeODM task info for {}: {}", odm_uuid, e
                     )
-                    return odm_uuid, None
+                    return odm_uuid, _FETCH_ERROR
 
             results = await asyncio.gather(
                 *[fetch_task_info(t["odm_task_uuid"]) for t in all_odm_tasks]
             )
             for odm_uuid, info in results:
-                if info:
+                if info is not None:
                     odm_info_by_uuid[odm_uuid] = info
     except aiohttp.ClientError as e:
         log.warning("Failed to reach NodeODM at {}: {}", odm_url, e)
@@ -1301,7 +1308,11 @@ async def get_odm_queue_info(
         dtm_task_id = db_task["id"]
         task_index = db_task["project_task_index"]
         db_state = db_task["state"]
-        odm_info = odm_info_by_uuid.get(odm_uuid)
+        raw_odm_info = odm_info_by_uuid.get(odm_uuid)
+
+        # Distinguish: dict = valid info, _FETCH_ERROR = transient failure, None = not in map
+        fetch_failed = raw_odm_info is _FETCH_ERROR
+        odm_info = raw_odm_info if isinstance(raw_odm_info, dict) else None
 
         if odm_info:
             status_code, status_label = _parse_odm_status(odm_info.get("status"))
@@ -1376,8 +1387,37 @@ async def get_odm_queue_info(
                         )
                     except Exception as e:
                         log.error("Failed to reconcile task {}: {}", dtm_task_id, e)
+        elif fetch_failed:
+            # Could not reach NodeODM for this task (timeout, network error).
+            # Do NOT reconcile - the task may still be running. Show it as
+            # "in progress" based on the DB state so the UI doesn't flip to failed.
+            if db_state == "IMAGE_PROCESSING_STARTED":
+                status_code = 20
+                status_label = "Running (status pending)"
+                log.debug(
+                    "Skipping reconciliation for task {} (fetch failed), keeping STARTED state",
+                    dtm_task_id,
+                )
+            elif db_state == "IMAGE_PROCESSING_FINISHED":
+                continue
+            elif db_state == "IMAGE_PROCESSING_FAILED":
+                status_code = 30
+                status_label = "Failed"
+            else:
+                status_code = 0
+                status_label = f"Unknown ({db_state})"
+
+            t = project_schemas.OdmQueueTask(
+                uuid=odm_uuid,
+                name=f"Task {task_index}",
+                status_code=status_code,
+                status_label=status_label,
+                dtm_task_id=str(dtm_task_id),
+                task_index=task_index,
+            )
         else:
-            # NodeODM doesn't know about this task (deleted/expired)
+            # NodeODM returned a valid response but doesn't know this task
+            # (deleted/expired). This is a definitive "not found".
             if db_state == "IMAGE_PROCESSING_STARTED":
                 # Mark as failed since NodeODM lost it
                 status_code = 30
