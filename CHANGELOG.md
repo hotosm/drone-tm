@@ -1,3 +1,11 @@
+## 2026.2.6 (2026-04-07)
+
+### Fix
+
+- **backend**: the ortho conversion to COG doesn't work as expected
+- **frontend**: do not generate flightplans once the task is completed (processed)
+- **frontend**: avoid issues when the task ortho is invalid for map zoom
+
 ## 2026.2.5 (2026-04-07)
 
 ### Fix
