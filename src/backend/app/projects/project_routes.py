@@ -56,7 +56,6 @@ from app.users.permissions import (
     check_permissions,
 )
 from app.users.user_deps import login_required
-from app.users.user_logic import verify_token
 from app.users.user_schemas import AuthUser
 from app.utils import (
     geojson_to_kml,
@@ -1567,26 +1566,24 @@ async def export_odm_assets(
     When omitted, exports the project-level ``projects/{pid}/odm/`` prefix
     (produced by final/whole-project processing).
 
-    Accepts auth via the ``access-token`` header (standard) or a ``token``
-    query parameter (for browser ``<a>`` downloads that cannot set headers).
-
-    Restricted to the project creator or superusers.
+    Currently public (no auth required) so any user can download assets.
     """
-    # Accept token from header or query parameter
-    access_token = request.headers.get("access-token") or token
-    if not access_token:
-        raise HTTPException(status_code=401, detail="No access token provided")
-    try:
-        user_dict = verify_token(access_token)
-    except HTTPException:
-        raise HTTPException(status_code=401, detail="Access token not valid")
-    user_data = AuthUser(**user_dict)
-
-    if not (user_data.is_superuser or project.author_id == user_data.id):
-        raise HTTPException(
-            status_code=HTTPStatus.FORBIDDEN,
-            detail="Only the project creator may export ODM assets",
-        )
+    # TODO: Re-enable auth when we have proper role-based access control.
+    # # Accept token from header or query parameter
+    # access_token = request.headers.get("access-token") or token
+    # if not access_token:
+    #     raise HTTPException(status_code=401, detail="No access token provided")
+    # try:
+    #     user_dict = verify_token(access_token)
+    # except HTTPException:
+    #     raise HTTPException(status_code=401, detail="Access token not valid")
+    # user_data = AuthUser(**user_dict)
+    #
+    # if not (user_data.is_superuser or project.author_id == user_data.id):
+    #     raise HTTPException(
+    #         status_code=HTTPStatus.FORBIDDEN,
+    #         detail="Only the project creator may export ODM assets",
+    #     )
 
     task_segment = f"{task_id}/" if task_id else ""
     prefix = f"projects/{project.id}/{task_segment}odm/"
