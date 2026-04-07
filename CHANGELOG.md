@@ -1,3 +1,11 @@
+## 2026.2.4 (2026-04-07)
+
+### Fix
+
+- **backend**: enable download of all ODM assets by anyone, until better roles impl
+- **backend**: avoid false positive task restarts for reconciliation workflow
+- **backend**: missed variable task_count --> total_task_count to enable final processing
+
 ## 2026.2.3 (2026-04-03)
 
 ### Fix
