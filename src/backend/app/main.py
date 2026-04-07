@@ -12,7 +12,6 @@ from fastapi.templating import Jinja2Templates
 from loguru import logger as log
 from psycopg import Connection
 from psycopg_pool import AsyncConnectionPool
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.__version__ import __version__
 from app.config import settings, MonitoringTypes
@@ -108,27 +107,6 @@ def get_logger():
     )
 
 
-class CORSHeaderMiddleware(BaseHTTPMiddleware):
-    """Ensure CORS headers are added to ALL responses, including errors."""
-
-    async def dispatch(self, request: Request, call_next):
-        # Get origin from request
-        origin = request.headers.get("origin")
-
-        # Call the next middleware/route
-        response = await call_next(request)
-
-        # Add CORS headers if origin is allowed
-        if origin and origin in settings.EXTRA_CORS_ORIGINS:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "*"
-            response.headers["Access-Control-Allow-Headers"] = "*"
-            response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
-
-        return response
-
-
 def get_application() -> FastAPI:
     """Get the FastAPI app instance, with settings."""
     api_prefix = settings.API_PREFIX
@@ -151,9 +129,6 @@ def get_application() -> FastAPI:
 
     # Set custom logger
     _app.logger = get_logger()
-
-    # Add custom CORS middleware to ensure headers on ALL responses
-    _app.add_middleware(CORSHeaderMiddleware)
 
     _app.add_middleware(
         CORSMiddleware,
@@ -209,13 +184,12 @@ async def lifespan(app: FastAPI):
 
     # Initialize authentication for Hanko SSO
     if settings.AUTH_PROVIDER == "hanko":
-        log.info("🔧 Initializing Hanko SSO authentication...")
+        log.info("Initializing Hanko SSO authentication")
         auth_config = AuthConfig.from_env()
-        log.info(
-            f"🔧 AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}"
+        log.debug(
+            f"AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}"
         )
         init_auth(auth_config)
-        log.info("✅ Authentication initialized")
 
     # Initialize Sentry monitoring if enabled
     if (
