@@ -1554,7 +1554,8 @@ async def export_odm_assets(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
     task_id: Optional[uuid.UUID] = None,
-    token: Optional[str] = Query(default=None, alias="token"),
+    # Uncomment to enforce auth (see TODO in body):
+    # user_data: Annotated[AuthUser, Depends(login_required)] = None,
 ):
     """Stream-zip all ODM assets for a task (or whole project) into a single download.
 
@@ -1569,16 +1570,10 @@ async def export_odm_assets(
     Currently public (no auth required) so any user can download assets.
     """
     # TODO: Re-enable auth when we have proper role-based access control.
-    # # Accept token from header or query parameter
-    # access_token = request.headers.get("access-token") or token
-    # if not access_token:
-    #     raise HTTPException(status_code=401, detail="No access token provided")
-    # try:
-    #     user_dict = verify_token(access_token)
-    # except HTTPException:
-    #     raise HTTPException(status_code=401, detail="Access token not valid")
-    # user_data = AuthUser(**user_dict)
-    #
+    # To enable, uncomment the `user_data` dependency in the signature above
+    # and the check below. Works for both legacy JWT (access-token header)
+    # and Hanko (session cookie - browser sends it automatically on <a>
+    # downloads, so no query-param token fallback is needed).
     # if not (user_data.is_superuser or project.author_id == user_data.id):
     #     raise HTTPException(
     #         status_code=HTTPStatus.FORBIDDEN,
