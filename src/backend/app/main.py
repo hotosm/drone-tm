@@ -184,19 +184,20 @@ def get_application() -> FastAPI:
     if os.path.isdir(static_dir):
         _app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-    # Admin router for user mappings management (with user enrichment)
-    admin_router = create_admin_mappings_router_psycopg(
-        get_db,
-        app_name="drone-tm",
-        user_table="users",
-        user_id_column="id",
-        user_name_column="name",
-        user_email_column="email_address",
-    )
-    _app.include_router(admin_router, prefix="/api")
+    # Hanko-specific routers: only mount when Hanko auth is active
+    if settings.AUTH_PROVIDER == "hanko":
+        admin_router = create_admin_mappings_router_psycopg(
+            get_db,
+            app_name="drone-tm",
+            user_table="users",
+            user_id_column="id",
+            user_name_column="name",
+            user_email_column="email_address",
+        )
+        _app.include_router(admin_router, prefix="/api")
 
-    # OSM OAuth router for account linking
-    _app.include_router(osm_router, prefix="/api")
+        # OSM OAuth router for account linking
+        _app.include_router(osm_router, prefix="/api")
 
     return _app
 
