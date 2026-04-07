@@ -582,19 +582,32 @@ class DbProject(BaseModel):
     @staticmethod
     async def delete(db: Connection, project_id: uuid.UUID) -> uuid.UUID:
         """Delete a single project if the user is the author or a superuser."""
+        # Order matters: child rows first, then tasks, then project. We use a
+        # single CTE so the whole cleanup happens atomically in one statement.
+        # `project_images` cascades from `projects`, so it's not listed here.
         sql = """
-        WITH deleted_project AS (
-            DELETE FROM projects
-            WHERE id = %(project_id)s
-            RETURNING id
-        ), deleted_tasks AS (
-            DELETE FROM tasks
+        WITH deleted_drone_flights AS (
+            DELETE FROM drone_flights
+            WHERE task_id IN (
+                SELECT id FROM tasks WHERE project_id = %(project_id)s
+            )
+            RETURNING task_id
+        ), deleted_gcps AS (
+            DELETE FROM ground_control_points
             WHERE project_id = %(project_id)s
             RETURNING project_id
         ), deleted_task_events AS (
             DELETE FROM task_events
             WHERE project_id = %(project_id)s
             RETURNING project_id
+        ), deleted_tasks AS (
+            DELETE FROM tasks
+            WHERE project_id = %(project_id)s
+            RETURNING project_id
+        ), deleted_project AS (
+            DELETE FROM projects
+            WHERE id = %(project_id)s
+            RETURNING id
         )
         SELECT id FROM deleted_project
         """
