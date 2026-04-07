@@ -18,8 +18,9 @@ export const api = axios.create({
 // This interceptor is required to set token on request
 function requestInterceptorFunction(config: any): any {
   const token = localStorage.getItem('token');
-  // eslint-disable-next-line no-param-reassign
-  config.headers['Access-Token'] = `${token}`;
+  if (token) {
+    config.headers['Access-Token'] = token;
+  }
   return config;
 }
 

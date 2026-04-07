@@ -97,6 +97,8 @@ if settings.AUTH_PROVIDER == "hanko":
         )
 
         user = await DbUser.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
         return AuthUser(
             id=user["id"],
             email=user["email_address"],
@@ -104,3 +106,22 @@ if settings.AUTH_PROVIDER == "hanko":
             profile_img=user.get("profile_img"),
             role="MAPPER",
         )
+
+    async def login_dependency(
+        hanko_user: CurrentUser,
+        db: Annotated[Connection, Depends(database.get_db)],
+    ) -> DbUser:
+        """Hanko SSO login dependency for permission checks."""
+        user_id = await get_mapped_user_id(
+            hanko_user=hanko_user,
+            db_conn=db,
+            app_name="drone-tm",
+            auto_create=True,
+            email_lookup_fn=lookup_user_by_email,
+            user_creator_fn=create_drone_tm_user,
+        )
+
+        user = await DbUser.one(db, user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
