@@ -350,16 +350,14 @@ async def process_uploaded_image(
                     generate_thumbnail, file_content
                 )
 
-                # Create thumbnail S3 key (store in thumbnails/ subdirectory)
-                thumbnail_s3_key = file_key.replace("/images/", "/thumbnails/", 1)
-                if "/images/" not in file_key:
-                    # Fallback: add thumb_ prefix
-                    parts = file_key.rsplit("/", 1)
-                    thumbnail_s3_key = (
-                        f"{parts[0]}/thumb_{parts[1]}"
-                        if len(parts) > 1
-                        else f"thumb_{file_key}"
-                    )
+                # Create thumbnail S3 key next to the original with thumb_ prefix
+                # e.g. projects/{pid}/user-uploads/thumb_{filename}
+                parts = file_key.rsplit("/", 1)
+                thumbnail_s3_key = (
+                    f"{parts[0]}/thumb_{parts[1]}"
+                    if len(parts) > 1
+                    else f"thumb_{file_key}"
+                )
 
                 # Upload thumbnail to S3
                 log.info(f"Uploading thumbnail to S3: {thumbnail_s3_key}")
