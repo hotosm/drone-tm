@@ -181,6 +181,11 @@ def _unpack_legacy_assets_zip(
                 members_uploaded += 1
 
         actions.append(f"unpacked-zip ({members_uploaded} members)")
+
+        # Unpack succeeded - remove the legacy zip so re-runs are cheaper
+        # and the bucket doesn't carry the duplicate payload.
+        client.remove_object(bucket, zip_key)
+        actions.append("deleted-legacy-zip")
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -218,7 +223,10 @@ def _copy_legacy_ortho_to_odm(
         new_key,
         CopySource(bucket, legacy_key),
     )
+    # Copy succeeded - delete the legacy source.
+    client.remove_object(bucket, legacy_key)
     actions.append("copied-ortho")
+    actions.append("deleted-legacy-ortho")
     return actions
 
 
