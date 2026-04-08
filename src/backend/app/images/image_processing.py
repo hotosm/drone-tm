@@ -116,7 +116,7 @@ class DroneImageProcessor:
         :param task_id: Optional specific task ID
         :param batch_size: Number of images to download concurrently
         """
-        prefix = f"projects/{self.project_id}/{task_id}"
+        prefix = f"projects/{self.project_id}/{task_id}/images"
         objects = list_objects_from_bucket(bucket_name, prefix)
 
         if not objects:
