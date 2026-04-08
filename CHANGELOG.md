@@ -1,3 +1,20 @@
+## 2026.2.7 (2026-04-08)
+
+### Feat
+
+- **backend**: add script for migrating old assets.zip & images.json files
+
+### Fix
+
+- **backend**: remove legacy user-uploads/thumbs logic for s3
+- **backend**: prevent loading ./odm dir when re-processing imagery - causes issues
+- **backend**: ensure project deletion cascades and includes as s3 assets too
+
+### Refactor
+
+- **backend**: remove assets.zip and ortho on successful migration script
+- **backend**: remove legacy references: images.json & assets.zip
+
 ## 2026.2.6 (2026-04-07)
 
 ### Fix
