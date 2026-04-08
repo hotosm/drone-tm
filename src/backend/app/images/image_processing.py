@@ -540,11 +540,10 @@ async def process_assets_from_odm(
 
     log.info(f"Starting processing for project {dtm_project_id}")
     node = Node.from_url(node_odm_url)
-    output_file_path = f"/tmp/{uuid.uuid4()}"
+    output_file_path = tempfile.mkdtemp(prefix="dtm-odm-")
     task = None
 
     try:
-        os.makedirs(output_file_path, exist_ok=True)
         task = node.get_task(odm_task_id)
         log.info(f"Downloading results for task {odm_task_id} to {output_file_path}")
 

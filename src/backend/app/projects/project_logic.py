@@ -1,6 +1,6 @@
 import json
 import os
-import shutil
+import tempfile
 import uuid
 from io import BytesIO
 from typing import Any, Dict, Optional
@@ -207,20 +207,23 @@ async def process_task_metrics(db, tasks_data, project):
         }
 
         if project.is_terrain_follow:
-            dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
             points = create_waypoint(**waypoint_params)
-            try:
-                get_file_from_bucket(
-                    settings.S3_BUCKET_NAME,
-                    f"projects/{project.id}/dem.tif",
-                    dem_path,
-                )
-                outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-                add_elevation_from_dem(dem_path, points, outfile_with_elevation)
-                with open(outfile_with_elevation, "r") as inpointsfile:
-                    points_with_elevation = inpointsfile.read()
-            except Exception:
-                points_with_elevation = points
+            with tempfile.TemporaryDirectory(prefix="dtm-dem-") as dem_work_dir:
+                dem_path = os.path.join(dem_work_dir, "dem.tif")
+                try:
+                    get_file_from_bucket(
+                        settings.S3_BUCKET_NAME,
+                        f"projects/{project.id}/dem.tif",
+                        dem_path,
+                    )
+                    outfile_with_elevation = os.path.join(
+                        dem_work_dir, "output_file_with_elevation.geojson"
+                    )
+                    add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+                    with open(outfile_with_elevation, "r") as inpointsfile:
+                        points_with_elevation = inpointsfile.read()
+                except Exception:
+                    points_with_elevation = points
 
             if (
                 isinstance(points_with_elevation, dict)
@@ -815,50 +818,45 @@ async def process_waypoints_and_waylines(
     count_data = {"waypoints": 0, "waylines": 0}
 
     if is_terrain_follow and dem:
-        temp_dir = f"/tmp/{uuid.uuid4()}"
-        dem_path = os.path.join(temp_dir, "dem.tif")
+        # TemporaryDirectory handles cleanup automatically, even on exceptions.
+        with tempfile.TemporaryDirectory(prefix="dtm-waypoints-") as temp_dir:
+            dem_path = os.path.join(temp_dir, "dem.tif")
 
-        try:
-            os.makedirs(temp_dir, exist_ok=True)
-            # Read DEM content into memory and write to the file
-            file_content = await dem.read()
-            with open(dem_path, "wb") as file:
-                file.write(file_content)
+            try:
+                # Read DEM content into memory and write to the file
+                file_content = await dem.read()
+                with open(dem_path, "wb") as file:
+                    file.write(file_content)
 
-            # Process waypoints with terrain-follow elevation
-            waypoint_params["mode"] = FlightMode.WAYPOINTS
-            points = create_waypoint(**waypoint_params)
+                # Process waypoints with terrain-follow elevation
+                waypoint_params["mode"] = FlightMode.WAYPOINTS
+                points = create_waypoint(**waypoint_params)
 
-            # Add elevation data to waypoints
-            outfile_with_elevation = os.path.join(
-                temp_dir, "output_file_with_elevation.geojson"
-            )
-            add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+                # Add elevation data to waypoints
+                outfile_with_elevation = os.path.join(
+                    temp_dir, "output_file_with_elevation.geojson"
+                )
+                add_elevation_from_dem(dem_path, points, outfile_with_elevation)
 
-            # Read the updated waypoints with elevation
-            with open(outfile_with_elevation, "r") as inpointsfile:
-                points_with_elevation = inpointsfile.read()
-                count_data["waypoints"] = len(
-                    json.loads(points_with_elevation)["features"]
+                # Read the updated waypoints with elevation
+                with open(outfile_with_elevation, "r") as inpointsfile:
+                    points_with_elevation = inpointsfile.read()
+                    count_data["waypoints"] = len(
+                        json.loads(points_with_elevation)["features"]
+                    )
+
+                # Generate waylines from waypoints with elevation
+                wayline_placemarks = create_placemarks(
+                    geojson.loads(points_with_elevation), parameters
                 )
 
-            # Generate waylines from waypoints with elevation
-            wayline_placemarks = create_placemarks(
-                geojson.loads(points_with_elevation), parameters
-            )
+                placemarks = terrain_following_waylines.waypoints2waylines(
+                    wayline_placemarks, 5
+                )
+                count_data["waylines"] = len(placemarks["features"])
 
-            placemarks = terrain_following_waylines.waypoints2waylines(
-                wayline_placemarks, 5
-            )
-            count_data["waylines"] = len(placemarks["features"])
-
-        except Exception as e:
-            log.error(f"Error processing DEM: {e}")
-
-        finally:
-            # Cleanup temporary files and directory
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
+            except Exception as e:
+                log.error(f"Error processing DEM: {e}")
         return count_data
 
     else:

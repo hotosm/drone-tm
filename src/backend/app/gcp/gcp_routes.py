@@ -1,3 +1,5 @@
+import os
+import tempfile
 import uuid
 from typing import Annotated, List
 
@@ -57,12 +59,18 @@ async def save_gcp_file(
     The file is stored at `projects/{project_id}/gcp.txt` in S3
     and will be automatically included when final processing is triggered.
     """
-    gcp_file_path = f"/tmp/{uuid.uuid4()}"
-    with open(gcp_file_path, "wb") as f:
-        f.write(await gcp_file.read())
+    # Write the upload to a temp file and clean it up after the S3 put.
+    # Using delete=False + manual unlink is cross-platform safe because
+    # add_file_to_bucket needs to reopen the file by path.
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(await gcp_file.read())
+        gcp_file_path = tmp.name
 
-    s3_path = f"projects/{project.id}/gcp.txt"
-    add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
+    try:
+        s3_path = f"projects/{project.id}/gcp.txt"
+        add_file_to_bucket(settings.S3_BUCKET_NAME, gcp_file_path, s3_path)
+    finally:
+        os.unlink(gcp_file_path)
     log.info(f"GCP file saved for project {project.id} by user {user_data.id}")
 
     return {"message": "GCP file saved successfully", "project_id": str(project.id)}

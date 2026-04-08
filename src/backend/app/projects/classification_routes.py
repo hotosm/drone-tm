@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 from datetime import datetime
 from typing import Annotated, Optional
 from uuid import UUID
@@ -796,12 +798,19 @@ async def download_reflight_plan(
         )
 
     flightplan_config = get_flightplan_output_config(flight_drone_type)
-    file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
+    work_dir = tempfile.mkdtemp(prefix="dtm-reflight-")
+    file_path = os.path.join(
+        work_dir, f"reflight_{task_id}{flightplan_config['suffix']}"
+    )
 
-    with open(file_path, "wb") as f:
-        f.write(result["kmz_bytes"])
+    try:
+        with open(file_path, "wb") as f:
+            f.write(result["kmz_bytes"])
+    except Exception:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        raise
 
-    background_tasks.add_task(os.remove, file_path)
+    background_tasks.add_task(shutil.rmtree, work_dir, ignore_errors=True)
 
     return build_flightplan_download_response(
         file_path,
