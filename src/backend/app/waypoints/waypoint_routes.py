@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 import uuid
 import logging
 from typing import Annotated
@@ -9,6 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from psycopg import Connection
 from shapely.geometry import shape
+from starlette.background import BackgroundTask
 
 from drone_flightplan import (
     calculate_parameters,
@@ -112,58 +114,62 @@ async def get_task_flightplan(
     gsd = project.gsd_cm_px
     altitude = project.altitude_from_ground
 
-    # For terrain-follow, DEM availability is based on S3 object existence.
-    # Local disk is only used as a transient download location for generation.
+    # Generation uses a throwaway temp directory for both the DEM download
+    # (terrain-follow) and the flightplan output. For download responses the
+    # cleanup is deferred to a BackgroundTask so FileResponse can stream the
+    # file before it is removed.
+    work_dir = tempfile.mkdtemp(prefix="dtm-flightplan-")
+
     dem_path = None
-    if project.is_terrain_follow:
-        dem_object_key = f"projects/{project_id}/dem.tif"
-        has_dem = check_file_exists(settings.S3_BUCKET_NAME, dem_object_key)
-
-        if not has_dem:
-            if not allow_missing_dem:
-                raise HTTPException(
-                    status_code=409,
-                    detail={
-                        "code": "MISSING_TERRAIN_DEM",
-                        "message": (
-                            "Terrain-follow mission generation is blocked because no "
-                            "DEM is available for this project."
-                        ),
-                        "allow_missing_dem_param": "allow_missing_dem=true",
-                    },
-                )
-
-            log.warning(
-                "DEM missing for terrain-follow project (%s). "
-                "Proceeding because allow_missing_dem=true.",
-                project_id,
-            )
-        else:
-            dem_path = f"/tmp/{uuid.uuid4()}.tif"
-            dem_downloaded = get_file_from_bucket(
-                settings.S3_BUCKET_NAME,
-                dem_object_key,
-                dem_path,
-            )
-            if (
-                dem_downloaded is False
-                or not os.path.exists(dem_path)
-                or os.path.getsize(dem_path) <= 0
-            ):
-                if os.path.exists(dem_path):
-                    os.remove(dem_path)
-                raise HTTPException(
-                    status_code=500,
-                    detail=(
-                        "Terrain-follow mission generation failed because DEM "
-                        "download from storage failed."
-                    ),
-                )
-
-    # Generate flighplan
-    outfile = f"/tmp/{uuid.uuid4()}"
-
     try:
+        # For terrain-follow, DEM availability is based on S3 object existence.
+        # Local disk is only used as a transient download location for generation.
+        if project.is_terrain_follow:
+            dem_object_key = f"projects/{project_id}/dem.tif"
+            has_dem = check_file_exists(settings.S3_BUCKET_NAME, dem_object_key)
+
+            if not has_dem:
+                if not allow_missing_dem:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "code": "MISSING_TERRAIN_DEM",
+                            "message": (
+                                "Terrain-follow mission generation is blocked because no "
+                                "DEM is available for this project."
+                            ),
+                            "allow_missing_dem_param": "allow_missing_dem=true",
+                        },
+                    )
+
+                log.warning(
+                    "DEM missing for terrain-follow project (%s). "
+                    "Proceeding because allow_missing_dem=true.",
+                    project_id,
+                )
+            else:
+                dem_path = os.path.join(work_dir, "dem.tif")
+                dem_downloaded = get_file_from_bucket(
+                    settings.S3_BUCKET_NAME,
+                    dem_object_key,
+                    dem_path,
+                )
+                if (
+                    dem_downloaded is False
+                    or not os.path.exists(dem_path)
+                    or os.path.getsize(dem_path) <= 0
+                ):
+                    raise HTTPException(
+                        status_code=500,
+                        detail=(
+                            "Terrain-follow mission generation failed because DEM "
+                            "download from storage failed."
+                        ),
+                    )
+
+        # Generate flighplan into the same temp directory
+        outfile = os.path.join(work_dir, "flightplan")
+
         outpath = create_flightplan(
             aoi=task_geojson,
             forward_overlap=forward_overlap,
@@ -178,17 +184,22 @@ async def get_task_flightplan(
             take_off_point=take_off_point,
             drone_type=drone_type,
         )
-    finally:
-        if dem_path and os.path.exists(dem_path):
-            os.remove(dem_path)
+    except Exception:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        raise
 
-    # If the user needs a download, wrap in correct response
+    # If the user needs a download, defer temp dir cleanup until after the
+    # response has streamed so FileResponse can still read from it.
     if download:
         return build_flightplan_download_response(
             outpath,
             drone_type=drone_type,
             filename_stem=f"task-{project_task_index}-{mode.name}-project-{project_id}",
+            cleanup=BackgroundTask(shutil.rmtree, work_dir, ignore_errors=True),
         )
+
+    # Not downloading: the flightplan file is not needed, drop the temp dir now.
+    shutil.rmtree(work_dir, ignore_errors=True)
 
     # If not downloading, re-create placemarks for metadata calcs,
     # as create_flightplan handles placemarks internally
@@ -287,46 +298,56 @@ async def generate_wmpl_kmz(
             detail="Either altitude or gsd is required",
         )
 
+    # Everything generated by this endpoint (uploaded DEM copy + flightplan
+    # output) lives inside this temp dir and is cleaned up either synchronously
+    # or as a FileResponse background task.
+    work_dir = tempfile.mkdtemp(prefix="dtm-flightplan-")
+
+    dem_path = None
     if terrain_follow:
         if not dem:
+            shutil.rmtree(work_dir, ignore_errors=True)
             raise HTTPException(
                 status_code=400,
                 detail="DEM file is required for terrain follow",
             )
         if dem.content_type != "image/tiff":
+            shutil.rmtree(work_dir, ignore_errors=True)
             raise HTTPException(
                 status_code=400,
                 detail="DEM file should be in GeoTIFF format",
             )
 
-        dem_path = f"/tmp/{dem.filename}"
+        dem_path = os.path.join(work_dir, os.path.basename(dem.filename or "dem.tif"))
         with open(dem_path, "wb") as buffer:
             shutil.copyfileobj(dem.file, buffer)
 
-    boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
+    try:
+        boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
 
-    # create a takeoff point in this format ["lon","lat"]
-    take_off_point = [take_off_point.longitude, take_off_point.latitude]
-    if not check_point_within_buffer(take_off_point, boundary, 200):
-        raise HTTPException(
-            status_code=400,
-            detail="Take off point should be within 200m of the boundary",
-        )
+        # create a takeoff point in this format ["lon","lat"]
+        take_off_point = [take_off_point.longitude, take_off_point.latitude]
+        if not check_point_within_buffer(take_off_point, boundary, 200):
+            raise HTTPException(
+                status_code=400,
+                detail="Take off point should be within 200m of the boundary",
+            )
 
-    if not download:
-        points = create_waypoint(
-            project_area=boundary,
-            agl=altitude,
-            gsd=gsd,
-            forward_overlap=forward_overlap,
-            side_overlap=side_overlap,
-            flight_mode=flight_mode,
-            generate_3d=generate_3d,
-            take_off_point=take_off_point,
-            drone_type=drone_type,
-        )
-        return geojson.loads(points)
-    else:
+        if not download:
+            points = create_waypoint(
+                project_area=boundary,
+                agl=altitude,
+                gsd=gsd,
+                forward_overlap=forward_overlap,
+                side_overlap=side_overlap,
+                flight_mode=flight_mode,
+                generate_3d=generate_3d,
+                take_off_point=take_off_point,
+                drone_type=drone_type,
+            )
+            shutil.rmtree(work_dir, ignore_errors=True)
+            return geojson.loads(points)
+
         output_file = create_flightplan(
             aoi=boundary,
             forward_overlap=forward_overlap,
@@ -335,24 +356,29 @@ async def generate_wmpl_kmz(
             gsd=gsd,
             flight_mode=flight_mode,
             dem=dem_path if dem else None,
-            outfile=f"/tmp/{uuid.uuid4()}",
+            outfile=os.path.join(work_dir, "flightplan"),
             take_off_point=take_off_point,
             drone_type=drone_type,
         )
+    except Exception:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        raise
 
-        return build_flightplan_download_response(
-            output_file,
-            drone_type=drone_type,
-            filename_stem="output",
-        )
+    return build_flightplan_download_response(
+        output_file,
+        drone_type=drone_type,
+        filename_stem="output",
+        cleanup=BackgroundTask(shutil.rmtree, work_dir, ignore_errors=True),
+    )
 
 
 @router.post("/{task_id}/generate-kmz/")
 async def generate_kmz_with_placemarks(
     task_id: uuid.UUID, data: waypoint_schemas.PlacemarksFeature
 ):
+    work_dir = tempfile.mkdtemp(prefix="dtm-kmz-")
     try:
-        outfile = f"/tmp/{task_id}_flight_plan.kmz"
+        outfile = os.path.join(work_dir, f"{task_id}_flight_plan.kmz")
 
         kmz_file = create_wpml(data.model_dump(), outfile)
         if not os.path.exists(kmz_file):
@@ -361,7 +387,12 @@ async def generate_kmz_with_placemarks(
             kmz_file,
             media_type="application/zip",
             filename=f"{task_id}_flight_plan.kmz",
+            background=BackgroundTask(shutil.rmtree, work_dir, ignore_errors=True),
         )
 
+    except HTTPException:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        raise
     except Exception as e:
+        shutil.rmtree(work_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"Error generating KMZ: {str(e)}")
