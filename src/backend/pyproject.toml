@@ -109,6 +109,11 @@ skip = "*pnpm-lock.yaml,*CHANGELOG.md,src/frontend/src/assets/*"
 ignore-words-list = "ProjectIn,dateA,te,ALOS,algoritmos"
 write-changes = true
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that exercise integrated services or workflows",
+]
+
 #[tool.ruff]
 #fix = true
 #line-length = 88

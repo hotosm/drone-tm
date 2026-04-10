@@ -9,6 +9,7 @@ import { getTaskStates } from '@Services/project';
 import { getUserProfileInfo, getUsers } from '@Services/common';
 import {
   startProjectClassification,
+  ingestExistingUploads,
   getProjectStatus,
   getProjectImages,
   BatchStatusSummary,
@@ -134,6 +135,19 @@ export const useStartProjectClassificationMutation = (
   return useMutation({
     mutationFn: ({ projectId }) =>
       startProjectClassification(projectId),
+    ...mutationOptions,
+  });
+};
+
+export const useIngestExistingUploadsMutation = (
+  mutationOptions?: UseMutationOptions<
+    { message: string; job_id: string; project_id: string; batch_id: string },
+    Error,
+    { projectId: string }
+  >,
+) => {
+  return useMutation({
+    mutationFn: ({ projectId }) => ingestExistingUploads(projectId),
     ...mutationOptions,
   });
 };

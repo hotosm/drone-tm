@@ -8,6 +8,7 @@ import { deleteBatch } from '@Services/classification';
 import type { ImageClassificationResult } from '@Services/classification';
 import {
   useStartProjectClassificationMutation,
+  useIngestExistingUploadsMutation,
   useGetProjectStatusQuery,
   useGetProjectImagesQuery,
 } from '@Api/projects';
@@ -35,11 +36,42 @@ export const UploadImageryDialog = ({
   const [showAbortConfirmation, setShowAbortConfirmation] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isDeletingBatches, setIsDeletingBatches] = useState(false);
+  const [showIngestButton, setShowIngestButton] = useState(false);
+  const [ingestTriggered, setIngestTriggered] = useState(false);
+
+  const ingestMutation = useIngestExistingUploadsMutation({
+    onSuccess: () => {
+      toast.success('Ingestion job started. Images will appear in the Classify dialog as they are processed.');
+      setIngestTriggered(true);
+      setHasUploaded(true);
+    },
+    onError: (error: any) => {
+      toast.error(`Ingest failed: ${error?.message || 'Unknown error'}`);
+    },
+  });
+
+  // Hold Ctrl to reveal the ingest button (same pattern as NodeODM server prompt)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control') setShowIngestButton(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control') setShowIngestButton(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
       setShowAbortConfirmation(false);
       setShowDeleteConfirmation(false);
+      setIngestTriggered(false);
     }
   }, [isOpen]);
 
@@ -114,9 +146,31 @@ export const UploadImageryDialog = ({
             />
           </div>
 
-          <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-justify-end naxatw-border-t naxatw-pt-4">
-            <Button variant="outline" className="naxatw-border-gray-300" onClick={handleClose}>
-              Close
+          <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-between naxatw-border-t naxatw-pt-4">
+            {(showIngestButton || ingestTriggered) ? (
+              <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+                <p className="naxatw-text-xs naxatw-text-gray-500">
+                  Already uploaded imagery directly to S3 that you need to ingest?
+                </p>
+                <Button
+                  variant="outline"
+                  className="naxatw-w-fit naxatw-border-gray-300 naxatw-text-sm"
+                  onClick={() => ingestMutation.mutate({ projectId })}
+                  disabled={ingestMutation.isPending || ingestTriggered}
+                  leftIcon="cloud_sync"
+                >
+                  {ingestTriggered ? 'Ingestion Started' : ingestMutation.isPending ? 'Starting...' : 'Ingest Existing S3 Imagery'}
+                </Button>
+              </div>
+            ) : (
+              <div />
+            )}
+            <Button
+              variant="ghost"
+              className="naxatw-bg-red naxatw-text-white"
+              onClick={handleClose}
+            >
+              Continue
             </Button>
           </div>
         </div>

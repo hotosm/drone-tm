@@ -91,6 +91,21 @@ export const deleteBatch = async (
   return response.data;
 };
 
+/**
+ * Ingest existing S3 uploads — enqueues a background job to scan user-uploads/
+ * and process any files not yet tracked in the database.
+ */
+export const ingestExistingUploads = async (
+  projectId: string,
+): Promise<{ message: string; job_id: string; project_id: string; batch_id: string }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/ingest-uploads/`,
+    {},
+    { headers: { 'Content-Type': 'application/json' } },
+  );
+  return response.data;
+};
+
 // ─── Project-scoped classification endpoints ────────────────────────────────
 
 /**
