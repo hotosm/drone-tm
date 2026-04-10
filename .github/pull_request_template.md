@@ -10,30 +10,44 @@
 
 ## Related Issue
 
-Example: Fixes #123
+Fixes #
 
 ## Describe this PR
 
-A brief description of how this solves the issue.
+A brief description of what this changes and why - in your own words.
+
+## AI Tool Usage
+
+- [ ] No AI tools were used
+- [ ] AI tools were used (complete below)
+
+**If AI-assisted:**
+
+- Tool(s) used:
+- What was generated:
+- What you reviewed and changed:
 
 ## Screenshots
 
-Please provide screenshots of the change.
+If applicable.
 
 ## Alternative Approaches Considered
 
-Did you attempt any other approaches that are not documented in code?
+Did you consider other approaches? Why this one?
 
 ## Review Guide
 
 Notes for the reviewer. How to test this change?
 
-## Checklist before requesting a review
+## Checklist
 
-- 📖 Read the HOT Code of Conduct: <https://docs.hotosm.org/code-of-conduct>
-- 👷‍♀️ Create small PRs. In most cases, this will be possible.
-- ✅ Provide tests for your changes.
-- 📝 Use descriptive commit messages.
-- 📗 Update any related documentation and include any relevant screenshots.
+- [ ] I have read the [Contributing Guide](https://github.com/hotosm/drone-tm/blob/dev/CONTRIBUTING.md)
+- [ ] I have read the [Code of Conduct](https://docs.hotosm.org/code-of-conduct)
+- [ ] PR is focused and small
+- [ ] Tests are included or updated
+- [ ] I understand all code in this PR and can answer questions about it
+- [ ] No secrets, credentials, or sensitive data are included
+- [ ] Commit messages are descriptive
+- [ ] Related docs and screenshots are updated
 
 ## [optional] What gif best describes this PR or how it makes you feel?
