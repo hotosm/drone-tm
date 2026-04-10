@@ -245,7 +245,7 @@ export const UploadImageryDialog = ({
 
 // ─── Classify Imagery Dialog ─────────────────────────────────────────────────
 // Project-scoped classification: classifies ALL staged images across all batches.
-// Shows only progress counts and status — no image thumbnails.
+// Shows only progress counts and status - no image thumbnails.
 
 interface IClassifyImageryDialogProps {
   isOpen: boolean;

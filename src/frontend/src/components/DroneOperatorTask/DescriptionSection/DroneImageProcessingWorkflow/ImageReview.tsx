@@ -191,6 +191,11 @@ const TaskAccordionContent = ({
                         className="naxatw-h-full naxatw-w-full naxatw-object-cover"
                         loading="lazy"
                       />
+                    ) : image.status === 'duplicate' ? (
+                      <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-bg-gray-100 naxatw-text-gray-400">
+                        <span className="material-icons naxatw-text-2xl">content_copy</span>
+                        <span className="naxatw-text-[9px] naxatw-mt-0.5">Duplicate</span>
+                      </div>
                     ) : (
                       <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-items-center naxatw-justify-center naxatw-bg-gray-100">
                         <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-blue-500" />
