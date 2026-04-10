@@ -1,0 +1,88 @@
+# Copyright (c) Humanitarian OpenStreetMap Team
+#
+# This file is part of Drone-TM.
+#
+#     Drone-TM is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     Drone-TM is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU General Public License
+#     along with Drone-TM.  If not, see <https:#www.gnu.org/licenses/>.
+#
+
+set dotenv-load
+
+# Auto-detect nerdctl when docker is not installed (e.g. after `just prep machine`)
+docker := env("DOCKER_ALIAS", if `command -v docker >/dev/null 2>&1 && echo found || echo missing` == "found" { "docker" } else { "nerdctl" })
+
+# DroneTM S3 config (from .env)
+dtm_endpoint := env("S3_ENDPOINT_UPLOAD", "http://localhost:9000")
+dtm_bucket   := env("S3_BUCKET_NAME", "dtm-bucket")
+dtm_access   := env("S3_ACCESS_KEY", "admin")
+dtm_secret   := env("S3_SECRET_KEY", "somelongpassword")
+
+# List available commands
+[private]
+default:
+  just --justfile {{justfile()}} --list process
+
+# Copy imagery from an external S3 path into a DroneTM project's user-uploads dir.
+#
+# Runs rclone in a docker container — no volume mounts needed (S3-to-S3).
+# Uses --checksum for efficient delta sync.
+#
+# After copying, open the Upload Imagery dialog in the DroneTM UI and click
+# "Ingest Existing S3 Imagery" to load the files into the database.
+# Then proceed to the Classify dialog as normal.
+#
+# Usage:
+#   just process import-imagery <project_id> \
+#       <src_bucket> <src_prefix> <src_endpoint> <src_access_key> <src_secret_key>
+#
+# Examples:
+#   # From AWS S3
+#   just process import-imagery abc-123-def \
+#       my-bucket surveys/2026-04/flight-data \
+#       https://s3.amazonaws.com AKIAEXAMPLE wJalrXUtnFEMI/EXAMPLEKEY
+#
+#   # From another MinIO instance
+#   just process import-imagery abc-123-def \
+#       source-bucket raw-images \
+#       http://other-minio:9000 otheradmin otherpassword
+import-imagery project_id src_bucket src_prefix src_endpoint src_access_key src_secret_key:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  DEST="{{ dtm_bucket }}/projects/{{ project_id }}/user-uploads/"
+
+  echo "==> Copying imagery"
+  echo "    Source: {{ src_bucket }}/{{ src_prefix }}"
+  echo "    Dest:   ${DEST}"
+  echo "    Source endpoint: {{ src_endpoint }}"
+  echo "    Dest endpoint:   {{ dtm_endpoint }}"
+  echo ""
+
+  {{ docker }} run --rm --network host \
+    rclone/rclone:latest \
+    copy \
+      ":s3,provider=Other,endpoint={{ src_endpoint }},access_key_id={{ src_access_key }},secret_access_key={{ src_secret_key }}:{{ src_bucket }}/{{ src_prefix }}" \
+      ":s3,provider=Other,endpoint={{ dtm_endpoint }},access_key_id={{ dtm_access }},secret_access_key={{ dtm_secret }}:${DEST}" \
+      --checksum \
+      --include "*.jpg" --include "*.JPG" --include "*.jpeg" --include "*.JPEG" \
+      --include "*.tif" --include "*.TIF" --include "*.tiff" --include "*.TIFF" \
+      --include "*.png" --include "*.PNG" --include "*.dng"  --include "*.DNG" \
+      --s3-no-check-bucket \
+      --transfers 8 \
+      --progress \
+      -v
+
+  echo ""
+  echo "==> Copy complete."
+  echo "    Open the Upload Imagery dialog in the DroneTM UI and click"
+  echo "    'Ingest Existing S3 Imagery' to load files into the database."

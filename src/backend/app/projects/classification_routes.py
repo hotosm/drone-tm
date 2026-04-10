@@ -103,6 +103,58 @@ async def start_project_classification(
     }
 
 
+@router.post("/{project_id}/ingest-uploads/", tags=["Image Classification"])
+async def ingest_existing_uploads(
+    project_id: UUID,
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Enqueue a background job to scan user-uploads/ and ingest untracked files.
+
+    The actual S3 scan and per-file enqueue happens in an ARQ worker so the
+    request returns immediately regardless of how many objects exist.
+
+    Uses a stable _job_id so ARQ deduplicates concurrent/retry requests for
+    the same project — a second call while the first is queued or running is
+    a no-op.
+    """
+    import uuid as _uuid
+
+    batch_id = str(_uuid.uuid4())
+    stable_job_id = f"ingest-uploads:{project_id}"
+    job = await redis.enqueue_job(
+        "ingest_existing_uploads",
+        str(project_id),
+        user.id,
+        batch_id,
+        _queue_name="default_queue",
+        _job_id=stable_job_id,
+    )
+
+    if job is None:
+        log.info(
+            f"Ingest-uploads: job already queued/running for project {project_id} "
+            f"(job_id {stable_job_id})"
+        )
+        return {
+            "message": "Ingestion job already queued",
+            "job_id": stable_job_id,
+            "project_id": str(project_id),
+            "batch_id": batch_id,
+        }
+
+    log.info(
+        f"Ingest-uploads: queued job {job.job_id} for project {project_id} "
+        f"(batch {batch_id})"
+    )
+    return {
+        "message": "Ingestion job queued",
+        "job_id": job.job_id,
+        "project_id": str(project_id),
+        "batch_id": batch_id,
+    }
+
+
 @router.get("/{project_id}/imagery/status/", tags=["Image Classification"])
 async def get_project_imagery_status(
     project_id: UUID,

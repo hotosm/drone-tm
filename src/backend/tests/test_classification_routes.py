@@ -7,10 +7,18 @@ classification_routes.py router through the ASGI test client.
 import json
 import uuid
 from datetime import datetime, timezone
+from io import BytesIO
 
 import pytest
+import pytest_asyncio
 
-from app.arq.tasks import get_redis_pool
+from app.arq.tasks import (
+    get_redis_pool,
+    ingest_existing_uploads as ingest_existing_uploads_task,
+)
+from app.config import settings
+from app.db.database import get_db_connection_pool
+from app.s3 import add_obj_to_bucket, delete_objects_by_prefix
 
 # ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -105,6 +113,26 @@ async def _insert_image(
     return image_id
 
 
+@pytest_asyncio.fixture
+async def redis_pool():
+    redis = await get_redis_pool()
+    await redis.flushdb()
+    try:
+        yield redis
+    finally:
+        await redis.flushdb()
+        await redis.aclose()
+
+
+@pytest_asyncio.fixture
+async def arq_ctx(redis_pool):
+    db_pool = await get_db_connection_pool()
+    try:
+        yield {"redis": redis_pool, "db_pool": db_pool, "job_id": "test-ingest-job"}
+    finally:
+        await db_pool.close()
+
+
 # ─── /classify/ ──────────────────────────────────────────────────────────────
 
 
@@ -181,6 +209,35 @@ async def test_start_project_classification_enqueues_job_for_staged_images(
     ]
 
 
+@pytest.mark.asyncio
+async def test_ingest_existing_uploads_route_deduplicates_top_level_job(
+    client, redis_pool, create_test_project
+):
+    project_id = create_test_project
+
+    resp1 = await client.post(f"/api/projects/{project_id}/ingest-uploads/")
+    assert resp1.status_code == 200
+    body1 = resp1.json()
+    assert body1["message"] == "Ingestion job queued"
+    assert body1["job_id"] == f"ingest-uploads:{project_id}"
+
+    resp2 = await client.post(f"/api/projects/{project_id}/ingest-uploads/")
+    assert resp2.status_code == 200
+    body2 = resp2.json()
+    assert body2["message"] == "Ingestion job already queued"
+    assert body2["job_id"] == f"ingest-uploads:{project_id}"
+
+    queued = await redis_pool.queued_jobs(queue_name="default_queue")
+    ingest_jobs = [job for job in queued if job.function == "ingest_existing_uploads"]
+    assert len(ingest_jobs) == 1
+    assert ingest_jobs[0].job_id == f"ingest-uploads:{project_id}"
+    assert ingest_jobs[0].args == (
+        project_id,
+        "101039844375937810000",
+        body1["batch_id"],
+    )
+
+
 # ─── /imagery/status/ ────────────────────────────────────────────────────────
 
 
@@ -191,6 +248,91 @@ async def test_imagery_status_empty_project(client, create_test_project):
     assert resp.status_code == 200
     body = resp.json()
     assert body["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_ingest_existing_uploads_task_enqueues_child_jobs_once(
+    arq_ctx, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    bucket = settings.S3_BUCKET_NAME
+    prefix = f"projects/{project_id}/user-uploads/"
+    keys = [
+        f"{prefix}alpha.jpg",
+        f"{prefix}beta.JPG",
+        f"{prefix}thumb_gamma.jpg",
+        f"{prefix}notes.txt",
+    ]
+
+    for key in keys:
+        add_obj_to_bucket(
+            bucket, BytesIO(b"test-bytes"), key, content_type="image/jpeg"
+        )
+
+    # One object is already tracked and should be skipped.
+    tracked_key = f"{prefix}alpha.jpg"
+    await _insert_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="staged",
+        filename="alpha.jpg",
+    )
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE project_images
+            SET s3_key = %(s3_key)s
+            WHERE project_id = %(project_id)s AND filename = 'alpha.jpg'
+            """,
+            {"s3_key": tracked_key, "project_id": project_id},
+        )
+    await db.commit()
+
+    batch_id = str(uuid.uuid4())
+    try:
+        result1 = await ingest_existing_uploads_task(
+            arq_ctx, project_id, auth_user.id, batch_id
+        )
+        result2 = await ingest_existing_uploads_task(
+            arq_ctx, project_id, auth_user.id, str(uuid.uuid4())
+        )
+
+        assert result1["enqueued"] == 1
+        assert result2["enqueued"] == 0
+
+        queued = await arq_ctx["redis"].queued_jobs(queue_name="default_queue")
+        child_jobs = [job for job in queued if job.function == "process_uploaded_image"]
+
+        assert len(child_jobs) == 1
+        assert child_jobs[0].args[0] == project_id
+        assert child_jobs[0].args[1] == f"{prefix}beta.JPG"
+        assert child_jobs[0].args[2] == "beta.JPG"
+    finally:
+        delete_objects_by_prefix(bucket, prefix)
+
+
+@pytest.mark.asyncio
+async def test_ingest_existing_uploads_task_skips_when_project_lock_is_held(
+    arq_ctx, auth_user, create_test_project
+):
+    project_id = create_test_project
+    lock_key = f"lock:ingest:{project_id}"
+    await arq_ctx["redis"].set(lock_key, "other-job", ex=1800)
+
+    result = await ingest_existing_uploads_task(
+        arq_ctx,
+        project_id,
+        auth_user.id,
+        str(uuid.uuid4()),
+    )
+
+    assert result["skipped"] is True
+    assert result["enqueued"] == 0
+
+    queued = await arq_ctx["redis"].queued_jobs(queue_name="default_queue")
+    child_jobs = [job for job in queued if job.function == "process_uploaded_image"]
+    assert child_jobs == []
 
 
 @pytest.mark.asyncio

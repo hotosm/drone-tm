@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import hashlib
 import io
 import zipfile
 from pathlib import Path
@@ -425,6 +426,107 @@ async def process_uploaded_image(
     except Exception as e:
         log.error(f"Failed (Job: {job_id}): {str(e)}")
         raise
+
+
+async def ingest_existing_uploads(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    uploaded_by: str,
+    batch_id: str,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """Scan a project's user-uploads/ prefix and enqueue processing for untracked files.
+
+    Runs as a background job so the HTTP request returns immediately.
+
+    Concurrency safety:
+    - A Redis lock (lock:ingest:{project_id}, 30 min TTL) prevents parallel
+      ingest jobs for the same project — from retries or duplicate API calls.
+    - Each process_uploaded_image job gets a stable _job_id derived from
+      project_id + s3_key, so ARQ silently deduplicates re-enqueues of the
+      same object.
+    - Downstream MD5 hash check in process_uploaded_image is the final safety
+      net against duplicate DB rows.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting ingest job {job_id} for project {project_id}")
+
+    db_pool = ctx.get("db_pool")
+    redis: ArqRedis = ctx.get("redis")
+    if not db_pool or not redis:
+        raise RuntimeError("Database pool or Redis not initialized in ARQ context")
+
+    # Project-scoped lock: prevents parallel ingest runs (retries, double-clicks).
+    # TTL of 30 minutes — well beyond expected scan+enqueue time.
+    lock_key = f"lock:ingest:{project_id}"
+    acquired = await redis.set(lock_key, job_id, nx=True, ex=1800)
+    if not acquired:
+        log.warning(
+            f"Ingest job {job_id}: another ingest is already running for "
+            f"project {project_id}, skipping"
+        )
+        return {
+            "project_id": project_id,
+            "batch_id": batch_id,
+            "enqueued": 0,
+            "skipped": True,
+        }
+
+    try:
+        from app.s3 import list_objects_from_bucket
+
+        prefix = f"projects/{project_id}/user-uploads/"
+        bucket = settings.S3_BUCKET_NAME
+        image_extensions = {".jpg", ".jpeg", ".tif", ".tiff", ".png", ".dng"}
+
+        # Get already-tracked S3 keys
+        async with db_pool.connection() as db:
+            async with db.cursor() as cur:
+                await cur.execute(
+                    "SELECT s3_key FROM project_images WHERE project_id = %(pid)s",
+                    {"pid": project_id},
+                )
+                existing_keys = {row[0] for row in await cur.fetchall()}
+
+        enqueued = 0
+        for obj in list_objects_from_bucket(bucket, prefix):
+            if obj.is_dir:
+                continue
+            key = obj.object_name
+            filename = key.rsplit("/", 1)[-1]
+            if filename.startswith("thumb_"):
+                continue
+            ext = os.path.splitext(filename)[1].lower()
+            if ext not in image_extensions:
+                continue
+            if key in existing_keys:
+                continue
+
+            # Stable job ID: hash the S3 key so the identifier stays short/safe
+            # while remaining deterministic across retries and duplicate requests.
+            stable_child_id = (
+                f"ingest-img:{project_id}:"
+                f"{hashlib.md5(key.encode('utf-8')).hexdigest()}"
+            )
+            child_job = await redis.enqueue_job(
+                "process_uploaded_image",
+                project_id,
+                key,
+                filename,
+                uploaded_by,
+                batch_id,
+                _queue_name="default_queue",
+                _job_id=stable_child_id,
+            )
+            if child_job is not None:
+                enqueued += 1
+
+        log.info(
+            f"Ingest job {job_id}: enqueued {enqueued} images for project {project_id}"
+        )
+        return {"project_id": project_id, "batch_id": batch_id, "enqueued": enqueued}
+    finally:
+        await redis.delete(lock_key)
 
 
 async def classify_project_images(
@@ -1008,6 +1110,7 @@ class WorkerSettings:
         process_drone_images,
         process_all_drone_images,
         process_uploaded_image,
+        ingest_existing_uploads,
         classify_project_images,
         delete_batch_images,
         process_project_task_metrics,

@@ -22,6 +22,7 @@ mod build 'tasks/build'
 mod start 'tasks/start'
 mod config 'tasks/config'
 mod test 'tasks/test'
+mod process 'tasks/process'
 
 # List available commands
 [private]
