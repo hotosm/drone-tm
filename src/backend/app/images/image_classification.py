@@ -583,7 +583,8 @@ class ImageClassifier:
             SET status = %(status)s,
                 task_id = %(task_id)s,
                 sharpness_score = %(sharpness_score)s,
-                classified_at = %(classified_at)s
+                classified_at = %(classified_at)s,
+                rejection_reason = NULL
             WHERE id = %(image_id)s
         """
 
@@ -600,33 +601,57 @@ class ImageClassifier:
             )
 
     @staticmethod
-    async def classify_batch(
-        db_pool: AsyncConnectionPool, batch_id: uuid.UUID, project_id: uuid.UUID
+    async def classify_project(
+        db_pool: AsyncConnectionPool, project_id: uuid.UUID
     ) -> dict[str, Any]:
-        # Use UPDATE SKIP LOCKED to ensure no race conditions
+        """Classify all staged/uploaded images in a project (across all batches)."""
+        # Atomically claim pending rows and stale classifying rows.
+        # - staged/uploaded: new work.
+        # - classifying with classified_at older than the stale threshold: rows
+        #   claimed by a previous job that crashed before finishing. We use
+        #   classified_at as the claim timestamp (set to NOW() below, overwritten
+        #   with the real finish time by classify_single_image).
+        # - FOR UPDATE SKIP LOCKED: a live concurrent job still holds row locks
+        #   during its claim transaction, so those rows are skipped - only truly
+        #   abandoned rows (no lock holder) are reclaimed.
+        stale_minutes = 10  # well beyond CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS
         async with db_pool.connection() as db:
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
                     """
-                    SELECT id
-                    FROM project_images
-                    WHERE batch_id = %(batch_id)s
-                    AND project_id = %(project_id)s
-                    AND status = %(status)s
-                    ORDER BY uploaded_at
-                    FOR UPDATE SKIP LOCKED
+                    UPDATE project_images
+                    SET status = %(classifying)s,
+                        classified_at = NOW()
+                    WHERE id IN (
+                        SELECT id
+                        FROM project_images
+                        WHERE project_id = %(project_id)s
+                        AND (
+                            status IN (%(staged)s, %(uploaded)s)
+                            OR (
+                                status = %(classifying)s
+                                AND classified_at < NOW() - make_interval(mins => %(stale_minutes)s)
+                            )
+                        )
+                        ORDER BY uploaded_at
+                        FOR UPDATE SKIP LOCKED
+                    )
+                    RETURNING id
                     """,
                     {
-                        "batch_id": str(batch_id),
                         "project_id": str(project_id),
-                        "status": ImageStatus.STAGED.value,
+                        "staged": ImageStatus.STAGED.value,
+                        "uploaded": ImageStatus.UPLOADED.value,
+                        "classifying": ImageStatus.CLASSIFYING.value,
+                        "stale_minutes": stale_minutes,
                     },
                 )
                 images = await cur.fetchall()
+            await db.commit()
 
         if not images:
             return {
-                "batch_id": str(batch_id),
+                "project_id": str(project_id),
                 "message": "No images to classify",
                 "total": 0,
                 "assigned": 0,
@@ -637,7 +662,7 @@ class ImageClassifier:
             }
 
         results: dict[str, Any] = {
-            "batch_id": str(batch_id),
+            "project_id": str(project_id),
             "total": len(images),
             "assigned": 0,
             "rejected": 0,
@@ -683,7 +708,7 @@ class ImageClassifier:
             # Avoid dumping huge stack-like content into the UI.
             # Truncate at word boundary if too long
             if len(msg) > 240:
-                msg = msg[:240].rsplit(" ", 1)[0] + "…"
+                msg = msg[:240].rsplit(" ", 1)[0] + "..."
             return f"Classification failed: {msg}"
 
         async def classify_with_commit(image_record: dict[str, Any]) -> dict[str, Any]:
@@ -696,20 +721,9 @@ class ImageClassifier:
                 )
 
                 # Each worker gets its own connection from the pool
+                # (rows are already marked CLASSIFYING by the bulk claim above)
                 async with db_pool.connection() as conn:
                     try:
-                        # Update status to classifying
-                        async with conn.cursor() as cur:
-                            await cur.execute(
-                                "UPDATE project_images SET status = %(status)s WHERE id = %(image_id)s",
-                                {
-                                    "status": ImageStatus.CLASSIFYING.value,
-                                    "image_id": str(image_id),
-                                },
-                            )
-                        # Commit the classifying status so frontend can see progress
-                        await conn.commit()
-
                         # Perform classification with timeout
                         result = await asyncio.wait_for(
                             ImageClassifier.classify_single_image(
@@ -788,18 +802,15 @@ class ImageClassifier:
 
                 return result
 
-        # Process all images in parallel with controlled concurrency
         tasks = [classify_with_commit(image) for image in images]
         gather_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Detect silently swallowed exceptions (e.g. pool timeout before the
-        # inner try/except). These leave images stuck in STAGED with no log.
         for image_record, result_or_exc in zip(images, gather_results):
             if isinstance(result_or_exc, BaseException):
                 image_id = image_record["id"]
                 log.error(
                     f"Classification worker failed for image {image_id} "
-                    f"(batch {batch_id}): {result_or_exc!r}"
+                    f"(project {project_id}): {result_or_exc!r}"
                 )
                 # Best-effort: mark the image as rejected so it isn't stuck
                 try:
@@ -817,31 +828,32 @@ class ImageClassifier:
                         results["rejected"] += 1
                 except Exception as cleanup_err:
                     log.error(
-                        f"Failed to mark image {image_id} as rejected "
-                        f"after worker error: {cleanup_err}"
+                        f"Failed to mark image {image_id} as rejected after worker error: {cleanup_err}"
                     )
 
         log.info(
-            f"Parallel classification complete for batch {batch_id}: "
+            f"Parallel classification complete for project {project_id}: "
             f"{results['assigned']} assigned, {results['rejected']} rejected, "
             f"{results['unmatched']} unmatched, {results['invalid']} invalid"
         )
 
         # Auto-transition tasks that received images to HAS_IMAGERY
-        if results["assigned"] > 0:
+        newly_assigned_ids = [
+            img["image_id"]
+            for img in results["images"]
+            if img.get("status") == ImageStatus.ASSIGNED
+        ]
+        if newly_assigned_ids:
             try:
                 async with db_pool.connection() as db:
                     async with db.cursor(row_factory=dict_row) as cur:
-                        # Find tasks that received images in this batch and are eligible
-                        # for transition to HAS_IMAGERY.  Tasks with no task_events rows
-                        # are implicitly UNLOCKED and should also be transitioned.
                         await cur.execute(
                             """
                             WITH affected_tasks AS (
                                 SELECT DISTINCT pi.task_id
                                 FROM project_images pi
-                                WHERE pi.batch_id = %(batch_id)s
-                                AND pi.project_id = %(project_id)s
+                                WHERE pi.project_id = %(project_id)s
+                                AND pi.id = ANY(%(image_ids)s)
                                 AND pi.status = 'assigned'
                                 AND pi.task_id IS NOT NULL
                             ),
@@ -861,8 +873,8 @@ class ImageClassifier:
                                OR cs.state::text IN ('UNLOCKED', 'LOCKED', 'FULLY_FLOWN')
                             """,
                             {
-                                "batch_id": str(batch_id),
                                 "project_id": str(project_id),
+                                "image_ids": newly_assigned_ids,
                             },
                         )
                         tasks_to_update = await cur.fetchall()
@@ -890,12 +902,16 @@ class ImageClassifier:
         return results
 
     @staticmethod
-    async def get_batch_images(
+    async def get_project_images(
         db: Connection,
-        batch_id: uuid.UUID,
         project_id: uuid.UUID,
         last_timestamp: Optional[datetime] = None,
+        status_filter: Optional[list[str]] = None,
     ) -> list[dict]:
+        """Get images for a project (across all batches).
+
+        Supports incremental polling via last_timestamp and optional status filtering.
+        """
         query = """
             SELECT
                 id,
@@ -911,11 +927,14 @@ class ImageClassifier:
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
             FROM project_images
-            WHERE batch_id = %(batch_id)s
-            AND project_id = %(project_id)s
+            WHERE project_id = %(project_id)s
         """
 
-        params = {"batch_id": str(batch_id), "project_id": str(project_id)}
+        params: dict[str, Any] = {"project_id": str(project_id)}
+
+        if status_filter:
+            query += " AND status = ANY(%(statuses)s)"
+            params["statuses"] = status_filter
 
         if last_timestamp:
             query += " AND classified_at > %(last_timestamp)s"
@@ -927,18 +946,15 @@ class ImageClassifier:
             await cur.execute(query, params)
             images = await cur.fetchall()
 
-        # Generate browser-facing URLs for each image (CloudFront-friendly if configured)
         for image in images:
             if image.get("s3_key"):
                 image["url"] = maybe_presign_s3_key(image["s3_key"], expires_hours=1)
 
-            # Generate presigned URL for thumbnail if available
             if image.get("thumbnail_url"):
                 image["thumbnail_url"] = maybe_presign_s3_key(
                     image["thumbnail_url"], expires_hours=1
                 )
 
-            # Add has_gps field for frontend display
             image["has_gps"] = (
                 image.get("latitude") is not None and image.get("longitude") is not None
             )
@@ -946,73 +962,56 @@ class ImageClassifier:
         return images
 
     @staticmethod
-    async def get_batch_review_data(
+    async def _maybe_transition_task_to_has_imagery(
         db: Connection,
-        batch_id: uuid.UUID,
+        task_id: uuid.UUID,
         project_id: uuid.UUID,
-    ) -> dict:
-        # Query includes is_verified by checking if task has a post-verification state
-        query = """
-            WITH latest_task_state AS (
-                SELECT DISTINCT ON (task_id)
-                    task_id,
-                    state
-                FROM task_events
-                WHERE project_id = %(project_id)s
-                ORDER BY task_id, created_at DESC
-            )
-            SELECT
-                pi.task_id,
-                t.project_task_index,
-                COUNT(*) as image_count,
-                COALESCE(lts.state::text IN ('READY_FOR_PROCESSING', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
-                json_agg(
-                    json_build_object(
-                        'id', pi.id,
-                        'filename', pi.filename,
-                        's3_key', pi.s3_key,
-                        'thumbnail_url', pi.thumbnail_url,
-                        'status', pi.status,
-                        'rejection_reason', pi.rejection_reason,
-                        'uploaded_at', pi.uploaded_at
-                    ) ORDER BY pi.uploaded_at
-                ) as images
-            FROM project_images pi
-            LEFT JOIN tasks t ON pi.task_id = t.id
-            LEFT JOIN latest_task_state lts ON pi.task_id = lts.task_id
-            WHERE pi.batch_id = %(batch_id)s
-            AND pi.project_id = %(project_id)s
-            AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate')
-            GROUP BY pi.task_id, t.project_task_index, lts.state
-            ORDER BY t.project_task_index NULLS LAST
-        """
-
+    ) -> None:
+        """Insert a HAS_IMAGERY event for the task if it hasn't reached that state yet."""
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                query, {"batch_id": str(batch_id), "project_id": str(project_id)}
+                """
+                SELECT te.state, te.user_id
+                FROM task_events te
+                WHERE te.task_id = %(task_id)s
+                ORDER BY te.created_at DESC
+                LIMIT 1
+                """,
+                {"task_id": str(task_id)},
             )
-            task_groups = await cur.fetchall()
+            row = await cur.fetchone()
 
-        # Generate browser-facing URLs for thumbnails (CloudFront-friendly if configured)
-        for group in task_groups:
-            for image in group["images"]:
-                if image.get("thumbnail_url"):
-                    image["thumbnail_url"] = maybe_presign_s3_key(
-                        image["thumbnail_url"], expires_hours=1
+        current_state = row["state"] if row else None
+        # Only transition if task hasn't already progressed past HAS_IMAGERY
+        if current_state in (None, "UNLOCKED", "LOCKED", "FULLY_FLOWN"):
+            # Get a user_id for the event (prefer existing, fall back to project author)
+            user_id = row["user_id"] if row else None
+            if not user_id:
+                async with db.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(
+                        "SELECT author_id FROM projects WHERE id = %(pid)s",
+                        {"pid": str(project_id)},
                     )
+                    proj = await cur.fetchone()
+                    user_id = proj["author_id"] if proj else None
 
-                # Generate presigned URL for full image
-                if image.get("s3_key"):
-                    image["url"] = maybe_presign_s3_key(
-                        image["s3_key"], expires_hours=1
+            if user_id:
+                async with db.cursor() as cur:
+                    await cur.execute(
+                        """
+                        INSERT INTO task_events
+                            (event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+                        VALUES
+                            (gen_random_uuid(), %(project_id)s, %(task_id)s, %(user_id)s,
+                             'HAS_IMAGERY', 'Images matched to task area', NOW(), NOW())
+                        """,
+                        {
+                            "project_id": str(project_id),
+                            "task_id": str(task_id),
+                            "user_id": str(user_id),
+                        },
                     )
-
-        return {
-            "batch_id": str(batch_id),
-            "task_groups": task_groups,
-            "total_tasks": len(task_groups),
-            "total_images": sum(group["image_count"] for group in task_groups),
-        }
+                log.info(f"Transitioned task {task_id} to HAS_IMAGERY")
 
     @staticmethod
     async def accept_image(
@@ -1067,9 +1066,59 @@ class ImageClassifier:
 
         # Update image status to assigned
         await ImageClassifier._assign_image_to_task(db, image_id, task_id)
+        await ImageClassifier._maybe_transition_task_to_has_imagery(
+            db, task_id, project_id
+        )
 
         return {
             "message": "Image accepted successfully",
+            "image_id": str(image_id),
+            "status": "assigned",
+            "task_id": str(task_id),
+        }
+
+    @staticmethod
+    async def manual_assign_to_task(
+        db: Connection,
+        image_id: uuid.UUID,
+        task_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Manually assign an image to a task, bypassing GPS matching."""
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """SELECT id, status FROM project_images
+                   WHERE id = %(image_id)s AND project_id = %(project_id)s""",
+                {"image_id": str(image_id), "project_id": str(project_id)},
+            )
+            image = await cur.fetchone()
+
+        if not image:
+            raise ValueError(f"Image {image_id} not found in project {project_id}")
+
+        if image["status"] == "assigned":
+            raise ValueError("Image is already assigned to a task")
+        if image["status"] != "unmatched":
+            raise ValueError("Only unmatched images can be manually assigned to a task")
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """SELECT id FROM tasks
+                   WHERE id = %(task_id)s AND project_id = %(project_id)s""",
+                {"task_id": str(task_id), "project_id": str(project_id)},
+            )
+            task = await cur.fetchone()
+
+        if not task:
+            raise ValueError(f"Task {task_id} not found in project {project_id}")
+
+        await ImageClassifier._assign_image_to_task(db, image_id, task_id)
+        await ImageClassifier._maybe_transition_task_to_has_imagery(
+            db, task_id, project_id
+        )
+
+        return {
+            "message": "Image manually assigned to task",
             "image_id": str(image_id),
             "status": "assigned",
             "task_id": str(task_id),
@@ -1137,281 +1186,6 @@ class ImageClassifier:
             "batch_id": str(batch_id),
             "deleted_count": image_count,
             "deleted_s3_count": deleted_s3_count,
-        }
-
-    @staticmethod
-    async def get_batch_map_data(
-        db: Connection,
-        batch_id: uuid.UUID,
-        project_id: uuid.UUID,
-    ) -> dict:
-        """Get map data for batch review visualization.
-
-        Returns task geometries and all images as GeoJSON (with/without GPS coordinates).
-        """
-        # Get all task IDs that have images in this batch
-        task_ids_query = """
-            SELECT DISTINCT task_id
-            FROM project_images
-            WHERE batch_id = %(batch_id)s
-            AND project_id = %(project_id)s
-            AND task_id IS NOT NULL
-        """
-
-        async with db.cursor() as cur:
-            await cur.execute(
-                task_ids_query,
-                {"batch_id": str(batch_id), "project_id": str(project_id)},
-            )
-            task_rows = await cur.fetchall()
-
-        task_ids = [str(row[0]) for row in task_rows if row[0]]
-
-        # Get task geometries as GeoJSON
-        tasks_geojson = {"type": "FeatureCollection", "features": []}
-        if task_ids:
-            tasks_query = """
-                SELECT
-                    id,
-                    project_task_index,
-                    ST_AsGeoJSON(outline)::json as geometry
-                FROM tasks
-                WHERE id = ANY(%(task_ids)s::uuid[])
-            """
-
-            async with db.cursor(row_factory=dict_row) as cur:
-                await cur.execute(tasks_query, {"task_ids": task_ids})
-                tasks = await cur.fetchall()
-
-            for task in tasks:
-                tasks_geojson["features"].append(
-                    {
-                        "type": "Feature",
-                        "geometry": task["geometry"],
-                        "properties": {
-                            "id": str(task["id"]),
-                            "task_index": task["project_task_index"],
-                        },
-                    }
-                )
-
-        # Get all images with or without GPS data
-        all_images_query = """
-            SELECT
-                id,
-                filename,
-                status,
-                rejection_reason,
-                task_id,
-                s3_key,
-                thumbnail_url,
-                ST_X(location::geometry) as longitude,
-                ST_Y(location::geometry) as latitude
-            FROM project_images
-            WHERE batch_id = %(batch_id)s
-            AND project_id = %(project_id)s
-            ORDER BY uploaded_at DESC
-        """
-
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                all_images_query,
-                {"batch_id": str(batch_id), "project_id": str(project_id)},
-            )
-            all_images = await cur.fetchall()
-
-        # Build GeoJSON features for each image
-        images_features = []
-        located_count = 0
-        unlocated_count = 0
-
-        for img in all_images:
-            properties = {
-                "id": str(img["id"]),
-                "filename": img["filename"],
-                "status": img["status"],
-                "task_id": str(img["task_id"]) if img["task_id"] else None,
-                "rejection_reason": img["rejection_reason"],
-                "thumbnail_url": maybe_presign_s3_key(
-                    img["thumbnail_url"], expires_hours=1
-                )
-                if img.get("thumbnail_url")
-                else None,
-                "url": maybe_presign_s3_key(img["s3_key"], expires_hours=1)
-                if img.get("s3_key")
-                else None,
-            }
-
-            # Add Point geometry if GPS data exists
-            if img["longitude"] is not None and img["latitude"] is not None:
-                feature = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [img["longitude"], img["latitude"]],
-                    },
-                    "properties": properties,
-                }
-                located_count += 1
-            else:
-                # Add feature with null geometry for images without GPS
-                feature = {
-                    "type": "Feature",
-                    "geometry": None,
-                    "properties": properties,
-                }
-                unlocated_count += 1
-
-            images_features.append(feature)
-
-        images_geojson = {
-            "type": "FeatureCollection",
-            "features": images_features,
-        }
-
-        return {
-            "batch_id": str(batch_id),
-            "tasks": tasks_geojson,
-            "images": images_geojson,
-            "total_tasks": len(tasks_geojson["features"]),
-            "total_images": len(images_geojson["features"]),
-            "total_images_with_gps": located_count,
-            "total_images_without_gps": unlocated_count,
-        }
-
-    @staticmethod
-    async def move_batch_images_to_tasks(
-        db: Connection,
-        batch_id: uuid.UUID,
-        project_id: uuid.UUID,
-    ) -> dict:
-        """Move assigned images from batch storage to their respective task folders.
-
-        After classification and review, images need to be moved from:
-        - Source: projects/{project_id}/user-uploads/{filename}
-        - Destination: projects/{project_id}/{task_id}/images/{filename}
-
-        This prepares the images for ODM processing.
-        Only moves images for tasks that have been marked as fully flown (READY_FOR_PROCESSING).
-
-        Args:
-            db: Database connection
-            batch_id: The batch ID to process
-            project_id: The project ID
-
-        Returns:
-            dict: Summary of moved images per task
-        """
-        # Get all assigned images in this batch grouped by task
-        # Only include images for tasks with READY_FOR_PROCESSING state
-        query = """
-            WITH latest_task_state AS (
-                SELECT DISTINCT ON (task_id)
-                    task_id,
-                    state
-                FROM task_events
-                WHERE project_id = %(project_id)s
-                ORDER BY task_id, created_at DESC
-            )
-            SELECT
-                pi.id,
-                pi.filename,
-                pi.s3_key,
-                pi.task_id
-            FROM project_images pi
-            JOIN latest_task_state lts ON pi.task_id = lts.task_id
-            WHERE pi.batch_id = %(batch_id)s
-            AND pi.project_id = %(project_id)s
-            AND pi.status = %(status)s
-            AND pi.task_id IS NOT NULL
-            AND lts.state::text = 'READY_FOR_PROCESSING'
-            ORDER BY pi.task_id, pi.uploaded_at
-        """
-
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                query,
-                {
-                    "batch_id": str(batch_id),
-                    "project_id": str(project_id),
-                    "status": ImageStatus.ASSIGNED.value,
-                },
-            )
-            images = await cur.fetchall()
-
-        if not images:
-            return {
-                "batch_id": str(batch_id),
-                "message": "No assigned images to move",
-                "total_moved": 0,
-                "total_failed": 0,
-                "task_count": 0,
-                "tasks": {},
-            }
-
-        # Group images by task
-        tasks_summary = {}
-        moved_count = 0
-        failed_count = 0
-
-        for image in images:
-            task_id = str(image["task_id"])
-            filename = image["filename"]
-            source_key = image["s3_key"]
-
-            # Construct destination path: projects/{project_id}/{task_id}/images/{filename}
-            dest_key = f"projects/{project_id}/{task_id}/images/{filename}"
-
-            # Copy file to task folder
-            success = await run_in_threadpool(
-                copy_file_within_bucket,
-                settings.S3_BUCKET_NAME,
-                source_key,
-                dest_key,
-            )
-
-            if success:
-                # Update the s3_key in database to point to new location
-                async with db.cursor() as update_cur:
-                    await update_cur.execute(
-                        """
-                        UPDATE project_images
-                        SET s3_key = %(new_s3_key)s
-                        WHERE id = %(image_id)s
-                        """,
-                        {
-                            "new_s3_key": dest_key,
-                            "image_id": str(image["id"]),
-                        },
-                    )
-
-                moved_count += 1
-
-                if task_id not in tasks_summary:
-                    tasks_summary[task_id] = {
-                        "task_id": task_id,
-                        "image_count": 0,
-                        "images": [],
-                    }
-                tasks_summary[task_id]["image_count"] += 1
-                tasks_summary[task_id]["images"].append(filename)
-
-                log.info(f"Moved image {filename} to task {task_id}")
-            else:
-                failed_count += 1
-                log.error(f"Failed to move image {filename} to task {task_id}")
-
-        log.info(
-            f"Batch {batch_id}: Moved {moved_count} images to {len(tasks_summary)} tasks, "
-            f"{failed_count} failed"
-        )
-
-        return {
-            "batch_id": str(batch_id),
-            "total_moved": moved_count,
-            "total_failed": failed_count,
-            "task_count": len(tasks_summary),
-            "tasks": tasks_summary,
         }
 
     @staticmethod
@@ -1500,256 +1274,6 @@ class ImageClassifier:
         log.info(f"Task {task_id}: Moved {moved_count} images, {failed_count} failed")
 
         return {"moved_count": moved_count, "failed_count": failed_count}
-
-    @staticmethod
-    async def get_batch_processing_summary(
-        db: Connection,
-        batch_id: uuid.UUID,
-        project_id: uuid.UUID,
-    ) -> dict:
-        """Get a summary of assigned images for processing.
-
-        Returns task-grouped summary suitable for the Processing step UI.
-        Only includes tasks that have been marked as fully flown (READY_FOR_PROCESSING state
-        or later processing states).
-
-        Args:
-            db: Database connection
-            batch_id: The batch ID
-            project_id: The project ID
-
-        Returns:
-            dict: Summary with tasks, image counts, and processing status
-        """
-        # Query includes tasks with READY_FOR_PROCESSING or processing states
-        # This allows tracking processing progress
-        # Also includes the comment field for failure reasons
-        query = """
-            WITH latest_task_state AS (
-                SELECT DISTINCT ON (task_id)
-                    task_id,
-                    state,
-                    comment
-                FROM task_events
-                WHERE project_id = %(project_id)s
-                ORDER BY task_id, created_at DESC
-            )
-            SELECT
-                pi.task_id,
-                t.project_task_index,
-                lts.state as task_state,
-                lts.comment as state_comment,
-                COUNT(*) as image_count
-            FROM project_images pi
-            JOIN tasks t ON pi.task_id = t.id
-            JOIN latest_task_state lts ON pi.task_id = lts.task_id
-            WHERE pi.batch_id = %(batch_id)s
-            AND pi.project_id = %(project_id)s
-            AND pi.status = %(status)s
-            AND pi.task_id IS NOT NULL
-            AND lts.state::text IN (
-                'READY_FOR_PROCESSING',
-                'IMAGE_PROCESSING_STARTED',
-                'IMAGE_PROCESSING_FINISHED',
-                'IMAGE_PROCESSING_FAILED'
-            )
-            GROUP BY pi.task_id, t.project_task_index, lts.state, lts.comment
-            ORDER BY t.project_task_index
-        """
-
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                query,
-                {
-                    "batch_id": str(batch_id),
-                    "project_id": str(project_id),
-                    "status": ImageStatus.ASSIGNED.value,
-                },
-            )
-            task_groups = await cur.fetchall()
-
-        total_images = sum(group["image_count"] for group in task_groups)
-
-        return {
-            "batch_id": str(batch_id),
-            "total_tasks": len(task_groups),
-            "total_images": total_images,
-            "tasks": [
-                {
-                    "task_id": str(group["task_id"]),
-                    "task_index": group["project_task_index"],
-                    "image_count": group["image_count"],
-                    "state": group["task_state"],
-                    "failure_reason": group["state_comment"]
-                    if group["task_state"] == "IMAGE_PROCESSING_FAILED"
-                    else None,
-                }
-                for group in task_groups
-            ],
-        }
-
-    @staticmethod
-    async def get_task_verification_data(
-        db: Connection,
-        task_id: uuid.UUID,
-        batch_id: uuid.UUID,
-        project_id: uuid.UUID,
-    ) -> dict:
-        """Get task images and geometry for verification modal.
-
-        Args:
-            db: Database connection
-            task_id: The task ID to get data for
-            batch_id: The batch ID
-            project_id: The project ID
-
-        Returns:
-            dict: Task verification data including images, geometry, and coverage
-        """
-        # Get task geometry and index
-        task_query = """
-            SELECT
-                id,
-                project_task_index,
-                ST_AsGeoJSON(outline)::json as geometry
-            FROM tasks
-            WHERE id = %(task_id)s
-            AND project_id = %(project_id)s
-        """
-
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                task_query,
-                {"task_id": str(task_id), "project_id": str(project_id)},
-            )
-            task = await cur.fetchone()
-
-        if not task:
-            raise ValueError(f"Task {task_id} not found in project {project_id}")
-
-        # Get all assigned images for this task in the batch
-        images_query = """
-            SELECT
-                id,
-                filename,
-                s3_key,
-                thumbnail_url,
-                status,
-                rejection_reason,
-                ST_AsGeoJSON(location)::json as location
-            FROM project_images
-            WHERE task_id = %(task_id)s
-            AND batch_id = %(batch_id)s
-            AND project_id = %(project_id)s
-            AND status = %(status)s
-            ORDER BY uploaded_at
-        """
-
-        async with db.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                images_query,
-                {
-                    "task_id": str(task_id),
-                    "batch_id": str(batch_id),
-                    "project_id": str(project_id),
-                    "status": ImageStatus.ASSIGNED.value,
-                },
-            )
-            images = await cur.fetchall()
-
-        # Generate browser-facing URLs (CloudFront-friendly if configured)
-        for image in images:
-            if image.get("thumbnail_url"):
-                image["thumbnail_url"] = maybe_presign_s3_key(
-                    image["thumbnail_url"], expires_hours=1
-                )
-
-            if image.get("s3_key"):
-                image["url"] = maybe_presign_s3_key(image["s3_key"], expires_hours=1)
-
-        # Calculate coverage percentage using PostGIS
-        # Buffer each image point and calculate intersection with task polygon
-        coverage_query = """
-            WITH image_points AS (
-                SELECT location
-                FROM project_images
-                WHERE task_id = %(task_id)s
-                AND batch_id = %(batch_id)s
-                AND project_id = %(project_id)s
-                AND status = %(status)s
-                AND location IS NOT NULL
-            ),
-            task_polygon AS (
-                SELECT outline
-                FROM tasks
-                WHERE id = %(task_id)s
-            ),
-            buffered_points AS (
-                SELECT ST_Union(ST_Buffer(location::geography, 20)::geometry) as coverage
-                FROM image_points
-            )
-            SELECT
-                CASE
-                    WHEN (SELECT COUNT(*) FROM image_points) = 0 THEN 0
-                    ELSE LEAST(100, (
-                        ST_Area(
-                            ST_Intersection(
-                                (SELECT coverage FROM buffered_points),
-                                (SELECT outline FROM task_polygon)
-                            )::geography
-                        ) /
-                        NULLIF(ST_Area((SELECT outline FROM task_polygon)::geography), 0)
-                    ) * 100)
-                END as coverage_percentage
-        """
-
-        coverage_percentage = 0
-        try:
-            async with db.cursor(row_factory=dict_row) as cur:
-                await cur.execute(
-                    coverage_query,
-                    {
-                        "task_id": str(task_id),
-                        "batch_id": str(batch_id),
-                        "project_id": str(project_id),
-                        "status": ImageStatus.ASSIGNED.value,
-                    },
-                )
-                coverage_result = await cur.fetchone()
-                if coverage_result and coverage_result.get("coverage_percentage"):
-                    coverage_percentage = float(coverage_result["coverage_percentage"])
-        except Exception as e:
-            log.warning(f"Could not calculate coverage: {e}")
-            coverage_percentage = 0
-
-        return {
-            "task_id": str(task_id),
-            "project_task_index": task["project_task_index"],
-            "image_count": len(images),
-            "images": [
-                {
-                    "id": str(img["id"]),
-                    "filename": img["filename"],
-                    "s3_key": img["s3_key"],
-                    "thumbnail_url": img.get("thumbnail_url"),
-                    "url": img.get("url"),
-                    "status": img["status"],
-                    "rejection_reason": img.get("rejection_reason"),
-                    "location": img.get("location"),
-                }
-                for img in images
-            ],
-            "task_geometry": {
-                "type": "Feature",
-                "geometry": task["geometry"],
-                "properties": {
-                    "id": str(task["id"]),
-                    "task_index": task["project_task_index"],
-                },
-            },
-            "coverage_percentage": coverage_percentage,
-            "is_verified": False,  # TODO: Add verified_at field to tasks table
-        }
 
     # ─── Project-level (task-centric) methods ─────────────────────────────
 
@@ -1844,10 +1368,7 @@ class ImageClassifier:
         db: Connection,
         project_id: uuid.UUID,
     ) -> dict:
-        """Project-level review: images grouped by task across ALL batches.
-
-        Replaces get_batch_review_data for the verify/review UI.
-        """
+        """Project-level review: images grouped by task across ALL batches."""
         query = """
             WITH latest_task_state AS (
                 SELECT DISTINCT ON (task_id)
@@ -1877,7 +1398,7 @@ class ImageClassifier:
             LEFT JOIN tasks t ON pi.task_id = t.id
             LEFT JOIN latest_task_state lts ON pi.task_id = lts.task_id
             WHERE pi.project_id = %(project_id)s
-            AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate')
+            AND pi.status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate', 'unmatched')
             GROUP BY pi.task_id, t.project_task_index, lts.state
             ORDER BY t.project_task_index NULLS LAST
         """
@@ -1909,24 +1430,21 @@ class ImageClassifier:
         db: Connection,
         project_id: uuid.UUID,
     ) -> dict:
-        """Project-level map data: task geometries + ALL image points across batches.
-
-        Replaces get_batch_map_data for the verify/review UI.
-        """
-        # Get all tasks for the project that have any assigned imagery
+        """Project-level map data: task geometries + ALL image points across batches."""
+        # Get all tasks for the project (needed for manual task matching)
         tasks_query = """
             SELECT
                 t.id,
                 t.project_task_index,
-                ST_AsGeoJSON(t.outline)::json as geometry
+                ST_AsGeoJSON(t.outline)::json as geometry,
+                EXISTS (
+                    SELECT 1 FROM project_images pi
+                    WHERE pi.task_id = t.id
+                    AND pi.project_id = %(project_id)s
+                    AND pi.status = 'assigned'
+                ) as has_imagery
             FROM tasks t
             WHERE t.project_id = %(project_id)s
-            AND EXISTS (
-                SELECT 1 FROM project_images pi
-                WHERE pi.task_id = t.id
-                AND pi.project_id = %(project_id)s
-                AND pi.status = 'assigned'
-            )
         """
 
         async with db.cursor(row_factory=dict_row) as cur:
@@ -1942,6 +1460,7 @@ class ImageClassifier:
                     "properties": {
                         "id": str(task["id"]),
                         "task_index": task["project_task_index"],
+                        "has_imagery": task["has_imagery"],
                     },
                 }
                 for task in tasks
@@ -2032,8 +1551,6 @@ class ImageClassifier:
     ) -> dict:
         """Project-level task verification: ALL assigned images for this task
         across all batches.
-
-        Replaces get_task_verification_data (which was batch-scoped).
         """
         # Get task geometry and index
         task_query = """

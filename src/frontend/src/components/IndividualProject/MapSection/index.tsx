@@ -79,7 +79,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
 
   const { data: taskStates } = useGetTaskStatesQuery(projectUuid as string, {
     enabled: !!tasksData && !!projectUuid,
-    refetchInterval: 30000,
   });
   const signedInAs = localStorage.getItem('signedInAs');
 

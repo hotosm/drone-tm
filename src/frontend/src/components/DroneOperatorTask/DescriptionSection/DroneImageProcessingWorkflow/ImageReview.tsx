@@ -6,12 +6,11 @@ import {
   getProjectReview,
   getProjectMapData,
   acceptImage,
+  assignImageToTask,
   ProjectReviewData,
   ProjectMapData,
   TaskGroup,
   TaskGroupImage,
-  getBatchReview,
-  getBatchMapData,
 } from '@Services/classification';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import Accordion from '@Components/common/Accordion';
@@ -25,27 +24,26 @@ import TaskVerificationModal from './TaskVerificationModal';
 
 interface ImageReviewProps {
   projectId: string;
-  batchId?: string;  // Optional: when provided, shows batch-scoped data (upload step 3); when absent, shows project-level data (verify dialog)
 }
 
 const hasIssueStatus = (status?: string) => status !== 'assigned';
+const canManuallyMatchImage = (status?: string) => status === 'unmatched';
+const canOverrideImageRejection = (status?: string) => status === 'rejected' || status === 'invalid_exif';
 
-const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
+const ImageReview = ({ projectId }: ImageReviewProps) => {
   const queryClient = useQueryClient();
   const hasFitBoundsRef = useRef(false);
   const popupRef = useRef<Popup | null>(null);
   const [showOnlyIssueImages, setShowOnlyIssueImages] = useState(false);
 
-  // Use project-level endpoints when no batchId (verify dialog), batch-scoped when batchId is present (upload step 3)
-  // Both return the same shape (tasks FeatureCollection, images FeatureCollection, counts)
   const {
     data: mapData,
     isLoading: isMapDataLoading,
     error: mapDataError,
     isError: isMapDataError
   } = useQuery<ProjectMapData>({
-    queryKey: batchId ? ['batchMapData', projectId, batchId] : ['projectMapData', projectId],
-    queryFn: () => (batchId ? getBatchMapData(projectId, batchId) : getProjectMapData(projectId)) as Promise<ProjectMapData>,
+    queryKey: ['projectMapData', projectId],
+    queryFn: () => getProjectMapData(projectId),
     enabled: !!projectId,
   });
 
@@ -55,8 +53,8 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     error: reviewError,
     isError: isReviewError
   } = useQuery<ProjectReviewData>({
-    queryKey: batchId ? ['batchReview', projectId, batchId] : ['projectReview', projectId],
-    queryFn: () => (batchId ? getBatchReview(projectId, batchId) : getProjectReview(projectId)) as Promise<ProjectReviewData>,
+    queryKey: ['projectReview', projectId],
+    queryFn: () => getProjectReview(projectId),
     enabled: !!projectId,
   });
 
@@ -66,7 +64,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
   // Reset fit bounds when data source changes
   useEffect(() => {
     hasFitBoundsRef.current = false;
-  }, [batchId, projectId]);
+  }, [projectId]);
 
   const [selectedImage, setSelectedImage] = useState<{
     id: string;
@@ -88,6 +86,17 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     taskId: '',
     taskIndex: 0,
   });
+  // Task matching state
+  const [taskMatchingImage, setTaskMatchingImage] = useState<{ id: string; filename: string } | null>(null);
+  const [confirmMatch, setConfirmMatch] = useState<{
+    imageId: string;
+    imageFilename: string;
+    taskId: string;
+    taskIndex: number;
+  } | null>(null);
+  const taskMatchingImageRef = useRef(taskMatchingImage);
+  useEffect(() => { taskMatchingImageRef.current = taskMatchingImage; }, [taskMatchingImage]);
+
   // Refs for sidebar scrolling
   const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -208,6 +217,89 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     };
   }, [map, isMapLoaded]);
 
+  const escapeHtml = (str: string): string => {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  };
+
+  const escapeAttr = (str: string): string =>
+    str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const buildPopupHtml = (props: { id: string; filename: string; status: string; rejection_reason?: string; url?: string; thumbnail_url?: string }) => {
+    const statusColors: Record<string, string> = {
+      assigned: '#22c55e',
+      rejected: '#D73F3F',
+      unmatched: '#eab308',
+      invalid_exif: '#f97316',
+      duplicate: '#6b7280',
+    };
+    const dotColor = statusColors[props.status] || '#3b82f6';
+    const showMatchBtn = canManuallyMatchImage(props.status);
+    const btnStyle = 'display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;border:none;margin-top:8px;margin-right:6px;';
+    const safeFilename = escapeHtml(props.filename || 'Unknown');
+    const safeFilenameAttr = escapeAttr(props.filename || '');
+    const safeReason = props.rejection_reason ? escapeHtml(props.rejection_reason) : '';
+    const safeId = escapeAttr(props.id);
+    return `
+      <div style="min-width:180px;max-width:280px;font-family:system-ui,sans-serif;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${safeFilename}</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};"></span>
+          ${escapeHtml((props.status || 'unknown').replace('_', ' '))}
+        </div>
+        ${safeReason && ['rejected', 'unmatched', 'invalid_exif', 'duplicate'].includes(props.status) ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${safeReason}</div>` : ''}
+        <div>
+          <button data-inspect-image-id="${safeId}" style="${btnStyle}background:#2563eb;color:white;">
+            <span class="material-icons" style="font-size:14px;">visibility</span> Inspect
+          </button>
+          ${showMatchBtn ? `<button data-match-image-id="${safeId}" data-match-image-filename="${safeFilenameAttr}" style="${btnStyle}background:#eab308;color:white;">
+            <span class="material-icons" style="font-size:14px;">my_location</span> Match to task
+          </button>` : ''}
+        </div>
+      </div>
+    `;
+  };
+
+  // Document-level click handlers for popup buttons (raw HTML, not React)
+  useEffect(() => {
+    const handlePopupClick = (e: MouseEvent) => {
+      const inspectBtn = (e.target as HTMLElement).closest('[data-inspect-image-id]') as HTMLElement | null;
+      if (inspectBtn) {
+        const imageId = inspectBtn.getAttribute('data-inspect-image-id');
+        if (!imageId || !mapData?.images?.features) return;
+        const feature = mapData.images.features.find((f: GeoJSON.Feature<any>) => f.properties?.id === imageId);
+        if (feature?.properties) {
+          const p = feature.properties;
+          setSelectedImage({
+            id: p.id,
+            url: p.url || p.thumbnail_url || '',
+            filename: p.filename,
+            status: p.status,
+            rejection_reason: p.rejection_reason,
+          });
+        }
+        return;
+      }
+
+      const matchBtn = (e.target as HTMLElement).closest('[data-match-image-id]') as HTMLElement | null;
+      if (matchBtn) {
+        const imageId = matchBtn.getAttribute('data-match-image-id');
+        const filename = matchBtn.getAttribute('data-match-image-filename');
+        if (imageId && filename) {
+          setTaskMatchingImage({ id: imageId, filename });
+          if (popupRef.current) {
+            popupRef.current.remove();
+            popupRef.current = null;
+          }
+        }
+      }
+    };
+
+    document.addEventListener('click', handlePopupClick);
+    return () => document.removeEventListener('click', handlePopupClick);
+  }, [mapData]);
+
   // Custom popup on map click (replaces AsyncPopup for reliable close behavior)
   useEffect(() => {
     if (!map || !isMapLoaded) return;
@@ -226,25 +318,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
         popupRef.current.remove();
       }
 
-      const statusColors: Record<string, string> = {
-        assigned: '#22c55e',
-        rejected: '#D73F3F',
-        unmatched: '#eab308',
-        invalid_exif: '#f97316',
-        duplicate: '#6b7280',
-      };
-      const dotColor = statusColors[props.status] || '#3b82f6';
-
-      const html = `
-        <div style="min-width:180px;max-width:280px;font-family:system-ui,sans-serif;">
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${props.filename || 'Unknown'}</div>
-          <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};"></span>
-            ${(props.status || 'unknown').replace('_', ' ')}
-          </div>
-          ${props.rejection_reason ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${props.rejection_reason}</div>` : ''}
-        </div>
-      `;
+      const html = buildPopupHtml(props as any);
 
       const newPopup = new Popup({
         closeButton: true,
@@ -320,6 +394,72 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     }
   }, [map, isMapLoaded, highlightedImageId]);
 
+  // Task picker mode: highlight tasks on hover and handle click to select
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    const fillLayerId = 'review-task-polygons-layer';
+    const isPickerActive = () => !!taskMatchingImageRef.current;
+
+    const onMouseMove = (e: any) => {
+      if (!isPickerActive()) return;
+      const features = map.queryRenderedFeatures(e.point, { layers: [fillLayerId] });
+      map.getCanvas().style.cursor = features?.length ? 'crosshair' : 'crosshair';
+      try {
+        if (features?.length) {
+          const hoveredId = features[0].properties?.id;
+          map.setPaintProperty(fillLayerId, 'fill-opacity', [
+            'case',
+            ['==', ['get', 'id'], hoveredId],
+            0.7,
+            0.4,
+          ]);
+        } else {
+          map.setPaintProperty(fillLayerId, 'fill-opacity', 0.4);
+        }
+      } catch { /* layer may not exist */ }
+    };
+
+    const onMouseLeave = () => {
+      if (!isPickerActive()) return;
+      try {
+        map.setPaintProperty(fillLayerId, 'fill-opacity', 0.4);
+      } catch { /* */ }
+    };
+
+    const onClick = (e: any) => {
+      if (!isPickerActive()) return;
+      const features = map.queryRenderedFeatures(e.point, { layers: [fillLayerId] });
+      if (!features?.length) return;
+      const taskProps = features[0].properties;
+      const matching = taskMatchingImageRef.current;
+      if (matching && taskProps) {
+        setConfirmMatch({
+          imageId: matching.id,
+          imageFilename: matching.filename,
+          taskId: taskProps.id,
+          taskIndex: taskProps.task_index,
+        });
+      }
+    };
+
+    map.on('mousemove', fillLayerId, onMouseMove);
+    map.on('mouseleave', fillLayerId, onMouseLeave);
+    map.on('click', fillLayerId, onClick);
+
+    return () => {
+      map.off('mousemove', fillLayerId, onMouseMove);
+      map.off('mouseleave', fillLayerId, onMouseLeave);
+      map.off('click', fillLayerId, onClick);
+    };
+  }, [map, isMapLoaded]);
+
+  // Update cursor when entering/leaving picker mode
+  useEffect(() => {
+    if (!map) return;
+    map.getCanvas().style.cursor = taskMatchingImage ? 'crosshair' : '';
+  }, [map, taskMatchingImage]);
+
   const acceptMutation = useMutation({
     mutationFn: (imageId: string) => acceptImage(projectId, imageId),
     onSuccess: (data) => {
@@ -328,17 +468,30 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
       } else {
         toast.success('Image accepted successfully');
       }
-      // Invalidate both batch-scoped and project-level queries
-      if (batchId) {
-        queryClient.invalidateQueries({ queryKey: ['batchReview', projectId, batchId] });
-        queryClient.invalidateQueries({ queryKey: ['batchMapData', projectId, batchId] });
-      }
       queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
       setSelectedImage(null);
     },
     onError: (error: any) => {
       const message = error?.response?.data?.detail || error.message || 'Failed to accept image';
+      toast.error(message);
+    },
+  });
+
+  const assignTaskMutation = useMutation({
+    mutationFn: ({ imageId, taskId }: { imageId: string; taskId: string }) =>
+      assignImageToTask(projectId, imageId, taskId),
+    onSuccess: () => {
+      toast.success('Image assigned to task successfully');
+      queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
+      setConfirmMatch(null);
+      setTaskMatchingImage(null);
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || error.message || 'Failed to assign image';
       toast.error(message);
     },
   });
@@ -370,25 +523,14 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
           popupRef.current.remove();
         }
 
-        const statusColors: Record<string, string> = {
-          assigned: '#22c55e',
-          rejected: '#D73F3F',
-          unmatched: '#eab308',
-          invalid_exif: '#f97316',
-          duplicate: '#6b7280',
-        };
-        const dotColor = statusColors[image.status] || '#3b82f6';
-
-        const html = `
-          <div style="min-width:180px;max-width:280px;font-family:system-ui,sans-serif;">
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${image.filename || 'Unknown'}</div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};"></span>
-              ${(image.status || 'unknown').replace('_', ' ')}
-            </div>
-            ${image.rejection_reason ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${image.rejection_reason}</div>` : ''}
-          </div>
-        `;
+        const html = buildPopupHtml({
+          id: image.id,
+          filename: image.filename,
+          status: image.status,
+          rejection_reason: image.rejection_reason,
+          url: image.url,
+          thumbnail_url: image.thumbnail_url,
+        });
 
         const newPopup = new Popup({
           closeButton: true,
@@ -446,8 +588,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
     );
   }
 
-  const isRejectedImage = selectedImage && (selectedImage.status === 'rejected' || selectedImage.status === 'invalid_exif');
+  const isRejectedImage = selectedImage && canOverrideImageRejection(selectedImage.status);
+  const isUnmatchedImage = selectedImage && selectedImage.status === 'unmatched';
   const isDuplicateImage = selectedImage && selectedImage.status === 'duplicate';
+  const canOverride = isRejectedImage && !isDuplicateImage;
+  const canMatch = isUnmatchedImage;
 
   const locatedImages = mapData?.images?.features?.filter(
     (feature: GeoJSON.Feature<any>) => feature.geometry !== null,
@@ -644,6 +789,22 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
               </div>
             )}
 
+            {/* Task picker mode banner */}
+            {taskMatchingImage && (
+              <div className="naxatw-absolute naxatw-top-2 naxatw-left-2 naxatw-right-2 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-between naxatw-rounded naxatw-bg-yellow-500 naxatw-px-4 naxatw-py-2 naxatw-shadow-lg">
+                <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-font-medium naxatw-text-white">
+                  <span className="material-icons naxatw-text-base">my_location</span>
+                  Click a task area to assign <span className="naxatw-font-bold">{taskMatchingImage.filename}</span>
+                </div>
+                <button
+                  onClick={() => setTaskMatchingImage(null)}
+                  className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-3 naxatw-py-1 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
             {/* Legend */}
             <div className="naxatw-absolute naxatw-bottom-8 naxatw-left-2 naxatw-z-10 naxatw-rounded naxatw-bg-white naxatw-p-2 naxatw-shadow-md">
               <p className="naxatw-text-xs naxatw-font-semibold naxatw-mb-1">Image Status</p>
@@ -677,7 +838,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 Review the classified images grouped by tasks.
               </p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                Double-click a thumbnail to inspect and override rejections.
+                Double-click a thumbnail to inspect the full image and handle issues.
               </p>
               <label className="naxatw-flex naxatw-w-fit naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-px-3 naxatw-py-1.5 naxatw-text-sm naxatw-font-medium naxatw-text-gray-700 naxatw-transition-colors hover:naxatw-border-red hover:naxatw-text-gray-900">
                 <span
@@ -727,7 +888,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                 title={
                   <FlexRow className="naxatw-items-center naxatw-gap-3">
                     <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
-                      {group.task_id ? `Task #${group.project_task_index}` : 'Rejected Images'}
+                      {group.task_id ? `Task #${group.project_task_index}` : 'Unassigned Images'}
                     </h4>
                     <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
                       {showOnlyIssueImages
@@ -742,7 +903,7 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   </FlexRow>
                 }
               >
-                {group.task_id && !batchId && (
+                {group.task_id && (
                   <div className="naxatw-mb-4">
                     <Button
                       variant="ghost"
@@ -773,9 +934,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                           ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300'
                           : image.status === 'rejected' || image.status === 'invalid_exif'
                             ? 'naxatw-border-red-300 hover:naxatw-border-red-500'
-                            : image.status === 'duplicate'
-                              ? 'naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60'
-                              : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
+                            : image.status === 'unmatched'
+                              ? 'naxatw-border-yellow-300 hover:naxatw-border-yellow-500'
+                              : image.status === 'duplicate'
+                                ? 'naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60'
+                                : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
                       }`}
                       onClick={() => handleSidebarImageClick(image)}
                       onDoubleClick={() => handleImageClick(image)}
@@ -790,6 +953,11 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                       {(image.status === 'rejected' || image.status === 'invalid_exif') && (
                         <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
                           {image.rejection_reason || 'Rejected'}
+                        </div>
+                      )}
+                      {image.status === 'unmatched' && (
+                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-yellow-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
+                          Unmatched
                         </div>
                       )}
                       {image.status === 'duplicate' && (
@@ -842,17 +1010,32 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
                   </p>
                 )}
               </div>
-              {isRejectedImage && !isDuplicateImage && (
-                <Button
-                  variant="ghost"
-                  className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700"
-                  onClick={handleAcceptImage}
-                  disabled={acceptMutation.isPending}
-                  leftIcon="check"
-                >
-                  {acceptMutation.isPending ? 'Accepting...' : 'Override rejection'}
-                </Button>
-              )}
+              <div className="naxatw-flex naxatw-gap-2">
+                {canOverride && (
+                  <Button
+                    variant="ghost"
+                    className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700"
+                    onClick={handleAcceptImage}
+                    disabled={acceptMutation.isPending}
+                    leftIcon="check"
+                  >
+                    {acceptMutation.isPending ? 'Accepting...' : 'Override rejection'}
+                  </Button>
+                )}
+                {canMatch && (
+                  <Button
+                    variant="ghost"
+                    className="naxatw-bg-yellow-500 naxatw-text-white hover:naxatw-bg-yellow-600"
+                    onClick={() => {
+                      setTaskMatchingImage({ id: selectedImage.id, filename: selectedImage.filename });
+                      setSelectedImage(null);
+                    }}
+                    leftIcon="my_location"
+                  >
+                    Match to task
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -866,13 +1049,49 @@ const ImageReview = ({ projectId, batchId }: ImageReviewProps) => {
         taskId={verificationModal.taskId}
         taskIndex={verificationModal.taskIndex}
         onVerified={() => {
-          if (batchId) {
-            queryClient.invalidateQueries({ queryKey: ['batchReview', projectId, batchId] });
-          }
           queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
           queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+          queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
         }}
       />
+
+      {/* Manual task assignment confirmation dialog */}
+      {confirmMatch && (
+        <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[10000] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
+          <div className="naxatw-w-full naxatw-max-w-md naxatw-rounded-lg naxatw-bg-white naxatw-p-6 naxatw-shadow-xl">
+            <div className="naxatw-mb-4 naxatw-flex naxatw-items-center naxatw-gap-3">
+              <span className="material-icons naxatw-text-3xl naxatw-text-yellow-500">my_location</span>
+              <h3 className="naxatw-text-lg naxatw-font-semibold naxatw-text-gray-900">
+                Assign image to task?
+              </h3>
+            </div>
+            <p className="naxatw-mb-2 naxatw-text-gray-600">
+              Match <span className="naxatw-font-semibold">{confirmMatch.imageFilename}</span> to{' '}
+              <span className="naxatw-font-semibold">Task #{confirmMatch.taskIndex}</span>?
+            </p>
+            <p className="naxatw-mb-6 naxatw-text-xs naxatw-text-gray-400">
+              This will override the automatic classification result.
+            </p>
+            <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
+              <Button
+                variant="outline"
+                className="naxatw-border-gray-300"
+                onClick={() => setConfirmMatch(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => assignTaskMutation.mutate({ imageId: confirmMatch.imageId, taskId: confirmMatch.taskId })}
+                disabled={assignTaskMutation.isPending}
+                leftIcon="check"
+              >
+                {assignTaskMutation.isPending ? 'Assigning...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </FlexColumn>
   );
 };

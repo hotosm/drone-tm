@@ -22,6 +22,7 @@ const DescriptionSection = ({
   projectData,
   isProjectDataLoading = false,
   onOpenUpload,
+  onOpenClassify,
   onOpenVerify,
   onOpenWorkflow,
 }: {
@@ -29,6 +30,7 @@ const DescriptionSection = ({
   page?: 'project-description' | 'project-approval';
   isProjectDataLoading?: boolean;
   onOpenUpload?: () => void;
+  onOpenClassify?: () => void;
   onOpenVerify?: () => void;
   onOpenWorkflow?: () => void;
 }) => {
@@ -148,13 +150,35 @@ const DescriptionSection = ({
             <div className="naxatw-flex-1">
               <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Upload Imagery</p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                Upload drone images, classify quality, and review results
+                Upload drone images to the project
               </p>
             </div>
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
           </button>
 
-          {/* Step 2: Verify Imagery */}
+          {/* Step 2: Classify Imagery */}
+          <button
+            className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+              onOpenClassify
+                ? 'naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50'
+                : 'naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60'
+            }`}
+            onClick={onOpenClassify}
+            disabled={!onOpenClassify}
+          >
+            <div className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${onOpenClassify ? 'naxatw-bg-red' : 'naxatw-bg-gray-400'}`}>
+              2
+            </div>
+            <div className="naxatw-flex-1">
+              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Classify Imagery</p>
+              <p className="naxatw-text-xs naxatw-text-gray-500">
+                Classify quality and assign to tasks
+              </p>
+            </div>
+            <span className="material-icons naxatw-text-gray-400">chevron_right</span>
+          </button>
+
+          {/* Step 3: Verify Imagery */}
           <button
             className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
               onOpenVerify
@@ -165,7 +189,7 @@ const DescriptionSection = ({
             disabled={!onOpenVerify}
           >
             <div className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${onOpenVerify ? 'naxatw-bg-red' : 'naxatw-bg-gray-400'}`}>
-              2
+              3
             </div>
             <div className="naxatw-flex-1">
               <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Verify Imagery</p>
@@ -176,7 +200,7 @@ const DescriptionSection = ({
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
           </button>
 
-          {/* Step 3: Processing */}
+          {/* Step 4: Processing */}
           <button
             className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
               isAbleToStartProcessing
@@ -187,7 +211,7 @@ const DescriptionSection = ({
             disabled={!isAbleToStartProcessing}
           >
             <div className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${isAbleToStartProcessing ? 'naxatw-bg-red' : 'naxatw-bg-gray-400'}`}>
-              3
+              4
             </div>
             <div className="naxatw-flex-1">
               <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Processing</p>

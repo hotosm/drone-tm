@@ -11,6 +11,7 @@ export interface ImageClassificationResult {
   url?: string;
   thumbnail_url?: string;  // 200x200 thumbnail for grid display
   uploaded_at: string;
+  classified_at?: string;
 }
 
 export interface BatchStatusSummary {
@@ -31,7 +32,7 @@ export interface TaskGroupImage {
   s3_key: string;
   thumbnail_url?: string;
   url?: string;
-  status: 'assigned' | 'rejected' | 'invalid_exif' | 'duplicate';
+  status: 'assigned' | 'rejected' | 'invalid_exif' | 'duplicate' | 'unmatched';
   rejection_reason?: string;
   uploaded_at: string;
 }
@@ -44,74 +45,6 @@ export interface TaskGroup {
   is_verified?: boolean;
 }
 
-export interface BatchReviewData {
-  batch_id: string;
-  task_groups: TaskGroup[];
-  total_tasks: number;
-  total_images: number;
-}
-
-/**
- * Start classification job for a batch of uploaded images
- */
-export const startClassification = async (
-  projectId: string,
-  batchId: string,
-): Promise<{ job_id: string; message: string }> => {
-  const response = await authenticated(api).post(
-    `/projects/${projectId}/classify-batch/?batch_id=${batchId}`,
-    {},
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    },
-  );
-  return response.data;
-};
-
-/**
- * Get batch status summary (counts by status)
- */
-export const getBatchStatus = async (
-  projectId: string,
-  batchId: string,
-): Promise<BatchStatusSummary> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/batch/${batchId}/status/`,
-  );
-  return response.data;
-};
-
-/**
- * Poll for image updates in a batch (incremental updates)
- */
-export const getBatchImages = async (
-  projectId: string,
-  batchId: string,
-  since?: string,
-): Promise<ImageClassificationResult[]> => {
-  const params = since ? { last_timestamp: since } : {};
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/batch/${batchId}/images/`,
-    { params },
-  );
-  return response.data.images || response.data;
-};
-
-/**
- * Get batch review data grouped by tasks
- */
-export const getBatchReview = async (
-  projectId: string,
-  batchId: string,
-): Promise<BatchReviewData> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/batch/${batchId}/review/`,
-  );
-  return response.data;
-};
-
 /**
  * Accept a rejected image - assigns to task if within boundary, otherwise marks as unmatched
  */
@@ -121,6 +54,22 @@ export const acceptImage = async (
 ): Promise<{ message: string; image_id: string; status: string; task_id: string | null }> => {
   const response = await authenticated(api).post(
     `/projects/${projectId}/images/${imageId}/accept/`,
+  );
+  return response.data;
+};
+
+/**
+ * Manually assign an image to a task, bypassing GPS-based matching
+ */
+export const assignImageToTask = async (
+  projectId: string,
+  imageId: string,
+  taskId: string,
+): Promise<{ message: string; image_id: string; status: string; task_id: string }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/images/${imageId}/assign-task/`,
+    { task_id: taskId },
+    { headers: { 'Content-Type': 'application/json' } },
   );
   return response.data;
 };
@@ -142,152 +91,69 @@ export const deleteBatch = async (
   return response.data;
 };
 
-export interface BatchMapData {
-  batch_id: string;
-  tasks: GeoJSON.FeatureCollection;
-  images: GeoJSON.FeatureCollection;
-  total_tasks: number;
-  total_images: number;
-  total_images_with_gps: number;
-  total_images_without_gps: number;
-}
-
 /**
- * Get map data for batch review (task geometries and image point locations)
+ * Ingest existing S3 uploads — enqueues a background job to scan user-uploads/
+ * and process any files not yet tracked in the database.
  */
-export const getBatchMapData = async (
+export const ingestExistingUploads = async (
   projectId: string,
-  batchId: string,
-): Promise<BatchMapData> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/batch/${batchId}/map-data/`,
-  );
-  return response.data;
-};
-
-export type TaskProcessingState =
-  | 'READY_FOR_PROCESSING'
-  | 'IMAGE_PROCESSING_STARTED'
-  | 'IMAGE_PROCESSING_FINISHED'
-  | 'IMAGE_PROCESSING_FAILED';
-
-export interface ProcessingTask {
-  task_id: string;
-  task_index: number;
-  image_count: number;
-  state: TaskProcessingState;
-  failure_reason?: string | null;
-}
-
-export interface ProcessingSummary {
-  batch_id: string;
-  total_tasks: number;
-  total_images: number;
-  tasks: ProcessingTask[];
-}
-
-/**
- * Get processing summary for a batch - tasks and image counts ready for ODM
- */
-export const getProcessingSummary = async (
-  projectId: string,
-  batchId: string,
-): Promise<ProcessingSummary> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/batch/${batchId}/processing-summary/`,
-  );
-  return response.data;
-};
-
-/**
- * Finalize a batch - moves images to task folders WITHOUT triggering ODM.
- * Called when user clicks 'Finish' without processing.
- */
-export const finalizeBatch = async (
-  projectId: string,
-  batchId: string,
-): Promise<{ message: string; batch_id: string; total_moved: number; task_count: number }> => {
+): Promise<{ message: string; job_id: string; project_id: string; batch_id: string }> => {
   const response = await authenticated(api).post(
-    `/projects/${projectId}/batch/${batchId}/finalize/`,
+    `/projects/${projectId}/ingest-uploads/`,
+    {},
+    { headers: { 'Content-Type': 'application/json' } },
   );
   return response.data;
 };
 
+// ─── Project-scoped classification endpoints ────────────────────────────────
+
 /**
- * Start batch processing - moves images to task folders and triggers ODM
+ * Start classification job for all staged images in a project (across batches)
  */
-export const startBatchProcessing = async (
+export const startProjectClassification = async (
   projectId: string,
-  batchId: string,
-): Promise<{ message: string; job_id: string; batch_id: string }> => {
+): Promise<{ job_id: string; message: string; project_id: string; image_count: number }> => {
   const response = await authenticated(api).post(
-    `/projects/${projectId}/batch/${batchId}/process/`,
+    `/projects/${projectId}/classify/`,
+    {},
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
   );
   return response.data;
 };
 
-export interface TaskImageData {
-  id: string;
-  filename: string;
-  s3_key: string;
-  thumbnail_url?: string;
-  url?: string;
-  status: string;
-  rejection_reason?: string;
-  location?: {
-    type: string;
-    coordinates: [number, number];
-  };
-}
-
-export interface TaskVerificationData {
-  task_id: string;
-  project_task_index: number;
-  image_count: number;
-  images: TaskImageData[];
-  task_geometry: GeoJSON.Feature;
-  coverage_percentage?: number;
-  is_verified: boolean;
-}
-
 /**
- * Get task images and geometry for verification modal
+ * Get project imagery status summary (counts by status, across all batches)
  */
-export const getTaskVerificationData = async (
+export const getProjectStatus = async (
   projectId: string,
-  batchId: string,
-  taskId: string,
-): Promise<TaskVerificationData> => {
+): Promise<BatchStatusSummary & { project_id: string }> => {
   const response = await authenticated(api).get(
-    `/projects/${projectId}/batch/${batchId}/task/${taskId}/verification/`,
+    `/projects/${projectId}/imagery/status/`,
   );
   return response.data;
 };
 
 /**
- * Mark a task as verified (fully flown) after visual inspection
+ * Get all images for a project (across all batches), with incremental polling
  */
-export const markTaskAsVerified = async (
+export const getProjectImages = async (
   projectId: string,
-  taskId: string,
-): Promise<{ message: string; task_id: string }> => {
-  const response = await authenticated(api).post(
-    `/projects/${projectId}/tasks/${taskId}/mark-verified/`,
+  since?: string,
+  statusFilter?: string[],
+): Promise<ImageClassificationResult[]> => {
+  const params: Record<string, any> = {};
+  if (since) params.last_timestamp = since;
+  if (statusFilter?.length) params.status = statusFilter;
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/imagery/images/`,
+    { params, paramsSerializer: { indexes: null } },
   );
-  return response.data;
-};
-
-/**
- * Delete an image from a task
- */
-export const deleteTaskImage = async (
-  projectId: string,
-  imageId: string,
-): Promise<{ message: string; image_id: string }> => {
-  const response = await authenticated(api).delete(
-    `/projects/${projectId}/images/${imageId}/`,
-  );
-  return response.data;
+  return response.data.images || response.data;
 };
 
 // ─── Project-level (task-centric) endpoints ─────────────────────────────────
@@ -360,6 +226,30 @@ export const getProjectMapData = async (
   return response.data;
 };
 
+export interface TaskImageData {
+  id: string;
+  filename: string;
+  s3_key: string;
+  thumbnail_url?: string;
+  url?: string;
+  status: string;
+  rejection_reason?: string;
+  location?: {
+    type: string;
+    coordinates: [number, number];
+  };
+}
+
+export interface TaskVerificationData {
+  task_id: string;
+  project_task_index: number;
+  image_count: number;
+  images: TaskImageData[];
+  task_geometry: GeoJSON.Feature;
+  coverage_percentage?: number;
+  is_verified: boolean;
+}
+
 /**
  * Get task verification data aggregated across all batches (no batch_id needed)
  */
@@ -369,6 +259,32 @@ export const getProjectTaskVerificationData = async (
 ): Promise<TaskVerificationData> => {
   const response = await authenticated(api).get(
     `/projects/${projectId}/imagery/task/${taskId}/verification/`,
+  );
+  return response.data;
+};
+
+/**
+ * Mark a task as verified (fully flown) after visual inspection
+ */
+export const markTaskAsVerified = async (
+  projectId: string,
+  taskId: string,
+): Promise<{ message: string; task_id: string }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/tasks/${taskId}/mark-verified/`,
+  );
+  return response.data;
+};
+
+/**
+ * Delete an image from a task
+ */
+export const deleteTaskImage = async (
+  projectId: string,
+  imageId: string,
+): Promise<{ message: string; image_id: string }> => {
+  const response = await authenticated(api).delete(
+    `/projects/${projectId}/images/${imageId}/`,
   );
   return response.data;
 };
