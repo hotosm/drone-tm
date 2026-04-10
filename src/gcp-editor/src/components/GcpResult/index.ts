@@ -1,6 +1,6 @@
-import { css, html, LitElement, PropertyValues } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { Store } from '../../store';
+import { css, html, LitElement, PropertyValues } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import { Store } from "../../store";
 // Define the type for a row in the gcp.txt file
 // [X Y Z ImageX ImageY FileName.jpg]
 // e.g. 544256.7 5320919.9 5 3044 2622 IMG_0525.jpg
@@ -17,14 +17,14 @@ type GcpFile = Array<GcpHeaders | GcpRow>;
  * This component renders a list of Ground Control Points (GCP) as a table
  * and provides functionality to download the data in a custom text format.
  */
-@customElement('gcp-result')
+@customElement("gcp-result")
 export class GcpResult extends LitElement {
   /**
    * Property: gcpList
    * Holds the raw GCP data fetched from the store.
    */
   @property() gcpList = Store.getGcpDataWithXY();
-  @property({ type: String }) buttonText = '';
+  @property({ type: String }) buttonText = "";
   @property({ type: String }) customEvent = null;
 
   /**
@@ -128,7 +128,7 @@ export class GcpResult extends LitElement {
       color: white !important;
       border: 0px;
       font-weight: 600;
-      font-family: 'Barlow Condensed';
+      font-family: "Barlow Condensed";
       padding: 4px 4px;
       font-size: 14px;
     }
@@ -143,7 +143,7 @@ export class GcpResult extends LitElement {
       color: #d73f3f !important;
       border: 0px;
       font-weight: 600;
-      font-family: 'Barlow Condensed';
+      font-family: "Barlow Condensed";
       padding: 4px 4px;
       font-size: 14px;
     }
@@ -156,7 +156,7 @@ export class GcpResult extends LitElement {
     wa-button.download::part(base):hover {
       background-color: #ff7b00;
       font-weight: 600;
-      font-family: 'Barlow Condensed';
+      font-family: "Barlow Condensed";
       padding: 4px 4px;
       font-size: 14px;
     }
@@ -184,7 +184,7 @@ export class GcpResult extends LitElement {
    */
   private convertToArray(data: any): GcpFile {
     const result: GcpFile = [];
-    const headers: GcpHeaders = ['X', 'Y', 'Z', 'Image X', 'Image Y', 'File Name', 'Gcp Label'];
+    const headers: GcpHeaders = ["X", "Y", "Z", "Image X", "Image Y", "File Name", "Gcp Label"];
 
     // Add headers (these are removed on download, but there for information only)
     result.push(headers);
@@ -216,23 +216,23 @@ export class GcpResult extends LitElement {
 
     // Header for the projection (hardcoded for now)
     // TODO support other coord systems / not hardcoded to EPSG:4326
-    const header = '+proj=utm +zone=10 +ellps=WGS84 +datum=WGS84 +units=m +no_defs\n';
+    const header = "+proj=utm +zone=10 +ellps=WGS84 +datum=WGS84 +units=m +no_defs\n";
 
     // Convert GCP data to space-separated rows
     const rows = this.gcpInCsv
       .slice(1) // Skip headers
       .map((row) => `${row[0]} ${row[1]} ${row[2]} ${row[3]} ${row[4]} ${row[5]}`) // Format: X Y Z ImageX ImageY FileName
-      .join('\n');
+      .join("\n");
 
     const finalContent = header + rows;
     // Create a Blob for the file and trigger download
-    const blob = new Blob([finalContent], { type: 'text/plain;charset=utf-8;' });
+    const blob = new Blob([finalContent], { type: "text/plain;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
 
     a.href = url;
-    a.download = 'gcp.txt';
-    a.style.display = 'none';
+    a.download = "gcp.txt";
+    a.style.display = "none";
 
     document.body.appendChild(a);
     a.click();
@@ -250,12 +250,12 @@ export class GcpResult extends LitElement {
       if (!this.gcpInCsv || this.gcpInCsv.length <= 1) return;
       // Header for the projection (hardcoded for now)
       // TODO support other coord systems / not hardcoded to EPSG:4326
-      const header = '+proj=utm +zone=10 +ellps=WGS84 +datum=WGS84 +units=m +no_defs\n';
+      const header = "+proj=utm +zone=10 +ellps=WGS84 +datum=WGS84 +units=m +no_defs\n";
       // Convert GCP data to space-separated rows
       const rows = this.gcpInCsv
         .slice(1) // Skip headers
         .map((row) => `${row[0]} ${row[1]} ${row[2]} ${row[3]} ${row[4]} ${row[5]}`) // Format: X Y Z ImageX ImageY FileName
-        .join('\n');
+        .join("\n");
 
       const finalContent = header + rows;
       // dispatch a custom event sent as a prop and set final content on detail of event.
@@ -270,11 +270,11 @@ export class GcpResult extends LitElement {
           <thead>
             <tr>
               ${(this.gcpInCsv?.[0] as GcpHeaders)?.map((header: string) =>
-                typeof header === 'string'
+                typeof header === "string"
                   ? html`
                       <th>${header}</th>
                     `
-                  : null
+                  : null,
               )}
             </tr>
           </thead>
@@ -287,11 +287,11 @@ export class GcpResult extends LitElement {
                         (cell: string | number) =>
                           html`
                             <td>${cell}</td>
-                          `
+                          `,
                       )}
                     </tr>
                   `
-                : null
+                : null,
             )}
           </tbody>
         </table>
@@ -308,13 +308,15 @@ export class GcpResult extends LitElement {
           >
             Download
           </wa-button>
-          ${this.customEvent
-            ? html`
+          ${
+            this.customEvent
+              ? html`
                 <wa-button size="small" class="primary" @click=${this.handleFinalButtonClick}>
-                  ${this.buttonText || 'Save GCP'}
+                  ${this.buttonText || "Save GCP"}
                 </wa-button>
               `
-            : null}
+              : null
+          }
         </div>
       </div>
     `;

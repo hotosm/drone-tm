@@ -1,6 +1,6 @@
-import { useState, ReactNode } from 'react';
-import { FlexRow } from '../Layouts';
-import Icon from '../Icon';
+import { useState, ReactNode } from "react";
+import { FlexRow } from "../Layouts";
+import Icon from "../Icon";
 
 interface IAccordionProps {
   open?: boolean;
@@ -18,9 +18,9 @@ export default function Accordion({
   title,
   description,
   children,
-  className = '',
-  headerClassName = '',
-  contentClassName = '',
+  className = "",
+  headerClassName = "",
+  contentClassName = "",
   onToggle,
 }: IAccordionProps) {
   const [isOpen, setIsOpen] = useState(open);
@@ -35,7 +35,7 @@ export default function Accordion({
     <div className={`naxatw-border-b naxatw-border-b-[#A9A9A9] naxatw-py-8 ${className}`.trim()}>
       <FlexRow className={`naxatw-items-center naxatw-justify-between ${headerClassName}`.trim()}>
         <div className="naxatw-flex-1">
-          {typeof title === 'string' ? (
+          {typeof title === "string" ? (
             <p className="naxatw-text-[1.5rem] naxatw-leading-[2rem] md:naxatw-text-[2rem] md:naxatw-leading-[40px]">
               {title}
             </p>
@@ -44,11 +44,7 @@ export default function Accordion({
           )}
         </div>
         <button type="button" onClick={handleToggle}>
-          {!isOpen ? (
-            <Icon name="add_circle_outline" />
-          ) : (
-            <Icon name="remove_circle_outline" />
-          )}
+          {!isOpen ? <Icon name="add_circle_outline" /> : <Icon name="remove_circle_outline" />}
         </button>
       </FlexRow>
       {isOpen && (

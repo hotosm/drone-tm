@@ -1,4 +1,4 @@
-import Skeleton from '@Components/RadixComponents/Skeleton';
+import Skeleton from "@Components/RadixComponents/Skeleton";
 
 export default function Instructions({
   projectData,

@@ -1,6 +1,6 @@
-import transformRotate from '@turf/transform-rotate';
-import centroid from '@turf/centroid';
-import { Feature, FeatureCollection, Geometry } from 'geojson';
+import transformRotate from "@turf/transform-rotate";
+import centroid from "@turf/centroid";
+import { Feature, FeatureCollection, Geometry } from "geojson";
 
 /**
  * Rotates GeoJSON data around a specified point by a given angle.
@@ -16,8 +16,7 @@ export default function rotateGeoJSON(
   origin?: [number, number],
 ): Feature<Geometry> | FeatureCollection<Geometry> {
   // Calculate the centroid of the GeoJSON if no origin is specified
-  const rotationOrigin =
-    origin || (centroid(geojson).geometry.coordinates as [number, number]);
+  const rotationOrigin = origin || (centroid(geojson).geometry.coordinates as [number, number]);
 
   // Perform the rotation
   const rotatedGeoJSON = transformRotate(geojson, angle, {

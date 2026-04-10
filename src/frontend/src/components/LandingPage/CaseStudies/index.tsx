@@ -1,14 +1,11 @@
-import { FlexRow } from '@Components/common/Layouts';
-import Icon from '@Components/common/Icon';
-import Image from '@Components/RadixComponents/Image';
-import { motion } from 'framer-motion';
-import {
-  containerAnimationVariant,
-  fadeUpVariant,
-} from '@Constants/animations';
-import { caseStudiesData } from '@Constants/landingPage';
-import caseStudyImage from '@Assets/images/LandingPage/CaseStudyImage.webp';
-import { useEffect, useState } from 'react';
+import { FlexRow } from "@Components/common/Layouts";
+import Icon from "@Components/common/Icon";
+import Image from "@Components/RadixComponents/Image";
+import { motion } from "framer-motion";
+import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
+import { caseStudiesData } from "@Constants/landingPage";
+import caseStudyImage from "@Assets/images/LandingPage/CaseStudyImage.webp";
+import { useEffect, useState } from "react";
 
 export default function CaseStudies() {
   const [itemsToShow, setItemsToShow] = useState(1);
@@ -22,9 +19,9 @@ export default function CaseStudies() {
       }
     }
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     handleResize();
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
   return (
     <section className="case-studies naxatw-bg-[#F9F3EA]">
@@ -62,7 +59,7 @@ export default function CaseStudies() {
           viewport={{ once: true }}
           className="naxatw-mt-12 naxatw-grid naxatw-grid-cols-1 naxatw-gap-5 md:naxatw-grid-cols-2"
         >
-          {caseStudiesData.slice(0, itemsToShow).map(data => (
+          {caseStudiesData.slice(0, itemsToShow).map((data) => (
             <motion.div
               key={data.id}
               variants={fadeUpVariant}

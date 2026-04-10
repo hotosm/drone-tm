@@ -1,20 +1,20 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useTypedDispatch } from '@Store/hooks';
-import useAuth from '@Hooks/useAuth';
-import { FlexColumn, FlexRow } from '@Components/common/Layouts';
-import { Button } from '@Components/RadixComponents/Button';
-import Image from '@Components/RadixComponents/Image';
-import droneTMLogo from '@Assets/images/DTM-logo-black.svg';
-import projectCreator from '@Assets/images/LandingPage/project-creator.svg';
-import droneOperator from '@Assets/images/LandingPage/drone-operator.svg';
-import Icon from '@Components/common/Icon';
-import { setCommonState } from '@Store/actions/common';
-import { motion } from 'framer-motion';
-import { slideVariants } from '@Constants/animations';
-import { getRuntimeConfig } from '@/runtimeConfig';
+import { useLocation, useNavigate } from "react-router-dom";
+import { useTypedDispatch } from "@Store/hooks";
+import useAuth from "@Hooks/useAuth";
+import { FlexColumn, FlexRow } from "@Components/common/Layouts";
+import { Button } from "@Components/RadixComponents/Button";
+import Image from "@Components/RadixComponents/Image";
+import droneTMLogo from "@Assets/images/DTM-logo-black.svg";
+import projectCreator from "@Assets/images/LandingPage/project-creator.svg";
+import droneOperator from "@Assets/images/LandingPage/drone-operator.svg";
+import Icon from "@Components/common/Icon";
+import { setCommonState } from "@Store/actions/common";
+import { motion } from "framer-motion";
+import { slideVariants } from "@Constants/animations";
+import { getRuntimeConfig } from "@/runtimeConfig";
 
-const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
-const HANKO_URL = getRuntimeConfig('VITE_HANKO_URL', 'https://dev.login.hotosm.org');
+const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
+const HANKO_URL = getRuntimeConfig("VITE_HANKO_URL", "https://dev.login.hotosm.org");
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 export default function SignInOverlay() {
@@ -52,27 +52,26 @@ export default function SignInOverlay() {
           <Button
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
-
             onClick={() => {
-              localStorage.setItem('signedInAs', 'PROJECT_CREATOR');
+              localStorage.setItem("signedInAs", "PROJECT_CREATOR");
 
-              if (AUTH_PROVIDER === 'hanko') {
+              if (AUTH_PROVIDER === "hanko") {
                 // Clear any existing Hanko session to force fresh login
                 // This prevents account confusion when switching users
-                document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
-                document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
+                document.cookie = "hanko=; path=/; max-age=0; domain=" + window.location.hostname;
+                document.cookie = "hanko=; path=/; max-age=0"; // Also clear without domain
 
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
-                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'PROJECT_CREATOR'}`;
+                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${"PROJECT_CREATOR"}`;
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
               }
 
               if (isAuthenticated()) {
-                navigate('/projects');
+                navigate("/projects");
               } else {
-                navigate('/login', { state: { from: location.state?.from } });
+                navigate("/login", { state: { from: location.state?.from } });
               }
             }}
           >
@@ -89,25 +88,25 @@ export default function SignInOverlay() {
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
             rightIcon="east"
             onClick={() => {
-              localStorage.setItem('signedInAs', 'DRONE_PILOT');
+              localStorage.setItem("signedInAs", "DRONE_PILOT");
 
-              if (AUTH_PROVIDER === 'hanko') {
+              if (AUTH_PROVIDER === "hanko") {
                 // Clear any existing Hanko session to force fresh login
                 // This prevents account confusion when switching users
-                document.cookie = 'hanko=; path=/; max-age=0; domain=' + window.location.hostname;
-                document.cookie = 'hanko=; path=/; max-age=0'; // Also clear without domain
+                document.cookie = "hanko=; path=/; max-age=0; domain=" + window.location.hostname;
+                document.cookie = "hanko=; path=/; max-age=0"; // Also clear without domain
 
                 // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
                 // Return to /hanko-auth callback which validates with backend and sets up user profile
-                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${'DRONE_PILOT'}`;
+                const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${"DRONE_PILOT"}`;
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
               }
 
               if (isAuthenticated()) {
-                navigate('/projects');
+                navigate("/projects");
               } else {
-                navigate('/login', { state: { from: location.state?.from } });
+                navigate("/login", { state: { from: location.state?.from } });
               }
             }}
           >

@@ -1,5 +1,5 @@
-import { ReactElement } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { ReactElement } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 interface IProtectedRoute {
   isAuthenticated: boolean;
@@ -8,7 +8,7 @@ interface IProtectedRoute {
 }
 export default function ProtectedRoute({
   isAuthenticated,
-  redirectPath = '/',
+  redirectPath = "/",
   children,
 }: IProtectedRoute): ReactElement {
   const location = useLocation();

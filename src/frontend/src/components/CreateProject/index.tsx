@@ -1,8 +1,8 @@
-import { stepSwitcherData } from '@Constants/createProject';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import CreateprojectLayout from './CreateprojectLayout';
-import StepSwitcher from './StepSwitcher';
-import CreateProjectHeader from './CreateProjectHeader';
+import { stepSwitcherData } from "@Constants/createProject";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import CreateprojectLayout from "./CreateprojectLayout";
+import StepSwitcher from "./StepSwitcher";
+import CreateProjectHeader from "./CreateProjectHeader";
 
 const CreateProject = () => {
   return (

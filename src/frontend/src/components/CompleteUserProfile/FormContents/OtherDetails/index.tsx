@@ -1,26 +1,22 @@
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { FormControl, Input, Label } from '@Components/common/FormUI';
-import { Flex, FlexColumn } from '@Components/common/Layouts';
-import RadioButton from '@Components/common/RadioButton';
-import { droneOperatorOptions } from '@Constants/index';
-import FileUpload from '@Components/common/UploadArea';
-import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
-import { setCommonState } from '@Store/actions/common';
-import { Controller } from 'react-hook-form';
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { FormControl, Input, Label } from "@Components/common/FormUI";
+import { Flex, FlexColumn } from "@Components/common/Layouts";
+import RadioButton from "@Components/common/RadioButton";
+import { droneOperatorOptions } from "@Constants/index";
+import FileUpload from "@Components/common/UploadArea";
+import ErrorMessage from "@Components/common/FormUI/ErrorMessage";
+import { setCommonState } from "@Store/actions/common";
+import { Controller } from "react-hook-form";
 
 export default function OtherDetails({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
-  const isCertifiedDroneOperator = useTypedSelector(
-    state => state.common.isCertifiedDroneUser,
-  );
+  const isCertifiedDroneOperator = useTypedSelector((state) => state.common.isCertifiedDroneUser);
   const { register, setValue, control } = formProps;
 
   return (
     <section className="naxatw-px-14">
       <Flex>
-        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">
-          Other Details
-        </p>
+        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">Other Details</p>
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
@@ -29,15 +25,13 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
             placeholder="Enter"
             className="naxatw-mt-1"
             type="number"
-            {...register('notify_for_projects_within_km', {
-              required: 'Required',
+            {...register("notify_for_projects_within_km", {
+              required: "Required",
               valueAsNumber: true,
             })}
           />
           <ErrorMessage
-            message={
-              formProps.formState.errors?.notify_for_projects_within_km?.message
-            }
+            message={formProps.formState.errors?.notify_for_projects_within_km?.message}
           />
         </FormControl>
         <FormControl>
@@ -46,50 +40,42 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
             placeholder="Enter years of experience"
             className="naxatw-mt-1"
             type="number"
-            {...register('experience_years', {
-              required: 'Required',
+            {...register("experience_years", {
+              required: "Required",
               valueAsNumber: true,
             })}
           />
-          <ErrorMessage
-            message={formProps.formState.errors?.experience_years?.message}
-          />
+          <ErrorMessage message={formProps.formState.errors?.experience_years?.message} />
         </FormControl>
         <FormControl>
           <Label required>Drone you own</Label>
           <Input
             placeholder="Enter the type of drone you own"
             className="naxatw-mt-1"
-            {...register('drone_you_own', {
-              required: 'Required',
+            {...register("drone_you_own", {
+              required: "Required",
             })}
           />
-          <ErrorMessage
-            message={formProps.formState.errors?.drone_you_own?.message}
-          />
+          <ErrorMessage message={formProps.formState.errors?.drone_you_own?.message} />
         </FormControl>
         <FormControl>
           <RadioButton
             topic="Certified Drone Operator?"
             options={droneOperatorOptions}
             direction="column"
-            onChangeData={val => {
+            onChangeData={(val) => {
               dispatch(setCommonState({ isCertifiedDroneUser: val }));
-              setValue('certified_drone_operator', val === 'yes');
+              setValue("certified_drone_operator", val === "yes");
             }}
             value={isCertifiedDroneOperator}
           />
-          <ErrorMessage
-            message={
-              formProps.formState.errors?.certified_drone_operator?.message
-            }
-          />
-          {isCertifiedDroneOperator === 'yes' && (
+          <ErrorMessage message={formProps.formState.errors?.certified_drone_operator?.message} />
+          {isCertifiedDroneOperator === "yes" && (
             <Controller
               control={control}
               name="certificate_file"
               rules={{
-                required: 'Certificate file is required',
+                required: "Certificate file is required",
               }}
               render={({ field: { value }, fieldState: { error } }) => {
                 return (

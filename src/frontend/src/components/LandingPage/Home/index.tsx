@@ -1,15 +1,15 @@
-import { useTypedDispatch } from '@Store/hooks';
-import { FlexColumn } from '@Components/common/Layouts';
-import Image from '@Components/RadixComponents/Image';
-import { Button } from '@Components/RadixComponents/Button';
-import { motion } from 'framer-motion';
-import droneTaskingManagerLogo from '@Assets/images/DTM-logo-white.svg';
+import { useTypedDispatch } from "@Store/hooks";
+import { FlexColumn } from "@Components/common/Layouts";
+import Image from "@Components/RadixComponents/Image";
+import { Button } from "@Components/RadixComponents/Button";
+import { motion } from "framer-motion";
+import droneTaskingManagerLogo from "@Assets/images/DTM-logo-white.svg";
 // Served from public/ dir with <link rel="preload"> in index.html for fast LCP
-const droneBackgroundImage = '/images/DroneTM-bg.jpg';
-import arrowSouth from '@Assets/images/LandingPage/arrow_south.svg';
-import { setCommonState } from '@Store/actions/common';
-import useAuth from '@Hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+const droneBackgroundImage = "/images/DroneTM-bg.jpg";
+import arrowSouth from "@Assets/images/LandingPage/arrow_south.svg";
+import { setCommonState } from "@Store/actions/common";
+import useAuth from "@Hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 // import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 export default function Home() {
@@ -17,21 +17,21 @@ export default function Home() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   // const userProfile = getLocalStorageValue('userprofile');
-  const role = localStorage.getItem('signedInAs');
+  const role = localStorage.getItem("signedInAs");
 
   const bounceTransition: {
     y: {
       repeat: number;
-      repeatType: 'reverse' | 'loop' | 'mirror';
+      repeatType: "reverse" | "loop" | "mirror";
       duration: number;
       ease: string;
     };
   } = {
     y: {
       repeat: Infinity,
-      repeatType: 'mirror',
+      repeatType: "mirror",
       duration: 0.8,
-      ease: 'easeOut',
+      ease: "easeOut",
     },
   };
 
@@ -62,9 +62,9 @@ export default function Home() {
       <div className="naxatw-container naxatw-h-full !naxatw-max-w-full naxatw-py-12">
         <div className="naxatw-flex naxatw-animate-fade-up naxatw-flex-row naxatw-justify-between">
           <Image src={droneTaskingManagerLogo} />
-          {isAuthenticated() && role !== 'REGULATOR' ? (
+          {isAuthenticated() && role !== "REGULATOR" ? (
             <Button
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate("/projects")}
               className="naxatw-cursor-pointer !naxatw-rounded-[3.125rem] naxatw-border naxatw-px-5 naxatw-py-3 naxatw-text-body-md naxatw-font-normal naxatw-text-landing-white"
             >
               Dashboard

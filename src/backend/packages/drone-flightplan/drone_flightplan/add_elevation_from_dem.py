@@ -159,7 +159,7 @@ def main() -> int:
 
     a = p.parse_args()
 
-    inpointsfile = open(a.inpoints, "r")
+    inpointsfile = open(a.inpoints)
     points = inpointsfile.read()
 
     return add_elevation_from_dem(a.inraster, points, a.outfile)

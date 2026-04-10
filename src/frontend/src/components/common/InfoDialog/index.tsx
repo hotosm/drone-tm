@@ -1,5 +1,5 @@
-import Icon from '@Components/common/Icon';
-import React from 'react';
+import Icon from "@Components/common/Icon";
+import React from "react";
 
 type InfoDialogProps = {
   status?: string;
@@ -8,14 +8,14 @@ type InfoDialogProps = {
 
 const getStatus = (status: string | undefined) => {
   switch (status) {
-    case 'info':
-      return { icon: 'info', bgColor: 'naxatw-bg-primary-400' };
-    case 'success':
-      return { icon: 'check_circle', bgColor: 'naxatw-bg-green-700' };
-    case 'error':
-      return { icon: 'cancel', bgColor: 'naxatw-bg-red-600' };
+    case "info":
+      return { icon: "info", bgColor: "naxatw-bg-primary-400" };
+    case "success":
+      return { icon: "check_circle", bgColor: "naxatw-bg-green-700" };
+    case "error":
+      return { icon: "cancel", bgColor: "naxatw-bg-red-600" };
     default:
-      return { icon: 'info', bgColor: 'naxatw-bg-primary-400' };
+      return { icon: "info", bgColor: "naxatw-bg-primary-400" };
   }
 };
 

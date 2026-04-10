@@ -1,7 +1,7 @@
-import NoDataComponent from '@Components/common/DataTable/NoDataFound';
-import { formatString } from '@Utils/index';
-import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import NoDataComponent from "@Components/common/DataTable/NoDataFound";
+import { formatString } from "@Utils/index";
+import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 interface ITaskLogsTableProps {
   data: any[];
@@ -38,7 +38,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
           </tr>
         </thead>
         <tbody>
-          {taskList?.map(task => (
+          {taskList?.map((task) => (
             <tr key={task.task_id}>
               <td className="naxatw-line-clamp-1 naxatw-px-2 naxatw-py-1">
                 Task# {task?.project_task_index}
@@ -49,7 +49,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
               </td>
               {/* <td className="naxatw-px-2 naxatw-py-1">-</td> */}
               <td className="naxatw-px-2 naxatw-py-1">
-                {format(new Date(task.created_at), 'yyyy-MM-dd')}
+                {format(new Date(task.created_at), "yyyy-MM-dd")}
               </td>
               <td className="naxatw-px-2">{formatString(task.state)}</td>
               <td className="naxatw-flex naxatw-items-center naxatw-px-2">

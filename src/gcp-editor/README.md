@@ -13,8 +13,8 @@ npm install @hotosm/gcp-editor
 <html lang="en">
   <head>
     <script type="module">
-      import '@hotosm/gcp-editor';
-      import '@hotosm/gcp-editor/style.css';
+      import "@hotosm/gcp-editor";
+      import "@hotosm/gcp-editor/style.css";
     </script>
   </head>
   <body>
@@ -27,10 +27,10 @@ npm install @hotosm/gcp-editor
 
 The editor supports two modes for loading raw drone images to mark GCPs on:
 
-| Integration | `rawImageUrl` attribute | Behaviour |
-|-------------|------------------------|-----------|
-| **drone-tm** | Set to `/api/gcp/find-project-images/?project_id=...` | Backend spatial query finds images from S3 whose footprint intersects the GCP coordinate. Falls back to manual upload if none found. |
-| **Standalone / WebODM** | Not set (empty) | Goes straight to manual image upload. |
+| Integration             | `rawImageUrl` attribute                               | Behaviour                                                                                                                            |
+| ----------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **drone-tm**            | Set to `/api/gcp/find-project-images/?project_id=...` | Backend spatial query finds images from S3 whose footprint intersects the GCP coordinate. Falls back to manual upload if none found. |
+| **Standalone / WebODM** | Not set (empty)                                       | Goes straight to manual image upload.                                                                                                |
 
 When `rawImageUrl` is provided, the component POSTs the GCP longitude/latitude
 to the endpoint and expects a JSON array of image URLs in response. If the

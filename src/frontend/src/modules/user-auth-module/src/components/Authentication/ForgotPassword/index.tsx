@@ -1,17 +1,17 @@
-import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 
-import { Input, Label, FormControl } from '@Components/common/FormUI';
-import { Button } from '@Components/RadixComponents/Button';
-import Icon from '@Components/common/Icon';
-import { Flex, FlexRow } from '@Components/common/Layouts';
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { forgotPassword } from '@Services/common';
-import { toast } from 'react-toastify';
+import { Input, Label, FormControl } from "@Components/common/FormUI";
+import { Button } from "@Components/RadixComponents/Button";
+import Icon from "@Components/common/Icon";
+import { Flex, FlexRow } from "@Components/common/Layouts";
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { forgotPassword } from "@Services/common";
+import { toast } from "react-toastify";
 
 const initialState = {
-  email: '',
+  email: "",
 };
 
 export default function ForgotPassword() {
@@ -20,9 +20,9 @@ export default function ForgotPassword() {
   const { mutate, error } = useMutation<any, any, any, unknown>({
     mutationFn: forgotPassword,
     onSuccess: () => {
-      toast.success('Password reset email sent');
+      toast.success("Password reset email sent");
 
-      navigate('/login');
+      navigate("/login");
     },
   });
 
@@ -48,8 +48,7 @@ export default function ForgotPassword() {
           Forgot Your Password?
         </h1>
         <p className="naxatw-items-center naxatw-justify-center naxatw-text-center naxatw-text-base">
-          Enter the email address and we will send you a link to reset your
-          password.
+          Enter the email address and we will send you a link to reset your password.
         </p>
       </Flex>
       <form
@@ -62,12 +61,12 @@ export default function ForgotPassword() {
             id="email"
             type="email"
             placeholder="Email"
-            {...register('email', { required: true })}
+            {...register("email", { required: true })}
           />
           <ErrorMessage
             message={
               error?.response?.data?.detail?.[0]?.msg ||
-              'Error resetting password. Please try again.'
+              "Error resetting password. Please try again."
             }
           />
         </FormControl>
@@ -82,7 +81,7 @@ export default function ForgotPassword() {
             leftIcon="west"
             className="naxatw-text-red"
             onClick={() => {
-              navigate('/login');
+              navigate("/login");
             }}
             type="button"
           >

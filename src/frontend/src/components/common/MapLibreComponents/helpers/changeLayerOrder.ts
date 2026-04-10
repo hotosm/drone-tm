@@ -1,12 +1,9 @@
 /* eslint-disable no-underscore-dangle */
-import { MapInstanceType } from '../types';
+import { MapInstanceType } from "../types";
 
-export default function changeLayerOrder(
-  map: MapInstanceType,
-  newOrder: any[],
-) {
+export default function changeLayerOrder(map: MapInstanceType, newOrder: any[]) {
   const currentOrder = map.style._order;
-  const mapLayerOrder = currentOrder.filter(item => newOrder.includes(item));
+  const mapLayerOrder = currentOrder.filter((item) => newOrder.includes(item));
   let beforeId: any = null;
   let id: any = null;
   newOrder.forEach((item: any, idx: number) => {

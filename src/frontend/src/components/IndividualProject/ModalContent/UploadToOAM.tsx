@@ -1,70 +1,65 @@
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { FormControl, Input } from '@Components/common/FormUI';
-import { FlexRow } from '@Components/common/Layouts';
-import { Button } from '@Components/RadixComponents/Button';
-import { uploadToOAM } from '@Services/project';
-import { toggleModal } from '@Store/actions/common';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import { useState, KeyboardEvent } from 'react';
-import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { FormControl, Input } from "@Components/common/FormUI";
+import { FlexRow } from "@Components/common/Layouts";
+import { Button } from "@Components/RadixComponents/Button";
+import { uploadToOAM } from "@Services/project";
+import { toggleModal } from "@Store/actions/common";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import { useState, KeyboardEvent } from "react";
+import { useDispatch } from "react-redux";
+import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const UploadToOAM = () => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
-  const pathname = window.location.pathname?.split('/');
+  const pathname = window.location.pathname?.split("/");
   const projectId = pathname?.[2];
-  const userProfile = getLocalStorageValue('userprofile');
-  const [inputTag, setInputTag] = useState('');
-  const [error, setError] = useState('');
-  const [tagList, setTagList] = useState<string[]>([
-    'dronetm',
-    'hotosm',
-    'naxa',
-  ]);
+  const userProfile = getLocalStorageValue("userprofile");
+  const [inputTag, setInputTag] = useState("");
+  const [error, setError] = useState("");
+  const [tagList, setTagList] = useState<string[]>(["dronetm", "hotosm", "naxa"]);
 
   const addInputTagOnList = () => {
-    if (!inputTag) return setError('Required');
-    if (tagList?.find(tag => tag === inputTag))
-      return setError('Tag already exists on list');
-    setInputTag('');
-    setTagList(prev => [...prev, inputTag]);
+    if (!inputTag) return setError("Required");
+    if (tagList?.find((tag) => tag === inputTag)) return setError("Tag already exists on list");
+    setInputTag("");
+    setTagList((prev) => [...prev, inputTag]);
     return () => {};
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       addInputTagOnList();
     }
     return () => {};
   };
 
   const handleDeleteTag = (tag: string) => {
-    setTagList(prev => {
-      const newList = prev?.filter(prevTag => prevTag !== tag);
+    setTagList((prev) => {
+      const newList = prev?.filter((prevTag) => prevTag !== tag);
       return newList;
     });
   };
 
   const { mutate } = useMutation({
     mutationFn: uploadToOAM,
-    onSuccess: data => {
+    onSuccess: (data) => {
       dispatch(toggleModal());
       queryClient.invalidateQueries({
-        queryKey: ['project-detail', projectId],
+        queryKey: ["project-detail", projectId],
       });
       if (data?.data?.detail) {
         toast.success(data?.data?.detail);
       } else {
-        toast.success('Started Uploading to OAM');
+        toast.success("Started Uploading to OAM");
       }
     },
   });
 
   const handleUpload = () => {
-    if (!tagList?.length) return setError('Required');
+    if (!tagList?.length) return setError("Required");
     return mutate({ projectId, tags: tagList });
   };
 
@@ -73,9 +68,9 @@ const UploadToOAM = () => {
       <FormControl className="naxatw-relative">
         <Input
           placeholder="Enter tag and press enter or click  '+'  icon to add"
-          onChange={e => {
+          onChange={(e) => {
             setInputTag(e.currentTarget.value?.trim());
-            setError('');
+            setError("");
           }}
           value={inputTag}
           onKeyDown={handleKeyDown}
@@ -129,8 +124,7 @@ const UploadToOAM = () => {
         </div>
         {!userProfile?.has_oam_token && (
           <p className="naxatw-text-yellow-600">
-            Note: You need to have an OAM token to upload, please update it on
-            your
+            Note: You need to have an OAM token to upload, please update it on your
             <Link
               to="/user-profile"
               className="naxatw-px-1 naxatw-text-lg naxatw-text-blue-700 hover:naxatw-underline"

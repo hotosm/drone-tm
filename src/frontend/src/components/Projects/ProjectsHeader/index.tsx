@@ -1,28 +1,28 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { FlexRow } from '@Components/common/Layouts';
-import Switch from '@Components/RadixComponents/Switch';
-import { setCommonState } from '@Store/actions/common';
-import { Button } from '@Components/RadixComponents/Button';
-import { Select } from '@Components/common/FormUI';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import SearchInput from '@Components/common/FormUI/SearchInput';
-import useDebounceListener from '@Hooks/useDebouncedListener';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { FlexRow } from "@Components/common/Layouts";
+import Switch from "@Components/RadixComponents/Switch";
+import { setCommonState } from "@Store/actions/common";
+import { Button } from "@Components/RadixComponents/Button";
+import { Select } from "@Components/common/FormUI";
+import { setCreateProjectState } from "@Store/actions/createproject";
+import SearchInput from "@Components/common/FormUI/SearchInput";
+import useDebounceListener from "@Hooks/useDebouncedListener";
 
 export default function ProjectsHeader() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
-  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
-  const showMap = useTypedSelector(state => state.common.showMap);
+  const signedInAs = localStorage.getItem("signedInAs") || "PROJECT_CREATOR";
+  const showMap = useTypedSelector((state) => state.common.showMap);
   const projectsFilterByOwner = useTypedSelector(
-    state => state.createproject.ProjectsFilterByOwner,
+    (state) => state.createproject.ProjectsFilterByOwner,
   );
   const selectedProjectStatus = useTypedSelector(
-    state => state.createproject.selectedProjectStatus,
+    (state) => state.createproject.selectedProjectStatus,
   );
-  const [searchValue, setSearchValue] = useState('');
-  const debouncedValue = useDebounceListener(searchValue || '', 300);
+  const [searchValue, setSearchValue] = useState("");
+  const debouncedValue = useDebounceListener(searchValue || "", 300);
 
   useEffect(() => {
     dispatch(setCommonState({ projectSearchKey: debouncedValue as string }));
@@ -38,40 +38,36 @@ export default function ProjectsHeader() {
               placeholder="Select"
               options={[
                 {
-                  label: 'All projects',
-                  value: 'no',
+                  label: "All projects",
+                  value: "no",
                 },
-                { label: 'My Projects', value: 'yes' },
+                { label: "My Projects", value: "yes" },
               ]}
               labelKey="label"
               valueKey="value"
               className="!naxatw-w-[100px]"
               selectedOption={projectsFilterByOwner}
-              onChange={value =>
-                dispatch(
-                  setCreateProjectState({ ProjectsFilterByOwner: value }),
-                )
+              onChange={(value) =>
+                dispatch(setCreateProjectState({ ProjectsFilterByOwner: value }))
               }
             />
             <Select
               placeholder="Filter By Project Status"
               options={[
-                { label: 'All Projects', value: '' },
+                { label: "All Projects", value: "" },
                 {
-                  label: 'Not Started',
-                  value: 'not-started',
+                  label: "Not Started",
+                  value: "not-started",
                 },
-                { label: 'On Going', value: 'ongoing' },
-                { label: 'Completed', value: 'completed' },
+                { label: "On Going", value: "ongoing" },
+                { label: "Completed", value: "completed" },
               ]}
               labelKey="label"
               valueKey="value"
               className="!naxatw-w-[150px] "
               selectedOption={selectedProjectStatus}
-              onChange={value =>
-                dispatch(
-                  setCreateProjectState({ selectedProjectStatus: value }),
-                )
+              onChange={(value) =>
+                dispatch(setCreateProjectState({ selectedProjectStatus: value }))
               }
             />
           </div>
@@ -80,7 +76,7 @@ export default function ProjectsHeader() {
               inputValue={searchValue}
               placeholder="Project Name"
               onChange={(e: any) => setSearchValue(e.target.value)}
-              onClear={() => setSearchValue('')}
+              onClear={() => setSearchValue("")}
             />
           </div>
         </FlexRow>
@@ -99,11 +95,11 @@ export default function ProjectsHeader() {
           />
         </FlexRow>
 
-        {signedInAs === 'PROJECT_CREATOR' && (
+        {signedInAs === "PROJECT_CREATOR" && (
           <Button
             variant="secondary"
             className="!naxatw-bg-red naxatw-text-white"
-            onClick={() => navigate('/create-project')}
+            onClick={() => navigate("/create-project")}
           >
             Add Project
           </Button>

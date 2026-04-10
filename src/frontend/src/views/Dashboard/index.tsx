@@ -1,48 +1,47 @@
-import { useGetDashboardTaskStaticsQuery } from '@Api/dashboard';
-import { DashboardSidebar, DashboardCard } from '@Components/Dashboard';
-import { DashboardCardSkeleton } from '@Components/Dashboard/DashboardCard';
-import RequestLogs from '@Components/Dashboard/RequestLogs';
-import TaskLogs from '@Components/Dashboard/TaskLogs';
+import { useGetDashboardTaskStaticsQuery } from "@Api/dashboard";
+import { DashboardSidebar, DashboardCard } from "@Components/Dashboard";
+import { DashboardCardSkeleton } from "@Components/Dashboard/DashboardCard";
+import RequestLogs from "@Components/Dashboard/RequestLogs";
+import TaskLogs from "@Components/Dashboard/TaskLogs";
 import {
   dashboardCardsForDroneOperator,
   dashboardCardsForProjectCreator,
-} from '@Constants/dashboard';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { useState } from 'react';
+} from "@Constants/dashboard";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { useState } from "react";
 
 const getContent = (activeTab: string, title: string) => {
-  if (activeTab === 'request_logs') return <RequestLogs />;
+  if (activeTab === "request_logs") return <RequestLogs />;
   return <TaskLogs title={title} />;
 };
 
 const Dashboard = () => {
-  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
+  const signedInAs = localStorage.getItem("signedInAs") || "PROJECT_CREATOR";
   const [activeTab, setActiveTab] = useState(
-    signedInAs === 'PROJECT_CREATOR'
+    signedInAs === "PROJECT_CREATOR"
       ? {
-          value: 'request_logs',
-          title: 'Request Logs',
+          value: "request_logs",
+          title: "Request Logs",
         }
       : {
-          value: 'ongoing_tasks',
-          title: 'Ongoing Tasks',
+          value: "ongoing_tasks",
+          title: "Ongoing Tasks",
         },
   );
   const dashboardCards =
-    signedInAs === 'PROJECT_CREATOR'
+    signedInAs === "PROJECT_CREATOR"
       ? dashboardCardsForProjectCreator
       : dashboardCardsForDroneOperator;
 
-  const { data: taskStatistics, isLoading }: Record<string, any> =
-    useGetDashboardTaskStaticsQuery({
-      select: (data: any) => {
-        const taskCounts: Record<string, any> = data?.data;
-        return dashboardCards?.map(card => ({
-          ...card,
-          count: taskCounts?.[`${card?.value}`],
-        }));
-      },
-    });
+  const { data: taskStatistics, isLoading }: Record<string, any> = useGetDashboardTaskStaticsQuery({
+    select: (data: any) => {
+      const taskCounts: Record<string, any> = data?.data;
+      return dashboardCards?.map((card) => ({
+        ...card,
+        count: taskCounts?.[`${card?.value}`],
+      }));
+    },
+  });
 
   return (
     <section className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-px-3 md:naxatw-px-16">
@@ -65,12 +64,8 @@ const Dashboard = () => {
                   key={task.id}
                   tabIndex={0}
                   role="button"
-                  onKeyUp={() =>
-                    setActiveTab({ value: task.value, title: task.title })
-                  }
-                  onClick={() =>
-                    setActiveTab({ value: task.value, title: task.title })
-                  }
+                  onKeyUp={() => setActiveTab({ value: task.value, title: task.title })}
+                  onClick={() => setActiveTab({ value: task.value, title: task.title })}
                   className="naxatw-w-full naxatw-cursor-pointer md:naxatw-w-auto"
                 >
                   <DashboardCard

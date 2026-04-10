@@ -1,11 +1,7 @@
-import UppyFileUploader from '../UppyFileUploader';
+import UppyFileUploader from "../UppyFileUploader";
 
-const UploadsBox = ({
-  label = 'Upload Images, GCP, and align.laz',
-}: {
-  label?: string;
-}) => {
-  const pathname = window.location.pathname?.split('/');
+const UploadsBox = ({ label = "Upload Images, GCP, and align.laz" }: { label?: string }) => {
+  const pathname = window.location.pathname?.split("/");
   const projectId = pathname?.[2];
   const taskId = pathname?.[4];
 

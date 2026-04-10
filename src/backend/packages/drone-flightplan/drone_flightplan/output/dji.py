@@ -55,7 +55,7 @@ def create_zip_file(waylines_path_uid):
     os.makedirs(wpmz_path, exist_ok=True)
 
     # Read content of template.kml
-    with open(f"{waylines_path_uid}/waylines.wpml", "r") as f:
+    with open(f"{waylines_path_uid}/waylines.wpml") as f:
         wpml_content = f.read()
 
     with open(f"{wpmz_path}/waylines.wpml", "w") as f:
@@ -387,7 +387,7 @@ def create_mission_config(global_height):
     # noAction: Hover in place.
     # autoLand: Lands at the current location.
     # gotoFirstWaypoint: Fly back to the starting point, then hover.
-    finish_action.text = str("goHome")
+    finish_action.text = "goHome"
 
     # # NOTE ensure the flight continues if signal lost
     execute_exit_on_rc_lost = ET.SubElement(mission_config, "wpml:exitOnRCLost")
@@ -520,7 +520,7 @@ def main(args_list: list[str] | None = None):
     )
     args = parser.parse_args(args_list)
 
-    infile = open(args.placemark, "r")
+    infile = open(args.placemark)
     placemarks = infile.read()
 
     create_wpml(geojson.loads(placemarks), args.outfile)

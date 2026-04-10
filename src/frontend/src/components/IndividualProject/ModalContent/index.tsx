@@ -1,5 +1,5 @@
-import Modal from '@Components/common/Modal';
-import { MouseEventHandler, ReactNode } from 'react';
+import Modal from "@Components/common/Modal";
+import { MouseEventHandler, ReactNode } from "react";
 
 interface IPromptDialogProps {
   title: string;
@@ -9,7 +9,7 @@ interface IPromptDialogProps {
 }
 
 function ProjectPromptDialog({
-  title = '',
+  title = "",
   show = false,
   onClose = () => {},
   children,

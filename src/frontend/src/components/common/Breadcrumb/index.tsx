@@ -1,5 +1,5 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export interface IBreadCrumbItem {
   name: string;
@@ -17,15 +17,11 @@ const BreadCrumb = ({ data }: IBreadCrumbProps) => {
       {data.map((breadCrumbItem, index) => (
         <React.Fragment key={breadCrumbItem.name}>
           <div
-            onClick={() =>
-              index < data.length - 1
-                ? navigate(breadCrumbItem.navLink)
-                : () => {}
-            }
+            onClick={() => (index < data.length - 1 ? navigate(breadCrumbItem.navLink) : () => {})}
             onKeyDown={() => {}}
             tabIndex={0}
             role="button"
-            className={`${index === data.length - 1 ? 'naxatw-cursor-default naxatw-font-semibold' : 'naxatw-cursor-pointer hover:naxatw-underline'}`}
+            className={`${index === data.length - 1 ? "naxatw-cursor-default naxatw-font-semibold" : "naxatw-cursor-pointer hover:naxatw-underline"}`}
           >
             {breadCrumbItem?.name}
           </div>

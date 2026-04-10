@@ -1,10 +1,10 @@
-import { html, LitElement, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { Store } from '../../store';
-import spinner from '../../assets/spinner.gif';
-import './raw-image-marker';
+import { html, LitElement, PropertyValues } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import { Store } from "../../store";
+import spinner from "../../assets/spinner.gif";
+import "./raw-image-marker";
 
-@customElement('raw-image-upload')
+@customElement("raw-image-upload")
 export class RawImageUpload extends LitElement {
   @property() imageList: any = {}; // the list of images of all gcp
   @property() gcpList: any = {}; // the list of all gcp marks
@@ -100,7 +100,11 @@ export class RawImageUpload extends LitElement {
 
   protected updated(_changedProperties: PropertyValues): void {
     _changedProperties.forEach((_, propName) => {
-      if (propName === 'numberOfPages' || propName === 'rawImageList' || propName === 'currentPage') {
+      if (
+        propName === "numberOfPages" ||
+        propName === "rawImageList" ||
+        propName === "currentPage"
+      ) {
         if (this.numberOfPages) {
           this.getOnViewImages();
         }
@@ -126,9 +130,9 @@ export class RawImageUpload extends LitElement {
     const hasImages = this.rawImageList?.length > 0;
     return html`
       <div class="tw-w-full tw-h-full tw-flex tw-flex-col">
-        <div class="tw-w-full ${hasImages ? 'tw-h-fit' : 'tw-flex-1 tw-flex tw-flex-col tw-justify-center tw-items-center'}">
+        <div class="tw-w-full ${hasImages ? "tw-h-fit" : "tw-flex-1 tw-flex tw-flex-col tw-justify-center tw-items-center"}">
           <label
-            class="tw-cursor-pointer tw-border-gray-400 tw-border-dashed tw-border-2 tw-rounded-lg ${hasImages ? 'tw-h-20' : 'tw-h-48 tw-max-w-lg'} tw-w-full tw-flex tw-items-center tw-justify-center tw-relative tw-mx-auto hover:tw-border-red-400 hover:tw-bg-red-50 tw-transition-colors"
+            class="tw-cursor-pointer tw-border-gray-400 tw-border-dashed tw-border-2 tw-rounded-lg ${hasImages ? "tw-h-20" : "tw-h-48 tw-max-w-lg"} tw-w-full tw-flex tw-items-center tw-justify-center tw-relative tw-mx-auto hover:tw-border-red-400 hover:tw-bg-red-50 tw-transition-colors"
           >
             <input
               type="file"
@@ -140,18 +144,38 @@ export class RawImageUpload extends LitElement {
               accept="image/*"
             />
             <div class="tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-2 tw-p-4">
-              <span class="material-symbols-outlined tw-text-primary ${hasImages ? '' : 'tw-text-4xl'}">cloud_upload</span>
+              <span class="material-symbols-outlined tw-text-primary ${hasImages ? "" : "tw-text-4xl"}">cloud_upload</span>
               <span class="tw-text tw-font-light">Upload raw drone images (.jpg, .png)</span>
-              ${!hasImages ? html`<span class="tw-text-sm tw-text-gray-400">Double-click each image to mark where the GCP appears</span>` : ''}
+              ${
+                !hasImages
+                  ? html`
+                      <span class="tw-text-sm tw-text-gray-400"
+                        >Double-click each image to mark where the GCP appears</span
+                      >
+                    `
+                  : ""
+              }
             </div>
           </label>
-          ${!hasImages ? html`<p class="tw-text-center tw-text-gray-400 tw-text-xs tw-mt-4">Upload the drone photos that contain this ground control point, then mark its position in each image.</p>` : ''}
+          ${
+            !hasImages
+              ? html`
+                  <p class="tw-text-center tw-text-gray-400 tw-text-xs tw-mt-4">
+                    Upload the drone photos that contain this ground control point, then mark its position in each
+                    image.
+                  </p>
+                `
+              : ""
+          }
         </div>
-        ${hasImages ? html`
+        ${
+          hasImages
+            ? html`
         <div class="tw-flex tw-max-h-full tw-gap-4 tw-flex-wrap tw-w-full tw-overflow-y-auto tw-h-[60vh] tw-mt-4">
-          ${this.onViewImages.length
-            ? this.onViewImages?.map(({ image, index }: any) => {
-                return html`
+          ${
+            this.onViewImages.length
+              ? this.onViewImages?.map(({ image, index }: any) => {
+                  return html`
                   <raw-image-marker
                     .imageName=${image.name}
                     .imageUrl=${URL.createObjectURL(image)}
@@ -161,21 +185,25 @@ export class RawImageUpload extends LitElement {
                     .selectedGcpDetails=${this.selectedGcpDetails}
                   ></raw-image-marker>
                 `;
-              })
-            : html`
+                })
+              : html`
                 <div class="tw-flex tw-justify-center tw-items-center tw-w-full">
                   <div class="tw-w-[200px] tw-h-[200px]:">
                     <img src=${spinner} />
                   </div>
                 </div>
-              `}
+              `
+          }
         </div>
-        ` : ''}
+        `
+            : ""
+        }
       </div>
       <div class="tw-flex tw-justify-between tw-w-full tw-absolute tw-bottom-4">
         <div></div>
-        ${this.rawImageList?.length
-          ? html`
+        ${
+          this.rawImageList?.length
+            ? html`
               <div class="tw-flex tw-gap-1">
                 <wa-button size="small" @click=${() => this.previous()}><<</wa-button>
                 ${[...Array(this.numberOfPages)].map(
@@ -183,19 +211,20 @@ export class RawImageUpload extends LitElement {
                     html`
                       <wa-button
                         size="small"
-                        class=${this.currentPage === index + 1 ? 'is-active' : ''}
+                        class=${this.currentPage === index + 1 ? "is-active" : ""}
                         @click=${() => this.goTo(index + 1)}
                       >
                         ${index + 1}
                       </wa-button>
-                    `
+                    `,
                 )}
                 <wa-button size="small" class="active-btn" @click=${() => this.next()}>>></wa-button>
               </div>
             `
-          : html`
-              <div></div>
-            `}
+            : html`
+                <div></div>
+              `
+        }
         <wa-button size="small" class="primary" @click=${() => this.updateGcpData()}>Save Changes</wa-button>
       </div>
     `;

@@ -1,8 +1,8 @@
-import formatNumberWithCommas from '@Utils/formatNumberWithCommas';
-import Icon from '@Components/common/Icon';
-import { FlexColumn, FlexRow } from '@Components/common/Layouts';
-import { cn } from '@Utils/index';
-import RoundedContainer from '../RoundedContainer';
+import formatNumberWithCommas from "@Utils/formatNumberWithCommas";
+import Icon from "@Components/common/Icon";
+import { FlexColumn, FlexRow } from "@Components/common/Layouts";
+import { cn } from "@Utils/index";
+import RoundedContainer from "../RoundedContainer";
 
 interface DataCardProps {
   title: string;
@@ -11,12 +11,7 @@ interface DataCardProps {
   className?: string;
 }
 
-export default function DataCard({
-  title,
-  count,
-  iconName,
-  className,
-}: DataCardProps) {
+export default function DataCard({ title, count, iconName, className }: DataCardProps) {
   return (
     <RoundedContainer
       className={cn(
@@ -29,10 +24,7 @@ export default function DataCard({
           <FlexRow>
             <div>{formatNumberWithCommas(count)}</div>
           </FlexRow>
-          <Icon
-            name={iconName}
-            className="naxatw-text-primary-200 !naxatw-text-[38px]"
-          />
+          <Icon name={iconName} className="naxatw-text-primary-200 !naxatw-text-[38px]" />
         </FlexRow>
       </FlexColumn>
     </RoundedContainer>

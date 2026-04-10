@@ -1,27 +1,22 @@
 /* eslint-disable camelcase */
-import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { FormControl, Label, Input } from '@Components/common/FormUI';
-import { Button } from '@Components/RadixComponents/Button';
-import { toast } from 'react-toastify';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
-import prepareFormData from '@Utils/prepareFormData';
-import {
-  getProjectWayPoints,
-  postPreviewSplitBySquare,
-} from '@Services/createproject';
-import MapSection from './MapSection';
+import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { FormControl, Label, Input } from "@Components/common/FormUI";
+import { Button } from "@Components/RadixComponents/Button";
+import { toast } from "react-toastify";
+import { setCreateProjectState } from "@Store/actions/createproject";
+import { convertGeojsonToFile } from "@Utils/convertLayerUtils";
+import prepareFormData from "@Utils/prepareFormData";
+import { getProjectWayPoints, postPreviewSplitBySquare } from "@Services/createproject";
+import MapSection from "./MapSection";
 
 export default function GenerateTasks({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
-  const [error, setError] = useState('');
-  const isTerrainFollow = useTypedSelector(
-    state => state.createproject.isTerrainFollow,
-  );
-  const demType = useTypedSelector(state => state.createproject.demType);
+  const [error, setError] = useState("");
+  const isTerrainFollow = useTypedSelector((state) => state.createproject.isTerrainFollow);
+  const demType = useTypedSelector((state) => state.createproject.demType);
 
   const { register, watch } = formProps;
   const {
@@ -34,12 +29,10 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
     dem: demFile,
   } = watch();
 
-  const dimension = watch('task_split_dimension');
+  const dimension = watch("task_split_dimension");
 
-  const projectArea = useTypedSelector(
-    state => state.createproject.projectArea,
-  );
-  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
+  const projectArea = useTypedSelector((state) => state.createproject.projectArea);
+  const noFlyZone = useTypedSelector((state) => state.createproject.noFlyZone);
 
   const projectGeojsonFile =
     !!projectArea && convertGeojsonToFile(projectArea as Record<string, any>);
@@ -70,9 +63,9 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
     mutationFn: postPreviewSplitBySquare,
     onSuccess: (res: any) => {
       dispatch(setCreateProjectState({ splitGeojson: res.data }));
-      toast.success('Task Generated Successfully');
+      toast.success("Task Generated Successfully");
     },
-    onError: err => {
+    onError: (err) => {
       toast.error(err.message);
     },
   });
@@ -88,14 +81,14 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
             placeholder="Enter Dimension (in m)"
             type="number"
             className="naxatw-mt-1"
-            value={dimension ?? ''}
+            value={dimension ?? ""}
             min={50}
             max={1000}
-            {...register('task_split_dimension', {
-              required: 'Required',
+            {...register("task_split_dimension", {
+              required: "Required",
               valueAsNumber: true,
             })}
-            onFocus={() => setError('')}
+            onFocus={() => setError("")}
           />
           {error && <ErrorMessage message={error} />}
           <p className="naxatw-text-[#68707F]">Recommended : 50-1000</p>
@@ -109,7 +102,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
           onClick={() => {
             if (!projectArea) return () => {};
             if (dimension < 50 || dimension > 1000)
-              return setError('Dimension must in between 50-1000');
+              return setError("Dimension must in between 50-1000");
             dispatch(
               setCreateProjectState({
                 splitGeojson: null,
@@ -124,10 +117,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
               meters: task_split_dimension,
               project_geojson: convertGeojsonToFile(outline),
               is_terrain_follow: isTerrainFollow,
-              dem:
-                isTerrainFollow && demType === 'manual'
-                  ? demFile[0]?.file
-                  : null,
+              dem: isTerrainFollow && demType === "manual" ? demFile[0]?.file : null,
             };
             mutateProjectWayPoints(projectWayPointsPayload);
             return mutate(payload);

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Map } from 'maplibre-gl';
-import { IMapOptionsProps, MapInstanceType } from '../types';
+import { useEffect, useState } from "react";
+import { Map } from "maplibre-gl";
+import { IMapOptionsProps, MapInstanceType } from "../types";
 
 export default function useMapLibreGLMap({
-  containerId = 'maplibre-gl-map',
+  containerId = "maplibre-gl-map",
   mapOptions,
   enable3D = false,
   disableRotation = false,
@@ -28,7 +28,7 @@ export default function useMapLibreGLMap({
     });
     setMap(mapInstance);
 
-    mapInstance.on('load', () => {
+    mapInstance.on("load", () => {
       setIsMapLoaded(true);
     });
     // return () => mapInstance.setTarget(undefined);
@@ -37,11 +37,11 @@ export default function useMapLibreGLMap({
   // add terrain source for 3D
   useEffect(() => {
     if (!map) return;
-    map.on('load', () => {
-      map.addSource('terrainSource', {
-        type: 'raster-dem',
-        tiles: ['https://vtc-cdn.maptoolkit.net/terrainrgb/{z}/{x}/{y}.webp'],
-        encoding: 'mapbox',
+    map.on("load", () => {
+      map.addSource("terrainSource", {
+        type: "raster-dem",
+        tiles: ["https://vtc-cdn.maptoolkit.net/terrainrgb/{z}/{x}/{y}.webp"],
+        encoding: "mapbox",
         maxzoom: 14,
         minzoom: 4,
       });
@@ -53,7 +53,7 @@ export default function useMapLibreGLMap({
   useEffect(() => {
     if (!map || !isMapLoaded) return;
     if (enable3D) {
-      map.setTerrain({ source: 'terrainSource', exaggeration: 0.6 });
+      map.setTerrain({ source: "terrainSource", exaggeration: 0.6 });
     } else {
       // @ts-ignore
       map.setTerrain();

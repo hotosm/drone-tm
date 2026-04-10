@@ -1,4 +1,4 @@
-import { IRoute } from './types';
+import { IRoute } from "./types";
 
 const testRoutes: IRoute[] = [
   // {

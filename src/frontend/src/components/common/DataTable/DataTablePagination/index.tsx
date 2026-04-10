@@ -1,6 +1,6 @@
-import { Input } from '@Components/common/FormUI';
-import { FlexRow } from '@Components/common/Layouts';
-import { Button } from '@Components/RadixComponents/Button';
+import { Input } from "@Components/common/FormUI";
+import { FlexRow } from "@Components/common/Layouts";
+import { Button } from "@Components/RadixComponents/Button";
 
 export default function DataTablePagination({ table }: any) {
   return (
@@ -9,12 +9,12 @@ export default function DataTablePagination({ table }: any) {
         Row per page
         <select
           value={table.getState().pagination.pageSize}
-          onChange={e => {
+          onChange={(e) => {
             table.setPageSize(Number(e.target.value));
           }}
           className="naxatw-rounded-lg naxatw-border-2 naxatw-border-grey-500 naxatw-p-1.5"
         >
-          {[10, 25, 50, 100].map(page => (
+          {[10, 25, 50, 100].map((page) => (
             <option key={page} value={page}>
               {page}
             </option>
@@ -67,7 +67,7 @@ export default function DataTablePagination({ table }: any) {
           <Input
             type="number"
             defaultValue={table.getState().pagination.pageIndex + 1}
-            onChange={e => {
+            onChange={(e) => {
               const page = e.target.value ? Number(e.target.value) - 1 : 0;
               table.setPageIndex(page);
             }}

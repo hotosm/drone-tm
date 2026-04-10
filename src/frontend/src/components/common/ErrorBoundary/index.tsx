@@ -1,5 +1,5 @@
-import Icon from '@Components/common/Icon';
-import { Component, ReactNode } from 'react';
+import Icon from "@Components/common/Icon";
+import { Component, ReactNode } from "react";
 
 interface ErrorBoundaryProps {
   showError?: boolean;
@@ -31,23 +31,20 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   render() {
     if (this.state.errorInfo) {
-      const componentStack = (this.state.errorInfo as any)?.componentStack || '';
+      const componentStack = (this.state.errorInfo as any)?.componentStack || "";
       const stackLine = componentStack
-        .split('\n')
+        .split("\n")
         .map((line: string) => line.trim())
         .find((line: string) => line.length > 0);
-      const [fileName = 'Component stack unavailable', errorLocation] = stackLine
-        ? stackLine.split(' (')
+      const [fileName = "Component stack unavailable", errorLocation] = stackLine
+        ? stackLine.split(" (")
         : [];
       return (
         <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-1 naxatw-bg-pink-200 naxatw-p-4">
           <div className="title naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center">
-            <Icon
-              name="running_with_errors"
-              className="naxatw-text-red-600 naxatw-text-4xl"
-            />
+            <Icon name="running_with_errors" className="naxatw-text-red-600 naxatw-text-4xl" />
             <p className="naxatw-text-lg naxatw-font-bold naxatw-text-gray-800">
-              {' '}
+              {" "}
               An Error Occurred !
             </p>
           </div>

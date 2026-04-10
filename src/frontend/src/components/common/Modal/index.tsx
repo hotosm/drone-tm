@@ -1,6 +1,6 @@
 // @ts-nocheck
-import React, { MouseEventHandler, ReactNode, useRef } from 'react';
-import { CSSTransition } from 'react-transition-group';
+import React, { MouseEventHandler, ReactNode, useRef } from "react";
+import { CSSTransition } from "react-transition-group";
 
 interface IModalProps {
   title: string;
@@ -38,25 +38,22 @@ export default function Modal({
       timeout={150}
       unmountOnExit
       classNames={{
-        enter: 'naxatw-opacity-0 naxatw-scale-95',
+        enter: "naxatw-opacity-0 naxatw-scale-95",
         enterActive:
-          'naxatw-opacity-100 naxatw-scale-100 naxatw-transition-all naxatw-ease-in naxatw-duration-150',
-        enterDone: 'naxatw-opacity-100 naxatw-scale-100',
-        exit: 'naxatw-opacity-50 naxatw-scale-75 naxatw-transition-all naxatw-ease-out naxatw-duration-150',
-        exitActive: 'naxatw-opacity-0 naxatw-scale-50',
+          "naxatw-opacity-100 naxatw-scale-100 naxatw-transition-all naxatw-ease-in naxatw-duration-150",
+        enterDone: "naxatw-opacity-100 naxatw-scale-100",
+        exit: "naxatw-opacity-50 naxatw-scale-75 naxatw-transition-all naxatw-ease-out naxatw-duration-150",
+        exitActive: "naxatw-opacity-0 naxatw-scale-50",
       }}
     >
       <div
         tabIndex={-1}
         className={`${
-          show ? '' : ''
+          show ? "" : ""
         } naxatw-h-modal naxatw-fixed naxatw-inset-0 naxatw-z-[11111] naxatw-flex naxatw-h-screen naxatw-w-screen naxatw-justify-center naxatw-overflow-y-auto naxatw-overflow-x-hidden naxatw-bg-grey-700/50 naxatw-p-4 md:naxatw-inset-0 md:naxatw-h-full`}
         style={{ zIndex }}
       >
-        <div
-          ref={nodeRef}
-          className="naxatw-fixed naxatw-inset-0 naxatw-overflow-y-auto"
-        >
+        <div ref={nodeRef} className="naxatw-fixed naxatw-inset-0 naxatw-overflow-y-auto">
           <div className="naxatw-flex naxatw-min-h-full naxatw-items-center naxatw-justify-center naxatw-p-4">
             <div className="naxatw-relative naxatw-flex naxatw-h-full naxatw-w-full naxatw-max-w-2xl naxatw-flex-col naxatw-items-center naxatw-justify-center md:naxatw-h-auto">
               <div
@@ -64,7 +61,7 @@ export default function Modal({
               >
                 <div
                   className={`naxatw-flex naxatw-items-start naxatw-justify-between naxatw-rounded-t-[20px] naxatw-px-7 ${
-                    !subtitle && title ? 'naxatw-py-5' : 'naxatw-py-5'
+                    !subtitle && title ? "naxatw-py-5" : "naxatw-py-5"
                   }`}
                 >
                   {headerContent || (
@@ -89,9 +86,9 @@ export default function Modal({
                   <div
                     className={`naxatw-grow naxatw-px-10 naxatw-pb-5 ${
                       bodyScrollable
-                        ? 'scrollbar naxatw-max-h-[calc(100vh-10rem)] naxatw-overflow-y-auto'
-                        : 'naxatw-h-full naxatw-overflow-hidden'
-                    } ${bodyClassName || ''}`}
+                        ? "scrollbar naxatw-max-h-[calc(100vh-10rem)] naxatw-overflow-y-auto"
+                        : "naxatw-h-full naxatw-overflow-hidden"
+                    } ${bodyClassName || ""}`}
                   >
                     {children}
                   </div>

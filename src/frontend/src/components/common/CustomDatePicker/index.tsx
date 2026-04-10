@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 type CustomDatePickerType = {
   title: string;

@@ -1,29 +1,29 @@
-import '@hotosm/ui/dist/style-core.css';
-import './style.css';
+import "@hotosm/ui/dist/style-core.css";
+import "./style.css";
 
-import { html, LitElement } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { Store } from './store';
-import '@hotosm/ui/dist/hotosm-ui.js';
-import '@awesome.me/webawesome/dist/components/button/button.js';
-import '@awesome.me/webawesome/dist/components/dialog/dialog.js';
-import './components/GcpDataInput/index';
-import './components/GcpMarking/index';
-import './components/GcpResult/index';
-import './components/Steps';
+import { html, LitElement } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import { Store } from "./store";
+import "@hotosm/ui/dist/hotosm-ui.js";
+import "@awesome.me/webawesome/dist/components/button/button.js";
+import "@awesome.me/webawesome/dist/components/dialog/dialog.js";
+import "./components/GcpDataInput/index";
+import "./components/GcpMarking/index";
+import "./components/GcpResult/index";
+import "./components/Steps";
 
 const steps = [
-  { label: 'Upload GCPs', step: 1 },
-  { label: 'Mark GCPs', step: 2 },
-  { label: 'Review & Save', step: 3 },
+  { label: "Upload GCPs", step: 1 },
+  { label: "Mark GCPs", step: 2 },
+  { label: "Review & Save", step: 3 },
 ];
 
-@customElement('gcp-editor')
+@customElement("gcp-editor")
 export class GcpEditor extends LitElement {
   @property({}) customEvent = null;
-  @property({}) finalButtonText = 'Download';
-  @property({ type: String }) rawImageUrl = '';
-  @property({ type: String }) cogUrl = '';
+  @property({}) finalButtonText = "Download";
+  @property({ type: String }) rawImageUrl = "";
+  @property({ type: String }) cogUrl = "";
   @property({ type: Number }) activeStep = 1;
   @property() gcpData = null;
   @property() setGcpDataWithXY = {};
@@ -40,13 +40,19 @@ export class GcpEditor extends LitElement {
 
     // Listen for updates to CSV data
     document.addEventListener(Store.GCP_DATA_UPDATE, this.handleGcpDataUpdate.bind(this));
-    document.addEventListener(Store.GCP_DATA_WITH_IMAGE_XY_UPDATE, this.handleGcpDataWithXYUpdate.bind(this));
+    document.addEventListener(
+      Store.GCP_DATA_WITH_IMAGE_XY_UPDATE,
+      this.handleGcpDataWithXYUpdate.bind(this),
+    );
     document.addEventListener(Store.ACTIVE_STEP_UPDATE, this.handleActiveStepUpdate.bind(this));
   }
 
   disconnectedCallback() {
     document.removeEventListener(Store.GCP_DATA_UPDATE, this.handleGcpDataUpdate.bind(this));
-    document.removeEventListener(Store.GCP_DATA_WITH_IMAGE_XY_UPDATE, this.handleGcpDataWithXYUpdate.bind(this));
+    document.removeEventListener(
+      Store.GCP_DATA_WITH_IMAGE_XY_UPDATE,
+      this.handleGcpDataWithXYUpdate.bind(this),
+    );
     document.removeEventListener(Store.ACTIVE_STEP_UPDATE, this.handleActiveStepUpdate.bind(this));
     Store.clearState();
     super.disconnectedCallback();
@@ -81,21 +87,23 @@ export class GcpEditor extends LitElement {
                     .isLastStep=${index === steps.length - 1}
                     activeStep=${this.activeStep}
                   ></gcp-step>
-                `
+                `,
             )}
           </div>
           <div class="tw-h-full tw-w-full">
-            ${this.activeStep === 1
-              ? html`
-                  <gcp-data-input></gcp-data-input>
-                `
-              : this.activeStep === 2
-              ? html`
-                  <gcp-marking></gcp-marking>
-                `
-              : html`
+            ${
+              this.activeStep === 1
+                ? html`
+                    <gcp-data-input></gcp-data-input>
+                  `
+                : this.activeStep === 2
+                  ? html`
+                      <gcp-marking></gcp-marking>
+                    `
+                  : html`
                   <gcp-result .customEvent=${this.customEvent} buttonText=${this.finalButtonText}></gcp-result>
-                `}
+                `
+            }
           </div>
         </div>
       </div>

@@ -17,7 +17,7 @@ from shapely.ops import unary_union
 log = logging.getLogger(__name__)
 
 
-class TaskSplitter(object):
+class TaskSplitter:
     """A class to split polygons."""
 
     def __init__(
@@ -53,11 +53,11 @@ class TaskSplitter(object):
             and Path(input_data).is_file()
         ):
             # Impose restriction for path lengths <250 chars
-            with open(input_data, "r") as jsonfile:
+            with open(input_data) as jsonfile:
                 try:
                     parsed_geojson = geojson.load(jsonfile)
                 except json.decoder.JSONDecodeError as e:
-                    raise IOError(
+                    raise OSError(
                         f"File exists, but content is invalid JSON: {input_data}"
                     ) from e
 

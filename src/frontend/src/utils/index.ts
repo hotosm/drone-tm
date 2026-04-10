@@ -1,7 +1,7 @@
 /* eslint-disable import/prefer-default-export */
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { getRuntimeConfig } from '@/runtimeConfig';
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { getRuntimeConfig } from "@/runtimeConfig";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -20,13 +20,8 @@ export function cn(...inputs: ClassValue[]) {
  * const result = removeKeys(originalObj, keysToRemove);
  * // result is { a: 1, c: 3 }
  */
-export function removeKeysFromObject(
-  obj: Record<string, any>,
-  keysToRemove: any[],
-) {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([key]) => !keysToRemove.includes(key)),
-  );
+export function removeKeysFromObject(obj: Record<string, any>, keysToRemove: any[]) {
+  return Object.fromEntries(Object.entries(obj).filter(([key]) => !keysToRemove.includes(key)));
 }
 
 export const m2ToKm2 = (m2: number) => {
@@ -80,14 +75,14 @@ export const getFrontOverlap = (agl: number, forwardSpacing: number) => {
 
 // remove underscore and capitalize the word
 export const formatString = (value: string) => {
-  if (!value) return '';
-  if (value === 'IMAGE_PROCESSING_FINISHED') return 'Completed';
-  if (value === 'UPLOADED') return 'Completed';
+  if (!value) return "";
+  if (value === "IMAGE_PROCESSING_FINISHED") return "Completed";
+  if (value === "UPLOADED") return "Completed";
 
   return value
-    .replace(/_/g, ' ')
+    .replace(/_/g, " ")
     .toLowerCase()
-    .replace(/^\w/, char => char.toUpperCase());
+    .replace(/^\w/, (char) => char.toUpperCase());
 };
 
 export const getFileExtension = (url: string) => {
@@ -115,10 +110,7 @@ export function calculateAngle(
   centroid: [number, number],
 ) {
   // Convert longitude/latitude to Cartesian coordinates
-  const beforeCart = lonLatToCartesian(
-    initialCoordinates[0],
-    initialCoordinates[1],
-  );
+  const beforeCart = lonLatToCartesian(initialCoordinates[0], initialCoordinates[1]);
   const afterCart = lonLatToCartesian(afterCoordinates[0], afterCoordinates[1]);
   const centroidCart = lonLatToCartesian(centroid[0], centroid[1]);
 
@@ -145,9 +137,7 @@ export function calculateAngle(
   const magnitudeBefore = Math.sqrt(
     vectorBefore.x ** 2 + vectorBefore.y ** 2 + vectorBefore.z ** 2,
   );
-  const magnitudeAfter = Math.sqrt(
-    vectorAfter.x ** 2 + vectorAfter.y ** 2 + vectorAfter.z ** 2,
-  );
+  const magnitudeAfter = Math.sqrt(vectorAfter.x ** 2 + vectorAfter.y ** 2 + vectorAfter.z ** 2);
 
   // Calculate the angle in radians using the dot product formula
   const cosTheta = dotProduct / (magnitudeBefore * magnitudeAfter);
@@ -215,11 +205,7 @@ export function calculateCentroidFromCoordinates(coordinates: any[]) {
   return [RadtoDegrees(lat), RadtoDegrees(lon)];
 }
 
-export function findNearestCoordinate(
-  coord1: number[],
-  coord2: number[],
-  center: number[],
-) {
+export function findNearestCoordinate(coord1: number[], coord2: number[], center: number[]) {
   // Function to calculate distance between two points
   const calculateDistance = (point1: number[], point2: number[]) => {
     const xDiff = point2[0] - point1[0];
@@ -232,7 +218,7 @@ export function findNearestCoordinate(
   const distance2 = calculateDistance(coord2, center);
 
   // Return the nearest coordinate
-  return distance1 <= distance2 ? 'first' : 'second';
+  return distance1 <= distance2 ? "first" : "second";
 }
 
 /**
@@ -242,27 +228,25 @@ export function findNearestCoordinate(
  * that browser <a> tag downloads work without custom headers.
  */
 export function buildDownloadUrl(assetsUrl: string): string {
-  if (assetsUrl.startsWith('http')) return assetsUrl;
+  if (assetsUrl.startsWith("http")) return assetsUrl;
 
-  const apiBase = getRuntimeConfig('VITE_API_URL', '/api');
-  const normalizedApiBase = apiBase.endsWith('/api')
-    ? apiBase.slice(0, -4)
-    : apiBase;
+  const apiBase = getRuntimeConfig("VITE_API_URL", "/api");
+  const normalizedApiBase = apiBase.endsWith("/api") ? apiBase.slice(0, -4) : apiBase;
 
-  const base = assetsUrl.startsWith('/api/')
+  const base = assetsUrl.startsWith("/api/")
     ? `${normalizedApiBase}${assetsUrl}`
     : `${apiBase}${assetsUrl}`;
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (!token) return base;
 
-  const separator = base.includes('?') ? '&' : '?';
+  const separator = base.includes("?") ? "&" : "?";
   return `${base}${separator}token=${encodeURIComponent(token)}`;
 }
 
 export function swapFirstAndLast<T>(arr: T[]): T[] {
   if (arr.length < 2) {
-    throw new Error('Array must have at least two elements to swap.');
+    throw new Error("Array must have at least two elements to swap.");
   }
 
   // Swap the first and last elements using destructuring

@@ -76,7 +76,7 @@ def main(args_list: list[str] | None = None):
     if "ground_speed" not in args.parameters:
         raise ValueError("ground_speed is missing in the parameters")
 
-    inpointsfile = open(args.waypoints_geojson, "r")
+    inpointsfile = open(args.waypoints_geojson)
     points = inpointsfile.read()
 
     placemark_data = create_placemarks(

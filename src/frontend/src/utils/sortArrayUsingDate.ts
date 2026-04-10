@@ -1,6 +1,4 @@
-export default function sortByDatetime(
-  arr: Record<string, any>[],
-): Record<string, any>[] {
+export default function sortByDatetime(arr: Record<string, any>[]): Record<string, any>[] {
   // Create a shallow copy of the array to avoid modifying the original
   const arrCopy = [...arr];
 

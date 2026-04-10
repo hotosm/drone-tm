@@ -1,43 +1,38 @@
-import { useForm } from 'react-hook-form';
-import { toast } from 'react-toastify';
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { FormControl, Input, Label } from '@Components/common/FormUI';
-import { Flex, FlexColumn } from '@Components/common/Layouts';
-import { Button } from '@Components/RadixComponents/Button';
-import { patchUserProfile } from '@Services/common';
-import { useMutation } from '@tanstack/react-query';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import { useNavigate } from 'react-router-dom';
+import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { FormControl, Input, Label } from "@Components/common/FormUI";
+import { Flex, FlexColumn } from "@Components/common/Layouts";
+import { Button } from "@Components/RadixComponents/Button";
+import { patchUserProfile } from "@Services/common";
+import { useMutation } from "@tanstack/react-query";
+import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import { useNavigate } from "react-router-dom";
 
 const Password = () => {
   const navigate = useNavigate();
   const initialState = {
-    old_password: '',
-    password: '',
-    confirm_password: '',
+    old_password: "",
+    password: "",
+    confirm_password: "",
   };
-  const userProfile = getLocalStorageValue('userprofile');
+  const userProfile = getLocalStorageValue("userprofile");
 
   const { register, handleSubmit, formState, watch } = useForm({
     defaultValues: initialState,
   });
-  const password = watch('password');
+  const password = watch("password");
 
-  const { mutate: updatePassword, isPending } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
-    mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
+  const { mutate: updatePassword, isPending } = useMutation<any, any, any, unknown>({
+    mutationFn: (payloadDataObject) => patchUserProfile(payloadDataObject),
     onSuccess: () => {
-      toast.success('Password Updated Successfully');
-      navigate('/dashboard');
+      toast.success("Password Updated Successfully");
+      navigate("/dashboard");
     },
-    onError: err => {
+    onError: (err) => {
       // eslint-disable-next-line no-console
       console.log(err);
-      toast.error(err?.response?.data?.detail || 'Something went wrong');
+      toast.error(err?.response?.data?.detail || "Something went wrong");
     },
   });
 
@@ -48,9 +43,7 @@ const Password = () => {
   return (
     <section className="naxatw-w-full naxatw-px-14">
       <Flex>
-        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">
-          Change Password
-        </p>
+        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">Change Password</p>
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
@@ -59,8 +52,8 @@ const Password = () => {
             type="password"
             className="naxatw-mt-1"
             placeholder="Enter old password"
-            {...register('old_password', {
-              required: 'Old Password is Required',
+            {...register("old_password", {
+              required: "Old Password is Required",
             })}
           />
           <ErrorMessage message={formState.errors?.old_password?.message} />
@@ -71,11 +64,11 @@ const Password = () => {
             type="password"
             className="naxatw-mt-1"
             placeholder="Enter new password"
-            {...register('password', {
-              required: 'Password is Required',
+            {...register("password", {
+              required: "Password is Required",
               minLength: {
                 value: 8,
-                message: 'Password must have at least 8 characters',
+                message: "Password must have at least 8 characters",
               },
             })}
           />
@@ -87,12 +80,12 @@ const Password = () => {
             type="password"
             className="naxatw-mt-1"
             placeholder="Enter confirm password"
-            {...register('confirm_password', {
+            {...register("confirm_password", {
               validate: {
                 matchPassword: (value: string) =>
-                  value === password || 'The passwords do not match',
+                  value === password || "The passwords do not match",
               },
-              required: 'Confirm Password is Required',
+              required: "Confirm Password is Required",
             })}
           />
           <ErrorMessage message={formState.errors?.confirm_password?.message} />
@@ -102,7 +95,7 @@ const Password = () => {
       <div className="naxatw-flex naxatw-justify-center naxatw-py-4">
         <Button
           className="naxatw-bg-red"
-          onClick={e => {
+          onClick={(e) => {
             e.preventDefault();
             handleSubmit(onSubmit)();
           }}

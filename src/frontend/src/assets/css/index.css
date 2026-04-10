@@ -1,20 +1,20 @@
 @font-face {
-  font-family: 'Barlow Condensed';
+  font-family: "Barlow Condensed";
   font-style: normal;
   font-weight: normal;
   font-display: swap;
-  src: url('../fonts/BarlowCondensed-Regular.ttf') format('truetype');
+  src: url("../fonts/BarlowCondensed-Regular.ttf") format("truetype");
 }
 
 html,
 body {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: "Barlow Condensed", sans-serif;
   box-sizing: border-box;
-  --hot-font-sans: 'Barlow Condensed', sans-serif;
+  --hot-font-sans: "Barlow Condensed", sans-serif;
 }
 
 .landing-page p {
-  font-family: 'Manrope', sans-serif !important;
+  font-family: "Manrope", sans-serif !important;
 }
 
 @keyframes slideInFromLeft {
@@ -86,15 +86,11 @@ body {
   -moz-appearance: textfield; /* Firefox */
 }
 
-#pdf-page-wrapper
-  > div.react-pdf__Page
-  > div.react-pdf__Page__textContent.textLayer {
+#pdf-page-wrapper > div.react-pdf__Page > div.react-pdf__Page__textContent.textLayer {
   visibility: hidden !important;
   height: 0 !important;
 }
-#pdf-page-wrapper
-  > div.react-pdf__Page
-  > div.react-pdf__Page__annotations.annotationLayer {
+#pdf-page-wrapper > div.react-pdf__Page > div.react-pdf__Page__annotations.annotationLayer {
   height: 0px !important;
 }
 hotosm-auth {

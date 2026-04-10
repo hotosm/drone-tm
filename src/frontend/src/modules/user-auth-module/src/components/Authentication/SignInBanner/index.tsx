@@ -1,5 +1,5 @@
-import { Flex } from '@Components/common/Layouts';
-import BannerImage from '@Assets/images/login-banner.png';
+import { Flex } from "@Components/common/Layouts";
+import BannerImage from "@Assets/images/login-banner.png";
 
 export default function SignInBanner() {
   return (

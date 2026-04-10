@@ -1,2 +1,2 @@
 /* eslint-disable */
-export { default as useMapLibreGLMap } from './useMapLibreGLMap';
+export { default as useMapLibreGLMap } from "./useMapLibreGLMap";

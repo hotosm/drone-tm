@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 function debounce(func: Function, timeout = 300) {
   let timer: any;
@@ -23,10 +23,10 @@ const useWindowDimensions = () => {
         height: window.innerHeight,
       });
     }, 100);
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 

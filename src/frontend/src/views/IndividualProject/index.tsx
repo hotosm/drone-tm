@@ -1,46 +1,38 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import centroid from '@turf/centroid';
-import html2canvas from 'html2canvas';
-import {
-  useGetProjectsDetailQuery,
-  useGetUserDetailsQuery,
-} from '@Api/projects';
-import BreadCrumb from '@Components/common/Breadcrumb';
-import Tab from '@Components/common/Tabs';
-import {
-  Contributions,
-  Instructions,
-  MapSection,
-  Tasks,
-} from '@Components/IndividualProject';
-import ExportSection from '@Components/IndividualProject/ExportSection';
-import GcpEditor from '@Components/IndividualProject/GcpEditor';
-import ProjectPromptDialog from '@Components/IndividualProject/ModalContent';
-import DeleteProjectPromptDialog from '@Components/IndividualProject/ModalContent/DeleteProjectConfirmation';
-import { Button } from '@Components/RadixComponents/Button';
-import Skeleton from '@Components/RadixComponents/Skeleton';
-import DescriptionSection from '@Components/RegulatorsApprovalPage/Description/DescriptionSection';
-import { projectOptions } from '@Constants/index';
-import { deleteProject } from '@Services/project';
-import { setProjectState } from '@Store/actions/project';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import QFieldExportDialog from '@Components/IndividualProject/QFieldExport';
-import QFieldLogo from '@Components/IndividualProject/QFieldExport/QFieldLogo';
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+import centroid from "@turf/centroid";
+import html2canvas from "html2canvas";
+import { useGetProjectsDetailQuery, useGetUserDetailsQuery } from "@Api/projects";
+import BreadCrumb from "@Components/common/Breadcrumb";
+import Tab from "@Components/common/Tabs";
+import { Contributions, Instructions, MapSection, Tasks } from "@Components/IndividualProject";
+import ExportSection from "@Components/IndividualProject/ExportSection";
+import GcpEditor from "@Components/IndividualProject/GcpEditor";
+import ProjectPromptDialog from "@Components/IndividualProject/ModalContent";
+import DeleteProjectPromptDialog from "@Components/IndividualProject/ModalContent/DeleteProjectConfirmation";
+import { Button } from "@Components/RadixComponents/Button";
+import Skeleton from "@Components/RadixComponents/Skeleton";
+import DescriptionSection from "@Components/RegulatorsApprovalPage/Description/DescriptionSection";
+import { projectOptions } from "@Constants/index";
+import { deleteProject } from "@Services/project";
+import { setProjectState } from "@Store/actions/project";
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import QFieldExportDialog from "@Components/IndividualProject/QFieldExport";
+import QFieldLogo from "@Components/IndividualProject/QFieldExport/QFieldLogo";
 import {
   UploadImageryDialog,
   ClassifyImageryDialog,
   VerifyImageryDialog,
-} from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
-import { getRuntimeConfig } from '@/runtimeConfig';
+} from "@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow";
+import { getRuntimeConfig } from "@/runtimeConfig";
 
 // eslint-disable-next-line camelcase
-const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
+const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
 // function to render the content based on active tab
 const getActiveTabContent = (
@@ -56,7 +48,7 @@ const getActiveTabContent = (
   // eslint-disable-next-line no-unused-vars
   onOpenVerify?: () => void,
 ) => {
-  if (activeTab === 'about')
+  if (activeTab === "about")
     return (
       <DescriptionSection
         projectData={data}
@@ -67,26 +59,13 @@ const getActiveTabContent = (
         onOpenVerify={onOpenVerify}
       />
     );
-  if (activeTab === 'tasks')
+  if (activeTab === "tasks")
+    return <Tasks isFetching={isProjectDataLoading} handleTableRowClick={handleTableRowClick} />;
+  if (activeTab === "instructions")
+    return <Instructions projectData={data} isProjectDataLoading={isProjectDataLoading} />;
+  if (activeTab === "contributions")
     return (
-      <Tasks
-        isFetching={isProjectDataLoading}
-        handleTableRowClick={handleTableRowClick}
-      />
-    );
-  if (activeTab === 'instructions')
-    return (
-      <Instructions
-        projectData={data}
-        isProjectDataLoading={isProjectDataLoading}
-      />
-    );
-  if (activeTab === 'contributions')
-    return (
-      <Contributions
-        isFetching={isProjectDataLoading}
-        handleTableRowClick={handleTableRowClick}
-      />
+      <Contributions isFetching={isProjectDataLoading} handleTableRowClick={handleTableRowClick} />
     );
   return <></>;
 };
@@ -99,26 +78,23 @@ const IndividualProject = () => {
   const exportRef = useRef<any>(null);
   const [exportingContent, setExportingContent] = useState(false);
   const [showProjectDeletePrompt, setShowProjectDeletePrompt] = useState(false);
-  const [showDownloadOptions, setShowDownloadOptions] =
-    useState<boolean>(false);
+  const [showDownloadOptions, setShowDownloadOptions] = useState<boolean>(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isClassifyDialogOpen, setIsClassifyDialogOpen] = useState(false);
   const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
   const [showQFieldDialog, setShowQFieldDialog] = useState(false);
-  const Token = localStorage.getItem('token');
+  const Token = localStorage.getItem("token");
 
   const individualProjectActiveTab = useTypedSelector(
-    state => state.project.individualProjectActiveTab,
+    (state) => state.project.individualProjectActiveTab,
   );
-  const tasksList = useTypedSelector(state => state.project.tasksData);
-  const showGcpEditor = useTypedSelector(state => state.project.showGcpEditor);
+  const tasksList = useTypedSelector((state) => state.project.tasksData);
+  const showGcpEditor = useTypedSelector((state) => state.project.showGcpEditor);
 
   const { data: userDetails }: Record<string, any> = useGetUserDetailsQuery();
 
-  const {
-    data: projectData,
-    isFetching: isProjectDataFetching,
-  }: Record<string, any> = useGetProjectsDetailQuery(id as string);
+  const { data: projectData, isFetching: isProjectDataFetching }: Record<string, any> =
+    useGetProjectsDetailQuery(id as string);
   useEffect(() => {
     if (projectData) {
       dispatch(
@@ -145,9 +121,9 @@ const IndividualProject = () => {
   const { mutate, isPending } = useMutation({
     mutationFn: (projectId: string) => deleteProject(projectId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects-list'] });
-      toast.error('Project Deleted Successfully');
-      navigate('/projects');
+      queryClient.invalidateQueries({ queryKey: ["projects-list"] });
+      toast.error("Project Deleted Successfully");
+      navigate("/projects");
     },
   });
 
@@ -187,17 +163,17 @@ const IndividualProject = () => {
   const downloadProjectTaskGeojson = () => {
     fetch(
       `${API_URL}/projects/${projectData?.id}/download-boundaries?split_area=true&export_type=geojson`,
-      { method: 'GET', headers: { 'Access-token': Token || '' } },
+      { method: "GET", headers: { "Access-token": Token || "" } },
     )
-      .then(response => {
+      .then((response) => {
         if (!response.ok) {
           throw new Error(`Network response was ${response.statusText}`);
         }
         return response.blob();
       })
-      .then(blob => {
+      .then((blob) => {
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
         link.download = `project-${projectData?.name}-tasks.geojson`;
         document.body.appendChild(link);
@@ -205,7 +181,7 @@ const IndividualProject = () => {
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch(error =>
+      .catch((error) =>
         toast.error(`There was an error while downloading file
         ${error}`),
       );
@@ -217,8 +193,8 @@ const IndividualProject = () => {
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-3">
           <BreadCrumb
             data={[
-              { name: 'Project', navLink: '/projects' },
-              { name: projectData?.name || '--', navLink: '' },
+              { name: "Project", navLink: "/projects" },
+              { name: projectData?.name || "--", navLink: "" },
             ]}
           />
           <div className="naxatw-flex naxatw-gap-3">
@@ -237,7 +213,7 @@ const IndividualProject = () => {
                 className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
                 leftIcon="download"
                 iconClassname="naxatw-text-[1.125rem]"
-                onClick={() => setShowDownloadOptions(prev => !prev)}
+                onClick={() => setShowDownloadOptions((prev) => !prev)}
               >
                 Export
               </Button>
@@ -255,15 +231,15 @@ const IndividualProject = () => {
                   >
                     📋 Task areas
                   </div>
-                   <div
+                  <div
                     className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                     role="button"
                     tabIndex={0}
-                    onKeyDown={() => console.log('here')}
+                    onKeyDown={() => console.log("here")}
                     onClick={() => {
                       setExportingContent(true);
                       html2canvas(exportRef?.current).then((canvas: any) => {
-                        const link = document.createElement('a');
+                        const link = document.createElement("a");
                         link.download = `${projectData?.name}.png`;
                         link.href = canvas.toDataURL();
                         link.click();
@@ -367,7 +343,7 @@ const IndividualProject = () => {
         )}
       </section>
       <div
-        className={`naxatw-absolute naxatw-left-0 naxatw-top-0 naxatw-h-full naxatw-w-full naxatw-opacity-0 ${exportingContent ? 'naxatw-flex' : 'naxatw-hidden'}`}
+        className={`naxatw-absolute naxatw-left-0 naxatw-top-0 naxatw-h-full naxatw-w-full naxatw-opacity-0 ${exportingContent ? "naxatw-flex" : "naxatw-hidden"}`}
       >
         <div
           className="naxatw-flex naxatw-w-full naxatw-max-w-[600px] naxatw-justify-center"
@@ -383,7 +359,7 @@ const IndividualProject = () => {
         onClose={() => setShowProjectDeletePrompt(false)}
       >
         <DeleteProjectPromptDialog
-          projectName={projectData?.name || ''}
+          projectName={projectData?.name || ""}
           isLoading={isPending}
           handleDeleteProject={handleDeleteProject}
           setShowUnlockDialog={setShowProjectDeletePrompt}

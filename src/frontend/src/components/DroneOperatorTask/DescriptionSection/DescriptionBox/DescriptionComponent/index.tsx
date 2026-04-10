@@ -5,10 +5,7 @@ interface IDescriptionBoxComponentProps {
     value: string;
   }[];
 }
-const DescriptionBoxComponent = ({
-  title,
-  data,
-}: IDescriptionBoxComponentProps) => {
+const DescriptionBoxComponent = ({ title, data }: IDescriptionBoxComponentProps) => {
   return (
     <>
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
@@ -17,12 +14,9 @@ const DescriptionBoxComponent = ({
         </p>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
           {data?.map(
-            item =>
+            (item) =>
               item.value && (
-                <div
-                  className="naxatw-flex naxatw-w-full naxatw-gap-2"
-                  key={item.name}
-                >
+                <div className="naxatw-flex naxatw-w-full naxatw-gap-2" key={item.name}>
                   <p className="naxatw-w-[6.875rem] naxatw-flex-shrink-0 naxatw-text-[0.75rem] naxatw-text-[#484848]">
                     {item.name}
                   </p>

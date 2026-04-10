@@ -1,15 +1,15 @@
 /* eslint-disable react/display-name */
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/no-danger */
-import '@Components/common/MapLibreComponents/map.css';
-import { Button } from '@Components/RadixComponents/Button';
-import Skeleton from '@Components/RadixComponents/Skeleton';
-import type { MapMouseEvent } from 'maplibre-gl';
-import { Popup } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { forwardRef, useEffect, useRef, useState } from 'react';
-import { renderToString } from 'react-dom/server';
-import { IAsyncPopup } from '../types';
+import "@Components/common/MapLibreComponents/map.css";
+import { Button } from "@Components/RadixComponents/Button";
+import Skeleton from "@Components/RadixComponents/Skeleton";
+import type { MapMouseEvent } from "maplibre-gl";
+import { Popup } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { forwardRef, useEffect, useRef, useState } from "react";
+import { renderToString } from "react-dom/server";
+import { IAsyncPopup } from "../types";
 
 const popup = new Popup({
   closeOnClick: false,
@@ -26,11 +26,11 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
       handleBtnClick,
       isLoading = false,
       onClose,
-      buttonText = 'View More',
+      buttonText = "View More",
       hideButton = false,
       getCoordOnProperties = false,
       hasSecondaryButton = false,
-      secondaryButtonText = '',
+      secondaryButtonText = "",
       handleSecondaryBtnClick,
       showPopup = (_clickedFeature: Record<string, any>) => true,
       openPopupFor,
@@ -38,13 +38,11 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     }: IAsyncPopup,
     ref,
   ) => {
-    const [properties, setProperties] = useState<Record<string, any> | null>(
-      null,
-    );
+    const [properties, setProperties] = useState<Record<string, any> | null>(null);
     const internalPopupRef = useRef(null);
     const popupRef = ref || internalPopupRef;
     const [coordinates, setCoordinates] = useState<any>(null);
-    const [popupHTML, setPopupHTML] = useState<string>('');
+    const [popupHTML, setPopupHTML] = useState<string>("");
 
     useEffect(() => {
       if (!map) return;
@@ -73,7 +71,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
         setCoordinates(e.lngLat);
         // popup.setLngLat(e.lngLat);
       }
-      map.on('click', displayPopup);
+      map.on("click", displayPopup);
     }, [map, getCoordOnProperties, showPopup]);
 
     useEffect(() => {
@@ -86,13 +84,12 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
         !map ||
         !properties ||
         !popupUI ||
-        (typeof popupRef !== 'function' && !popupRef.current) ||
+        (typeof popupRef !== "function" && !popupRef.current) ||
         !coordinates
       )
         return;
       const htmlString = renderToString(popupUI(properties));
-      const popupElement =
-        typeof popupRef === 'function' ? popupRef(null) : popupRef.current;
+      const popupElement = typeof popupRef === "function" ? popupRef(null) : popupRef.current;
       if (popupElement) {
         popup.setDOMContent(popupElement).addTo(map);
       }
@@ -118,7 +115,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     return (
       <div
         ref={popupRef}
-        className={`naxatw-w-[17.5rem] naxatw-px-3 ${hideButton ? 'naxatw-pb-3' : ''}`}
+        className={`naxatw-w-[17.5rem] naxatw-px-3 ${hideButton ? "naxatw-pb-3" : ""}`}
       >
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-2">
           {isLoading ? (

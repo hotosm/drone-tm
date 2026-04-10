@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 
 interface ILabelProps {
   children: ReactNode;
@@ -8,10 +8,7 @@ interface ILabelProps {
 
 export default function Label({ children, htmlFor, required }: ILabelProps) {
   return (
-    <label
-      className="naxatw-text-body-btn naxatw-text-grey-800"
-      htmlFor={htmlFor?.toString()}
-    >
+    <label className="naxatw-text-body-btn naxatw-text-grey-800" htmlFor={htmlFor?.toString()}>
       {children}
       {required && <span className="naxatw-ml-[2px] naxatw-text-red">*</span>}
     </label>

@@ -1,28 +1,28 @@
 export class Store {
   private static _gcpData: string[][] = [];
-  private static _projection: string = 'EPSG:4326'; // projection its static for now
-  private static _cogUrl: string = '';
+  private static _projection: string = "EPSG:4326"; // projection its static for now
+  private static _cogUrl: string = "";
   private static _activeStep: number = 1;
   private static _gcpPointsGeoJson: Object | null = null;
   private static _selectedGcpDetails: any = null;
   private static _gcpDataWithImageXY: any = {};
   private static _imageList = {};
-  private static _rawImageUrl = '';
+  private static _rawImageUrl = "";
   private static _activeGcp = []; // it is only simulate  map and table gcp
 
   //   event for data update
-  static readonly GCP_DATA_UPDATE = 'gcp-data-update';
-  static readonly COG_URL_UPDATE = 'cog-url-update';
-  static readonly PROJECTION_UPDATE = 'projection-url-update';
-  static readonly ACTIVE_STEP_UPDATE = 'active-step-update';
-  static readonly GCP_POINTS_GEOJSON = 'gcp-points-geojson';
-  static readonly SELECTED_GCP_DETAILS_UPDATE = 'selected-gcp-details-update';
-  static readonly GCP_DATA_WITH_IMAGE_XY_UPDATE = 'final-gcp-data-with-xy-update';
-  static readonly IMAGE_URL_UPDATE = 'image-url-update';
-  static readonly ACTIVE_GCP_UPDATE = 'active-gcp-update';
+  static readonly GCP_DATA_UPDATE = "gcp-data-update";
+  static readonly COG_URL_UPDATE = "cog-url-update";
+  static readonly PROJECTION_UPDATE = "projection-url-update";
+  static readonly ACTIVE_STEP_UPDATE = "active-step-update";
+  static readonly GCP_POINTS_GEOJSON = "gcp-points-geojson";
+  static readonly SELECTED_GCP_DETAILS_UPDATE = "selected-gcp-details-update";
+  static readonly GCP_DATA_WITH_IMAGE_XY_UPDATE = "final-gcp-data-with-xy-update";
+  static readonly IMAGE_URL_UPDATE = "image-url-update";
+  static readonly ACTIVE_GCP_UPDATE = "active-gcp-update";
 
   // ***
-  static readonly IMAGE_LIST_UPDATE = 'image-list-update';
+  static readonly IMAGE_LIST_UPDATE = "image-list-update";
 
   //   Methods to access and update the data
   static getGcpData(): string[][] {
@@ -118,14 +118,14 @@ export class Store {
   // to clear all global states
   static clearState() {
     this._gcpData = [];
-    this._projection = 'EPSG:4326';
-    this._cogUrl = '';
+    this._projection = "EPSG:4326";
+    this._cogUrl = "";
     this._activeStep = 1;
     this._gcpPointsGeoJson = null;
     this._selectedGcpDetails = null;
     this._gcpDataWithImageXY = {};
     this._imageList = {};
-    this._rawImageUrl = '';
+    this._rawImageUrl = "";
     this._activeGcp = [];
   }
 }

@@ -1,4 +1,4 @@
-import { FlexColumn } from '@Components/common/Layouts';
+import { FlexColumn } from "@Components/common/Layouts";
 // import Image from '@Components/RadixComponents/Image';
 // import { motion } from 'framer-motion';
 // import forestImage from '@Assets/images/LandingPage/ForestImage.png';
@@ -17,11 +17,10 @@ export default function OpenSource() {
             </p>
           </div>
           <p className="naxatw-w-full naxatw-text-base naxatw-leading-[1.625rem] naxatw-text-landing-grey md:naxatw-w-2/3 md:naxatw-text-xl md:naxatw-leading-7">
-            An open-source drone tasking platform to coordinate aerial survey
-            activities for target project areas among multiple pilots,
-            incorporating tools and processes to ensure coordinated flight plans
-            for imagery acquisition, and a seamless pipeline for processing and
-            dissemination.
+            An open-source drone tasking platform to coordinate aerial survey activities for target
+            project areas among multiple pilots, incorporating tools and processes to ensure
+            coordinated flight plans for imagery acquisition, and a seamless pipeline for processing
+            and dissemination.
           </p>
           {/* <motion.div
             initial={{ translateX: -200, opacity: 0 }}

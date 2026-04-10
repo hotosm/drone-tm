@@ -14,11 +14,11 @@ declare global {
 }
 
 export function getRuntimeConfig(
-  key: 'VITE_API_URL' | 'VITE_AUTH_PROVIDER' | 'VITE_HANKO_URL',
+  key: "VITE_API_URL" | "VITE_AUTH_PROVIDER" | "VITE_HANKO_URL",
   fallback: string,
 ): string {
   // Check runtime config first (injected by docker-entrypoint.sh)
-  if (typeof window !== 'undefined' && window.__RUNTIME_CONFIG__?.[key]) {
+  if (typeof window !== "undefined" && window.__RUNTIME_CONFIG__?.[key]) {
     return window.__RUNTIME_CONFIG__[key]!;
   }
 

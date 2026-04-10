@@ -1,7 +1,7 @@
 ## Getting started with the starter kit
 
 1. Do not use npm to install packages, use pnpm. If you want to run `npm install`
-then delete the `pnpm-lock.yaml` file and install the packages using npm.
+   then delete the `pnpm-lock.yaml` file and install the packages using npm.
 
 2. Create a `.env` file and set `VITE_API_URL`.
 

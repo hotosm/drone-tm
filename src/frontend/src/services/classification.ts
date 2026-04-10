@@ -1,4 +1,4 @@
-import { authenticated, api } from './index';
+import { authenticated, api } from "./index";
 
 export interface BatchStatusSummary {
   total: number;
@@ -18,7 +18,7 @@ export interface TaskGroupImage {
   s3_key?: string;
   thumbnail_url?: string;
   url?: string;
-  status: 'assigned' | 'rejected' | 'invalid_exif' | 'duplicate' | 'unmatched';
+  status: "assigned" | "rejected" | "invalid_exif" | "duplicate" | "unmatched";
   rejection_reason?: string;
   uploaded_at: string;
 }
@@ -55,7 +55,7 @@ export const assignImageToTask = async (
   const response = await authenticated(api).post(
     `/projects/${projectId}/images/${imageId}/assign-task/`,
     { task_id: taskId },
-    { headers: { 'Content-Type': 'application/json' } },
+    { headers: { "Content-Type": "application/json" } },
   );
   return response.data;
 };
@@ -67,13 +67,16 @@ export const deleteBatch = async (
   projectId: string,
   batchId: string,
   options?: { waitForCleanup?: boolean },
-): Promise<{ message: string; batch_id: string; job_id?: string; deleted_count?: number; deleted_s3_count?: number }> => {
-  const response = await authenticated(api).delete(
-    `/projects/${projectId}/batch/${batchId}/`,
-    {
-      params: options?.waitForCleanup ? { wait_for_cleanup: true } : undefined,
-    },
-  );
+): Promise<{
+  message: string;
+  batch_id: string;
+  job_id?: string;
+  deleted_count?: number;
+  deleted_s3_count?: number;
+}> => {
+  const response = await authenticated(api).delete(`/projects/${projectId}/batch/${batchId}/`, {
+    params: options?.waitForCleanup ? { wait_for_cleanup: true } : undefined,
+  });
   return response.data;
 };
 
@@ -87,7 +90,7 @@ export const ingestExistingUploads = async (
   const response = await authenticated(api).post(
     `/projects/${projectId}/ingest-uploads/`,
     {},
-    { headers: { 'Content-Type': 'application/json' } },
+    { headers: { "Content-Type": "application/json" } },
   );
   return response.data;
 };
@@ -105,7 +108,7 @@ export const startProjectClassification = async (
     {},
     {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     },
   );
@@ -118,9 +121,7 @@ export const startProjectClassification = async (
 export const getProjectStatus = async (
   projectId: string,
 ): Promise<BatchStatusSummary & { project_id: string }> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/imagery/status/`,
-  );
+  const response = await authenticated(api).get(`/projects/${projectId}/imagery/status/`);
   return response.data;
 };
 
@@ -164,37 +165,27 @@ export interface ProjectMapData {
 export const getProjectTaskImagerySummary = async (
   projectId: string,
 ): Promise<TaskImagerySummary[]> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/imagery/tasks/`,
-  );
+  const response = await authenticated(api).get(`/projects/${projectId}/imagery/tasks/`);
   return response.data;
 };
 
 /**
  * Get project-level review data: images grouped by task across all batches
  */
-export const getProjectReview = async (
-  projectId: string,
-): Promise<ProjectReviewData> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/imagery/review/`,
-  );
+export const getProjectReview = async (projectId: string): Promise<ProjectReviewData> => {
+  const response = await authenticated(api).get(`/projects/${projectId}/imagery/review/`);
   return response.data;
 };
 
 /**
  * Get project-level map data: task geometries + all image points across batches
  */
-export const getProjectMapData = async (
-  projectId: string,
-): Promise<ProjectMapData> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/imagery/map-data/`,
-  );
+export const getProjectMapData = async (projectId: string): Promise<ProjectMapData> => {
+  const response = await authenticated(api).get(`/projects/${projectId}/imagery/map-data/`);
   return response.data;
 };
 
-export type ImageUrlVariant = 'thumb' | 'full' | 'both';
+export type ImageUrlVariant = "thumb" | "full" | "both";
 
 export interface ImageUrls {
   id: string;
@@ -213,7 +204,7 @@ export interface TaskImageUrlsResponse {
 export const getTaskImageUrls = async (
   projectId: string,
   taskId: string,
-  variant: ImageUrlVariant = 'thumb',
+  variant: ImageUrlVariant = "thumb",
 ): Promise<TaskImageUrlsResponse> => {
   const response = await authenticated(api).get(
     `/projects/${projectId}/imagery/task/${taskId}/image-urls/`,
@@ -228,12 +219,12 @@ export const getTaskImageUrls = async (
 export const getBulkImageUrls = async (
   projectId: string,
   imageIds: string[],
-  variant: ImageUrlVariant = 'thumb',
+  variant: ImageUrlVariant = "thumb",
 ): Promise<{ images: ImageUrls[] }> => {
   const response = await authenticated(api).post(
     `/projects/${projectId}/imagery/image-urls/`,
     { image_ids: imageIds, variant },
-    { headers: { 'Content-Type': 'application/json' } },
+    { headers: { "Content-Type": "application/json" } },
   );
   return response.data;
 };
@@ -241,13 +232,8 @@ export const getBulkImageUrls = async (
 /**
  * Get presigned URLs for a single image (for map popup on-click)
  */
-export const getImageUrl = async (
-  projectId: string,
-  imageId: string,
-): Promise<ImageUrls> => {
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/images/${imageId}/url/`,
-  );
+export const getImageUrl = async (projectId: string, imageId: string): Promise<ImageUrls> => {
+  const response = await authenticated(api).get(`/projects/${projectId}/images/${imageId}/url/`);
   return response.data;
 };
 
@@ -308,9 +294,7 @@ export const deleteTaskImage = async (
   projectId: string,
   imageId: string,
 ): Promise<{ message: string; image_id: string }> => {
-  const response = await authenticated(api).delete(
-    `/projects/${projectId}/images/${imageId}/`,
-  );
+  const response = await authenticated(api).delete(`/projects/${projectId}/images/${imageId}/`);
   return response.data;
 };
 
@@ -319,10 +303,14 @@ export const deleteTaskImage = async (
  */
 export const deleteInvalidImages = async (
   projectId: string,
-): Promise<{ message: string; project_id: string; deleted_count: number; deleted_s3_count: number; failed_count?: number }> => {
-  const response = await authenticated(api).delete(
-    `/projects/${projectId}/imagery/invalid/`,
-  );
+): Promise<{
+  message: string;
+  project_id: string;
+  deleted_count: number;
+  deleted_s3_count: number;
+  failed_count?: number;
+}> => {
+  const response = await authenticated(api).delete(`/projects/${projectId}/imagery/invalid/`);
   return response.data;
 };
 
@@ -358,7 +346,7 @@ export const getFlightGapDetectionData = async (
     },
     {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     },
   );
@@ -387,11 +375,9 @@ export const downloadFlightGapGenerationPlan = async (
       drone_type: request.droneType ?? null,
       altitude: request.altitude ?? null,
       rotation: request.rotation ?? null,
-      overlap: request.overlap ?? null
+      overlap: request.overlap ?? null,
     },
-    { responseType: 'blob',
-      headers: { 'Content-Type': 'application/json' }
-    }
+    { responseType: "blob", headers: { "Content-Type": "application/json" } },
   );
   return response.data;
 };

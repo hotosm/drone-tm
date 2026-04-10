@@ -1,5 +1,5 @@
-import { createContext, useContext } from 'react';
-import { MapInstanceType } from './types';
+import { createContext, useContext } from "react";
+import { MapInstanceType } from "./types";
 
 export interface IMapContext {
   map: MapInstanceType | null;
@@ -11,7 +11,7 @@ export const MapContext = createContext<IMapContext | null>(null);
 export const useMap = () => {
   const context = useContext(MapContext);
   if (context === null) {
-    throw new Error('useMap must be used within a MapProvider');
+    throw new Error("useMap must be used within a MapProvider");
   }
   return context;
 };

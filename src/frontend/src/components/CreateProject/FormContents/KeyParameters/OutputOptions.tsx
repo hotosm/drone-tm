@@ -1,4 +1,4 @@
-import Icon from '@Components/common/Icon';
+import Icon from "@Components/common/Icon";
 
 interface IOutputOptionsProps {
   icon: any;
@@ -9,22 +9,12 @@ interface IOutputOptionsProps {
   value: string;
 }
 
-const OutputOptions = ({
-  icon,
-  name,
-  checked,
-  label,
-  register,
-  value,
-}: IOutputOptionsProps) => {
+const OutputOptions = ({ icon, name, checked, label, register, value }: IOutputOptionsProps) => {
   return (
     <label
-      className={`naxatw-relative naxatw-flex naxatw-h-[86px] naxatw-max-w-[156px] naxatw-cursor-pointer naxatw-justify-center naxatw-rounded hover:naxatw-bg-redlight ${checked ? 'naxatw-bg-redlight' : ''}`}
+      className={`naxatw-relative naxatw-flex naxatw-h-[86px] naxatw-max-w-[156px] naxatw-cursor-pointer naxatw-justify-center naxatw-rounded hover:naxatw-bg-redlight ${checked ? "naxatw-bg-redlight" : ""}`}
     >
-      <div
-        id={label}
-        className="naxatw-flex naxatw-items-center naxatw-justify-center"
-      >
+      <div id={label} className="naxatw-flex naxatw-items-center naxatw-justify-center">
         <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center">
           <img src={icon} alt="" sizes="" />
           <div>{label}</div>

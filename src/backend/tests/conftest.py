@@ -191,7 +191,7 @@ async def freetown_dataset_loader():
                 FREETOWN_DATASET_DIR, "images-to-delete-for-gaps.txt"
             )
             if os.path.exists(gap_file):
-                with open(gap_file, "r") as f:
+                with open(gap_file) as f:
                     gap_filenames = {
                         line.strip().split("/")[-1] for line in f if "DJI_" in line
                     }

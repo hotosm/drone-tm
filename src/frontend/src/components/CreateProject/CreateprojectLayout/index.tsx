@@ -1,35 +1,29 @@
-import { useNavigate } from 'react-router-dom';
-import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { FieldValues, useForm } from 'react-hook-form';
+import { useNavigate } from "react-router-dom";
+import { useTypedSelector, useTypedDispatch } from "@Store/hooks";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { FieldValues, useForm } from "react-hook-form";
 import {
   BasicInformationForm,
   DefineAOIForm,
   KeyParametersForm,
   ContributionsForm,
   GenerateTaskForm,
-} from '@Components/CreateProject/FormContents';
-import { UseFormPropsType } from '@Components/common/FormUI/types';
-import { FlexRow } from '@Components/common/Layouts';
-import { Button } from '@Components/RadixComponents/Button';
-import centroid from '@turf/centroid';
-import {
-  resetUploadedAndDrawnAreas,
-  setCreateProjectState,
-} from '@Store/actions/createproject';
-import { postCreateProject, postTaskBoundary } from '@Services/createproject';
-import { toast } from 'react-toastify';
-import {
-  StepComponentMap,
-  stepDescriptionComponents,
-} from '@Constants/createProject';
-import { convertGeojsonToFile } from '@Utils/convertLayerUtils';
-import prepareFormData from '@Utils/prepareFormData';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { getFrontOverlap, getSideOverlap, gsdToAltitude } from '@Utils/index';
-import { useEffect, useState } from 'react';
-import { getCountry } from '@Services/common';
-import { setCommonState } from '@Store/actions/common';
+} from "@Components/CreateProject/FormContents";
+import { UseFormPropsType } from "@Components/common/FormUI/types";
+import { FlexRow } from "@Components/common/Layouts";
+import { Button } from "@Components/RadixComponents/Button";
+import centroid from "@turf/centroid";
+import { resetUploadedAndDrawnAreas, setCreateProjectState } from "@Store/actions/createproject";
+import { postCreateProject, postTaskBoundary } from "@Services/createproject";
+import { toast } from "react-toastify";
+import { StepComponentMap, stepDescriptionComponents } from "@Constants/createProject";
+import { convertGeojsonToFile } from "@Utils/convertLayerUtils";
+import prepareFormData from "@Utils/prepareFormData";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { getFrontOverlap, getSideOverlap, gsdToAltitude } from "@Utils/index";
+import { useEffect, useState } from "react";
+import { getCountry } from "@Services/common";
+import { setCommonState } from "@Store/actions/common";
 
 /**
  * This function looks up the provided map of components to find and return
@@ -70,54 +64,36 @@ const CreateprojectLayout = () => {
   const navigate = useNavigate();
   const [projectCentroid, setProjectCentroid] = useState<number[] | null>(null);
 
-  const activeStep = useTypedSelector(state => state.createproject.activeStep);
-  const totalProjectArea = useTypedSelector(
-    state => state.createproject.totalProjectArea,
-  );
-  const splitGeojson = useTypedSelector(
-    state => state.createproject.splitGeojson,
-  );
-  const isTerrainFollow = useTypedSelector(
-    state => state.createproject.isTerrainFollow,
-  );
-  const isNoflyzonePresent = useTypedSelector(
-    state => state.createproject.isNoflyzonePresent,
-  );
+  const activeStep = useTypedSelector((state) => state.createproject.activeStep);
+  const totalProjectArea = useTypedSelector((state) => state.createproject.totalProjectArea);
+  const splitGeojson = useTypedSelector((state) => state.createproject.splitGeojson);
+  const isTerrainFollow = useTypedSelector((state) => state.createproject.isTerrainFollow);
+  const isNoflyzonePresent = useTypedSelector((state) => state.createproject.isNoflyzonePresent);
   const requireApprovalFromManagerForLocking = useTypedSelector(
-    state => state.createproject.requireApprovalFromManagerForLocking,
+    (state) => state.createproject.requireApprovalFromManagerForLocking,
   );
-  const measurementType = useTypedSelector(
-    state => state.createproject.measurementType,
-  );
-  const projectImage = useTypedSelector(
-    state => state.createproject.projectMapImage,
-  );
-  const capturedProjectMap = useTypedSelector(
-    state => state.createproject.capturedProjectMap,
-  );
-  const imageMergeType = useTypedSelector(
-    state => state.createproject.imageMergeType,
-  );
+  const measurementType = useTypedSelector((state) => state.createproject.measurementType);
+  const projectImage = useTypedSelector((state) => state.createproject.projectMapImage);
+  const capturedProjectMap = useTypedSelector((state) => state.createproject.capturedProjectMap);
+  const imageMergeType = useTypedSelector((state) => state.createproject.imageMergeType);
   const requiresApprovalFromRegulator = useTypedSelector(
-    state => state.createproject.requiresApprovalFromRegulator,
+    (state) => state.createproject.requiresApprovalFromRegulator,
   );
-  const regulatorEmails = useTypedSelector(
-    state => state.createproject.regulatorEmails,
-  );
-  const demType = useTypedSelector(state => state.createproject.demType);
+  const regulatorEmails = useTypedSelector((state) => state.createproject.regulatorEmails);
+  const demType = useTypedSelector((state) => state.createproject.demType);
 
   const initialState: FieldValues = {
-    name: '',
+    name: "",
     // short_description: '',
-    description: '',
+    description: "",
     outline: undefined,
     no_fly_zones: undefined,
-    gsd_cm_px: '',
-    task_split_dimension: '',
+    gsd_cm_px: "",
+    task_split_dimension: "",
     is_terrain_follow: false,
     // task_split_type: 1,
-    per_task_instructions: '',
-    deadline_at: '',
+    per_task_instructions: "",
+    deadline_at: "",
     visibility: 0,
     dem: undefined,
     requires_approval_from_manager_for_locking: false,
@@ -139,15 +115,10 @@ const CreateprojectLayout = () => {
     defaultValues: initialState,
   });
 
-  const { mutate: uploadTaskBoundary, isPending } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
+  const { mutate: uploadTaskBoundary, isPending } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskBoundary,
     onSuccess: () => {
-      toast.success('Project Created Successfully');
+      toast.success("Project Created Successfully");
       reset();
       dispatch(
         setCreateProjectState({
@@ -157,9 +128,9 @@ const CreateprojectLayout = () => {
           uploadedNoFlyZone: null,
         }),
       );
-      navigate('/projects');
+      navigate("/projects");
     },
-    onError: err => {
+    onError: (err) => {
       toast.error(err.message);
     },
   });
@@ -180,8 +151,8 @@ const CreateprojectLayout = () => {
       reset();
       dispatch(resetUploadedAndDrawnAreas());
     },
-    onError: err => {
-      toast.error(err?.response?.data?.detail || err?.message || '');
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail || err?.message || "");
     },
   });
 
@@ -204,9 +175,9 @@ const CreateprojectLayout = () => {
       getCountry({
         lon: projectCentroid?.[0] || 0,
         lat: projectCentroid?.[1] || 0,
-        format: 'json',
+        format: "json",
       }),
-    queryKey: ['country', projectCentroid?.[0], projectCentroid?.[1]],
+    queryKey: ["country", projectCentroid?.[0], projectCentroid?.[1]],
     enabled: !!projectCentroid,
   });
 
@@ -220,22 +191,19 @@ const CreateprojectLayout = () => {
 
   const onSubmit = (data: any) => {
     if (activeStep === 2) {
-      if (
-        !data?.outline ||
-        (Array.isArray(data?.outline) && data?.outline?.length === 0)
-      ) {
-        toast.error('Please upload or draw and save project area');
+      if (!data?.outline || (Array.isArray(data?.outline) && data?.outline?.length === 0)) {
+        toast.error("Please upload or draw and save project area");
         return;
       }
       if (totalProjectArea > 100000000) {
-        toast.error('Project area should not exceed 100km²');
+        toast.error("Project area should not exceed 100km²");
         return;
       }
       if (
-        isNoflyzonePresent === 'yes' &&
+        isNoflyzonePresent === "yes" &&
         (!data?.no_fly_zones || data?.no_fly_zones?.length === 0)
       ) {
-        toast.error('Please upload or draw and save No Fly zone area');
+        toast.error("Please upload or draw and save No Fly zone area");
         return;
       }
       const newCentroid = centroid(data.outline)?.geometry?.coordinates;
@@ -243,23 +211,21 @@ const CreateprojectLayout = () => {
     }
 
     if (activeStep === 3) {
-      const finalOutput = data?.final_output?.filter(
-        (output: string | boolean) => output,
-      );
+      const finalOutput = data?.final_output?.filter((output: string | boolean) => output);
       if (!finalOutput?.length) {
-        toast.error('Please select the final output');
+        toast.error("Please select the final output");
         return;
       }
-      setValue('final_output', finalOutput);
+      setValue("final_output", finalOutput);
     }
 
     if (activeStep === 4 && !splitGeojson) return;
 
     if (activeStep === 5) {
-      if (requiresApprovalFromRegulator === 'required') {
+      if (requiresApprovalFromRegulator === "required") {
         if (regulatorEmails?.length) {
-          setValue('requires_approval_from_regulator', true);
-          setValue('regulator_emails', regulatorEmails);
+          setValue("requires_approval_from_regulator", true);
+          setValue("regulator_emails", regulatorEmails);
         } else {
           toast.error("Please provide regulator's email");
           return;
@@ -274,47 +240,41 @@ const CreateprojectLayout = () => {
 
     // get altitude
     const agl =
-      measurementType === 'gsd'
-        ? gsdToAltitude(data?.gsd_cm_px)
-        : data?.altitude_from_ground;
+      measurementType === "gsd" ? gsdToAltitude(data?.gsd_cm_px) : data?.altitude_from_ground;
 
     const refactoredData = {
       ...data,
       is_terrain_follow: isTerrainFollow,
       requires_approval_from_manager_for_locking:
-        requireApprovalFromManagerForLocking === 'required',
+        requireApprovalFromManagerForLocking === "required",
       deadline_at: data?.deadline_at ? data?.deadline_at : null,
       front_overlap:
-        imageMergeType === 'spacing'
+        imageMergeType === "spacing"
           ? getFrontOverlap(agl, data?.forward_spacing)
           : data?.front_overlap,
       side_overlap:
-        imageMergeType === 'spacing'
-          ? getSideOverlap(agl, data?.side_spacing)
-          : data?.side_overlap,
+        imageMergeType === "spacing" ? getSideOverlap(agl, data?.side_spacing) : data?.side_overlap,
 
-      requires_approval_from_regulator:
-        requiresApprovalFromRegulator === 'required',
+      requires_approval_from_regulator: requiresApprovalFromRegulator === "required",
       regulator_emails: regulatorEmails,
     };
     delete refactoredData?.forward_spacing;
     delete refactoredData?.side_spacing;
 
     // remove key
-    if (isNoflyzonePresent === 'no') delete refactoredData?.no_fly_zones;
+    if (isNoflyzonePresent === "no") delete refactoredData?.no_fly_zones;
     delete refactoredData?.dem;
-    if (measurementType === 'gsd') delete refactoredData?.altitude_from_ground;
+    if (measurementType === "gsd") delete refactoredData?.altitude_from_ground;
     else delete refactoredData?.gsd_cm_px;
-    if (requiresApprovalFromRegulator !== 'required')
-      delete refactoredData?.regulator_emails;
+    if (requiresApprovalFromRegulator !== "required") delete refactoredData?.regulator_emails;
 
     // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
     const formData = new FormData();
-    formData.append('project_info', JSON.stringify({ ...refactoredData }));
-    formData.append('image', projectImage.projectMapImage);
+    formData.append("project_info", JSON.stringify({ ...refactoredData }));
+    formData.append("image", projectImage.projectMapImage);
 
-    if (isTerrainFollow && demType === 'manual') {
-      formData.append('dem', data?.dem?.[0]?.file);
+    if (isTerrainFollow && demType === "manual") {
+      formData.append("dem", data?.dem?.[0]?.file);
     }
     createProject(formData);
   };
@@ -351,18 +311,14 @@ const CreateprojectLayout = () => {
           </div>
           <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-h-9 naxatw-w-full naxatw-justify-between naxatw-px-8">
             {activeStep !== 1 ? (
-              <Button
-                onClick={onPrevBtnClick}
-                className="!naxatw-text-red"
-                leftIcon="chevron_left"
-              >
+              <Button onClick={onPrevBtnClick} className="!naxatw-text-red" leftIcon="chevron_left">
                 Previous
               </Button>
             ) : (
               <div />
             )}
             <Button
-              onClick={e => {
+              onClick={(e) => {
                 e.preventDefault();
                 handleSubmit(onSubmit)();
               }}
@@ -370,12 +326,7 @@ const CreateprojectLayout = () => {
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
               withLoader
-              isLoading={
-                isPending ||
-                isCreatingProject ||
-                !capturedProjectMap ||
-                isFetchingCountry
-              }
+              isLoading={isPending || isCreatingProject || !capturedProjectMap || isFetchingCountry}
               disabled={
                 isPending ||
                 isCreatingProject ||
@@ -383,7 +334,7 @@ const CreateprojectLayout = () => {
                 (activeStep === 4 && !splitGeojson)
               }
             >
-              {activeStep === 5 ? 'Create' : 'Next'}
+              {activeStep === 5 ? "Create" : "Next"}
             </Button>
           </FlexRow>
         </div>

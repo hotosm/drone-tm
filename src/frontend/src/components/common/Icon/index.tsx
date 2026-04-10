@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface IIconProps extends React.HTMLAttributes<HTMLElement> {
   name: string;
@@ -10,7 +10,7 @@ interface IIconProps extends React.HTMLAttributes<HTMLElement> {
 export default function Icon({
   name,
   className,
-  iconSymbolType = 'material-symbols-outlined',
+  iconSymbolType = "material-symbols-outlined",
   onClick,
 }: IIconProps): React.JSX.Element {
   return (

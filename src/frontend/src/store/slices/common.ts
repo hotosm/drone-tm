@@ -1,14 +1,11 @@
-import { createSlice } from '@reduxjs/toolkit';
-import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
-import {
-  ModalContentsType,
-  PromptDialogContentsType,
-} from '@Constants/modalContents';
-import persist from '@Store/persist';
+import { createSlice } from "@reduxjs/toolkit";
+import type { CaseReducer, PayloadAction } from "@reduxjs/toolkit";
+import { ModalContentsType, PromptDialogContentsType } from "@Constants/modalContents";
+import persist from "@Store/persist";
 
 export interface documentDetailType {
   uri: string;
-  fileType: 'png' | 'jpeg' | 'pdf' | 'jpg';
+  fileType: "png" | "jpeg" | "pdf" | "jpg";
 }
 
 export interface CommonState {
@@ -19,7 +16,7 @@ export interface CommonState {
   showMap: boolean;
   openSignInMenu: boolean;
   userProfileActiveTab: number;
-  isCertifiedDroneUser: 'yes' | 'no';
+  isCertifiedDroneUser: "yes" | "no";
   projectSearchKey: string;
   selectedDocumentDetails: documentDetailType | null;
   projectCountry: string | null;
@@ -33,33 +30,33 @@ const initialState: CommonState = {
   showMap: true,
   openSignInMenu: false,
   userProfileActiveTab: 1,
-  isCertifiedDroneUser: 'no',
-  projectSearchKey: '',
+  isCertifiedDroneUser: "no",
+  projectSearchKey: "",
   selectedDocumentDetails: null,
   projectCountry: null,
 };
 
-const setCommonState: CaseReducer<
-  CommonState,
-  PayloadAction<Partial<CommonState>>
-> = (state, action) => ({
+const setCommonState: CaseReducer<CommonState, PayloadAction<Partial<CommonState>>> = (
+  state,
+  action,
+) => ({
   ...state,
   ...action.payload,
 });
 
-const toggleModal: CaseReducer<
-  CommonState,
-  PayloadAction<ModalContentsType | undefined>
-> = (state, action) => ({
+const toggleModal: CaseReducer<CommonState, PayloadAction<ModalContentsType | undefined>> = (
+  state,
+  action,
+) => ({
   ...state,
   showModal: !!action.payload,
   modalContent: action.payload || state.modalContent,
 });
 
-const setModalContent: CaseReducer<
-  CommonState,
-  PayloadAction<ModalContentsType>
-> = (state, action) => ({
+const setModalContent: CaseReducer<CommonState, PayloadAction<ModalContentsType>> = (
+  state,
+  action,
+) => ({
   ...state,
   modalContent: action.payload || null,
 });
@@ -73,16 +70,16 @@ const togglePromptDialog: CaseReducer<
   promptDialogContent: action.payload || state.promptDialogContent,
 });
 
-const setPromptDialogContent: CaseReducer<
-  CommonState,
-  PayloadAction<PromptDialogContentsType>
-> = (state, action) => ({
+const setPromptDialogContent: CaseReducer<CommonState, PayloadAction<PromptDialogContentsType>> = (
+  state,
+  action,
+) => ({
   ...state,
   promptDialogContent: action.payload || null,
 });
 
 const commonSlice = createSlice({
-  name: 'common',
+  name: "common",
   initialState,
   reducers: {
     setCommonState,
@@ -95,4 +92,4 @@ const commonSlice = createSlice({
 
 export { commonSlice };
 
-export default persist('common', [], commonSlice.reducer);
+export default persist("common", [], commonSlice.reducer);

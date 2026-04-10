@@ -1,13 +1,13 @@
-import { html, LitElement, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { Store } from '../../store';
-import './raw-image-marker';
+import { html, LitElement, PropertyValues } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import { Store } from "../../store";
+import "./raw-image-marker";
 
 /**
  * Displays fetched S3 images for GCP marking with pagination.
  * Images are passed in via the `prefetchedImages` property (fetched by the parent modal).
  */
-@customElement('raw-image-fetch')
+@customElement("raw-image-fetch")
 export class RawImageFetch extends LitElement {
   /** Pre-fetched image URLs from the parent modal */
   @property({ type: Array }) prefetchedImages: string[] = [];
@@ -85,7 +85,11 @@ export class RawImageFetch extends LitElement {
 
   protected updated(_changedProperties: PropertyValues): void {
     _changedProperties.forEach((_, propName) => {
-      if (propName === 'numberOfPages' || propName === 'rawImageList' || propName === 'currentPage') {
+      if (
+        propName === "numberOfPages" ||
+        propName === "rawImageList" ||
+        propName === "currentPage"
+      ) {
         if (this.numberOfPages) {
           this.getOnViewImages();
         }
@@ -121,7 +125,7 @@ export class RawImageFetch extends LitElement {
 
   getFileName(fileUrl: string): string {
     const parsedUrl = new URL(fileUrl);
-    const pathSegments = parsedUrl.pathname.split('/');
+    const pathSegments = parsedUrl.pathname.split("/");
     const fileName = pathSegments[pathSegments.length - 1];
     return fileName;
   }
@@ -129,9 +133,10 @@ export class RawImageFetch extends LitElement {
   render() {
     return html`
       <div class="tw-flex tw-max-h-full tw-gap-4 tw-flex-wrap tw-w-full tw-overflow-y-auto tw-h-[70vh] tw-mt-4">
-        ${this.onViewImages.length
-          ? this.onViewImages?.map(
-              ({ image, index }: any) => html`
+        ${
+          this.onViewImages.length
+            ? this.onViewImages?.map(
+                ({ image, index }: any) => html`
                 <raw-image-marker
                   .imageName=${this.getFileName(image)}
                   .imageUrl=${image}
@@ -140,14 +145,18 @@ export class RawImageFetch extends LitElement {
                   .mark=${this.gcpMarkList?.[this.getFileName(image)]}
                   .selectedGcpDetails=${this.selectedGcpDetails}
                 ></raw-image-marker>
+              `,
+              )
+            : html`
+                <div></div>
               `
-            )
-          : html`<div></div>`}
+        }
       </div>
       <div class="tw-flex tw-justify-between tw-w-full tw-absolute tw-bottom-4">
         <div></div>
-        ${this.rawImageList?.length
-          ? html`
+        ${
+          this.rawImageList?.length
+            ? html`
               <div class="tw-flex tw-gap-1">
                 <wa-button size="small" @click=${() => this.previous()}><<</wa-button>
                 ${[...Array(this.numberOfPages)].map(
@@ -155,17 +164,20 @@ export class RawImageFetch extends LitElement {
                     html`
                       <wa-button
                         size="small"
-                        class=${this.currentPage === index + 1 ? 'is-active' : ''}
+                        class=${this.currentPage === index + 1 ? "is-active" : ""}
                         @click=${() => this.goTo(index + 1)}
                       >
                         ${index + 1}
                       </wa-button>
-                    `
+                    `,
                 )}
                 <wa-button size="small" class="active-btn" @click=${() => this.next()}>>></wa-button>
               </div>
             `
-          : html`<div></div>`}
+            : html`
+                <div></div>
+              `
+        }
         <wa-button size="small" class="primary" @click=${() => this.updateGcpData()}>Save Changes</wa-button>
       </div>
     `;

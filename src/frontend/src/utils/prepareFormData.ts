@@ -6,14 +6,14 @@ export default function prepareFormData(data: Record<string, any>) {
       [key]:
         value instanceof File
           ? value
-          : Array.isArray(value) || typeof value === 'object'
+          : Array.isArray(value) || typeof value === "object"
             ? JSON.stringify(value)
             : value,
     }),
     {},
   );
   const formDataObj = new FormData();
-  Object.keys(formData).forEach(key => {
+  Object.keys(formData).forEach((key) => {
     // @ts-ignore
     formDataObj.append(key, formData[key]);
   });

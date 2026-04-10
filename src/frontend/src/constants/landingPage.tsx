@@ -1,34 +1,34 @@
 /* eslint-disable import/prefer-default-export */
-import rocketIcon from '@Assets/images/LandingPage/RockerIcon.svg';
-import targetIcon from '@Assets/images/LandingPage/TargetIcon.svg';
+import rocketIcon from "@Assets/images/LandingPage/RockerIcon.svg";
+import targetIcon from "@Assets/images/LandingPage/TargetIcon.svg";
 
 export const accordionData = [
   {
     id: 1,
-    title: 'Enhanced Crisis Response',
+    title: "Enhanced Crisis Response",
     description:
-      'The Drone Tasking Manager will enable faster, more precise deployment of drones during emergencies, improving resource allocation and decision-making in critical situations. This will lead to quicker and more effective crisis interventions.',
+      "The Drone Tasking Manager will enable faster, more precise deployment of drones during emergencies, improving resource allocation and decision-making in critical situations. This will lead to quicker and more effective crisis interventions.",
     isOpen: true,
   },
   {
     id: 2,
-    title: 'Community Empowerment',
+    title: "Community Empowerment",
     description:
-      'The Drone Tasking Manager will empower local communities by providing them with access to real-time aerial data and insights. This tool will enhance their ability to participate in decision-making processes, improve disaster preparedness, and support local initiatives with accurate, timely information.',
+      "The Drone Tasking Manager will empower local communities by providing them with access to real-time aerial data and insights. This tool will enhance their ability to participate in decision-making processes, improve disaster preparedness, and support local initiatives with accurate, timely information.",
     isOpen: false,
   },
   {
     id: 3,
-    title: 'Cost Reduction',
+    title: "Cost Reduction",
     description:
-      'The Drone Tasking Manager will lower operational costs by optimizing drone tasking, reducing the need for manual interventions, and minimizing resource wastage. This efficiency will lead to significant savings in both time and money during operations.',
+      "The Drone Tasking Manager will lower operational costs by optimizing drone tasking, reducing the need for manual interventions, and minimizing resource wastage. This efficiency will lead to significant savings in both time and money during operations.",
     isOpen: false,
   },
   {
     id: 4,
-    title: 'Data Accessibility',
+    title: "Data Accessibility",
     description:
-      'The Drone Tasking Manager will provide users with easy access to drone data, enabling better decision-making and more informed actions. This centralized data access will ensure that critical information is readily available to all stakeholders.',
+      "The Drone Tasking Manager will provide users with easy access to drone data, enabling better decision-making and more informed actions. This centralized data access will ensure that critical information is readily available to all stakeholders.",
     isOpen: false,
   },
 ];
@@ -36,67 +36,67 @@ export const accordionData = [
 export const userAndRolesData = [
   {
     id: 1,
-    title: 'Project Managers',
+    title: "Project Managers",
     listItems: [
       {
         id: 1,
-        text: 'Create areas for drone mapping',
+        text: "Create areas for drone mapping",
       },
       {
         id: 2,
-        text: 'Plan a flight for the desired imagery characteristics such as flying height, overlaps, angles, Ground Sampling Distance (GSD, essentially resolution), etc.',
+        text: "Plan a flight for the desired imagery characteristics such as flying height, overlaps, angles, Ground Sampling Distance (GSD, essentially resolution), etc.",
       },
       {
         id: 3,
-        text: 'Publish Tasks for Drone Operators',
+        text: "Publish Tasks for Drone Operators",
       },
       {
         id: 4,
-        text: 'View the progress and updates',
+        text: "View the progress and updates",
       },
       {
         id: 5,
-        text: 'Review the final output',
+        text: "Review the final output",
       },
     ],
   },
   {
     id: 2,
-    title: 'Drone Operators',
+    title: "Drone Operators",
     listItems: [
       {
         id: 1,
-        text: 'Register to participate in imagery acquisition',
+        text: "Register to participate in imagery acquisition",
       },
       {
         id: 2,
-        text: 'Select areas that they are interested in flying from the overall project area',
+        text: "Select areas that they are interested in flying from the overall project area",
       },
       {
         id: 3,
-        text: 'Download flight plans appropriate to their hardware and capacity',
+        text: "Download flight plans appropriate to their hardware and capacity",
       },
       {
         id: 4,
-        text: 'Operate the drone by pushing a “Fly mission” button, causing the drone to cover the assigned area automatically',
+        text: "Operate the drone by pushing a “Fly mission” button, causing the drone to cover the assigned area automatically",
       },
       {
         id: 5,
-        text: 'Upload the resulting images to a processing server',
+        text: "Upload the resulting images to a processing server",
       },
     ],
   },
   {
     id: 3,
-    title: 'Data Users',
+    title: "Data Users",
     listItems: [
       {
         id: 1,
-        text: 'Task areas for drone mapping',
+        text: "Task areas for drone mapping",
       },
       {
         id: 2,
-        text: 'Define desired imagery characteristics such as Ground Sampling Distance (GSD, essentially resolution), overlap, angles, etc.',
+        text: "Define desired imagery characteristics such as Ground Sampling Distance (GSD, essentially resolution), overlap, angles, etc.",
       },
     ],
   },
@@ -105,66 +105,66 @@ export const userAndRolesData = [
 export const ourRationaleData = [
   {
     id: 1,
-    title: 'Limited Access to High Resolution Aerial Datasets',
+    title: "Limited Access to High Resolution Aerial Datasets",
     description:
-      'In low-income and disaster-prone areas, access to near real-time satellite datasets is severely limited. High-resolution satellite imagery, when available, is often expensive and out-of-date. Additionally, full-scale aircraft mapping is not a viable option due to high costs and operational complexity.',
+      "In low-income and disaster-prone areas, access to near real-time satellite datasets is severely limited. High-resolution satellite imagery, when available, is often expensive and out-of-date. Additionally, full-scale aircraft mapping is not a viable option due to high costs and operational complexity.",
   },
   {
     id: 2,
-    title: 'Limited Engagement Of Communities',
+    title: "Limited Engagement Of Communities",
     description:
-      'Traditional mapping solutions involve professional consultants with expensive equipment who engage with communities only briefly, which can lead to delays and lack of locally relevant data.',
+      "Traditional mapping solutions involve professional consultants with expensive equipment who engage with communities only briefly, which can lead to delays and lack of locally relevant data.",
   },
   {
     id: 3,
-    title: 'Commercial Proprietary Software to Consumer',
+    title: "Commercial Proprietary Software to Consumer",
     description:
-      'Many existing drone operation tools are proprietary and not designed for large-scale collaborative efforts, which limits their usefulness for community-driven projects',
+      "Many existing drone operation tools are proprietary and not designed for large-scale collaborative efforts, which limits their usefulness for community-driven projects",
   },
   {
     id: 4,
-    title: 'Regular Compliance in Conflict Areas',
+    title: "Regular Compliance in Conflict Areas",
     description:
-      'The use of drones, especially in sensitive or conflict-prone areas, raises significant safety and regulatory concerns.',
+      "The use of drones, especially in sensitive or conflict-prone areas, raises significant safety and regulatory concerns.",
   },
 ];
 
 export const featuresData = [
   {
     id: 1,
-    title: 'User Management',
+    title: "User Management",
     description:
-      'Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.',
+      "Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.",
   },
   {
     id: 2,
-    title: 'Survey Project Creation',
+    title: "Survey Project Creation",
     description:
-      'Streamlines project setup, allows for custom project specifications, and ensures all participants clear guidelines and objectives.',
+      "Streamlines project setup, allows for custom project specifications, and ensures all participants clear guidelines and objectives.",
   },
   {
     id: 3,
-    title: 'Data/Flight Plan Upload',
+    title: "Data/Flight Plan Upload",
     description:
-      'Ensures consistency and accuracy in flight plans, maximizes area coverage, and minimizes data gaps.',
+      "Ensures consistency and accuracy in flight plans, maximizes area coverage, and minimizes data gaps.",
   },
   {
     id: 4,
-    title: 'Photogrammetric Processing',
+    title: "Photogrammetric Processing",
     description:
-      'Provides a seamless workflow from data capture to processing, quickly turning raw images into actionable insights.',
+      "Provides a seamless workflow from data capture to processing, quickly turning raw images into actionable insights.",
   },
   {
     id: 5,
-    title: 'Notifications/Status Management',
+    title: "Notifications/Status Management",
     description:
-      ' Keeps all users informed and engaged, ensures timely responses to project needs, and enhances collaborative efforts.',
+      " Keeps all users informed and engaged, ensures timely responses to project needs, and enhances collaborative efforts.",
   },
   {
     id: 6,
-    title: 'Data Visualization',
+    title: "Data Visualization",
     description:
-      'Aids in better understanding and interpretation of the data, supports decision-making processes, and enhances presentation of findings.',
+      "Aids in better understanding and interpretation of the data, supports decision-making processes, and enhances presentation of findings.",
   },
 ];
 
@@ -172,30 +172,30 @@ export const aboutData = [
   {
     id: 1,
     icon: rocketIcon,
-    title: 'Our Motivation',
+    title: "Our Motivation",
     description:
-      'Drones belonging to and operated by communities are more effective because they are in place and can respond immediately, responsibly, and take into account the needs of the community as they see them.',
+      "Drones belonging to and operated by communities are more effective because they are in place and can respond immediately, responsibly, and take into account the needs of the community as they see them.",
   },
   {
     id: 2,
     icon: targetIcon,
-    title: 'Our Vision',
+    title: "Our Vision",
     description:
-      ' A user-friendly, inclusive application suite enabling anyone with access to a drone, even an inexpensive consumer or DIY drone, to contribute easily and effectively to a global free and open aerial imagery repository.',
+      " A user-friendly, inclusive application suite enabling anyone with access to a drone, even an inexpensive consumer or DIY drone, to contribute easily and effectively to a global free and open aerial imagery repository.",
   },
 ];
 
 export const caseStudiesData = [
   {
     id: 1,
-    title: 'Piloting drone tasking manager in the caribbean',
+    title: "Piloting drone tasking manager in the caribbean",
     description:
-      ' Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.',
+      " Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.",
   },
   {
     id: 2,
-    title: 'Piloting drone tasking manager in the caribbean',
+    title: "Piloting drone tasking manager in the caribbean",
     description:
-      ' Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.',
+      " Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.",
   },
 ];

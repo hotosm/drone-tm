@@ -1,16 +1,16 @@
-import { useGetTaskListQuery } from '@Api/dashboard';
-import NoDataComponent from '@Components/common/DataTable/NoDataFound';
-import { FlexColumn } from '@Components/common/Layouts';
-import { Button } from '@Components/RadixComponents/Button';
-import { taskStatusObj } from '@Constants/index';
-import { postTaskStatus } from '@Services/project';
-import { setCommonState, toggleModal } from '@Store/actions/common';
-import { documentDetailType } from '@Store/slices/common';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { getFileExtension } from '@Utils/index';
-import { useDispatch } from 'react-redux';
-import { toast } from 'react-toastify';
+import { useGetTaskListQuery } from "@Api/dashboard";
+import NoDataComponent from "@Components/common/DataTable/NoDataFound";
+import { FlexColumn } from "@Components/common/Layouts";
+import { Button } from "@Components/RadixComponents/Button";
+import { taskStatusObj } from "@Constants/index";
+import { postTaskStatus } from "@Services/project";
+import { setCommonState, toggleModal } from "@Store/actions/common";
+import { documentDetailType } from "@Store/slices/common";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { getFileExtension } from "@Utils/index";
+import { useDispatch } from "react-redux";
+import { toast } from "react-toastify";
 
 const RequestLogs = () => {
   const dispatch = useDispatch();
@@ -25,9 +25,9 @@ const RequestLogs = () => {
   const { mutate: respondToRequest } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      toast.success('Responded to the request');
-      queryClient.invalidateQueries({ queryKey: ['task-list'] });
-      queryClient.invalidateQueries({ queryKey: ['task-statistics'] });
+      toast.success("Responded to the request");
+      queryClient.invalidateQueries({ queryKey: ["task-list"] });
+      queryClient.invalidateQueries({ queryKey: ["task-statistics"] });
     },
     onError: (err: any) => {
       toast.error(err.message);
@@ -38,7 +38,7 @@ const RequestLogs = () => {
     respondToRequest({
       projectId,
       taskId,
-      data: { event: 'reject' },
+      data: { event: "reject" },
     });
   };
 
@@ -46,7 +46,7 @@ const RequestLogs = () => {
     respondToRequest({
       projectId,
       taskId,
-      data: { event: 'fly' },
+      data: { event: "fly" },
     });
   };
 
@@ -70,9 +70,8 @@ const RequestLogs = () => {
               >
                 <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
                   <div>
-                    The <strong>Task# {task.project_task_index}</strong> from{' '}
-                    <strong>{task?.project_name}</strong> project is requested
-                    for flight.
+                    The <strong>Task# {task.project_task_index}</strong> from{" "}
+                    <strong>{task?.project_name}</strong> project is requested for flight.
                   </div>
                   <div className="naxatw-flex naxatw-gap-1">
                     {task?.certificate_url && (
@@ -86,15 +85,13 @@ const RequestLogs = () => {
                               ) as documentDetailType,
                             }),
                           );
-                          dispatch(toggleModal('document-preview'));
+                          dispatch(toggleModal("document-preview"));
                         }}
                         role="button"
                         tabIndex={0}
                         onKeyDown={() => {}}
                       >
-                        <i className="material-icons-outlined naxatw-text-red">
-                          description
-                        </i>
+                        <i className="material-icons-outlined naxatw-text-red">description</i>
                         <p className="naxatw-text-sm group-hover:naxatw-underline">
                           Drone Operator Certificate
                         </p>
@@ -111,15 +108,13 @@ const RequestLogs = () => {
                               ) as documentDetailType,
                             }),
                           );
-                          dispatch(toggleModal('document-preview'));
+                          dispatch(toggleModal("document-preview"));
                         }}
                         role="button"
                         tabIndex={0}
                         onKeyDown={() => {}}
                       >
-                        <i className="material-icons-outlined naxatw-text-red">
-                          description
-                        </i>
+                        <i className="material-icons-outlined naxatw-text-red">description</i>
                         <p className="naxatw-text-sm group-hover:naxatw-underline">
                           Drone Registration Certificate
                         </p>

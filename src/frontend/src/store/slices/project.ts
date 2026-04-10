@@ -1,6 +1,6 @@
-import { createSlice } from '@reduxjs/toolkit';
-import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
-import persist from '@Store/persist';
+import { createSlice } from "@reduxjs/toolkit";
+import type { CaseReducer, PayloadAction } from "@reduxjs/toolkit";
+import persist from "@Store/persist";
 
 export interface ProjectState {
   individualProjectActiveTab: string;
@@ -14,26 +14,26 @@ export interface ProjectState {
 }
 
 const initialState: ProjectState = {
-  individualProjectActiveTab: 'about',
+  individualProjectActiveTab: "about",
   tasksData: null,
   projectArea: null,
-  selectedTaskId: '',
+  selectedTaskId: "",
   taskClickedOnTable: null,
   showGcpEditor: false,
   gcpData: null,
   visibleOrthophotoList: [],
 };
 
-const setProjectState: CaseReducer<
-  ProjectState,
-  PayloadAction<Partial<Partial<ProjectState>>>
-> = (state, action) => ({
+const setProjectState: CaseReducer<ProjectState, PayloadAction<Partial<Partial<ProjectState>>>> = (
+  state,
+  action,
+) => ({
   ...state,
   ...action.payload,
 });
 
 const projectSlice = createSlice({
-  name: 'project',
+  name: "project",
   initialState,
   reducers: {
     setProjectState,
@@ -42,4 +42,4 @@ const projectSlice = createSlice({
 
 export { projectSlice };
 
-export default persist('common', [], projectSlice.reducer);
+export default persist("common", [], projectSlice.reducer);

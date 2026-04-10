@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/media-has-caption */
-import { FlexColumn } from '@Components/common/Layouts';
-import React, { useEffect, useRef } from 'react';
+import { FlexColumn } from "@Components/common/Layouts";
+import React, { useEffect, useRef } from "react";
 
 interface VideoPlayerProps {
   src: string;
@@ -19,9 +19,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, title }) => {
     <FlexColumn className="naxatw-gap-6 naxatw-overflow-hidden">
       <div className="naxatw-overflow-hidden naxatw-rounded-lg naxatw-border naxatw-bg-white naxatw-px-8 naxatw-py-3 naxatw-shadow-sm">
         <FlexColumn className="naxatw-gap-4">
-          <p className="naxatw-text-primary-700 naxatw-text-[1.5rem] naxatw-font-bold">
-            {title}
-          </p>
+          <p className="naxatw-text-primary-700 naxatw-text-[1.5rem] naxatw-font-bold">{title}</p>
         </FlexColumn>
       </div>
       <video

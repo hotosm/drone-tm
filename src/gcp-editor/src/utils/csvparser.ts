@@ -6,8 +6,8 @@
 export function parseCSVFile(file: File): Promise<Array<Array<string>>> {
   return new Promise((resolve, reject) => {
     // Check if the file is a text file or Excel CSV type
-    if (!file.type.includes('text') && !file.type.includes('ms-excel')) {
-      reject(new Error('The file is not a valid text file.'));
+    if (!file.type.includes("text") && !file.type.includes("ms-excel")) {
+      reject(new Error("The file is not a valid text file."));
       return;
     }
 
@@ -20,12 +20,12 @@ export function parseCSVFile(file: File): Promise<Array<Array<string>>> {
         const rows = parseCSV(csvData, delimiter);
         resolve(rows);
       } catch (error) {
-        reject(new Error('Error parsing CSV data.'));
+        reject(new Error("Error parsing CSV data."));
       }
     };
 
     reader.onerror = () => {
-      reject(new Error('Error reading the file.'));
+      reject(new Error("Error reading the file."));
     };
 
     reader.readAsText(file); // Read the file as a text string
@@ -39,20 +39,18 @@ export function parseCSVFile(file: File): Promise<Array<Array<string>>> {
  * @returns {string} The detected delimiter.
  */
 function detectDelimiter(csvData: string): string {
-  const sample = csvData.split('\n').slice(0, 10).join('\n'); // Analyze the first 10 rows
-  const delimiters = [',', '\t', ' ']; // Common delimiters
+  const sample = csvData.split("\n").slice(0, 10).join("\n"); // Analyze the first 10 rows
+  const delimiters = [",", "\t", " "]; // Common delimiters
   const counts: Record<string, number> = {};
 
   // Count occurrences of each delimiter in the sample
   for (const delimiter of delimiters) {
-    const regex = new RegExp(`\\s*${escapeRegExp(delimiter)}\\s*`, 'g');
+    const regex = new RegExp(`\\s*${escapeRegExp(delimiter)}\\s*`, "g");
     counts[delimiter] = (sample.match(regex) || []).length;
   }
 
   // Choose the delimiter with the highest count
-  const detectedDelimiter = Object.keys(counts).reduce((a, b) =>
-    counts[a] > counts[b] ? a : b
-  );
+  const detectedDelimiter = Object.keys(counts).reduce((a, b) => (counts[a] > counts[b] ? a : b));
 
   return detectedDelimiter;
 }
@@ -65,7 +63,7 @@ function detectDelimiter(csvData: string): string {
  * @returns {Array<Array<string>>} Parsed 2D array (rows and columns).
  */
 function parseCSV(csvData: string, delimiter: string): Array<Array<string>> {
-  const rows = csvData.trim().split('\n'); // Split the CSV into rows
+  const rows = csvData.trim().split("\n"); // Split the CSV into rows
   const delimiterRegex = new RegExp(`\\s*${escapeRegExp(delimiter)}\\s*`); // Handle spaces around delimiters
 
   return rows.map((row) => row.split(delimiterRegex).map((cell) => cell.trim()));
@@ -77,5 +75,5 @@ function parseCSV(csvData: string, delimiter: string): Array<Array<string>> {
  * @returns {string} The escaped string.
  */
 function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special characters
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // Escape special characters
 }

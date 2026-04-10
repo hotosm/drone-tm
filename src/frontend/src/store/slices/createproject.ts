@@ -1,16 +1,16 @@
-import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import { createSlice } from '@reduxjs/toolkit';
-import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
-import persist from '@Store/persist';
+import { GeojsonType } from "@Components/common/MapLibreComponents/types";
+import { createSlice } from "@reduxjs/toolkit";
+import type { CaseReducer, PayloadAction } from "@reduxjs/toolkit";
+import persist from "@Store/persist";
 
 export interface CreateProjectState {
   projectId: number | null;
   activeStep: number;
-  keyParamOption: 'basic' | 'advanced';
-  measurementType: 'gsd' | 'altitude';
-  contributionsOption: 'public' | 'invite_with_email';
-  generateTaskOption: 'divide_hexagon' | 'divide_rectangle';
-  isNoflyzonePresent: 'yes' | 'no';
+  keyParamOption: "basic" | "advanced";
+  measurementType: "gsd" | "altitude";
+  contributionsOption: "public" | "invite_with_email";
+  generateTaskOption: "divide_hexagon" | "divide_rectangle";
+  isNoflyzonePresent: "yes" | "no";
   projectArea: GeojsonType | null;
   noFlyZone: GeojsonType | null;
   drawProjectAreaEnable: boolean;
@@ -23,8 +23,8 @@ export interface CreateProjectState {
   capturedProjectMap: boolean;
   projectMapImage: any;
   imageMergeType: string;
-  ProjectsFilterByOwner: 'yes' | 'no';
-  requiresApprovalFromRegulator: 'required' | 'not_required';
+  ProjectsFilterByOwner: "yes" | "no";
+  requiresApprovalFromRegulator: "required" | "not_required";
   selectedProjectStatus: string;
   regulatorEmails: string[] | [];
   demType: string;
@@ -35,11 +35,11 @@ export interface CreateProjectState {
 const initialState: CreateProjectState = {
   projectId: null,
   activeStep: 1,
-  keyParamOption: 'basic',
-  measurementType: 'gsd',
-  contributionsOption: 'public',
-  generateTaskOption: 'divide_rectangle',
-  isNoflyzonePresent: 'no',
+  keyParamOption: "basic",
+  measurementType: "gsd",
+  contributionsOption: "public",
+  generateTaskOption: "divide_rectangle",
+  isNoflyzonePresent: "no",
   projectArea: null,
   noFlyZone: null,
   drawProjectAreaEnable: false,
@@ -48,43 +48,40 @@ const initialState: CreateProjectState = {
   drawnNoFlyZone: null,
   splitGeojson: null,
   isTerrainFollow: false,
-  requireApprovalFromManagerForLocking: 'not_required',
+  requireApprovalFromManagerForLocking: "not_required",
   capturedProjectMap: true,
   projectMapImage: null,
-  imageMergeType: 'overlap',
-  ProjectsFilterByOwner: 'no',
-  requiresApprovalFromRegulator: 'not_required',
+  imageMergeType: "overlap",
+  ProjectsFilterByOwner: "no",
+  requiresApprovalFromRegulator: "not_required",
   regulatorEmails: [],
-  demType: 'auto',
-  selectedProjectStatus: '',
+  demType: "auto",
+  selectedProjectStatus: "",
   totalProjectArea: 0,
   totalNoFlyZoneArea: 0,
 };
 
-const setCreateProjectState: CaseReducer<
-  CreateProjectState,
-  PayloadAction<Record<string, any>>
-> = (state, action) => ({
-  ...state,
-  ...action.payload,
-});
-
-const saveProjectImageFile: CaseReducer<
-  CreateProjectState,
-  PayloadAction<Record<string, any>>
-> = (state, action) => ({
-  ...state,
-  projectMapImage: action.payload,
-});
-
-const setDemType: CaseReducer<CreateProjectState, PayloadAction<string>> = (
+const setCreateProjectState: CaseReducer<CreateProjectState, PayloadAction<Record<string, any>>> = (
   state,
   action,
 ) => ({
   ...state,
+  ...action.payload,
+});
+
+const saveProjectImageFile: CaseReducer<CreateProjectState, PayloadAction<Record<string, any>>> = (
+  state,
+  action,
+) => ({
+  ...state,
+  projectMapImage: action.payload,
+});
+
+const setDemType: CaseReducer<CreateProjectState, PayloadAction<string>> = (state, action) => ({
+  ...state,
   demType: action.payload,
 });
-const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = state => ({
+const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = (state) => ({
   ...state,
   isNoflyzonePresent: initialState.isNoflyzonePresent,
   projectArea: initialState.projectArea,
@@ -97,7 +94,7 @@ const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = state => ({
 });
 
 const createProjectSlice = createSlice({
-  name: 'create project',
+  name: "create project",
   initialState,
   reducers: {
     setCreateProjectState,
@@ -109,4 +106,4 @@ const createProjectSlice = createSlice({
 
 export { createProjectSlice };
 
-export default persist('common', [], createProjectSlice.reducer);
+export default persist("common", [], createProjectSlice.reducer);

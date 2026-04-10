@@ -2,9 +2,9 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable no-unused-vars */
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
-import { useEffect, useRef, useState } from 'react';
-import Icon from '@Components/common/Icon';
-import Input from '../Input';
+import { useEffect, useRef, useState } from "react";
+import Icon from "@Components/common/Icon";
+import Input from "../Input";
 
 interface IMultiSelectProps {
   options: Record<string, any>[];
@@ -20,13 +20,13 @@ export default function MultiSelect({
   options,
   selectedOptions,
   onChange,
-  placeholder = 'Select',
-  labelKey = 'label',
-  valueKey = 'value',
+  placeholder = "Select",
+  labelKey = "label",
+  valueKey = "value",
   className,
 }: IMultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [selected, setSelected] = useState(selectedOptions || []);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -36,7 +36,7 @@ export default function MultiSelect({
 
   const toggleOption = (optionValue: string) => {
     const updatedSelected = selectedOptions?.includes(optionValue)
-      ? selected.filter(item => item !== optionValue)
+      ? selected.filter((item) => item !== optionValue)
       : [...selected, optionValue];
 
     // setSelected(updatedSelected);
@@ -45,14 +45,12 @@ export default function MultiSelect({
 
   function getPlaceholderText() {
     const selectedLength = selected.length;
-    let placeholderText = '';
+    let placeholderText = "";
     if (!selectedLength) {
       placeholderText = placeholder;
     } else if (selectedLength === 1) {
-      const selectedLabel = options.find(
-        item => item[valueKey] === selected[0],
-      )?.[labelKey];
-      placeholderText = selectedLabel || '';
+      const selectedLabel = options.find((item) => item[valueKey] === selected[0])?.[labelKey];
+      placeholderText = selectedLabel || "";
     } else {
       placeholderText = `${selectedLength} Selected`;
     }
@@ -60,10 +58,7 @@ export default function MultiSelect({
   }
 
   const handleClickOutside = (event: MouseEvent) => {
-    if (
-      dropdownRef.current &&
-      !dropdownRef.current.contains(event.target as Node)
-    ) {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
       setIsOpen(false);
     }
   };
@@ -72,19 +67,19 @@ export default function MultiSelect({
     if (isOpen) {
       dropdownRef?.current?.focus();
     } else {
-      setSearchText('');
+      setSearchText("");
     }
   }, [isOpen]);
 
   useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
 
     return () => {
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     };
   }, []);
 
-  const filterOptions = options?.filter(opt =>
+  const filterOptions = options?.filter((opt) =>
     opt[labelKey]?.toString()?.toLowerCase().includes(searchText.toLowerCase()),
   );
 
@@ -102,13 +97,13 @@ export default function MultiSelect({
         type="text"
         placeholder={getPlaceholderText()}
         className={`naxatw-w-full ${
-          selected.length ? 'placeholder:naxatw-text-grey-800' : ''
+          selected.length ? "placeholder:naxatw-text-grey-800" : ""
         } focus:placeholder:naxatw-text-grey-400`}
         value={searchText}
-        onClick={e => {
+        onClick={(e) => {
           setIsOpen(true);
         }}
-        onChange={e => {
+        onChange={(e) => {
           setSearchText(e.target.value);
         }}
       />
@@ -117,11 +112,11 @@ export default function MultiSelect({
         <Icon
           name="clear"
           className="hover:naxatw-text-primary-400 naxatw-absolute naxatw-right-0 naxatw-items-center !naxatw-text-base"
-          onClick={() => setSearchText('')}
+          onClick={() => setSearchText("")}
         />
       ) : (
         <Icon
-          name={!isOpen ? 'expand_more' : 'search'}
+          name={!isOpen ? "expand_more" : "search"}
           className="group-hover:naxatw-text-primary-400 naxatw-absolute naxatw-right-0 naxatw-items-center"
         />
       )}
@@ -129,11 +124,11 @@ export default function MultiSelect({
       {isOpen && (
         <ul className="scrollbar naxatw-absolute naxatw-top-[44px] naxatw-z-20 naxatw-flex naxatw-max-h-[160px] naxatw-w-full naxatw-animate-flip-down naxatw-flex-col naxatw-gap-1 naxatw-overflow-auto naxatw-border naxatw-bg-white naxatw-py-1 naxatw-shadow-lg naxatw-duration-300">
           {options && filterOptions.length > 0 ? (
-            filterOptions.map(option => (
+            filterOptions.map((option) => (
               <li
                 className="hover:naxatw-bg-primary-50 naxatw-flex naxatw-cursor-pointer naxatw-list-none naxatw-items-start naxatw-px-2 naxatw-py-2 naxatw-text-sm"
                 key={option[valueKey]}
-                onClick={e => {
+                onClick={(e) => {
                   e.stopPropagation();
                   toggleOption(option[valueKey]);
                 }}

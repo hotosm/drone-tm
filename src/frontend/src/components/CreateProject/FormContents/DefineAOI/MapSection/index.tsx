@@ -1,39 +1,29 @@
 /* eslint-disable no-unused-vars */
-import { useEffect, useState } from 'react';
-import { useTypedSelector, useTypedDispatch } from '@Store/hooks';
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
-import { FeatureCollection } from 'geojson';
-import getBbox from '@turf/bbox';
-import useDrawTool from '@Components/common/MapLibreComponents/useDrawTool';
-import { drawStyles } from '@Constants/map';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
+import { useEffect, useState } from "react";
+import { useTypedSelector, useTypedDispatch } from "@Store/hooks";
+import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
+import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
+import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
+import { GeojsonType } from "@Components/common/MapLibreComponents/types";
+import { LngLatBoundsLike, Map } from "maplibre-gl";
+import { FeatureCollection } from "geojson";
+import getBbox from "@turf/bbox";
+import useDrawTool from "@Components/common/MapLibreComponents/useDrawTool";
+import { drawStyles } from "@Constants/map";
+import { setCreateProjectState } from "@Store/actions/createproject";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
+import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
 
-const MapSection = ({
-  selectedTab,
-  setValue,
-}: {
-  selectedTab: string;
-  setValue: any;
-}) => {
+const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: any }) => {
   const dispatch = useTypedDispatch();
   const [bufferGeojson, setBufferGeojson] = useState<GeojsonType | null>(null);
-  const [drawMode, setDrawMode] = useState<
-    'static' | 'draw_polygon' | 'simple_select'
-  >('static');
+  const [drawMode, setDrawMode] = useState<"static" | "draw_polygon" | "simple_select">("static");
 
-  const projectArea = useTypedSelector(
-    state => state.createproject.projectArea,
-  );
-  const noFlyZone = useTypedSelector(state => state.createproject.noFlyZone);
-  const activeDraw = drawMode === 'draw_polygon';
-  const activeDrawEdit = drawMode === 'simple_select';
+  const projectArea = useTypedSelector((state) => state.createproject.projectArea);
+  const noFlyZone = useTypedSelector((state) => state.createproject.noFlyZone);
+  const activeDraw = drawMode === "draw_polygon";
+  const activeDrawEdit = drawMode === "simple_select";
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
@@ -46,31 +36,30 @@ const MapSection = ({
 
   const handleDrawEnd = (geojson: GeojsonType | null) => {
     if (!geojson) return;
-    if (selectedTab === 'project') {
-      if (projectArea && drawMode === 'simple_select') {
+    if (selectedTab === "project") {
+      if (projectArea && drawMode === "simple_select") {
         setBufferGeojson(geojson);
       } else {
         dispatch(setCreateProjectState({ projectArea: geojson }));
-        setDrawMode('static');
-        setValue('outline', geojson);
+        setDrawMode("static");
+        setValue("outline", geojson);
       }
-    } else if (noFlyZone && projectArea && drawMode === 'simple_select') {
+    } else if (noFlyZone && projectArea && drawMode === "simple_select") {
       setBufferGeojson(geojson);
     } else {
       dispatch(setCreateProjectState({ noFlyZone: geojson }));
-      setDrawMode('static');
-      setValue('outline', geojson);
+      setDrawMode("static");
+      setValue("outline", geojson);
     }
   };
 
   const { resetDraw, draw } = useDrawTool({
     map,
-    enable: drawMode === 'draw_polygon' || drawMode === 'simple_select',
+    enable: drawMode === "draw_polygon" || drawMode === "simple_select",
     styles: drawStyles,
     drawMode,
     onDrawEnd: handleDrawEnd,
-    geojson:
-      selectedTab === 'project' ? projectArea || null : noFlyZone || null,
+    geojson: selectedTab === "project" ? projectArea || null : noFlyZone || null,
   });
 
   useEffect(() => {
@@ -80,7 +69,7 @@ const MapSection = ({
   }, [map, projectArea, isMapLoaded]);
 
   const showDrawButton = () => {
-    if (selectedTab === 'project') {
+    if (selectedTab === "project") {
       if (!projectArea) return true;
       return false;
     }
@@ -88,25 +77,25 @@ const MapSection = ({
   };
 
   const showEditButton = () => {
-    if (selectedTab === 'project' && projectArea) return true;
-    if (selectedTab === 'no_fly_zone' && noFlyZone) return true;
+    if (selectedTab === "project" && projectArea) return true;
+    if (selectedTab === "no_fly_zone" && noFlyZone) return true;
     return false;
   };
 
   const handleEditCancel = () => {
     setBufferGeojson(null);
-    setDrawMode('static');
+    setDrawMode("static");
     resetDraw();
   };
   const handleEditSave = () => {
-    if (selectedTab === 'project') {
+    if (selectedTab === "project") {
       dispatch(setCreateProjectState({ projectArea: bufferGeojson }));
-      setValue('outline', bufferGeojson);
+      setValue("outline", bufferGeojson);
     } else {
       dispatch(setCreateProjectState({ noFlyZone: bufferGeojson }));
-      setValue('no_fly_zone', bufferGeojson);
+      setValue("no_fly_zone", bufferGeojson);
     }
-    setDrawMode('static');
+    setDrawMode("static");
     setBufferGeojson(null);
   };
 
@@ -114,7 +103,7 @@ const MapSection = ({
     const selectedFeatureIds = draw.getSelectedIds();
     if (!selectedFeatureIds.length) return;
     let finalFeatureList = [];
-    if (selectedTab === 'project') {
+    if (selectedTab === "project") {
       // @ts-ignore
       finalFeatureList = projectArea?.features?.filter(
         (feature: any) => !selectedFeatureIds.includes(feature?.id),
@@ -127,7 +116,7 @@ const MapSection = ({
     }
     if (finalFeatureList?.length) {
       setBufferGeojson({
-        type: 'FeatureCollection',
+        type: "FeatureCollection",
         features: finalFeatureList,
       });
     } else {
@@ -141,9 +130,9 @@ const MapSection = ({
       map={map}
       isMapLoaded={isMapLoaded}
       style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
+        width: "100%",
+        height: "100%",
+        position: "relative",
       }}
     >
       <BaseLayerSwitcherUI />
@@ -154,23 +143,23 @@ const MapSection = ({
             <i
               className={`material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-center hover:naxatw-bg-gray-100 ${
                 activeDraw
-                  ? 'naxatw-border-2 naxatw-border-gray-500 naxatw-bg-gray-100'
-                  : 'naxatw-bg-white'
+                  ? "naxatw-border-2 naxatw-border-gray-500 naxatw-bg-gray-100"
+                  : "naxatw-bg-white"
               }`}
               role="presentation"
               onClick={() => {
-                setDrawMode('draw_polygon');
+                setDrawMode("draw_polygon");
               }}
               title="Draw"
             >
               draw
             </i>
-            {drawMode === 'draw_polygon' && (
+            {drawMode === "draw_polygon" && (
               <i
-                className={`material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-center hover:naxatw-bg-gray-100 ${'naxatw-bg-white'}`}
+                className={`material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-center hover:naxatw-bg-gray-100 ${"naxatw-bg-white"}`}
                 role="presentation"
                 onClick={() => {
-                  setDrawMode('static');
+                  setDrawMode("static");
                   resetDraw();
                 }}
                 title="reset"
@@ -185,12 +174,12 @@ const MapSection = ({
             <i
               className={`material-icons-outlined naxatw-flex naxatw-h-8 naxatw-w-full naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-md naxatw-text-center hover:naxatw-bg-gray-100 ${
                 activeDrawEdit
-                  ? 'naxatw-border-2 naxatw-border-gray-500 naxatw-bg-gray-100'
-                  : 'naxatw-bg-white'
+                  ? "naxatw-border-2 naxatw-border-gray-500 naxatw-bg-gray-100"
+                  : "naxatw-bg-white"
               }`}
               role="presentation"
               onClick={() => {
-                setDrawMode('simple_select');
+                setDrawMode("simple_select");
               }}
               title="Edit"
             >
@@ -241,7 +230,7 @@ const MapSection = ({
         )}
       </div>
 
-      {projectArea && (selectedTab !== 'project' || drawMode === 'static') && (
+      {projectArea && (selectedTab !== "project" || drawMode === "static") && (
         <VectorLayer
           map={map as Map}
           isMapLoaded={isMapLoaded}
@@ -249,20 +238,18 @@ const MapSection = ({
           geojson={projectArea as GeojsonType}
           visibleOnMap={!!projectArea}
           layerOptions={{
-            type: 'fill',
+            type: "fill",
             paint: {
-              'fill-color': '#D33A38',
-              'fill-outline-color': '#000',
-              'fill-opacity': 0.3,
+              "fill-color": "#D33A38",
+              "fill-outline-color": "#000",
+              "fill-opacity": 0.3,
             },
           }}
         />
       )}
 
       {noFlyZone &&
-        (selectedTab !== 'no_fly_zone' ||
-          drawMode === 'static' ||
-          drawMode === 'draw_polygon') && (
+        (selectedTab !== "no_fly_zone" || drawMode === "static" || drawMode === "draw_polygon") && (
           <VectorLayer
             map={map as Map}
             isMapLoaded={isMapLoaded}
@@ -270,11 +257,11 @@ const MapSection = ({
             geojson={noFlyZone as GeojsonType}
             visibleOnMap={!!noFlyZone}
             layerOptions={{
-              type: 'fill',
+              type: "fill",
               paint: {
-                'fill-color': '#bbbcb6',
-                'fill-outline-color': '#000',
-                'fill-opacity': 0.8,
+                "fill-color": "#bbbcb6",
+                "fill-outline-color": "#000",
+                "fill-opacity": 0.8,
               },
             }}
           />

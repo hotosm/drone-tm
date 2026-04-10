@@ -1,28 +1,26 @@
-import RadioButton from '@Components/common/RadioButton';
-import { Button } from '@Components/RadixComponents/Button';
-import { takeOffPointOptions } from '@Constants/taskDescription';
-import { toggleModal } from '@Store/actions/common';
+import RadioButton from "@Components/common/RadioButton";
+import { Button } from "@Components/RadixComponents/Button";
+import { takeOffPointOptions } from "@Constants/taskDescription";
+import { toggleModal } from "@Store/actions/common";
 import {
   setSelectedTakeOffPoint,
   setSelectedTakeOffPointOption,
-} from '@Store/actions/droneOperatorTask';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { point } from '@turf/helpers';
+} from "@Store/actions/droneOperatorTask";
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { point } from "@turf/helpers";
 
 const ChooseTakeOffPointOptions = () => {
   const dispatch = useTypedDispatch();
   const selectedTakeOffPointOption = useTypedSelector(
-    state => state.droneOperatorTask.selectedTakeOffPointOption,
+    (state) => state.droneOperatorTask.selectedTakeOffPointOption,
   );
 
   const handleNextClick = () => {
-    if (selectedTakeOffPointOption === 'current_location') {
+    if (selectedTakeOffPointOption === "current_location") {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(latLng =>
+        navigator.geolocation.getCurrentPosition((latLng) =>
           dispatch(
-            setSelectedTakeOffPoint(
-              point([latLng?.coords?.longitude, latLng?.coords?.latitude]),
-            ),
+            setSelectedTakeOffPoint(point([latLng?.coords?.longitude, latLng?.coords?.latitude])),
           ),
         );
       }
@@ -41,16 +39,12 @@ const ChooseTakeOffPointOptions = () => {
           className="!naxatw-text-black"
           options={takeOffPointOptions}
           direction="column"
-          onChangeData={value => dispatch(setSelectedTakeOffPointOption(value))}
+          onChangeData={(value) => dispatch(setSelectedTakeOffPointOption(value))}
           value={selectedTakeOffPointOption}
         />
       </div>
       <div className="naxatw naxatw-flex naxatw-justify-center naxatw-pt-3">
-        <Button
-          withLoader
-          className="naxatw-bg-red"
-          onClick={() => handleNextClick()}
-        >
+        <Button withLoader className="naxatw-bg-red" onClick={() => handleNextClick()}>
           Next
         </Button>
       </div>

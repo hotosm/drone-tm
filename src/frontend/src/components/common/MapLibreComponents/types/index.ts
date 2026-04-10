@@ -1,8 +1,8 @@
 /* eslint-disable no-unused-vars */
-import type { DrawMode } from '@mapbox/mapbox-gl-draw';
-import type { Feature, FeatureCollection, GeoJsonTypes } from 'geojson';
-import type { Map, MapOptions } from 'maplibre-gl';
-import type { ReactElement } from 'react';
+import type { DrawMode } from "@mapbox/mapbox-gl-draw";
+import type { Feature, FeatureCollection, GeoJsonTypes } from "geojson";
+import type { Map, MapOptions } from "maplibre-gl";
+import type { ReactElement } from "react";
 
 export type MapInstanceType = Map;
 
@@ -48,17 +48,17 @@ export interface IVectorLayer extends ILayer {
   onFeatureSelect?: (properties: Record<string, any>) => void;
   hasImage?: boolean;
   image?: any;
-  symbolPlacement?: 'point' | 'line' | 'line-center';
+  symbolPlacement?: "point" | "line" | "line-center";
   iconAnchor?:
-    | 'center'
-    | 'left'
-    | 'right'
-    | 'top'
-    | 'bottom'
-    | 'top-left'
-    | 'top-right'
-    | 'bottom-left'
-    | 'bottom-right';
+    | "center"
+    | "left"
+    | "right"
+    | "top"
+    | "bottom"
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right";
   imageLayerOptions?: Object;
   zoomToExtent?: boolean;
   onDrag?: (e: any) => void;
@@ -67,7 +67,7 @@ export interface IVectorLayer extends ILayer {
   imageLayoutOptions?: Object;
 }
 
-type InteractionsType = 'hover' | 'select';
+type InteractionsType = "hover" | "select";
 
 export interface IVectorTileLayer extends ILayer {
   url: string;

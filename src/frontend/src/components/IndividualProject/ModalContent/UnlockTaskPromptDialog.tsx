@@ -1,4 +1,4 @@
-import { Button } from '@Components/RadixComponents/Button';
+import { Button } from "@Components/RadixComponents/Button";
 
 interface IUnlockTaskPromptDialogProps {
   handleUnlockTask: () => void;
@@ -11,14 +11,9 @@ const UnlockTaskPromptDialog = ({
 }: IUnlockTaskPromptDialogProps) => {
   return (
     <div className="naxatw-flex naxatw-flex-col">
-      <div className="naxatw-text-lg">
-        Are you sure you want to unlock the task?
-      </div>
+      <div className="naxatw-text-lg">Are you sure you want to unlock the task?</div>
       <div className="naxatw-flex naxatw-justify-end naxatw-gap-3 naxatw-py-3">
-        <Button
-          className="!naxatw-text-red"
-          onClick={() => setShowUnlockDialog(false)}
-        >
+        <Button className="!naxatw-text-red" onClick={() => setShowUnlockDialog(false)}>
           Cancel
         </Button>
         <Button

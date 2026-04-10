@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import mapLibre, { RasterSourceSpecification } from 'maplibre-gl';
-import { cogProtocol } from '@geomatico/maplibre-cog-protocol';
-import { useMap } from '../MapContext';
+import { useEffect } from "react";
+import mapLibre, { RasterSourceSpecification } from "maplibre-gl";
+import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+import { useMap } from "../MapContext";
 
 interface IViewOrthophotoProps {
   id: string;
@@ -28,11 +28,11 @@ const COGOrthophotoViewer = ({
           duration: 1000,
           zoom: 18,
         });
-      map.off('idle', handleZoomToGeoTiff);
+      map.off("idle", handleZoomToGeoTiff);
     };
 
     // Registers the 'cog' protocol with the mapLibre instance, enabling support for Cloud Optimized GeoTIFF (COG) files
-    mapLibre?.addProtocol('cog', cogProtocol);
+    mapLibre?.addProtocol("cog", cogProtocol);
 
     if (!map.getSource(id)) {
       map.addSource(id, source);
@@ -44,14 +44,14 @@ const COGOrthophotoViewer = ({
       });
     }
 
-    if (zoomToLayer && map?.getLayer(id)) map.on('idle', handleZoomToGeoTiff);
+    if (zoomToLayer && map?.getLayer(id)) map.on("idle", handleZoomToGeoTiff);
 
     // eslint-disable-next-line consistent-return
     return () => {
       if (map?.getSource(id)) {
         if (map?.getLayer(id)) map?.removeLayer(id);
         map?.removeSource(id);
-        map.off('idle', handleZoomToGeoTiff);
+        map.off("idle", handleZoomToGeoTiff);
       }
     };
   }, [map, isMapLoaded, id, source, visibleOnMap, zoomToLayer]);

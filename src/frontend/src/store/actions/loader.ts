@@ -1,3 +1,3 @@
-import { loaderSlice } from '@Store/slices/loader';
+import { loaderSlice } from "@Store/slices/loader";
 
 export const { startAction, stopAction } = loaderSlice.actions;

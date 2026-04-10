@@ -1,7 +1,7 @@
-import { FormEvent, KeyboardEvent, useState } from 'react';
-import { FormControl, Input } from '../FormUI';
-import ErrorMessage from '../FormUI/ErrorMessage';
-import { FlexRow } from '../Layouts';
+import { FormEvent, KeyboardEvent, useState } from "react";
+import { FormControl, Input } from "../FormUI";
+import ErrorMessage from "../FormUI/ErrorMessage";
+import { FlexRow } from "../Layouts";
 
 interface IMultipleEmailInput {
   emails: string[] | [];
@@ -10,24 +10,23 @@ interface IMultipleEmailInput {
 }
 
 const MultipleEmailInput = ({ emails, onEmailAdd }: IMultipleEmailInput) => {
-  const [inputEmail, setInputEmail] = useState('');
+  const [inputEmail, setInputEmail] = useState("");
   const [emailList, setEmailList] = useState(emails || []);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleChange = (e: FormEvent<HTMLInputElement>) => {
     setInputEmail(e.currentTarget.value?.trim());
-    setError('');
+    setError("");
   };
 
   const addInputEmailOnList = () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/?.test(inputEmail))
-      return setError('Email is invalid');
-    if (emailList?.find(email => email === inputEmail))
-      return setError('Email already exists on list');
-    setInputEmail('');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/?.test(inputEmail)) return setError("Email is invalid");
+    if (emailList?.find((email) => email === inputEmail))
+      return setError("Email already exists on list");
+    setInputEmail("");
     const newEmailList = [...emailList, inputEmail];
 
-    setEmailList(prev => {
+    setEmailList((prev) => {
       const newList = [...prev, inputEmail];
       onEmailAdd(newList);
       return newList;
@@ -37,15 +36,15 @@ const MultipleEmailInput = ({ emails, onEmailAdd }: IMultipleEmailInput) => {
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       addInputEmailOnList();
     }
     return () => {};
   };
 
   const handleDeleteEmail = (email: string) => {
-    setEmailList(prev => {
-      const newList = prev?.filter(prevEmail => prevEmail !== email);
+    setEmailList((prev) => {
+      const newList = prev?.filter((prevEmail) => prevEmail !== email);
       onEmailAdd(newList);
       return newList;
     });

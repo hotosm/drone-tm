@@ -1,13 +1,13 @@
-import { html, LitElement } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import './csv-upload';
-import { Store } from '../../store';
-import sampleFile from '../../assets/sample.csv';
+import { html, LitElement } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import "./csv-upload";
+import { Store } from "../../store";
+import sampleFile from "../../assets/sample.csv";
 
-@customElement('gcp-data-input')
+@customElement("gcp-data-input")
 export class GcpDataInput extends LitElement {
   @property({ type: String }) projection: string = Store.getProjection();
-  @state() errorMessage: string = '';
+  @state() errorMessage: string = "";
 
   createRenderRoot() {
     // Return `this` instead of a shadow root, meaning no Shadow DOM is used
@@ -16,10 +16,10 @@ export class GcpDataInput extends LitElement {
 
   handleNextClick() {
     if (!Store.getGcpData()?.length) {
-      this.errorMessage = 'Please upload a CSV file.';
+      this.errorMessage = "Please upload a CSV file.";
       return;
     }
-    this.errorMessage = '';
+    this.errorMessage = "";
     Store.setActiveStep(2);
   }
 

@@ -1,11 +1,11 @@
-import { html, LitElement } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import './map-section';
-import './gcp-marking-table';
-import { Store } from '../../store';
-import './raw-image-listing-modal';
+import { html, LitElement } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import "./map-section";
+import "./gcp-marking-table";
+import { Store } from "../../store";
+import "./raw-image-listing-modal";
 
-@customElement('gcp-marking')
+@customElement("gcp-marking")
 export class GcpMarking extends LitElement {
   @property() selectedGcpDetails = null;
   @property() gcpDataWithXY = Store.getGcpDataWithXY();
@@ -20,11 +20,17 @@ export class GcpMarking extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    document.addEventListener(Store.SELECTED_GCP_DETAILS_UPDATE, this._boundHandleSelectedGcpDetailsUpdate);
+    document.addEventListener(
+      Store.SELECTED_GCP_DETAILS_UPDATE,
+      this._boundHandleSelectedGcpDetailsUpdate,
+    );
   }
 
   disconnectedCallback() {
-    document.removeEventListener(Store.SELECTED_GCP_DETAILS_UPDATE, this._boundHandleSelectedGcpDetailsUpdate);
+    document.removeEventListener(
+      Store.SELECTED_GCP_DETAILS_UPDATE,
+      this._boundHandleSelectedGcpDetailsUpdate,
+    );
     super.disconnectedCallback();
   }
 
@@ -38,7 +44,7 @@ export class GcpMarking extends LitElement {
       Store.setActiveStep(3);
       return;
     }
-    alert('No marks on images');
+    alert("No marks on images");
   }
 
   private handlePreviousClick() {
@@ -65,8 +71,9 @@ export class GcpMarking extends LitElement {
         </div>
         <div class="tw-col-span-3"><map-section></map-section></div>
       </div>
-      ${this.selectedGcpDetails
-        ? html`
+      ${
+        this.selectedGcpDetails
+          ? html`
             <wa-dialog
               open
               label="Mark GCP ${this?.selectedGcpDetails?.[0]} on raw images"
@@ -78,7 +85,8 @@ export class GcpMarking extends LitElement {
               </div>
             </wa-dialog>
           `
-        : null}
+          : null
+      }
     `;
   }
 }

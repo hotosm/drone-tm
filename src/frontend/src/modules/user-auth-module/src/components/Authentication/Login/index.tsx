@@ -1,34 +1,34 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 
-import Image from '@Components/RadixComponents/Image';
-import { Input, Label, FormControl } from '@Components/common/FormUI';
-import { Button } from '@Components/RadixComponents/Button';
-import Icon from '@Components/common/Icon';
-import { Flex, FlexRow } from '@Components/common/Layouts';
-import Person from '@Assets/images/person.svg';
-import { useTypedDispatch } from '@Store/hooks';
-import { signInGoogle, signInUser } from '@Services/common';
-import { setUserState } from '@UserModule/store/actions/user';
-import googleIcon from '@Assets/images/google-icon.svg';
-import { isSafeRedirect } from '@Utils/url';
-import { getRuntimeConfig } from '@/runtimeConfig';
+import Image from "@Components/RadixComponents/Image";
+import { Input, Label, FormControl } from "@Components/common/FormUI";
+import { Button } from "@Components/RadixComponents/Button";
+import Icon from "@Components/common/Icon";
+import { Flex, FlexRow } from "@Components/common/Layouts";
+import Person from "@Assets/images/person.svg";
+import { useTypedDispatch } from "@Store/hooks";
+import { signInGoogle, signInUser } from "@Services/common";
+import { setUserState } from "@UserModule/store/actions/user";
+import googleIcon from "@Assets/images/google-icon.svg";
+import { isSafeRedirect } from "@Utils/url";
+import { getRuntimeConfig } from "@/runtimeConfig";
 
-const API_URL = getRuntimeConfig('VITE_API_URL', '/api');
+const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
 // Auth provider configuration
-const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
-const HANKO_URL = getRuntimeConfig('VITE_HANKO_URL', 'https://dev.login.hotosm.org');
+const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
+const HANKO_URL = getRuntimeConfig("VITE_HANKO_URL", "https://dev.login.hotosm.org");
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
 const initialState = {
-  username: '',
-  password: '',
+  username: "",
+  password: "",
 };
 
 export default function Login() {
@@ -40,26 +40,26 @@ export default function Login() {
   // eslint-disable-next-line no-unused-vars
   const [showErrorToggle, setShowErrorToggle] = useState<boolean>(false);
   const handleShow = () => {
-    return setShowPassword(prev => !prev);
+    return setShowPassword((prev) => !prev);
   };
 
-  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
+  const signedInAs = localStorage.getItem("signedInAs") || "PROJECT_CREATOR";
 
   const { mutate, isPending } = useMutation<any, any, any, unknown>({
     mutationFn: signInUser,
     onSuccess: async (res: any) => {
       dispatch(setUserState({ user: res.data }));
-      localStorage.setItem('token', res.data.access_token);
-      localStorage.setItem('refresh', res.data.refresh_token);
-      toast.success('Logged In Successfully');
+      localStorage.setItem("token", res.data.access_token);
+      localStorage.setItem("refresh", res.data.refresh_token);
+      toast.success("Logged In Successfully");
       const userDetailsUrl = `${API_URL}/users/my-info/`;
       const response2 = await fetch(userDetailsUrl, {
-        credentials: 'include',
-        headers: { 'access-token': res.data.access_token },
+        credentials: "include",
+        headers: { "access-token": res.data.access_token },
       });
       const userDetails = await response2.json();
       const userDetailsString = JSON.stringify(userDetails);
-      localStorage.setItem('userprofile', userDetailsString);
+      localStorage.setItem("userprofile", userDetailsString);
 
       const from = location.state?.from?.pathname;
 
@@ -67,21 +67,21 @@ export default function Login() {
         if (isSafeRedirect(from)) {
           navigate(from, { replace: true });
         } else if (userDetails?.role?.includes(signedInAs)) {
-          navigate('/projects');
+          navigate("/projects");
         } else {
-          navigate('/complete-profile');
+          navigate("/complete-profile");
         }
       } else {
-        navigate('/complete-profile');
+        navigate("/complete-profile");
       }
     },
-    onError: err => {
+    onError: (err) => {
       toast.error(err.response.data.detail);
     },
   });
 
   const googleLoginQuery = useQuery({
-    queryKey: ['google-login'],
+    queryKey: ["google-login"],
     queryFn: signInGoogle,
     select: (res: any) => res.data,
     enabled: !!onSignUpBtnClick,
@@ -107,14 +107,10 @@ export default function Login() {
         className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
       >
         <Image src={Person} />
-        <h3>
-          {signedInAs === 'PROJECT_CREATOR'
-            ? 'Project Creator'
-            : 'Drone Operator'}
-        </h3>
+        <h3>{signedInAs === "PROJECT_CREATOR" ? "Project Creator" : "Drone Operator"}</h3>
 
         {/* Conditional auth rendering */}
-        {AUTH_PROVIDER === 'hanko' ? (
+        {AUTH_PROVIDER === "hanko" ? (
           // Hanko SSO: Redirect to Portal login page with role
           <div
             className="naxatw-flex naxatw-w-[60%] naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-rounded-lg naxatw-border naxatw-border-grey-800 naxatw-px-5 naxatw-py-3 hover:naxatw-shadow-md"
@@ -133,7 +129,7 @@ export default function Login() {
             onClick={() => {
               const from = location.state?.from?.pathname;
               if (from) {
-                sessionStorage.setItem('postLoginRedirect', from);
+                sessionStorage.setItem("postLoginRedirect", from);
               }
               setOnSignUpBtnClick(true);
             }}
@@ -143,10 +139,7 @@ export default function Login() {
           </div>
         )}
 
-        <FlexRow
-          className="naxatw-w-full naxatw-items-center naxatw-justify-center"
-          gap={3}
-        >
+        <FlexRow className="naxatw-w-full naxatw-items-center naxatw-justify-center" gap={3}>
           <hr className="naxatw-w-[26%]" />
           <span>or</span>
           <hr className="naxatw-w-[26%]" />
@@ -165,7 +158,7 @@ export default function Login() {
               type="text"
               placeholder="Username"
               className="naxatw-mt-1 !naxatw-rounded-lg !naxatw-border-grey-400 !naxatw-p-3"
-              {...register('username', { required: true })}
+              {...register("username", { required: true })}
             />
           </FormControl>
 
@@ -177,11 +170,11 @@ export default function Login() {
               id="password"
               placeholder="*******"
               className="naxatw-mt-1 !naxatw-rounded-lg !naxatw-border-grey-400 !naxatw-p-3"
-              type={showPassword ? 'text' : 'password'}
-              {...register('password', { required: true })}
+              type={showPassword ? "text" : "password"}
+              {...register("password", { required: true })}
             />
             <Icon
-              name={showPassword ? 'visibility' : 'visibility_off'}
+              name={showPassword ? "visibility" : "visibility_off"}
               className="naxatw-absolute naxatw-right-2 naxatw-top-[55%] naxatw-cursor-pointer naxatw-text-sm naxatw-text-grey-600"
               onClick={() => handleShow()}
             />
@@ -196,7 +189,7 @@ export default function Login() {
               variant="ghost"
               className="naxatw-text-body-btn !naxatw-text-red"
               onClick={() => {
-                navigate('/forgot-password');
+                navigate("/forgot-password");
               }}
               type="button"
             >
@@ -215,7 +208,7 @@ export default function Login() {
             leftIcon="west"
             variant="ghost"
             className="naxatw-py-5 !naxatw-text-red"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
           >
             Back
           </Button>

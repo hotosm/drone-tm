@@ -873,12 +873,12 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.project_geojson_polygon, "r") as f:
+    with open(args.project_geojson_polygon) as f:
         boundary = geojson.load(f)
 
     no_fly_zones = None
     if args.no_fly_zones:
-        with open(args.no_fly_zones, "r") as f:
+        with open(args.no_fly_zones) as f:
             no_fly_zones = geojson.load(f)
 
     coordinates = create_waypoint(

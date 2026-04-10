@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from "react";
 
 function debounce(func: Function, timeout = 300) {
   let timer: any;
@@ -35,9 +35,9 @@ export default function useScrollActiveListener({
   );
 
   useEffect(() => {
-    document.addEventListener('scroll', handleScroll);
+    document.addEventListener("scroll", handleScroll);
     return () => {
-      document.removeEventListener('scroll', handleScroll);
+      document.removeEventListener("scroll", handleScroll);
     };
   }, [handleScroll]);
   return null;

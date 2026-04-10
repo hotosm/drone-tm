@@ -1,8 +1,8 @@
-import { css, html, LitElement } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { Store } from '../../store';
+import { css, html, LitElement } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import { Store } from "../../store";
 
-@customElement('csv-preview')
+@customElement("csv-preview")
 export class CsvPreview extends LitElement {
   @property({ type: Object }) gcpData: String[][] = Store.getGcpData();
   @property() gcpGeojson: any;
@@ -22,11 +22,11 @@ export class CsvPreview extends LitElement {
     const CustomEvent = event as CustomEvent<any>;
     this.gcpData = CustomEvent?.detail;
     const gcpPointsGeojson = {
-      type: 'FeatureCollection',
+      type: "FeatureCollection",
       features: this.gcpData.slice(1).map((data: any, index: number) => ({
-        type: 'Feature',
+        type: "Feature",
         geometry: {
-          type: 'Point',
+          type: "Point",
           coordinates: [data[2], data[1]],
         },
         properties: {
@@ -109,7 +109,7 @@ export class CsvPreview extends LitElement {
                 (header: String) =>
                   html`
                     <th>${header}</th>
-                  `
+                  `,
               )}
             </tr>
           </thead>
@@ -121,10 +121,10 @@ export class CsvPreview extends LitElement {
                     (cell: String) =>
                       html`
                         <td>${cell}</td>
-                      `
+                      `,
                   )}
                 </tr>
-              `
+              `,
             )}
           </tbody>
         </table>

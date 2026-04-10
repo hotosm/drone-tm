@@ -1,4 +1,4 @@
-import { commonSlice } from '../slices/common';
+import { commonSlice } from "../slices/common";
 
 export const {
   setCommonState,

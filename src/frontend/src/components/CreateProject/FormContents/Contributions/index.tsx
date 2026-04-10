@@ -1,33 +1,24 @@
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { FlexColumn } from '@Components/common/Layouts';
-import { FormControl, Label, Input } from '@Components/common/FormUI';
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { UseFormPropsType } from '@Components/common/FormUI/types';
-import RadioButton from '@Components/common/RadioButton';
-import {
-  lockApprovalOptions,
-  regulatorApprovalOptions,
-} from '@Constants/createProject';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import MultipleEmailInput from '@Components/common/MultipleEmailInput';
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { FlexColumn } from "@Components/common/Layouts";
+import { FormControl, Label, Input } from "@Components/common/FormUI";
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { UseFormPropsType } from "@Components/common/FormUI/types";
+import RadioButton from "@Components/common/RadioButton";
+import { lockApprovalOptions, regulatorApprovalOptions } from "@Constants/createProject";
+import { setCreateProjectState } from "@Store/actions/createproject";
+import MultipleEmailInput from "@Components/common/MultipleEmailInput";
 // import { contributionsOptions } from '@Constants/createProject';
 
-export default function Conditions({
-  formProps,
-}: {
-  formProps: UseFormPropsType;
-}) {
+export default function Conditions({ formProps }: { formProps: UseFormPropsType }) {
   const dispatch = useTypedDispatch();
   const { register, errors } = formProps;
   const requireApprovalFromManagerForLocking = useTypedSelector(
-    state => state.createproject.requireApprovalFromManagerForLocking,
+    (state) => state.createproject.requireApprovalFromManagerForLocking,
   );
   const requiresApprovalFromRegulator = useTypedSelector(
-    state => state.createproject.requiresApprovalFromRegulator,
+    (state) => state.createproject.requiresApprovalFromRegulator,
   );
-  const regulatorEmails = useTypedSelector(
-    state => state.createproject.regulatorEmails,
-  );
+  const regulatorEmails = useTypedSelector((state) => state.createproject.regulatorEmails);
 
   return (
     <FlexColumn gap={5} className="">
@@ -35,14 +26,12 @@ export default function Conditions({
         <Label>Instructions for Drone Operators</Label>
         <Input
           placeholder="Enter Instructions for Drone Operators"
-          {...register('per_task_instructions', {
+          {...register("per_task_instructions", {
             // required: 'Instructions are required',
             setValueAs: (value: string) => value.trim(),
           })}
         />
-        <ErrorMessage
-          message={errors?.per_task_instructions?.message as string}
-        />
+        <ErrorMessage message={errors?.per_task_instructions?.message as string} />
       </FormControl>
       {/* <RadioButton
         required
@@ -61,7 +50,7 @@ export default function Conditions({
             placeholder="Deadline for Submission"
             type="date"
             className="naxatw-mt-1"
-            {...register('deadline_at', {
+            {...register("deadline_at", {
               // required: 'Deadline forRequired',
             })}
           />
@@ -75,7 +64,7 @@ export default function Conditions({
           topic="Does this project require approval from the local regulatory committee ?"
           options={regulatorApprovalOptions}
           direction="column"
-          onChangeData={value => {
+          onChangeData={(value) => {
             dispatch(
               setCreateProjectState({
                 requiresApprovalFromRegulator: value,
@@ -86,12 +75,12 @@ export default function Conditions({
         />
       </FormControl>
 
-      {requiresApprovalFromRegulator === 'required' && (
+      {requiresApprovalFromRegulator === "required" && (
         <FormControl className="naxatw-gap-2">
           <Label required>Local regulation committee Email Address </Label>
           <MultipleEmailInput
             emails={regulatorEmails}
-            onEmailAdd={emails => {
+            onEmailAdd={(emails) => {
               dispatch(setCreateProjectState({ regulatorEmails: emails }));
             }}
           />
@@ -105,7 +94,7 @@ export default function Conditions({
           topic="Approval for task lock"
           options={lockApprovalOptions}
           direction="column"
-          onChangeData={value => {
+          onChangeData={(value) => {
             dispatch(
               setCreateProjectState({
                 requireApprovalFromManagerForLocking: value,

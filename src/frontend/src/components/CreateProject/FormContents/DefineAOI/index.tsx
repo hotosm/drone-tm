@@ -1,58 +1,48 @@
-import { useEffect, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { Controller } from 'react-hook-form';
-import ErrorMessage from '@Components/common/FormUI/ErrorMessage';
-import { UseFormPropsType } from '@Components/common/FormUI/types';
-import { FormControl, Label } from '@Components/common/FormUI';
-import FileUpload from '@Components/common/UploadArea';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { m2ToKm2 } from '@Utils/index';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import flatten from '@turf/flatten';
-import area from '@turf/area';
-import type { AllGeoJSON } from '@turf/helpers';
-import type { FeatureCollection } from 'geojson';
-import { validateGeoJSON } from '@Utils/convertLayerUtils';
-import { toast } from 'react-toastify';
-import SwitchTab from '@Components/common/SwitchTab';
-import { uploadOrDrawAreaOptions } from '@Constants/createProject';
-import prepareFormData from '@Utils/prepareFormData';
-import { postNormalizeAoi } from '@Services/createproject';
-import MapSection from './MapSection';
+import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { Controller } from "react-hook-form";
+import ErrorMessage from "@Components/common/FormUI/ErrorMessage";
+import { UseFormPropsType } from "@Components/common/FormUI/types";
+import { FormControl, Label } from "@Components/common/FormUI";
+import FileUpload from "@Components/common/UploadArea";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { m2ToKm2 } from "@Utils/index";
+import { setCreateProjectState } from "@Store/actions/createproject";
+import flatten from "@turf/flatten";
+import area from "@turf/area";
+import type { AllGeoJSON } from "@turf/helpers";
+import type { FeatureCollection } from "geojson";
+import { validateGeoJSON } from "@Utils/convertLayerUtils";
+import { toast } from "react-toastify";
+import SwitchTab from "@Components/common/SwitchTab";
+import { uploadOrDrawAreaOptions } from "@Constants/createProject";
+import prepareFormData from "@Utils/prepareFormData";
+import { postNormalizeAoi } from "@Services/createproject";
+import MapSection from "./MapSection";
 
 function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
-  return typeof obj === 'object' && obj !== null && 'type' in obj;
+  return typeof obj === "object" && obj !== null && "type" in obj;
 }
 
 const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
-  const [selectedTab, setSelectedTab] = useState<string>('project');
-  const projectArea = useTypedSelector(
-    state => state.createproject.projectArea,
-  );
-  const noFlyZoneArea = useTypedSelector(
-    state => state.createproject.noFlyZone,
-  );
-  const totalProjectArea = useTypedSelector(
-    state => state.createproject.totalProjectArea,
-  );
-  const totalNoFlyZoneArea = useTypedSelector(
-    state => state.createproject.totalNoFlyZoneArea,
-  );
+  const [selectedTab, setSelectedTab] = useState<string>("project");
+  const projectArea = useTypedSelector((state) => state.createproject.projectArea);
+  const noFlyZoneArea = useTypedSelector((state) => state.createproject.noFlyZone);
+  const totalProjectArea = useTypedSelector((state) => state.createproject.totalProjectArea);
+  const totalNoFlyZoneArea = useTypedSelector((state) => state.createproject.totalNoFlyZoneArea);
 
   const { setValue, control, errors } = formProps;
 
   const { mutate: normalizeAoi, isPending: isNormalizingAoi } = useMutation({
     mutationFn: postNormalizeAoi,
-    onSuccess: response => {
+    onSuccess: (response) => {
       dispatch(setCreateProjectState({ projectArea: response.data }));
-      setValue('outline', response.data);
+      setValue("outline", response.data);
     },
     onError: (err: any) => {
-      toast.error(
-        err?.response?.data?.detail || err?.message || 'Failed to normalize AOI',
-      );
+      toast.error(err?.response?.data?.detail || err?.message || "Failed to normalize AOI");
     },
   });
 
@@ -71,7 +61,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
         );
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Invalid geojson');
+      toast.error(err?.message || "Invalid geojson");
     }
   };
 
@@ -82,10 +72,9 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       const geojson: any = await validateGeoJSON(file[0]?.file);
       if (isAllGeoJSON(geojson) && !Array.isArray(geojson)) {
         const convertedGeojson = flatten(geojson);
-        const uploadedArea: any =
-          convertedGeojson && area(convertedGeojson as FeatureCollection);
+        const uploadedArea: any = convertedGeojson && area(convertedGeojson as FeatureCollection);
         if (uploadedArea && uploadedArea > 100000000) {
-          toast.error('Drawn Area should not exceed 100km²');
+          toast.error("Drawn Area should not exceed 100km²");
           return false;
         }
         return true;
@@ -102,11 +91,11 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
     if (!file) return;
     const geojson = validateGeoJSON(file[0]?.file);
     try {
-      geojson.then(z => {
+      geojson.then((z) => {
         if (isAllGeoJSON(z) && !Array.isArray(z)) {
           const convertedGeojson = flatten(z);
           dispatch(setCreateProjectState({ noFlyZone: convertedGeojson }));
-          setValue('no_fly_zones', convertedGeojson);
+          setValue("no_fly_zones", convertedGeojson);
         }
       });
     } catch (err: any) {
@@ -116,15 +105,11 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   };
 
   useEffect(() => {
-    const calculatedTotalProjectArea =
-      projectArea && area(projectArea as FeatureCollection);
-    const calculatedTotalNoFlyZoneArea =
-      noFlyZoneArea && area(noFlyZoneArea as FeatureCollection);
+    const calculatedTotalProjectArea = projectArea && area(projectArea as FeatureCollection);
+    const calculatedTotalNoFlyZoneArea = noFlyZoneArea && area(noFlyZoneArea as FeatureCollection);
 
     if (calculatedTotalProjectArea) {
-      dispatch(
-        setCreateProjectState({ totalProjectArea: calculatedTotalProjectArea }),
-      );
+      dispatch(setCreateProjectState({ totalProjectArea: calculatedTotalProjectArea }));
     } else {
       dispatch(setCreateProjectState({ totalProjectArea: 0 }));
     }
@@ -139,8 +124,8 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       dispatch(setCreateProjectState({ totalNoFlyZoneArea: 0 }));
     }
 
-    setValue('outline', projectArea);
-    setValue('no_fly_zones', noFlyZoneArea);
+    setValue("outline", projectArea);
+    setValue("no_fly_zones", noFlyZoneArea);
   }, [projectArea, noFlyZoneArea, dispatch, setValue]);
 
   return (
@@ -160,12 +145,11 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
             />
           </FormControl>
 
-          {selectedTab === 'project' ? (
+          {selectedTab === "project" ? (
             <>
               {totalProjectArea > 0 && (
                 <p className="naxatw-mt-2 naxatw-text-body-md">
-                  Total Project Area:{' '}
-                  {m2ToKm2(Math.trunc(totalProjectArea as number))}
+                  Total Project Area: {m2ToKm2(Math.trunc(totalProjectArea as number))}
                 </p>
               )}
               {!projectArea && (
@@ -174,7 +158,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                     control={control}
                     name="outline"
                     rules={{
-                      required: 'Project Area is Required',
+                      required: "Project Area is Required",
                     }}
                     render={({ field: { value } }) => {
                       return (
@@ -199,8 +183,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
             <>
               {totalNoFlyZoneArea > 0 && (
                 <p className="naxatw-mt-2 naxatw-text-body-md">
-                  Total Project Area:{' '}
-                  {m2ToKm2(Math.trunc(totalNoFlyZoneArea as number))}
+                  Total Project Area: {m2ToKm2(Math.trunc(totalNoFlyZoneArea as number))}
                 </p>
               )}
               {!noFlyZoneArea && (

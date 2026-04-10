@@ -1,19 +1,19 @@
 /* eslint-disable import/prefer-default-export */
-import lineOrientation from '@Assets/images/line_orientation.svg';
-import straightenFlightPlan from '@Assets/images/straigh-flight.svg';
-import generateAllPoints from '@Assets/images/generate-all-points.svg';
-import imageOverlap from '@Assets/images/image-overlap.svg';
+import lineOrientation from "@Assets/images/line_orientation.svg";
+import straightenFlightPlan from "@Assets/images/straigh-flight.svg";
+import generateAllPoints from "@Assets/images/generate-all-points.svg";
+import imageOverlap from "@Assets/images/image-overlap.svg";
 import {
   BasicInformation,
   DefineAOI,
   KeyParameters,
   Contributions,
   GenerateTasks,
-} from '@Components/CreateProject/DescriptionContents';
-import orthoPhotoIcon from '@Assets/images/ortho-photo-icon.svg';
+} from "@Components/CreateProject/DescriptionContents";
+import orthoPhotoIcon from "@Assets/images/ortho-photo-icon.svg";
 // import _3DModal from '@Assets/images/3d-model-icon.svg';
-import DTMIcon from '@Assets/images/DTM-Icon.svg';
-import DSMIcon from '@Assets/images/DSM-icon.svg';
+import DTMIcon from "@Assets/images/DTM-Icon.svg";
+import DSMIcon from "@Assets/images/DSM-icon.svg";
 
 export type StepComponentMap = {
   [key: number]: any;
@@ -29,266 +29,263 @@ export const stepDescriptionComponents: StepComponentMap = {
 
 export const stepSwitcherData = [
   {
-    url: '/',
+    url: "/",
     step: 1,
-    label: '01',
-    name: 'Basic Information',
+    label: "01",
+    name: "Basic Information",
   },
   {
-    url: '/',
+    url: "/",
     step: 2,
-    label: '02',
-    name: 'Define Area Of Interest (AOI)',
+    label: "02",
+    name: "Define Area Of Interest (AOI)",
   },
   {
-    url: '/',
+    url: "/",
     step: 3,
-    label: '03',
-    name: 'Key Parameters',
+    label: "03",
+    name: "Key Parameters",
   },
   {
-    url: '/',
+    url: "/",
     step: 4,
-    label: '04',
-    name: 'Generate Task',
+    label: "04",
+    name: "Generate Task",
   },
   {
-    url: '/',
+    url: "/",
     step: 5,
-    label: '05',
-    name: 'Conditions for contributions',
+    label: "05",
+    name: "Conditions for contributions",
   },
 ];
 
 export const uploadAreaOptions = [
   {
-    name: 'Yes',
-    value: 'yes',
-    label: 'Yes',
+    name: "Yes",
+    value: "yes",
+    label: "Yes",
   },
   {
-    name: 'No',
-    value: 'no',
-    label: 'No',
+    name: "No",
+    value: "no",
+    label: "No",
   },
 ];
 
 export const KeyParametersOptions = [
   {
-    name: 'basic',
-    value: 'basic',
-    label: 'Basic',
+    name: "basic",
+    value: "basic",
+    label: "Basic",
   },
   {
-    name: 'advanced',
-    value: 'advanced',
-    label: 'Advanced',
+    name: "advanced",
+    value: "advanced",
+    label: "Advanced",
   },
 ];
 
 export const terrainOptions = [
   {
-    name: 'Flat',
-    value: 'flat',
-    label: 'Flat',
+    name: "Flat",
+    value: "flat",
+    label: "Flat",
   },
   {
-    name: 'hilly',
-    value: 'hilly',
-    label: 'Hilly',
+    name: "hilly",
+    value: "hilly",
+    label: "Hilly",
   },
 ];
 
 export const contributionsOptions = [
   {
-    name: 'public',
-    value: 'public',
-    label: 'Public',
+    name: "public",
+    value: "public",
+    label: "Public",
   },
   {
-    name: 'invite_with_email',
-    value: 'invite_with_email',
-    label: 'Invite With Email',
+    name: "invite_with_email",
+    value: "invite_with_email",
+    label: "Invite With Email",
   },
 ];
 
 export const generateTaskOptions = [
   {
-    name: 'divide_hexagon',
-    value: 'divide_hexagon',
-    label: 'Divide as Hexagon',
+    name: "divide_hexagon",
+    value: "divide_hexagon",
+    label: "Divide as Hexagon",
   },
   {
-    name: 'divide_rectangle',
-    value: 'divide_rectangle',
-    label: 'Divide as Rectangle',
+    name: "divide_rectangle",
+    value: "divide_rectangle",
+    label: "Divide as Rectangle",
   },
 ];
 
 export const keyParamsDescriptions = [
   {
     id: 1,
-    title: 'Line Orientation',
-    description: 'How many perpendicular passes should the drone make ?',
+    title: "Line Orientation",
+    description: "How many perpendicular passes should the drone make ?",
     icon: lineOrientation,
   },
   {
     id: 2,
-    title: 'Straighten Flight Paths',
-    description:
-      'Straighten the leg of the flight, so that it removes the curves in the flight.',
+    title: "Straighten Flight Paths",
+    description: "Straighten the leg of the flight, so that it removes the curves in the flight.",
     icon: straightenFlightPlan,
   },
   {
     id: 3,
-    title: 'Generate All Points',
+    title: "Generate All Points",
     description:
-      'Generate every point as a waypoint. Sometimes crashes if you open the map in the DJI FLy App.',
+      "Generate every point as a waypoint. Sometimes crashes if you open the map in the DJI FLy App.",
     icon: generateAllPoints,
   },
   {
     id: 4,
-    title: 'Image Overlap',
+    title: "Image Overlap",
     description:
-      'Overlap between images in the flight plan. Will modify the value of “ Distance Between Paths” and “speed” based on altitude, gimbal angle, overlap, and photo interval.',
+      "Overlap between images in the flight plan. Will modify the value of “ Distance Between Paths” and “speed” based on altitude, gimbal angle, overlap, and photo interval.",
     icon: imageOverlap,
   },
 ];
 
 export const lockApprovalOptions = [
-  { name: 'Required', label: 'Required', value: 'required' },
-  { name: 'Not Required', label: 'Not Required', value: 'not_required' },
+  { name: "Required", label: "Required", value: "required" },
+  { name: "Not Required", label: "Not Required", value: "not_required" },
 ];
 
 export const regulatorApprovalOptions = [
-  { name: 'regulator approval Required', label: 'Required', value: 'required' },
+  { name: "regulator approval Required", label: "Required", value: "required" },
   {
-    name: 'regulator approval not Required',
-    label: 'Not Required',
-    value: 'not_required',
+    name: "regulator approval not Required",
+    label: "Not Required",
+    value: "not_required",
   },
 ];
 
 export const FinalOutputOptions = [
-  { label: '2D Orthophoto', value: 'ORTHOPHOTO_2D', icon: orthoPhotoIcon },
+  { label: "2D Orthophoto", value: "ORTHOPHOTO_2D", icon: orthoPhotoIcon },
   // { label: '3D Model', value: 'ORTHOPHOTO_3D', icon: _3DModal },
   {
-    label: 'Digital Terrain Model (DTM)',
-    value: 'DIGITAL_TERRAIN_MODEL',
+    label: "Digital Terrain Model (DTM)",
+    value: "DIGITAL_TERRAIN_MODEL",
     icon: DTMIcon,
   },
   {
-    label: 'Digital Surface Model (DSM)',
-    value: 'DIGITAL_SURFACE_MODEL',
+    label: "Digital Surface Model (DSM)",
+    value: "DIGITAL_SURFACE_MODEL",
     icon: DSMIcon,
   },
 ];
 
 export const measurementTypeOptions = [
   {
-    name: 'GSD',
-    value: 'gsd',
-    label: 'GSD',
+    name: "GSD",
+    value: "gsd",
+    label: "GSD",
   },
   {
-    name: 'Altitude',
-    value: 'altitude',
-    label: 'Altitude',
+    name: "Altitude",
+    value: "altitude",
+    label: "Altitude",
   },
 ];
 
 export const imageMergeTypeOptions = [
   {
-    name: 'Overlap',
-    value: 'overlap',
-    label: 'Overlap',
+    name: "Overlap",
+    value: "overlap",
+    label: "Overlap",
   },
   {
-    name: 'Spacing',
-    value: 'spacing',
-    label: 'Spacing',
+    name: "Spacing",
+    value: "spacing",
+    label: "Spacing",
   },
 ];
 
 export const contributionsInfo = [
   {
-    key: 'Instructions for Drone Operators',
-    description: 'Detailed instructions or parameters for the drone operation.',
+    key: "Instructions for Drone Operators",
+    description: "Detailed instructions or parameters for the drone operation.",
   },
   {
-    key: 'Deadline for Submission',
-    description: 'Date for specifying when the project should be submitted.',
+    key: "Deadline for Submission",
+    description: "Date for specifying when the project should be submitted.",
   },
   {
-    key: 'Does this project require approval from the local regulatory committee?',
+    key: "Does this project require approval from the local regulatory committee?",
     description:
-      'Indicate if the project requires approval from the local regulatory committee before proceeding.',
+      "Indicate if the project requires approval from the local regulatory committee before proceeding.",
   },
   {
-    key: 'Local regulation committee Email Address',
+    key: "Local regulation committee Email Address",
     description:
-      'The email addresses of local regulatory committee members. If one of them approves or rejects the project, it will be processed accordingly. This is required for areas where drone flights are restricted and require permission.',
+      "The email addresses of local regulatory committee members. If one of them approves or rejects the project, it will be processed accordingly. This is required for areas where drone flights are restricted and require permission.",
   },
 
   {
-    key: 'Approval for task lock',
+    key: "Approval for task lock",
     description:
-      'Approval required tasks should be approved from project creator to proceed with flying.',
+      "Approval required tasks should be approved from project creator to proceed with flying.",
   },
 ];
 
 export const DefineAOIInfo = [
   {
-    key: 'Project Area',
-    description: 'Boundary of a project.',
+    key: "Project Area",
+    description: "Boundary of a project.",
   },
   {
-    key: 'No-fly-zone',
-    description: 'GEO zones that prohibit flight.',
+    key: "No-fly-zone",
+    description: "GEO zones that prohibit flight.",
   },
 ];
 
 export const keyParametersInfo = [
   {
-    key: 'Ground Sampling Distance (GSD)',
+    key: "Ground Sampling Distance (GSD)",
     description:
-      'GSD in a digital photo of the ground from air is the distance between pixel centers measured on the ground.',
+      "GSD in a digital photo of the ground from air is the distance between pixel centers measured on the ground.",
   },
   {
-    key: 'Altitude',
-    description:
-      'The altitude at which the drone should fly during the mission, in meters.',
+    key: "Altitude",
+    description: "The altitude at which the drone should fly during the mission, in meters.",
   },
   {
-    key: 'Front Overlap',
+    key: "Front Overlap",
     description:
-      'The percentage of overlap between consecutive images taken in the forward direction.',
+      "The percentage of overlap between consecutive images taken in the forward direction.",
   },
 
   {
-    key: 'Side Overlap',
-    description:
-      'The percentage of overlap between images captured on adjacent flight lines.',
+    key: "Side Overlap",
+    description: "The percentage of overlap between images captured on adjacent flight lines.",
   },
   {
-    key: '2D Orthophoto/Orthophotograph',
+    key: "2D Orthophoto/Orthophotograph",
     description:
-      '2D orthophoto is a geometrically corrected aerial image that can be used as a map with consistent scale and accurate measurements.',
+      "2D orthophoto is a geometrically corrected aerial image that can be used as a map with consistent scale and accurate measurements.",
   },
   {
-    key: 'Digital Terrain Model (DTM)',
+    key: "Digital Terrain Model (DTM)",
     description:
       "DTM represents the bare earth surface, excluding objects and showing only the terrain's elevation.",
   },
   {
-    key: 'A Digital Surface Model (DSM)',
+    key: "A Digital Surface Model (DSM)",
     description:
       "DSM is a 3D representation of the Earth's surface including all features like buildings and vegetation.",
   },
   {
-    key: 'DEM',
+    key: "DEM",
     description:
-      'The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format.',
+      "The Digital Elevation Model (DEM) file that will be used to generate the terrain follow flight plan. This file should be in GeoTIFF format.",
   },
 ];
 
@@ -315,18 +312,18 @@ export const taskGenerationGuidelines = {
 
 export const demFileOptions = [
   {
-    name: 'Download DEM file from JAXA',
-    label: 'Download DEM file from JAXA',
-    value: 'auto',
+    name: "Download DEM file from JAXA",
+    label: "Download DEM file from JAXA",
+    value: "auto",
   },
-  { name: 'Upload DEM File', label: 'Upload DEM File', value: 'manual' },
+  { name: "Upload DEM File", label: "Upload DEM File", value: "manual" },
 ];
 
 export const uploadOrDrawAreaOptions: Record<string, any>[] = [
-  { name: 'project', value: 'project', label: 'Project' },
+  { name: "project", value: "project", label: "Project" },
   {
-    name: 'no_fly_zone',
-    value: 'no_fly_zone',
-    label: 'No Fly Zone',
+    name: "no_fly_zone",
+    value: "no_fly_zone",
+    label: "No Fly Zone",
   },
 ];

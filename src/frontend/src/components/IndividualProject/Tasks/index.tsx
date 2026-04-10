@@ -1,7 +1,7 @@
 // import SearchInput from '@Components/common/FormUI/SearchInput';
 // import { Select } from '@Components/common/FormUI';
 // import { FlexRow } from '@Components/common/Layouts';
-import TableSection from './TableSection';
+import TableSection from "./TableSection";
 
 interface ITasksProps {
   isFetching: boolean;
@@ -9,10 +9,7 @@ interface ITasksProps {
   handleTableRowClick: (rowData: any) => {};
 }
 
-export default function Tasks({
-  isFetching,
-  handleTableRowClick,
-}: ITasksProps) {
+export default function Tasks({ isFetching, handleTableRowClick }: ITasksProps) {
   return (
     <section className="naxatw-py-5">
       {/* <FlexRow className="naxatw-w-full naxatw-justify-between">
@@ -33,10 +30,7 @@ export default function Tasks({
         </div>
       </FlexRow> */}
       <div className="naxatw-mt-2">
-        <TableSection
-          isFetching={isFetching}
-          handleTableRowClick={handleTableRowClick}
-        />
+        <TableSection isFetching={isFetching} handleTableRowClick={handleTableRowClick} />
       </div>
     </section>
   );

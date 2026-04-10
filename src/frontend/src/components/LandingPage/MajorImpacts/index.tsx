@@ -1,22 +1,16 @@
-import { Grid } from '@Components/common/Layouts';
-import Image from '@Components/RadixComponents/Image';
-import { motion } from 'framer-motion';
-import Accordion from '@Components/common/Accordion';
-import majorImpactsImage from '@Assets/images/LandingPage/MajorImpactImage.webp';
-import { accordionData } from '@Constants/landingPage';
-import {
-  containerAnimationVariant,
-  fadeUpVariant,
-} from '@Constants/animations';
+import { Grid } from "@Components/common/Layouts";
+import Image from "@Components/RadixComponents/Image";
+import { motion } from "framer-motion";
+import Accordion from "@Components/common/Accordion";
+import majorImpactsImage from "@Assets/images/LandingPage/MajorImpactImage.webp";
+import { accordionData } from "@Constants/landingPage";
+import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
 
 export default function MajorImpacts() {
   return (
     <section className="major-impacts naxatw-overflow-hidden">
       <div className="naxatw-bg-landing-white naxatw-px-8 naxatw-py-4 md:naxatw-px-20 lg:naxatw-pt-40">
-        <Grid
-          gap={10}
-          className="naxatw-grid naxatw-grid-cols-1 lg:naxatw-grid-cols-2"
-        >
+        <Grid gap={10} className="naxatw-grid naxatw-grid-cols-1 lg:naxatw-grid-cols-2">
           {/* <motion.div
             initial={{ translateX: -200, opacity: 0 }}
             whileInView={{ translateX: 0, opacity: 1 }}
@@ -41,11 +35,7 @@ export default function MajorImpacts() {
             <div>
               {accordionData.map((data: Record<string, any>) => (
                 <motion.div variants={fadeUpVariant} key={data.id}>
-                  <Accordion
-                    title={data.title}
-                    description={data.description}
-                    open={data.isOpen}
-                  />
+                  <Accordion title={data.title} description={data.description} open={data.isOpen} />
                 </motion.div>
               ))}
             </div>

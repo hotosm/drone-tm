@@ -1,17 +1,17 @@
-import { css, html, LitElement, unsafeCSS } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import maplibregl, { Map, Popup } from 'maplibre-gl';
+import { css, html, LitElement, unsafeCSS } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import maplibregl, { Map, Popup } from "maplibre-gl";
 // @ts-ignore - virtual module resolved by esbuild plugin, inlines maplibre CSS for shadow DOM
-import maplibreCss from 'maplibre-gl-css';
-import { cogProtocol } from '@geomatico/maplibre-cog-protocol';
-import { Store } from '../../store';
-import MarkerIcon from '../../assets/markerIcon.png';
-import uploadImage from '../../assets/uploadIcon.png';
-import layerSwitcher from '../../assets/layers.png';
+import maplibreCss from "maplibre-gl-css";
+import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+import { Store } from "../../store";
+import MarkerIcon from "../../assets/markerIcon.png";
+import uploadImage from "../../assets/uploadIcon.png";
+import layerSwitcher from "../../assets/layers.png";
 
-const BASE_LAYERS = ['osm', 'satellite', 'topo', 'hybrid'] as const;
+const BASE_LAYERS = ["osm", "satellite", "topo", "hybrid"] as const;
 
-@customElement('map-section')
+@customElement("map-section")
 export class MapSection extends LitElement {
   @property({ type: Object }) gcpPointGeojson: any = Store.getGcpGeojson();
   @property({ type: Object }) cogUrl: string = Store.getCogUrl();
@@ -88,7 +88,7 @@ export class MapSection extends LitElement {
   `;
 
   firstUpdated(): void {
-    const container = this.renderRoot.querySelector('#gcp-map-container') as HTMLElement;
+    const container = this.renderRoot.querySelector("#gcp-map-container") as HTMLElement;
     this.gcpPointGeojson = Store.getGcpGeojson();
     this.projection = Store.getProjection();
 
@@ -98,19 +98,19 @@ export class MapSection extends LitElement {
         version: 8,
         sources: {
           osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
             tileSize: 256,
-            attribution: '&copy; OpenStreetMap contributors',
+            attribution: "&copy; OpenStreetMap contributors",
           },
         },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+        layers: [{ id: "osm", type: "raster", source: "osm" }],
       },
       center: [0, 0],
       zoom: 2,
     });
 
-    this.map.on('load', () => {
+    this.map.on("load", () => {
       this.addBaseLayers();
       this.setupLayerSwitcher();
       this.loadGcpPoints(this.gcpPointGeojson);
@@ -134,38 +134,57 @@ export class MapSection extends LitElement {
   }
 
   private addBaseLayers() {
-    this.map.addSource('satellite', {
-      type: 'raster',
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+    this.map.addSource("satellite", {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
       tileSize: 256,
     });
-    this.map.addLayer({ id: 'satellite', type: 'raster', source: 'satellite', layout: { visibility: 'none' } });
+    this.map.addLayer({
+      id: "satellite",
+      type: "raster",
+      source: "satellite",
+      layout: { visibility: "none" },
+    });
 
-    this.map.addSource('topo', {
-      type: 'raster',
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'],
+    this.map.addSource("topo", {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+      ],
       tileSize: 256,
     });
-    this.map.addLayer({ id: 'topo', type: 'raster', source: 'topo', layout: { visibility: 'none' } });
+    this.map.addLayer({
+      id: "topo",
+      type: "raster",
+      source: "topo",
+      layout: { visibility: "none" },
+    });
 
-    this.map.addSource('hybrid', {
-      type: 'raster',
-      tiles: ['https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'],
+    this.map.addSource("hybrid", {
+      type: "raster",
+      tiles: ["https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"],
       tileSize: 256,
     });
-    this.map.addLayer({ id: 'hybrid', type: 'raster', source: 'hybrid', layout: { visibility: 'none' } });
+    this.map.addLayer({
+      id: "hybrid",
+      type: "raster",
+      source: "hybrid",
+      layout: { visibility: "none" },
+    });
   }
 
   private setupLayerSwitcher() {
     const radioInputs = this.renderRoot.querySelectorAll(
-      '.base-layer-list > label > input[type=radio]'
+      ".base-layer-list > label > input[type=radio]",
     ) as NodeListOf<HTMLInputElement>;
 
     for (const input of radioInputs) {
-      input.addEventListener('change', () => {
+      input.addEventListener("change", () => {
         const selected = input.value;
         BASE_LAYERS.forEach((id) => {
-          this.map.setLayoutProperty(id, 'visibility', id === selected ? 'visible' : 'none');
+          this.map.setLayoutProperty(id, "visibility", id === selected ? "visible" : "none");
         });
         this.showBaseLayerList = false;
       });
@@ -179,22 +198,22 @@ export class MapSection extends LitElement {
     const img = new Image();
     img.src = MarkerIcon;
     img.onload = () => {
-      if (this.map.hasImage('gcp-marker')) return;
-      this.map.addImage('gcp-marker', img);
+      if (this.map.hasImage("gcp-marker")) return;
+      this.map.addImage("gcp-marker", img);
 
-      this.map.addSource('gcp-points', {
-        type: 'geojson',
+      this.map.addSource("gcp-points", {
+        type: "geojson",
         data: geojson,
       });
 
       this.map.addLayer({
-        id: 'gcp-points-layer',
-        type: 'symbol',
-        source: 'gcp-points',
+        id: "gcp-points-layer",
+        type: "symbol",
+        source: "gcp-points",
         layout: {
-          'icon-image': 'gcp-marker',
-          'icon-size': 0.5,
-          'icon-allow-overlap': true,
+          "icon-image": "gcp-marker",
+          "icon-size": 0.5,
+          "icon-allow-overlap": true,
         },
       });
 
@@ -211,25 +230,25 @@ export class MapSection extends LitElement {
     if (!cogUrl) return;
 
     try {
-      maplibregl.addProtocol('cog', cogProtocol);
+      maplibregl.addProtocol("cog", cogProtocol);
 
-      this.map.addSource('cog-source', {
-        type: 'raster',
+      this.map.addSource("cog-source", {
+        type: "raster",
         url: `cog://${cogUrl}`,
         tileSize: 256,
       });
 
       this.map.addLayer(
         {
-          id: 'cog-layer',
-          type: 'raster',
-          source: 'cog-source',
+          id: "cog-layer",
+          type: "raster",
+          source: "cog-source",
         },
         // Insert below gcp-points so markers stay on top
-        this.map.getLayer('gcp-points-layer') ? 'gcp-points-layer' : undefined
+        this.map.getLayer("gcp-points-layer") ? "gcp-points-layer" : undefined,
       );
     } catch (error) {
-      console.error('Error loading COG:', error);
+      console.error("Error loading COG:", error);
     }
   }
 
@@ -261,7 +280,7 @@ export class MapSection extends LitElement {
     this.popup = new Popup({ closeOnClick: true, offset: 12, closeButton: false });
 
     // Click on a GCP point feature
-    this.map.on('click', 'gcp-points-layer', (e) => {
+    this.map.on("click", "gcp-points-layer", (e) => {
       if (!e.features?.length) return;
       const props = e.features[0].properties;
       const coords = (e.features[0].geometry as any).coordinates.slice();
@@ -277,8 +296,8 @@ export class MapSection extends LitElement {
     });
 
     // Click elsewhere closes popup
-    this.map.on('click', (e) => {
-      const features = this.map.queryRenderedFeatures(e.point, { layers: ['gcp-points-layer'] });
+    this.map.on("click", (e) => {
+      const features = this.map.queryRenderedFeatures(e.point, { layers: ["gcp-points-layer"] });
       if (!features.length) {
         this.popup.remove();
         Store.setActiveGcp(null);
@@ -286,11 +305,11 @@ export class MapSection extends LitElement {
     });
 
     // Pointer cursor on hover
-    this.map.on('mouseenter', 'gcp-points-layer', () => {
-      this.map.getCanvas().style.cursor = 'pointer';
+    this.map.on("mouseenter", "gcp-points-layer", () => {
+      this.map.getCanvas().style.cursor = "pointer";
     });
-    this.map.on('mouseleave', 'gcp-points-layer', () => {
-      this.map.getCanvas().style.cursor = '';
+    this.map.on("mouseleave", "gcp-points-layer", () => {
+      this.map.getCanvas().style.cursor = "";
     });
   }
 
@@ -300,8 +319,8 @@ export class MapSection extends LitElement {
 
     // Attach upload button handler after popup DOM is ready
     requestAnimationFrame(() => {
-      const btn = this.map.getContainer().querySelector('#upload-button-popup');
-      btn?.addEventListener('click', this.handleGcpDataSelection);
+      const btn = this.map.getContainer().querySelector("#upload-button-popup");
+      btn?.addEventListener("click", this.handleGcpDataSelection);
     });
   }
 
@@ -313,7 +332,7 @@ export class MapSection extends LitElement {
     if (!detail?.[0] || !this.gcpGeojsonData) return;
 
     const feature = this.gcpGeojsonData.features.find(
-      (f: any) => f.properties.id === detail[0] || f.properties.label === detail[0]
+      (f: any) => f.properties.id === detail[0] || f.properties.label === detail[0],
     );
 
     if (feature) {
@@ -334,7 +353,7 @@ export class MapSection extends LitElement {
         <div id="gcp-map-container"></div>
         <div class="layer-switcher">
           <img src=${layerSwitcher} @click=${() => (this.showBaseLayerList = !this.showBaseLayerList)} />
-          <div class="base-layer-list" style="display:${this.showBaseLayerList ? 'flex' : 'none'}">
+          <div class="base-layer-list" style="display:${this.showBaseLayerList ? "flex" : "none"}">
             <label>
               <input type="radio" name="baseLayerOption" value="osm" checked />
               OSM

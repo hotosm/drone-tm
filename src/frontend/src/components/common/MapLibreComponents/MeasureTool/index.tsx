@@ -1,13 +1,13 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-param-reassign */
-import { useEffect, useMemo, useRef } from 'react';
-import { DrawMode, Map, Popup } from 'maplibre-gl';
-import MapboxDraw from '@mapbox/mapbox-gl-draw';
-import StaticMode from '@mapbox/mapbox-gl-draw-static-mode';
-import length from '@turf/length';
-import area from '@turf/area';
-import centroid from '@turf/centroid';
-import { measureStyles } from '@Constants/map';
+import { useEffect, useMemo, useRef } from "react";
+import { DrawMode, Map, Popup } from "maplibre-gl";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
+import StaticMode from "@mapbox/mapbox-gl-draw-static-mode";
+import length from "@turf/length";
+import area from "@turf/area";
+import centroid from "@turf/centroid";
+import { measureStyles } from "@Constants/map";
 
 export interface IMeasureToolProps {
   map?: Map | null;
@@ -15,7 +15,7 @@ export interface IMeasureToolProps {
   enable: boolean;
   drawMode?: DrawMode | null | undefined;
   styles?: Record<string, any>[];
-  measureType: 'length' | 'area' | null;
+  measureType: "length" | "area" | null;
   onDrawChange?: (props: { measurement: number; unit: string }) => void;
   onDrawComplete?: (data: Record<string, any>) => void;
 }
@@ -27,14 +27,14 @@ modes.static = StaticMode;
 const popup = new Popup({
   closeButton: false,
   closeOnClick: false,
-  className: 'measure-tooltip',
+  className: "measure-tooltip",
 });
 
 export default function MeasureTool({
   map,
   isMapLoaded,
   enable = false,
-  measureType = 'length',
+  measureType = "length",
   onDrawChange,
   onDrawComplete,
 }: IMeasureToolProps) {
@@ -44,7 +44,7 @@ export default function MeasureTool({
     () =>
       new MapboxDraw({
         displayControlsDefault: false,
-        defaultMode: 'draw_polygon',
+        defaultMode: "draw_polygon",
         // @ts-ignore
         modes,
         styles: measureStyles,
@@ -55,13 +55,12 @@ export default function MeasureTool({
 
   useEffect(() => {
     // @ts-ignore
-    if (!map || !isMapLoaded || !enable || map.hasControl(draw))
-      return () => {};
+    if (!map || !isMapLoaded || !enable || map.hasControl(draw)) return () => {};
     // @ts-ignore
     map.addControl(draw);
     draw.changeMode(
       // @ts-ignore
-      measureType === 'length' ? 'draw_line_string' : 'draw_polygon',
+      measureType === "length" ? "draw_line_string" : "draw_polygon",
     );
     return () => {
       // @ts-ignore
@@ -77,16 +76,14 @@ export default function MeasureTool({
       const data = draw.getAll();
       const geomType = data.features[0].geometry.type;
       const measurement =
-        geomType === 'LineString'
-          ? length(data, { units: 'meters' })
-          : area(data);
+        geomType === "LineString" ? length(data, { units: "meters" }) : area(data);
       if (!measurement || !map) return;
       onDrawChange?.({
         measurement,
-        unit: geomType === 'LineString' ? 'm' : 'm²',
+        unit: geomType === "LineString" ? "m" : "m²",
       });
       onDrawComplete?.(data);
-      if (geomType === 'Polygon') {
+      if (geomType === "Polygon") {
         // @ts-ignore
         const centroidGeojson = centroid(data);
         const { coordinates } = centroidGeojson.geometry;
@@ -96,7 +93,7 @@ export default function MeasureTool({
           .setHTML(`${measurement.toFixed(2)} m².`)
           .addTo(map);
       }
-      if (geomType === 'LineString') {
+      if (geomType === "LineString") {
         const { coordinates } = data.features[0].geometry;
         const lastPoint = coordinates[coordinates.length - 1];
         if (!lastPoint) return;
@@ -106,9 +103,9 @@ export default function MeasureTool({
           .addTo(map);
       }
     }
-    map.on('draw.render', handleDrawRender);
+    map.on("draw.render", handleDrawRender);
     return () => {
-      map.off('draw.render', handleDrawRender);
+      map.off("draw.render", handleDrawRender);
     };
   }, [map, draw, enable]); // eslint-disable-line
 
@@ -118,9 +115,9 @@ export default function MeasureTool({
       if (!map) return;
       isMeasureCompleted.current = true;
     }
-    map.on('draw.create', handleDrawCreate);
+    map.on("draw.create", handleDrawCreate);
     return () => {
-      map.off('draw.create', handleDrawCreate);
+      map.off("draw.create", handleDrawCreate);
       isMeasureCompleted.current = false;
     };
   }, [map, draw, enable]);
@@ -130,15 +127,15 @@ export default function MeasureTool({
     const handleMouseMove = () => {
       if (!map) return;
       if (isMeasureCompleted.current) {
-        map.getCanvas().style.cursor = '';
+        map.getCanvas().style.cursor = "";
       } else {
-        map.getCanvas().style.cursor = 'crosshair';
+        map.getCanvas().style.cursor = "crosshair";
       }
     };
-    map.on('mousemove', handleMouseMove);
+    map.on("mousemove", handleMouseMove);
     return () => {
-      map.off('mousemove', handleMouseMove);
-      map.getCanvas().style.cursor = '';
+      map.off("mousemove", handleMouseMove);
+      map.getCanvas().style.cursor = "";
     };
   }, [map, enable]);
 

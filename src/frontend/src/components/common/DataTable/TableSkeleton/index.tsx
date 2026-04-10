@@ -1,6 +1,6 @@
 /* eslint-disable react/no-array-index-key */
-import Skeleton from '@Components/RadixComponents/Skeleton';
-import { FlexColumn, FlexRow } from '@Components/common/Layouts';
+import Skeleton from "@Components/RadixComponents/Skeleton";
+import { FlexColumn, FlexRow } from "@Components/common/Layouts";
 
 const numberOfRows = 9;
 const numberOfColumns = 6;
@@ -11,10 +11,7 @@ export default function TableSkeleton() {
       <FlexRow className="naxatw-items-center naxatw-space-x-20 naxatw-border-b-[1px] naxatw-px-10 naxatw-pb-5">
         <Skeleton className="naxatw-h-4 naxatw-w-1/12 xl:naxatw-h-6" />
         {Array.from({ length: numberOfColumns }).map((__, index) => (
-          <Skeleton
-            key={index}
-            className="naxatw-h-4 naxatw-w-1/4 xl:naxatw-h-6"
-          />
+          <Skeleton key={index} className="naxatw-h-4 naxatw-w-1/4 xl:naxatw-h-6" />
         ))}
       </FlexRow>
       {Array.from({ length: numberOfRows }).map((_, idx) => (

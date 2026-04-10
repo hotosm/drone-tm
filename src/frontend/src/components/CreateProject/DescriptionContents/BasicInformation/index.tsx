@@ -1,4 +1,4 @@
-import { FlexColumn } from '@Components/common/Layouts';
+import { FlexColumn } from "@Components/common/Layouts";
 
 export default function BasicInformation() {
   return (

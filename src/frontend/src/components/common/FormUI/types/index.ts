@@ -6,7 +6,7 @@ import type {
   UseFormRegister,
   UseFormSetValue,
   UseFormWatch,
-} from 'react-hook-form';
+} from "react-hook-form";
 
 export interface UseFormPropsType {
   register: UseFormRegister<FieldValues>;

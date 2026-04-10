@@ -10,12 +10,10 @@ export const commentMentionsUserId = (
   if (!comment || !userId) return false;
   const targetId = String(userId);
 
-  return Array.from(comment.matchAll(MENTION_TOKEN_REGEX)).some(
-    match => match[2] === targetId,
-  );
+  return Array.from(comment.matchAll(MENTION_TOKEN_REGEX)).some((match) => match[2] === targetId);
 };
 
 export const renderCommentMentions = (comment: string | null | undefined) => {
   if (!comment) return comment;
-  return comment.replace(MENTION_TOKEN_REGEX, '@$1');
+  return comment.replace(MENTION_TOKEN_REGEX, "@$1");
 };

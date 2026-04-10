@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/media-has-caption */
-import Icon from '@Components/common/Icon';
-import { FlexColumn, FlexRow } from '@Components/common/Layouts';
-import { useState } from 'react';
+import Icon from "@Components/common/Icon";
+import { FlexColumn, FlexRow } from "@Components/common/Layouts";
+import { useState } from "react";
 
 export interface IVideoCardProps {
   title: string;
@@ -9,11 +9,7 @@ export interface IVideoCardProps {
   thumbnail?: string;
 }
 
-export const RowVideoCards = ({
-  title,
-  onClick,
-  thumbnail,
-}: IVideoCardProps) => {
+export const RowVideoCards = ({ title, onClick, thumbnail }: IVideoCardProps) => {
   const [hover, setHover] = useState(false);
 
   return (
@@ -33,7 +29,7 @@ export const RowVideoCards = ({
             />
             <Icon
               name="play_arrow"
-              className={`naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-z-50 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] !naxatw-text-[3rem] ${hover ? '' : '!naxatw-hidden'} naxatw-text-white`}
+              className={`naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-z-50 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] !naxatw-text-[3rem] ${hover ? "" : "!naxatw-hidden"} naxatw-text-white`}
               iconSymbolType="material-icons"
             />
           </div>
@@ -50,11 +46,7 @@ export const RowVideoCards = ({
   );
 };
 
-export const ColumnVideoCards = ({
-  title,
-  onClick,
-  thumbnail,
-}: IVideoCardProps) => {
+export const ColumnVideoCards = ({ title, onClick, thumbnail }: IVideoCardProps) => {
   const [hover, setHover] = useState(false);
 
   return (
@@ -73,15 +65,13 @@ export const ColumnVideoCards = ({
           />
           <Icon
             name="play_arrow"
-            className={`naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-z-50 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] !naxatw-text-[3rem] ${hover ? '' : '!naxatw-hidden'} naxatw-text-white`}
+            className={`naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-z-50 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] !naxatw-text-[3rem] ${hover ? "" : "!naxatw-hidden"} naxatw-text-white`}
             iconSymbolType="material-icons"
           />
         </div>
         <FlexColumn className="naxatw-min-h-[2rem] naxatw-w-full naxatw-items-start naxatw-gap-2 naxatw-px-3 naxatw-pb-3 naxatw-pt-0">
           <div className="naxatw-flex naxatw-w-full naxatw-justify-between">
-            <p className="naxatw-text-primary-700 naxatw-text-base naxatw-font-semibold">
-              {title}
-            </p>
+            <p className="naxatw-text-primary-700 naxatw-text-base naxatw-font-semibold">{title}</p>
           </div>
         </FlexColumn>
       </FlexColumn>

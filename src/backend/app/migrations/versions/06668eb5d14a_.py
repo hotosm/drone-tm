@@ -49,9 +49,6 @@ def downgrade():
     op.execute("ALTER TYPE state RENAME TO state_old")
     old_state_enum.create(op.get_bind(), checkfirst=False)
     op.execute(
-        (
-            "ALTER TABLE task_events "
-            "ALTER COLUMN state TYPE state USING state::text::state"
-        )
+        "ALTER TABLE task_events ALTER COLUMN state TYPE state USING state::text::state"
     )
     op.execute("DROP TYPE state_old")

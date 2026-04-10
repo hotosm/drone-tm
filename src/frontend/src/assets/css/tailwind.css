@@ -141,6 +141,6 @@ input:-webkit-autofill:active {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-.main-content{
-  @apply naxatw-h-[calc(100vh-3.5rem)]
+.main-content {
+  @apply naxatw-h-[calc(100vh-3.5rem)];
 }

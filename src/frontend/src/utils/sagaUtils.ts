@@ -1,6 +1,6 @@
-import { put } from 'redux-saga/effects';
-import { PayloadAction } from '@reduxjs/toolkit';
-import { startAction, stopAction } from '@Store/actions/loader';
+import { put } from "redux-saga/effects";
+import { PayloadAction } from "@reduxjs/toolkit";
+import { startAction, stopAction } from "@Store/actions/loader";
 
 /**
  *
@@ -30,4 +30,4 @@ export function withLoader(func: Function) {
   };
 }
 
-export const nothing = '';
+export const nothing = "";

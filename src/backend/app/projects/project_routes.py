@@ -1638,8 +1638,7 @@ async def export_odm_assets(
             yield name, modified, 0o644, NO_COMPRESSION_64, chunks()
 
     def generate():
-        for chunk in stream_zip(member_files()):
-            yield chunk
+        yield from stream_zip(member_files())
 
     return StreamingResponse(
         generate(),

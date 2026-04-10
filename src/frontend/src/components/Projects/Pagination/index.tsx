@@ -1,10 +1,10 @@
 /* eslint-disable no-nested-ternary */
-import { Button } from '@Components/RadixComponents/Button';
-import { FlexRow } from '@Components/common/Layouts';
-import { Input, Select } from '@Components/common/FormUI';
-import usePagination, { DOTS } from '@Hooks/usePagination';
-import { useMemo } from 'react';
-import { rowsPerPageOptions } from '@Constants/index';
+import { Button } from "@Components/RadixComponents/Button";
+import { FlexRow } from "@Components/common/Layouts";
+import { Input, Select } from "@Components/common/FormUI";
+import usePagination, { DOTS } from "@Hooks/usePagination";
+import { useMemo } from "react";
+import { rowsPerPageOptions } from "@Constants/index";
 
 interface IPaginationProps {
   totalCount: number;
@@ -44,7 +44,7 @@ export default function Pagination({
           <p className="naxatw-text-sm naxatw-font-bold">Row per page</p>
           <Select
             options={rowsPerPageOptions}
-            onChange={value =>
+            onChange={(value) =>
               handlePaginationState({
                 selectedNumberOfRows: value,
                 activePage: 1,
@@ -65,10 +65,9 @@ export default function Pagination({
               type="number"
               defaultValue={currentPage}
               min={1}
-              onChange={e => {
+              onChange={(e) => {
                 const page = e.target.value ? Number(e.target.value) : 1;
-                const validPage =
-                  page >= lastPage ? lastPage : page <= 1 ? 1 : page;
+                const validPage = page >= lastPage ? lastPage : page <= 1 ? 1 : page;
                 handlePaginationState({ activePage: validPage });
               }}
               className="no-spinner naxatw-w-8 naxatw-border-b-2 naxatw-px-1 naxatw-py-0 naxatw-text-center"
@@ -86,7 +85,7 @@ export default function Pagination({
           disabled={currentPage <= 1}
         />
         <FlexRow className="naxatw-items-center naxatw-justify-center naxatw-gap-3">
-          {paginationRange.map(pageNumber => {
+          {paginationRange.map((pageNumber) => {
             if (pageNumber === DOTS) {
               return <span key={pageNumber}>&#8230;</span>;
             }
@@ -94,10 +93,8 @@ export default function Pagination({
               <Button
                 size="sm"
                 key={pageNumber}
-                className={`!naxatw-text-gray-500 naxatw-no-underline ${currentPage === pageNumber ? 'naxatw-rounded-b-none naxatw-border-b-2 naxatw-border-gray-800 !naxatw-text-gray-800' : ''}`}
-                onClick={() =>
-                  handlePaginationState({ activePage: pageNumber })
-                }
+                className={`!naxatw-text-gray-500 naxatw-no-underline ${currentPage === pageNumber ? "naxatw-rounded-b-none naxatw-border-b-2 naxatw-border-gray-800 !naxatw-text-gray-800" : ""}`}
+                onClick={() => handlePaginationState({ activePage: pageNumber })}
               >
                 {pageNumber}
               </Button>

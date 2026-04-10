@@ -1,4 +1,4 @@
-import { droneOperatorTaskSlice } from '@Store/slices/droneOperartorTask';
+import { droneOperatorTaskSlice } from "@Store/slices/droneOperartorTask";
 
 export const {
   setSecondPage,

@@ -1,8 +1,8 @@
 /* eslint-disable react/no-array-index-key */
 /* eslint-disable no-nested-ternary */
 /* eslint-disable no-unused-vars */
-import React, { useState, useMemo, useEffect, CSSProperties } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useEffect, CSSProperties } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
   getCoreRowModel,
@@ -13,9 +13,9 @@ import {
   ColumnSort,
   ColumnDef,
   TableOptions,
-} from '@tanstack/react-table';
-import { AxiosResponse } from 'axios';
-import prepareQueryParam from '@Utils/prepareQueryParam';
+} from "@tanstack/react-table";
+import { AxiosResponse } from "axios";
+import prepareQueryParam from "@Utils/prepareQueryParam";
 import {
   Table,
   TableBody,
@@ -23,12 +23,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@Components/RadixComponents/Table';
-import Icon from '@Components/common/Icon';
-import Skeleton from '@Components/RadixComponents/Skeleton';
-import useDebounceListener from '@Hooks/useDebouncedListener';
-import { FlexColumn, FlexRow } from '../Layouts';
-import Pagination from './DataTablePagination';
+} from "@Components/RadixComponents/Table";
+import Icon from "@Components/common/Icon";
+import Skeleton from "@Components/RadixComponents/Skeleton";
+import useDebounceListener from "@Hooks/useDebouncedListener";
+import { FlexColumn, FlexRow } from "../Layouts";
+import Pagination from "./DataTablePagination";
 
 export interface ColumnData {
   header: string;
@@ -77,13 +77,12 @@ export default function DataTable({
   handleTableRowClick,
 }: DataTableProps) {
   const [sorting, setSorting] = useState<ColumnSort[]>([]);
-  const debouncedValue = useDebounceListener(searchInput || '', 800);
-  const [{ pageIndex, pageSize }, setPagination] =
-    React.useState<PaginationState>({
-      pageIndex: 0,
-      pageSize: 10,
-      ...initialState.paginationState,
-    });
+  const debouncedValue = useDebounceListener(searchInput || "", 800);
+  const [{ pageIndex, pageSize }, setPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+    ...initialState.paginationState,
+  });
   const pagination = React.useMemo(
     () => ({
       pageIndex,
@@ -98,14 +97,7 @@ export default function DataTable({
     isError,
     error,
   } = useQuery({
-    queryKey: [
-      queryKey,
-      pageIndex,
-      pageSize,
-      debouncedValue,
-      queryFnParams,
-      sorting,
-    ],
+    queryKey: [queryKey, pageIndex, pageSize, debouncedValue, queryFnParams, sorting],
     queryFn: () =>
       queryFn?.({
         page: pageIndex + 1,
@@ -113,11 +105,11 @@ export default function DataTable({
         search: debouncedValue,
         ...(queryFnParams ? prepareQueryParam(queryFnParams) : {}),
         ordering: sorting
-          .map(item => {
+          .map((item) => {
             const sortingKey = sortingKeyMap?.[item.id] || item.id;
             return item.desc ? `-${sortingKey}` : sortingKey;
           })
-          .join(', '),
+          .join(", "),
       }) || null,
     select: (res: any) => res.data,
     enabled: !data, // do not fetch data when there props data
@@ -125,7 +117,7 @@ export default function DataTable({
   });
 
   useEffect(() => {
-    setPagination(prevPagination => ({
+    setPagination((prevPagination) => ({
       ...prevPagination,
       pageIndex: 0,
     }));
@@ -150,8 +142,7 @@ export default function DataTable({
     },
     onPaginationChange: setPagination,
     manualPagination: true,
-    enableSortingRemoval:
-      false /* sort in order 'none' -> 'desc' -> 'asc' -> 'desc' -> 'asc' -> ... */,
+    enableSortingRemoval: false /* sort in order 'none' -> 'desc' -> 'asc' -> 'desc' -> 'asc' -> ... */,
     manualSorting: true,
     manualFiltering: true,
     debugTable: true,
@@ -163,7 +154,7 @@ export default function DataTable({
     if (err && err.response && err.response.data && err.response.data.message) {
       return err.response.data.message;
     }
-    return 'An unexpected error occurred.';
+    return "An unexpected error occurred.";
   }
 
   if (isError) {
@@ -178,9 +169,9 @@ export default function DataTable({
     <FlexColumn gap={3} style={wrapperStyle}>
       <Table>
         <TableHeader>
-          {table.getHeaderGroups().map(headerGroup => (
+          {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
+              {headerGroup.headers.map((header) => (
                 <TableHead
                   className="naxatw-bg-red"
                   key={`${header.id}-${header.index}`}
@@ -188,19 +179,14 @@ export default function DataTable({
                 >
                   {!header.isPlaceholder && (
                     <FlexRow className="naxatw-cursor-pointer naxatw-items-center">
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                      {flexRender(header.column.columnDef.header, header.getContext())}
                       {/* @ts-ignore */}
-                      {header.column.columnDef.accessorKey.startsWith(
-                        'icon',
-                      ) ? null : (
+                      {header.column.columnDef.accessorKey.startsWith("icon") ? null : (
                         <Icon
                           name={
-                            header.column.getIsSorted() === 'desc'
-                              ? 'arrow_drop_up'
-                              : 'arrow_drop_down'
+                            header.column.getIsSorted() === "desc"
+                              ? "arrow_drop_up"
+                              : "arrow_drop_down"
                           }
                         />
                       )}
@@ -214,50 +200,39 @@ export default function DataTable({
 
         <TableBody>
           {loading || (!data && isLoading) ? (
-            Array.from({ length: !data && isLoading ? 12 : 5 }).map(
-              (_, idx) => (
-                <TableRow key={idx}>
-                  {columns.map((cell, index) => {
-                    return (
-                      <TableCell
-                        key={index}
-                        className={cell.header === '' ? 'naxatw-w-[130px]' : ''}
-                      >
-                        <Skeleton className="naxatw-my-1.5 naxatw-h-4 naxatw-w-8/12 naxatw-bg-grey-400" />
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ),
-            )
+            Array.from({ length: !data && isLoading ? 12 : 5 }).map((_, idx) => (
+              <TableRow key={idx}>
+                {columns.map((cell, index) => {
+                  return (
+                    <TableCell key={index} className={cell.header === "" ? "naxatw-w-[130px]" : ""}>
+                      <Skeleton className="naxatw-my-1.5 naxatw-h-4 naxatw-w-8/12 naxatw-bg-grey-400" />
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))
           ) : table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map(row => (
+            table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                data-state={row.getIsSelected() && 'selected'}
+                data-state={row.getIsSelected() && "selected"}
                 onClick={() => {
                   handleTableRowClick?.(row?.original);
                 }}
-                className={`${handleTableRowClick ? 'naxatw-cursor-pointer' : ''} `}
+                className={`${handleTableRowClick ? "naxatw-cursor-pointer" : ""} `}
               >
-                {row.getVisibleCells().map(cell => (
+                {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {cell.getValue() !== null
-                      ? flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )
-                      : '-'}
+                      ? flexRender(cell.column.columnDef.cell, cell.getContext())
+                      : "-"}
                   </TableCell>
                 ))}
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell
-                colSpan={columns.length}
-                className="naxatw-text-center"
-              >
+              <TableCell colSpan={columns.length} className="naxatw-text-center">
                 No Data found.
               </TableCell>
             </TableRow>

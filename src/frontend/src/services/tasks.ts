@@ -1,4 +1,4 @@
-import { api, authenticated } from '.';
+import { api, authenticated } from ".";
 
 export const getTaskWaypoint = (
   projectId: string,
@@ -13,13 +13,10 @@ export const getTaskWaypoint = (
     `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`,
   );
 
-export const getIndividualTask = (taskId: string) =>
-  authenticated(api).get(`/tasks/${taskId}`);
+export const getIndividualTask = (taskId: string) => authenticated(api).get(`/tasks/${taskId}`);
 
-export const getTaskByProjectAndIndex = (
-  projectId: string,
-  taskIndex: string | number,
-) => authenticated(api).get(`/tasks/project/${projectId}/${taskIndex}`);
+export const getTaskByProjectAndIndex = (projectId: string, taskIndex: string | number) =>
+  authenticated(api).get(`/tasks/project/${projectId}/${taskIndex}`);
 
 // TODO refactor this out and replace with getTaskWaypoint?
 // This is used to update the take off point
@@ -39,7 +36,7 @@ export const postTaskWaypoint = (payload: Record<string, any>) => {
     `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`,
     takeOffPoint,
     {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
     },
   );
 };
@@ -51,7 +48,7 @@ export const getAllTaskAssetsInfo = (projectId: string) =>
 
 export const postProcessImagery = (projectId: string, taskId: string, odmUrl?: string) =>
   authenticated(api).post(
-    `/projects/process_imagery/${projectId}/${taskId}/${odmUrl ? `?odm_url=${encodeURIComponent(odmUrl)}` : ''}`,
+    `/projects/process_imagery/${projectId}/${taskId}/${odmUrl ? `?odm_url=${encodeURIComponent(odmUrl)}` : ""}`,
   );
 
 export const getOdmQueueInfo = (projectId: string) =>
@@ -60,6 +57,6 @@ export const getOdmQueueInfo = (projectId: string) =>
 export const postRotatedTaskWayPoint = (payload: Record<string, any>) => {
   const { taskId, data } = payload;
   return authenticated(api).post(`/waypoint/${taskId}/generate-kmz/`, data, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
 };

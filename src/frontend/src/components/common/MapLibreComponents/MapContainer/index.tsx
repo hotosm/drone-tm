@@ -1,9 +1,9 @@
-import React, { forwardRef, useMemo } from 'react';
-import { IMapContainer } from '../types';
-import { MapContext } from '../MapContext';
+import React, { forwardRef, useMemo } from "react";
+import { IMapContainer } from "../types";
+import { MapContext } from "../MapContext";
 
 const MapContainer = forwardRef<HTMLDivElement, IMapContainer>(
-  ({ children, containerId = 'maplibre-gl-map', map, isMapLoaded, ...rest }, ref) => {
+  ({ children, containerId = "maplibre-gl-map", map, isMapLoaded, ...rest }, ref) => {
     const contextValue = useMemo(
       () => ({
         map,

@@ -1,22 +1,22 @@
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
-import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import getBbox from '@turf/bbox';
-import { useTypedSelector } from '@Store/hooks';
-import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import { useEffect } from 'react';
-import { FeatureCollection } from 'geojson';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
+import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
+import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
+import { LngLatBoundsLike, Map } from "maplibre-gl";
+import { GeojsonType } from "@Components/common/MapLibreComponents/types";
+import getBbox from "@turf/bbox";
+import { useTypedSelector } from "@Store/hooks";
+import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
+import { useEffect } from "react";
+import { FeatureCollection } from "geojson";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
 
 interface IMapSectionProps {
   projectData: Record<string, any>;
 }
 
 const MapSection = ({ projectData }: IMapSectionProps) => {
-  const tasksData = useTypedSelector(state => state.project.tasksData);
-  const projectArea = useTypedSelector(state => state.project.projectArea);
+  const tasksData = useTypedSelector((state) => state.project.tasksData);
+  const projectArea = useTypedSelector((state) => state.project.projectArea);
 
   const { map, isMapLoaded } = useMapLibreGLMap({
     mapOptions: {
@@ -38,7 +38,7 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
         };
       },
       {
-        type: 'FeatureCollection',
+        type: "FeatureCollection",
         features: [],
       },
     );
@@ -52,8 +52,8 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
         map={map}
         isMapLoaded={isMapLoaded}
         style={{
-          width: '100%',
-          height: '100%',
+          width: "100%",
+          height: "100%",
         }}
       >
         <BaseLayerSwitcherUI />
@@ -65,15 +65,15 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
             visibleOnMap
             geojson={
               {
-                type: 'FeatureCollection',
+                type: "FeatureCollection",
                 features: [projectArea],
               } as GeojsonType
             }
             layerOptions={{
-              type: 'line',
+              type: "line",
               paint: {
-                'line-color': '#D73F3F',
-                'line-width': 2,
+                "line-color": "#D73F3F",
+                "line-width": 2,
               },
             }}
           />
@@ -86,16 +86,16 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
             visibleOnMap
             geojson={
               {
-                type: 'FeatureCollection',
+                type: "FeatureCollection",
                 features: [projectData?.no_fly_zones_geojson],
               } as GeojsonType
             }
             layerOptions={{
-              type: 'fill',
+              type: "fill",
               paint: {
-                'fill-color': '#9EA5AD',
-                'fill-outline-color': '#484848',
-                'fill-opacity': 0.8,
+                "fill-color": "#9EA5AD",
+                "fill-outline-color": "#484848",
+                "fill-opacity": 0.8,
               },
             }}
           />
@@ -110,13 +110,13 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
                 id={`tasks-layer-${task?.id}`}
                 visibleOnMap={task?.id}
                 geojson={task.outline as GeojsonType}
-                interactions={['feature']}
+                interactions={["feature"]}
                 layerOptions={{
-                  type: 'fill',
+                  type: "fill",
                   paint: {
-                    'fill-color': '#ffffff',
-                    'fill-outline-color': '#484848',
-                    'fill-opacity': 0.5,
+                    "fill-color": "#ffffff",
+                    "fill-outline-color": "#484848",
+                    "fill-opacity": 0.5,
                   },
                 }}
               />

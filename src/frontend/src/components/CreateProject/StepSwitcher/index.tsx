@@ -2,8 +2,8 @@
  * StepSwitcher wrapper for CreateProject that integrates with Redux
  * This component wraps the generic StepSwitcher and connects it to Redux state
  */
-import { useTypedSelector } from '@Store/hooks';
-import GenericStepSwitcher from '@Components/common/StepSwitcher';
+import { useTypedSelector } from "@Store/hooks";
+import GenericStepSwitcher from "@Components/common/StepSwitcher";
 
 interface IIndividualStep {
   url: string;
@@ -18,7 +18,7 @@ interface IStepSwitcherProps {
 }
 
 const StepSwitcher = ({ data, switchSteps }: IStepSwitcherProps) => {
-  const activeStep = useTypedSelector(state => state.createproject.activeStep);
+  const activeStep = useTypedSelector((state) => state.createproject.activeStep);
 
   const handleStepClick = (step: number) => {
     if (switchSteps) {

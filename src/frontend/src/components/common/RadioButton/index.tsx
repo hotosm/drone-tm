@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React from 'react';
+import React from "react";
 
 interface IRadioButton {
   name: string;
@@ -12,7 +12,7 @@ interface IRadioButton {
 interface RadioButtonProps {
   topic?: string;
   options: IRadioButton[];
-  direction: 'row' | 'column';
+  direction: "row" | "column";
   onChangeData: (value: any) => void;
   value: string;
   errorMsg?: string;
@@ -30,7 +30,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
   errorMsg,
   className,
   required,
-  name = '',
+  name = "",
 }) => (
   <div>
     {topic && (
@@ -42,17 +42,15 @@ const RadioButton: React.FC<RadioButtonProps> = ({
     )}
     <div
       className={`naxatw-flex ${
-        direction === 'column'
-          ? 'naxatw-flex-col'
-          : 'naxatw-flex-wrap naxatw-gap-x-16'
+        direction === "column" ? "naxatw-flex-col" : "naxatw-flex-wrap naxatw-gap-x-16"
       }`}
     >
-      {options.map(option => {
+      {options.map((option) => {
         return (
           <div
             key={option.value}
             className={`naxatw-flex naxatw-items-center naxatw-gap-2 ${
-              option?.disabled === true ? 'naxatw-cursor-not-allowed' : ''
+              option?.disabled === true ? "naxatw-cursor-not-allowed" : ""
             }`}
           >
             <input
@@ -61,9 +59,9 @@ const RadioButton: React.FC<RadioButtonProps> = ({
               name={option.name}
               value={option.value}
               className={`naxatw-appearance-none naxatw-h-4 naxatw-w-4 naxatw-min-h-4 naxatw-min-w-4 naxatw-rounded-full naxatw-border-2 naxatw-border-[#555] naxatw-bg-white naxatw-transition-colors checked:naxatw-border-red checked:naxatw-shadow-[inset_0_0_0_3px_#D73F3F] focus-visible:naxatw-outline focus-visible:naxatw-outline-2 focus-visible:naxatw-outline-offset-2 focus-visible:naxatw-outline-red naxatw-cursor-pointer ${
-                option?.disabled === true ? 'naxatw-cursor-not-allowed' : ''
+                option?.disabled === true ? "naxatw-cursor-not-allowed" : ""
               }`}
-              onChange={e => {
+              onChange={(e) => {
                 onChangeData(e.target.value);
               }}
               checked={option.value === value}
@@ -73,11 +71,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
               htmlFor={`${option.value}-${name}`}
               className={`naxatw-mb-[2px] naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-bg-white naxatw-text-sm naxatw-text-gray-500 ${className}`}
             >
-              <p
-                className={`${
-                  option?.disabled === true ? 'naxatw-cursor-not-allowed' : ''
-                }`}
-              >
+              <p className={`${option?.disabled === true ? "naxatw-cursor-not-allowed" : ""}`}>
                 {option.label}
               </p>
               <div>{option.icon && option.icon}</div>
@@ -86,9 +80,7 @@ const RadioButton: React.FC<RadioButtonProps> = ({
         );
       })}
       {errorMsg && (
-        <p className="naxatw-form-error naxatw-py-1 naxatw-text-sm naxatw-text-red">
-          {errorMsg}
-        </p>
+        <p className="naxatw-form-error naxatw-py-1 naxatw-text-sm naxatw-text-red">{errorMsg}</p>
       )}
     </div>
   </div>

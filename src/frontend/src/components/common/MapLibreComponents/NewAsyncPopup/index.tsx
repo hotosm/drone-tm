@@ -3,16 +3,16 @@
 /* eslint-disable react/display-name */
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/no-danger */
-import type { LngLatLike, MapMouseEvent } from 'maplibre-gl';
-import { Popup } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { forwardRef, useEffect, useMemo, useState } from 'react';
-import { renderToString } from 'react-dom/server';
-import '@Components/common/MapLibreComponents/map.css';
-import { Button } from '@Components/RadixComponents/Button';
-import Skeleton from '@Components/RadixComponents/Skeleton';
-import { useMap } from '../MapContext';
-import { IAsyncPopup } from '../types';
+import type { LngLatLike, MapMouseEvent } from "maplibre-gl";
+import { Popup } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { forwardRef, useEffect, useMemo, useState } from "react";
+import { renderToString } from "react-dom/server";
+import "@Components/common/MapLibreComponents/map.css";
+import { Button } from "@Components/RadixComponents/Button";
+import Skeleton from "@Components/RadixComponents/Skeleton";
+import { useMap } from "../MapContext";
+import { IAsyncPopup } from "../types";
 
 const popup = new Popup({
   closeOnClick: false,
@@ -35,22 +35,17 @@ function PopupUIComponent({
   properties,
   title,
   hideButton,
-  buttonText = 'View More',
+  buttonText = "View More",
   closeFn,
 }: IPopupUIComponent) {
-  const popupHTML = useMemo(
-    () => renderToString(popupUI(properties)),
-    [popupUI, properties],
-  );
+  const popupHTML = useMemo(() => renderToString(popupUI(properties)), [popupUI, properties]);
   return (
     <div className="naxatw-relative naxatw-w-[17.5rem] naxatw-bg-transparent naxatw-px-3">
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-2">
         {isLoading ? (
           <Skeleton className="naxatw-my-3 naxatw-h-4 naxatw-w-1/2 naxatw-rounded-md naxatw-bg-grey-100 naxatw-shadow-sm" />
         ) : (
-          <p className="naxatw-btn-text naxatw-text-primary-400 naxatw-text-red">
-            {title}
-          </p>
+          <p className="naxatw-btn-text naxatw-text-primary-400 naxatw-text-red">{title}</p>
         )}
         <span
           id="popup-close-button"
@@ -98,9 +93,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     ref,
   ) => {
     const { map } = useMap();
-    const [properties, setProperties] = useState<Record<string, any> | null>(
-      null,
-    );
+    const [properties, setProperties] = useState<Record<string, any> | null>(null);
     const [coordinates, setCoordinates] = useState<number[]>();
     const [isPopupOpen, setIsPopupOpen] = useState(false);
 
@@ -131,7 +124,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
         setCoordinates(e.lngLat as unknown as number[]);
         // popup.setLngLat(e.lngLat);
       }
-      map.on('click', displayPopup);
+      map.on("click", displayPopup);
     }, [map, getCoordOnProperties, showPopup]);
 
     useEffect(() => {
@@ -175,8 +168,8 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     }, [map, openPopupFor, popupCoordinate]);
 
     useEffect(() => {
-      const closeBtn = document.getElementById('popup-close-button');
-      const popupBtn = document.getElementById('popup-button');
+      const closeBtn = document.getElementById("popup-close-button");
+      const popupBtn = document.getElementById("popup-button");
 
       const handleCloseBtnClick = () => {
         popup.remove();
@@ -191,20 +184,14 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
         if (closePopupOnButtonClick) handleCloseBtnClick();
       };
 
-      closeBtn?.addEventListener('click', handleCloseBtnClick);
-      popupBtn?.addEventListener('click', handlePopupBtnClick);
+      closeBtn?.addEventListener("click", handleCloseBtnClick);
+      popupBtn?.addEventListener("click", handlePopupBtnClick);
 
       return () => {
-        closeBtn?.removeEventListener('click', handleCloseBtnClick);
-        popupBtn?.removeEventListener('click', handlePopupBtnClick);
+        closeBtn?.removeEventListener("click", handleCloseBtnClick);
+        popupBtn?.removeEventListener("click", handlePopupBtnClick);
       };
-    }, [
-      onClose,
-      isPopupOpen,
-      properties,
-      handleBtnClick,
-      closePopupOnButtonClick,
-    ]);
+    }, [onClose, isPopupOpen, properties, handleBtnClick, closePopupOnButtonClick]);
 
     if (!properties) return <div />;
     return null;

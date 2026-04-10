@@ -2,8 +2,7 @@ bug:
   # Branch starts with `fix` or has a `fix` in the name
   - head-branch: ["^fix", "fix"]
 enhancement:
-  - head-branch:
-      ["^feature", "feature", "^feat", "feat", "^refactor", "refactor"]
+  - head-branch: ["^feature", "feature", "^feat", "feat", "^refactor", "refactor"]
 frontend:
   - changed-files:
       - any-glob-to-any-file: src/frontend/**

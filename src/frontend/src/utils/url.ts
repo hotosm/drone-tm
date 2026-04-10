@@ -1,5 +1,5 @@
 export const isSafeRedirect = (path: string | undefined | null): boolean => {
-  if (!path || !path.startsWith('/')) {
+  if (!path || !path.startsWith("/")) {
     return false;
   }
   try {

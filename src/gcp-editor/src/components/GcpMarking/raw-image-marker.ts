@@ -1,12 +1,12 @@
-import { html, LitElement, PropertyValues } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import gcpMarkerIcon from '../../assets/gcpMarker.png';
-import panzoom from '@panzoom/panzoom';
+import { html, LitElement, PropertyValues } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import gcpMarkerIcon from "../../assets/gcpMarker.png";
+import panzoom from "@panzoom/panzoom";
 
-@customElement('raw-image-marker')
+@customElement("raw-image-marker")
 export class RawImageMarker extends LitElement {
   @property() imageName: any = null;
-  @property() imageUrl = '';
+  @property() imageUrl = "";
   @property() index: any = null;
   @property() gcpMarkerHandler: any;
   @property() selectedGcpDetails: any;
@@ -77,17 +77,17 @@ export class RawImageMarker extends LitElement {
         };
 
         // Mouse wheel zoom functionality
-        container.addEventListener('wheel', function (event: any) {
+        container.addEventListener("wheel", function (event: any) {
           event.preventDefault(); // Prevent page scrolling
           debounceZoom(event);
         });
 
         const addMarker = (topPosition: number, leftPosition: number) => {
-          imageLabel.style.background = '#D73F3F';
-          marker.style.height = '30px';
-          marker.style.width = '30px';
-          marker.style.display = 'block';
-          marker.style.position = 'absolute';
+          imageLabel.style.background = "#D73F3F";
+          marker.style.height = "30px";
+          marker.style.width = "30px";
+          marker.style.display = "block";
+          marker.style.position = "absolute";
           // Set the marker's new position in percentage relative to the container
           // Adjust the marker's position by half of its width/height to center it on the click position
           const markerWidth = marker.offsetWidth;
@@ -115,7 +115,7 @@ export class RawImageMarker extends LitElement {
         }
 
         // Attach click event to place the marker
-        container?.addEventListener('dblclick', (event: any) => {
+        container?.addEventListener("dblclick", (event: any) => {
           const rect = container.getBoundingClientRect(); // Get container's position
           const containerWidth = rect.width;
           const containerHeight = rect.height;
@@ -154,9 +154,9 @@ export class RawImageMarker extends LitElement {
       <div class="image-with-outer-wrapper">
         <div
           id="label-${this.index}"
-          class="tw-h-[30px] tw-w-full ${this.mark
-            ? 'tw-bg-primary'
-            : 'tw-bg-gray-400'} tw-flex tw-items-center tw-px-1 tw-line-clamp-1 tw-text-[#fff]"
+          class="tw-h-[30px] tw-w-full ${
+            this.mark ? "tw-bg-primary" : "tw-bg-gray-400"
+          } tw-flex tw-items-center tw-px-1 tw-line-clamp-1 tw-text-[#fff]"
         >
           ${this.imageName}
         </div>

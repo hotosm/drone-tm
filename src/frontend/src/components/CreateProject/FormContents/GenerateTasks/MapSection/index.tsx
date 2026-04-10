@@ -1,19 +1,16 @@
-import { useCallback, useEffect } from 'react';
-import { useTypedSelector } from '@Store/hooks';
-import { LngLatBoundsLike, Map } from 'maplibre-gl';
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import BaseLayerSwitcher from '@Components/common/MapLibreComponents/BaseLayerSwitcher';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import getBbox from '@turf/bbox';
-import { FeatureCollection } from 'geojson';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { useTypedDispatch } from '@UserModule/store/hooks';
-import {
-  saveProjectImageFile,
-  setCreateProjectState,
-} from '@Store/actions/createproject';
+import { useCallback, useEffect } from "react";
+import { useTypedSelector } from "@Store/hooks";
+import { LngLatBoundsLike, Map } from "maplibre-gl";
+import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
+import BaseLayerSwitcher from "@Components/common/MapLibreComponents/BaseLayerSwitcher";
+import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
+import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
+import { GeojsonType } from "@Components/common/MapLibreComponents/types";
+import getBbox from "@turf/bbox";
+import { FeatureCollection } from "geojson";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { useTypedDispatch } from "@UserModule/store/hooks";
+import { saveProjectImageFile, setCreateProjectState } from "@Store/actions/createproject";
 
 const MapSection = () => {
   const dispatch = useTypedDispatch();
@@ -27,15 +24,9 @@ const MapSection = () => {
     disableRotation: true,
   });
 
-  const projectArea = useTypedSelector(
-    state => state.createproject.projectArea,
-  );
-  const splitGeojson = useTypedSelector(
-    state => state.createproject.splitGeojson,
-  );
-  const capturedProjectMap = useTypedSelector(
-    state => state.createproject.capturedProjectMap,
-  );
+  const projectArea = useTypedSelector((state) => state.createproject.projectArea);
+  const splitGeojson = useTypedSelector((state) => state.createproject.splitGeojson);
+  const capturedProjectMap = useTypedSelector((state) => state.createproject.capturedProjectMap);
 
   useEffect(() => {
     if (!projectArea) return;
@@ -49,7 +40,7 @@ const MapSection = () => {
     // const data = map.getCanvas().toDataURL('image/jpeg', 0.95);
     map.getCanvas().toBlob(
       (blob: any) => {
-        const file = new File([blob], 'project.png', { type: blob.type });
+        const file = new File([blob], "project.png", { type: blob.type });
         dispatch(
           saveProjectImageFile({
             projectMapImage: file,
@@ -61,14 +52,13 @@ const MapSection = () => {
           }),
         );
       },
-      'image/png',
+      "image/png",
       0.95,
     );
   }, [map, dispatch, isMapLoaded, splitGeojson]);
 
   useEffect(() => {
-    if (!map || !isMapLoaded || !splitGeojson || capturedProjectMap)
-      return () => {};
+    if (!map || !isMapLoaded || !splitGeojson || capturedProjectMap) return () => {};
     // wait 1sec for split geojson is loaded and visible on map and capture
     const captureTimeout = setTimeout(() => {
       takeScreenshot();
@@ -82,8 +72,8 @@ const MapSection = () => {
       map={map}
       isMapLoaded={isMapLoaded}
       style={{
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
       }}
     >
       <BaseLayerSwitcher />
@@ -95,11 +85,11 @@ const MapSection = () => {
           geojson={projectArea}
           visibleOnMap={!!projectArea}
           layerOptions={{
-            type: 'fill',
+            type: "fill",
             paint: {
-              'fill-color': '#328ffd',
-              'fill-outline-color': '#D33A38',
-              'fill-opacity': 0.2,
+              "fill-color": "#328ffd",
+              "fill-outline-color": "#D33A38",
+              "fill-opacity": 0.2,
             },
           }}
         />
@@ -111,10 +101,10 @@ const MapSection = () => {
         geojson={splitGeojson as GeojsonType}
         visibleOnMap={!!splitGeojson}
         layerOptions={{
-          type: 'fill',
+          type: "fill",
           paint: {
-            'fill-color': '#328ffd',
-            'fill-opacity': 0.2,
+            "fill-color": "#328ffd",
+            "fill-opacity": 0.2,
           },
         }}
       />
@@ -125,10 +115,10 @@ const MapSection = () => {
         geojson={splitGeojson as GeojsonType}
         visibleOnMap={!!splitGeojson}
         layerOptions={{
-          type: 'line',
+          type: "line",
           paint: {
-            'line-color': '#D33A38',
-            'line-width': 1,
+            "line-color": "#D33A38",
+            "line-width": 1,
           },
         }}
       />

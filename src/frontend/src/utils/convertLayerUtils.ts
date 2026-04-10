@@ -1,5 +1,5 @@
 /* eslint-disable import/prefer-default-export */
-import gjv from 'geojson-validation';
+import gjv from "geojson-validation";
 // import shpjs from 'shpjs';
 
 // export function convertSHPToGeoJSON(file: File) {
@@ -26,10 +26,10 @@ import gjv from 'geojson-validation';
 
 export function convertGeojsonToFile(geojson: Record<string, any> | null) {
   const dataExtractBlob = new Blob([JSON.stringify(geojson)], {
-    type: 'application/json',
+    type: "application/json",
   });
-  const dataExtractFile = new File([dataExtractBlob], 'extract.json', {
-    type: 'application/json',
+  const dataExtractFile = new File([dataExtractBlob], "extract.json", {
+    type: "application/json",
   });
   return dataExtractFile;
 }
@@ -58,7 +58,7 @@ export function validateGeoJSON(file: File) {
       if (gjv.valid(JSON.parse(geojson as string))) {
         resolve(JSON.parse(geojson as string));
       } else {
-        reject(new Error('Invalid geojson'));
+        reject(new Error("Invalid geojson"));
       }
     };
   });

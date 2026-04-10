@@ -1,12 +1,12 @@
-import { ChangeEvent, useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
-import useCustomUpload from '@Hooks/useCustomUpload';
-import { FlexColumn, FlexRow } from '@Components/common/Layouts';
-import Icon from '@Components/common/Icon';
-import Image from '@Components/RadixComponents/Image';
-import { UseFormPropsType } from '../FormUI/types';
-import { Input } from '../FormUI';
+import { ChangeEvent, useEffect, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { format } from "date-fns";
+import useCustomUpload from "@Hooks/useCustomUpload";
+import { FlexColumn, FlexRow } from "@Components/common/Layouts";
+import Icon from "@Components/common/Icon";
+import Image from "@Components/RadixComponents/Image";
+import { UseFormPropsType } from "../FormUI/types";
+import { Input } from "../FormUI";
 
 type FileType = File & {
   lastModifiedDate: Date;
@@ -31,7 +31,7 @@ interface IFileUploadProps extends UseFormPropsType {
   disabled?: boolean;
   onChange?: any;
   isValid?: // eslint-disable-next-line no-unused-vars
-  | ((value: any) => boolean | undefined)
+    | ((value: any) => boolean | undefined)
     // eslint-disable-next-line no-unused-vars
     | ((value: any) => Promise<boolean | undefined>);
 }
@@ -41,7 +41,7 @@ export default function FileUpload({
   register,
   setValue,
   multiple,
-  fileAccept = 'image/*',
+  fileAccept = "image/*",
   data,
   placeholder,
   disabled = false,
@@ -54,9 +54,9 @@ export default function FileUpload({
   // for edit
   useEffect(() => {
     // @ts-ignore
-    if (!data || !multiple || (data && typeof data?.[0] !== 'string')) return;
+    if (!data || !multiple || (data && typeof data?.[0] !== "string")) return;
     const uploaded = data.map((url: string) => {
-      const urlArray = url?.split('/');
+      const urlArray = url?.split("/");
       return {
         id: uuidv4(),
         previewURL: url,
@@ -72,9 +72,9 @@ export default function FileUpload({
     register(name);
     if (!data) {
       setValue(name, []);
-    } else if (typeof data === 'string' && !multiple) {
+    } else if (typeof data === "string" && !multiple) {
       // @ts-ignore
-      const urlArray = data.split('/');
+      const urlArray = data.split("/");
       setUploadedFiles([
         {
           // @ts-ignore
@@ -89,14 +89,12 @@ export default function FileUpload({
 
   const handleFileUpload = async (event: FileEvent) => {
     const { files } = event.target;
-    const uploaded = Array.from(files).map(file => ({
+    const uploaded = Array.from(files).map((file) => ({
       id: uuidv4(),
       previewURL: URL.createObjectURL(file),
       file,
     }));
-    const uploadedFilesState = multiple
-      ? [...uploadedFiles, ...uploaded]
-      : uploaded;
+    const uploadedFilesState = multiple ? [...uploadedFiles, ...uploaded] : uploaded;
 
     const valid = await isValid?.(uploadedFilesState);
     if (!valid) return;
@@ -107,7 +105,7 @@ export default function FileUpload({
   };
 
   function downloadBlob(blobURL: string, fileName: string) {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = blobURL;
     link.download = fileName;
     document.body.appendChild(link);
@@ -116,7 +114,7 @@ export default function FileUpload({
   }
 
   const handleDeleteFile = (id: string) => {
-    const updatedData = uploadedFiles.filter(file => file.id !== id);
+    const updatedData = uploadedFiles.filter((file) => file.id !== id);
     setUploadedFiles(updatedData);
     setValue(name, updatedData, { shouldDirty: true });
   };
@@ -125,16 +123,14 @@ export default function FileUpload({
     <FlexColumn gap={2}>
       <FlexColumn
         className={`naxatw-items-center naxatw-justify-center naxatw-rounded-lg naxatw-border-2 naxatw-border-dashed naxatw-bg-white naxatw-px-1.5 naxatw-py-2.5 ${
-          disabled
-            ? 'naxatw-cursor-not-allowed naxatw-opacity-60'
-            : 'naxatw-cursor-pointer'
+          disabled ? "naxatw-cursor-not-allowed naxatw-opacity-60" : "naxatw-cursor-pointer"
         }`}
         //   @ts-ignore
         onClick={disabled ? undefined : onFileUpload}
       >
         <Icon name="backup" className="naxatw-text-3xl naxatw-text-red" />
         <p className="naxatw-mt-1 naxatw-text-center naxatw-text-xs naxatw-leading-4 naxatw-text-grey-600">
-          {placeholder || 'Please upload picture (jpeg, png file format)'}
+          {placeholder || "Please upload picture (jpeg, png file format)"}
         </p>
         <Input
           ref={inputRef}
@@ -146,10 +142,7 @@ export default function FileUpload({
           disabled={disabled}
         />
       </FlexColumn>
-      <FlexColumn
-        gap={2}
-        className="scrollbar naxatw-max-h-52 naxatw-overflow-auto"
-      >
+      <FlexColumn gap={2} className="scrollbar naxatw-max-h-52 naxatw-overflow-auto">
         {uploadedFiles &&
           Array.isArray(uploadedFiles) &&
           // @ts-ignore
@@ -164,8 +157,7 @@ export default function FileUpload({
                   <h5 className="naxatw-text-sm">{file?.name}</h5>
                   {file && file?.lastModified && (
                     <p className="naxatw-text-xs naxatw-text-grey-600">
-                      Uploaded on{' '}
-                      {format(new Date(file.lastModified), 'MMM dd yyyy')}
+                      Uploaded on {format(new Date(file.lastModified), "MMM dd yyyy")}
                     </p>
                   )}
                 </FlexColumn>

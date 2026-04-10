@@ -1,6 +1,6 @@
-import { FlexColumn } from '@Components/common/Layouts';
-import { motion } from 'framer-motion';
-import { featuresData } from '@Constants/landingPage';
+import { FlexColumn } from "@Components/common/Layouts";
+import { motion } from "framer-motion";
+import { featuresData } from "@Constants/landingPage";
 
 export default function Features() {
   const container = {
@@ -38,7 +38,7 @@ export default function Features() {
             viewport={{ once: true }}
             className="naxatw-grid naxatw-grid-cols-1 naxatw-gap-10 sm:naxatw-grid-cols-2 lg:naxatw-col-span-3 lg:naxatw-grid-cols-3"
           >
-            {featuresData.map(data => (
+            {featuresData.map((data) => (
               <motion.div
                 key={data.id}
                 variants={item}

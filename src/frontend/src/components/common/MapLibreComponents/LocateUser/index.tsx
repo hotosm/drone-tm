@@ -1,6 +1,6 @@
-import { GeolocateControl } from 'maplibre-gl';
-import { useEffect } from 'react';
-import { useMap } from '../MapContext';
+import { GeolocateControl } from "maplibre-gl";
+import { useEffect } from "react";
+import { useMap } from "../MapContext";
 
 const LocateUser = () => {
   const { map, isMapLoaded } = useMap();
@@ -14,7 +14,7 @@ const LocateUser = () => {
         },
         trackUserLocation: true,
       }),
-      'top-left',
+      "top-left",
     );
   }, [map, isMapLoaded]);
 

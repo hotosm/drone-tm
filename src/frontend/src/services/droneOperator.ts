@@ -1,4 +1,4 @@
-import { authenticated, api } from '.';
+import { authenticated, api } from ".";
 
 // eslint-disable-next-line import/prefer-default-export
 export const postUnflyableComment = ({
@@ -12,7 +12,7 @@ export const postUnflyableComment = ({
 }) =>
   authenticated(api).post(`/tasks/event/${projectId}/${taskId}`, data, {
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
@@ -27,7 +27,7 @@ export const getImageUploadLink = (replaceExistingImages: boolean, data: any) =>
     data,
     {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     },
   );

@@ -1,5 +1,5 @@
-import { GeojsonType } from '@Components/common/MapLibreComponents/types';
-import { IFilesExifData } from '@Store/slices/droneOperartorTask';
+import { GeojsonType } from "@Components/common/MapLibreComponents/types";
+import { IFilesExifData } from "@Store/slices/droneOperartorTask";
 
 export default function convertExifDataToGeoJson(data: IFilesExifData[]): {
   type: string;
@@ -8,13 +8,10 @@ export default function convertExifDataToGeoJson(data: IFilesExifData[]): {
   const features: GeojsonType[] = data.map((exifData, index) => {
     const { file, dateTime, coordinates } = exifData;
     return {
-      type: 'Feature',
+      type: "Feature",
       geometry: {
-        type: 'Point',
-        coordinates: [
-          Number(coordinates.longitude) ?? 0,
-          Number(coordinates.latitude) ?? 0,
-        ], // Defaulting to 0 if coordinates are null
+        type: "Point",
+        coordinates: [Number(coordinates.longitude) ?? 0, Number(coordinates.latitude) ?? 0], // Defaulting to 0 if coordinates are null
       },
       properties: {
         id: String(index + 1),
@@ -27,7 +24,7 @@ export default function convertExifDataToGeoJson(data: IFilesExifData[]): {
   });
 
   return {
-    type: 'FeatureCollection',
+    type: "FeatureCollection",
     features,
   };
 }

@@ -1,11 +1,8 @@
-import { FlexRow } from '@Components/common/Layouts';
+import { FlexRow } from "@Components/common/Layouts";
 // import Icon from '@Components/common/Icon';
-import { motion } from 'framer-motion';
-import { userAndRolesData } from '@Constants/landingPage';
-import {
-  containerAnimationVariant,
-  fadeUpVariant,
-} from '@Constants/animations';
+import { motion } from "framer-motion";
+import { userAndRolesData } from "@Constants/landingPage";
+import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
 
 export default function UserAndRoles() {
   return (
@@ -19,10 +16,7 @@ export default function UserAndRoles() {
         >
           DroneTM: Users & Roles
         </motion.p>
-        <FlexRow
-          gap={5}
-          className="naxatw-mt-20 naxatw-items-center naxatw-justify-between"
-        >
+        <FlexRow gap={5} className="naxatw-mt-20 naxatw-items-center naxatw-justify-between">
           <motion.div
             variants={containerAnimationVariant}
             initial="hidden"
@@ -30,17 +24,15 @@ export default function UserAndRoles() {
             viewport={{ once: true }}
             className="naxatw-mx-auto naxatw-grid naxatw-w-[90%] naxatw-grid-cols-1 naxatw-gap-5 md:naxatw-grid-cols-2 lg:naxatw-grid-cols-3"
           >
-            {userAndRolesData.map(singleItem => (
+            {userAndRolesData.map((singleItem) => (
               <motion.div
                 key={singleItem.id}
                 variants={fadeUpVariant}
                 className="naxatw-col-span-1 naxatw-rounded-lg naxatw-bg-white naxatw-px-8 naxatw-py-10 naxatw-text-landing-grey naxatw-duration-200 hover:naxatw-shadow-lg"
               >
-                <p className="naxatw-text-[30px] naxatw-leading-[40px]">
-                  {singleItem.title}
-                </p>
+                <p className="naxatw-text-[30px] naxatw-leading-[40px]">{singleItem.title}</p>
                 <ul className="naxatw-ml-6 naxatw-mt-6 naxatw-flex naxatw-list-disc naxatw-flex-col naxatw-gap-4">
-                  {singleItem.listItems.map(item => (
+                  {singleItem.listItems.map((item) => (
                     <li key={item.id}>{item.text}</li>
                   ))}
                 </ul>

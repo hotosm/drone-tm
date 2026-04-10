@@ -1,35 +1,29 @@
 /* eslint-disable import/prefer-default-export */
-import { UseQueryOptions, useQuery } from '@tanstack/react-query';
-import { getRequestedTasks } from '@Services/project';
-import { getTaskList, getTaskStatistics } from '@Services/dashboard';
+import { UseQueryOptions, useQuery } from "@tanstack/react-query";
+import { getRequestedTasks } from "@Services/project";
+import { getTaskList, getTaskStatistics } from "@Services/dashboard";
 
-export const useGetRequestedTasksListQuery = (
-  queryOptions?: Partial<UseQueryOptions>,
-) => {
+export const useGetRequestedTasksListQuery = (queryOptions?: Partial<UseQueryOptions>) => {
   return useQuery({
-    queryKey: ['requested-task-list'],
+    queryKey: ["requested-task-list"],
     queryFn: getRequestedTasks,
     select: (res: any) => res.data,
     ...queryOptions,
   });
 };
 
-export const useGetDashboardTaskStaticsQuery = (
-  queryOptions?: Partial<UseQueryOptions>,
-) => {
+export const useGetDashboardTaskStaticsQuery = (queryOptions?: Partial<UseQueryOptions>) => {
   return useQuery({
-    queryKey: ['task-statistics'],
+    queryKey: ["task-statistics"],
     queryFn: getTaskStatistics,
     select: (res: any) => res.data,
     ...queryOptions,
   });
 };
 
-export const useGetTaskListQuery = (
-  queryOptions?: Partial<UseQueryOptions>,
-) => {
+export const useGetTaskListQuery = (queryOptions?: Partial<UseQueryOptions>) => {
   return useQuery({
-    queryKey: ['task-list'],
+    queryKey: ["task-list"],
     queryFn: getTaskList,
     select: (res: any) => res.data,
     ...queryOptions,

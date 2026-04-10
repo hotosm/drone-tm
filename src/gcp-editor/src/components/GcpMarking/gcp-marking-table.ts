@@ -1,9 +1,9 @@
-import { css, html, LitElement } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { Store } from '../../store';
-import uploadImage from '../../assets/uploadIcon.png';
+import { css, html, LitElement } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import { Store } from "../../store";
+import uploadImage from "../../assets/uploadIcon.png";
 
-@customElement('gcp-marking-table')
+@customElement("gcp-marking-table")
 export class GcpMarkingTable extends LitElement {
   @property({ type: Object }) gcpData: String[][] = Store.getGcpData();
   @property() gcpDataWithImageXY: any = Store.getGcpDataWithXY() || {};
@@ -17,7 +17,10 @@ export class GcpMarkingTable extends LitElement {
   }
 
   disconnectedCallback() {
-    document.removeEventListener(Store.GCP_DATA_WITH_IMAGE_XY_UPDATE, this.handleGcpUpdate.bind(this));
+    document.removeEventListener(
+      Store.GCP_DATA_WITH_IMAGE_XY_UPDATE,
+      this.handleGcpUpdate.bind(this),
+    );
     document.removeEventListener(Store.ACTIVE_GCP_UPDATE, this.handleActiveGcpUpdate.bind(this));
     super.disconnectedCallback();
   }
@@ -120,7 +123,8 @@ export class GcpMarkingTable extends LitElement {
   }
 
   getMarkedImageCount = (gcpLabel: any) => {
-    if (!gcpLabel || !this.gcpDataWithImageXY || !Object.keys(this.gcpDataWithImageXY || {}).length) return 0;
+    if (!gcpLabel || !this.gcpDataWithImageXY || !Object.keys(this.gcpDataWithImageXY || {}).length)
+      return 0;
     const count = Object.keys(this.gcpDataWithImageXY?.[gcpLabel] || {}).length;
     return count || 0;
   };
@@ -139,7 +143,7 @@ export class GcpMarkingTable extends LitElement {
           <tbody>
             ${this.gcpData.slice(1).map(
               (row: Array<String>) => html`
-                <tr class=${this.activeGcp?.[0] === row?.[0] ? 'active' : ''} @click=${() => Store.setActiveGcp(row)}>
+                <tr class=${this.activeGcp?.[0] === row?.[0] ? "active" : ""} @click=${() => Store.setActiveGcp(row)}>
                   <td>
                     <span>${row[0]}</span>
                   </td>
@@ -151,7 +155,7 @@ export class GcpMarkingTable extends LitElement {
                     </div>
                   </td>
                 </tr>
-              `
+              `,
             )}
           </tbody>
         </table>

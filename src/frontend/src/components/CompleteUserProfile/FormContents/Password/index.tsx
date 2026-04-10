@@ -1,11 +1,11 @@
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { FormControl, Input, Label } from '@Components/common/FormUI';
-import { Flex, FlexColumn } from '@Components/common/Layouts';
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { FormControl, Input, Label } from "@Components/common/FormUI";
+import { Flex, FlexColumn } from "@Components/common/Layouts";
 
 export default function PasswordSection({ formProps }: { formProps: any }) {
   const { register, formState, watch } = formProps;
 
-  const password = watch('password');
+  const password = watch("password");
   return (
     <section className="naxatw-px-14">
       <Flex>
@@ -18,11 +18,11 @@ export default function PasswordSection({ formProps }: { formProps: any }) {
             type="password"
             className="naxatw-mt-1"
             placeholder="Enter Password"
-            {...register('password', {
-              required: 'Password is Required',
+            {...register("password", {
+              required: "Password is Required",
               minLength: {
                 value: 8,
-                message: 'Password must have at least 8 characters',
+                message: "Password must have at least 8 characters",
               },
             })}
           />
@@ -34,9 +34,8 @@ export default function PasswordSection({ formProps }: { formProps: any }) {
             type="password"
             className="naxatw-mt-1"
             placeholder="Enter confirm Password"
-            {...register('confirm_password', {
-              validate: (value: string) =>
-                value === password || 'The passwords do not match',
+            {...register("confirm_password", {
+              validate: (value: string) => value === password || "The passwords do not match",
               // required: 'Confirm Password is Required',
             })}
           />

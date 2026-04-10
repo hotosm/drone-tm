@@ -1,18 +1,16 @@
 /* eslint-disable camelcase */
 /* eslint-disable import/prefer-default-export */
-import { authenticated, api } from '.';
+import { authenticated, api } from ".";
 
-export const getTaskStates = (projectId: string) =>
-  api.get(`/tasks/states/${projectId}`);
+export const getTaskStates = (projectId: string) => api.get(`/tasks/states/${projectId}`);
 
 export const postTaskStatus = (payload: Record<string, any>) => {
   const { projectId, taskId, data } = payload;
   return authenticated(api).post(`/tasks/event/${projectId}/${taskId}`, data, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
 };
-export const getRequestedTasks = () =>
-  authenticated(api).get('/tasks/requested_tasks/pending');
+export const getRequestedTasks = () => authenticated(api).get("/tasks/requested_tasks/pending");
 
 export const processAllImagery = (data: Record<string, any>) => {
   const { projectId } = data;
@@ -21,7 +19,7 @@ export const processAllImagery = (data: Record<string, any>) => {
 
 export const saveGcpFile = (data: { projectId: string; gcp_file: File }) => {
   const formData = new FormData();
-  formData.append('gcp_file', data.gcp_file);
+  formData.append("gcp_file", data.gcp_file);
   return authenticated(api).post(`/gcp/save/${data.projectId}/`, formData);
 };
 
@@ -35,6 +33,6 @@ export const uploadToOAM = (payload: Record<string, any>) => {
     {
       tags,
     },
-    { headers: { 'Content-Type': 'application/json' } },
+    { headers: { "Content-Type": "application/json" } },
   );
 };

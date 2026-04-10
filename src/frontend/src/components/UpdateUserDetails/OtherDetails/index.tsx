@@ -1,56 +1,44 @@
-import { Controller, useForm } from 'react-hook-form';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import { Flex, FlexColumn } from '@Components/common/Layouts';
-import { FormControl, Input, Label } from '@Components/common/FormUI';
-import ErrorMessage from '@Components/common/ErrorMessage';
-import RadioButton from '@Components/common/RadioButton';
-import FileUpload from '@Components/common/UploadArea';
-import { droneOperatorOptions } from '@Constants/index';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { setCommonState } from '@Store/actions/common';
-import { Button } from '@Components/RadixComponents/Button';
-import { patchUserProfile } from '@Services/common';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
-import callApiSimultaneously from '@Utils/callApiSimultaneously';
-import { useEffect } from 'react';
+import { Controller, useForm } from "react-hook-form";
+import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import { Flex, FlexColumn } from "@Components/common/Layouts";
+import { FormControl, Input, Label } from "@Components/common/FormUI";
+import ErrorMessage from "@Components/common/ErrorMessage";
+import RadioButton from "@Components/common/RadioButton";
+import FileUpload from "@Components/common/UploadArea";
+import { droneOperatorOptions } from "@Constants/index";
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { setCommonState } from "@Store/actions/common";
+import { Button } from "@Components/RadixComponents/Button";
+import { patchUserProfile } from "@Services/common";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
+import callApiSimultaneously from "@Utils/callApiSimultaneously";
+import { useEffect } from "react";
 
 const OtherDetails = () => {
-  const userProfile = getLocalStorageValue('userprofile');
+  const userProfile = getLocalStorageValue("userprofile");
   const dispatch = useTypedDispatch();
-  const isCertifiedDroneOperator = useTypedSelector(
-    state => state.common.isCertifiedDroneUser,
-  );
+  const isCertifiedDroneOperator = useTypedSelector((state) => state.common.isCertifiedDroneUser);
 
   const initialState = {
     // for drone operators
-    notify_for_projects_within_km:
-      userProfile?.notify_for_projects_within_km || null,
+    notify_for_projects_within_km: userProfile?.notify_for_projects_within_km || null,
     experience_years: userProfile?.experience_years || null,
     certified_drone_operator: userProfile?.certified_drone_operator || false,
     drone_you_own: userProfile?.drone_you_own || null,
-    certificate_file:
-      userProfile?.certificate_file || userProfile?.certificate_url || null,
+    certificate_file: userProfile?.certificate_file || userProfile?.certificate_url || null,
     registration_file:
-      userProfile?.registration_file ||
-      userProfile?.registration_certificate_url ||
-      null,
+      userProfile?.registration_file || userProfile?.registration_certificate_url || null,
   };
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, setValue, control, formState, getValues } =
-    useForm({
-      defaultValues: initialState,
-    });
+  const { register, handleSubmit, setValue, control, formState, getValues } = useForm({
+    defaultValues: initialState,
+  });
 
-  const { mutate: updateOtherDetails, isPending } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
-    mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
-    onSuccess: async data => {
+  const { mutate: updateOtherDetails, isPending } = useMutation<any, any, any, unknown>({
+    mutationFn: (payloadDataObject) => patchUserProfile(payloadDataObject),
+    onSuccess: async (data) => {
       const results = data.data?.results;
       const values = getValues();
       const urlsToUpload = [];
@@ -64,26 +52,24 @@ const OtherDetails = () => {
         assetsToUpload.push(values?.registration_file?.[0]?.file);
       }
       if (urlsToUpload.length) {
-        await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
+        await callApiSimultaneously(urlsToUpload, assetsToUpload, "put");
       }
 
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
 
-      toast.success('Details Updated Successfully');
+      toast.success("Details Updated Successfully");
     },
-    onError: err => {
+    onError: (err) => {
       // eslint-disable-next-line no-console
       console.log(err);
-      toast.error(err?.response?.data?.detail || 'Something went wrong');
+      toast.error(err?.response?.data?.detail || "Something went wrong");
     },
   });
 
   useEffect(() => {
     dispatch(
       setCommonState({
-        isCertifiedDroneUser: userProfile?.certified_drone_operator
-          ? 'yes'
-          : 'no',
+        isCertifiedDroneUser: userProfile?.certified_drone_operator ? "yes" : "no",
       }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,9 +89,7 @@ const OtherDetails = () => {
   return (
     <section className="naxatw-max-h-full naxatw-w-full naxatw-overflow-y-auto naxatw-px-14">
       <Flex>
-        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">
-          Other Details
-        </p>
+        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">Other Details</p>
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
@@ -114,16 +98,13 @@ const OtherDetails = () => {
             placeholder="Enter"
             className="naxatw-mt-1"
             type="number"
-            {...register('notify_for_projects_within_km', {
-              required: 'Required',
+            {...register("notify_for_projects_within_km", {
+              required: "Required",
               valueAsNumber: true,
             })}
           />
           <ErrorMessage
-            message={
-              formState?.errors?.notify_for_projects_within_km
-                ?.message as string
-            }
+            message={formState?.errors?.notify_for_projects_within_km?.message as string}
           />
         </FormControl>
         <FormControl>
@@ -132,50 +113,42 @@ const OtherDetails = () => {
             placeholder="Enter years of experience"
             className="naxatw-mt-1"
             type="number"
-            {...register('experience_years', {
-              required: 'Required',
+            {...register("experience_years", {
+              required: "Required",
               valueAsNumber: true,
             })}
           />
-          <ErrorMessage
-            message={formState.errors?.experience_years?.message as string}
-          />
+          <ErrorMessage message={formState.errors?.experience_years?.message as string} />
         </FormControl>
         <FormControl>
           <Label required>Drone you own</Label>
           <Input
             placeholder="Enter the type of drone you own"
             className="naxatw-mt-1"
-            {...register('drone_you_own', {
-              required: 'Required',
+            {...register("drone_you_own", {
+              required: "Required",
             })}
           />
-          <ErrorMessage
-            message={formState.errors?.drone_you_own?.message as string}
-          />
+          <ErrorMessage message={formState.errors?.drone_you_own?.message as string} />
         </FormControl>
         <FormControl>
           <RadioButton
             topic="Certified Drone Operator?"
             options={droneOperatorOptions}
             direction="column"
-            onChangeData={val => {
+            onChangeData={(val) => {
               dispatch(setCommonState({ isCertifiedDroneUser: val }));
-              setValue('certified_drone_operator', val === 'yes');
+              setValue("certified_drone_operator", val === "yes");
             }}
             value={isCertifiedDroneOperator}
           />
-          <ErrorMessage
-            message={
-              formState.errors?.certified_drone_operator?.message as string
-            }
-          />
-          {isCertifiedDroneOperator === 'yes' && (
+          <ErrorMessage message={formState.errors?.certified_drone_operator?.message as string} />
+          {isCertifiedDroneOperator === "yes" && (
             <Controller
               control={control}
               name="certificate_file"
               rules={{
-                required: 'Certificate file is required',
+                required: "Certificate file is required",
               }}
               render={({ field: { value }, fieldState: { error } }) => {
                 return (
@@ -225,7 +198,7 @@ const OtherDetails = () => {
       <div className="naxatw-flex naxatw-justify-center naxatw-py-4">
         <Button
           className="naxatw-bg-red"
-          onClick={e => {
+          onClick={(e) => {
             e.preventDefault();
             handleSubmit(onSubmit)();
           }}

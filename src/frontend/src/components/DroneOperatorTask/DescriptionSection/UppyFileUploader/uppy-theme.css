@@ -15,7 +15,7 @@
 
 .uppy-DashboardContent-title {
   color: #2c3038;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
 }
 
@@ -26,19 +26,19 @@
 
 .uppy-Dashboard-AddFiles-title {
   color: #2c3038;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
 }
 
 .uppy-Dashboard-note {
   color: #68707f;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
 }
 
 /* Tabs */
 .uppy-DashboardTab {
   color: #68707f;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
 }
 
 .uppy-DashboardTab:hover,
@@ -54,7 +54,7 @@
 /* Primary buttons */
 .uppy-c-btn-primary {
   background-color: #d73f3f;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
 }
 
@@ -79,7 +79,7 @@
 
 .uppy-StatusBar-actionBtn--upload {
   background-color: #d73f3f;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
 }
 
@@ -88,7 +88,7 @@
 }
 
 .uppy-StatusBar-actionBtn--done {
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   color: #68707f;
 }
 
@@ -106,12 +106,12 @@
 }
 
 .uppy-Dashboard-Item-name {
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   color: #2c3038;
 }
 
 .uppy-Dashboard-Item-status {
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   color: #68707f;
 }
 
@@ -136,12 +136,12 @@
 }
 
 /* Drag and drop overlay */
-.uppy-Dashboard-AddFiles[data-uppy-drag-drop-supported='true'] {
+.uppy-Dashboard-AddFiles[data-uppy-drag-drop-supported="true"] {
   border-style: dashed;
   border-width: 2px;
 }
 
-.uppy-Dashboard-AddFiles[data-uppy-drag-drop-supported='true']:hover {
+.uppy-Dashboard-AddFiles[data-uppy-drag-drop-supported="true"]:hover {
   background-color: #ffeded;
   border-color: #d73f3f;
 }
@@ -154,17 +154,16 @@
 /* Info badge for file count */
 .uppy-DashboardContent-badge {
   background-color: #d73f3f;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
 }
 
 /* Secondary text */
 .uppy-Dashboard-poweredBy {
   color: #929db3;
-  font-family: 'Manrope', sans-serif;
+  font-family: "Manrope", sans-serif;
 }
 
-
 .uppy-StatusBar-actionBtn {
-   background-color: #d73f3f !important;
+  background-color: #d73f3f !important;
 }

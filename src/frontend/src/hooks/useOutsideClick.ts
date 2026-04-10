@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, RefObject } from 'react';
+import { useState, useEffect, useCallback, useRef, RefObject } from "react";
 
 /**
  * A React custom hook that handles click events outside a specific DOM element.
@@ -12,7 +12,7 @@ import { useState, useEffect, useCallback, useRef, RefObject } from 'react';
  *
  */
 const useOutsideClick = (
-  type: 'single' | 'multiple' = 'single',
+  type: "single" | "multiple" = "single",
 ): [RefObject<HTMLElement | null>, boolean, () => void] => {
   const ref = useRef<HTMLElement | null>(null);
   const [toggle, setToggle] = useState<boolean>(false);
@@ -26,21 +26,21 @@ const useOutsideClick = (
 
   useEffect(() => {
     if (toggle) {
-      window.addEventListener('click', onOutsideClick);
+      window.addEventListener("click", onOutsideClick);
     } else {
-      window.removeEventListener('click', onOutsideClick);
+      window.removeEventListener("click", onOutsideClick);
     }
 
     return () => {
-      window.removeEventListener('click', onOutsideClick);
+      window.removeEventListener("click", onOutsideClick);
     };
   }, [toggle, onOutsideClick]);
 
   const handleToggle = () => {
-    if (type === 'multiple') {
+    if (type === "multiple") {
       setToggle(true);
     } else {
-      setToggle(prev => !prev);
+      setToggle((prev) => !prev);
     }
   };
 

@@ -1,4 +1,4 @@
-const QFieldLogo = ({ className = 'naxatw-h-4 naxatw-w-4' }: { className?: string }) => (
+const QFieldLogo = ({ className = "naxatw-h-4 naxatw-w-4" }: { className?: string }) => (
   <svg
     aria-hidden="true"
     className={className}

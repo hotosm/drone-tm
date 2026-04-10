@@ -1,4 +1,4 @@
-import React, { LazyExoticComponent, ReactNode } from 'react';
+import React, { LazyExoticComponent, ReactNode } from "react";
 
 type ComponentType =
   | (() => React.JSX.Element)

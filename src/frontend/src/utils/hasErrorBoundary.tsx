@@ -1,5 +1,5 @@
-import React from 'react';
-import ErrorBoundary from '@Components/common/ErrorBoundary';
+import React from "react";
+import ErrorBoundary from "@Components/common/ErrorBoundary";
 
 /**
  * This is a higher-order function that wraps a React component with an error boundary.
@@ -10,9 +10,7 @@ import ErrorBoundary from '@Components/common/ErrorBoundary';
  * the `WrappedComponent` passed as a child with the `props` spread into it.
  */
 function hasErrorBoundary<T>(
-  WrappedComponent: React.ComponentType<
-    React.PropsWithChildren<React.PropsWithChildren<T>>
-  >,
+  WrappedComponent: React.ComponentType<React.PropsWithChildren<React.PropsWithChildren<T>>>,
 ) {
   return function ErrorBoundaryWrapper(props: React.PropsWithChildren<T>) {
     return (

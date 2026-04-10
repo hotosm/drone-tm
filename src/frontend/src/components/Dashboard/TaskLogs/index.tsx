@@ -1,18 +1,18 @@
-import { useMemo } from 'react';
-import { useGetTaskListQuery } from '@Api/dashboard';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { taskStatusObj } from '@Constants/index';
-import TaskLogsTable from './TaskLogsTable';
+import { useMemo } from "react";
+import { useGetTaskListQuery } from "@Api/dashboard";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { taskStatusObj } from "@Constants/index";
+import TaskLogsTable from "./TaskLogsTable";
 
 interface TaskLogsProps {
   title: string;
 }
 
 const getStatusListByTitle = (title: string): string[] => {
-  if (title === 'Ongoing Tasks') return taskStatusObj.ongoing;
-  if (title === 'Request Logs') return taskStatusObj.request_logs;
-  if (title === 'Unflyable Tasks') return taskStatusObj.unflyable;
-  if (title === 'Completed Tasks') return taskStatusObj.completed;
+  if (title === "Ongoing Tasks") return taskStatusObj.ongoing;
+  if (title === "Request Logs") return taskStatusObj.request_logs;
+  if (title === "Unflyable Tasks") return taskStatusObj.unflyable;
+  if (title === "Completed Tasks") return taskStatusObj.completed;
   return [];
 };
 

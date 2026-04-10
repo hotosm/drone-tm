@@ -1,4 +1,4 @@
-import TableSection from './TableSection';
+import TableSection from "./TableSection";
 
 interface IContributionsProps {
   isFetching: boolean;
@@ -6,17 +6,11 @@ interface IContributionsProps {
   handleTableRowClick: (rowData: any) => {};
 }
 
-export default function Contributions({
-  isFetching,
-  handleTableRowClick,
-}: IContributionsProps) {
+export default function Contributions({ isFetching, handleTableRowClick }: IContributionsProps) {
   return (
     <section className="naxatw-py-5">
       <div className="mt-2">
-        <TableSection
-          isFetching={isFetching}
-          handleTableRowClick={handleTableRowClick}
-        />
+        <TableSection isFetching={isFetching} handleTableRowClick={handleTableRowClick} />
       </div>
     </section>
   );

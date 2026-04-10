@@ -217,7 +217,7 @@ async def process_task_metrics(db, tasks_data, project):
                 )
                 outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
                 add_elevation_from_dem(dem_path, points, outfile_with_elevation)
-                with open(outfile_with_elevation, "r") as inpointsfile:
+                with open(outfile_with_elevation) as inpointsfile:
                     points_with_elevation = inpointsfile.read()
             except Exception:
                 points_with_elevation = points
@@ -824,7 +824,7 @@ async def process_waypoints_and_waylines(
             add_elevation_from_dem(dem_path, points, outfile_with_elevation)
 
             # Read the updated waypoints with elevation
-            with open(outfile_with_elevation, "r") as inpointsfile:
+            with open(outfile_with_elevation) as inpointsfile:
                 points_with_elevation = inpointsfile.read()
                 count_data["waypoints"] = len(
                     json.loads(points_with_elevation)["features"]

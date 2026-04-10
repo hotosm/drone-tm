@@ -1,5 +1,5 @@
 /* eslint-disable import/prefer-default-export */
-import { authenticated, api } from '.';
+import { authenticated, api } from ".";
 
 export const generateQFieldProject = (projectId: string) =>
   authenticated(api).post(`/projects/${projectId}/generate-qfield-project`);

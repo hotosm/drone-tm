@@ -1,16 +1,16 @@
-import { toast } from 'react-toastify';
-import { Controller, useForm } from 'react-hook-form';
-import { FormControl, Input, Label, Select } from '@Components/common/FormUI';
-import { Flex, FlexColumn } from '@Components/common/Layouts';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { Button } from '@Components/RadixComponents/Button';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { patchUserProfile } from '@Services/common';
-import { countries } from 'countries-list';
+import { toast } from "react-toastify";
+import { Controller, useForm } from "react-hook-form";
+import { FormControl, Input, Label, Select } from "@Components/common/FormUI";
+import { Flex, FlexColumn } from "@Components/common/Layouts";
+import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { Button } from "@Components/RadixComponents/Button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { patchUserProfile } from "@Services/common";
+import { countries } from "countries-list";
 
 const BasicDetails = () => {
-  const userProfile = getLocalStorageValue('userprofile');
+  const userProfile = getLocalStorageValue("userprofile");
   const initialState = {
     name: userProfile?.name,
     country: userProfile?.country || null,
@@ -23,21 +23,16 @@ const BasicDetails = () => {
     defaultValues: initialState,
   });
 
-  const { mutate: updateBasicInfo, isPending } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
-    mutationFn: payloadDataObject => patchUserProfile(payloadDataObject),
+  const { mutate: updateBasicInfo, isPending } = useMutation<any, any, any, unknown>({
+    mutationFn: (payloadDataObject) => patchUserProfile(payloadDataObject),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      toast.success('Details Updated Successfully');
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      toast.success("Details Updated Successfully");
     },
-    onError: err => {
+    onError: (err) => {
       // eslint-disable-next-line no-console
       console.log(err);
-      toast.error(err?.response?.data?.detail || 'Something went wrong');
+      toast.error(err?.response?.data?.detail || "Something went wrong");
     },
   });
 
@@ -65,8 +60,8 @@ const BasicDetails = () => {
           <Input
             placeholder="Enter Name"
             className="naxatw-mt-1"
-            {...register('name', {
-              required: 'Name is Required',
+            {...register("name", {
+              required: "Name is Required",
             })}
             readOnly
           />
@@ -90,16 +85,14 @@ const BasicDetails = () => {
               />
             )}
           />
-          <ErrorMessage
-            message={formState?.errors?.country?.message as string}
-          />
+          <ErrorMessage message={formState?.errors?.country?.message as string} />
         </FormControl>
         <FormControl>
           <Label>City</Label>
           <Input
             placeholder="Enter City"
             className="naxatw-mt-1"
-            {...register('city', {
+            {...register("city", {
               setValueAs: (value: string) => value?.trim(),
             })}
           />
@@ -119,23 +112,21 @@ const BasicDetails = () => {
               placeholder="Enter Phone number"
               className="naxatw-mt-1 naxatw-w-full"
               type="number"
-              {...register('phone_number', {
+              {...register("phone_number", {
                 minLength: {
                   value: 5,
-                  message: 'Invalid Phone Number',
+                  message: "Invalid Phone Number",
                 },
               })}
             />
           </div>
-          <ErrorMessage
-            message={formState.errors?.phone_number?.message as string}
-          />
+          <ErrorMessage message={formState.errors?.phone_number?.message as string} />
         </FormControl>
       </FlexColumn>
       <div className="naxatw-flex naxatw-justify-center naxatw-py-4">
         <Button
           className="naxatw-bg-red"
-          onClick={e => {
+          onClick={(e) => {
             e.preventDefault();
             handleSubmit(onSubmit)();
           }}

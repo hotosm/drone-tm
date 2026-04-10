@@ -1,23 +1,15 @@
-import Tab from '@Components/common/Tabs';
-import DescriptionSection from '@Components/RegulatorsApprovalPage/Description/DescriptionSection';
-import { tabOptions } from '@Constants/approvalPage';
-import { useState } from 'react';
-import InstructionSection from './InstructionSection';
+import Tab from "@Components/common/Tabs";
+import DescriptionSection from "@Components/RegulatorsApprovalPage/Description/DescriptionSection";
+import { tabOptions } from "@Constants/approvalPage";
+import { useState } from "react";
+import InstructionSection from "./InstructionSection";
 
-const getContent = (
-  selectedTab: string | number,
-  projectData: Record<string, any>,
-) => {
-  if (selectedTab === 'about')
-    return <DescriptionSection projectData={projectData} />;
-  return (
-    <InstructionSection
-      instructions={projectData?.per_task_instructions || ''}
-    />
-  );
+const getContent = (selectedTab: string | number, projectData: Record<string, any>) => {
+  if (selectedTab === "about") return <DescriptionSection projectData={projectData} />;
+  return <InstructionSection instructions={projectData?.per_task_instructions || ""} />;
 };
 const DetailsTemplate = ({ projectData }: Record<string, any>) => {
-  const [selectedTab, setSelectedTab] = useState<string | number>('about');
+  const [selectedTab, setSelectedTab] = useState<string | number>("about");
 
   return (
     <div className="naxatw-w-full naxatw-max-w-[30rem]">

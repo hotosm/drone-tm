@@ -1,41 +1,33 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
-import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from '@Api/tasks';
-import { postTaskStatus } from '@Services/project';
-import { formatString, buildDownloadUrl } from '@Utils/index';
-import { Button } from '@Components/RadixComponents/Button';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
+import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from "@Api/tasks";
+import { postTaskStatus } from "@Services/project";
+import { formatString, buildDownloadUrl } from "@Utils/index";
+import { Button } from "@Components/RadixComponents/Button";
 import {
   resetFilesExifData,
   setSelectedTaskDetailToViewOrthophoto,
-} from '@Store/actions/droneOperatorTask';
-import { useTypedSelector } from '@Store/hooks';
-import useTaskParams from '@Hooks/useTaskParams';
-import DescriptionBoxComponent from './DescriptionComponent';
-import QuestionBox from '../QuestionBox';
-import UploadsInformation from '../UploadsInformation';
-import ProgressBar from './ProgessBar';
+} from "@Store/actions/droneOperatorTask";
+import { useTypedSelector } from "@Store/hooks";
+import useTaskParams from "@Hooks/useTaskParams";
+import DescriptionBoxComponent from "./DescriptionComponent";
+import QuestionBox from "../QuestionBox";
+import UploadsInformation from "../UploadsInformation";
+import ProgressBar from "./ProgressBar";
 
 const DescriptionBox = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [flyable, setFlyable] = useState('yes');
+  const [flyable, setFlyable] = useState("yes");
   const { taskId, projectId, projectSlug, taskData } = useTaskParams();
-  const waypointMode = useTypedSelector(
-    state => state.droneOperatorTask.waypointMode,
-  );
-  const uploadProgress = useTypedSelector(
-    state => state.droneOperatorTask.uploadProgress,
-  );
-  const droneModel = useTypedSelector(
-    state => state.droneOperatorTask.droneModel,
-  );
-  const gimbalAngle = useTypedSelector(
-    state => state.droneOperatorTask.gimbalAngle,
-  );
+  const waypointMode = useTypedSelector((state) => state.droneOperatorTask.waypointMode);
+  const uploadProgress = useTypedSelector((state) => state.droneOperatorTask.uploadProgress);
+  const droneModel = useTypedSelector((state) => state.droneOperatorTask.droneModel);
+  const gimbalAngle = useTypedSelector((state) => state.droneOperatorTask.gimbalAngle);
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
@@ -51,8 +43,10 @@ const DescriptionBox = () => {
     },
   );
 
-  const { data: taskAssetsInformation }: Record<string, any> =
-    useGetTaskAssetsInfo(projectId as string, taskId as string);
+  const { data: taskAssetsInformation }: Record<string, any> = useGetTaskAssetsInfo(
+    projectId as string,
+    taskId as string,
+  );
 
   useEffect(() => {
     dispatch(resetFilesExifData());
@@ -64,36 +58,36 @@ const DescriptionBox = () => {
     const taskDescription = [
       {
         id: 1,
-        title: 'Task Description',
+        title: "Task Description",
         data: [
           {
-            name: 'Task ID',
+            name: "Task ID",
             value: resolvedTaskData?.id || taskId || null,
           },
           {
-            name: 'Created date',
+            name: "Created date",
             value: resolvedTaskData?.created_at
-              ? resolvedTaskData?.created_at?.slice(0, 10) || '-'
+              ? resolvedTaskData?.created_at?.slice(0, 10) || "-"
               : null,
           },
           {
-            name: 'Task locked date',
+            name: "Task locked date",
             value: resolvedTaskData?.updated_at
-              ? resolvedTaskData?.updated_at?.slice(0, 10) || '-'
+              ? resolvedTaskData?.updated_at?.slice(0, 10) || "-"
               : null,
           },
           {
-            name: 'Total task area',
+            name: "Total task area",
             value: resolvedTaskData?.total_area_sqkm
               ? `${Number(resolvedTaskData?.total_area_sqkm)?.toFixed(3)} km²`
               : null,
           },
           {
-            name: 'Total waypoints count',
+            name: "Total waypoints count",
             value: taskWayPoints?.length,
           },
           {
-            name: 'Est. flight time*',
+            name: "Est. flight time*",
             value: resolvedTaskData?.flight_time_minutes
               ? `${Number(resolvedTaskData?.flight_time_minutes)?.toFixed(3)} minutes`
               : null,
@@ -102,35 +96,29 @@ const DescriptionBox = () => {
       },
       {
         id: 2,
-        title: 'Flight Parameters',
+        title: "Flight Parameters",
         data: [
-          { name: 'Altitude', value: resolvedTaskData?.altitude || null },
+          { name: "Altitude", value: resolvedTaskData?.altitude || null },
           {
-            name: 'Gimble Angle',
+            name: "Gimble Angle",
             value: resolvedTaskData?.gimble_angles_degrees
               ? `${resolvedTaskData?.gimble_angles_degrees} degree`
               : null,
           },
           {
-            name: 'Front Overlap',
-            value: resolvedTaskData?.front_overlap
-              ? `${resolvedTaskData?.front_overlap}%`
-              : null,
+            name: "Front Overlap",
+            value: resolvedTaskData?.front_overlap ? `${resolvedTaskData?.front_overlap}%` : null,
           },
           {
-            name: 'Side Overlap',
-            value: resolvedTaskData?.side_overlap
-              ? `${resolvedTaskData?.side_overlap}%`
-              : null,
+            name: "Side Overlap",
+            value: resolvedTaskData?.side_overlap ? `${resolvedTaskData?.side_overlap}%` : null,
           },
           {
-            name: 'GSD',
-            value: resolvedTaskData?.gsd_cm_px
-              ? `${resolvedTaskData?.gsd_cm_px} cm`
-              : null,
+            name: "GSD",
+            value: resolvedTaskData?.gsd_cm_px ? `${resolvedTaskData?.gsd_cm_px} cm` : null,
           },
           {
-            name: 'Starting Point Altitude',
+            name: "Starting Point Altitude",
             value: resolvedTaskData?.starting_point_altitude
               ? `${resolvedTaskData?.starting_point_altitude}`
               : null,
@@ -157,9 +145,9 @@ const DescriptionBox = () => {
   const handleDownloadResult = () => {
     if (!taskAssetsInformation?.assets_url) return;
     try {
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = buildDownloadUrl(taskAssetsInformation.assets_url);
-      link.setAttribute('download', '');
+      link.setAttribute("download", "");
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -168,51 +156,34 @@ const DescriptionBox = () => {
     }
   };
 
-  const progressDetails = useMemo(
-    () => uploadProgress?.[taskId || ''],
-    [taskId, uploadProgress],
-  );
+  const progressDetails = useMemo(() => uploadProgress?.[taskId || ""], [taskId, uploadProgress]);
 
   const hasImages = taskAssetsInformation?.image_count > 0;
-  const isLocked = taskAssetsInformation?.state === 'LOCKED';
-  const isFullyFlown = taskAssetsInformation?.state === 'FULLY_FLOWN';
+  const isLocked = taskAssetsInformation?.state === "LOCKED";
+  const isFullyFlown = taskAssetsInformation?.state === "FULLY_FLOWN";
   const hasAssets = !!taskAssetsInformation?.assets_url;
 
-  const { mutate: markFlown, isPending: isMarkingFlown } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
+  const { mutate: markFlown, isPending: isMarkingFlown } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      toast.success('Task marked as fully flown');
-      queryClient.invalidateQueries({ queryKey: ['task-assets-info'] });
+      toast.success("Task marked as fully flown");
+      queryClient.invalidateQueries({ queryKey: ["task-assets-info"] });
     },
     onError: (err: any) => {
       toast.error(
-        err?.response?.data?.detail ||
-          err?.message ||
-          'Failed to mark task as fully flown',
+        err?.response?.data?.detail || err?.message || "Failed to mark task as fully flown",
       );
     },
   });
 
-  const { mutate: unmarkFlown, isPending: isUnmarkingFlown } = useMutation<
-    any,
-    any,
-    any,
-    unknown
-  >({
+  const { mutate: unmarkFlown, isPending: isUnmarkingFlown } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      toast.success('Task reverted to locked');
-      queryClient.invalidateQueries({ queryKey: ['task-assets-info'] });
+      toast.success("Task reverted to locked");
+      queryClient.invalidateQueries({ queryKey: ["task-assets-info"] });
     },
     onError: (err: any) => {
-      toast.error(
-        err?.response?.data?.detail || err?.message || 'Failed to revert task',
-      );
+      toast.error(err?.response?.data?.detail || err?.message || "Failed to revert task");
     },
   });
 
@@ -220,7 +191,7 @@ const DescriptionBox = () => {
     markFlown({
       projectId,
       taskId,
-      data: { event: 'mark_flown', updated_at: new Date().toISOString() },
+      data: { event: "mark_flown", updated_at: new Date().toISOString() },
     });
   };
 
@@ -228,7 +199,7 @@ const DescriptionBox = () => {
     unmarkFlown({
       projectId,
       taskId,
-      data: { event: 'unmark_flown', updated_at: new Date().toISOString() },
+      data: { event: "unmark_flown", updated_at: new Date().toISOString() },
     });
   };
 
@@ -243,8 +214,7 @@ const DescriptionBox = () => {
           />
         ))}
         <p className="naxatw-text-[0.75rem] naxatw-text-[#212121]">
-          *This flight time was calculated using an average ground speed of 11.5
-          m/s.
+          *This flight time was calculated using an average ground speed of 11.5 m/s.
         </p>
       </div>
 
@@ -257,7 +227,7 @@ const DescriptionBox = () => {
           onClick={handleMarkFlown}
           disabled={isMarkingFlown}
         >
-          {isMarkingFlown ? 'Marking...' : 'Mark as Fully Flown'}
+          {isMarkingFlown ? "Marking..." : "Mark as Fully Flown"}
         </Button>
       )}
 
@@ -270,23 +240,21 @@ const DescriptionBox = () => {
           onClick={handleUnmarkFlown}
           disabled={isUnmarkingFlown}
         >
-          {isUnmarkingFlown ? 'Reverting...' : 'Not Fully Flown'}
+          {isUnmarkingFlown ? "Reverting..." : "Not Fully Flown"}
         </Button>
       )}
 
       {(isLocked || isFullyFlown || hasImages) && (
         <div className="naxatw-mt-4 naxatw-rounded-lg naxatw-border naxatw-border-amber-200 naxatw-bg-amber-50 naxatw-p-4">
           <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
-            <span className="material-icons naxatw-text-[1.25rem] naxatw-text-amber-600">
-              info
-            </span>
+            <span className="material-icons naxatw-text-[1.25rem] naxatw-text-amber-600">info</span>
             <div className="naxatw-flex-1">
               <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-amber-900">
                 Imagery processing moved to the project page
               </p>
               <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-amber-800">
-                Upload imagery, verify coverage, and start processing from the
-                main project page instead of the individual task page.
+                Upload imagery, verify coverage, and start processing from the main project page
+                instead of the individual task page.
               </p>
               <Button
                 variant="outline"
@@ -323,18 +291,18 @@ const DescriptionBox = () => {
           <UploadsInformation
             data={[
               {
-                name: 'Image count',
+                name: "Image count",
                 value: taskAssetsInformation?.image_count,
               },
               {
-                name: 'Orthophoto available',
-                value: hasAssets ? 'Yes' : 'No',
+                name: "Orthophoto available",
+                value: hasAssets ? "Yes" : "No",
               },
               {
-                name: 'Image Status',
+                name: "Image Status",
                 value:
                   isLocked && hasImages
-                    ? 'Image Uploading Failed'
+                    ? "Image Uploading Failed"
                     : formatString(taskAssetsInformation?.state),
               },
             ]}

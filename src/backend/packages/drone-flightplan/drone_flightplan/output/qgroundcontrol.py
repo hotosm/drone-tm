@@ -647,7 +647,7 @@ def main(args_list: list[str] | None = None):
     vehicle_type = vehicle_map[args.vehicle]
 
     # Read input GeoJSON
-    with open(args.placemark, "r") as f:
+    with open(args.placemark) as f:
         placemark_data = f.read()
 
     create_qgroundcontrol_plan(

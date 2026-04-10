@@ -1,4 +1,4 @@
-import { cn } from '@Utils/index';
+import { cn } from "@Utils/index";
 
 interface IInfoMessageProp {
   message: string;
@@ -9,10 +9,7 @@ const InfoMessage = ({ message, className }: IInfoMessageProp) => {
   return (
     <span
       role="alert"
-      className={cn(
-        'naxatw-px-1 naxatw-pt-0 naxatw-text-sm naxatw-text-[#17A2B8]',
-        className,
-      )}
+      className={cn("naxatw-px-1 naxatw-pt-0 naxatw-text-sm naxatw-text-[#17A2B8]", className)}
     >
       {message}
     </span>

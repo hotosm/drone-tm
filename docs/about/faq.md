@@ -224,10 +224,7 @@ The following risks are less of a concern for a typical DroneTM project:
             "s3:PutObject",
             "s3:DeleteObject"
           ],
-          "Resource": [
-            "arn:aws:s3:::some-bucket-name",
-            "arn:aws:s3:::some-bucket-name/*"
-          ]
+          "Resource": ["arn:aws:s3:::some-bucket-name", "arn:aws:s3:::some-bucket-name/*"]
         },
         {
           "Effect": "Allow",

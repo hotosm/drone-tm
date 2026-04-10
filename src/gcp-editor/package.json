@@ -3,6 +3,7 @@
   "version": "0.0.9",
   "description": "A web component for working with Ground Control Points.",
   "homepage": "https://github.com/hotosm/gcp-editor#readme",
+  "license": "AGPL-3.0-only",
   "author": {
     "name": "HOTOSM",
     "email": "sysadmin@hotosm.org"
@@ -17,10 +18,16 @@
       "url": "https://github.com/spwoodcock"
     }
   ],
-  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hotosm/gcp-editor.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
   "main": "./dist/gcp-editor.js",
   "module": "./dist/gcp-editor.js",
-  "type": "module",
   "types": "./dist/gcp-editor.d.ts",
   "exports": {
     ".": {
@@ -29,13 +36,6 @@
       "default": "./dist/gcp-editor.js"
     },
     "./style.css": "./dist/gcp-editor.css"
-  },
-  "files": [
-    "dist"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hotosm/gcp-editor.git"
   },
   "scripts": {
     "build:dts": "tsc --emitDeclarationOnly",

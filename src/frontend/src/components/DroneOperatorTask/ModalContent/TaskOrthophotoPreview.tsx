@@ -1,21 +1,21 @@
-import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import COGOrthophotoViewer from '@Components/common/MapLibreComponents/COGOrthophotoViewer';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import { setSelectedTaskDetailToViewOrthophoto } from '@Store/actions/droneOperatorTask';
-import { useTypedSelector } from '@Store/hooks';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { RasterSourceSpecification } from 'maplibre-gl';
-import { useEffect, useMemo } from 'react';
-import { useDispatch } from 'react-redux';
-import { useGetTaskAssetsInfo } from '@Api/tasks';
+import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
+import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
+import COGOrthophotoViewer from "@Components/common/MapLibreComponents/COGOrthophotoViewer";
+import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
+import { setSelectedTaskDetailToViewOrthophoto } from "@Store/actions/droneOperatorTask";
+import { useTypedSelector } from "@Store/hooks";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { RasterSourceSpecification } from "maplibre-gl";
+import { useEffect, useMemo } from "react";
+import { useDispatch } from "react-redux";
+import { useGetTaskAssetsInfo } from "@Api/tasks";
 
 const TaskOrthophotoPreview = () => {
   const dispatch = useDispatch();
   const taskIdFromRedux = useTypedSelector(
-    state => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
+    (state) => state.droneOperatorTask.selectedTaskDetailToViewOrthophoto?.taskId,
   );
-  const pathname = window.location.pathname?.split('/');
+  const pathname = window.location.pathname?.split("/");
   const projectId = pathname?.[2];
   const taskId = pathname?.[4] || taskIdFromRedux;
 
@@ -26,7 +26,7 @@ const TaskOrthophotoPreview = () => {
   );
 
   const { map, isMapLoaded } = useMapLibreGLMap({
-    containerId: 'orthophoto-map',
+    containerId: "orthophoto-map",
     mapOptions: {
       zoom: 5,
       center: [0, 0],
@@ -36,7 +36,7 @@ const TaskOrthophotoPreview = () => {
 
   const orthophotoSource: RasterSourceSpecification | null = useMemo(() => {
     const signed = taskAssetsInformation?.orthophoto_url;
-    if (signed) return { type: 'raster', url: `cog://${signed}`, tileSize: 256 };
+    if (signed) return { type: "raster", url: `cog://${signed}`, tileSize: 256 };
 
     return null;
   }, [taskAssetsInformation?.orthophoto_url]);
@@ -54,8 +54,8 @@ const TaskOrthophotoPreview = () => {
         isMapLoaded={isMapLoaded}
         containerId="orthophoto-map"
         style={{
-          width: '100%',
-          height: '100%',
+          width: "100%",
+          height: "100%",
         }}
       >
         <BaseLayerSwitcherUI />

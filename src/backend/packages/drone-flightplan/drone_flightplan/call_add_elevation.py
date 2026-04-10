@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     a = p.parse_args()
 
-    infile = open(a.inpoints, "r")
+    infile = open(a.inpoints)
     inpointstring = infile.read()
 
     waypoints_with_elevation = ae(a.inraster, inpointstring)

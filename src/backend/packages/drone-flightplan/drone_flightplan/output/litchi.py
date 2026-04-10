@@ -421,7 +421,7 @@ def main(args_list: list[str] | None = None):
     flight_mode = FlightMode(args.flight_mode)
 
     # Read input GeoJSON
-    with open(args.placemark, "r") as f:
+    with open(args.placemark) as f:
         placemark_data = f.read()
 
     # Generate Litchi CSV

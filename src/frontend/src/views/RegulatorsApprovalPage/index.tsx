@@ -1,28 +1,28 @@
-import { useGetProjectsDetailQuery } from '@Api/projects';
-import BindContentContainer from '@Components/common/BindContentContainer';
-import BreadCrumb from '@Components/common/Breadcrumb';
-import { MapSection } from '@Components/IndividualProject';
-import Skeleton from '@Components/RadixComponents/Skeleton';
-import DetailsTemplate from '@Components/RegulatorsApprovalPage';
-import useAuth from '@Hooks/useAuth';
-import { regulatorUser } from '@Services/createproject';
-import { setProjectState } from '@Store/actions/project';
-import { useTypedDispatch } from '@Store/hooks';
-import { useMutation } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useGetProjectsDetailQuery } from "@Api/projects";
+import BindContentContainer from "@Components/common/BindContentContainer";
+import BreadCrumb from "@Components/common/Breadcrumb";
+import { MapSection } from "@Components/IndividualProject";
+import Skeleton from "@Components/RadixComponents/Skeleton";
+import DetailsTemplate from "@Components/RegulatorsApprovalPage";
+import useAuth from "@Hooks/useAuth";
+import { regulatorUser } from "@Services/createproject";
+import { setProjectState } from "@Store/actions/project";
+import { useTypedDispatch } from "@Store/hooks";
+import { useMutation } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useParams, useLocation } from "react-router-dom";
 
 const RegulatorsApprovalPage = () => {
   const { id } = useParams();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const token = queryParams.get('token');
+  const token = queryParams.get("token");
   const dispatch = useTypedDispatch();
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (!token) return;
-    localStorage.setItem('token', token);
+    localStorage.setItem("token", token);
   }, [token]);
 
   const { mutate: userToken, isPending } = useMutation({
@@ -30,9 +30,9 @@ const RegulatorsApprovalPage = () => {
     onSuccess(response) {
       const { data } = response;
       // save tokens and role on localstorage
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('refresh', data.refresh_token);
-      localStorage.setItem('signedInAs', data.role);
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("refresh", data.refresh_token);
+      localStorage.setItem("signedInAs", data.role);
     },
   });
 
@@ -42,12 +42,10 @@ const RegulatorsApprovalPage = () => {
     userToken({ token });
   }, [token, userToken]);
 
-  const {
-    data: projectData,
-    isFetching: isProjectDataFetching,
-  }: Record<string, any> = useGetProjectsDetailQuery(id as string, {
-    enabled: isAuthenticated(), // call only if the user is created and saved token on local storage
-  });
+  const { data: projectData, isFetching: isProjectDataFetching }: Record<string, any> =
+    useGetProjectsDetailQuery(id as string, {
+      enabled: isAuthenticated(), // call only if the user is created and saved token on local storage
+    });
   useEffect(() => {
     if (projectData) {
       dispatch(
@@ -78,10 +76,10 @@ const RegulatorsApprovalPage = () => {
     };
 
     // trigger when the redirect using the url
-    window.addEventListener('beforeunload', handleRedirection);
+    window.addEventListener("beforeunload", handleRedirection);
     return () => {
       // trigger when the redirect using the url
-      window.removeEventListener('beforeunload', handleRedirection);
+      window.removeEventListener("beforeunload", handleRedirection);
       // trigger when the redirect using navigate function
       handleRedirection();
     };
@@ -99,8 +97,8 @@ const RegulatorsApprovalPage = () => {
     <BindContentContainer className="naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
       <BreadCrumb
         data={[
-          { name: 'Project', navLink: '/projects' },
-          { name: projectData?.name || '', navLink: '' },
+          { name: "Project", navLink: "/projects" },
+          { name: projectData?.name || "", navLink: "" },
         ]}
       />
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">

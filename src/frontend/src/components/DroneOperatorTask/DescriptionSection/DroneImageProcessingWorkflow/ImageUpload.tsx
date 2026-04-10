@@ -1,4 +1,4 @@
-import UppyFileUploader from '../UppyFileUploader';
+import UppyFileUploader from "../UppyFileUploader";
 
 interface ImageUploadProps {
   projectId: string;
@@ -14,15 +14,15 @@ const ImageUpload = ({ projectId, onUploadComplete }: ImageUploadProps) => {
           label=""
           onUploadComplete={onUploadComplete}
           allowedFileTypes={[
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/tiff',
-            '.jpg',
-            '.jpeg',
-            '.png',
-            '.tif',
-            '.tiff',
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/tiff",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".tif",
+            ".tiff",
           ]}
           note="Drag and drop images here, or click Browse Files"
           staging={true}

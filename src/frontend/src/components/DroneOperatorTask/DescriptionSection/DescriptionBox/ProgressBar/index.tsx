@@ -5,7 +5,7 @@ interface IProgressBarProps {
 }
 
 const ProgressBar = ({
-  heading = 'Uploading',
+  heading = "Uploading",
   successCount = 0,
   totalCount = 100,
 }: IProgressBarProps) => {
@@ -27,7 +27,7 @@ const ProgressBar = ({
         </p>
         <div className="naxatw-h-[0.75rem] naxatw-w-full naxatw-rounded-3xl naxatw-bg-gray-300">
           <div
-            className={`naxatw-h-[0.75rem] naxatw-animate-pulse naxatw-bg-[#D73F3F] ${fillWidth === 100 ? 'naxatw-rounded-3xl' : 'naxatw-rounded-l-3xl'} naxatw-transition-all`}
+            className={`naxatw-h-[0.75rem] naxatw-animate-pulse naxatw-bg-[#D73F3F] ${fillWidth === 100 ? "naxatw-rounded-3xl" : "naxatw-rounded-l-3xl"} naxatw-transition-all`}
             style={{ width: `${fillWidth}%` }}
           />
         </div>

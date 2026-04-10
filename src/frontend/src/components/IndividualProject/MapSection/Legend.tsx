@@ -1,7 +1,7 @@
-import area from '@Assets/images/area-icon.png';
-import lock from '@Assets/images/lock.png';
-import { FlexColumn } from '@Components/common/Layouts';
-import { useState } from 'react';
+import area from "@Assets/images/area-icon.png";
+import lock from "@Assets/images/lock.png";
+import { FlexColumn } from "@Components/common/Layouts";
+import { useState } from "react";
 
 const Legend = () => {
   const [showLegendItems, setShowLegendItems] = useState<Boolean>(true);
@@ -15,7 +15,7 @@ const Legend = () => {
             role="presentation"
             onClick={() => setShowLegendItems(!showLegendItems)}
           >
-            {showLegendItems ? 'expand_more' : 'expand_less'}
+            {showLegendItems ? "expand_more" : "expand_less"}
           </i>
         </div>
         {showLegendItems && (

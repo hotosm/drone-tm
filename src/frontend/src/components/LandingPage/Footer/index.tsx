@@ -1,13 +1,13 @@
 /* eslint-disable no-unused-vars */
-import { FlexRow } from '@Components/common/Layouts';
+import { FlexRow } from "@Components/common/Layouts";
 // import Icon from '@Components/common/Icon';
-import Image from '@Components/RadixComponents/Image';
-import JamaicaFlyingLabsLogo from '@Assets/images/LandingPage/JamaicaFlyingLabs_Logo.png';
-import naxaLogo from '@Assets/images/LandingPage/Naxa-logo.png';
-import hotLogo from '@Assets/images/LandingPage/HOT-logo.png';
-import { Button } from '@Components/RadixComponents/Button';
-import { motion } from 'framer-motion';
-import { fadeUpVariant } from '@Constants/animations';
+import Image from "@Components/RadixComponents/Image";
+import JamaicaFlyingLabsLogo from "@Assets/images/LandingPage/JamaicaFlyingLabs_Logo.png";
+import naxaLogo from "@Assets/images/LandingPage/Naxa-logo.png";
+import hotLogo from "@Assets/images/LandingPage/HOT-logo.png";
+import { Button } from "@Components/RadixComponents/Button";
+import { motion } from "framer-motion";
+import { fadeUpVariant } from "@Constants/animations";
 
 export default function Footer() {
   return (
@@ -62,11 +62,7 @@ export default function Footer() {
             <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">
               Official Training Partner
             </p>
-            <Image
-              src={JamaicaFlyingLabsLogo}
-              alt="Jamaica-Flying-Labs-Logo"
-              width={200}
-            />
+            <Image src={JamaicaFlyingLabsLogo} alt="Jamaica-Flying-Labs-Logo" width={200} />
           </div>
         </motion.div>
         <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">

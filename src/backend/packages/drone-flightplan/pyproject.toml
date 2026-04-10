@@ -4,18 +4,13 @@ name = "drone-flightplan"
 version = "1.0.0"
 description = "Generate an optimized flight plan for aerial mapping with drones."
 authors = [
-    {name = "Niraj Adhikari", email = "nrjadkry@gmail.com"},
-    {name = "Sam Woodcock", email = "sam.woodcock@hotosm.org"},
+  { name = "Niraj Adhikari", email = "nrjadkry@gmail.com" },
+  { name = "Sam Woodcock", email = "sam.woodcock@hotosm.org" },
 ]
-dependencies = [
-    "geojson>=3.0.0",
-    "shapely>=2.1.0",
-    "pyproj>=3.7.1",
-    "gdal==3.10.3",
-]
+dependencies = ["geojson>=3.0.0", "shapely>=2.1.0", "pyproj>=3.7.1", "gdal==3.10.3"]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "GPL-3.0-only"}
+license = { text = "GPL-3.0-only" }
 
 [project.urls]
 homepage = "https://github.com/hotosm/drone-tm/tree/dev/src/backend/packages/drone-flightplan"
@@ -40,10 +35,7 @@ packages = ["drone_flightplan"]
 name = "cz_conventional_commits"
 version = "1.0.0"
 version_provider = "uv"
-version_files = [
-    "pyproject.toml:version",
-    "drone_flightplan/__version__.py",
-]
+version_files = ["pyproject.toml:version", "drone_flightplan/__version__.py"]
 update_changelog_on_bump = true
 # Create tag version prepended with drone-flightplan
 tag_format = "drone-flightplan-$version"

@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { IVectorTileLayer } from '../types';
+import { useEffect, useMemo } from "react";
+import { IVectorTileLayer } from "../types";
 
 export default function SymbolLayer({
   map,
@@ -13,15 +13,13 @@ export default function SymbolLayer({
 
   useEffect(() => {
     if (!map || !isMapLoaded) return;
-    map.setGlyphs(
-      'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-    );
+    map.setGlyphs("https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf");
   }, [isMapLoaded, map]);
 
   useEffect(() => {
     if (!map || !isMapLoaded) return;
     map.addSource(sourceId, {
-      type: 'vector',
+      type: "vector",
       tiles: [url],
     });
   }, [isMapLoaded, map, url, sourceId]);
@@ -31,9 +29,9 @@ export default function SymbolLayer({
     if (visibleOnMap) {
       map.addLayer({
         id: sourceId,
-        type: 'symbol',
+        type: "symbol",
         source: sourceId,
-        'source-layer': 'default',
+        "source-layer": "default",
         ...layerOptions,
       });
     } else if (map.getLayer(sourceId)) {

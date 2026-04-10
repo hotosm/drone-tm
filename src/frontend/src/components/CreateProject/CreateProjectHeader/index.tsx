@@ -1,8 +1,8 @@
-import { useTypedDispatch } from '@Store/hooks';
-import { FlexRow } from '@Components/common/Layouts';
-import Icon from '@Components/common/Icon';
-import { toggleModal } from '@Store/actions/common';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
+import { useTypedDispatch } from "@Store/hooks";
+import { FlexRow } from "@Components/common/Layouts";
+import Icon from "@Components/common/Icon";
+import { toggleModal } from "@Store/actions/common";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
 
 const CreateProjectHeader = () => {
   const dispatch = useTypedDispatch();
@@ -15,7 +15,7 @@ const CreateProjectHeader = () => {
       <FlexRow className="naxatw-items-center">
         <h5
           className="naxatw-cursor-pointer naxatw-font-bold hover:naxatw-underline"
-          onClick={() => dispatch(toggleModal('quit-create-project'))}
+          onClick={() => dispatch(toggleModal("quit-create-project"))}
           role="presentation"
         >
           Project /
@@ -25,7 +25,7 @@ const CreateProjectHeader = () => {
       <Icon
         className="!naxatw-text-xl hover:naxatw-text-red"
         name="close"
-        onClick={() => dispatch(toggleModal('quit-create-project'))}
+        onClick={() => dispatch(toggleModal("quit-create-project"))}
       />
     </FlexRow>
   );

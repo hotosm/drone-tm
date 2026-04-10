@@ -1,10 +1,7 @@
-import { FlexColumn } from '@Components/common/Layouts';
-import { motion } from 'framer-motion';
-import { ourRationaleData } from '@Constants/landingPage';
-import {
-  containerAnimationVariant,
-  fadeUpVariant,
-} from '@Constants/animations';
+import { FlexColumn } from "@Components/common/Layouts";
+import { motion } from "framer-motion";
+import { ourRationaleData } from "@Constants/landingPage";
+import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
 
 export default function OurRationale() {
   return (
@@ -23,16 +20,14 @@ export default function OurRationale() {
             viewport={{ once: true }}
             className="naxatw-col-span-2 naxatw-grid naxatw-grid-cols-1 naxatw-gap-10 md:naxatw-grid-cols-2"
           >
-            {ourRationaleData.map(data => (
+            {ourRationaleData.map((data) => (
               <motion.div
                 key={data.id}
                 variants={fadeUpVariant}
                 className="naxatw-flex naxatw-flex-col naxatw-gap-4"
               >
                 <FlexColumn className="naxatw-mt-6 naxatw-h-8 naxatw-w-8 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border naxatw-border-landing-red md:naxatw-mt-0">
-                  <span className="naxatw-text-base naxatw-text-landing-red">
-                    {data.id}
-                  </span>
+                  <span className="naxatw-text-base naxatw-text-landing-red">{data.id}</span>
                 </FlexColumn>
                 <div>
                   <p className="naxatw-text-[1.5rem] naxatw-leading-[2rem] naxatw-text-landing-grey md:naxatw-text-[1.875rem] md:naxatw-leading-[2.5rem]">

@@ -1,14 +1,14 @@
-import { Flex, FlexColumn } from '@Components/common/Layouts';
-import { FormControl, Select, Input, Label } from '@Components/common/FormUI';
-import ErrorMessage from '@Components/common/ErrorMessage';
-import { Controller } from 'react-hook-form';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import { countries } from 'countries-list';
+import { Flex, FlexColumn } from "@Components/common/Layouts";
+import { FormControl, Select, Input, Label } from "@Components/common/FormUI";
+import ErrorMessage from "@Components/common/ErrorMessage";
+import { Controller } from "react-hook-form";
+import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import { countries } from "countries-list";
 
 export default function BasicDetails({ formProps }: { formProps: any }) {
   const { register, formState, control } = formProps;
 
-  const userProfile = getLocalStorageValue('userprofile');
+  const userProfile = getLocalStorageValue("userprofile");
 
   // eslint-disable-next-line no-unused-vars
   const countryList = Object.entries(countries).map(([_, value]) => ({
@@ -30,8 +30,8 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
           <Input
             placeholder="Enter Name"
             className="naxatw-mt-1"
-            {...register('name', {
-              required: 'Name is Required',
+            {...register("name", {
+              required: "Name is Required",
             })}
             readOnly
           />
@@ -62,7 +62,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
           <Input
             placeholder="Enter City"
             className="naxatw-mt-1"
-            {...register('city', {
+            {...register("city", {
               setValueAs: (value: string) => value?.trim(),
             })}
           />
@@ -82,10 +82,10 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               placeholder="Enter Phone number"
               className="naxatw-mt-1 naxatw-w-full"
               type="number"
-              {...register('phone_number', {
+              {...register("phone_number", {
                 minLength: {
                   value: 5,
-                  message: 'Invalid Phone Number',
+                  message: "Invalid Phone Number",
                 },
               })}
             />

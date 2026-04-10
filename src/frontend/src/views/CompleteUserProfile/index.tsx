@@ -1,49 +1,39 @@
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import {
   BasicDetails,
   OrganizationDetails,
   OtherDetails,
   PasswordSection,
-} from '@Components/CompleteUserProfile/FormContents';
-import {
-  tabOptions,
-  projectCreatorKeys,
-  droneOperatorKeys,
-} from '@Constants/index';
-import { setCommonState } from '@Store/actions/common';
-import { Button } from '@Components/RadixComponents/Button';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { patchUserProfile, postUserProfile } from '@Services/common';
-import { toast } from 'react-toastify';
-import { removeKeysFromObject } from '@Utils/index';
-import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
-import Tab from '@Components/common/Tabs';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import useWindowDimensions from '@Hooks/useWindowDimensions';
-import { useGetUserDetailsQuery } from '@Api/projects';
-import callApiSimultaneously from '@Utils/callApiSimultaneously';
-import { getRuntimeConfig } from '@/runtimeConfig';
+} from "@Components/CompleteUserProfile/FormContents";
+import { tabOptions, projectCreatorKeys, droneOperatorKeys } from "@Constants/index";
+import { setCommonState } from "@Store/actions/common";
+import { Button } from "@Components/RadixComponents/Button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { patchUserProfile, postUserProfile } from "@Services/common";
+import { toast } from "react-toastify";
+import { removeKeysFromObject } from "@Utils/index";
+import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import Tab from "@Components/common/Tabs";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import useWindowDimensions from "@Hooks/useWindowDimensions";
+import { useGetUserDetailsQuery } from "@Api/projects";
+import callApiSimultaneously from "@Utils/callApiSimultaneously";
+import { getRuntimeConfig } from "@/runtimeConfig";
 
-const AUTH_PROVIDER = getRuntimeConfig('VITE_AUTH_PROVIDER', 'legacy');
-const isHankoAuth = AUTH_PROVIDER === 'hanko';
+const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
+const isHankoAuth = AUTH_PROVIDER === "hanko";
 
 // Filter out Password tab when using Hanko auth (password managed by Hanko)
-const filteredTabOptions = isHankoAuth
-  ? tabOptions.filter(tab => tab.id !== 3)
-  : tabOptions;
+const filteredTabOptions = isHankoAuth ? tabOptions.filter((tab) => tab.id !== 3) : tabOptions;
 
-const getActiveFormContent = (
-  activeTab: number,
-  userType: string,
-  formProps: any,
-) => {
+const getActiveFormContent = (activeTab: number, userType: string, formProps: any) => {
   switch (activeTab) {
     case 1:
       return <BasicDetails formProps={formProps} />;
     case 2:
-      return userType === 'PROJECT_CREATOR' ? (
+      return userType === "PROJECT_CREATOR" ? (
         <OrganizationDetails formProps={formProps} />
       ) : (
         <OtherDetails formProps={formProps} />
@@ -60,14 +50,12 @@ const CompleteUserProfile = () => {
   const navigate = useNavigate();
   const { width } = useWindowDimensions();
   const queryClient = useQueryClient();
-  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
-  const isDroneOperator = localStorage.getItem('signedInAs') === 'DRONE_PILOT';
+  const signedInAs = localStorage.getItem("signedInAs") || "PROJECT_CREATOR";
+  const isDroneOperator = localStorage.getItem("signedInAs") === "DRONE_PILOT";
   useGetUserDetailsQuery();
-  const userProfileActiveTab = useTypedSelector(
-    state => state.common.userProfileActiveTab,
-  );
-  const userProfile = getLocalStorageValue('userprofile');
-  const existingRole = userProfile?.role?.[0] === 'PROJECT_CREATOR' ? 1 : 2;
+  const userProfileActiveTab = useTypedSelector((state) => state.common.userProfileActiveTab);
+  const userProfile = getLocalStorageValue("userprofile");
+  const existingRole = userProfile?.role?.[0] === "PROJECT_CREATOR" ? 1 : 2;
   const newRole = isDroneOperator ? 2 : 1;
 
   const initialState = {
@@ -92,15 +80,7 @@ const CompleteUserProfile = () => {
     role: userProfile?.role ? [existingRole, newRole] : [newRole],
   };
 
-  const {
-    register,
-    setValue,
-    handleSubmit,
-    formState,
-    control,
-    watch,
-    getValues,
-  } = useForm({
+  const { register, setValue, handleSubmit, formState, control, watch, getValues } = useForm({
     defaultValues: initialState,
   });
 
@@ -113,12 +93,12 @@ const CompleteUserProfile = () => {
   };
 
   const { mutate: updateUserProfile } = useMutation<any, any, any, unknown>({
-    mutationFn: payloadDataObject => {
+    mutationFn: (payloadDataObject) => {
       return payloadDataObject?.data?.role?.length === 1
         ? postUserProfile(payloadDataObject)
         : patchUserProfile(payloadDataObject);
     },
-    onSuccess: async data => {
+    onSuccess: async (data) => {
       const results = data.data?.results;
       const values: Record<string, any> = getValues();
       const urlsToUpload = [];
@@ -132,15 +112,15 @@ const CompleteUserProfile = () => {
         assetsToUpload.push(values?.registration_file?.[0]?.file);
       }
       if (urlsToUpload.length) {
-        await callApiSimultaneously(urlsToUpload, assetsToUpload, 'put');
+        await callApiSimultaneously(urlsToUpload, assetsToUpload, "put");
       }
 
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
       dispatch(setCommonState({ userProfileActiveTab: 1 }));
-      toast.success('UserProfile Updated Successfully');
-      navigate('/projects');
+      toast.success("UserProfile Updated Successfully");
+      navigate("/projects");
     },
-    onError: err => {
+    onError: (err) => {
       // eslint-disable-next-line no-console
       console.log(err);
     },
@@ -154,18 +134,14 @@ const CompleteUserProfile = () => {
   const onSubmit = (formData: Record<string, any>) => {
     if (userProfile?.role) {
       if (userProfileActiveTab !== 2) {
-        dispatch(
-          setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }),
-        );
+        dispatch(setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }));
         return;
       }
     }
 
     if (!userProfile?.role?.length) {
       if (userProfileActiveTab !== lastTab) {
-        dispatch(
-          setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }),
-        );
+        dispatch(setCommonState({ userProfileActiveTab: userProfileActiveTab + 1 }));
         return;
       }
     }
@@ -187,9 +163,7 @@ const CompleteUserProfile = () => {
 
   const onBackBtnClick = () => {
     if (userProfileActiveTab === 1) return;
-    dispatch(
-      setCommonState({ userProfileActiveTab: userProfileActiveTab - 1 }),
-    );
+    dispatch(setCommonState({ userProfileActiveTab: userProfileActiveTab - 1 }));
   };
 
   return (
@@ -198,7 +172,7 @@ const CompleteUserProfile = () => {
         <div className="naxatw-w-full naxatw-border-r md:naxatw-w-2/6">
           <Tab
             className="naxatw-w-full naxatw-border-b"
-            orientation={width < 768 ? 'row' : 'column'}
+            orientation={width < 768 ? "row" : "column"}
             onTabChange={() => {}}
             tabOptions={filteredTabOptions}
             activeTab={userProfileActiveTab}
@@ -219,13 +193,13 @@ const CompleteUserProfile = () => {
             </Button>
             <Button
               className="naxatw-bg-red"
-              onClick={e => {
+              onClick={(e) => {
                 e.preventDefault();
                 handleSubmit(onSubmit)();
               }}
               withLoader
             >
-              {userProfileActiveTab === lastTab ? 'Complete Profile' : 'Next'}
+              {userProfileActiveTab === lastTab ? "Complete Profile" : "Next"}
             </Button>
           </div>
         </div>

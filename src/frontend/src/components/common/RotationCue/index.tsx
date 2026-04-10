@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 
 type RotationCueProps = {
   setRotation: (rotation: number) => void;
@@ -8,21 +8,12 @@ type RotationCueProps = {
   setDragging: (dragging: boolean) => void;
 };
 
-const RotationCue = ({
-  setRotation,
-  rotation,
-  setDragging,
-  dragging,
-}: RotationCueProps) => {
+const RotationCue = ({ setRotation, rotation, setDragging, dragging }: RotationCueProps) => {
   const circleRef = useRef<HTMLDivElement>(null);
   const [startAngle, setStartAngle] = useState(0);
   const radius = 56; // Adjust to match circle size (half of `naxatw-h-28`)
 
-  const calculateAngle = (
-    clientX: number,
-    clientY: number,
-    circle: DOMRect,
-  ) => {
+  const calculateAngle = (clientX: number, clientY: number, circle: DOMRect) => {
     const centerX = circle.left + circle.width / 2;
     const centerY = circle.top + circle.height / 2;
 
@@ -89,14 +80,14 @@ const RotationCue = ({
     if (!dragging) return () => {};
 
     // Disable scroll on mobile devices
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('touchmove', preventDefault, { passive: false });
-    window.addEventListener('wheel', preventDefault, { passive: false });
+    document.body.style.overflow = "hidden";
+    window.addEventListener("touchmove", preventDefault, { passive: false });
+    window.addEventListener("wheel", preventDefault, { passive: false });
 
     return () => {
-      window.removeEventListener('touchmove', preventDefault);
-      window.removeEventListener('wheel', preventDefault);
-      document.body.style.overflow = '';
+      window.removeEventListener("touchmove", preventDefault);
+      window.removeEventListener("wheel", preventDefault);
+      document.body.style.overflow = "";
     };
   }, [dragging]);
   // Calculate handle position
@@ -114,8 +105,8 @@ const RotationCue = ({
       role="presentation"
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
-      onDoubleClick={e => e.preventDefault()}
-      onClick={e => e.preventDefault()}
+      onDoubleClick={(e) => e.preventDefault()}
+      onClick={(e) => e.preventDefault()}
       ref={circleRef}
     >
       {/* Circle */}
@@ -134,7 +125,7 @@ const RotationCue = ({
           onMouseUp={handleEnd}
           role="presentation"
           onMouseDown={handleMouseDown}
-          onClick={e => e.preventDefault()}
+          onClick={(e) => e.preventDefault()}
         />
         <p
           className="naxatw-absolute naxatw-left-1/2 naxatw-top-1/2 naxatw-translate-x-[-50%] naxatw-translate-y-[-50%] naxatw-select-none naxatw-text-sm"

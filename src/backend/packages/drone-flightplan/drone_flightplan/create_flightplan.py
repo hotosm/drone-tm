@@ -81,7 +81,7 @@ def create_flightplan(
         outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
         add_elevation_from_dem(dem, points_geojson, outfile_with_elevation)
 
-        with open(outfile_with_elevation, "r") as f:
+        with open(outfile_with_elevation) as f:
             points_geojson = f.read()
 
         # If user asked for WAYLINES, convert after terrain-following
@@ -219,7 +219,7 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.project_geojson, "r") as f:
+    with open(args.project_geojson) as f:
         aoi = geojson.load(f)
 
     if args.use_centroid_as_take_off_point:

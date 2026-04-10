@@ -1,6 +1,6 @@
-import { createSlice } from '@reduxjs/toolkit';
-import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
-import persist from '../persist';
+import { createSlice } from "@reduxjs/toolkit";
+import type { CaseReducer, PayloadAction } from "@reduxjs/toolkit";
+import persist from "../persist";
 
 export interface UserState {
   user: Record<string, any> | null;
@@ -14,10 +14,10 @@ const initialState: UserState = {
   permissions: [],
 };
 
-const setUserState: CaseReducer<
-  UserState,
-  PayloadAction<Partial<UserState>>
-> = (state, action) => ({
+const setUserState: CaseReducer<UserState, PayloadAction<Partial<UserState>>> = (
+  state,
+  action,
+) => ({
   ...state,
   ...action.payload,
 });
@@ -27,7 +27,7 @@ const resetUserState: CaseReducer<UserState> = () => ({
 });
 
 const userSlice = createSlice({
-  name: 'user',
+  name: "user",
   initialState,
   reducers: {
     setUserState,
@@ -37,8 +37,4 @@ const userSlice = createSlice({
 
 export { userSlice };
 
-export default persist(
-  'user',
-  ['user', 'permissions', 'userProfile'],
-  userSlice.reducer,
-);
+export default persist("user", ["user", "permissions", "userProfile"], userSlice.reducer);

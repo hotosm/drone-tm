@@ -4,16 +4,16 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@radix-ui/react-tooltip';
-import { FlexColumn } from '@Components/common/Layouts';
-import Icon from '../common/Icon';
-import React from 'react';
+} from "@radix-ui/react-tooltip";
+import { FlexColumn } from "@Components/common/Layouts";
+import Icon from "../common/Icon";
+import React from "react";
 
 interface ToolTipProps {
   name?: string;
   children?: React.ReactNode;
   message?: string;
-  side?: 'top' | 'right' | 'bottom' | 'left' | undefined;
+  side?: "top" | "right" | "bottom" | "left" | undefined;
   className?: string;
   iconClassName?: string;
   onClick?: () => void;
@@ -24,11 +24,11 @@ export default function ToolTip({
   name,
   children,
   message,
-  side = 'left',
+  side = "left",
   onClick,
   className,
   iconClassName,
-  symbolType = 'material-symbols-outlined',
+  symbolType = "material-symbols-outlined",
 }: ToolTipProps) {
   if (children) {
     return (

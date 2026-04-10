@@ -1,7 +1,7 @@
-import mobileView from '@Assets/images/LandingPage/MobileView.webp';
-import Icon from '@Components/common/Icon';
-import Image from '@Components/RadixComponents/Image';
-import { Link } from 'react-router-dom';
+import mobileView from "@Assets/images/LandingPage/MobileView.webp";
+import Icon from "@Components/common/Icon";
+import Image from "@Components/RadixComponents/Image";
+import { Link } from "react-router-dom";
 
 const MobileAppDownload = () => {
   return (
@@ -18,10 +18,9 @@ const MobileAppDownload = () => {
               Download our Mobile App
             </h1>
             <p className="naxatw-text-sm md:naxatw-text-base">
-              DroneTM is an integrated open source digital public good solution
-              that aims to harness the power of the crowd to help generate
-              high-resolution aerial maps to improve resilience of the disaster
-              prone communities across the world.
+              DroneTM is an integrated open source digital public good solution that aims to harness
+              the power of the crowd to help generate high-resolution aerial maps to improve
+              resilience of the disaster prone communities across the world.
             </p>
             <div className="naxatw-flex naxatw-justify-center sm:naxatw-justify-start">
               <Link

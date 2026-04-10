@@ -1,9 +1,9 @@
 /* eslint-disable react/jsx-props-no-spreading */
-import { cn } from '@Utils/index';
-import { IFlexContainerProps } from '../types';
+import { cn } from "@Utils/index";
+import { IFlexContainerProps } from "../types";
 
 export default function FlexColumn({
-  className = '',
+  className = "",
   children,
   gap,
   ...rest
@@ -12,7 +12,7 @@ export default function FlexColumn({
     <div
       className={cn(`naxatw-flex naxatw-flex-col ${className}`)}
       style={{
-        gap: gap ? `${gap * 0.25}rem` : '',
+        gap: gap ? `${gap * 0.25}rem` : "",
       }}
       {...rest}
     >
