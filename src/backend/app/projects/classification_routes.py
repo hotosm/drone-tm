@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 from uuid import UUID
 
 from arq import ArqRedis
@@ -28,6 +28,8 @@ router = APIRouter(
     prefix="/projects",
     responses={404: {"description": "Not found"}},
 )
+
+ImageUrlVariant = Literal["thumb", "full", "both"]
 
 
 class FlightGapDetectionRequest(BaseModel):
@@ -450,6 +452,86 @@ async def get_project_map_data(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to retrieve project map data: {e}",
+        )
+
+
+@router.get(
+    "/{project_id}/imagery/task/{task_id}/image-urls/",
+    tags=["Image Classification"],
+)
+async def get_task_image_urls(
+    project_id: UUID,
+    task_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+    variant: ImageUrlVariant = Query("thumb"),
+):
+    """Get presigned URLs for all images in a task.
+
+    variant: 'thumb' for grid thumbnails, 'full' for inspect, 'both' for all.
+    """
+    try:
+        urls = await ImageClassifier.get_task_image_urls(
+            db, task_id, project_id, variant=variant
+        )
+        return {"task_id": str(task_id), "images": urls}
+    except Exception as e:
+        log.error(f"Failed to get task image URLs: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve task image URLs: {e}",
+        )
+
+
+@router.get(
+    "/{project_id}/images/{image_id}/url/",
+    tags=["Image Classification"],
+)
+async def get_image_url(
+    project_id: UUID,
+    image_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get presigned URLs for a single image (for map popup on-click)."""
+    try:
+        return await ImageClassifier.get_single_image_url(db, image_id, project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=str(e))
+    except Exception as e:
+        log.error(f"Failed to get image URL: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve image URL: {e}",
+        )
+
+
+class BulkImageUrlsRequest(BaseModel):
+    image_ids: list[UUID]
+    variant: ImageUrlVariant = "thumb"
+
+
+@router.post(
+    "/{project_id}/imagery/image-urls/",
+    tags=["Image Classification"],
+)
+async def get_bulk_image_urls(
+    project_id: UUID,
+    request: BulkImageUrlsRequest,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Get presigned URLs for a list of image IDs (for unassigned images)."""
+    try:
+        urls = await ImageClassifier.get_bulk_image_urls(
+            db, request.image_ids, project_id, variant=request.variant
+        )
+        return {"images": urls}
+    except Exception as e:
+        log.error(f"Failed to get bulk image URLs: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to retrieve image URLs: {e}",
         )
 
 

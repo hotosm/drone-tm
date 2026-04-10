@@ -12,6 +12,7 @@ from io import BytesIO
 import pytest
 import pytest_asyncio
 
+from app.images import image_classification
 from app.arq.tasks import (
     get_redis_pool,
     ingest_existing_uploads as ingest_existing_uploads_task,
@@ -418,6 +419,102 @@ async def test_imagery_images_incremental_polling(
     )
     assert resp.status_code == 200
     assert resp.json()["count"] == 1
+
+
+# ─── /imagery/task/{task_id}/image-urls/ and /imagery/image-urls/ ───────────
+
+
+@pytest.mark.asyncio
+async def test_task_image_urls_variant_thumb_only(
+    client, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = await _insert_task(db, project_id=project_id)
+    image_id = await _insert_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="assigned",
+        task_id=task_id,
+    )
+
+    monkeypatch.setattr(
+        image_classification,
+        "maybe_presign_s3_key",
+        lambda key, expires_hours=1: f"signed:{key}",
+    )
+
+    resp = await client.get(
+        f"/api/projects/{project_id}/imagery/task/{task_id}/image-urls/",
+        params={"variant": "thumb"},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["task_id"] == task_id
+    assert body["images"] == [
+        {
+            "id": image_id,
+            "thumbnail_url": None,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_bulk_image_urls_returns_requested_variant_only(
+    client, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    image_id = await _insert_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="unmatched",
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE project_images
+            SET thumbnail_url = %s
+            WHERE id = %s
+            """,
+            (f"projects/{project_id}/{image_id}-thumb.jpg", image_id),
+        )
+    await db.commit()
+
+    monkeypatch.setattr(
+        image_classification,
+        "maybe_presign_s3_key",
+        lambda key, expires_hours=1: f"signed:{key}",
+    )
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/imagery/image-urls/",
+        json={"image_ids": [image_id], "variant": "full"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "images": [
+            {
+                "id": image_id,
+                "url": f"signed:projects/{project_id}/{image_id}.jpg",
+            }
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_bulk_image_urls_rejects_invalid_variant(client, create_test_project):
+    project_id = create_test_project
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/imagery/image-urls/",
+        json={"image_ids": [], "variant": "bad"},
+    )
+
+    assert resp.status_code == 422
 
 
 # ─── /imagery/review/ ────────────────────────────────────────────────────────

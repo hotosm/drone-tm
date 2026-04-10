@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from math import cos, radians, sqrt
-from typing import Optional, Any
+from typing import Optional, Any, Literal
 import re
 
 import cv2
@@ -44,6 +44,8 @@ VERIFIED_TASK_STATES = {
     "IMAGE_PROCESSING_FINISHED",
     "IMAGE_PROCESSING_FAILED",
 }
+
+ImageUrlVariant = Literal["thumb", "full", "both"]
 
 
 @dataclass(frozen=True)
@@ -188,20 +190,6 @@ class ImageClassifier:
         if img is None:
             raise ValueError("Failed to decode image")
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    @staticmethod
-    def analyze_exposure(image_bytes: bytes) -> dict[str, float]:
-        """Return simple exposure stats to detect junk frames."""
-        gray = ImageClassifier._decode_gray(image_bytes)
-        p5, p95 = np.percentile(gray, [5, 95])
-        dynamic_range = float(p95 - p5)
-        black_ratio = float(np.mean(gray < Q.black_pixel_threshold))
-        white_ratio = float(np.mean(gray > Q.white_pixel_threshold))
-        return {
-            "dynamic_range": dynamic_range,
-            "black_ratio": black_ratio,
-            "white_ratio": white_ratio,
-        }
 
     @staticmethod
     def _exposure_issues(gray: np.ndarray) -> tuple[list[str], dict[str, float]]:
@@ -947,14 +935,6 @@ class ImageClassifier:
             images = await cur.fetchall()
 
         for image in images:
-            if image.get("s3_key"):
-                image["url"] = maybe_presign_s3_key(image["s3_key"], expires_hours=1)
-
-            if image.get("thumbnail_url"):
-                image["thumbnail_url"] = maybe_presign_s3_key(
-                    image["thumbnail_url"], expires_hours=1
-                )
-
             image["has_gps"] = (
                 image.get("latitude") is not None and image.get("longitude") is not None
             )
@@ -1509,7 +1489,12 @@ class ImageClassifier:
         db: Connection,
         project_id: uuid.UUID,
     ) -> dict:
-        """Project-level review: images grouped by task across ALL batches."""
+        """Project-level review: images grouped by task across ALL batches.
+
+        TODO: At ~30k+ images for a project this aggregates every image into
+        one response. Add cursor-based pagination (per-task or global) if
+        payload size becomes a bottleneck. See also get_project_map_data().
+        """
         query = """
             WITH latest_task_state AS (
                 SELECT DISTINCT ON (task_id)
@@ -1528,8 +1513,6 @@ class ImageClassifier:
                     json_build_object(
                         'id', pi.id,
                         'filename', pi.filename,
-                        's3_key', pi.s3_key,
-                        'thumbnail_url', pi.thumbnail_url,
                         'status', pi.status,
                         'rejection_reason', pi.rejection_reason,
                         'uploaded_at', pi.uploaded_at
@@ -1548,17 +1531,6 @@ class ImageClassifier:
             await cur.execute(query, {"project_id": str(project_id)})
             task_groups = await cur.fetchall()
 
-        for group in task_groups:
-            for image in group["images"]:
-                if image.get("thumbnail_url"):
-                    image["thumbnail_url"] = maybe_presign_s3_key(
-                        image["thumbnail_url"], expires_hours=1
-                    )
-                if image.get("s3_key"):
-                    image["url"] = maybe_presign_s3_key(
-                        image["s3_key"], expires_hours=1
-                    )
-
         return {
             "project_id": str(project_id),
             "task_groups": task_groups,
@@ -1571,7 +1543,12 @@ class ImageClassifier:
         db: Connection,
         project_id: uuid.UUID,
     ) -> dict:
-        """Project-level map data: task geometries + ALL image points across batches."""
+        """Project-level map data: task geometries + ALL image points across batches.
+
+        TODO: At 30k+ images this loads every image point into one GeoJSON
+        payload. Consider server-side spatial filtering, vector tiles, or
+        pagination if scale requires it. See also get_project_review_data().
+        """
         # Get all tasks for the project (needed for manual task matching)
         tasks_query = """
             SELECT
@@ -1608,7 +1585,7 @@ class ImageClassifier:
             ],
         }
 
-        # Get all classified images across all batches
+        # Get all classified images across all batches (metadata only, no URLs)
         images_query = """
             SELECT
                 id,
@@ -1616,8 +1593,6 @@ class ImageClassifier:
                 status,
                 rejection_reason,
                 task_id,
-                s3_key,
-                thumbnail_url,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
             FROM project_images
@@ -1641,14 +1616,6 @@ class ImageClassifier:
                 "status": img["status"],
                 "task_id": str(img["task_id"]) if img["task_id"] else None,
                 "rejection_reason": img["rejection_reason"],
-                "thumbnail_url": maybe_presign_s3_key(
-                    img["thumbnail_url"], expires_hours=1
-                )
-                if img.get("thumbnail_url")
-                else None,
-                "url": maybe_presign_s3_key(img["s3_key"], expires_hours=1)
-                if img.get("s3_key")
-                else None,
             }
 
             if img["longitude"] is not None and img["latitude"] is not None:
@@ -1741,14 +1708,6 @@ class ImageClassifier:
                 },
             )
             images = await cur.fetchall()
-
-        for image in images:
-            if image.get("thumbnail_url"):
-                image["thumbnail_url"] = maybe_presign_s3_key(
-                    image["thumbnail_url"], expires_hours=1
-                )
-            if image.get("s3_key"):
-                image["url"] = maybe_presign_s3_key(image["s3_key"], expires_hours=1)
 
         # Calculate coverage using PostGIS (same logic, no batch filter)
         coverage_query = """
@@ -1844,3 +1803,106 @@ class ImageClassifier:
             "coverage_percentage": coverage_percentage,
             "is_verified": is_verified,
         }
+
+    @staticmethod
+    def _presign_row(row: dict, variant: ImageUrlVariant = "thumb") -> dict:
+        """Presign a row's S3 keys based on variant (thumb|full|both)."""
+        result: dict = {"id": str(row["id"])}
+        if variant in ("thumb", "both"):
+            result["thumbnail_url"] = (
+                maybe_presign_s3_key(row["thumbnail_url"], expires_hours=1)
+                if row.get("thumbnail_url")
+                else None
+            )
+        if variant in ("full", "both"):
+            result["url"] = (
+                maybe_presign_s3_key(row["s3_key"], expires_hours=1)
+                if row.get("s3_key")
+                else None
+            )
+        return result
+
+    @staticmethod
+    async def get_task_image_urls(
+        db: Connection,
+        task_id: uuid.UUID,
+        project_id: uuid.UUID,
+        variant: ImageUrlVariant = "thumb",
+    ) -> list[dict]:
+        """Return presigned URLs for all images in a task.
+
+        Called on-demand when a user opens a task accordion or verification modal.
+        variant: 'thumb' for grid display, 'full' for inspect, 'both' for all.
+        """
+        query = """
+            SELECT id, s3_key, thumbnail_url
+            FROM project_images
+            WHERE task_id = %(task_id)s
+            AND project_id = %(project_id)s
+            AND status IN ('assigned', 'rejected', 'invalid_exif', 'duplicate', 'unmatched')
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {"task_id": str(task_id), "project_id": str(project_id)},
+            )
+            rows = await cur.fetchall()
+
+        return [ImageClassifier._presign_row(row, variant) for row in rows]
+
+    @staticmethod
+    async def get_bulk_image_urls(
+        db: Connection,
+        image_ids: list[uuid.UUID],
+        project_id: uuid.UUID,
+        variant: ImageUrlVariant = "thumb",
+    ) -> list[dict]:
+        """Return presigned URLs for a list of image IDs (for unassigned images)."""
+        if not image_ids:
+            return []
+
+        query = """
+            SELECT id, s3_key, thumbnail_url
+            FROM project_images
+            WHERE id = ANY(%(image_ids)s)
+            AND project_id = %(project_id)s
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {
+                    "image_ids": [str(i) for i in image_ids],
+                    "project_id": str(project_id),
+                },
+            )
+            rows = await cur.fetchall()
+
+        return [ImageClassifier._presign_row(row, variant) for row in rows]
+
+    @staticmethod
+    async def get_single_image_url(
+        db: Connection,
+        image_id: uuid.UUID,
+        project_id: uuid.UUID,
+        variant: ImageUrlVariant = "both",
+    ) -> dict:
+        """Return presigned URLs for a single image (for map popup on-click)."""
+        query = """
+            SELECT id, s3_key, thumbnail_url
+            FROM project_images
+            WHERE id = %(image_id)s AND project_id = %(project_id)s
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {"image_id": str(image_id), "project_id": str(project_id)},
+            )
+            row = await cur.fetchone()
+
+        if not row:
+            raise ValueError(f"Image {image_id} not found in project {project_id}")
+
+        return ImageClassifier._presign_row(row, variant)

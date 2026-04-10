@@ -1,19 +1,5 @@
 import { authenticated, api } from './index';
 
-export interface ImageClassificationResult {
-  id: string;
-  filename: string;
-  status: 'staged' | 'uploaded' | 'classifying' | 'assigned' | 'rejected' | 'unmatched' | 'invalid_exif' | 'duplicate';
-  task_id?: string;
-  rejection_reason?: string;
-  has_gps: boolean;
-  s3_key: string;
-  url?: string;
-  thumbnail_url?: string;  // 200x200 thumbnail for grid display
-  uploaded_at: string;
-  classified_at?: string;
-}
-
 export interface BatchStatusSummary {
   total: number;
   staged: number;
@@ -29,7 +15,7 @@ export interface BatchStatusSummary {
 export interface TaskGroupImage {
   id: string;
   filename: string;
-  s3_key: string;
+  s3_key?: string;
   thumbnail_url?: string;
   url?: string;
   status: 'assigned' | 'rejected' | 'invalid_exif' | 'duplicate' | 'unmatched';
@@ -138,24 +124,6 @@ export const getProjectStatus = async (
   return response.data;
 };
 
-/**
- * Get all images for a project (across all batches), with incremental polling
- */
-export const getProjectImages = async (
-  projectId: string,
-  since?: string,
-  statusFilter?: string[],
-): Promise<ImageClassificationResult[]> => {
-  const params: Record<string, any> = {};
-  if (since) params.last_timestamp = since;
-  if (statusFilter?.length) params.status = statusFilter;
-  const response = await authenticated(api).get(
-    `/projects/${projectId}/imagery/images/`,
-    { params, paramsSerializer: { indexes: null } },
-  );
-  return response.data.images || response.data;
-};
-
 // ─── Project-level (task-centric) endpoints ─────────────────────────────────
 
 export interface TaskImagerySummary {
@@ -222,6 +190,63 @@ export const getProjectMapData = async (
 ): Promise<ProjectMapData> => {
   const response = await authenticated(api).get(
     `/projects/${projectId}/imagery/map-data/`,
+  );
+  return response.data;
+};
+
+export type ImageUrlVariant = 'thumb' | 'full' | 'both';
+
+export interface ImageUrls {
+  id: string;
+  thumbnail_url?: string;
+  url?: string;
+}
+
+export interface TaskImageUrlsResponse {
+  task_id: string;
+  images: ImageUrls[];
+}
+
+/**
+ * Get presigned image URLs for a task (called on-demand when accordion/modal opens)
+ */
+export const getTaskImageUrls = async (
+  projectId: string,
+  taskId: string,
+  variant: ImageUrlVariant = 'thumb',
+): Promise<TaskImageUrlsResponse> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/imagery/task/${taskId}/image-urls/`,
+    { params: { variant } },
+  );
+  return response.data;
+};
+
+/**
+ * Get presigned URLs for a list of image IDs (for unassigned images without a task)
+ */
+export const getBulkImageUrls = async (
+  projectId: string,
+  imageIds: string[],
+  variant: ImageUrlVariant = 'thumb',
+): Promise<{ images: ImageUrls[] }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/imagery/image-urls/`,
+    { image_ids: imageIds, variant },
+    { headers: { 'Content-Type': 'application/json' } },
+  );
+  return response.data;
+};
+
+/**
+ * Get presigned URLs for a single image (for map popup on-click)
+ */
+export const getImageUrl = async (
+  projectId: string,
+  imageId: string,
+): Promise<ImageUrls> => {
+  const response = await authenticated(api).get(
+    `/projects/${projectId}/images/${imageId}/url/`,
   );
   return response.data;
 };

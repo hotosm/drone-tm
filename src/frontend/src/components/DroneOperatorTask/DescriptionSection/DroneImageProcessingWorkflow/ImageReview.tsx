@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike, Popup } from 'maplibre-gl';
 import bbox from '@turf/bbox';
 import {
   getProjectReview,
   getProjectMapData,
+  getTaskImageUrls,
+  getBulkImageUrls,
+  getImageUrl,
   acceptImage,
   assignImageToTask,
   deleteInvalidImages,
@@ -12,6 +16,7 @@ import {
   ProjectMapData,
   TaskGroup,
   TaskGroupImage,
+  ImageUrls,
 } from '@Services/classification';
 import { FlexColumn, FlexRow } from '@Components/common/Layouts';
 import Accordion from '@Components/common/Accordion';
@@ -31,11 +36,210 @@ const hasIssueStatus = (status?: string) => status !== 'assigned';
 const canManuallyMatchImage = (status?: string) => status === 'unmatched';
 const canOverrideImageRejection = (status?: string) => status === 'rejected' || status === 'invalid_exif';
 
+// Accordion content that lazy-loads presigned thumbnail URLs when opened
+const TaskAccordionContent = ({
+  group,
+  projectId,
+  isOpen,
+  highlightedImageId,
+  imageRefs,
+  onVerifyTask,
+  onCleanup,
+  onImageClick,
+  onImageDoubleClick,
+}: {
+  group: TaskGroup;
+  projectId: string;
+  isOpen: boolean;
+  highlightedImageId: string | null;
+  imageRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  onVerifyTask: (taskId: string, taskIndex: number) => void;
+  onCleanup: () => void;
+  onImageClick: (image: TaskGroupImage, imageUrls?: Record<string, ImageUrls>) => void;
+  onImageDoubleClick: (image: TaskGroupImage, imageUrls?: Record<string, ImageUrls>) => void;
+}) => {
+  const COLS = 6;
+  const ROW_H = 110;
+
+  // Fetch presigned URLs only when accordion is open
+  // For assigned tasks, use the task endpoint; for unassigned, use bulk by image IDs
+  const { data: urlsData } = useTaskImageUrls(projectId, group.task_id, isOpen);
+  const groupImageIds = useMemo(() => group.images.map((i) => i.id), [group.images]);
+  const bulkKey = useMemo(() => [...groupImageIds].sort().join(','), [groupImageIds]);
+  const { data: bulkUrlsData } = useQuery({
+    queryKey: ['bulkImageUrls', projectId, bulkKey],
+    queryFn: () => getBulkImageUrls(projectId, groupImageIds),
+    enabled: isOpen && !group.task_id && groupImageIds.length > 0,
+    staleTime: 30 * 60 * 1000,
+  });
+
+  // Build a lookup map: image_id -> { thumbnail_url, url }
+  const urlSource = group.task_id ? urlsData?.images : bulkUrlsData?.images;
+  const imageUrlMap = useMemo(() => {
+    const map: Record<string, ImageUrls> = {};
+    if (urlSource) {
+      for (const img of urlSource) {
+        map[img.id] = img;
+      }
+    }
+    return map;
+  }, [urlSource]);
+
+  // Virtualization
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rows = useMemo(() => {
+    const result: TaskGroupImage[][] = [];
+    for (let i = 0; i < group.images.length; i += COLS) {
+      result.push(group.images.slice(i, i + COLS));
+    }
+    return result;
+  }, [group.images]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_H,
+    overscan: 3,
+  });
+
+  return (
+    <>
+      {group.task_id ? (
+        <div className="naxatw-mb-4">
+          <Button
+            variant="ghost"
+            className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700"
+            leftIcon="map"
+            onClick={(e) => {
+              e.stopPropagation();
+              onVerifyTask(group.task_id!, group.project_task_index || 0);
+            }}
+          >
+            Verify Task on Map
+          </Button>
+        </div>
+      ) : (
+        <div className="naxatw-mb-4">
+          <Button
+            variant="ghost"
+            className="naxatw-bg-red naxatw-text-white"
+            leftIcon="delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCleanup();
+            }}
+          >
+            Cleanup Invalid Imagery
+          </Button>
+        </div>
+      )}
+
+      {/* Virtualized Image Grid */}
+      <div
+        ref={parentRef}
+        className="naxatw-overflow-auto naxatw-rounded"
+        style={{ maxHeight: `${Math.min(rows.length * ROW_H, 440)}px` }}
+      >
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const rowImages = rows[virtualRow.index];
+            return (
+              <div
+                key={virtualRow.key}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+                className="naxatw-grid naxatw-grid-cols-6 naxatw-gap-2 naxatw-px-0.5"
+              >
+                {rowImages.map((image) => {
+                  const urls = imageUrlMap[image.id];
+                  const thumbSrc = urls?.thumbnail_url || urls?.url;
+                  return (
+                  <div
+                    key={image.id}
+                    ref={(el) => { imageRefs.current[image.id] = el; }}
+                    className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
+                      highlightedImageId === image.id
+                        ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300'
+                        : image.status === 'rejected' || image.status === 'invalid_exif'
+                          ? 'naxatw-border-red-300 hover:naxatw-border-red-500'
+                          : image.status === 'unmatched'
+                            ? 'naxatw-border-yellow-300 hover:naxatw-border-yellow-500'
+                            : image.status === 'duplicate'
+                              ? 'naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60'
+                              : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
+                    }`}
+                    onClick={() => onImageClick(image, imageUrlMap)}
+                    onDoubleClick={() => onImageDoubleClick(image, imageUrlMap)}
+                    title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ''} (double-click to view)`}
+                  >
+                    {thumbSrc ? (
+                      <img
+                        src={thumbSrc}
+                        alt={image.filename}
+                        className="naxatw-h-full naxatw-w-full naxatw-object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-items-center naxatw-justify-center naxatw-bg-gray-100">
+                        <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-blue-500" />
+                      </div>
+                    )}
+                    {(image.status === 'rejected' || image.status === 'invalid_exif') && (
+                      <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
+                        {image.rejection_reason || 'Rejected'}
+                      </div>
+                    )}
+                    {image.status === 'unmatched' && (
+                      <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-yellow-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
+                        Unmatched
+                      </div>
+                    )}
+                    {image.status === 'duplicate' && (
+                      <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-gray-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
+                        Duplicate
+                      </div>
+                    )}
+                    <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
+                  </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+};
+
+// Hook to fetch presigned URLs for a task on demand
+const useTaskImageUrls = (projectId: string, taskId: string | null, enabled: boolean) => {
+  return useQuery({
+    queryKey: ['taskImageUrls', projectId, taskId],
+    queryFn: () => getTaskImageUrls(projectId, taskId!),
+    enabled: enabled && !!taskId,
+    staleTime: 30 * 60 * 1000, // 30 min (presigned URLs last 1 hour)
+  });
+};
+
 const ImageReview = ({ projectId }: ImageReviewProps) => {
   const queryClient = useQueryClient();
   const hasFitBoundsRef = useRef(false);
   const popupRef = useRef<Popup | null>(null);
   const [showOnlyIssueImages, setShowOnlyIssueImages] = useState(false);
+  const [openAccordions, setOpenAccordions] = useState<Set<string>>(new Set());
 
   const {
     data: mapData,
@@ -227,7 +431,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
   const escapeAttr = (str: string): string =>
     str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  const buildPopupHtml = (props: { id: string; filename: string; status: string; rejection_reason?: string; url?: string; thumbnail_url?: string }) => {
+  const buildPopupHtml = (props: { id: string; filename: string; status: string; rejection_reason?: string }) => {
     const statusColors: Record<string, string> = {
       assigned: '#22c55e',
       rejected: '#D73F3F',
@@ -264,7 +468,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
 
   // Document-level click handlers for popup buttons (raw HTML, not React)
   useEffect(() => {
-    const handlePopupClick = (e: MouseEvent) => {
+    const handlePopupClick = async (e: MouseEvent) => {
       const inspectBtn = (e.target as HTMLElement).closest('[data-inspect-image-id]') as HTMLElement | null;
       if (inspectBtn) {
         const imageId = inspectBtn.getAttribute('data-inspect-image-id');
@@ -272,13 +476,25 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
         const feature = mapData.images.features.find((f: GeoJSON.Feature<any>) => f.properties?.id === imageId);
         if (feature?.properties) {
           const p = feature.properties;
-          setSelectedImage({
-            id: p.id,
-            url: p.url || p.thumbnail_url || '',
-            filename: p.filename,
-            status: p.status,
-            rejection_reason: p.rejection_reason,
-          });
+          // Fetch presigned URL on demand for full image view
+          try {
+            const urls = await getImageUrl(projectId, imageId);
+            setSelectedImage({
+              id: p.id,
+              url: urls.url || urls.thumbnail_url || '',
+              filename: p.filename,
+              status: p.status,
+              rejection_reason: p.rejection_reason,
+            });
+          } catch {
+            setSelectedImage({
+              id: p.id,
+              url: '',
+              filename: p.filename,
+              status: p.status,
+              rejection_reason: p.rejection_reason,
+            });
+          }
         }
         return;
       }
@@ -299,7 +515,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
 
     document.addEventListener('click', handlePopupClick);
     return () => document.removeEventListener('click', handlePopupClick);
-  }, [mapData]);
+  }, [mapData, projectId]);
 
   // Custom popup on map click (replaces AsyncPopup for reliable close behavior)
   useEffect(() => {
@@ -519,18 +735,28 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     },
   });
 
-  const handleImageClick = (image: TaskGroupImage) => {
+  const handleImageClick = async (image: TaskGroupImage, imageUrls?: Record<string, ImageUrls>) => {
+    const urls = imageUrls?.[image.id];
+    // Show thumbnail immediately while we fetch full-resolution
+    const thumbUrl = urls?.thumbnail_url || '';
     setSelectedImage({
       id: image.id,
-      url: image.url || image.thumbnail_url || '',
+      url: urls?.url || thumbUrl,
       filename: image.filename,
       status: image.status,
       rejection_reason: image.rejection_reason,
     });
+    // If we don't have a full-resolution URL, fetch it on demand
+    if (!urls?.url) {
+      try {
+        const fetched = await getImageUrl(projectId, image.id);
+        setSelectedImage(prev => prev?.id === image.id ? { ...prev, url: fetched.url || fetched.thumbnail_url || '' } : prev);
+      } catch { /* ignore */ }
+    }
   };
 
   // Handle sidebar thumbnail click: highlight on map and fly to it
-  const handleSidebarImageClick = (image: TaskGroupImage) => {
+  const handleSidebarImageClick = (image: TaskGroupImage, _imageUrls?: Record<string, ImageUrls>) => {
     setHighlightedImageId(image.id);
 
     // Find the image's coordinates on the map and fly to it
@@ -551,8 +777,6 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
           filename: image.filename,
           status: image.status,
           rejection_reason: image.rejection_reason,
-          url: image.url,
-          thumbnail_url: image.thumbnail_url,
         });
 
         const newPopup = new Popup({
@@ -659,10 +883,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
           return {
             id: props.id,
             filename: props.filename || 'Unknown',
-            s3_key: props.s3_key || '',
-            thumbnail_url: props.thumbnail_url,
-            url: props.url,
-            status: props.status || 'unknown',
+            status: props.status || 'unmatched',
             rejection_reason: props.rejection_reason || 'No GPS',
             uploaded_at: props.uploaded_at || '',
           };
@@ -901,13 +1122,24 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
 
           {/* Task Accordions */}
           <div className="naxatw-flex naxatw-flex-col">
-            {displayedTaskGroups.map((group: TaskGroup, index: number) => (
+            {displayedTaskGroups.map((group: TaskGroup, index: number) => {
+              const accordionKey = group.task_id || `unassigned-${index}`;
+              const isAccordionOpen = openAccordions.has(accordionKey);
+              return (
               <Accordion
-                key={group.task_id || `task-${index}`}
+                key={accordionKey}
                 open={false}
                 className="!naxatw-border-b !naxatw-border-gray-300 !naxatw-py-4"
                 headerClassName="!naxatw-items-start"
                 contentClassName="naxatw-mt-4"
+                onToggle={(open: boolean) => {
+                  setOpenAccordions(prev => {
+                    const next = new Set(prev);
+                    if (open) next.add(accordionKey);
+                    else next.delete(accordionKey);
+                    return next;
+                  });
+                }}
                 title={
                   <FlexRow className="naxatw-flex-wrap naxatw-items-center naxatw-gap-3">
                     <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
@@ -926,88 +1158,20 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                   </FlexRow>
                 }
               >
-                {group.task_id ? (
-                  <div className="naxatw-mb-4">
-                    <Button
-                      variant="ghost"
-                      className="naxatw-bg-green-600 naxatw-text-white hover:naxatw-bg-green-700"
-                      leftIcon="map"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setVerificationModal({
-                          isOpen: true,
-                          taskId: group.task_id!,
-                          taskIndex: group.project_task_index || 0,
-                        });
-                      }}
-                    >
-                      Verify Task on Map
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="naxatw-mb-4">
-                    <Button
-                      variant="ghost"
-                      className="naxatw-bg-red naxatw-text-white"
-                      leftIcon="delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowCleanupConfirm(true);
-                      }}
-                    >
-                      Cleanup Invalid Imagery
-                    </Button>
-                  </div>
-                )}
-
-                {/* Image Grid */}
-                <div className="naxatw-grid naxatw-grid-cols-6 naxatw-gap-2">
-                  {group.images.map((image) => (
-                    <div
-                      key={image.id}
-                      ref={(el) => { imageRefs.current[image.id] = el; }}
-                      className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
-                        highlightedImageId === image.id
-                          ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300'
-                          : image.status === 'rejected' || image.status === 'invalid_exif'
-                            ? 'naxatw-border-red-300 hover:naxatw-border-red-500'
-                            : image.status === 'unmatched'
-                              ? 'naxatw-border-yellow-300 hover:naxatw-border-yellow-500'
-                              : image.status === 'duplicate'
-                                ? 'naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60'
-                                : 'naxatw-border-gray-200 hover:naxatw-border-blue-500'
-                      }`}
-                      onClick={() => handleSidebarImageClick(image)}
-                      onDoubleClick={() => handleImageClick(image)}
-                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ''} (double-click to view)`}
-                    >
-                      <img
-                        src={image.thumbnail_url || image.url}
-                        alt={image.filename}
-                        className="naxatw-h-full naxatw-w-full naxatw-object-cover"
-                        loading="lazy"
-                      />
-                      {(image.status === 'rejected' || image.status === 'invalid_exif') && (
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
-                          {image.rejection_reason || 'Rejected'}
-                        </div>
-                      )}
-                      {image.status === 'unmatched' && (
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-yellow-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
-                          Unmatched
-                        </div>
-                      )}
-                      {image.status === 'duplicate' && (
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-gray-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
-                          Duplicate
-                        </div>
-                      )}
-                      <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
-                    </div>
-                  ))}
-                </div>
+                <TaskAccordionContent
+                  group={group}
+                  projectId={projectId}
+                  isOpen={isAccordionOpen}
+                  highlightedImageId={highlightedImageId}
+                  imageRefs={imageRefs}
+                  onVerifyTask={(taskId, taskIndex) => setVerificationModal({ isOpen: true, taskId, taskIndex })}
+                  onCleanup={() => setShowCleanupConfirm(true)}
+                  onImageClick={handleSidebarImageClick}
+                  onImageDoubleClick={handleImageClick}
+                />
               </Accordion>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

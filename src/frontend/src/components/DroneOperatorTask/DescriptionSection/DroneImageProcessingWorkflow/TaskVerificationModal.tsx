@@ -1,15 +1,18 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Map as MapLibreMap, NavigationControl, AttributionControl, LngLatBoundsLike, Popup } from 'maplibre-gl';
 import bbox from '@turf/bbox';
 import { toast } from 'react-toastify';
 import {
   getProjectTaskVerificationData,
+  getTaskImageUrls,
   markTaskAsVerified,
   deleteTaskImage,
   TaskVerificationData,
   FlightGapDetectionData,
   getFlightGapDetectionData,
+  ImageUrls,
 } from '@Services/classification';
 import { FlexRow } from '@Components/common/Layouts';
 import { Button } from '@Components/RadixComponents/Button';
@@ -61,6 +64,45 @@ const TaskVerificationModal = ({
     queryKey: ['taskVerification', projectId, taskId],
     queryFn: () => getProjectTaskVerificationData(projectId, taskId),
     enabled: isOpen && !!projectId && !!taskId,
+  });
+
+  // Fetch presigned image URLs on demand when modal opens
+  const { data: imageUrlsData } = useQuery({
+    queryKey: ['taskImageUrls', projectId, taskId],
+    queryFn: () => getTaskImageUrls(projectId, taskId),
+    enabled: isOpen && !!projectId && !!taskId,
+    staleTime: 30 * 60 * 1000, // 30 min
+  });
+
+  // Build URL lookup map
+  const imageUrlMap = useMemo(() => {
+    const map: Record<string, ImageUrls> = {};
+    if (imageUrlsData?.images) {
+      for (const img of imageUrlsData.images) {
+        map[img.id] = img;
+      }
+    }
+    return map;
+  }, [imageUrlsData?.images]);
+
+  // Virtualized sidebar grid (2 columns)
+  const SIDEBAR_COLS = 2;
+  const SIDEBAR_ROW_H = 150;
+  const sidebarParentRef = useRef<HTMLDivElement>(null);
+  const sidebarRows = useMemo(() => {
+    const images = verificationData?.images || [];
+    const result: typeof images extends (infer T)[] ? T[][] : never[] = [];
+    for (let i = 0; i < images.length; i += SIDEBAR_COLS) {
+      result.push(images.slice(i, i + SIDEBAR_COLS));
+    }
+    return result;
+  }, [verificationData?.images]);
+
+  const sidebarVirtualizer = useVirtualizer({
+    count: sidebarRows.length,
+    getScrollElement: () => sidebarParentRef.current,
+    estimateSize: () => SIDEBAR_ROW_H,
+    overscan: 3,
   });
 
   // Reset map when modal closes
@@ -179,9 +221,6 @@ const TaskVerificationModal = ({
       const html = `
         <div style="min-width:160px;max-width:280px;font-family:system-ui,sans-serif;">
           <p style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${props.filename}</p>
-          ${(props.thumbnail_url || props.url)
-            ? `<img src="${props.thumbnail_url || props.url}" style="width:100%;height:auto;border-radius:4px;margin-bottom:4px;" />`
-            : ''}
           <p style="font-size:12px;color:#555;text-transform:capitalize;">Status: ${(props.status || '').replace('_', ' ')}</p>
         </div>
       `;
@@ -274,8 +313,6 @@ const TaskVerificationModal = ({
           id: img.id,
           filename: img.filename,
           status: img.status,
-          thumbnail_url: img.thumbnail_url,
-          url: img.url,
         },
         geometry: img.location,
       }));
@@ -425,9 +462,6 @@ const TaskVerificationModal = ({
         const html = `
           <div style="min-width:160px;max-width:280px;font-family:system-ui,sans-serif;">
             <p style="font-size:13px;font-weight:600;margin-bottom:4px;word-break:break-all;">${img.filename}</p>
-            ${(img.thumbnail_url || img.url)
-              ? `<img src="${img.thumbnail_url || img.url}" style="width:100%;height:auto;border-radius:4px;margin-bottom:4px;" />`
-              : ''}
             <p style="font-size:12px;color:#555;text-transform:capitalize;">Status: ${(img.status || '').replace('_', ' ')}</p>
           </div>
         `;
@@ -613,44 +647,83 @@ const TaskVerificationModal = ({
                 )}
               </div>
 
-              {/* Sidebar - Image List */}
-              <div className="naxatw-w-80 naxatw-border-l naxatw-overflow-y-auto">
-                <div className="naxatw-p-4">
-                  <h4 className="naxatw-mb-3 naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
+              {/* Sidebar - Virtualized Image List */}
+              <div className="naxatw-w-80 naxatw-border-l naxatw-flex naxatw-flex-col">
+                <div className="naxatw-p-4 naxatw-pb-2">
+                  <h4 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
                     Images ({verificationData?.image_count || 0})
                   </h4>
-                  <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-2">
-                    {verificationData?.images.map((image) => (
-                      <div
-                        key={image.id}
-                        ref={(el) => { imageRefs.current[image.id] = el; }}
-                        className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
-                          selectedImageId === image.id
-                            ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-200'
-                            : 'naxatw-border-gray-200'
-                        }`}
-                        onClick={() => handleSidebarImageClick(image.id)}
-                      >
-                        <img
-                          src={image.thumbnail_url || image.url}
-                          alt={image.filename}
-                          className="naxatw-h-full naxatw-w-full naxatw-object-cover"
-                          loading="lazy"
-                        />
-                        <button
-                          className="naxatw-absolute naxatw-right-1 naxatw-top-1 naxatw-rounded-full naxatw-bg-red-500 naxatw-p-1 naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity hover:naxatw-bg-red-600 group-hover:naxatw-opacity-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteMutation.mutate(image.id);
+                </div>
+                <div
+                  ref={sidebarParentRef}
+                  className="naxatw-flex-1 naxatw-overflow-auto naxatw-px-4 naxatw-pb-4"
+                >
+                  <div
+                    style={{
+                      height: `${sidebarVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {sidebarVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const rowImages = sidebarRows[virtualRow.index];
+                      return (
+                        <div
+                          key={virtualRow.key}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: `${virtualRow.size}px`,
+                            transform: `translateY(${virtualRow.start}px)`,
                           }}
-                          title="Delete image"
+                          className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-2"
                         >
-                          <span className="material-icons naxatw-text-sm">
-                            close
-                          </span>
-                        </button>
-                      </div>
-                    ))}
+                          {rowImages.map((image) => {
+                            const urls = imageUrlMap[image.id];
+                            const thumbSrc = urls?.thumbnail_url || urls?.url;
+                            return (
+                              <div
+                                key={image.id}
+                                ref={(el) => { imageRefs.current[image.id] = el; }}
+                                className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
+                                  selectedImageId === image.id
+                                    ? 'naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-200'
+                                    : 'naxatw-border-gray-200'
+                                }`}
+                                onClick={() => handleSidebarImageClick(image.id)}
+                              >
+                                {thumbSrc ? (
+                                  <img
+                                    src={thumbSrc}
+                                    alt={image.filename}
+                                    className="naxatw-h-full naxatw-w-full naxatw-object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-items-center naxatw-justify-center naxatw-bg-gray-100">
+                                    <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-blue-500" />
+                                  </div>
+                                )}
+                                <button
+                                  className="naxatw-absolute naxatw-right-1 naxatw-top-1 naxatw-rounded-full naxatw-bg-red-500 naxatw-p-1 naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity hover:naxatw-bg-red-600 group-hover:naxatw-opacity-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteMutation.mutate(image.id);
+                                  }}
+                                  title="Delete image"
+                                >
+                                  <span className="material-icons naxatw-text-sm">
+                                    close
+                                  </span>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

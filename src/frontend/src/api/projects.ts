@@ -11,9 +11,7 @@ import {
   startProjectClassification,
   ingestExistingUploads,
   getProjectStatus,
-  getProjectImages,
   BatchStatusSummary,
-  ImageClassificationResult,
 } from '@Services/classification';
 
 export interface ProjectUser {
@@ -93,18 +91,6 @@ export const useGetUsersQuery = (
   });
 };
 
-// export const useGetAllAssetsUrlQuery = (
-//   projectId: string,
-//   queryOptions?: Partial<UseQueryOptions>,
-// ) => {
-//   return useQuery({
-//     queryKey: ['all-assets-url'],
-//     queryFn: () => getAllAssetsUrl(projectId),
-//     select: (data: any) => data.data,
-//     ...queryOptions,
-//   });
-// };
-
 export const useGetProjectCentroidQuery = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
@@ -159,20 +145,6 @@ export const useGetProjectStatusQuery = (
   return useQuery<BatchStatusSummary>({
     queryKey: ['project-imagery-status', projectId],
     queryFn: async () => getProjectStatus(projectId),
-    enabled: !!projectId,
-    ...queryOptions,
-  });
-};
-
-export const useGetProjectImagesQuery = (
-  projectId: string,
-  since?: string,
-  queryOptions?: Partial<UseQueryOptions<ImageClassificationResult[]>>,
-  statusFilter?: string[],
-) => {
-  return useQuery<ImageClassificationResult[]>({
-    queryKey: ['project-images', projectId, since, statusFilter],
-    queryFn: () => getProjectImages(projectId, since, statusFilter),
     enabled: !!projectId,
     ...queryOptions,
   });
