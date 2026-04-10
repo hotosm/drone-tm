@@ -34,6 +34,7 @@ import QFieldExportDialog from '@Components/IndividualProject/QFieldExport';
 import QFieldLogo from '@Components/IndividualProject/QFieldExport/QFieldLogo';
 import {
   UploadImageryDialog,
+  ClassifyImageryDialog,
   VerifyImageryDialog,
 } from '@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow';
 import { getRuntimeConfig } from '@/runtimeConfig';
@@ -51,6 +52,8 @@ const getActiveTabContent = (
   // eslint-disable-next-line no-unused-vars
   onOpenUpload?: () => void,
   // eslint-disable-next-line no-unused-vars
+  onOpenClassify?: () => void,
+  // eslint-disable-next-line no-unused-vars
   onOpenVerify?: () => void,
 ) => {
   if (activeTab === 'about')
@@ -60,6 +63,7 @@ const getActiveTabContent = (
         isProjectDataLoading={isProjectDataLoading}
         page="project-description"
         onOpenUpload={onOpenUpload}
+        onOpenClassify={onOpenClassify}
         onOpenVerify={onOpenVerify}
       />
     );
@@ -98,6 +102,7 @@ const IndividualProject = () => {
   const [showDownloadOptions, setShowDownloadOptions] =
     useState<boolean>(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isClassifyDialogOpen, setIsClassifyDialogOpen] = useState(false);
   const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
   const [showQFieldDialog, setShowQFieldDialog] = useState(false);
   const Token = localStorage.getItem('token');
@@ -329,6 +334,7 @@ const IndividualProject = () => {
                   isProjectDataFetching,
                   handleTableRowClick,
                   () => setIsUploadDialogOpen(true),
+                  () => setIsClassifyDialogOpen(true),
                   () => setIsVerifyDialogOpen(true),
                 )}
               </div>
@@ -387,6 +393,12 @@ const IndividualProject = () => {
       <UploadImageryDialog
         isOpen={isUploadDialogOpen}
         onClose={() => setIsUploadDialogOpen(false)}
+        projectId={projectData?.id || (id as string)}
+      />
+
+      <ClassifyImageryDialog
+        isOpen={isClassifyDialogOpen}
+        onClose={() => setIsClassifyDialogOpen(false)}
         projectId={projectData?.id || (id as string)}
       />
 

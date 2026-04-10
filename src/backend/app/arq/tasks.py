@@ -427,66 +427,77 @@ async def process_uploaded_image(
         raise
 
 
-async def classify_image_batch(
+async def classify_project_images(
     ctx: Dict[Any, Any],
     project_id: str,
-    batch_id: str,
     **_kwargs: Any,
 ) -> Dict:
+    """Classify all staged images in a project (across all batches)."""
     job_id = ctx.get("job_id", "unknown")
-    log.info(f"Starting batch classification job {job_id} for batch {batch_id}")
+    log.info(f"Starting project classification job {job_id} for project {project_id}")
 
     db_pool = ctx.get("db_pool")
     if not db_pool:
         raise RuntimeError("Database pool not initialized in ARQ context")
 
     try:
-        # Pass the pool directly so classify_batch can get separate connections
-        # for each parallel worker
-        result = await ImageClassifier.classify_batch(
+        result = await ImageClassifier.classify_project(
             db_pool,
-            UUID(batch_id),
             UUID(project_id),
         )
 
-        # Post-classification: detect tails per task area (requires task_id assignment).
-        # NOTE we must attempt tail removal after binning into task areas, else
-        # tails will be misidentified across the entire batch of images.
-        try:
-            async with db_pool.connection() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        """
-                        SELECT DISTINCT task_id
-                        FROM project_images
-                        WHERE project_id = %(project_id)s
-                          AND batch_id = %(batch_id)s
-                          AND status = 'assigned'
-                          AND task_id IS NOT NULL
-                        """,
-                        {"project_id": project_id, "batch_id": batch_id},
-                    )
-                    rows = await cur.fetchall()
+        # Post-classification: detect tails only for images classified in THIS run.
+        # Scoping to processed image IDs prevents retroactively rejecting imagery
+        # from older batches that was already accepted.
+        classified_image_ids = [
+            img["image_id"]
+            for img in result.get("images", [])
+            if img.get("status") == ImageStatus.ASSIGNED
+        ]
+        if classified_image_ids:
+            try:
+                async with db_pool.connection() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute(
+                            """
+                            SELECT DISTINCT batch_id, task_id
+                            FROM project_images
+                            WHERE project_id = %(project_id)s
+                              AND id = ANY(%(image_ids)s)
+                              AND status = 'assigned'
+                              AND task_id IS NOT NULL
+                              AND batch_id IS NOT NULL
+                            """,
+                            {
+                                "project_id": project_id,
+                                "image_ids": classified_image_ids,
+                            },
+                        )
+                        rows = await cur.fetchall()
 
-                task_ids = [row[0] for row in rows if row and row[0] is not None]
-                if task_ids:
-                    log.info(
-                        f"Inspecting batch {batch_id} for flightplan tails (per task): "
-                        f"{len(task_ids)} tasks"
-                    )
-                for task_id in task_ids:
-                    await mark_and_remove_flight_tail_imagery(
-                        conn, UUID(project_id), UUID(batch_id), UUID(str(task_id))
-                    )
-                if task_ids:
-                    await conn.commit()
-        except Exception as tail_err:
-            log.warning(
-                f"Flight tail detection failed for batch {batch_id} (post-classification): {tail_err}"
-            )
+                    pairs = [(row[0], row[1]) for row in rows if row[0] and row[1]]
+                    if pairs:
+                        log.info(
+                            f"Inspecting project {project_id} for flightplan tails: "
+                            f"{len(pairs)} (batch, task) pairs"
+                        )
+                    for batch_id, task_id in pairs:
+                        await mark_and_remove_flight_tail_imagery(
+                            conn,
+                            UUID(project_id),
+                            UUID(str(batch_id)),
+                            UUID(str(task_id)),
+                        )
+                    if pairs:
+                        await conn.commit()
+            except Exception as tail_err:
+                log.warning(
+                    f"Flight tail detection failed for project {project_id} "
+                    f"(post-classification): {tail_err}"
+                )
 
         log.info(
-            f"Batch classification complete: "
+            f"Project classification complete: "
             f"Total={result['total']}, Assigned={result['assigned']}, "
             f"Rejected={result['rejected']}, Unmatched={result['unmatched']}"
         )
@@ -494,136 +505,7 @@ async def classify_image_batch(
         return result
 
     except Exception as e:
-        log.error(f"Batch classification failed: {str(e)}")
-        raise
-
-
-async def process_batch_images(
-    ctx: Dict[Any, Any],
-    project_id: str,
-    batch_id: str,
-    **_kwargs: Any,
-) -> Dict[str, Any]:
-    """Background task to move batch images to task folders and trigger ODM processing.
-
-    This task:
-    1. Moves assigned images from user-uploads/ to {task_id}/images/ in S3
-    2. Triggers ODM processing for each task that has at least MIN_IMAGES_FOR_ODM images
-
-    Args:
-        ctx: ARQ context
-        project_id: UUID of the project
-        batch_id: UUID of the batch to process
-
-    Returns:
-        dict: Processing result with task details
-    """
-    # Minimum images required for ODM to process (needs overlapping images)
-    MIN_IMAGES_FOR_ODM = 3
-
-    job_id = ctx.get("job_id", "unknown")
-    log.info(f"Starting process_batch_images (Job ID: {job_id}): batch={batch_id}")
-
-    db_pool = ctx.get("db_pool")
-    if not db_pool:
-        raise RuntimeError("Database pool not initialized in ARQ context")
-
-    try:
-        async with db_pool.connection() as conn:
-            # Step 1: Move images to task folders
-            log.info(f"Moving batch {batch_id} images to task folders...")
-            move_result = await ImageClassifier.move_batch_images_to_tasks(
-                conn, UUID(batch_id), UUID(project_id)
-            )
-            await conn.commit()
-
-            log.info(
-                f"Moved {move_result['total_moved']} images to "
-                f"{move_result['task_count']} tasks"
-            )
-
-            if move_result["total_moved"] == 0:
-                return {
-                    "message": "No images to process",
-                    "batch_id": batch_id,
-                    "tasks_processed": 0,
-                }
-
-            # Step 2: Get the list of tasks to process
-            task_ids = list(move_result["tasks"].keys())
-
-            # Step 3: Trigger ODM processing for each task
-            # (We'll enqueue separate jobs for each task to parallelize)
-            redis = ctx.get("redis")
-            if not redis:
-                log.warning("Redis not available, cannot trigger ODM processing jobs")
-                return {
-                    "message": "Images moved but ODM processing not triggered",
-                    "batch_id": batch_id,
-                    "move_result": move_result,
-                }
-
-            odm_jobs = []
-            skipped_tasks = []
-            for task_id in task_ids:
-                task_images = move_result["tasks"][task_id]
-                image_count = task_images["image_count"]
-
-                # Skip tasks with insufficient images for ODM
-                if image_count < MIN_IMAGES_FOR_ODM:
-                    log.warning(
-                        f"Skipping ODM for task {task_id}: only {image_count} images "
-                        f"(minimum {MIN_IMAGES_FOR_ODM} required)"
-                    )
-                    skipped_tasks.append(
-                        {
-                            "task_id": task_id,
-                            "image_count": image_count,
-                            "reason": f"Insufficient images (need {MIN_IMAGES_FOR_ODM})",
-                        }
-                    )
-                    continue
-
-                log.info(
-                    f"Triggering ODM processing for task {task_id} "
-                    f"with {image_count} images"
-                )
-
-                # Enqueue ODM processing job
-                # Note: We'll use a placeholder user_id for the webhook
-                # In production, you might want to track the actual user
-                job = await redis.enqueue_job(
-                    "process_drone_images",
-                    UUID(project_id),
-                    UUID(task_id),
-                    "batch-processor",  # user_id for webhook
-                    _queue_name="default_queue",
-                )
-                odm_jobs.append(
-                    {
-                        "task_id": task_id,
-                        "job_id": job.job_id,
-                        "image_count": image_count,
-                    }
-                )
-
-            log.info(
-                f"Batch processing complete: {len(odm_jobs)} ODM jobs queued, "
-                f"{len(skipped_tasks)} tasks skipped (insufficient images)"
-            )
-
-            return {
-                "message": "Batch processing started",
-                "batch_id": batch_id,
-                "total_images_moved": move_result["total_moved"],
-                "tasks_processed": len(odm_jobs),
-                "tasks_skipped": len(skipped_tasks),
-                "odm_jobs": odm_jobs,
-                "skipped_tasks": skipped_tasks,
-            }
-
-    except Exception as e:
-        log.error(f"Failed to process batch (Job: {job_id}): {str(e)}")
+        log.error(f"Project classification failed: {str(e)}")
         raise
 
 
@@ -1126,8 +1008,7 @@ class WorkerSettings:
         process_drone_images,
         process_all_drone_images,
         process_uploaded_image,
-        classify_image_batch,
-        process_batch_images,
+        classify_project_images,
         delete_batch_images,
         process_project_task_metrics,
         download_and_upload_dem,

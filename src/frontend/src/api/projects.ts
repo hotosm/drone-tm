@@ -8,9 +8,9 @@ import {
 import { getTaskStates } from '@Services/project';
 import { getUserProfileInfo, getUsers } from '@Services/common';
 import {
-  startClassification,
-  getBatchStatus,
-  getBatchImages,
+  startProjectClassification,
+  getProjectStatus,
+  getProjectImages,
   BatchStatusSummary,
   ImageClassificationResult,
 } from '@Services/classification';
@@ -123,44 +123,42 @@ export const useGetProjectCentroidQuery = (
   });
 };
 
-// Classification hooks
-export const useStartClassificationMutation = (
+// Project-scoped classification hooks
+export const useStartProjectClassificationMutation = (
   mutationOptions?: UseMutationOptions<
-    { job_id: string; message: string },
+    { job_id: string; message: string; project_id: string; image_count: number },
     Error,
-    { projectId: string; batchId: string }
+    { projectId: string }
   >,
 ) => {
   return useMutation({
-    mutationFn: ({ projectId, batchId }) =>
-      startClassification(projectId, batchId),
+    mutationFn: ({ projectId }) =>
+      startProjectClassification(projectId),
     ...mutationOptions,
   });
 };
 
-export const useGetBatchStatusQuery = (
+export const useGetProjectStatusQuery = (
   projectId: string,
-  batchId: string,
   queryOptions?: Partial<UseQueryOptions<BatchStatusSummary>>,
 ) => {
   return useQuery<BatchStatusSummary>({
-    queryKey: ['batch-status', projectId, batchId],
-    queryFn: async () => getBatchStatus(projectId, batchId),
-    enabled: !!projectId && !!batchId,
+    queryKey: ['project-imagery-status', projectId],
+    queryFn: async () => getProjectStatus(projectId),
+    enabled: !!projectId,
     ...queryOptions,
   });
 };
 
-export const useGetBatchImagesQuery = (
+export const useGetProjectImagesQuery = (
   projectId: string,
-  batchId: string,
   since?: string,
   queryOptions?: Partial<UseQueryOptions<ImageClassificationResult[]>>,
 ) => {
   return useQuery<ImageClassificationResult[]>({
-    queryKey: ['batch-images', projectId, batchId, since],
-    queryFn: () => getBatchImages(projectId, batchId, since),
-    enabled: !!projectId && !!batchId,
+    queryKey: ['project-images', projectId, since],
+    queryFn: () => getProjectImages(projectId, since),
+    enabled: !!projectId,
     ...queryOptions,
   });
 };

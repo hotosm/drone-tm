@@ -607,6 +607,145 @@ async def test_odm_queue_info_enqueues_missed_webhook_processing(
     }
 
 
+async def _insert_classification_test_task(
+    db, *, project_id: str, task_index: int = 1
+) -> str:
+    task_id = str(uuid.uuid4())
+    outline = json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-69.49779538720068, 18.629654277305633],
+                    [-69.48497355306813, 18.616997544638636],
+                    [-69.54053483430786, 18.608390428368665],
+                    [-69.5410690773959, 18.614466085056165],
+                    [-69.49779538720068, 18.629654277305633],
+                ]
+            ],
+        }
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (
+                id,
+                project_id,
+                project_task_index,
+                outline
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)
+            )
+            """,
+            (task_id, project_id, task_index, outline),
+        )
+
+    await db.commit()
+    return task_id
+
+
+async def _insert_classification_test_image(
+    db,
+    *,
+    project_id: str,
+    uploaded_by: str,
+    status: str,
+) -> str:
+    image_id = str(uuid.uuid4())
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO project_images (
+                id,
+                project_id,
+                filename,
+                s3_key,
+                hash_md5,
+                batch_id,
+                status,
+                uploaded_by
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (
+                image_id,
+                project_id,
+                f"{status}.jpg",
+                f"projects/{project_id}/{image_id}.jpg",
+                uuid.uuid4().hex,
+                str(uuid.uuid4()),
+                status,
+                uploaded_by,
+            ),
+        )
+
+    await db.commit()
+    return image_id
+
+
+@pytest.mark.asyncio
+async def test_assign_task_accepts_unmatched_image(
+    client, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    image_id = await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="unmatched",
+    )
+
+    response = await client.post(
+        f"/api/projects/{project_id}/images/{image_id}/assign-task/",
+        json={"task_id": task_id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "assigned"
+    assert response.json()["task_id"] == task_id
+
+
+@pytest.mark.asyncio
+async def test_assign_task_rejects_non_unmatched_image(
+    client, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    image_id = await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="rejected",
+    )
+
+    response = await client.post(
+        f"/api/projects/{project_id}/images/{image_id}/assign-task/",
+        json={"task_id": task_id},
+    )
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"]
+        == "Only unmatched images can be manually assigned to a task"
+    )
+
+
 if __name__ == "__main__":
     """Main func if file invoked directly."""
     pytest.main()
