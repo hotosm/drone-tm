@@ -51,7 +51,10 @@ async def start_project_classification(
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
-    """Classify all staged/uploaded images in a project (across all batches)."""
+    """Classify all staged/uploaded images in a project (across all batches).
+
+    Also reclaims 'classifying' rows stranded by a crashed worker (stale > 10 min).
+    """
     log.info(f"Received project classification request: project_id={project_id}")
 
     async with db.cursor() as cur:
@@ -60,7 +63,13 @@ async def start_project_classification(
             SELECT COUNT(*) as count
             FROM project_images
             WHERE project_id = %(project_id)s
-            AND status IN ('staged', 'uploaded')
+            AND (
+                status IN ('staged', 'uploaded')
+                OR (
+                    status = 'classifying'
+                    AND classified_at < NOW() - interval '10 minutes'
+                )
+            )
             """,
             {"project_id": str(project_id)},
         )
@@ -146,12 +155,17 @@ async def get_project_images(
     last_timestamp: Optional[str] = Query(
         None, description="ISO 8601 timestamp to get updates since"
     ),
+    status: Optional[list[str]] = Query(
+        None, description="Filter by status(es), e.g. ?status=staged&status=uploaded"
+    ),
 ):
-    """Get all images for a project across all batches."""
+    """Get images for a project across all batches, with optional status filter."""
     try:
         timestamp = datetime.fromisoformat(last_timestamp) if last_timestamp else None
 
-        images = await ImageClassifier.get_project_images(db, project_id, timestamp)
+        images = await ImageClassifier.get_project_images(
+            db, project_id, timestamp, status_filter=status
+        )
 
         return {"project_id": str(project_id), "images": images, "count": len(images)}
 

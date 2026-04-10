@@ -215,7 +215,6 @@ export const ClassifyImageryDialog = ({
   const [isPolling, setIsPolling] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [sessionImageIds, setSessionImageIds] = useState<Set<string>>(new Set());
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -225,22 +224,14 @@ export const ClassifyImageryDialog = ({
       setIsPolling(false);
       setHasStarted(false);
       setIsComplete(false);
-      setSessionImageIds(new Set());
     }
   }, [isOpen]);
 
   const startClassificationMutation = useStartProjectClassificationMutation({
     onSuccess: () => {
-      // Capture only images in active (pre-classification) statuses.
-      // These are the ones visible in the grid right now. We track their IDs
-      // so results stay visible after they transition to terminal states.
-      const activeStatuses = new Set(['staged', 'uploaded', 'classifying']);
-      const ids = new Set(
-        Object.values(images)
-          .filter((img) => activeStatuses.has(img.status))
-          .map((img) => img.id),
-      );
-      setSessionImageIds(ids);
+      // Set a floor timestamp so post-start polling only fetches images
+      // classified after this moment, not the entire project history.
+      setLastUpdateTime(new Date().toISOString());
       setHasStarted(true);
       setIsPolling(true);
       toast.info('Classification started. Processing images...');
@@ -250,7 +241,7 @@ export const ClassifyImageryDialog = ({
     },
   });
 
-  // Query for project status — only poll while classification is running
+  // Query for project status - only poll while classification is running
   const {
     data: projectStatus,
     isLoading: isLoadingStatus,
@@ -261,7 +252,14 @@ export const ClassifyImageryDialog = ({
     refetchInterval: isPolling ? 10000 : false,
   });
 
-  // Query for project images — only poll while classification is running
+  // Before classification: only fetch pending images (cheap).
+  // During/after polling: no status filter - the classified_at cursor handles incremental updates.
+  const imageStatusFilter = useMemo(
+    () => (hasStarted ? undefined : ['staged', 'uploaded', 'classifying']),
+    [hasStarted],
+  );
+
+  // Query for project images - only poll while classification is running
   const {
     data: newImages,
     isLoading: isLoadingImages,
@@ -270,7 +268,7 @@ export const ClassifyImageryDialog = ({
   } = useGetProjectImagesQuery(projectId, lastUpdateTime, {
     enabled: !!projectId && isOpen,
     refetchInterval: isPolling ? 10000 : false,
-  });
+  }, imageStatusFilter);
 
   // Update images state when new data arrives
   useEffect(() => {
@@ -310,12 +308,15 @@ export const ClassifyImageryDialog = ({
         (projectStatus.classifying ?? 0);
 
       if (total > 0 && classified === total && remaining === 0) {
+        // Fire one final images fetch so the last batch of results lands
+        // before we stop the polling interval.
+        queryClient.invalidateQueries({ queryKey: ['project-images', projectId] });
         setIsPolling(false);
         setIsComplete(true);
         toast.success('Classification complete! Review the results below.');
       }
     }
-  }, [projectStatus, isPolling]);
+  }, [projectStatus, isPolling, queryClient, projectId]);
 
   const handleStartClassification = useCallback(() => {
     startClassificationMutation.mutate({ projectId });
@@ -370,11 +371,12 @@ export const ClassifyImageryDialog = ({
 
   const ACTIVE_STATUSES = new Set(['staged', 'uploaded', 'classifying']);
   const allImages = Object.values(images);
-  // Before classification: only show active (unclassified) images.
-  // During/after classification: keep showing this session's images so results are visible.
-  // On dialog close+reopen, sessionImageIds resets so only new uploads appear.
+  // Before classification: only show pending images (from status-filtered fetch).
+  // After classification starts: show all images in local state - the classified_at
+  // cursor ensures only this run's results accumulate, and the pre-start pending
+  // images are already present from the initial fetch.
   const imagesList = hasStarted
-    ? allImages.filter((img) => sessionImageIds.has(img.id))
+    ? allImages
     : allImages.filter((img) => ACTIVE_STATUSES.has(img.status));
   const isClassifying = (projectStatus?.classifying ?? 0) > 0 || isPolling;
 
@@ -677,12 +679,19 @@ export const VerifyImageryDialog = ({
   onClose,
   projectId,
 }: IVerifyImageryDialogProps) => {
+  const queryClient = useQueryClient();
+
+  const handleClose = () => {
+    queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <Modal
       show={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="Verify Imagery"
       className="!naxatw-max-w-[88vw] !naxatw-w-[88vw] !naxatw-max-h-[90vh] !naxatw-h-[90vh] !naxatw-flex !naxatw-flex-col"
       bodyScrollable={false}
@@ -693,7 +702,7 @@ export const VerifyImageryDialog = ({
         </div>
 
         <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-justify-end naxatw-border-t naxatw-pt-4">
-          <Button variant="outline" className="naxatw-border-gray-300" onClick={onClose}>
+          <Button variant="outline" className="naxatw-border-gray-300" onClick={handleClose}>
             Close
           </Button>
         </div>

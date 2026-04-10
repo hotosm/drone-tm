@@ -605,26 +605,49 @@ class ImageClassifier:
         db_pool: AsyncConnectionPool, project_id: uuid.UUID
     ) -> dict[str, Any]:
         """Classify all staged/uploaded images in a project (across all batches)."""
-        # Use UPDATE SKIP LOCKED to ensure no race conditions.
-        # Select both STAGED and UPLOADED so that interrupted rows don't become dead ends.
+        # Atomically claim pending rows and stale classifying rows.
+        # - staged/uploaded: new work.
+        # - classifying with classified_at older than the stale threshold: rows
+        #   claimed by a previous job that crashed before finishing. We use
+        #   classified_at as the claim timestamp (set to NOW() below, overwritten
+        #   with the real finish time by classify_single_image).
+        # - FOR UPDATE SKIP LOCKED: a live concurrent job still holds row locks
+        #   during its claim transaction, so those rows are skipped - only truly
+        #   abandoned rows (no lock holder) are reclaimed.
+        stale_minutes = 10  # well beyond CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS
         async with db_pool.connection() as db:
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
                     """
-                    SELECT id
-                    FROM project_images
-                    WHERE project_id = %(project_id)s
-                    AND status IN (%(staged)s, %(uploaded)s)
-                    ORDER BY uploaded_at
-                    FOR UPDATE SKIP LOCKED
+                    UPDATE project_images
+                    SET status = %(classifying)s,
+                        classified_at = NOW()
+                    WHERE id IN (
+                        SELECT id
+                        FROM project_images
+                        WHERE project_id = %(project_id)s
+                        AND (
+                            status IN (%(staged)s, %(uploaded)s)
+                            OR (
+                                status = %(classifying)s
+                                AND classified_at < NOW() - make_interval(mins => %(stale_minutes)s)
+                            )
+                        )
+                        ORDER BY uploaded_at
+                        FOR UPDATE SKIP LOCKED
+                    )
+                    RETURNING id
                     """,
                     {
                         "project_id": str(project_id),
                         "staged": ImageStatus.STAGED.value,
                         "uploaded": ImageStatus.UPLOADED.value,
+                        "classifying": ImageStatus.CLASSIFYING.value,
+                        "stale_minutes": stale_minutes,
                     },
                 )
                 images = await cur.fetchall()
+            await db.commit()
 
         if not images:
             return {
@@ -685,7 +708,7 @@ class ImageClassifier:
             # Avoid dumping huge stack-like content into the UI.
             # Truncate at word boundary if too long
             if len(msg) > 240:
-                msg = msg[:240].rsplit(" ", 1)[0] + "…"
+                msg = msg[:240].rsplit(" ", 1)[0] + "..."
             return f"Classification failed: {msg}"
 
         async def classify_with_commit(image_record: dict[str, Any]) -> dict[str, Any]:
@@ -698,19 +721,9 @@ class ImageClassifier:
                 )
 
                 # Each worker gets its own connection from the pool
+                # (rows are already marked CLASSIFYING by the bulk claim above)
                 async with db_pool.connection() as conn:
                     try:
-                        async with conn.cursor() as cur:
-                            await cur.execute(
-                                "UPDATE project_images SET status = %(status)s WHERE id = %(image_id)s",
-                                {
-                                    "status": ImageStatus.CLASSIFYING.value,
-                                    "image_id": str(image_id),
-                                },
-                            )
-                        # Commit the classifying status so frontend can see progress
-                        await conn.commit()
-
                         # Perform classification with timeout
                         result = await asyncio.wait_for(
                             ImageClassifier.classify_single_image(
@@ -893,10 +906,11 @@ class ImageClassifier:
         db: Connection,
         project_id: uuid.UUID,
         last_timestamp: Optional[datetime] = None,
+        status_filter: Optional[list[str]] = None,
     ) -> list[dict]:
-        """Get all images for a project (across all batches).
+        """Get images for a project (across all batches).
 
-        Supports incremental polling via last_timestamp.
+        Supports incremental polling via last_timestamp and optional status filtering.
         """
         query = """
             SELECT
@@ -917,6 +931,10 @@ class ImageClassifier:
         """
 
         params: dict[str, Any] = {"project_id": str(project_id)}
+
+        if status_filter:
+            query += " AND status = ANY(%(statuses)s)"
+            params["statuses"] = status_filter
 
         if last_timestamp:
             query += " AND classified_at > %(last_timestamp)s"

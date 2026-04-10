@@ -154,10 +154,11 @@ export const useGetProjectImagesQuery = (
   projectId: string,
   since?: string,
   queryOptions?: Partial<UseQueryOptions<ImageClassificationResult[]>>,
+  statusFilter?: string[],
 ) => {
   return useQuery<ImageClassificationResult[]>({
-    queryKey: ['project-images', projectId, since],
-    queryFn: () => getProjectImages(projectId, since),
+    queryKey: ['project-images', projectId, since, statusFilter],
+    queryFn: () => getProjectImages(projectId, since, statusFilter),
     enabled: !!projectId,
     ...queryOptions,
   });

@@ -129,11 +129,14 @@ export const getProjectStatus = async (
 export const getProjectImages = async (
   projectId: string,
   since?: string,
+  statusFilter?: string[],
 ): Promise<ImageClassificationResult[]> => {
-  const params = since ? { last_timestamp: since } : {};
+  const params: Record<string, any> = {};
+  if (since) params.last_timestamp = since;
+  if (statusFilter?.length) params.status = statusFilter;
   const response = await authenticated(api).get(
     `/projects/${projectId}/imagery/images/`,
-    { params },
+    { params, paramsSerializer: { indexes: null } },
   );
   return response.data.images || response.data;
 };

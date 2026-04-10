@@ -623,7 +623,7 @@ async def test_assign_task_persists_to_db(client, db, auth_user, create_test_pro
     assert resp.status_code == 200
     assert resp.json()["status"] == "assigned"
 
-    # Verify persisted — read through a fresh cursor
+    # Verify persisted - read through a fresh cursor
     async with db.cursor() as cur:
         await cur.execute(
             "SELECT status, task_id FROM project_images WHERE id = %s",

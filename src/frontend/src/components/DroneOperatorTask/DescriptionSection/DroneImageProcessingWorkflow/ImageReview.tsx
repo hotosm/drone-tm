@@ -470,6 +470,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
       }
       queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
       setSelectedImage(null);
     },
     onError: (error: any) => {
@@ -485,6 +486,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
       toast.success('Image assigned to task successfully');
       queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
       setConfirmMatch(null);
       setTaskMatchingImage(null);
     },
@@ -1049,6 +1051,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
         onVerified={() => {
           queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
           queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+          queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
         }}
       />
 
