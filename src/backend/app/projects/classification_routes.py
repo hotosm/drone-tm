@@ -115,7 +115,7 @@ async def ingest_existing_uploads(
     request returns immediately regardless of how many objects exist.
 
     Uses a stable _job_id so ARQ deduplicates concurrent/retry requests for
-    the same project — a second call while the first is queued or running is
+    the same project - a second call while the first is queued or running is
     a no-op.
     """
     import uuid as _uuid
@@ -376,6 +376,23 @@ async def delete_image(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to delete image: {e}",
+        )
+
+
+@router.delete("/{project_id}/imagery/invalid/", tags=["Image Classification"])
+async def delete_invalid_images(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Delete all invalid/unmatched images for a project (rejected, invalid_exif, unmatched, duplicate)."""
+    try:
+        return await ImageClassifier.delete_invalid_images(db, project_id)
+    except Exception as e:
+        log.error(f"Failed to delete invalid images: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to delete invalid images: {e}",
         )
 
 

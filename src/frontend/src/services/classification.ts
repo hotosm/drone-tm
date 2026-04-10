@@ -92,7 +92,7 @@ export const deleteBatch = async (
 };
 
 /**
- * Ingest existing S3 uploads — enqueues a background job to scan user-uploads/
+ * Ingest existing S3 uploads - enqueues a background job to scan user-uploads/
  * and process any files not yet tracked in the database.
  */
 export const ingestExistingUploads = async (
@@ -285,6 +285,18 @@ export const deleteTaskImage = async (
 ): Promise<{ message: string; image_id: string }> => {
   const response = await authenticated(api).delete(
     `/projects/${projectId}/images/${imageId}/`,
+  );
+  return response.data;
+};
+
+/**
+ * Delete all invalid/unmatched images for a project (rejected, invalid_exif, unmatched, duplicate)
+ */
+export const deleteInvalidImages = async (
+  projectId: string,
+): Promise<{ message: string; project_id: string; deleted_count: number; deleted_s3_count: number; failed_count?: number }> => {
+  const response = await authenticated(api).delete(
+    `/projects/${projectId}/imagery/invalid/`,
   );
   return response.data;
 };

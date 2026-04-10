@@ -394,12 +394,17 @@ async def process_drone_images(
                     "(expected READY_FOR_PROCESSING, IMAGE_PROCESSING_FAILED, "
                     "or IMAGE_PROCESSING_FINISHED)"
                 )
-            await conn.commit()
-            log.info(f"Task {task_id} state updated to IMAGE_PROCESSING_STARTED")
+            log.info(
+                f"Task {task_id} state set to IMAGE_PROCESSING_STARTED (pending commit)"
+            )
 
             # Ensure images classified for this task are available in the task folder.
             # Single-task processing can be triggered from the project dialog before the
             # batch-processing flow has copied files out of staging.
+            #
+            # The state transition and the s3_key updates are in the same transaction:
+            # if the move fails, the rollback also reverts the state change so the task
+            # does not get stuck in IMAGE_PROCESSING_STARTED.
             move_result = await ImageClassifier.move_task_images_to_folder(
                 conn, project_id, task_id
             )
@@ -408,8 +413,9 @@ async def process_drone_images(
                 raise RuntimeError(
                     f"Failed to move {move_result['failed_count']} image(s) into the task folder"
                 )
+
+            await conn.commit()
             if move_result.get("moved_count", 0) > 0:
-                await conn.commit()
                 log.info(
                     f"Task {task_id}: moved {move_result['moved_count']} staged image(s) "
                     "into the task folder before ODM submission"

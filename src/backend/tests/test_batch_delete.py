@@ -3,6 +3,8 @@ from io import BytesIO
 import uuid
 
 import pytest
+from shapely.geometry import box
+from shapely import wkb as wkblib
 
 from app.config import settings
 from app.images.image_classification import ImageClassifier
@@ -27,25 +29,32 @@ async def _insert_batch_image(
     filename: str,
     s3_key: str,
     thumbnail_url: str,
-) -> None:
+    status: str = "staged",
+    task_id: uuid.UUID | None = None,
+    image_id: uuid.UUID | None = None,
+) -> uuid.UUID:
+    image_id = image_id or uuid.uuid4()
     async with db.cursor() as cur:
         await cur.execute(
             """
             INSERT INTO project_images
-            (id, project_id, filename, s3_key, thumbnail_url, hash_md5, batch_id, status, uploaded_by)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'staged', %s)
+            (id, project_id, filename, s3_key, thumbnail_url, hash_md5, batch_id, status, uploaded_by, task_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
-                str(uuid.uuid4()),
+                str(image_id),
                 str(project_id),
                 filename,
                 s3_key,
                 thumbnail_url,
                 uuid.uuid4().hex,
                 str(batch_id),
+                status,
                 uploaded_by,
+                str(task_id) if task_id else None,
             ),
         )
+    return image_id
 
 
 async def _count_batch_images(db, *, project_id: uuid.UUID, batch_id: uuid.UUID) -> int:
@@ -159,6 +168,75 @@ async def test_delete_batch_removes_db_rows_and_s3_objects(
 
 
 @pytest.mark.asyncio
+async def test_move_task_images_to_folder_removes_staging_objects(
+    db, create_test_project, auth_user
+):
+    project_id = uuid.UUID(create_test_project)
+    task_id = uuid.uuid4()
+    batch_id = uuid.uuid4()
+    image_id = uuid.uuid4()
+    filename = "moved-image.jpg"
+    source_key = f"projects/{project_id}/user-uploads/{batch_id}/{filename}"
+
+    outline_wkb = wkblib.dumps(box(0, 0, 1, 1), hex=True)
+
+    _upload_test_object(source_key, b"image-bytes")
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, project_task_index, outline)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+        await cur.execute(
+            """
+            INSERT INTO project_images (
+                id,
+                project_id,
+                filename,
+                s3_key,
+                hash_md5,
+                batch_id,
+                task_id,
+                uploaded_by,
+                status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'assigned')
+            """,
+            (
+                image_id,
+                project_id,
+                filename,
+                source_key,
+                uuid.uuid4().hex,
+                batch_id,
+                task_id,
+                auth_user.id,
+            ),
+        )
+    await db.commit()
+
+    result = await ImageClassifier.move_task_images_to_folder(db, project_id, task_id)
+    await db.commit()
+
+    assert result == {"moved_count": 1, "failed_count": 0}
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT s3_key FROM project_images WHERE id = %s",
+            (image_id,),
+        )
+        row = await cur.fetchone()
+
+    dest_key = row[0]
+    assert dest_key.startswith(f"projects/{project_id}/{task_id}/images/")
+    assert check_file_exists(settings.S3_BUCKET_NAME, dest_key)
+    assert not check_file_exists(settings.S3_BUCKET_NAME, source_key)
+
+
+@pytest.mark.asyncio
 async def test_delete_batch_route_waits_for_cleanup(
     client, db, create_test_project, auth_user
 ):
@@ -225,3 +303,190 @@ async def test_delete_batch_route_enqueues_cleanup_job(
         batch_id=batch_id,
         object_names=object_names,
     )
+
+
+# ─── delete_invalid_images tests ─────────────────────────────────────────────
+
+
+async def _count_project_images(db, *, project_id: uuid.UUID) -> int:
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT COUNT(*) FROM project_images WHERE project_id = %s",
+            (str(project_id),),
+        )
+        row = await cur.fetchone()
+    return int(row[0])
+
+
+@pytest.mark.asyncio
+async def test_delete_invalid_images_removes_unassigned_only(
+    db, create_test_project, auth_user
+):
+    """Only unassigned (task_id IS NULL) invalid images should be deleted.
+
+    Task-linked rejected images (e.g. from flight-tail detection) must be preserved.
+    """
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+
+    outline_wkb = wkblib.dumps(box(0, 0, 1, 1), hex=True)
+    async with db.cursor() as cur:
+        await cur.execute(
+            "INSERT INTO tasks (id, project_id, project_task_index, outline) VALUES (%s, %s, %s, %s)",
+            (task_id, project_id, 1, outline_wkb),
+        )
+    await db.commit()
+
+    # Unassigned rejected image (should be deleted)
+    unassigned_key = f"projects/{project_id}/user-uploads/{batch_id}/unassigned.jpg"
+    unassigned_thumb = (
+        f"projects/{project_id}/user-uploads/{batch_id}/thumbs/unassigned.jpg"
+    )
+    _upload_test_object(unassigned_key, b"unassigned-image")
+    _upload_test_object(unassigned_thumb, b"unassigned-thumb")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="unassigned.jpg",
+        s3_key=unassigned_key,
+        thumbnail_url=unassigned_thumb,
+        status="rejected",
+        task_id=None,
+    )
+
+    # Unassigned invalid_exif image (should be deleted)
+    invalid_exif_key = f"projects/{project_id}/user-uploads/{batch_id}/bad_exif.jpg"
+    invalid_exif_thumb = (
+        f"projects/{project_id}/user-uploads/{batch_id}/thumbs/bad_exif.jpg"
+    )
+    _upload_test_object(invalid_exif_key, b"bad-exif-image")
+    _upload_test_object(invalid_exif_thumb, b"bad-exif-thumb")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="bad_exif.jpg",
+        s3_key=invalid_exif_key,
+        thumbnail_url=invalid_exif_thumb,
+        status="invalid_exif",
+        task_id=None,
+    )
+
+    # Task-linked rejected image (flight-tail - must NOT be deleted)
+    task_rejected_key = f"projects/{project_id}/{task_id}/images/tail.jpg"
+    task_rejected_thumb = f"projects/{project_id}/{task_id}/images/thumbs/tail.jpg"
+    _upload_test_object(task_rejected_key, b"tail-image")
+    _upload_test_object(task_rejected_thumb, b"tail-thumb")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="tail.jpg",
+        s3_key=task_rejected_key,
+        thumbnail_url=task_rejected_thumb,
+        status="rejected",
+        task_id=task_id,
+    )
+
+    # Task-linked assigned image (must NOT be deleted)
+    assigned_key = f"projects/{project_id}/{task_id}/images/good.jpg"
+    _upload_test_object(assigned_key, b"good-image")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="good.jpg",
+        s3_key=assigned_key,
+        thumbnail_url="",
+        status="assigned",
+        task_id=task_id,
+    )
+
+    await db.commit()
+
+    result = await ImageClassifier.delete_invalid_images(db, project_id)
+
+    assert result["deleted_count"] == 2
+    assert result["deleted_s3_count"] == 4  # 2 images + 2 thumbnails
+
+    # Unassigned invalid images removed from S3
+    assert not check_file_exists(settings.S3_BUCKET_NAME, unassigned_key)
+    assert not check_file_exists(settings.S3_BUCKET_NAME, unassigned_thumb)
+    assert not check_file_exists(settings.S3_BUCKET_NAME, invalid_exif_key)
+    assert not check_file_exists(settings.S3_BUCKET_NAME, invalid_exif_thumb)
+
+    # Task-linked images preserved in S3
+    assert check_file_exists(settings.S3_BUCKET_NAME, task_rejected_key)
+    assert check_file_exists(settings.S3_BUCKET_NAME, task_rejected_thumb)
+    assert check_file_exists(settings.S3_BUCKET_NAME, assigned_key)
+
+    # Only the 2 task-linked images remain in DB
+    assert await _count_project_images(db, project_id=project_id) == 2
+
+
+@pytest.mark.asyncio
+async def test_delete_invalid_images_noop_when_none(db, create_test_project, auth_user):
+    """Should return zero counts when no invalid images exist."""
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+
+    # Only assigned images
+    key = f"projects/{project_id}/user-uploads/{batch_id}/ok.jpg"
+    _upload_test_object(key, b"ok")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="ok.jpg",
+        s3_key=key,
+        thumbnail_url="",
+        status="assigned",
+        task_id=None,
+    )
+    await db.commit()
+
+    result = await ImageClassifier.delete_invalid_images(db, project_id)
+
+    assert result["deleted_count"] == 0
+    assert result["deleted_s3_count"] == 0
+    assert await _count_project_images(db, project_id=project_id) == 1
+
+
+@pytest.mark.asyncio
+async def test_delete_invalid_images_route(client, db, create_test_project, auth_user):
+    """Test the DELETE /projects/{project_id}/imagery/invalid/ route."""
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+
+    key = f"projects/{project_id}/user-uploads/{batch_id}/unmatched.jpg"
+    _upload_test_object(key, b"unmatched")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="unmatched.jpg",
+        s3_key=key,
+        thumbnail_url="",
+        status="unmatched",
+        task_id=None,
+    )
+    await db.commit()
+
+    response = await client.delete(
+        f"/api/projects/{project_id}/imagery/invalid/",
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["deleted_count"] == 1
+    assert body["project_id"] == str(project_id)
+    assert not check_file_exists(settings.S3_BUCKET_NAME, key)
+    assert await _count_project_images(db, project_id=project_id) == 0

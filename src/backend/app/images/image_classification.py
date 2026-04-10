@@ -18,9 +18,9 @@ from psycopg_pool import AsyncConnectionPool
 from app.config import settings
 from app.models.enums import ImageStatus
 from app.s3 import (
-    copy_file_within_bucket,
     get_obj_from_bucket,
     maybe_presign_s3_key,
+    move_file_within_bucket,
     s3_client,
 )
 
@@ -1189,6 +1189,120 @@ class ImageClassifier:
         }
 
     @staticmethod
+    async def delete_invalid_images(
+        db: Connection,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Delete unassigned invalid/unmatched images for a project from DB and S3.
+
+        Only targets images that are NOT linked to a task (task_id IS NULL),
+        matching the "Unassigned Images" section shown in the review UI.
+        Task-linked rejected images (e.g. from flight-tail detection) are
+        intentionally preserved.
+
+        Targets statuses: rejected, invalid_exif, unmatched, duplicate.
+        """
+        invalid_statuses = ("rejected", "invalid_exif", "unmatched", "duplicate")
+
+        keys_query = """
+            SELECT id, s3_key, thumbnail_url
+            FROM project_images
+            WHERE project_id = %(project_id)s
+            AND task_id IS NULL
+            AND status = ANY(%(statuses)s)
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                keys_query,
+                {
+                    "project_id": str(project_id),
+                    "statuses": list(invalid_statuses),
+                },
+            )
+            rows = await cur.fetchall()
+
+        if not rows:
+            return {
+                "message": "No invalid images to delete",
+                "project_id": str(project_id),
+                "deleted_count": 0,
+                "deleted_s3_count": 0,
+            }
+
+        # Delete S3 objects per-image, tracking which images fully succeeded
+        # so we only remove DB rows whose storage is actually gone.
+        client = s3_client()
+        deleted_s3_count = 0
+        succeeded_image_ids: list[str] = []
+        failed_image_ids: list[str] = []
+
+        for row in rows:
+            s3_key = str(row["s3_key"]).lstrip("/") if row["s3_key"] else None
+            thumb_key = (
+                str(row["thumbnail_url"]).lstrip("/") if row["thumbnail_url"] else None
+            )
+
+            image_ok = True
+            for key in (s3_key, thumb_key):
+                if not key:
+                    continue
+                try:
+                    client.remove_object(settings.S3_BUCKET_NAME, key)
+                    deleted_s3_count += 1
+                except Exception as e:
+                    log.warning(f"Failed to delete S3 object {key}: {e}")
+                    image_ok = False
+
+            if image_ok:
+                succeeded_image_ids.append(row["id"])
+            else:
+                failed_image_ids.append(row["id"])
+
+        # Only delete DB rows for images whose S3 objects were fully removed.
+        if succeeded_image_ids:
+            delete_query = """
+                DELETE FROM project_images
+                WHERE id = ANY(%(ids)s)
+            """
+            async with db.cursor() as cur:
+                await cur.execute(delete_query, {"ids": succeeded_image_ids})
+            await db.commit()
+
+        deleted_count = len(succeeded_image_ids)
+        failed_count = len(failed_image_ids)
+
+        if failed_count:
+            log.error(
+                f"Partial cleanup for project {project_id}: "
+                f"{deleted_count} images fully deleted, "
+                f"{failed_count} images kept due to S3 failures"
+            )
+            return {
+                "message": (
+                    f"Partially completed: {deleted_count} image(s) deleted, "
+                    f"but {failed_count} could not be fully removed from storage. "
+                    f"Please retry."
+                ),
+                "project_id": str(project_id),
+                "deleted_count": deleted_count,
+                "deleted_s3_count": deleted_s3_count,
+                "failed_count": failed_count,
+            }
+
+        log.info(
+            f"Deleted {deleted_count} invalid images and {deleted_s3_count} S3 objects "
+            f"from project {project_id}"
+        )
+
+        return {
+            "message": "Invalid images deleted successfully",
+            "project_id": str(project_id),
+            "deleted_count": deleted_count,
+            "deleted_s3_count": deleted_s3_count,
+        }
+
+    @staticmethod
     async def move_task_images_to_folder(
         db: Connection,
         project_id: uuid.UUID,
@@ -1206,7 +1320,8 @@ class ImageClassifier:
             SELECT
                 pi.id,
                 pi.filename,
-                pi.s3_key
+                pi.s3_key,
+                pi.thumbnail_url
             FROM project_images pi
             WHERE pi.project_id = %(project_id)s
             AND pi.task_id = %(task_id)s
@@ -1243,30 +1358,56 @@ class ImageClassifier:
             )
 
             success = await run_in_threadpool(
-                copy_file_within_bucket,
+                move_file_within_bucket,
                 settings.S3_BUCKET_NAME,
                 source_key,
                 dest_key,
             )
 
-            if success:
-                async with db.cursor() as update_cur:
-                    await update_cur.execute(
-                        """
-                        UPDATE project_images
-                        SET s3_key = %(new_s3_key)s
-                        WHERE id = %(image_id)s
-                        """,
-                        {
-                            "new_s3_key": dest_key,
-                            "image_id": str(image["id"]),
-                        },
-                    )
-                moved_count += 1
-                log.info(f"Moved image {filename} to task {task_id}")
-            else:
+            if not success:
                 failed_count += 1
                 log.error(f"Failed to move image {filename} to task {task_id}")
+                continue
+
+            # Move thumbnail alongside the image so URLs stay valid
+            # after user-uploads/ is cleaned up.
+            new_thumb_key = None
+            old_thumb = image.get("thumbnail_url")
+            if old_thumb and "user-uploads" in old_thumb:
+                new_thumb_key = (
+                    f"projects/{project_id}/{task_id}/images/thumbs/"
+                    f"{image_id_prefix}_{filename}"
+                )
+                thumb_ok = await run_in_threadpool(
+                    move_file_within_bucket,
+                    settings.S3_BUCKET_NAME,
+                    old_thumb,
+                    new_thumb_key,
+                )
+                if not thumb_ok:
+                    # Non-fatal: image itself moved fine, just log the thumbnail failure.
+                    log.warning(
+                        f"Thumbnail move failed for {filename} - "
+                        f"keeping old thumbnail_url"
+                    )
+                    new_thumb_key = None
+
+            update_fields = "SET s3_key = %(new_s3_key)s"
+            update_params: dict[str, Any] = {
+                "new_s3_key": dest_key,
+                "image_id": str(image["id"]),
+            }
+            if new_thumb_key:
+                update_fields += ", thumbnail_url = %(new_thumb)s"
+                update_params["new_thumb"] = new_thumb_key
+
+            async with db.cursor() as update_cur:
+                await update_cur.execute(
+                    f"UPDATE project_images {update_fields} WHERE id = %(image_id)s",
+                    update_params,
+                )
+            moved_count += 1
+            log.info(f"Moved image {filename} to task {task_id}")
 
         # NOTE: caller is responsible for commit/rollback so that the task
         # state event and the image moves are in the same transaction.

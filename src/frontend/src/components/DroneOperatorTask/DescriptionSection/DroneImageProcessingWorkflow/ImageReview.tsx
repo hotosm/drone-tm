@@ -7,6 +7,7 @@ import {
   getProjectMapData,
   acceptImage,
   assignImageToTask,
+  deleteInvalidImages,
   ProjectReviewData,
   ProjectMapData,
   TaskGroup,
@@ -496,6 +497,28 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     },
   });
 
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+
+  const cleanupInvalidMutation = useMutation({
+    mutationFn: () => deleteInvalidImages(projectId),
+    onSuccess: (data) => {
+      if (data.failed_count) {
+        toast.error(data.message);
+      } else {
+        toast.success(`Deleted ${data.deleted_count} invalid image${data.deleted_count === 1 ? '' : 's'}`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['projectReview', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectMapData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-task-states', projectId] });
+      setShowCleanupConfirm(false);
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || error.message || 'Failed to delete invalid images';
+      toast.error(message);
+      setShowCleanupConfirm(false);
+    },
+  });
+
   const handleImageClick = (image: TaskGroupImage) => {
     setSelectedImage({
       id: image.id,
@@ -886,7 +909,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                 headerClassName="!naxatw-items-start"
                 contentClassName="naxatw-mt-4"
                 title={
-                  <FlexRow className="naxatw-items-center naxatw-gap-3">
+                  <FlexRow className="naxatw-flex-wrap naxatw-items-center naxatw-gap-3">
                     <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
                       {group.task_id ? `Task #${group.project_task_index}` : 'Unassigned Images'}
                     </h4>
@@ -903,7 +926,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                   </FlexRow>
                 }
               >
-                {group.task_id && (
+                {group.task_id ? (
                   <div className="naxatw-mb-4">
                     <Button
                       variant="ghost"
@@ -919,6 +942,20 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                       }}
                     >
                       Verify Task on Map
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="naxatw-mb-4">
+                    <Button
+                      variant="ghost"
+                      className="naxatw-bg-red naxatw-text-white"
+                      leftIcon="delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCleanupConfirm(true);
+                      }}
+                    >
+                      Cleanup Invalid Imagery
                     </Button>
                   </div>
                 )}
@@ -1087,6 +1124,42 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                 leftIcon="check"
               >
                 {assignTaskMutation.isPending ? 'Assigning...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cleanup invalid imagery confirmation dialog */}
+      {showCleanupConfirm && (
+        <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[10000] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
+          <div className="naxatw-w-full naxatw-max-w-md naxatw-rounded-lg naxatw-bg-white naxatw-p-6 naxatw-shadow-xl">
+            <div className="naxatw-mb-4 naxatw-flex naxatw-items-center naxatw-gap-3">
+              <span className="material-icons naxatw-text-3xl naxatw-text-red-500">warning</span>
+              <h3 className="naxatw-text-lg naxatw-font-semibold naxatw-text-gray-900">
+                Cleanup Invalid Imagery
+              </h3>
+            </div>
+            <p className="naxatw-mb-6 naxatw-text-gray-600">
+              This will delete the imagery marked as invalid or unmatched during the uploading process. It is not reversible. Are you sure?
+            </p>
+            <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
+              <Button
+                variant="outline"
+                className="naxatw-border-gray-300"
+                onClick={() => setShowCleanupConfirm(false)}
+                disabled={cleanupInvalidMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white"
+                onClick={() => cleanupInvalidMutation.mutate()}
+                disabled={cleanupInvalidMutation.isPending}
+                leftIcon="delete"
+              >
+                {cleanupInvalidMutation.isPending ? 'Deleting...' : 'OK'}
               </Button>
             </div>
           </div>

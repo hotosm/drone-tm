@@ -34,7 +34,7 @@ default:
 
 # Copy imagery from an external S3 path into a DroneTM project's user-uploads dir.
 #
-# Runs rclone in a docker container — no volume mounts needed (S3-to-S3).
+# Runs rclone in a docker container - no volume mounts needed (S3-to-S3).
 # Uses --checksum for efficient delta sync.
 #
 # After copying, open the Upload Imagery dialog in the DroneTM UI and click

@@ -441,7 +441,7 @@ async def ingest_existing_uploads(
 
     Concurrency safety:
     - A Redis lock (lock:ingest:{project_id}, 30 min TTL) prevents parallel
-      ingest jobs for the same project — from retries or duplicate API calls.
+      ingest jobs for the same project - from retries or duplicate API calls.
     - Each process_uploaded_image job gets a stable _job_id derived from
       project_id + s3_key, so ARQ silently deduplicates re-enqueues of the
       same object.
@@ -457,7 +457,7 @@ async def ingest_existing_uploads(
         raise RuntimeError("Database pool or Redis not initialized in ARQ context")
 
     # Project-scoped lock: prevents parallel ingest runs (retries, double-clicks).
-    # TTL of 30 minutes — well beyond expected scan+enqueue time.
+    # TTL of 30 minutes - well beyond expected scan+enqueue time.
     lock_key = f"lock:ingest:{project_id}"
     acquired = await redis.set(lock_key, job_id, nx=True, ex=1800)
     if not acquired:

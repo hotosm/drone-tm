@@ -430,49 +430,57 @@ def get_orthophoto_url_for_project(project_id: str):
     return None
 
 
-def copy_file_within_bucket(
+def move_file_within_bucket(
     bucket_name: str, source_path: str, destination_path: str
 ) -> bool:
-    """Copy a file from one path to another within the same bucket.
+    """Move a file within the same bucket by copying then deleting the source.
 
-    Args:
-        bucket_name: The name of the bucket
-        source_path: The current path of the object
-        destination_path: The new path where the object will be copied
-
-    Returns:
-        bool: True if the copy was successful, False otherwise
+    If source deletion fails after a successful copy, this attempts to delete the
+    new destination object as compensation so callers do not end up with duplicates.
     """
     try:
-        # Normalize paths
         source_path = _normalize_object_name(source_path)
         destination_path = _normalize_object_name(destination_path)
 
         client = s3_client()
 
-        # Check if source file exists
         try:
             client.stat_object(bucket_name, source_path)
         except S3Error:
             log.warning(f"Source file not found: {source_path} in bucket {bucket_name}")
             return False
 
-        # Create CopySource object and copy
         copy_source = CopySource(bucket_name, source_path)
         result = client.copy_object(bucket_name, destination_path, copy_source)
 
+        try:
+            client.remove_object(bucket_name, source_path)
+        except Exception as e:
+            log.error(
+                f"Failed to delete source object after copy: {source_path} -> "
+                f"{destination_path}: {e}"
+            )
+            try:
+                client.remove_object(bucket_name, destination_path)
+            except Exception as cleanup_error:
+                log.error(
+                    f"Failed to clean up copied destination object {destination_path} "
+                    f"after source delete failure: {cleanup_error}"
+                )
+            return False
+
         log.debug(
-            f"Successfully copied object within {bucket_name} "
+            f"Successfully moved object within {bucket_name} "
             f"from {source_path} to {destination_path}. "
             f"Object name: {result.object_name}, Version ID: {result.version_id}"
         )
         return True
 
     except S3Error as e:
-        log.error(f"Error copying object: {e}")
+        log.error(f"Error moving object: {e}")
         return False
     except Exception as e:
-        log.error(f"Unexpected error during object copy: {e}")
+        log.error(f"Unexpected error during object move: {e}")
         return False
 
 
