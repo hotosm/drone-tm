@@ -57,8 +57,8 @@ api.interceptors.response.use(
         }
       }
     }
-    // eslint-disable-next-line prefer-promise-reject-errors
-    return Promise.reject({ ...responseError });
+
+    return Promise.reject(responseError);
   },
 );
 
