@@ -1,3 +1,31 @@
+## 2026.2.8 (2026-04-11)
+
+### Feat
+
+- **backend**: add script for migrating old assets.zip & images.json files
+- add Hanko SSO Authentication - HOT Login (#756)
+
+### Fix
+
+- **frontend**: bug where classification could not be triggered
+- various fixes, move the trask image transfer to backend worker (arq)
+- frontend
+- improve usage of pre-signed urls that was unsustainable at large scale
+- correctly move imagery from user-uploads, not just copy. ensure cleanup is possible
+- **backend**: remove legacy user-uploads/thumbs logic for s3
+- **backend**: prevent loading ./odm dir when re-processing imagery - causes issues
+- **backend**: ensure project deletion cascades and includes as s3 assets too
+- **backend**: the ortho conversion to COG doesn't work as expected
+- **frontend**: do not generate flightplans once the task is completed (processed)
+- **frontend**: avoid issues when the task ortho is invalid for map zoom
+
+### Refactor
+
+- run pre-commit hooks (oxfmt + uv) on all files in repo
+- separate out image classify step, resilient to restarts, per project not per batch (#780)
+- **backend**: remove assets.zip and ortho on successful migration script
+- **backend**: remove legacy references: images.json & assets.zip
+
 ## 2026.2.7 (2026-04-08)
 
 ### Feat
