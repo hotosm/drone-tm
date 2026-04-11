@@ -29,12 +29,14 @@ api.interceptors.response.use(
   (response) => response,
   async (responseError) => {
     // handle token expire or invalid token case
-    const originalRequest = responseError.config;
+    const originalRequest = responseError?.config;
+    const responseStatus = responseError?.response?.status;
+    const responseDetail = responseError?.response?.data?.detail;
 
     // Handle 401 for Hanko SSO (cookie expired)
     const token = localStorage.getItem("token");
     const userprofile = localStorage.getItem("userprofile");
-    if (responseError.response?.status === 401 && !token && userprofile) {
+    if (responseStatus === 401 && !token && userprofile) {
       // Hanko session expired - clean up localStorage
       localStorage.removeItem("userprofile");
       localStorage.removeItem("signedInAs");
@@ -45,8 +47,9 @@ api.interceptors.response.use(
 
     // Handle 401 for legacy token
     if (
-      responseError.response?.status === 401 &&
-      responseError.response?.data?.detail === "Access token not valid" &&
+      responseStatus === 401 &&
+      responseDetail === "Access token not valid" &&
+      originalRequest &&
       // eslint-disable-next-line no-underscore-dangle
       !originalRequest._retry
     ) {
@@ -72,8 +75,8 @@ api.interceptors.response.use(
         }
       }
     }
-    // eslint-disable-next-line prefer-promise-reject-errors
-    return Promise.reject({ ...responseError });
+
+    return Promise.reject(responseError);
   },
 );
 
