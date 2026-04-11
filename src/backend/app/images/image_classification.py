@@ -22,6 +22,7 @@ from app.s3 import (
     maybe_presign_s3_key,
     move_file_within_bucket,
     s3_client,
+    s3_object_exists,
 )
 
 
@@ -1058,6 +1059,38 @@ class ImageClassifier:
         }
 
     @staticmethod
+    async def reject_image(
+        db: Connection,
+        image_id: uuid.UUID,
+        project_id: uuid.UUID,
+        reason: str = "Manually rejected by project manager",
+    ) -> dict:
+        """Manually reject an assigned image so it is excluded from task acceptance."""
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """SELECT id, status FROM project_images
+                   WHERE id = %(image_id)s AND project_id = %(project_id)s""",
+                {"image_id": str(image_id), "project_id": str(project_id)},
+            )
+            image = await cur.fetchone()
+
+        if not image:
+            raise ValueError(f"Image {image_id} not found in project {project_id}")
+
+        if image["status"] != ImageStatus.ASSIGNED.value:
+            raise ValueError("Only assigned images can be manually rejected")
+
+        await ImageClassifier._update_image_status(
+            db, image_id, ImageStatus.REJECTED, rejection_reason=reason
+        )
+
+        return {
+            "message": "Image rejected successfully",
+            "image_id": str(image_id),
+            "status": "rejected",
+        }
+
+    @staticmethod
     async def manual_assign_to_task(
         db: Connection,
         image_id: uuid.UUID,
@@ -1283,6 +1316,35 @@ class ImageClassifier:
         }
 
     @staticmethod
+    async def get_task_pending_transfer_count(
+        db: Connection,
+        project_id: uuid.UUID,
+        task_id: uuid.UUID,
+    ) -> int:
+        """Count assigned task images that still point to user-uploads staging keys."""
+        query = """
+            SELECT COUNT(*)
+            FROM project_images
+            WHERE project_id = %(project_id)s
+              AND task_id = %(task_id)s
+              AND status = %(status)s
+              AND s3_key LIKE '%%user-uploads%%'
+        """
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                query,
+                {
+                    "project_id": str(project_id),
+                    "task_id": str(task_id),
+                    "status": ImageStatus.ASSIGNED.value,
+                },
+            )
+            row = await cur.fetchone()
+
+        return int(row[0]) if row else 0
+
+    @staticmethod
     async def move_task_images_to_folder(
         db: Connection,
         project_id: uuid.UUID,
@@ -1345,9 +1407,20 @@ class ImageClassifier:
             )
 
             if not success:
-                failed_count += 1
-                log.error(f"Failed to move image {filename} to task {task_id}")
-                continue
+                dest_exists = await run_in_threadpool(
+                    s3_object_exists,
+                    settings.S3_BUCKET_NAME,
+                    dest_key,
+                )
+                if dest_exists:
+                    log.warning(
+                        "Recovered image move by reconciling DB because destination "
+                        f"already exists: {dest_key}"
+                    )
+                else:
+                    failed_count += 1
+                    log.error(f"Failed to move image {filename} to task {task_id}")
+                    continue
 
             # Move thumbnail alongside the image so URLs stay valid
             # after user-uploads/ is cleaned up.
@@ -1365,12 +1438,23 @@ class ImageClassifier:
                     new_thumb_key,
                 )
                 if not thumb_ok:
-                    # Non-fatal: image itself moved fine, just log the thumbnail failure.
-                    log.warning(
-                        f"Thumbnail move failed for {filename} - "
-                        f"keeping old thumbnail_url"
+                    thumb_dest_exists = await run_in_threadpool(
+                        s3_object_exists,
+                        settings.S3_BUCKET_NAME,
+                        new_thumb_key,
                     )
-                    new_thumb_key = None
+                    if thumb_dest_exists:
+                        log.warning(
+                            "Recovered thumbnail move by reconciling DB because destination "
+                            f"already exists: {new_thumb_key}"
+                        )
+                    else:
+                        # Non-fatal: image itself moved fine, just log the thumbnail failure.
+                        log.warning(
+                            f"Thumbnail move failed for {filename} - "
+                            f"keeping old thumbnail_url"
+                        )
+                        new_thumb_key = None
 
             update_fields = "SET s3_key = %(new_s3_key)s"
             update_params: dict[str, Any] = {
@@ -1429,6 +1513,7 @@ class ImageClassifier:
                 COALESCE(img.invalid_exif, 0) as invalid_exif_images,
                 COALESCE(img.duplicate, 0) as duplicate_images,
                 COALESCE(img.unmatched, 0) as unmatched_images,
+                COALESCE(img.pending_transfer, 0) as pending_transfer_count,
                 img.latest_upload
             FROM tasks t
             LEFT JOIN latest_task_state lts ON t.id = lts.task_id
@@ -1440,6 +1525,9 @@ class ImageClassifier:
                     COUNT(*) FILTER (WHERE status = 'invalid_exif') as invalid_exif,
                     COUNT(*) FILTER (WHERE status = 'duplicate') as duplicate,
                     COUNT(*) FILTER (WHERE status = 'unmatched') as unmatched,
+                    COUNT(*) FILTER (
+                        WHERE status = 'assigned' AND s3_key LIKE '%%user-uploads%%'
+                    ) as pending_transfer,
                     MAX(uploaded_at) as latest_upload
                 FROM project_images
                 WHERE task_id = t.id AND project_id = %(project_id)s
@@ -1455,7 +1543,9 @@ class ImageClassifier:
         result = []
         for row in rows:
             has_ready_imagery = (
-                row["task_state"] in VERIFIED_TASK_STATES and row["assigned_images"] > 0
+                row["task_state"] in VERIFIED_TASK_STATES
+                and row["assigned_images"] > 0
+                and row["pending_transfer_count"] == 0
             )
             result.append(
                 {
@@ -1473,6 +1563,8 @@ class ImageClassifier:
                         if row["latest_upload"]
                         else None
                     ),
+                    "pending_transfer_count": row["pending_transfer_count"],
+                    "imagery_transfer_pending": row["pending_transfer_count"] > 0,
                     "failure_reason": (
                         row["state_comment"]
                         if row["task_state"] == "IMAGE_PROCESSING_FAILED"

@@ -9,6 +9,12 @@
 | <https://github.com/spwoodcock/drone-testdata-agung-2>    | Mt Agung, Bali. Four adjacent tasks.                                 | Testing full upload and processing workflow.                           |
 | <https://github.com/spwoodcock/drone-testdata-freetown-1> | Freetown, Sierra Leone. Four adjacent tasks, including flight tails. | Testing full upload and processing workflow, with flight tail removal. |
 
+!!! note
+
+    The `dronetm-public` S3 bucket also contains a small dataset under:
+    `dronetm-public/freetown-mini` with a small dataset of 21 images,
+    used within test workflows.
+
 ## Backend Tests
 
 - We use PyTest for backend tests.

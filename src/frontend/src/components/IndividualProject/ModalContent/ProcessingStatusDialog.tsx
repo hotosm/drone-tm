@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
 import { matchPath, useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
@@ -136,6 +137,16 @@ const ProcessingStatusDialog = () => {
         queryKey: ["projectTaskImagerySummary", projectId],
       });
       toast.success("Final processing started");
+      dispatch(toggleModal());
+    },
+    onError: (error) => {
+      const detail =
+        axios.isAxiosError(error) &&
+        typeof error.response?.data?.detail === "string" &&
+        error.response.data.detail
+          ? error.response.data.detail
+          : "Failed to start final processing";
+      toast.error(detail);
     },
   });
 
@@ -196,8 +207,14 @@ const ProcessingStatusDialog = () => {
         queryClient.invalidateQueries({
           queryKey: ["projectTaskImagerySummary", projectId],
         });
-      } catch {
-        toast.error("Failed to start processing");
+      } catch (error) {
+        const detail =
+          axios.isAxiosError(error) &&
+          typeof error.response?.data?.detail === "string" &&
+          error.response.data.detail
+            ? error.response.data.detail
+            : "Failed to start processing";
+        toast.error(detail);
         setProcessingTasks((prev) => {
           const next = new Set(prev);
           next.delete(taskId);
@@ -238,7 +255,6 @@ const ProcessingStatusDialog = () => {
         dispatch(toggleModal());
       } else {
         startAllImageProcessing({ projectId });
-        dispatch(toggleModal());
       }
     },
     [dispatch, startAllImageProcessing, projectId],

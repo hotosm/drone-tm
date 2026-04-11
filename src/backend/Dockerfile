@@ -25,7 +25,7 @@ RUN set -ex \
 WORKDIR /project
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /bin/uv
 
 ARG PYTHON_IMG_TAG=3.11
 # - Ensure executables are at the front of the path
@@ -112,7 +112,7 @@ COPY --from=build /opt/python /opt/python
 WORKDIR /project/src/backend
 
 # Install uv in runtime stage
-COPY --from=ghcr.io/astral-sh/uv:0.5.2 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /bin/uv
 
 # Copy the source files to the final image
 COPY backend /project/src/backend

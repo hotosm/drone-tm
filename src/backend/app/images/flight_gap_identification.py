@@ -553,7 +553,7 @@ async def identify_flight_gaps(
     LEG_SAMPLE_COUNT = 3  # Ensures enough into the trajectory to compare azimuths'
     MIN_GAP_IMAGES = 3  # Minimum missing imagery to create a suggested flightplan
     GAP_EXCEED_BASELINE = 1.5  # Threshold when to detect a missing 'gap'
-    MIN_SEGMENT_SIZE = 20  # Main gap analysis
+    MIN_SEGMENT_SIZE = 10  # Main gap analysis
     SPARSE_SEGMENT_MAX_IMAGES = 5  # Sparse gap analysis
     MINIMUM_ALTITUDE = 60  # Fallback altitude value
 

@@ -35,6 +35,7 @@ from app.config import settings
 from app.db import database
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
+from app.images.image_classification import ImageClassifier
 from app.projects import project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
@@ -546,10 +547,23 @@ async def process_imagery(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
     user_data: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
     redis_pool: ArqRedis = Depends(get_redis_pool),
     odm_url: Optional[str] = Query(None, description="Custom NodeODM server URL"),
 ):
-    """Start an queue task to process drone imagery."""
+    """Start a queued task to process drone imagery."""
+    pending_transfer_count = await ImageClassifier.get_task_pending_transfer_count(
+        db, project.id, task_id
+    )
+    if pending_transfer_count > 0:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=(
+                "Imagery for this task is still being transferred. "
+                "Please wait and retry processing."
+            ),
+        )
+
     user_id = user_data.id
     job = await redis_pool.enqueue_job(
         "process_drone_images",
@@ -578,7 +592,21 @@ async def process_all_imagery(
     it will be automatically included during ODM processing.
     """
     user_id = user_data.id
-    tasks = await project_logic.get_all_tasks_for_project(project.id, db)
+
+    (
+        tasks,
+        pending_ready_tasks,
+    ) = await project_logic.get_ready_tasks_with_pending_transfer_count(project.id, db)
+
+    if pending_ready_tasks > 0:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=(
+                "Imagery for ready tasks is still being transferred. "
+                "Please wait and retry processing."
+            ),
+        )
+
     job = await redis_pool.enqueue_job(
         "process_all_drone_images",
         project.id,

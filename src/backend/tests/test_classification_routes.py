@@ -11,6 +11,7 @@ from io import BytesIO
 
 import pytest
 import pytest_asyncio
+from arq.jobs import JobStatus
 
 from app.images import image_classification
 from app.arq.tasks import (
@@ -764,6 +765,276 @@ async def test_task_verification_returns_404_for_missing_task(
     )
 
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_mark_task_verified_enqueues_background_move_job(
+    client, app, db, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_task(db, project_id=project_id)
+
+    class FakeJob:
+        job_id = f"move-task-images:{task_id}"
+
+    class FakeRedis:
+        def __init__(self):
+            self.jobs = []
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.jobs.append((args, kwargs))
+            return FakeJob()
+
+    fake_redis = FakeRedis()
+    app.dependency_overrides[get_redis_pool] = lambda: fake_redis
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/tasks/{task_id}/mark-verified/"
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["task_id"] == task_id
+    assert body["state"] == "READY_FOR_PROCESSING"
+    assert body["image_move_job_id"] == f"move-task-images:{task_id}"
+    assert body["image_move_already_queued"] is False
+
+    assert fake_redis.jobs == [
+        (
+            ("move_task_images_for_processing", project_id, task_id),
+            {
+                "_queue_name": "default_queue",
+                "_job_id": f"move-task-images:{task_id}",
+            },
+        )
+    ]
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT state::text
+            FROM task_events
+            WHERE project_id = %s AND task_id = %s
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (project_id, task_id),
+        )
+        row = await cur.fetchone()
+
+    assert row[0] == "READY_FOR_PROCESSING"
+
+
+@pytest.mark.asyncio
+async def test_mark_task_verified_reports_already_queued_job(
+    client, app, db, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_task(db, project_id=project_id)
+
+    class FakeExistingJob:
+        job_id = f"move-task-images:{task_id}"
+
+        async def status(self):
+            return JobStatus.queued
+
+    class FakeRedis:
+        async def enqueue_job(self, *args, **kwargs):
+            return None
+
+        async def job(self, job_id):
+            if job_id == f"move-task-images:{task_id}":
+                return FakeExistingJob()
+            return None
+
+    app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/tasks/{task_id}/mark-verified/"
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["task_id"] == task_id
+    assert body["state"] == "READY_FOR_PROCESSING"
+    assert body["image_move_job_id"] == f"move-task-images:{task_id}"
+    assert body["image_move_already_queued"] is True
+
+
+@pytest.mark.asyncio
+async def test_mark_task_verified_requeues_when_existing_job_is_complete(
+    client, app, db, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_task(db, project_id=project_id)
+
+    class FakeExistingJob:
+        async def status(self):
+            return JobStatus.complete
+
+    class FakeNewJob:
+        job_id = "move-task-images-retry"
+
+    class FakeRedis:
+        def __init__(self):
+            self.calls = 0
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return None
+            return FakeNewJob()
+
+        async def job(self, _job_id):
+            return FakeExistingJob()
+
+    fake_redis = FakeRedis()
+    app.dependency_overrides[get_redis_pool] = lambda: fake_redis
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/tasks/{task_id}/mark-verified/"
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["image_move_job_id"] == "move-task-images-retry"
+    assert body["image_move_already_queued"] is False
+
+
+@pytest.mark.asyncio
+async def test_mark_task_verified_rolls_back_ready_event_if_enqueue_returns_none_without_job(
+    client, app, db, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_task(db, project_id=project_id)
+
+    class FakeRedis:
+        async def enqueue_job(self, *args, **kwargs):
+            return None
+
+        async def job(self, _job_id):
+            return None
+
+    app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/tasks/{task_id}/mark-verified/"
+    )
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == (
+        "Task verification could not be completed because imagery transfer "
+        "could not be queued. Please retry."
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM task_events
+            WHERE project_id = %s
+              AND task_id = %s
+              AND state::text = 'READY_FOR_PROCESSING'
+            """,
+            (project_id, task_id),
+        )
+        row = await cur.fetchone()
+
+    assert int(row[0]) == 0
+
+
+@pytest.mark.asyncio
+async def test_mark_task_verified_rolls_back_ready_event_if_retry_enqueue_raises(
+    client, app, db, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_task(db, project_id=project_id)
+
+    class FakeExistingJob:
+        async def status(self):
+            return JobStatus.complete
+
+    class FakeRedis:
+        def __init__(self):
+            self.calls = 0
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return None
+            raise RuntimeError("redis unavailable on retry")
+
+        async def job(self, _job_id):
+            return FakeExistingJob()
+
+    app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/tasks/{task_id}/mark-verified/"
+    )
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == (
+        "Task verification could not be completed because imagery transfer "
+        "could not be queued. Please retry."
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM task_events
+            WHERE project_id = %s
+              AND task_id = %s
+              AND state::text = 'READY_FOR_PROCESSING'
+            """,
+            (project_id, task_id),
+        )
+        row = await cur.fetchone()
+
+    assert int(row[0]) == 0
+
+
+@pytest.mark.asyncio
+async def test_mark_task_verified_rolls_back_ready_event_if_enqueue_fails(
+    client, app, db, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_task(db, project_id=project_id)
+
+    class FakeRedis:
+        async def enqueue_job(self, *args, **kwargs):
+            raise RuntimeError("redis unavailable")
+
+        async def job(self, _job_id):
+            return None
+
+    app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/tasks/{task_id}/mark-verified/"
+    )
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == (
+        "Task verification could not be completed because imagery transfer "
+        "could not be queued. Please retry."
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM task_events
+            WHERE project_id = %s
+              AND task_id = %s
+              AND state::text = 'READY_FOR_PROCESSING'
+            """,
+            (project_id, task_id),
+        )
+        row = await cur.fetchone()
+
+    assert int(row[0]) == 0
 
 
 # ─── /images/{id}/accept/ ────────────────────────────────────────────────────

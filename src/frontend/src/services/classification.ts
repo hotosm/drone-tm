@@ -45,6 +45,19 @@ export const acceptImage = async (
 };
 
 /**
+ * Reject an assigned image - marks it as rejected so it's excluded from task acceptance
+ */
+export const rejectImage = async (
+  projectId: string,
+  imageId: string,
+): Promise<{ message: string; image_id: string; status: string }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/images/${imageId}/reject/`,
+  );
+  return response.data;
+};
+
+/**
  * Manually assign an image to a task, bypassing GPS-based matching
  */
 export const assignImageToTask = async (
@@ -139,6 +152,8 @@ export interface TaskImagerySummary {
   unmatched_images: number;
   latest_upload: string | null;
   failure_reason?: string | null;
+  pending_transfer_count?: number;
+  imagery_transfer_pending?: boolean;
   has_ready_imagery: boolean;
 }
 

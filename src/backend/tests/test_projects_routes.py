@@ -655,6 +655,8 @@ async def _insert_classification_test_image(
     project_id: str,
     uploaded_by: str,
     status: str,
+    task_id: str | None = None,
+    s3_key: str | None = None,
 ) -> str:
     image_id = str(uuid.uuid4())
 
@@ -669,9 +671,11 @@ async def _insert_classification_test_image(
                 hash_md5,
                 batch_id,
                 status,
-                uploaded_by
+                uploaded_by,
+                task_id
             )
             VALUES (
+                %s,
                 %s,
                 %s,
                 %s,
@@ -686,11 +690,12 @@ async def _insert_classification_test_image(
                 image_id,
                 project_id,
                 f"{status}.jpg",
-                f"projects/{project_id}/{image_id}.jpg",
+                s3_key or f"projects/{project_id}/{image_id}.jpg",
                 uuid.uuid4().hex,
                 str(uuid.uuid4()),
                 status,
                 uploaded_by,
+                task_id,
             ),
         )
 
@@ -744,6 +749,202 @@ async def test_assign_task_rejects_non_unmatched_image(
         response.json()["detail"]
         == "Only unmatched images can be manually assigned to a task"
     )
+
+
+@pytest.mark.asyncio
+async def test_process_imagery_blocks_while_task_images_transfer(
+    client, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+
+    await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="assigned",
+        task_id=task_id,
+        s3_key=f"projects/{project_id}/user-uploads/{uuid.uuid4()}.jpg",
+    )
+
+    response = await client.post(
+        f"/api/projects/process_imagery/{project_id}/{task_id}/"
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Imagery for this task is still being transferred. "
+        "Please wait and retry processing."
+    )
+
+
+@pytest.mark.asyncio
+async def test_process_imagery_enqueues_when_transfer_complete(
+    client, app, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+
+    await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="assigned",
+        task_id=task_id,
+        s3_key=f"projects/{project_id}/{task_id}/images/{uuid.uuid4()}.jpg",
+    )
+
+    class FakeJob:
+        job_id = "job-process-single"
+
+    class FakeRedis:
+        def __init__(self):
+            self.jobs = []
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.jobs.append((args, kwargs))
+            return FakeJob()
+
+    fake_redis = FakeRedis()
+    app.dependency_overrides[get_redis_pool] = lambda: fake_redis
+
+    response = await client.post(
+        f"/api/projects/process_imagery/{project_id}/{task_id}/"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Processing started",
+        "job_id": "job-process-single",
+    }
+    assert fake_redis.jobs == [
+        (
+            (
+                "process_drone_images",
+                uuid.UUID(project_id),
+                uuid.UUID(task_id),
+                auth_user.id,
+                None,
+            ),
+            {"_queue_name": "default_queue"},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_process_all_imagery_blocks_when_all_ready_tasks_transferring(
+    client, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+
+    await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="assigned",
+        task_id=task_id,
+        s3_key=f"projects/{project_id}/user-uploads/{uuid.uuid4()}.jpg",
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id, project_id, task_id, user_id, state, comment, updated_at, created_at
+            )
+            VALUES (
+                gen_random_uuid(), %s, %s, %s, %s, %s, NOW(), NOW()
+            )
+            """,
+            (
+                project_id,
+                task_id,
+                auth_user.id,
+                "READY_FOR_PROCESSING",
+                "Ready",
+            ),
+        )
+    await db.commit()
+
+    response = await client.post(f"/api/projects/process_all_imagery/{project_id}/")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Imagery for ready tasks is still being transferred. "
+        "Please wait and retry processing."
+    )
+
+
+@pytest.mark.asyncio
+async def test_process_all_imagery_blocks_when_ready_tasks_are_mixed_transfer_state(
+    client, app, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    task_a = await _insert_classification_test_task(
+        db, project_id=project_id, task_index=1
+    )
+    task_b = await _insert_classification_test_task(
+        db, project_id=project_id, task_index=2
+    )
+
+    await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="assigned",
+        task_id=task_a,
+        s3_key=f"projects/{project_id}/{task_a}/images/{uuid.uuid4()}.jpg",
+    )
+    await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="assigned",
+        task_id=task_b,
+        s3_key=f"projects/{project_id}/user-uploads/{uuid.uuid4()}.jpg",
+    )
+
+    async with db.cursor() as cur:
+        for task_id in (task_a, task_b):
+            await cur.execute(
+                """
+                INSERT INTO task_events (
+                    event_id, project_id, task_id, user_id, state, comment, updated_at, created_at
+                )
+                VALUES (
+                    gen_random_uuid(), %s, %s, %s, %s, %s, NOW(), NOW()
+                )
+                """,
+                (
+                    project_id,
+                    task_id,
+                    auth_user.id,
+                    "READY_FOR_PROCESSING",
+                    "Ready",
+                ),
+            )
+    await db.commit()
+
+    class FakeRedis:
+        def __init__(self):
+            self.jobs = []
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.jobs.append((args, kwargs))
+            return None
+
+    fake_redis = FakeRedis()
+    app.dependency_overrides[get_redis_pool] = lambda: fake_redis
+
+    response = await client.post(f"/api/projects/process_all_imagery/{project_id}/")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Imagery for ready tasks is still being transferred. "
+        "Please wait and retry processing."
+    )
+    assert fake_redis.jobs == []
 
 
 if __name__ == "__main__":

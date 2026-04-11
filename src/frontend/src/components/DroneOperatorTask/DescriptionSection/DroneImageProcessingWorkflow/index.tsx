@@ -26,6 +26,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
   const queryClient = useQueryClient();
   const [batchIds, setBatchIds] = useState<string[]>([]);
   const [hasUploaded, setHasUploaded] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [showAbortConfirmation, setShowAbortConfirmation] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isDeletingBatches, setIsDeletingBatches] = useState(false);
@@ -70,10 +71,15 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
     }
   }, [isOpen]);
 
+  const handleUploadStart = useCallback(() => {
+    setIsUploading(true);
+  }, []);
+
   const handleUploadComplete = useCallback((_result: any, uploadedBatchId?: string) => {
     if (uploadedBatchId) {
       setBatchIds((prev) => (prev.includes(uploadedBatchId) ? prev : [...prev, uploadedBatchId]));
     }
+    setIsUploading(false);
     setHasUploaded(true);
   }, []);
 
@@ -135,8 +141,21 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
       >
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
           <div className="naxatw-overflow-y-auto naxatw-pb-4">
-            <ImageUpload projectId={projectId} onUploadComplete={handleUploadComplete} />
+            <ImageUpload
+              projectId={projectId}
+              onUploadStart={handleUploadStart}
+              onUploadComplete={handleUploadComplete}
+            />
           </div>
+
+          {hasUploaded && !isUploading && (
+            <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-border-green-300 naxatw-bg-green-50 naxatw-px-4 naxatw-py-3 naxatw-text-sm naxatw-text-green-800">
+              <span className="material-icons naxatw-text-base naxatw-text-green-600">
+                check_circle
+              </span>
+              Upload successful. Click Continue to finalise.
+            </div>
+          )}
 
           <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-between naxatw-border-t naxatw-pt-4">
             {showIngestButton || ingestTriggered ? (
@@ -165,6 +184,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
               variant="ghost"
               className="naxatw-bg-red naxatw-text-white"
               onClick={handleClose}
+              disabled={isUploading || !hasUploaded}
             >
               Continue
             </Button>
@@ -295,6 +315,20 @@ export const ClassifyImageryDialog = ({
     enabled: !!projectId && isOpen,
     refetchInterval: isPolling ? 10000 : false,
   });
+
+  // Auto-start polling when dialog opens and classification is already in progress
+  useEffect(() => {
+    if (projectStatus && !isPolling && !isComplete) {
+      const remaining =
+        (projectStatus.staged ?? 0) +
+        (projectStatus.uploaded ?? 0) +
+        (projectStatus.classifying ?? 0);
+      if (remaining > 0) {
+        setIsPolling(true);
+        setHasStarted(true);
+      }
+    }
+  }, [projectStatus, isPolling, isComplete]);
 
   // Stop polling when classification is complete
   useEffect(() => {

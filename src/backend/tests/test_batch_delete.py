@@ -237,6 +237,84 @@ async def test_move_task_images_to_folder_removes_staging_objects(
 
 
 @pytest.mark.asyncio
+async def test_move_task_images_to_folder_reconciles_when_destination_exists(
+    db, create_test_project, auth_user, monkeypatch
+):
+    project_id = uuid.UUID(create_test_project)
+    task_id = uuid.uuid4()
+    batch_id = uuid.uuid4()
+    image_id = uuid.uuid4()
+    filename = "reconcile.jpg"
+    source_key = f"projects/{project_id}/user-uploads/{batch_id}/{filename}"
+    image_id_prefix = str(image_id)[:8]
+    dest_key = f"projects/{project_id}/{task_id}/images/{image_id_prefix}_{filename}"
+
+    outline_wkb = wkblib.dumps(box(0, 0, 1, 1), hex=True)
+
+    _upload_test_object(dest_key, b"already-copied")
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, project_task_index, outline)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+        await cur.execute(
+            """
+            INSERT INTO project_images (
+                id,
+                project_id,
+                filename,
+                s3_key,
+                hash_md5,
+                batch_id,
+                task_id,
+                uploaded_by,
+                status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'assigned')
+            """,
+            (
+                image_id,
+                project_id,
+                filename,
+                source_key,
+                uuid.uuid4().hex,
+                batch_id,
+                task_id,
+                auth_user.id,
+            ),
+        )
+    await db.commit()
+
+    monkeypatch.setattr(
+        "app.images.image_classification.move_file_within_bucket",
+        lambda *_args, **_kwargs: False,
+    )
+
+    result = await ImageClassifier.move_task_images_to_folder(db, project_id, task_id)
+    await db.commit()
+
+    assert result == {"moved_count": 1, "failed_count": 0}
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT s3_key FROM project_images WHERE id = %s",
+            (image_id,),
+        )
+        row = await cur.fetchone()
+
+    assert row[0] == dest_key
+
+    pending_count = await ImageClassifier.get_task_pending_transfer_count(
+        db, project_id, task_id
+    )
+    assert pending_count == 0
+
+
+@pytest.mark.asyncio
 async def test_delete_batch_route_waits_for_cleanup(
     client, db, create_test_project, auth_user
 ):

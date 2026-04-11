@@ -5,6 +5,7 @@ import { processAllImagery } from "@Services/project";
 import { toggleModal } from "@Store/actions/common";
 import { setProjectState } from "@Store/actions/project";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
@@ -21,6 +22,16 @@ const ChooseProcessingParameter = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-detail"] });
       toast.success("Processing started");
+      dispatch(toggleModal());
+    },
+    onError: (error) => {
+      const detail =
+        axios.isAxiosError(error) &&
+        typeof error.response?.data?.detail === "string" &&
+        error.response.data.detail
+          ? error.response.data.detail
+          : "Failed to start processing";
+      toast.error(detail);
     },
   });
 
@@ -43,10 +54,10 @@ const ChooseProcessingParameter = () => {
           onClick={() => {
             if (value === "with_gcp") {
               dispatch(setProjectState({ showGcpEditor: true }));
+              dispatch(toggleModal());
             } else {
               startImageProcessing({ projectId });
             }
-            dispatch(toggleModal());
           }}
         >
           Proceed

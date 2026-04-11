@@ -16,6 +16,7 @@ import {
   getBulkImageUrls,
   getImageUrl,
   acceptImage,
+  rejectImage,
   assignImageToTask,
   deleteInvalidImages,
   ProjectReviewData,
@@ -746,6 +747,21 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     },
   });
 
+  const rejectMutation = useMutation({
+    mutationFn: (imageId: string) => rejectImage(projectId, imageId),
+    onSuccess: () => {
+      toast.success("Image rejected successfully");
+      queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+      setSelectedImage(null);
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || error.message || "Failed to reject image";
+      toast.error(message);
+    },
+  });
+
   const assignTaskMutation = useMutation({
     mutationFn: ({ imageId, taskId }: { imageId: string; taskId: string }) =>
       assignImageToTask(projectId, imageId, taskId),
@@ -873,6 +889,12 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     }
   };
 
+  const handleRejectImage = () => {
+    if (selectedImage) {
+      rejectMutation.mutate(selectedImage.id);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
@@ -900,9 +922,11 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
   }
 
   const isRejectedImage = selectedImage && canOverrideImageRejection(selectedImage.status);
+  const isAssignedImage = selectedImage && selectedImage.status === "assigned";
   const isUnmatchedImage = selectedImage && selectedImage.status === "unmatched";
   const isDuplicateImage = selectedImage && selectedImage.status === "duplicate";
   const canOverride = isRejectedImage && !isDuplicateImage;
+  const canReject = isAssignedImage;
   const canMatch = isUnmatchedImage;
 
   const locatedImages =
@@ -1343,6 +1367,17 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                     {acceptMutation.isPending ? "Accepting..." : "Override rejection"}
                   </Button>
                 )}
+                {canReject && (
+                  <Button
+                    variant="ghost"
+                    className="naxatw-bg-red naxatw-text-white"
+                    onClick={handleRejectImage}
+                    disabled={rejectMutation.isPending}
+                    leftIcon="block"
+                  >
+                    {rejectMutation.isPending ? "Rejecting..." : "Reject image"}
+                  </Button>
+                )}
                 {canMatch && (
                   <Button
                     variant="ghost"
@@ -1454,7 +1489,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                 disabled={cleanupInvalidMutation.isPending}
                 leftIcon="delete"
               >
-                {cleanupInvalidMutation.isPending ? "Deleting..." : "OK"}
+                {cleanupInvalidMutation.isPending ? "Deleting..." : "Confirm"}
               </Button>
             </div>
           </div>

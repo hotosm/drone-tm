@@ -7,6 +7,7 @@ from pyodm.exceptions import NodeResponseError
 from app.images import image_processing
 from app.models.enums import State
 from app.projects import project_logic
+from app.arq import tasks as arq_tasks
 
 
 class _FakeConn:
@@ -70,16 +71,12 @@ class _FakeZipFile:
 
 
 @pytest.mark.asyncio
-async def test_process_drone_images_moves_staged_task_images_before_odm(monkeypatch):
+async def test_process_drone_images_starts_then_calls_odm(monkeypatch):
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
     ctx = {"job_id": "job-1", "db_pool": _FakePool(conn)}
-    calls = {"move": [], "state": []}
-
-    async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
-        calls["move"].append((db, project_id_arg, task_id_arg))
-        return {"moved_count": 13, "failed_count": 0}
+    state_calls = []
 
     async def fake_update_task_state_system(
         db,
@@ -90,7 +87,7 @@ async def test_process_drone_images_moves_staged_task_images_before_odm(monkeypa
         final_state,
         updated_at,
     ):
-        calls["state"].append(
+        state_calls.append(
             {
                 "project_id": project_id_arg,
                 "task_id": task_id_arg,
@@ -114,11 +111,6 @@ async def test_process_drone_images_moves_staged_task_images_before_odm(monkeypa
     async def fake_update_task_field(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(
-        project_logic.ImageClassifier,
-        "move_task_images_to_folder",
-        fake_move_task_images_to_folder,
-    )
     monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
     monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
@@ -138,9 +130,7 @@ async def test_process_drone_images_moves_staged_task_images_before_odm(monkeypa
     )
 
     assert result["status"] == "processing_started"
-    # State is set to STARTED before the move
-    assert calls["state"][0]["final_state"] == State.IMAGE_PROCESSING_STARTED
-    assert calls["move"] == [(conn, project_id, task_id)]
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_STARTED
     assert conn.commit_calls >= 2
 
 
@@ -408,6 +398,107 @@ async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
             task_id,
             "user-123",
         )
+
+
+@pytest.mark.asyncio
+async def test_move_task_images_for_processing_commits_on_success(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "move-job-1", "db_pool": _FakePool(conn)}
+
+    async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
+        assert db is conn
+        assert project_id_arg == project_id
+        assert task_id_arg == task_id
+        return {"moved_count": 4, "failed_count": 0}
+
+    monkeypatch.setattr(
+        arq_tasks.ImageClassifier,
+        "move_task_images_to_folder",
+        fake_move_task_images_to_folder,
+    )
+
+    result = await arq_tasks.move_task_images_for_processing(
+        ctx, str(project_id), str(task_id)
+    )
+
+    assert result == {
+        "project_id": str(project_id),
+        "task_id": str(task_id),
+        "moved_count": 4,
+        "failed_count": 0,
+    }
+    assert conn.commit_calls == 1
+    assert conn.rollback_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_move_task_images_for_processing_rolls_back_on_failure_count(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "move-job-2", "db_pool": _FakePool(conn)}
+
+    async def fake_move_task_images_to_folder(*_args, **_kwargs):
+        return {"moved_count": 1, "failed_count": 2}
+
+    async def fake_update_task_state_system(*_args, **_kwargs):
+        return {"project_id": project_id, "task_id": task_id}
+
+    monkeypatch.setattr(
+        arq_tasks.ImageClassifier,
+        "move_task_images_to_folder",
+        fake_move_task_images_to_folder,
+    )
+    monkeypatch.setattr(
+        arq_tasks.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    with pytest.raises(RuntimeError, match=r"Failed to move 2 image\(s\)"):
+        await arq_tasks.move_task_images_for_processing(
+            ctx, str(project_id), str(task_id)
+        )
+
+    assert conn.commit_calls == 1
+    assert conn.rollback_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_move_task_images_for_processing_handles_transfer_failure_state_update_error(
+    monkeypatch,
+):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "move-job-3", "db_pool": _FakePool(conn)}
+
+    async def fake_move_task_images_to_folder(*_args, **_kwargs):
+        return {"moved_count": 0, "failed_count": 1}
+
+    async def fake_update_task_state_system(*_args, **_kwargs):
+        raise RuntimeError("cannot persist state")
+
+    monkeypatch.setattr(
+        arq_tasks.ImageClassifier,
+        "move_task_images_to_folder",
+        fake_move_task_images_to_folder,
+    )
+    monkeypatch.setattr(
+        arq_tasks.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    with pytest.raises(RuntimeError, match=r"Failed to move 1 image\(s\)"):
+        await arq_tasks.move_task_images_for_processing(
+            ctx, str(project_id), str(task_id)
+        )
+
+    assert conn.commit_calls == 0
+    assert conn.rollback_calls == 1
 
 
 @pytest.mark.asyncio

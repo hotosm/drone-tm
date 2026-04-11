@@ -4,6 +4,7 @@ from typing import Annotated, Literal, Optional
 from uuid import UUID
 
 from arq import ArqRedis
+from arq.jobs import JobStatus
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger as log
 from psycopg import Connection
@@ -253,6 +254,32 @@ async def accept_image(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to accept image: {e}",
+        )
+
+
+@router.post("/{project_id}/images/{image_id}/reject/", tags=["Image Classification"])
+async def reject_image(
+    project_id: UUID,
+    image_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Manually reject an assigned image so it is excluded from task acceptance."""
+    try:
+        result = await ImageClassifier.reject_image(db, image_id, project_id)
+        await db.commit()
+        return result
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        log.error(f"Failed to reject image: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to reject image: {e}",
         )
 
 
@@ -567,15 +594,15 @@ async def mark_task_verified(
     project_id: UUID,
     task_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
+    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
     """Mark a task as verified/fully flown after visual inspection.
 
     This inserts a new task event with READY_FOR_PROCESSING state, indicating that
     the user has verified that all required images are present and the task
-    is ready for processing. After marking, it also moves the task's images
-    from the upload staging area to the task's images folder so they are
-    ready for ODM processing.
+    is ready for processing. Image transfer into the task folder is queued
+    asynchronously in ARQ.
     """
     try:
         async with db.cursor() as cur:
@@ -611,6 +638,7 @@ async def mark_task_verified(
                     NOW(),
                     NOW()
                 )
+                RETURNING event_id
                 """,
                 {
                     "project_id": str(project_id),
@@ -620,36 +648,85 @@ async def mark_task_verified(
                     "comment": "Images verified and task ready for processing",
                 },
             )
-
-        # Move images BEFORE committing the state change so we don't mark
-        # verified when files never made it to the task folder.
-        move_result = await ImageClassifier.move_task_images_to_folder(
-            db, project_id, task_id
-        )
-
-        if move_result.get("failed_count", 0) > 0:
-            await db.rollback()
-            raise HTTPException(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=(
-                    f"Failed to move {move_result['failed_count']} image(s) "
-                    f"to the task folder. Task was NOT marked as verified. "
-                    f"Please try again."
-                ),
-            )
+            inserted_event = await cur.fetchone()
+            ready_event_id = inserted_event[0]
 
         await db.commit()
 
+        async def _rollback_ready_event() -> None:
+            async with db.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM task_events WHERE event_id = %(event_id)s",
+                    {"event_id": str(ready_event_id)},
+                )
+            await db.commit()
+
+        move_job_id = f"move-task-images:{task_id}"
+        try:
+            move_job = await redis_pool.enqueue_job(
+                "move_task_images_for_processing",
+                str(project_id),
+                str(task_id),
+                _queue_name="default_queue",
+                _job_id=move_job_id,
+            )
+
+            move_already_queued = False
+            if move_job is None:
+                existing_job = await redis_pool.job(move_job_id)
+                existing_status = (
+                    await existing_job.status()
+                    if existing_job is not None
+                    else JobStatus.not_found
+                )
+                if existing_status in {
+                    JobStatus.queued,
+                    JobStatus.deferred,
+                    JobStatus.in_progress,
+                }:
+                    move_already_queued = True
+                else:
+                    import uuid as _uuid
+
+                    retry_job_id = f"{move_job_id}:{_uuid.uuid4().hex}"
+                    move_job = await redis_pool.enqueue_job(
+                        "move_task_images_for_processing",
+                        str(project_id),
+                        str(task_id),
+                        _queue_name="default_queue",
+                        _job_id=retry_job_id,
+                    )
+                    if move_job is None:
+                        raise RuntimeError(
+                            "Transfer job was not accepted by queue on retry"
+                        )
+        except Exception as enqueue_error:
+            log.error(
+                f"Failed to queue image transfer for task {task_id}: {enqueue_error}"
+            )
+            await _rollback_ready_event()
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=(
+                    "Task verification could not be completed because imagery transfer "
+                    "could not be queued. Please retry."
+                ),
+            ) from enqueue_error
+
+        enqueued_job_id = move_job.job_id if move_job is not None else move_job_id
+
         log.info(
-            f"Task {task_id} marked as verified (READY_FOR_PROCESSING) by user {user.id}, "
-            f"{move_result.get('moved_count', 0)} images moved"
+            f"Task {task_id} marked as verified (READY_FOR_PROCESSING) by user {user.id}; "
+            f"image transfer job {enqueued_job_id} "
+            f"({'already queued' if move_already_queued else 'queued'})"
         )
 
         return {
             "message": "Task marked as fully flown",
             "task_id": str(task_id),
             "state": State.READY_FOR_PROCESSING.name,
-            "images_moved": move_result.get("moved_count", 0),
+            "image_move_job_id": enqueued_job_id,
+            "image_move_already_queued": move_already_queued,
         }
 
     except HTTPException:

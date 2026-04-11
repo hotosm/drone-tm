@@ -231,6 +231,19 @@ def check_file_exists(bucket_name: str, object_name: str) -> bool:
         return False
 
 
+def s3_object_exists(bucket_name: str, object_name: str) -> bool:
+    """Check object existence using HEAD/stat with normalized key."""
+    object_name = _normalize_object_name(object_name)
+    client = s3_client()
+    try:
+        client.stat_object(bucket_name, object_name)
+        return True
+    except S3Error as e:
+        if e.code in {"NoSuchKey", "NoSuchObject", "NoSuchBucket", "NotFound"}:
+            return False
+        raise
+
+
 def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
     """Upload a file from the filesystem to an S3 bucket.
 

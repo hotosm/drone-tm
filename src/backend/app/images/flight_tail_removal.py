@@ -255,8 +255,14 @@ async def mark_and_remove_flight_tail_imagery(
     LOW_LATERAL_FOR_VERTICAL_METERS = 10.0
     MAX_TAIL_FRACTION = 0.25
     # We require a minimum segment size so the baseline heading estimate is stable.
-    MIN_SEGMENT_SIZE = 20
-    MIN_SEARCH_IMAGES = 10  # Minimum images to search for tails
+    MIN_SEGMENT_SIZE = 10
+    MIN_SEARCH_IMAGES = 30  # Minimum images to search for tails
+    MIN_TAIL_LENGTH = (
+        5  # Minimum images to constitute a tail (avoids waypoint turn false positives)
+    )
+    MAX_BASELINE_SPREAD_DEG = (
+        30.0  # Max angular spread among baseline samples (transit tails are straight)
+    )
 
     for idx, segment in enumerate(segments):
         log.debug(
@@ -333,8 +339,36 @@ async def mark_and_remove_flight_tail_imagery(
                 takeoff_baseline = circular_mean_list(takeoff_baseline_samples)
                 break
 
-        # Only proceed if we have a valid baseline
-        if takeoff_baseline is not None and baseline_start_idx is not None:
+        # Only proceed if we have a valid, straight baseline (transit tails are straight lines)
+        takeoff_baseline_straight = False
+        if (
+            takeoff_baseline is not None
+            and len(takeoff_baseline_samples) >= BASELINE_SAMPLE_COUNT
+        ):
+            max_spread = max(
+                calculate_angular_difference(
+                    takeoff_baseline_samples[a], takeoff_baseline_samples[b]
+                )
+                for a in range(len(takeoff_baseline_samples))
+                for b in range(a + 1, len(takeoff_baseline_samples))
+            )
+            takeoff_baseline_straight = max_spread <= MAX_BASELINE_SPREAD_DEG
+
+        if (
+            takeoff_baseline is not None
+            and baseline_start_idx is not None
+            and not takeoff_baseline_straight
+        ):
+            log.debug(
+                f"Segment {idx}: Takeoff baseline not straight enough "
+                f"(spread {max_spread:.1f}° > {MAX_BASELINE_SPREAD_DEG}°), skipping takeoff tail detection"
+            )
+
+        if (
+            takeoff_baseline is not None
+            and baseline_start_idx is not None
+            and takeoff_baseline_straight
+        ):
             for i in range(baseline_start_idx + BASELINE_SAMPLE_COUNT, search_limit):
                 if i == 0 or segment[i].get("azimuth") is None:
                     continue
@@ -354,8 +388,8 @@ async def mark_and_remove_flight_tail_imagery(
                         takeoff_baseline, current_azimuth
                     )
                 elif azimuth_difference > 60:  # Increased threshold from 45 to 60
-                    # Potential turn detected - confirm it
-                    if _confirm_stable_heading(segment, i, 1):
+                    # Potential turn detected - confirm it and enforce minimum tail length
+                    if i >= MIN_TAIL_LENGTH and _confirm_stable_heading(segment, i, 1):
                         takeoff_tails_indices = list(range(i))
                         break
 
@@ -383,7 +417,36 @@ async def mark_and_remove_flight_tail_imagery(
                 landing_baseline = circular_mean_list(landing_baseline_samples)
                 break
 
-        if landing_baseline is not None and landing_start_idx is not None:
+        # Only proceed if baseline is straight (transit tails are straight lines)
+        landing_baseline_straight = False
+        if (
+            landing_baseline is not None
+            and len(landing_baseline_samples) >= BASELINE_SAMPLE_COUNT
+        ):
+            max_spread = max(
+                calculate_angular_difference(
+                    landing_baseline_samples[a], landing_baseline_samples[b]
+                )
+                for a in range(len(landing_baseline_samples))
+                for b in range(a + 1, len(landing_baseline_samples))
+            )
+            landing_baseline_straight = max_spread <= MAX_BASELINE_SPREAD_DEG
+
+        if (
+            landing_baseline is not None
+            and landing_start_idx is not None
+            and not landing_baseline_straight
+        ):
+            log.debug(
+                f"Segment {idx}: Landing baseline not straight enough "
+                f"(spread {max_spread:.1f}° > {MAX_BASELINE_SPREAD_DEG}°), skipping landing tail detection"
+            )
+
+        if (
+            landing_baseline is not None
+            and landing_start_idx is not None
+            and landing_baseline_straight
+        ):
             for i in range(
                 landing_start_idx - BASELINE_SAMPLE_COUNT, landing_search_end, -1
             ):
@@ -404,7 +467,11 @@ async def mark_and_remove_flight_tail_imagery(
                         landing_baseline, current_azimuth
                     )
                 elif azimuth_difference > 60:  # Increased threshold
-                    if _confirm_stable_heading(segment, i, -1):
+                    # Enforce minimum tail length
+                    tail_length = segment_length - (i + 1)
+                    if tail_length >= MIN_TAIL_LENGTH and _confirm_stable_heading(
+                        segment, i, -1
+                    ):
                         landing_tails_indices = list(range(i + 1, segment_length))
                         break
 

@@ -29,7 +29,6 @@ from drone_flightplan import (
 from drone_flightplan.enums import FlightMode
 
 from app.config import settings
-from app.images.image_classification import ImageClassifier
 from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
 from app.images.image_processing import DroneImageProcessor
@@ -398,28 +397,7 @@ async def process_drone_images(
                 f"Task {task_id} state set to IMAGE_PROCESSING_STARTED (pending commit)"
             )
 
-            # Ensure images classified for this task are available in the task folder.
-            # Single-task processing can be triggered from the project dialog before the
-            # batch-processing flow has copied files out of staging.
-            #
-            # The state transition and the s3_key updates are in the same transaction:
-            # if the move fails, the rollback also reverts the state change so the task
-            # does not get stuck in IMAGE_PROCESSING_STARTED.
-            move_result = await ImageClassifier.move_task_images_to_folder(
-                conn, project_id, task_id
-            )
-            if move_result.get("failed_count", 0) > 0:
-                await conn.rollback()
-                raise RuntimeError(
-                    f"Failed to move {move_result['failed_count']} image(s) into the task folder"
-                )
-
             await conn.commit()
-            if move_result.get("moved_count", 0) > 0:
-                log.info(
-                    f"Task {task_id}: moved {move_result['moved_count']} staged image(s) "
-                    "into the task folder before ODM submission"
-                )
 
             # Initialize the processor with the database connection
             node_odm_endpoint = odm_url or settings.ODM_ENDPOINT
@@ -687,22 +665,69 @@ def generate_square_geojson(center_lat, center_lon, side_length_meters):
     return geojson
 
 
+async def get_ready_tasks_with_pending_transfer_count(
+    project_id, db
+) -> tuple[list[str], int]:
+    """Return READY task ids and how many still have assigned user-uploads imagery."""
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            WITH latest_task_state AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id,
+                    te.state
+                FROM task_events te
+                JOIN tasks t ON t.id = te.task_id
+                WHERE t.project_id = %(project_id)s
+                ORDER BY te.task_id, te.created_at DESC
+            ),
+            ready_tasks AS (
+                SELECT t.id, t.project_task_index
+                FROM tasks t
+                JOIN latest_task_state lts ON lts.task_id = t.id
+                WHERE t.project_id = %(project_id)s
+                  AND lts.state::text = 'READY_FOR_PROCESSING'
+            ),
+            pending_ready_tasks AS (
+                SELECT DISTINCT rt.id
+                FROM ready_tasks rt
+                JOIN project_images pi
+                  ON pi.project_id = %(project_id)s
+                 AND pi.task_id = rt.id
+                WHERE pi.status = 'assigned'
+                  AND pi.s3_key LIKE '%%user-uploads%%'
+            )
+            SELECT
+                COALESCE(
+                    ARRAY(
+                        SELECT rt.id::text
+                        FROM ready_tasks rt
+                        ORDER BY rt.project_task_index
+                    ),
+                    ARRAY[]::text[]
+                ) AS ready_task_ids,
+                (SELECT COUNT(*) FROM pending_ready_tasks) AS pending_ready_count
+            """,
+            {"project_id": project_id},
+        )
+        row = await cur.fetchone()
+
+    if not row:
+        return [], 0
+
+    ready_task_ids = list(row[0] or [])
+    pending_ready_count = int(row[1] or 0)
+    return ready_task_ids, pending_ready_count
+
+
 async def get_all_tasks_for_project(project_id, db):
     """Get all unique tasks associated with the project ID
     that are in state READY_FOR_PROCESSING.
     """
-    async with db.cursor() as cur:
-        query = """
-        SELECT DISTINCT ON (t.id) t.id
-        FROM tasks t
-        JOIN task_events te ON t.id = te.task_id
-        WHERE t.project_id = %s AND te.state::text = 'READY_FOR_PROCESSING'
-        ORDER BY t.id, te.created_at DESC;
-        """
-        await cur.execute(query, (project_id,))
-        results = await cur.fetchall()
-        # Convert UUIDs to string
-        return [str(result[0]) for result in results]
+    ready_task_ids, _ = await get_ready_tasks_with_pending_transfer_count(
+        project_id, db
+    )
+    return ready_task_ids
 
 
 async def update_task_field(

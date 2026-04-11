@@ -611,6 +611,76 @@ async def classify_project_images(
         raise
 
 
+async def move_task_images_for_processing(
+    ctx: Dict[Any, Any],
+    project_id: str,
+    task_id: str,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """Move assigned task images from user-uploads to the task folder."""
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        f"Starting move_task_images_for_processing (Job ID: {job_id}): "
+        f"project={project_id}, task={task_id}"
+    )
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            result = await ImageClassifier.move_task_images_to_folder(
+                conn, UUID(project_id), UUID(task_id)
+            )
+            if result.get("failed_count", 0) > 0:
+                await conn.rollback()
+                raise RuntimeError(
+                    f"Failed to move {result['failed_count']} image(s) to task folder"
+                )
+
+            await conn.commit()
+            log.info(
+                f"Completed move_task_images_for_processing (Job ID: {job_id}): "
+                f"moved={result.get('moved_count', 0)}"
+            )
+            return {
+                "project_id": project_id,
+                "task_id": task_id,
+                "moved_count": result.get("moved_count", 0),
+                "failed_count": 0,
+            }
+    except Exception as e:
+        failure_message = (
+            "Imagery transfer to the task folder failed. "
+            "Please retry by marking this task as fully flown again. "
+            f"Details: {str(e)}"
+        )
+        try:
+            async with db_pool.connection() as conn:
+                transition = await task_logic.update_task_state_system(
+                    conn,
+                    UUID(project_id),
+                    UUID(task_id),
+                    failure_message,
+                    State.READY_FOR_PROCESSING,
+                    State.IMAGE_PROCESSING_FAILED,
+                    timestamp(),
+                )
+                if transition is not None:
+                    await conn.commit()
+        except Exception as state_error:
+            log.error(
+                f"Failed to persist transfer failure state for task {task_id}: "
+                f"{state_error}"
+            )
+
+        log.error(
+            f"Failed move_task_images_for_processing (Job ID: {job_id}): {str(e)}"
+        )
+        raise
+
+
 async def delete_batch_images(
     ctx: Dict[Any, Any],
     project_id: str,
@@ -1112,6 +1182,7 @@ class WorkerSettings:
         process_uploaded_image,
         ingest_existing_uploads,
         classify_project_images,
+        move_task_images_for_processing,
         delete_batch_images,
         process_project_task_metrics,
         download_and_upload_dem,

@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useContext, useRef } from "react";
+import { useEffect, useContext, useRef } from "react";
 import AwsS3 from "@uppy/aws-s3";
 import Dashboard from "@uppy/react/dashboard";
 import { UppyContext } from "@uppy/react";
@@ -14,6 +14,7 @@ interface UppyFileUploaderProps {
   projectId: string;
   taskId?: string;
   label?: string;
+  onUploadStart?: () => void;
   onUploadComplete?: (result: any, batchId?: string) => void;
   allowedFileTypes?: string[];
   note?: string;
@@ -24,6 +25,7 @@ const UppyFileUploader = ({
   projectId,
   taskId,
   label = "Upload Files",
+  onUploadStart,
   onUploadComplete,
   allowedFileTypes = [
     "image/jpeg",
@@ -197,12 +199,17 @@ const UppyFileUploader = ({
       },
     });
 
-    // Cleanup function
+    // No cleanup here — cancelAll is handled in a separate unmount-only effect
+    // to avoid cancelling in-progress uploads when deps change.
+  }, [uppy, projectId, taskId, allowedFileTypes, staging]);
+
+  // Cancel uploads only on true component unmount
+  useEffect(() => {
     return () => {
-      // Clear files when component unmounts
       uppy.cancelAll();
     };
-  }, [uppy, projectId, taskId, allowedFileTypes, staging]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Reset batch ID when component mounts to ensure fresh state
@@ -217,6 +224,7 @@ const UppyFileUploader = ({
       }
       // Reset notification flag when new upload starts
       notificationShownRef.current = false;
+      onUploadStart?.();
     };
 
     const handleUploadError = (file: any, error: Error) => {
@@ -274,7 +282,7 @@ const UppyFileUploader = ({
       uppy.off("complete", handleComplete);
       uppy.off("cancel-all", handleCancelAll);
     };
-  }, [uppy, onUploadComplete, staging, projectId]);
+  }, [uppy, onUploadStart, onUploadComplete, staging, projectId]);
 
   return (
     <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-gap-3 naxatw-overflow-hidden">
