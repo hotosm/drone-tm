@@ -170,11 +170,6 @@ async def test_process_drone_images_marks_task_failed_when_odm_rejects(monkeypat
         async def process_images_from_s3(self, bucket_name, name, options, webhook):
             raise NodeResponseError("Not enough images")
 
-    monkeypatch.setattr(
-        project_logic.ImageClassifier,
-        "move_task_images_to_folder",
-        fake_move_task_images_to_folder,
-    )
     monkeypatch.setattr(project_logic, "DroneImageProcessor", FailingProcessor)
 
     from app.tasks import task_logic
@@ -253,11 +248,6 @@ async def test_process_drone_images_retries_from_failed_state(monkeypatch):
     async def fake_update_task_field(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(
-        project_logic.ImageClassifier,
-        "move_task_images_to_folder",
-        fake_move_task_images_to_folder,
-    )
     monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
     monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
@@ -330,11 +320,6 @@ async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
     async def fake_update_task_field(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(
-        project_logic.ImageClassifier,
-        "move_task_images_to_folder",
-        fake_move_task_images_to_folder,
-    )
     monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
     monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
@@ -376,12 +361,6 @@ async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
     ):
         # Both transitions fail - task is in an unexpected state
         return None
-
-    monkeypatch.setattr(
-        project_logic.ImageClassifier,
-        "move_task_images_to_folder",
-        fake_move_task_images_to_folder,
-    )
 
     from app.tasks import task_logic
 
