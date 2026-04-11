@@ -316,14 +316,11 @@ export const ClassifyImageryDialog = ({
     refetchInterval: isPolling ? 10000 : false,
   });
 
-  // Auto-start polling when dialog opens and classification is already in progress
+  // Auto-start polling when dialog opens only if classification is already running
   useEffect(() => {
     if (projectStatus && !isPolling && !isComplete) {
-      const remaining =
-        (projectStatus.staged ?? 0) +
-        (projectStatus.uploaded ?? 0) +
-        (projectStatus.classifying ?? 0);
-      if (remaining > 0) {
+      const currentlyClassifying = (projectStatus.classifying ?? 0) > 0;
+      if (currentlyClassifying) {
         setIsPolling(true);
         setHasStarted(true);
       }
