@@ -2,13 +2,11 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 import React, { useState, useEffect, act } from "react";
-import { getRuntimeConfig } from "@/runtimeConfig";
 
 interface ITabOptions {
   id: number;
   label: string;
   value: number | string;
-  hideForHanko?: boolean;
 }
 
 interface TabProps {
@@ -20,8 +18,6 @@ interface TabProps {
   clickable?: boolean;
   orientation: "row" | "column";
 }
-
-const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
 
 const Tab: React.FC<TabProps> = ({
   tabOptions,
@@ -46,21 +42,19 @@ const Tab: React.FC<TabProps> = ({
 
   return (
     <div className={`${orientation === "column" ? "" : "naxatw-flex"}`}>
-      {tabOptions
-        .filter((tab) => !(AUTH_PROVIDER === "hanko" && tab.hideForHanko))
-        .map((tab) => (
-          <div
-            key={tab.id}
-            className={`${className} naxatw-cursor-pointer hover:naxatw-bg-red hover:naxatw-bg-opacity-10 ${
-              activeTabx === tab.value
-                ? `${activeClassName} naxatw-bg-red naxatw-bg-opacity-10 naxatw-text-red`
-                : ""
-            }`}
-            onClick={() => handleTabClick(tab.value)}
-          >
-            <p className="naxatw-px-5 naxatw-py-3 naxatw-text-body-lg">{tab.label}</p>
-          </div>
-        ))}
+      {tabOptions.map((tab) => (
+        <div
+          key={tab.id}
+          className={`${className} naxatw-cursor-pointer hover:naxatw-bg-red hover:naxatw-bg-opacity-10 ${
+            activeTabx === tab.value
+              ? `${activeClassName} naxatw-bg-red naxatw-bg-opacity-10 naxatw-text-red`
+              : ""
+          }`}
+          onClick={() => handleTabClick(tab.value)}
+        >
+          <p className="naxatw-px-5 naxatw-py-3 naxatw-text-body-lg">{tab.label}</p>
+        </div>
+      ))}
     </div>
   );
 };

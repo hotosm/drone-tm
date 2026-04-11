@@ -40,9 +40,8 @@ dependencies = [
   "numpy==2.2.6",
   "opencv-python-headless==4.12.0.88",
   "stream-zip>=0.0.84",
-  "hotosm-auth[fastapi]==0.2.10",
-  "geojson-aoi-parser>=0.3.5",
   "drone-flightplan",
+  "geojson-aoi-parser>=0.3.5",
 ]
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-only" }

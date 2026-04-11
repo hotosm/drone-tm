@@ -25,14 +25,6 @@ from app.tasks import task_routes
 from app.users import user_routes
 from app.waypoints import waypoint_routes
 
-# Import auth initialization for Hanko SSO
-from hotosm_auth import AuthConfig
-from hotosm_auth_fastapi import (
-    init_auth,
-    create_admin_mappings_router_psycopg,
-    osm_router,
-)
-
 root = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
 frontend_html = Jinja2Templates(directory=FRONTEND_DIR)
@@ -159,21 +151,6 @@ def get_application() -> FastAPI:
     if os.path.isdir(static_dir):
         _app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-    # Hanko-specific routers: only mount when Hanko auth is active
-    if settings.AUTH_PROVIDER == "hanko":
-        admin_router = create_admin_mappings_router_psycopg(
-            get_db,
-            app_name="drone-tm",
-            user_table="users",
-            user_id_column="id",
-            user_name_column="name",
-            user_email_column="email_address",
-        )
-        _app.include_router(admin_router, prefix="/api")
-
-        # OSM OAuth router for account linking
-        _app.include_router(osm_router, prefix="/api")
-
     return _app
 
 
@@ -182,16 +159,6 @@ async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
 
-    # Initialize authentication for Hanko SSO
-    if settings.AUTH_PROVIDER == "hanko":
-        log.info("Initializing Hanko SSO authentication")
-        auth_config = AuthConfig.from_env()
-        log.debug(
-            f"AuthConfig loaded: hanko_api_url={auth_config.hanko_api_url}, jwt_issuer={auth_config.jwt_issuer}"
-        )
-        init_auth(auth_config)
-
-    # Initialize Sentry monitoring if enabled
     if (
         settings.MONITORING == MonitoringTypes.SENTRY
         and settings.monitoring_config.SENTRY_DSN

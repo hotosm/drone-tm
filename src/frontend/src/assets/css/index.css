@@ -10,7 +10,6 @@ html,
 body {
   font-family: "Barlow Condensed", sans-serif;
   box-sizing: border-box;
-  --hot-font-sans: "Barlow Condensed", sans-serif;
 }
 
 .landing-page p {
@@ -92,7 +91,4 @@ body {
 }
 #pdf-page-wrapper > div.react-pdf__Page > div.react-pdf__Page__annotations.annotationLayer {
   height: 0px !important;
-}
-hotosm-auth {
-  --font-family: var(--hot-font-sans);
 }
