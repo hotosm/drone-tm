@@ -8,13 +8,27 @@ from typing import Optional, Union
 import geojson
 from geojson import Feature, FeatureCollection, GeoJSON
 from pyproj import Transformer
+from shapely.errors import GEOSException
 from shapely.geometry import Polygon, shape
 from shapely.geometry.geo import mapping
 from shapely.ops import transform as shapely_transform
 from shapely.ops import unary_union
 
+try:
+    from shapely.validation import make_valid
+except ImportError:
+    make_valid = None
+
 # Instantiate logger
 log = logging.getLogger(__name__)
+
+
+class GeometryValidationError(ValueError):
+    """Raised when input geometry is invalid and cannot be repaired."""
+
+
+class GeometryTopologyError(ValueError):
+    """Raised when geometry operations fail due to topology issues."""
 
 
 class TaskSplitter:
@@ -117,14 +131,78 @@ class TaskSplitter:
             raise ValueError(msg)
 
         if len(features) == 1:
-            return shape(features[0].get("geometry"))
+            return TaskSplitter._ensure_valid_polygonal_geometry(
+                shape(features[0].get("geometry"))
+            )
 
         log.info(f"AOI contains {len(features)} geometries, merging into one polygon")
-        polygons = [shape(f.get("geometry")) for f in features]
-        merged = unary_union(polygons)
+        polygons = [
+            TaskSplitter._ensure_valid_polygonal_geometry(shape(f.get("geometry")))
+            for f in features
+        ]
+        try:
+            merged = unary_union(polygons)
+        except GEOSException as e:
+            raise GeometryTopologyError(
+                "Failed to merge AOI geometries due to topology issues"
+            ) from e
         if merged.geom_type == "MultiPolygon":
             merged = merged.convex_hull
-        return merged
+        return TaskSplitter._ensure_valid_polygonal_geometry(merged)
+
+    @staticmethod
+    def _repair_geometry(geom):
+        """Attempt to repair invalid geometry using make_valid or buffer(0)."""
+        if make_valid is not None:
+            try:
+                repaired = make_valid(geom)
+                if not repaired.is_empty:
+                    return repaired
+            except Exception:
+                pass
+
+        try:
+            repaired = geom.buffer(0)
+            if not repaired.is_empty:
+                return repaired
+        except Exception:
+            pass
+
+        return geom
+
+    @staticmethod
+    def _ensure_valid_polygonal_geometry(geom):
+        """Ensure geometry is valid, non-empty and polygonal."""
+        if geom.is_empty:
+            raise GeometryValidationError("Geometry is empty")
+
+        candidate = geom
+        if not candidate.is_valid:
+            candidate = TaskSplitter._repair_geometry(candidate)
+
+        if candidate.is_empty or not candidate.is_valid:
+            raise GeometryValidationError(
+                "Geometry is invalid and could not be repaired"
+            )
+
+        if candidate.geom_type in {"Polygon", "MultiPolygon"}:
+            return candidate
+
+        if hasattr(candidate, "geoms"):
+            polygon_parts = [
+                g for g in candidate.geoms if g.geom_type in {"Polygon", "MultiPolygon"}
+            ]
+            if polygon_parts:
+                merged = unary_union(polygon_parts)
+                if merged.is_empty or not merged.is_valid:
+                    raise GeometryValidationError(
+                        "Geometry repair did not produce a valid polygon"
+                    )
+                return merged
+
+        raise GeometryValidationError(
+            f"Geometry must be polygonal, got {candidate.geom_type}"
+        )
 
     def splitBySquare(self, meters: int) -> FeatureCollection:
         # Set up transformations: WGS84 (EPSG:4326) <-> Web Mercator (EPSG:3857)
@@ -136,7 +214,9 @@ class TaskSplitter:
         )
 
         # Transform AOI to Web Mercator for accurate grid calculations in meters
-        aoi_mercator = shapely_transform(transformer_to_mercator.transform, self.aoi)
+        aoi_mercator = TaskSplitter._ensure_valid_polygonal_geometry(
+            shapely_transform(transformer_to_mercator.transform, self.aoi)
+        )
         xmin, ymin, xmax, ymax = aoi_mercator.bounds
 
         # Generate grid columns and rows based on AOI bounds and specified square length in meters
@@ -164,7 +244,13 @@ class TaskSplitter:
                 )
 
                 # Clip the grid polygon to fit within the AOI
-                clipped_polygon = grid_polygon.intersection(aoi_mercator)
+                try:
+                    clipped_polygon = grid_polygon.intersection(aoi_mercator)
+                except GEOSException as e:
+                    raise GeometryTopologyError(
+                        "Failed to intersect AOI with split grid"
+                    ) from e
+
                 if not clipped_polygon.is_empty:
                     if clipped_polygon.area < area_threshold:
                         small_polygons.append(clipped_polygon)
@@ -182,13 +268,23 @@ class TaskSplitter:
                 ]
                 if adjacent_polygons:
                     # Get the adjacent polygon with the maximum shared boundary length
-                    nearest_polygon = max(
-                        adjacent_polygons,
-                        key=lambda p: small_polygon.intersection(p).length,
-                    )
+                    try:
+                        nearest_polygon = max(
+                            adjacent_polygons,
+                            key=lambda p: small_polygon.intersection(p).length,
+                        )
+                    except GEOSException as e:
+                        raise GeometryTopologyError(
+                            "Failed while evaluating adjacent split polygons"
+                        ) from e
 
                     # Merge the small polygon with the nearest large polygon
-                    merged_polygon = unary_union([small_polygon, nearest_polygon])
+                    try:
+                        merged_polygon = unary_union([small_polygon, nearest_polygon])
+                    except GEOSException as e:
+                        raise GeometryTopologyError(
+                            "Failed to merge adjacent split polygons"
+                        ) from e
 
                     # if merged_polygon.geom_type == "MultiPolygon":
                     #     # Handle MultiPolygon by adding the original small polygon back

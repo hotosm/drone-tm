@@ -1,9 +1,13 @@
 """Unit tests for TaskSplitter geometry handling."""
 
 import pytest
-from geojson import Feature, FeatureCollection, Polygon
+from geojson import Feature, FeatureCollection, LineString, Polygon
 
-from app.tasks.task_splitter import TaskSplitter
+from app.tasks.task_splitter import (
+    GeometryValidationError,
+    TaskSplitter,
+    split_by_square,
+)
 
 
 SQUARE_A = Polygon([[(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]])
@@ -52,3 +56,43 @@ def test_empty_raises():
     fc = FeatureCollection([])
     with pytest.raises(ValueError, match="no geometries"):
         TaskSplitter.geojson_to_shapely_polygon(fc)
+
+
+def test_split_by_square_repairs_self_intersection():
+    """A self-intersecting AOI is repaired and still split successfully."""
+    bow_tie = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [85.3190, 27.7050],
+                            [85.3210, 27.7070],
+                            [85.3210, 27.7050],
+                            [85.3190, 27.7070],
+                            [85.3190, 27.7050],
+                        ]
+                    ],
+                },
+            }
+        ],
+    }
+
+    result = split_by_square(bow_tie, meters=100)
+
+    assert result["type"] == "FeatureCollection"
+    assert len(result["features"]) > 0
+
+
+def test_split_by_square_rejects_non_polygonal_geometry():
+    """LineString AOIs are rejected with geometry validation error."""
+    linestring_fc = FeatureCollection(
+        [Feature(geometry=LineString([(85.319, 27.705), (85.321, 27.707)]))]
+    )
+
+    with pytest.raises(GeometryValidationError, match="polygonal"):
+        split_by_square(linestring_fc, meters=100)

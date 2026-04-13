@@ -9,6 +9,7 @@ from loguru import logger as log
 from app.arq.tasks import get_redis_pool
 from app.projects import project_routes
 from app.projects import project_schemas
+from app.projects import project_logic
 
 
 @pytest.mark.asyncio
@@ -168,6 +169,64 @@ async def test_create_terrain_follow_project_succeeds_when_redis_unavailable(
         files={"project_info": (None, project_info_json, "application/json")},
     )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_preview_split_by_square_returns_422_for_invalid_geometry(
+    client, monkeypatch
+):
+    async def fake_preview_split_by_square(_boundary, _meters):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid geometry for split preview. Please fix AOI or no-fly zone geometry and retry.",
+        )
+
+    monkeypatch.setattr(
+        project_logic,
+        "preview_split_by_square",
+        fake_preview_split_by_square,
+    )
+
+    valid_featcol = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [85.319, 27.705],
+                                [85.320, 27.705],
+                                [85.320, 27.706],
+                                [85.319, 27.706],
+                                [85.319, 27.705],
+                            ]
+                        ],
+                    },
+                }
+            ],
+        }
+    ).encode("utf-8")
+
+    response = await client.post(
+        "/api/projects/preview-split-by-square/",
+        files={
+            "project_geojson": (
+                "aoi.geojson",
+                BytesIO(valid_featcol),
+                "application/geo+json",
+            )
+        },
+        data={"dimension": 100},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "Invalid geometry for split preview. Please fix AOI or no-fly zone geometry and retry."
+    )
 
 
 @pytest.mark.asyncio
