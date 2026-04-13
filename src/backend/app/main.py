@@ -19,6 +19,7 @@ from app.db.database import get_db
 from app.drones import drone_routes
 from app.gcp import gcp_routes
 from app.models.enums import HTTPStatus
+from app.utils import sanitize_sensitive_text
 from app.public_routes import router as public_router
 from app.projects import classification_routes, project_routes
 from app.tasks import task_routes
@@ -39,7 +40,8 @@ class InterceptHandler(logging.Handler):
         This happens to be in the 6th frame upward.
         """
         logger_opt = log.opt(depth=6, exception=record.exc_info)
-        logger_opt.log(logging.getLevelName(record.levelno), record.getMessage())
+        safe_message = sanitize_sensitive_text(record.getMessage())
+        logger_opt.log(logging.getLevelName(record.levelno), safe_message)
 
 
 def healthcheck_log_filter(record):
