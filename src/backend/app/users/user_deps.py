@@ -42,8 +42,10 @@ async def verify_access_token(
         user = verify_token(access_token)
         return user
     except HTTPException as e:
-        log.error(e)
-        log.error("Failed to verify access token")
+        log.debug(f"Expected access token verification failure: {e.detail}")
+        raise HTTPException(status_code=401, detail="Access token not valid") from e
+    except Exception as e:
+        log.error(f"Unexpected error while verifying access token: {e}")
         raise HTTPException(status_code=401, detail="Access token not valid") from e
 
 

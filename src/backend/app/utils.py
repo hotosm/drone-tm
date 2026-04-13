@@ -1,12 +1,14 @@
 import base64
 import json
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import geojson
 import math
@@ -28,6 +30,59 @@ from shapely.ops import transform, unary_union
 from app.config import settings
 
 log = logging.getLogger(__name__)
+
+_SENSITIVE_QUERY_KEYS = {
+    "token",
+    "access_token",
+    "api_key",
+    "apikey",
+    "signature",
+    "x-amz-signature",
+    "x-amz-security-token",
+    "x-amz-credential",
+}
+
+_URL_PATTERN = re.compile(r"https?://[^\s\"'<>]+")
+
+
+def redact_sensitive_query_params(url: str) -> str:
+    """Return URL with sensitive query values replaced by [REDACTED]."""
+    try:
+        parsed = urlsplit(url)
+        if not parsed.query:
+            return url
+
+        query = parse_qsl(parsed.query, keep_blank_values=True)
+        redacted_query = [
+            (k, "[REDACTED]" if k.lower() in _SENSITIVE_QUERY_KEYS else v)
+            for k, v in query
+        ]
+        return urlunsplit(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                urlencode(redacted_query),
+                parsed.fragment,
+            )
+        )
+    except Exception:
+        return url
+
+
+def sanitize_sensitive_text(text: str) -> str:
+    """Redact sensitive query values from URL-like substrings in text."""
+    if not text:
+        return text
+
+    return _URL_PATTERN.sub(
+        lambda match: redact_sensitive_query_params(match.group(0)), text
+    )
+
+
+def sanitize_exception_message(exc: Exception) -> str:
+    """Convert exception to a safe string suitable for logs/user-facing comments."""
+    return sanitize_sensitive_text(str(exc).strip() or exc.__class__.__name__)
 
 
 def timestamp():
