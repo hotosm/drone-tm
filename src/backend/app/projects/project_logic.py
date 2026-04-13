@@ -16,6 +16,7 @@ from minio.error import S3Error
 from psycopg import Connection
 from psycopg.rows import dict_row
 from pyodm.exceptions import NodeResponseError
+from shapely.errors import GEOSException
 from shapely.geometry import shape
 from shapely.ops import transform
 
@@ -40,7 +41,11 @@ from app.s3 import (
     get_object_metadata,
     list_objects_from_bucket,
 )
-from app.tasks.task_splitter import split_by_square
+from app.tasks.task_splitter import (
+    GeometryTopologyError,
+    GeometryValidationError,
+    split_by_square,
+)
 from app.utils import (
     calculate_flight_time_from_placemarks,
     merge_multipolygon,
@@ -320,12 +325,18 @@ async def preview_split_by_square(boundary: str, meters: int):
     """
     boundary = merge_multipolygon(boundary)
 
-    return await run_in_threadpool(
-        lambda: split_by_square(
-            boundary,
-            meters=meters,
+    try:
+        return await run_in_threadpool(
+            lambda: split_by_square(
+                boundary,
+                meters=meters,
+            )
         )
-    )
+    except (GeometryValidationError, GeometryTopologyError, GEOSException) as e:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid geometry for split preview. Please fix AOI or no-fly zone geometry and retry.",
+        ) from e
 
 
 async def process_drone_images(
