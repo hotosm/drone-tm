@@ -46,10 +46,12 @@ from app.s3 import (
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
 from app.images.image_processing import (
+    OdmAssetTerminalError,
+    OdmAssetTransientError,
     extract_and_upload_odm_assets,
     process_assets_from_odm,
 )
-from app.models.enums import State
+from app.models.enums import ImageProcessingStatus, State
 from app.tasks import task_logic
 from app.utils import timestamp
 from app.projects import project_logic
@@ -1100,6 +1102,45 @@ async def process_imported_odm_assets(
             shutil.rmtree(temp_dir)
 
 
+async def _persist_odm_failure(
+    ctx: Dict[Any, Any],
+    project_uuid: UUID,
+    task_uuid: Optional[UUID],
+    state: Optional[State],
+    error_message: str,
+) -> None:
+    """Persist failure state for either task-level or project-level ODM processing."""
+    try:
+        db_pool = ctx.get("db_pool")
+        if not db_pool:
+            return
+        async with db_pool.connection() as conn:
+            if task_uuid and state:
+                await task_logic.update_task_state_system(
+                    db=conn,
+                    project_id=project_uuid,
+                    task_id=task_uuid,
+                    comment=f"Image processing failed: {error_message}",
+                    initial_state=state,
+                    final_state=State.IMAGE_PROCESSING_FAILED,
+                    updated_at=timestamp(),
+                )
+            elif task_uuid and not state:
+                log.warning(
+                    f"Cannot persist task-level failure for {task_uuid} "
+                    "(no initial state provided)",
+                )
+            else:
+                # Project-level processing: mark the project as FAILED.
+                await project_logic.update_processing_status(
+                    conn, project_uuid, ImageProcessingStatus.FAILED
+                )
+            await conn.commit()
+    except Exception as state_err:
+        target = task_uuid or project_uuid
+        log.error(f"Failed to persist ODM failure state for {target}: {state_err}")
+
+
 async def process_odm_webhook_assets(
     ctx: Dict[Any, Any],
     node_odm_url: str,
@@ -1139,7 +1180,7 @@ async def process_odm_webhook_assets(
             lock_key,
             job_id,
             nx=True,
-            ex=3600,  # 1 hour TTL
+            ex=21600,  # 6 hours - must exceed worst-case download + reprojection
         )
         if not lock_acquired:
             log.warning(
@@ -1153,16 +1194,41 @@ async def process_odm_webhook_assets(
         project_uuid = UUID(dtm_project_id)
         task_uuid = UUID(dtm_task_id) if dtm_task_id else None
         state = State[state_name] if state_name else None
+        job_try = int(ctx.get("job_try") or 1)
+        max_tries = int(getattr(WorkerSettings, "max_tries", 3) or 3)
 
-        await process_assets_from_odm(
-            node_odm_url=node_odm_url,
-            dtm_project_id=project_uuid,
-            odm_task_id=odm_task_id,
-            state=state,
-            message=message,
-            dtm_task_id=task_uuid,
-            odm_status_code=odm_status_code,
-        )
+        try:
+            await process_assets_from_odm(
+                node_odm_url=node_odm_url,
+                dtm_project_id=project_uuid,
+                odm_task_id=odm_task_id,
+                state=state,
+                message=message,
+                dtm_task_id=task_uuid,
+                odm_status_code=odm_status_code,
+                persist_failure_state=False,
+            )
+        except OdmAssetTransientError as e:
+            if job_try < max_tries:
+                log.warning(
+                    f"Transient ODM asset processing error "
+                    f"(try {job_try}/{max_tries}), retrying: {e}",
+                )
+                raise
+
+            log.error(
+                f"ODM asset processing exhausted retries ({job_try}/{max_tries}): {e}",
+            )
+            await _persist_odm_failure(ctx, project_uuid, task_uuid, state, str(e))
+            raise
+        except OdmAssetTerminalError as e:
+            log.error(f"Terminal ODM asset processing error: {e}")
+            await _persist_odm_failure(ctx, project_uuid, task_uuid, state, str(e))
+            return {
+                "status": "failed",
+                "reason": "terminal_error",
+                "project_id": dtm_project_id,
+            }
 
         return {"status": "completed", "project_id": dtm_project_id}
     finally:

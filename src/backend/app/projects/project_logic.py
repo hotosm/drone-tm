@@ -2,12 +2,16 @@ import json
 import os
 import shutil
 import uuid
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Dict, Optional
+from urllib.parse import urlunparse
 
+import aiohttp
 import geojson
 import pyproj
 import shapely.wkb as wkblib
+from arq import ArqRedis
 from fastapi import HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from geojson import Feature, FeatureCollection
@@ -46,10 +50,351 @@ from app.tasks.task_splitter import (
     GeometryValidationError,
     split_by_square,
 )
+from app.tasks import task_logic
 from app.utils import (
     calculate_flight_time_from_placemarks,
     merge_multipolygon,
+    timestamp,
 )
+
+
+ODM_STATUS_LABELS = {
+    10: "Queued",
+    20: "Running",
+    30: "Failed",
+    40: "Completed",
+    50: "Canceled",
+}
+
+
+def parse_odm_status(raw_status) -> tuple[int, str]:
+    """Parse a NodeODM status field into (status_code, status_label).
+
+    NodeODM returns status as an object like ``{"code": 20}`` or as a plain
+    integer.  We normalise both forms into an ``(int, str)`` pair.
+    """
+    if isinstance(raw_status, dict):
+        code = raw_status.get("code", 0)
+    elif isinstance(raw_status, (int, float)):
+        code = int(raw_status)
+    else:
+        code = 0
+    label = ODM_STATUS_LABELS.get(code, f"Unknown ({code})")
+    return code, label
+
+
+def extract_valid_odm_task_info(payload: dict | None) -> dict | None:
+    """Return only real NodeODM task info payloads.
+
+    NodeODM can return HTTP 200 with an error JSON for deleted tasks, for example
+    ``{"error": "<uuid> not found"}``. Those payloads should be treated as
+    missing task info so the DB-backed fallback logic can classify the task.
+    """
+    if not isinstance(payload, dict):
+        return None
+
+    raw_status = payload.get("status")
+    if isinstance(raw_status, dict) and "code" in raw_status:
+        return payload
+    if isinstance(raw_status, (int, float)):
+        return payload
+
+    return None
+
+
+async def get_project_odm_endpoint(db: Connection, project_id: uuid.UUID) -> str:
+    """Return the ODM endpoint persisted for a project, falling back to config."""
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            "SELECT odm_endpoint_used FROM projects WHERE id = %(pid)s",
+            {"pid": project_id},
+        )
+        row = await cur.fetchone()
+    if row and row.get("odm_endpoint_used"):
+        return row["odm_endpoint_used"]
+    return settings.ODM_ENDPOINT
+
+
+async def reconcile_project_level_odm(
+    db: Connection,
+    project: "project_schemas.DbProject",
+    odm_url: str,
+    parsed_url,
+    odm_query: str,
+    redis_pool: ArqRedis,
+    not_found_age_sec: int,
+) -> dict:
+    """Handle queue-info for project-level ODM runs (no per-task ODM UUIDs).
+
+    Fetches the single project-level ODM task status and reconciles:
+    - Completed but webhook missed -> enqueue asset download
+    - Failed/canceled -> mark project FAILED
+    - Not found (age > threshold) -> mark project FAILED
+    - Otherwise -> report current status
+
+    Returns a dict with keys matching OdmQueueInfo counts + groups.
+    """
+    empty = {
+        "queued": 0,
+        "running": 0,
+        "failed": 0,
+        "completed": 0,
+        "total": 0,
+        "groups": [],
+    }
+
+    project_odm_uuid = getattr(project, "odm_task_uuid", None)
+    project_status = getattr(project, "image_processing_status", None)
+    if not project_odm_uuid or project_status != "PROCESSING":
+        return empty
+
+    # Fetch status from NodeODM
+    path = f"{parsed_url.path.rstrip('/')}/task/{project_odm_uuid}/info"
+    info_url = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, path, "", odm_query, "")
+    )
+
+    odm_info = None
+    fetch_failed = False
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=15)
+        ) as session:
+            async with session.get(info_url) as resp:
+                if resp.status == 200:
+                    odm_info = extract_valid_odm_task_info(await resp.json())
+                else:
+                    fetch_failed = True
+    except Exception as e:
+        log.warning(
+            "Failed to fetch project-level ODM task info for {}: {}",
+            project_odm_uuid,
+            e,
+        )
+        fetch_failed = True
+
+    if fetch_failed:
+        # Can't reach NodeODM - show as running, don't reconcile.
+        task_entry = project_schemas.OdmQueueTask(
+            uuid=project_odm_uuid,
+            name=f"Project {project.id}",
+            status_code=20,
+            status_label="Running (status pending)",
+        )
+        return {
+            "running": 1,
+            "queued": 0,
+            "failed": 0,
+            "completed": 0,
+            "total": 1,
+            "groups": [
+                project_schemas.OdmStatusGroup(
+                    status_code=20,
+                    status_label="Running",
+                    count=1,
+                    tasks=[task_entry],
+                )
+            ],
+        }
+
+    if odm_info:
+        status_code, status_label = parse_odm_status(odm_info.get("status"))
+
+        if status_code == 40:
+            # Completed but webhook was missed - enqueue asset download.
+            node_odm_endpoint = (
+                getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
+            )
+            await redis_pool.enqueue_job(
+                "process_odm_webhook_assets",
+                node_odm_url=node_odm_endpoint,
+                dtm_project_id=str(project.id),
+                odm_task_id=project_odm_uuid,
+                odm_status_code=40,
+                _job_id=f"odm-assets:project:{project.id}",
+                _queue_name="default_queue",
+            )
+            log.warning(
+                "Reconciling project-level completed ODM task (missed webhook): "
+                "project={} odm_uuid={}",
+                project.id,
+                project_odm_uuid,
+            )
+            task_entry = project_schemas.OdmQueueTask(
+                uuid=project_odm_uuid,
+                name=f"Project {project.id}",
+                status_code=20,
+                status_label="Downloading assets (missed webhook)",
+                images_count=odm_info.get("imagesCount"),
+                progress=odm_info.get("progress"),
+                date_created=odm_info.get("dateCreated"),
+                processing_time=odm_info.get("processingTime"),
+            )
+            return {
+                "running": 1,
+                "queued": 0,
+                "failed": 0,
+                "completed": 0,
+                "total": 1,
+                "groups": [
+                    project_schemas.OdmStatusGroup(
+                        status_code=20,
+                        status_label="Running",
+                        count=1,
+                        tasks=[task_entry],
+                    )
+                ],
+            }
+
+        if status_code in (30, 50):
+            # Failed or canceled - mark project FAILED.
+            try:
+                await update_processing_status(
+                    db, project.id, ImageProcessingStatus.FAILED
+                )
+                log.warning(
+                    "Reconciled project-level ODM failure: project={} odm_uuid={} status={}",
+                    project.id,
+                    project_odm_uuid,
+                    status_label,
+                )
+            except Exception as e:
+                log.error("Failed to reconcile project ODM failure: {}", e)
+
+            display_label = "Failed (canceled)" if status_code == 50 else status_label
+            task_entry = project_schemas.OdmQueueTask(
+                uuid=project_odm_uuid,
+                name=f"Project {project.id}",
+                status_code=30,
+                status_label=display_label,
+                images_count=odm_info.get("imagesCount"),
+                processing_time=odm_info.get("processingTime"),
+            )
+            return {
+                "running": 0,
+                "queued": 0,
+                "failed": 1,
+                "completed": 0,
+                "total": 1,
+                "groups": [
+                    project_schemas.OdmStatusGroup(
+                        status_code=30,
+                        status_label="Failed",
+                        count=1,
+                        tasks=[task_entry],
+                    )
+                ],
+            }
+
+        # Still running or queued
+        task_entry = project_schemas.OdmQueueTask(
+            uuid=project_odm_uuid,
+            name=odm_info.get("name") or f"Project {project.id}",
+            status_code=status_code,
+            status_label=status_label,
+            images_count=odm_info.get("imagesCount"),
+            progress=odm_info.get("progress"),
+            date_created=odm_info.get("dateCreated"),
+            processing_time=odm_info.get("processingTime"),
+        )
+        bucket = (
+            "running"
+            if status_code == 20
+            else "queued"
+            if status_code == 10
+            else "failed"
+        )
+        result = {
+            "running": 0,
+            "queued": 0,
+            "failed": 0,
+            "completed": 0,
+            "total": 1,
+            "groups": [],
+        }
+        result[bucket] = 1
+        result["groups"] = [
+            project_schemas.OdmStatusGroup(
+                status_code=status_code,
+                status_label=ODM_STATUS_LABELS.get(status_code, status_label),
+                count=1,
+                tasks=[task_entry],
+            )
+        ]
+        return result
+
+    # NodeODM responded but doesn't know this task (not found).
+    # Apply the same age guard as task-level reconciliation.
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            "SELECT last_updated FROM projects WHERE id = %(pid)s",
+            {"pid": project.id},
+        )
+        row = await cur.fetchone()
+
+    age_ok = True
+    if row and row.get("last_updated"):
+        entered = row["last_updated"]
+        if entered.tzinfo is None:
+            entered = entered.replace(tzinfo=timezone.utc)
+        age_sec = (datetime.now(timezone.utc) - entered).total_seconds()
+        age_ok = age_sec >= not_found_age_sec
+
+    if age_ok:
+        try:
+            await update_processing_status(db, project.id, ImageProcessingStatus.FAILED)
+            log.warning(
+                "Reconciled project-level lost ODM task: project={} odm_uuid={} not found on NodeODM",
+                project.id,
+                project_odm_uuid,
+            )
+        except Exception as e:
+            log.error("Failed to reconcile project-level lost task: {}", e)
+
+        task_entry = project_schemas.OdmQueueTask(
+            uuid=project_odm_uuid,
+            name=f"Project {project.id}",
+            status_code=30,
+            status_label="Failed (lost)",
+        )
+        return {
+            "running": 0,
+            "queued": 0,
+            "failed": 1,
+            "completed": 0,
+            "total": 1,
+            "groups": [
+                project_schemas.OdmStatusGroup(
+                    status_code=30,
+                    status_label="Failed",
+                    count=1,
+                    tasks=[task_entry],
+                )
+            ],
+        }
+
+    # Too young to declare lost
+    task_entry = project_schemas.OdmQueueTask(
+        uuid=project_odm_uuid,
+        name=f"Project {project.id}",
+        status_code=20,
+        status_label="Running (awaiting NodeODM registration)",
+    )
+    return {
+        "running": 1,
+        "queued": 0,
+        "failed": 0,
+        "completed": 0,
+        "total": 1,
+        "groups": [
+            project_schemas.OdmStatusGroup(
+                status_code=20,
+                status_label="Running",
+                count=1,
+                tasks=[task_entry],
+            )
+        ],
+    }
 
 
 async def get_centroids(db: Connection):
@@ -366,9 +711,6 @@ async def process_drone_images(
             # Support fresh processing (READY_FOR_PROCESSING), retries from failure
             # (IMAGE_PROCESSING_FAILED), and reruns after completion
             # (IMAGE_PROCESSING_FINISHED) when new imagery has been verified.
-            from app.tasks import task_logic
-            from app.utils import timestamp
-
             result = await task_logic.update_task_state_system(
                 conn,
                 project_id,
@@ -463,16 +805,13 @@ async def process_drone_images(
             }
 
     except Exception as e:
-        failure_message = str(e).strip() or "Image processing failed."
+        failure_message = str(e).strip() or e.__class__.__name__
         if isinstance(e, NodeResponseError) and "Not enough images" in failure_message:
             failure_message = "Not enough images for ODM processing. At least 3 task images are required."
 
         try:
             pool = ctx["db_pool"]
             async with pool.connection() as conn:
-                from app.tasks import task_logic
-                from app.utils import timestamp
-
                 await task_logic.update_task_state_system(
                     conn,
                     project_id,
@@ -489,28 +828,45 @@ async def process_drone_images(
                 )
         except Exception as state_error:
             log.error(
-                f"Failed to persist processing failure state for task {task_id}: {state_error}"
+                f"Failed to persist processing failure state for task {task_id}: "
+                f"{state_error}"
             )
 
-        log.error(f"Error in process_drone_images (Job ID: {job_id}): {str(e)}")
+        log.error(
+            f"Error in process_drone_images (Job ID: {job_id}): {failure_message}"
+        )
         raise
 
 
 async def update_processing_status(
     db: Connection, project_id: uuid.UUID, status: ImageProcessingStatus
 ):
-    """
-    Update the processing status to the specified status in the database.
+    """Update the processing status in the database.
+
+    On SUCCESS, clears odm_task_uuid and odm_endpoint_used so stale
+    metadata doesn't interfere with future reconciliation.
     """
     log.debug(f"status = {status.name}")
-    await db.execute(
-        """
-        UPDATE projects
-        SET image_processing_status = %(status)s
-        WHERE id = %(project_id)s;
-        """,
-        {"status": status.name, "project_id": project_id},
-    )
+    if status == ImageProcessingStatus.SUCCESS:
+        await db.execute(
+            """
+            UPDATE projects
+            SET image_processing_status = %(status)s,
+                odm_task_uuid = NULL,
+                odm_endpoint_used = NULL
+            WHERE id = %(project_id)s;
+            """,
+            {"status": status.name, "project_id": project_id},
+        )
+    else:
+        await db.execute(
+            """
+            UPDATE projects
+            SET image_processing_status = %(status)s
+            WHERE id = %(project_id)s;
+            """,
+            {"status": status.name, "project_id": project_id},
+        )
     await db.commit()
     return
 
@@ -546,21 +902,41 @@ async def process_all_drone_images(
             webhook_url = (
                 f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{project_id}/"
             )
-            await processor.process_images_for_all_tasks(
+            result = await processor.process_images_for_all_tasks(
                 settings.S3_BUCKET_NAME,
                 name_prefix=f"DTM-Task-{project_id}",
                 options=options,
                 webhook=webhook_url,
             )
+            if result is None or not getattr(result, "uuid", None):
+                raise RuntimeError(
+                    "ODM did not return a valid task object after submission"
+                )
 
-            # Update the processing status to 'IMAGE_PROCESSING_STARTED' in the database.
-            await update_processing_status(
-                conn, project_id, ImageProcessingStatus.PROCESSING
+            # Persist ODM metadata for reconciliation/recovery, then mark PROCESSING.
+            # Overwrite on every new run so retries never reconcile against stale metadata.
+            await conn.execute(
+                """
+                UPDATE projects
+                SET odm_task_uuid = %(odm_uuid)s,
+                    odm_endpoint_used = %(odm_endpoint)s,
+                    image_processing_status = %(status)s,
+                    last_updated = NOW()
+                WHERE id = %(project_id)s;
+                """,
+                {
+                    "odm_uuid": str(result.uuid),
+                    "odm_endpoint": settings.ODM_ENDPOINT,
+                    "status": ImageProcessingStatus.PROCESSING.name,
+                    "project_id": project_id,
+                },
             )
+            await conn.commit()
+            log.info(f"Stored ODM task UUID {result.uuid} for project {project_id}")
             return
 
     except Exception as e:
-        log.error(f"Error in process_drone_images (Job ID: {job_id}): {str(e)}")
+        log.error(f"Error in process_all_drone_images (Job ID: {job_id}): {e}")
         raise
 
 

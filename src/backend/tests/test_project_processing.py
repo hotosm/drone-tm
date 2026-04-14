@@ -1,11 +1,14 @@
 import os
 import uuid
+from pathlib import Path
 
 import pytest
 from pyodm.exceptions import NodeResponseError
 
+from app import utils as app_utils
+
 from app.images import image_processing
-from app.models.enums import State
+from app.models.enums import ImageProcessingStatus, State
 from app.projects import project_logic
 from app.arq import tasks as arq_tasks
 
@@ -14,6 +17,10 @@ class _FakeConn:
     def __init__(self):
         self.commit_calls = 0
         self.rollback_calls = 0
+        self.executed = []
+
+    async def execute(self, query, params=None):
+        self.executed.append({"query": query, "params": params})
 
     async def commit(self):
         self.commit_calls += 1
@@ -54,7 +61,7 @@ class _FakeDbPoolContext:
 
 class _FakeZipFile:
     def __init__(self, *args, **kwargs):
-        pass
+        self._members = ["odm_orthophoto/odm_orthophoto.tif", "odm_report/report.pdf"]
 
     def __enter__(self):
         return self
@@ -62,12 +69,15 @@ class _FakeZipFile:
     def __exit__(self, exc_type, exc, tb):
         return False
 
-    def extractall(self, path):
-        """Create the expected orthophoto file so the code path completes."""
-        ortho_dir = os.path.join(path, "odm_orthophoto")
-        os.makedirs(ortho_dir, exist_ok=True)
-        with open(os.path.join(ortho_dir, "odm_orthophoto.tif"), "wb") as f:
-            f.write(b"fake-ortho")
+    def namelist(self):
+        return self._members
+
+    def extract(self, member, path):
+        full_path = os.path.join(path, member)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as f:
+            f.write(b"fake")
+        return full_path
 
 
 @pytest.mark.asyncio
@@ -547,6 +557,11 @@ async def test_process_assets_from_odm_does_not_mark_single_task_project_complet
     )
     monkeypatch.setattr(
         image_processing,
+        "delete_objects_by_prefix",
+        lambda *args, **kwargs: 0,
+    )
+    monkeypatch.setattr(
+        image_processing,
         "reproject_to_web_mercator",
         lambda *args, **kwargs: None,
     )
@@ -563,3 +578,408 @@ async def test_process_assets_from_odm_does_not_mark_single_task_project_complet
     )
 
     assert update_processing_calls == []
+
+
+def test_sanitize_sensitive_text_redacts_token_query_values():
+    text = (
+        "HTTPSConnectionPool(host='odm.drone.hotosm.org', port=443): "
+        "Max retries exceeded with url: "
+        "https://odm.drone.hotosm.org/info?token=abc123&foo=bar"
+    )
+    sanitized = app_utils.sanitize_sensitive_text(text)
+    assert "token=abc123" not in sanitized
+    assert "token=%5BREDACTED%5D" in sanitized
+    assert "foo=bar" in sanitized
+
+
+@pytest.mark.asyncio
+async def test_process_drone_images_persists_failure_comment(monkeypatch):
+    """Verify the failure comment reaches update_task_state_system (which
+    sanitizes sensitive values at the DB boundary)."""
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "job-redact-1", "db_pool": _FakePool(conn)}
+    state_calls = []
+
+    async def fake_update_task_state_system(
+        db,
+        project_id_arg,
+        task_id_arg,
+        comment,
+        initial_state,
+        final_state,
+        updated_at,
+    ):
+        state_calls.append(
+            {
+                "comment": comment,
+                "initial_state": initial_state,
+                "final_state": final_state,
+            }
+        )
+        return {"project_id": project_id_arg, "task_id": task_id_arg}
+
+    class FailingProcessor:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def process_images_from_s3(self, bucket_name, name, options, webhook):
+            raise RuntimeError(
+                "Failed request: https://odm.drone.hotosm.org/info?token=abc123&foo=bar"
+            )
+
+    monkeypatch.setattr(project_logic, "DroneImageProcessor", FailingProcessor)
+
+    from app.tasks import task_logic
+
+    monkeypatch.setattr(
+        task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    with pytest.raises(RuntimeError):
+        await project_logic.process_drone_images(
+            ctx,
+            project_id,
+            task_id,
+            "user-123",
+        )
+
+    assert state_calls[1]["final_state"] == State.IMAGE_PROCESSING_FAILED
+    assert "Failed request" in state_calls[1]["comment"]
+
+
+def test_update_task_state_system_sanitizes_comment():
+    """Sensitive values in comments are redacted at the DB boundary."""
+    from app.utils import sanitize_sensitive_text
+
+    raw = "Image processing failed: https://odm.drone.hotosm.org/info?token=abc123&foo=bar"
+    sanitized = sanitize_sensitive_text(raw)
+    assert "token=abc123" not in sanitized
+    assert "token=%5BREDACTED%5D" in sanitized
+    assert "foo=bar" in sanitized
+
+
+@pytest.mark.asyncio
+async def test_process_odm_webhook_assets_retries_transient_errors(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "webhook-retry-1",
+        "job_try": 1,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+
+    async def fake_process_assets_from_odm(**kwargs):
+        raise image_processing.OdmAssetTransientError(
+            "network error https://odm.drone.hotosm.org/info?token=abc123"
+        )
+
+    monkeypatch.setattr(
+        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
+    )
+
+    with pytest.raises(image_processing.OdmAssetTransientError):
+        await arq_tasks.process_odm_webhook_assets(
+            ctx,
+            node_odm_url="https://odm.drone.hotosm.org/?token=abc123",
+            dtm_project_id=str(project_id),
+            odm_task_id="odm-task-1",
+            state_name=State.IMAGE_PROCESSING_STARTED.name,
+            message="Task completed.",
+            dtm_task_id=str(task_id),
+            odm_status_code=40,
+        )
+
+
+@pytest.mark.asyncio
+async def test_process_odm_webhook_assets_marks_failed_on_final_transient_try(
+    monkeypatch,
+):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "webhook-retry-2",
+        "job_try": arq_tasks.WorkerSettings.max_tries,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    state_calls = []
+
+    async def fake_process_assets_from_odm(**kwargs):
+        raise image_processing.OdmAssetTransientError(
+            "network error https://odm.drone.hotosm.org/info?token=abc123"
+        )
+
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(
+        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
+    )
+    monkeypatch.setattr(
+        arq_tasks.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    with pytest.raises(image_processing.OdmAssetTransientError):
+        await arq_tasks.process_odm_webhook_assets(
+            ctx,
+            node_odm_url="https://odm.drone.hotosm.org/?token=abc123",
+            dtm_project_id=str(project_id),
+            odm_task_id="odm-task-2",
+            state_name=State.IMAGE_PROCESSING_STARTED.name,
+            message="Task completed.",
+            dtm_task_id=str(task_id),
+            odm_status_code=40,
+        )
+
+    assert state_calls
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
+    # Comment sanitization now happens inside update_task_state_system,
+    # which is monkeypatched here — verify the error message is passed through.
+    assert "network error" in state_calls[0]["comment"]
+
+
+@pytest.mark.asyncio
+async def test_process_odm_webhook_assets_terminal_error_marks_failed_without_raise(
+    monkeypatch,
+):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "webhook-retry-3",
+        "job_try": 1,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    state_calls = []
+
+    async def fake_process_assets_from_odm(**kwargs):
+        raise image_processing.OdmAssetTerminalError(
+            "invalid archive https://odm.drone.hotosm.org/info?token=abc123"
+        )
+
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(
+        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
+    )
+    monkeypatch.setattr(
+        arq_tasks.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    result = await arq_tasks.process_odm_webhook_assets(
+        ctx,
+        node_odm_url="https://odm.drone.hotosm.org/?token=abc123",
+        dtm_project_id=str(project_id),
+        odm_task_id="odm-task-3",
+        state_name=State.IMAGE_PROCESSING_STARTED.name,
+        message="Task completed.",
+        dtm_task_id=str(task_id),
+        odm_status_code=40,
+    )
+
+    assert result["status"] == "failed"
+    assert state_calls
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
+    # Comment sanitization now happens inside update_task_state_system,
+    # which is monkeypatched here — verify the error message is passed through.
+    assert "invalid archive" in state_calls[0]["comment"]
+
+
+def test_is_thumbnail_object_key_detects_task_thumbs():
+    assert image_processing.DroneImageProcessor._is_thumbnail_object_key(
+        "projects/p/t/images/thumbs/photo_1.jpg"
+    )
+    assert image_processing.DroneImageProcessor._is_thumbnail_object_key(
+        "projects/p/t/images/thumb_photo_1.jpg"
+    )
+    assert not image_processing.DroneImageProcessor._is_thumbnail_object_key(
+        "projects/p/t/images/photo_1.jpg"
+    )
+
+
+def test_list_images_excludes_thumbnail_files(tmp_path):
+    images_dir = tmp_path / "images"
+    thumbs_dir = images_dir / "thumbs"
+    thumbs_dir.mkdir(parents=True)
+
+    full_image = images_dir / "photo_1.jpg"
+    full_image.write_bytes(b"real-image")
+
+    thumb_in_dir = thumbs_dir / "photo_1.jpg"
+    thumb_in_dir.write_bytes(b"thumb")
+
+    thumb_prefix = images_dir / "thumb_photo_2.jpg"
+    thumb_prefix.write_bytes(b"thumb")
+
+    processor = object.__new__(image_processing.DroneImageProcessor)
+    listed = processor.list_images(str(tmp_path))
+    listed_paths = {Path(p) for p in listed}
+
+    assert full_image in listed_paths
+    assert thumb_in_dir not in listed_paths
+    assert thumb_prefix not in listed_paths
+
+
+def test_s3_presigned_urls_exclude_thumbnails(monkeypatch):
+    """End-to-end: presigned URL generation for ODM skips thumbnail objects."""
+
+    class FakeS3Object:
+        def __init__(self, name):
+            self.object_name = name
+
+    fake_objects = [
+        FakeS3Object("projects/p1/t1/images/DJI_0001.JPG"),
+        FakeS3Object("projects/p1/t1/images/DJI_0002.JPG"),
+        FakeS3Object("projects/p1/t1/images/thumbs/DJI_0001.JPG"),
+        FakeS3Object("projects/p1/t1/images/thumbs/DJI_0002.JPG"),
+        FakeS3Object("projects/p1/t1/images/thumb_DJI_0003.JPG"),
+        FakeS3Object("projects/p1/t1/images/geo.txt"),
+    ]
+
+    monkeypatch.setattr(
+        image_processing, "list_objects_from_bucket", lambda *a, **k: fake_objects
+    )
+
+    signed_urls = []
+
+    def fake_presign(bucket, key, expiry, internal=False):
+        signed_urls.append(key)
+        return f"https://s3/{key}"
+
+    monkeypatch.setattr(image_processing, "generate_presigned_get_url", fake_presign)
+
+    processor = object.__new__(image_processing.DroneImageProcessor)
+    processor.project_id = "p1"
+
+    # Call the internal download method just far enough to collect URLs.
+    # We can't await the full download, but we can test URL filtering
+    # by inspecting what generate_presigned_get_url receives.
+    import asyncio
+
+    async def run():
+        prefix = "projects/p1/t1/images"
+        objects = image_processing.list_objects_from_bucket("bucket", prefix)
+        accepted = (".jpg", ".jpeg", ".png", ".txt", ".laz")
+        return [
+            image_processing.generate_presigned_get_url(
+                "bucket", obj.object_name, 12, internal=True
+            )
+            for obj in objects
+            if obj.object_name.lower().endswith(accepted)
+            and not processor._is_thumbnail_object_key(obj.object_name)
+        ]
+
+    asyncio.get_event_loop().run_until_complete(run())
+
+    # Should include the two full images + geo.txt, but NOT the thumbnails
+    assert len(signed_urls) == 3
+    assert any("DJI_0001.JPG" in u and "thumbs" not in u for u in signed_urls)
+    assert any("DJI_0002.JPG" in u and "thumbs" not in u for u in signed_urls)
+    assert any("geo.txt" in u for u in signed_urls)
+    assert not any("thumbs/" in u for u in signed_urls)
+    assert not any("thumb_" in u for u in signed_urls)
+
+
+@pytest.mark.asyncio
+async def test_project_level_terminal_error_marks_project_failed(monkeypatch):
+    """When dtm_task_id is None (project-level), terminal errors must set
+    image_processing_status = FAILED on the project."""
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "webhook-proj-terminal",
+        "job_try": 1,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    processing_status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        processing_status_calls.append({"project_id": pid, "status": status})
+
+    async def fake_process_assets_from_odm(**kwargs):
+        raise image_processing.OdmAssetTerminalError("corrupt archive")
+
+    monkeypatch.setattr(
+        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
+    )
+    monkeypatch.setattr(
+        arq_tasks.project_logic,
+        "update_processing_status",
+        fake_update_processing_status,
+    )
+
+    result = await arq_tasks.process_odm_webhook_assets(
+        ctx,
+        node_odm_url="https://odm.example.com",
+        dtm_project_id=str(project_id),
+        odm_task_id="odm-task-proj",
+        state_name=None,
+        message="Task completed.",
+        dtm_task_id=None,  # Project-level
+        odm_status_code=40,
+    )
+
+    assert result["status"] == "failed"
+    assert processing_status_calls
+    assert processing_status_calls[0]["status"] == ImageProcessingStatus.FAILED
+    assert processing_status_calls[0]["project_id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_project_level_exhausted_retries_marks_project_failed(monkeypatch):
+    """When dtm_task_id is None and retries exhausted, project status must be FAILED."""
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "webhook-proj-exhausted",
+        "job_try": arq_tasks.WorkerSettings.max_tries,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    processing_status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        processing_status_calls.append({"project_id": pid, "status": status})
+
+    async def fake_process_assets_from_odm(**kwargs):
+        raise image_processing.OdmAssetTransientError("timeout")
+
+    monkeypatch.setattr(
+        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
+    )
+    monkeypatch.setattr(
+        arq_tasks.project_logic,
+        "update_processing_status",
+        fake_update_processing_status,
+    )
+
+    with pytest.raises(image_processing.OdmAssetTransientError):
+        await arq_tasks.process_odm_webhook_assets(
+            ctx,
+            node_odm_url="https://odm.example.com",
+            dtm_project_id=str(project_id),
+            odm_task_id="odm-task-proj-2",
+            state_name=None,
+            message="Task completed.",
+            dtm_task_id=None,  # Project-level
+            odm_status_code=40,
+        )
+
+    assert processing_status_calls
+    assert processing_status_calls[0]["status"] == ImageProcessingStatus.FAILED

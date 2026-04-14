@@ -8,6 +8,7 @@ import {
   useStartProjectClassificationMutation,
   useIngestExistingUploadsMutation,
   useGetProjectStatusQuery,
+  useResetStaleClassificationMutation,
 } from "@Api/projects";
 import ImageUpload from "./ImageUpload";
 import ImageReview from "./ImageReview";
@@ -305,6 +306,23 @@ export const ClassifyImageryDialog = ({
     },
   });
 
+  const resetStaleMutation = useResetStaleClassificationMutation({
+    onSuccess: (data) => {
+      if (data.reset_count > 0) {
+        toast.success(`Reset ${data.reset_count} stuck image(s). You can now re-classify.`);
+      } else {
+        toast.info("No stuck images found. Try starting classification again.");
+      }
+      setIsPolling(false);
+      setHasStarted(false);
+      setIsComplete(false);
+      queryClient.invalidateQueries({ queryKey: ["project-imagery-status", projectId] });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to reset: ${error?.message || "Unknown error"}`);
+    },
+  });
+
   // Query for project status - only poll while classification is running
   const {
     data: projectStatus,
@@ -497,11 +515,22 @@ export const ClassifyImageryDialog = ({
                       }}
                     ></div>
                   </div>
-                  <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-                    {computedStats.processing > 0 &&
-                      `${computedStats.processing} currently processing. `}
-                    Updates every 10 seconds.
-                  </p>
+                  <div className="naxatw-mt-1 naxatw-flex naxatw-items-center naxatw-justify-between">
+                    <p className="naxatw-text-xs naxatw-text-gray-500">
+                      {computedStats.processing > 0 &&
+                        `${computedStats.processing} currently processing. `}
+                      Updates every 10 seconds.
+                    </p>
+                    <button
+                      onClick={() => resetStaleMutation.mutate({ projectId })}
+                      disabled={resetStaleMutation.isPending}
+                      className="naxatw-flex naxatw-items-center naxatw-gap-1 naxatw-rounded naxatw-border naxatw-border-amber-300 naxatw-bg-amber-50 naxatw-px-2 naxatw-py-1 naxatw-text-xs naxatw-font-medium naxatw-text-amber-700 hover:naxatw-bg-amber-100 disabled:naxatw-opacity-50 disabled:naxatw-cursor-not-allowed naxatw-transition-colors"
+                      title="Reset images stuck in classification for more than 10 minutes"
+                    >
+                      <span className="material-icons naxatw-text-sm">refresh</span>
+                      {resetStaleMutation.isPending ? "Resetting..." : "Reset Stuck"}
+                    </button>
+                  </div>
                 </div>
               )}
 

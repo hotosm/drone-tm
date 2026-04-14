@@ -14,7 +14,7 @@ In this case, there’s a horrible workaround to transfer the file using the MTP
 
 We've found these in the wild in Zambia with a team including members from Zimbabwe, South Africa, and Malawi.
 
-- Open browser on phone, go to [dronetm.org](http://dronetm.org/), hit the round target "location" button.
+- Open browser on phone, go to [drone.hotosm.org](http://drone.hotosm.org), hit the round target "location" button.
   - You may need to give permission to the website to use location
 - Using the blue location dot as a guide, walk to a nice takeoff point within the task area
 - Push the "Change Take off Point" button

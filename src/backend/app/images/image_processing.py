@@ -27,6 +27,40 @@ from app.s3 import (
 from app.tasks import task_logic
 from app.utils import timestamp
 
+ODM_GET_TASK_TIMEOUT_SEC = 60
+ODM_DOWNLOAD_ZIP_TIMEOUT_SEC = (
+    7200  # 2 hours - large projects can produce multi-GB zips
+)
+
+
+class OdmAssetProcessingError(RuntimeError):
+    """Base exception for ODM asset post-processing failures."""
+
+
+class OdmAssetTransientError(OdmAssetProcessingError):
+    """Retryable ODM asset post-processing failure."""
+
+
+class OdmAssetTerminalError(OdmAssetProcessingError):
+    """Non-retryable ODM asset post-processing failure."""
+
+
+def _is_retryable_odm_exception(exc: Exception) -> bool:
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError, ConnectionError, OSError)):
+        return True
+
+    details = str(exc).lower()
+    transient_markers = (
+        "no route to host",
+        "max retries exceeded",
+        "failed to establish a new connection",
+        "connection refused",
+        "temporarily unavailable",
+        "temporary failure",
+        "timed out",
+    )
+    return any(marker in details for marker in transient_markers)
+
 
 class DroneImageProcessor:
     def __init__(
@@ -69,6 +103,13 @@ class DroneImageProcessor:
                 opts[o["name"]] = o["value"]
         return opts
 
+    @staticmethod
+    def _is_thumbnail_object_key(object_key: str) -> bool:
+        normalized_key = object_key.lower().replace("\\", "/")
+        return "/thumbs/" in normalized_key or Path(normalized_key).name.startswith(
+            "thumb_"
+        )
+
     def list_images(self, directory: str) -> List[str]:
         """List all image files in a directory.
 
@@ -79,8 +120,11 @@ class DroneImageProcessor:
         path = Path(directory)
 
         for file in path.rglob("*"):
-            if file.suffix.lower() in {".jpg", ".jpeg", ".png", ".txt", ".laz"}:
-                images.append(str(file))
+            if file.suffix.lower() not in {".jpg", ".jpeg", ".png", ".txt", ".laz"}:
+                continue
+            if self._is_thumbnail_object_key(str(file)):
+                continue
+            images.append(str(file))
         return images
 
     async def download_image(self, session, url, save_path) -> bool:
@@ -133,6 +177,7 @@ class DroneImageProcessor:
             generate_presigned_get_url(bucket_name, obj.object_name, 12, internal=True)
             for obj in objects
             if obj.object_name.lower().endswith(accepted_file_extensions)
+            and not self._is_thumbnail_object_key(obj.object_name)
         ]
 
         total_files = len(object_urls)
@@ -519,6 +564,7 @@ async def process_assets_from_odm(
     message=None,
     dtm_task_id=None,
     odm_status_code: Optional[int] = None,
+    persist_failure_state: bool = True,
 ):
     """Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
     Updates task state if required.
@@ -563,13 +609,43 @@ async def process_assets_from_odm(
 
     try:
         os.makedirs(output_file_path, exist_ok=True)
-        task = node.get_task(odm_task_id)
+        try:
+            task = await asyncio.wait_for(
+                asyncio.to_thread(node.get_task, odm_task_id),
+                timeout=ODM_GET_TASK_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError as e:
+            raise OdmAssetTransientError(
+                f"Timed out fetching ODM task info after {ODM_GET_TASK_TIMEOUT_SEC}s"
+            ) from e
+        except Exception as e:
+            if _is_retryable_odm_exception(e):
+                raise OdmAssetTransientError(
+                    f"Failed to fetch ODM task info: {e}"
+                ) from e
+            raise
+
         log.info(f"Downloading results for task {odm_task_id} to {output_file_path}")
 
         if str(odm_status_code) == "30":
             status = ImageProcessingStatus.FAILED
         elif str(odm_status_code) == "40":
-            assets_path = task.download_zip(output_file_path)
+            try:
+                assets_path = await asyncio.wait_for(
+                    asyncio.to_thread(task.download_zip, output_file_path),
+                    timeout=ODM_DOWNLOAD_ZIP_TIMEOUT_SEC,
+                )
+            except asyncio.TimeoutError as e:
+                raise OdmAssetTransientError(
+                    f"Timed out downloading ODM assets after {ODM_DOWNLOAD_ZIP_TIMEOUT_SEC}s"
+                ) from e
+            except Exception as e:
+                if _is_retryable_odm_exception(e):
+                    raise OdmAssetTransientError(
+                        f"Failed to download ODM assets: {e}"
+                    ) from e
+                raise
+
             if not os.path.exists(assets_path):
                 log.error(f"Downloaded file not found: {assets_path}")
                 raise FileNotFoundError(f"Downloaded file not found: {assets_path}")
@@ -626,36 +702,55 @@ async def process_assets_from_odm(
         log.error(f"Error during processing for project {dtm_project_id}: {e}")
 
         # Clean up any partially-uploaded ODM assets so a retry starts clean.
-        if dtm_task_id:
-            try:
-                task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-                partial_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
-                delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
-                log.info(f"Cleaned up partial ODM assets for task {dtm_task_id}")
-            except Exception as cleanup_err:
-                log.warning(f"Failed to clean up partial ODM assets: {cleanup_err}")
+        try:
+            task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
+            partial_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
+            delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
+            target = dtm_task_id or dtm_project_id
+            log.info(f"Cleaned up partial ODM assets for {target}")
+        except Exception as cleanup_err:
+            log.warning(
+                f"Failed to clean up partial ODM assets: {cleanup_err}",
+            )
 
-        if state and dtm_task_id:
+        if persist_failure_state:
             try:
                 pool = await database.get_db_connection_pool()
                 async with pool as pool_instance:
                     async with pool_instance.connection() as conn:
-                        await task_logic.update_task_state_system(
-                            db=conn,
-                            project_id=dtm_project_id,
-                            task_id=dtm_task_id,
-                            comment=f"Image processing failed: {e}",
-                            initial_state=state,
-                            final_state=State.IMAGE_PROCESSING_FAILED,
-                            updated_at=timestamp(),
-                        )
-                        log.info(
-                            f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FAILED."
-                        )
+                        if state and dtm_task_id:
+                            await task_logic.update_task_state_system(
+                                db=conn,
+                                project_id=dtm_project_id,
+                                task_id=dtm_task_id,
+                                comment=f"Image processing failed: {e}",
+                                initial_state=state,
+                                final_state=State.IMAGE_PROCESSING_FAILED,
+                                updated_at=timestamp(),
+                            )
+                            log.info(
+                                f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FAILED."
+                            )
+                        elif not dtm_task_id:
+                            await project_logic.update_processing_status(
+                                conn, dtm_project_id, ImageProcessingStatus.FAILED
+                            )
+                            log.info(
+                                f"Project {dtm_project_id} status updated to FAILED."
+                            )
             except Exception as state_err:
-                log.error(
-                    f"Failed to update task {dtm_task_id} state to FAILED: {state_err}"
-                )
+                target = dtm_task_id or dtm_project_id
+                log.error(f"Failed to persist failure state for {target}: {state_err}")
+
+        if isinstance(e, OdmAssetTerminalError):
+            raise
+        if isinstance(e, OdmAssetTransientError):
+            raise
+
+        if _is_retryable_odm_exception(e):
+            raise OdmAssetTransientError(str(e)) from e
+
+        raise OdmAssetTerminalError(str(e)) from e
 
     finally:
         if task:

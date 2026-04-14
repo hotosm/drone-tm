@@ -172,6 +172,10 @@ class DbProject(Base):
         Column(Enum(OAMUploadStatus), default=OAMUploadStatus.NOT_STARTED),
     )  # status of oam upload
 
+    # Project-level ODM processing metadata (for reconciliation/recovery)
+    odm_task_uuid = cast(str, Column(String, nullable=True))
+    odm_endpoint_used = cast(str, Column(String, nullable=True))
+
     regulator_comment = cast(str, Column(String, nullable=True))
     commenting_regulator_id = cast(
         str,

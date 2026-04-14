@@ -3,7 +3,7 @@ import json
 import uuid
 from collections import defaultdict
 from urllib.parse import urlparse, urlunparse
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Dict, List, Optional
 from uuid import UUID
 
@@ -34,7 +34,12 @@ from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.db import database
 from app.jaxa.upload_dem import enqueue_dem_download
-from app.models.enums import HTTPStatus, OAMUploadStatus, ProjectCompletionStatus, State
+from app.models.enums import (
+    HTTPStatus,
+    OAMUploadStatus,
+    ProjectCompletionStatus,
+    State,
+)
 from app.images.image_classification import ImageClassifier
 from app.projects import project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
@@ -71,50 +76,15 @@ router = APIRouter(
 )
 
 
-ODM_STATUS_LABELS = {
-    10: "Queued",
-    20: "Running",
-    30: "Failed",
-    40: "Completed",
-    50: "Canceled",
-}
+ODM_STATUS_LABELS = project_logic.ODM_STATUS_LABELS
 
 ODM_QUEUE_DISPLAY_CODES = {10, 20, 30}
 
 
-def _parse_odm_status(raw_status) -> tuple[int, str]:
-    """Parse a NodeODM status field into (status_code, status_label).
-
-    NodeODM returns status as an object like ``{"code": 20}`` or as a plain
-    integer.  We normalise both forms into an ``(int, str)`` pair.
-    """
-    if isinstance(raw_status, dict):
-        code = raw_status.get("code", 0)
-    elif isinstance(raw_status, (int, float)):
-        code = int(raw_status)
-    else:
-        code = 0
-    label = ODM_STATUS_LABELS.get(code, f"Unknown ({code})")
-    return code, label
-
-
-def _extract_valid_odm_task_info(payload: dict | None) -> dict | None:
-    """Return only real NodeODM task info payloads.
-
-    NodeODM can return HTTP 200 with an error JSON for deleted tasks, for example
-    ``{"error": "<uuid> not found"}``. Those payloads should be treated as
-    missing task info so the DB-backed fallback logic can classify the task.
-    """
-    if not isinstance(payload, dict):
-        return None
-
-    raw_status = payload.get("status")
-    if isinstance(raw_status, dict) and "code" in raw_status:
-        return payload
-    if isinstance(raw_status, (int, float)):
-        return payload
-
-    return None
+# Re-export from project_logic for local use in this module.
+_parse_odm_status = project_logic.parse_odm_status
+_extract_valid_odm_task_info = project_logic.extract_valid_odm_task_info
+_get_project_odm_endpoint = project_logic.get_project_odm_endpoint
 
 
 @router.get(
@@ -625,6 +595,7 @@ async def process_all_imagery(
 async def odm_webhook_for_processing_whole_project(
     request: Request,
     dtm_project_id: uuid.UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
     redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
 ):
     payload = await request.json()
@@ -641,9 +612,12 @@ async def odm_webhook_for_processing_whole_project(
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
     if status["code"] in {30, 40}:
+        # Use the endpoint persisted when processing started so downloads
+        # target the correct server even if config has changed since.
+        node_odm_url = await _get_project_odm_endpoint(db, dtm_project_id)
         await redis_pool.enqueue_job(
             "process_odm_webhook_assets",
-            node_odm_url=settings.ODM_ENDPOINT,
+            node_odm_url=node_odm_url,
             dtm_project_id=str(dtm_project_id),
             odm_task_id=odm_task_id,
             odm_status_code=status["code"],
@@ -1238,7 +1212,10 @@ async def get_odm_queue_info(
     reports it as failed/completed/canceled (or doesn't know about it),
     we reconcile the state automatically.
     """
-    odm_url = settings.ODM_ENDPOINT
+    # Prefer the ODM endpoint persisted when processing started (ensures
+    # reconciliation targets the correct server even if config changes).
+    # Fall back to the current config if no persisted endpoint exists.
+    odm_url = getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
     if not odm_url:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -1253,6 +1230,12 @@ async def get_odm_queue_info(
         path = f"{parsed.path.rstrip('/')}/task/{odm_uuid}/info"
         return urlunparse((parsed.scheme, parsed.netloc, path, "", odm_query, ""))
 
+    # Minimum age (seconds) a task must be in STARTED state before
+    # "not found on NodeODM" is treated as a definitive loss.  Prevents
+    # false failure when a task was just submitted and NodeODM hasn't
+    # registered it yet.
+    NOT_FOUND_AGE_THRESHOLD_SEC = 1800  # 30 minutes
+
     # Get all project tasks that have been sent to ODM (any state)
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -1260,7 +1243,8 @@ async def get_odm_queue_info(
             WITH latest_state AS (
                 SELECT DISTINCT ON (te.task_id)
                     te.task_id,
-                    te.state
+                    te.state,
+                    te.created_at AS state_entered_at
                 FROM task_events te
                 ORDER BY te.task_id, te.created_at DESC
             )
@@ -1268,7 +1252,8 @@ async def get_odm_queue_info(
                 t.id,
                 t.project_task_index,
                 t.odm_task_uuid,
-                ls.state
+                ls.state,
+                ls.state_entered_at
             FROM tasks t
             JOIN latest_state ls ON ls.task_id = t.id
             WHERE
@@ -1281,15 +1266,25 @@ async def get_odm_queue_info(
         all_odm_tasks = await cur.fetchall()
 
     if not all_odm_tasks:
+        # No per-task ODM submissions. Check for a project-level ODM run.
+        project_odm_info = await project_logic.reconcile_project_level_odm(
+            db,
+            project,
+            odm_url,
+            parsed,
+            odm_query,
+            redis_pool,
+            NOT_FOUND_AGE_THRESHOLD_SEC,
+        )
         return project_schemas.OdmQueueInfo(
-            total_queued=0,
-            total_running=0,
-            total_failed=0,
-            total_completed=0,
+            total_queued=project_odm_info.get("queued", 0),
+            total_running=project_odm_info.get("running", 0),
+            total_failed=project_odm_info.get("failed", 0),
+            total_completed=project_odm_info.get("completed", 0),
             total_canceled=0,
-            total_tasks=0,
+            total_tasks=project_odm_info.get("total", 0),
             queue_position=None,
-            groups=[],
+            groups=project_odm_info.get("groups", []),
         )
 
     # Fetch real status from NodeODM for each task via /task/{uuid}/info
@@ -1457,32 +1452,57 @@ async def get_odm_queue_info(
             )
         else:
             # NodeODM returned a valid response but doesn't know this task
-            # (deleted/expired). This is a definitive "not found".
+            # (deleted/expired). Only treat as a definitive loss if the task
+            # has been in STARTED state long enough; otherwise it may simply
+            # not have been registered on NodeODM yet.
+            state_entered_at = db_task.get("state_entered_at")
             if db_state == "IMAGE_PROCESSING_STARTED":
-                # Mark as failed since NodeODM lost it
-                status_code = 30
-                status_label = "Failed (lost)"
-                try:
-                    await task_logic.update_task_state_system(
-                        db,
-                        project.id,
+                age_ok = True
+                if state_entered_at:
+                    entered = state_entered_at
+                    if entered.tzinfo is None:
+                        entered = entered.replace(tzinfo=timezone.utc)
+                    age_sec = (datetime.now(timezone.utc) - entered).total_seconds()
+                    age_ok = age_sec >= NOT_FOUND_AGE_THRESHOLD_SEC
+
+                if not age_ok:
+                    # Too young to declare lost - keep showing as running.
+                    status_code = 20
+                    status_label = "Running (awaiting NodeODM registration)"
+                    log.debug(
+                        "Skipping not-found reconciliation for task {} "
+                        "(only {}s in STARTED, threshold {}s)",
                         dtm_task_id,
-                        "Reconciled: task not found on NodeODM",
-                        State.IMAGE_PROCESSING_STARTED,
-                        State.IMAGE_PROCESSING_FAILED,
-                        timestamp(),
+                        int(age_sec),
+                        NOT_FOUND_AGE_THRESHOLD_SEC,
                     )
-                    reconciled.append(
-                        f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED (not found on NodeODM)"
-                    )
-                    log.warning(
-                        "Reconciled lost task: project={} dtm_task={} odm_uuid={} not found on NodeODM",
-                        project.id,
-                        dtm_task_id,
-                        odm_uuid,
-                    )
-                except Exception as e:
-                    log.error("Failed to reconcile lost task {}: {}", dtm_task_id, e)
+                else:
+                    # Old enough - mark as failed since NodeODM lost it.
+                    status_code = 30
+                    status_label = "Failed (lost)"
+                    try:
+                        await task_logic.update_task_state_system(
+                            db,
+                            project.id,
+                            dtm_task_id,
+                            "Reconciled: task not found on NodeODM",
+                            State.IMAGE_PROCESSING_STARTED,
+                            State.IMAGE_PROCESSING_FAILED,
+                            timestamp(),
+                        )
+                        reconciled.append(
+                            f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED (not found on NodeODM)"
+                        )
+                        log.warning(
+                            "Reconciled lost task: project={} dtm_task={} odm_uuid={} not found on NodeODM",
+                            project.id,
+                            dtm_task_id,
+                            odm_uuid,
+                        )
+                    except Exception as e:
+                        log.error(
+                            "Failed to reconcile lost task {}: {}", dtm_task_id, e
+                        )
             elif db_state == "IMAGE_PROCESSING_FINISHED":
                 continue
             elif db_state == "IMAGE_PROCESSING_FAILED":

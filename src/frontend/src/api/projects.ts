@@ -7,6 +7,7 @@ import {
   startProjectClassification,
   ingestExistingUploads,
   getProjectStatus,
+  resetStaleClassification,
   BatchStatusSummary,
 } from "@Services/classification";
 
@@ -122,5 +123,18 @@ export const useGetProjectStatusQuery = (
     queryFn: async () => getProjectStatus(projectId),
     enabled: !!projectId,
     ...queryOptions,
+  });
+};
+
+export const useResetStaleClassificationMutation = (
+  mutationOptions?: UseMutationOptions<
+    { message: string; project_id: string; reset_count: number },
+    Error,
+    { projectId: string }
+  >,
+) => {
+  return useMutation({
+    mutationFn: ({ projectId }) => resetStaleClassification(projectId),
+    ...mutationOptions,
   });
 };
