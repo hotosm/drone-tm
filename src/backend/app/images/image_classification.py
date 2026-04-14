@@ -1144,7 +1144,7 @@ class ImageClassifier:
         project_id: uuid.UUID,
     ) -> dict:
         keys_query = """
-            SELECT s3_key, thumbnail_url
+            SELECT s3_key, thumbnail_url, status
             FROM project_images
             WHERE batch_id = %(batch_id)s
             AND project_id = %(project_id)s
@@ -1157,8 +1157,12 @@ class ImageClassifier:
             )
             rows = await cur.fetchall()
 
+        # Duplicates share the same S3 key as the original image, so
+        # deleting the S3 object would destroy the original's file.
         s3_keys_to_delete: list[str] = []
         for row in rows:
+            if row["status"] == ImageStatus.DUPLICATE.value:
+                continue
             if row["s3_key"]:
                 s3_keys_to_delete.append(str(row["s3_key"]).lstrip("/"))
             if row["thumbnail_url"]:
@@ -1218,7 +1222,7 @@ class ImageClassifier:
         invalid_statuses = ("rejected", "invalid_exif", "unmatched", "duplicate")
 
         keys_query = """
-            SELECT id, s3_key, thumbnail_url
+            SELECT id, s3_key, thumbnail_url, status
             FROM project_images
             WHERE project_id = %(project_id)s
             AND task_id IS NULL
@@ -1251,6 +1255,13 @@ class ImageClassifier:
         failed_image_ids: list[str] = []
 
         for row in rows:
+            # Duplicates share the same S3 key as the original image, so
+            # deleting the S3 object would destroy the original's file.
+            # Only remove the DB row for duplicates; skip S3 deletion.
+            if row["status"] == ImageStatus.DUPLICATE.value:
+                succeeded_image_ids.append(row["id"])
+                continue
+
             s3_key = str(row["s3_key"]).lstrip("/") if row["s3_key"] else None
             thumb_key = (
                 str(row["thumbnail_url"]).lstrip("/") if row["thumbnail_url"] else None

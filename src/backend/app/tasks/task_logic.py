@@ -11,7 +11,11 @@ from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks.task_schemas import NewEvent, TaskStats
 from app.users.user_schemas import DbUser, AuthUser
-from app.utils import render_email_template, send_notification_email
+from app.utils import (
+    render_email_template,
+    sanitize_sensitive_text,
+    send_notification_email,
+)
 
 
 log = logging.getLogger(__name__)
@@ -218,7 +222,11 @@ async def update_task_state_system(
 
     This is for system/background processes (like batch processing)
     where we need to update state without a specific user context.
+
+    The comment is sanitized to redact sensitive values (e.g. tokens
+    embedded in NodeODM URLs) before persisting to the database.
     """
+    comment = sanitize_sensitive_text(comment)
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """

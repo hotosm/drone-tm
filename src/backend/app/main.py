@@ -39,6 +39,31 @@ FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
 frontend_html = Jinja2Templates(directory=FRONTEND_DIR)
 
 
+class _SanitizingStream:
+    """Wraps a stream to redact sensitive values (e.g. tokens) from log output.
+
+    Used as the loguru sink so that both direct loguru calls *and*
+    stdlib logging routed through InterceptHandler are sanitized.
+    """
+
+    __slots__ = ("_stream",)
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, message):
+        self._stream.write(sanitize_sensitive_text(message))
+
+    def flush(self):
+        self._stream.flush()
+
+    def isatty(self):
+        return hasattr(self._stream, "isatty") and self._stream.isatty()
+
+    def fileno(self):
+        return self._stream.fileno()
+
+
 class InterceptHandler(logging.Handler):
     """Intercept python standard lib logging."""
 
@@ -48,8 +73,7 @@ class InterceptHandler(logging.Handler):
         This happens to be in the 6th frame upward.
         """
         logger_opt = log.opt(depth=6, exception=record.exc_info)
-        safe_message = sanitize_sensitive_text(record.getMessage())
-        logger_opt.log(logging.getLevelName(record.levelno), safe_message)
+        logger_opt.log(logging.getLevelName(record.levelno), record.getMessage())
 
 
 def healthcheck_log_filter(record):
@@ -95,7 +119,7 @@ def get_logger():
 
     log.remove()
     log.add(
-        sys.stderr,
+        _SanitizingStream(sys.stderr),
         level=settings.LOG_LEVEL,
         format=(
             "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} "

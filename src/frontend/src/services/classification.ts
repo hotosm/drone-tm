@@ -108,6 +108,21 @@ export const ingestExistingUploads = async (
   return response.data;
 };
 
+/**
+ * Reset images stuck in 'classifying' state back to 'uploaded' so they can be re-classified.
+ * Only affects images stale for >10 minutes.
+ */
+export const resetStaleClassification = async (
+  projectId: string,
+): Promise<{ message: string; project_id: string; reset_count: number }> => {
+  const response = await authenticated(api).post(
+    `/projects/${projectId}/classify/reset-stale/`,
+    {},
+    { headers: { "Content-Type": "application/json" } },
+  );
+  return response.data;
+};
+
 // ─── Project-scoped classification endpoints ────────────────────────────────
 
 /**

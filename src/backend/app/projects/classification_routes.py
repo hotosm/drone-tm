@@ -47,6 +47,57 @@ class FlightGapDownloadPlanRequest(BaseModel):
     overlap: float | None = None
 
 
+@router.post("/{project_id}/classify/reset-stale/", tags=["Image Classification"])
+async def reset_stale_classification(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Reset images stuck in 'classifying' state back to 'uploaded'.
+
+    Only affects images that have been in 'classifying' for longer than
+    the stale threshold (10 minutes), matching the worker's own recovery
+    logic.  This lets the UI unblock when the worker has crashed or been
+    restarted.
+    """
+    stale_minutes = 10
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE project_images
+            SET status = 'uploaded', classified_at = NULL
+            WHERE project_id = %(project_id)s
+              AND status = 'classifying'
+              AND classified_at < NOW() - make_interval(mins => %(stale_minutes)s)
+            RETURNING id
+            """,
+            {"project_id": str(project_id), "stale_minutes": stale_minutes},
+        )
+        reset_rows = await cur.fetchall()
+
+    await db.commit()
+    reset_count = len(reset_rows)
+
+    if reset_count > 0:
+        log.info(
+            f"Reset {reset_count} stale classifying image(s) to uploaded "
+            f"for project {project_id}"
+        )
+    else:
+        log.info(f"No stale classifying images found for project {project_id}")
+
+    return {
+        "message": (
+            f"Reset {reset_count} stuck image(s)"
+            if reset_count > 0
+            else "No stuck images found"
+        ),
+        "project_id": str(project_id),
+        "reset_count": reset_count,
+    }
+
+
 @router.post("/{project_id}/classify/", tags=["Image Classification"])
 async def start_project_classification(
     project_id: UUID,

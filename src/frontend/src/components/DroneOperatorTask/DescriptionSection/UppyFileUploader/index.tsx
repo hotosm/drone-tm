@@ -199,7 +199,7 @@ const UppyFileUploader = ({
       },
     });
 
-    // No cleanup here — cancelAll is handled in a separate unmount-only effect
+    // No cleanup here - cancelAll is handled in a separate unmount-only effect
     // to avoid cancelling in-progress uploads when deps change.
   }, [uppy, projectId, taskId, allowedFileTypes, staging]);
 
