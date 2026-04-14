@@ -21,8 +21,8 @@ importers:
         specifier: workspace:*
         version: link:../gcp-editor
       '@hotosm/ui':
-        specifier: ^0.9.0
-        version: 0.9.0(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))
+        specifier: ^0.9.1
+        version: 0.9.1(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))
       '@mapbox/mapbox-gl-draw':
         specifier: ^1.5.0
         version: 1.5.1
@@ -283,8 +283,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.1
       '@hotosm/ui':
-        specifier: ^0.9.0
-        version: 0.9.0(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))
+        specifier: ^0.9.1
+        version: 0.9.1(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))
       '@panzoom/panzoom':
         specifier: ^4.5.1
         version: 4.6.1
@@ -1305,8 +1305,8 @@ packages:
   '@geomatico/maplibre-cog-protocol@0.3.1':
     resolution: {integrity: sha512-XeYDScZeMUIEkYR3eXH0HGWoZwBNvq+sKaFTPh5mhiLoA+TeSiBkpl99DScWb5J1SGtEssiLEn6L0Mk30Xtt4g==}
 
-  '@hotosm/ui@0.9.0':
-    resolution: {integrity: sha512-ggUPGl/wqY7ot26GfOq4ZAWqiVhwz2H3niNgAMubYdUZZOqu9Gkk7v1LNdeo8vce5oqpL+WZ79kNXwe4SC+VpA==}
+  '@hotosm/ui@0.9.1':
+    resolution: {integrity: sha512-Fwy4b053b7v1bqPwBslxb5hqlmr1W2nQhOiKrvtKIyQQ8n3DBsj81Fs+BmPg7T4kVf9lwwr9my0/BHwUQt0Xng==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@awesome.me/webawesome': 3.2.1
@@ -5876,7 +5876,7 @@ snapshots:
 
   '@geomatico/maplibre-cog-protocol@0.3.1': {}
 
-  '@hotosm/ui@0.9.0(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))':
+  '@hotosm/ui@0.9.1(@awesome.me/webawesome@3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14))':
     dependencies:
       '@awesome.me/webawesome': 3.2.1(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
 

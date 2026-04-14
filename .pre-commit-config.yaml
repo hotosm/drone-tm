@@ -139,6 +139,7 @@ repos:
         additional_dependencies: ["oxfmt@0.35.0"]
         args:
           [
+            "!cla.json",
             "!src/qfield-plugin/**",
             "!src/pnpm-lock.yaml",
             "!src/pnpm-workspace.yaml",
