@@ -1,7 +1,7 @@
 """add odm_task_uuid and odm_endpoint_used to projects table
 
 Revision ID: add_project_odm_metadata
-Revises: 973d20c518d6
+Revises: add_odm_task_uuid
 Create Date: 2026-04-13
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "add_project_odm_metadata"
-down_revision: Union[str, None] = "973d20c518d6"
+down_revision: Union[str, None] = "add_odm_task_uuid"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
