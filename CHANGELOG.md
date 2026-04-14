@@ -1,3 +1,13 @@
+## 2026.2.9 (2026-04-14)
+
+### Fix
+
+- **backend**: migration revert reference accidentally hanko
+- large update to processing workflow = prod ready, resilient
+- **backend**: fixes to task splitting recorded in sentry, related to #759
+- **backend**: sanitise logs to prevent accidential creds being present
+- **frontend**: small fix to classification dialog polling error
+
 ## 2026.2.8 (2026-04-11)
 
 ### Feat
