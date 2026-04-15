@@ -1207,6 +1207,7 @@ async def process_odm_webhook_assets(
                 dtm_task_id=task_uuid,
                 odm_status_code=odm_status_code,
                 persist_failure_state=False,
+                db_pool=ctx.get("db_pool"),
             )
         except OdmAssetTransientError as e:
             if job_try < max_tries:
