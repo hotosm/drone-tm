@@ -47,7 +47,7 @@
     "preview": "pnpm run build && pnpm run --dir site preview"
   },
   "dependencies": {
-    "@hotosm/ui": "^0.9.1",
+    "@hotosm/ui": "^0.9.2",
     "@panzoom/panzoom": "^4.5.1",
     "lit": "^3.2.1"
   },
