@@ -53,15 +53,11 @@ async def reset_stale_classification(
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
 ):
-    """Reset images stuck in 'classifying' state back to 'uploaded'.
+    """Reset all images in 'classifying' state back to 'uploaded'.
 
-    Only affects images that have been in 'classifying' for longer than
-    the stale threshold (10 minutes), matching the worker's own recovery
-    logic.  This lets the UI unblock when the worker has crashed or been
-    restarted.
+    Unblocks the classification pipeline when images are stuck due to a
+    crashed worker, timeout, or any other reason.
     """
-    stale_minutes = 10
-
     async with db.cursor() as cur:
         await cur.execute(
             """
@@ -69,10 +65,9 @@ async def reset_stale_classification(
             SET status = 'uploaded', classified_at = NULL
             WHERE project_id = %(project_id)s
               AND status = 'classifying'
-              AND classified_at < NOW() - make_interval(mins => %(stale_minutes)s)
             RETURNING id
             """,
-            {"project_id": str(project_id), "stale_minutes": stale_minutes},
+            {"project_id": str(project_id)},
         )
         reset_rows = await cur.fetchall()
 
@@ -81,17 +76,17 @@ async def reset_stale_classification(
 
     if reset_count > 0:
         log.info(
-            f"Reset {reset_count} stale classifying image(s) to uploaded "
+            f"Reset {reset_count} classifying image(s) to uploaded "
             f"for project {project_id}"
         )
     else:
-        log.info(f"No stale classifying images found for project {project_id}")
+        log.info(f"No classifying images found for project {project_id}")
 
     return {
         "message": (
             f"Reset {reset_count} stuck image(s)"
             if reset_count > 0
-            else "No stuck images found"
+            else "No stuck images found. Try starting classification again."
         ),
         "project_id": str(project_id),
         "reset_count": reset_count,
