@@ -565,6 +565,7 @@ async def process_assets_from_odm(
     dtm_task_id=None,
     odm_status_code: Optional[int] = None,
     persist_failure_state: bool = True,
+    db_pool=None,
 ):
     """Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
     Updates task state if required.
@@ -575,28 +576,37 @@ async def process_assets_from_odm(
     :param state: Current state of the task.
     :param message: Message to log upon completion.
     :param dtm_task_id: Task ID for state updates.
+    :param db_pool: Optional shared connection pool (e.g. from arq worker context).
+        When provided, this pool is reused instead of creating throwaway pools.
     """
+
+    async def _get_conn():
+        """Get a DB connection from the shared pool or a one-off pool."""
+        if db_pool:
+            return db_pool.connection()
+        # Fallback: create a temporary pool (legacy / test usage).
+        pool = await database.get_db_connection_pool()
+        return pool.connection()
+
     # Deduplication: verify the task is still in the expected state before
     # doing any heavy work.  This prevents double-processing when both a
     # webhook and the reconciliation loop fire for the same task.
     if dtm_task_id and state:
         try:
-            pool = await database.get_db_connection_pool()
-            async with pool as pool_instance:
-                async with pool_instance.connection() as conn:
-                    current = await task_logic.get_task_state(
-                        conn, dtm_project_id, dtm_task_id
+            async with await _get_conn() as conn:
+                current = await task_logic.get_task_state(
+                    conn, dtm_project_id, dtm_task_id
+                )
+                current_state = current.get("state") if current else None
+                if current_state and current_state != state.name:
+                    log.warning(
+                        "Skipping process_assets_from_odm for task {}: "
+                        "expected state {} but found {} (already handled)",
+                        dtm_task_id,
+                        state.name,
+                        current_state,
                     )
-                    current_state = current.get("state") if current else None
-                    if current_state and current_state != state.name:
-                        log.warning(
-                            "Skipping process_assets_from_odm for task {}: "
-                            "expected state {} but found {} (already handled)",
-                            dtm_task_id,
-                            state.name,
-                            current_state,
-                        )
-                        return
+                    return
         except Exception as e:
             log.warning(
                 "Could not verify task state before processing (continuing): {}", e
@@ -662,41 +672,37 @@ async def process_assets_from_odm(
             log.info(f"Processing complete for project {dtm_project_id}")
 
             if state and dtm_task_id:
-                pool = await database.get_db_connection_pool()
-                async with pool as pool_instance:
-                    async with pool_instance.connection() as conn:
-                        await task_logic.update_task_state_system(
-                            db=conn,
-                            project_id=dtm_project_id,
-                            task_id=dtm_task_id,
-                            comment=message,
-                            initial_state=state,
-                            final_state=State.IMAGE_PROCESSING_FINISHED,
-                            updated_at=timestamp(),
-                        )
-                        log.info(
-                            f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
-                        )
+                async with await _get_conn() as conn:
+                    await task_logic.update_task_state_system(
+                        db=conn,
+                        project_id=dtm_project_id,
+                        task_id=dtm_task_id,
+                        comment=message,
+                        initial_state=state,
+                        final_state=State.IMAGE_PROCESSING_FINISHED,
+                        updated_at=timestamp(),
+                    )
+                    log.info(
+                        f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
+                    )
 
-                        task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-                        assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
-                        await project_logic.update_task_field(
-                            conn,
-                            dtm_project_id,
-                            dtm_task_id,
-                            "assets_url",
-                            assets_prefix,
-                        )
+                    task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
+                    assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
+                    await project_logic.update_task_field(
+                        conn,
+                        dtm_project_id,
+                        dtm_task_id,
+                        "assets_url",
+                        assets_prefix,
+                    )
 
             status = ImageProcessingStatus.SUCCESS
         if not dtm_task_id:
             # Update the image processing status
-            pool = await database.get_db_connection_pool()
-            async with pool as pool_instance:
-                async with pool_instance.connection() as conn:
-                    await project_logic.update_processing_status(
-                        conn, dtm_project_id, status
-                    )
+            async with await _get_conn() as conn:
+                await project_logic.update_processing_status(
+                    conn, dtm_project_id, status
+                )
 
     except Exception as e:
         log.error(f"Error during processing for project {dtm_project_id}: {e}")
@@ -715,29 +721,25 @@ async def process_assets_from_odm(
 
         if persist_failure_state:
             try:
-                pool = await database.get_db_connection_pool()
-                async with pool as pool_instance:
-                    async with pool_instance.connection() as conn:
-                        if state and dtm_task_id:
-                            await task_logic.update_task_state_system(
-                                db=conn,
-                                project_id=dtm_project_id,
-                                task_id=dtm_task_id,
-                                comment=f"Image processing failed: {e}",
-                                initial_state=state,
-                                final_state=State.IMAGE_PROCESSING_FAILED,
-                                updated_at=timestamp(),
-                            )
-                            log.info(
-                                f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FAILED."
-                            )
-                        elif not dtm_task_id:
-                            await project_logic.update_processing_status(
-                                conn, dtm_project_id, ImageProcessingStatus.FAILED
-                            )
-                            log.info(
-                                f"Project {dtm_project_id} status updated to FAILED."
-                            )
+                async with await _get_conn() as conn:
+                    if state and dtm_task_id:
+                        await task_logic.update_task_state_system(
+                            db=conn,
+                            project_id=dtm_project_id,
+                            task_id=dtm_task_id,
+                            comment=f"Image processing failed: {e}",
+                            initial_state=state,
+                            final_state=State.IMAGE_PROCESSING_FAILED,
+                            updated_at=timestamp(),
+                        )
+                        log.info(
+                            f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FAILED."
+                        )
+                    elif not dtm_task_id:
+                        await project_logic.update_processing_status(
+                            conn, dtm_project_id, ImageProcessingStatus.FAILED
+                        )
+                        log.info(f"Project {dtm_project_id} status updated to FAILED.")
             except Exception as state_err:
                 target = dtm_task_id or dtm_project_id
                 log.error(f"Failed to persist failure state for {target}: {state_err}")
