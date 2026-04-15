@@ -561,6 +561,17 @@ const ProcessingStatusDialog = () => {
                               }
                               iconClassname="!naxatw-text-sm"
                               onClick={(e) => {
+                                const isReprocess =
+                                  task.state === "IMAGE_PROCESSING_FINISHED" ||
+                                  task.state === "IMAGE_PROCESSING_FAILED";
+                                if (
+                                  isReprocess &&
+                                  !window.confirm(
+                                    "Are you sure? This will re-process the entire task.",
+                                  )
+                                ) {
+                                  return;
+                                }
                                 if (e.ctrlKey || e.metaKey) {
                                   const odmUrl = window.prompt(
                                     "Enter a NodeODM server URL for processing\n(e.g. https://odm.example.com/?token=YOUR_TOKEN)",
@@ -593,7 +604,16 @@ const ProcessingStatusDialog = () => {
               variant="ghost"
               className="naxatw-bg-red naxatw-text-white disabled:naxatw-bg-gray-400"
               leftIcon="play_arrow"
-              onClick={handleProcessSelected}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    `Are you sure you want to process ${selectedTasks.size} task(s)? Any previously processed tasks will be re-processed.`,
+                  )
+                ) {
+                  return;
+                }
+                handleProcessSelected();
+              }}
               disabled={selectedTasks.size === 0}
             >
               Process Selected ({selectedTasks.size})
@@ -712,7 +732,16 @@ const ProcessingStatusDialog = () => {
             variant="ghost"
             className="naxatw-bg-red naxatw-px-8 naxatw-py-2 naxatw-text-white disabled:naxatw-bg-gray-400"
             leftIcon="play_arrow"
-            onClick={() => handleStartFinalProcessing(false)}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Are you sure? This will re-process all task imagery into a single orthophoto and 3D model. This may take a long time.",
+                )
+              ) {
+                return;
+              }
+              handleStartFinalProcessing(false);
+            }}
             disabled={Boolean(finalProcessingDisabledReason)}
           >
             Start Final Processing
