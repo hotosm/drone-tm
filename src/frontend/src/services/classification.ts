@@ -110,7 +110,7 @@ export const ingestExistingUploads = async (
 
 /**
  * Reset images stuck in 'classifying' state back to 'uploaded' so they can be re-classified.
- * Only affects images stale for >10 minutes.
+ * Resets all images stuck in 'classifying' state back to 'uploaded'.
  */
 export const resetStaleClassification = async (
   projectId: string,

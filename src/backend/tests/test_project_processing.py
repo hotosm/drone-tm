@@ -744,7 +744,7 @@ async def test_process_odm_webhook_assets_marks_failed_on_final_transient_try(
     assert state_calls
     assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
     # Comment sanitization now happens inside update_task_state_system,
-    # which is monkeypatched here — verify the error message is passed through.
+    # which is monkeypatched here - verify the error message is passed through.
     assert "network error" in state_calls[0]["comment"]
 
 
@@ -796,7 +796,7 @@ async def test_process_odm_webhook_assets_terminal_error_marks_failed_without_ra
     assert state_calls
     assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
     # Comment sanitization now happens inside update_task_state_system,
-    # which is monkeypatched here — verify the error message is passed through.
+    # which is monkeypatched here - verify the error message is passed through.
     assert "invalid archive" in state_calls[0]["comment"]
 
 
