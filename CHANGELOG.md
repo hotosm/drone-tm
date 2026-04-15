@@ -1,3 +1,12 @@
+## 2026.2.10 (2026-04-15)
+
+### Fix
+
+- **backend**: reset all classification tasks (instead of time interval)
+- **frontend**: add confirmation dialogs when re-running processing (avoid accidental)
+- **backend**: re-use the same db connection when processing imagery job
+- **backend**: increase db pool size and timeout 30s --> 60s
+
 ## 2026.2.9 (2026-04-14)
 
 ### Fix
