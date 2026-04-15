@@ -12,7 +12,11 @@ from app.config import settings
 async def get_db_connection_pool() -> AsyncConnectionPool:
     """Get the connection pool for psycopg."""
     pool = AsyncConnectionPool(
-        conninfo=settings.DTM_DB_URL.unicode_string(), open=False
+        conninfo=settings.DTM_DB_URL.unicode_string(),
+        open=False,
+        min_size=4,
+        max_size=20,
+        timeout=60,
     )
     await pool.open()
     return pool
