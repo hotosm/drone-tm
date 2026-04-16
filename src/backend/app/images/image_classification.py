@@ -35,8 +35,12 @@ CLASSIFICATION_CONCURRENCY = 4
 # If exceeded, the image is marked as REJECTED with a generic "Classification failed".
 CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS = 120
 
-# Buffer radius in meters for coverage calculation
-COVERAGE_BUFFER_METERS = 20.0
+# Fallback buffer radius in meters when altitude is unknown.
+COVERAGE_BUFFER_METERS_FALLBACK = 20.0
+
+# Minimum vertical FOV across supported drones (conservative estimate).
+# Used with altitude to compute the image footprint for coverage calculation.
+_MIN_VERTICAL_FOV = 0.93
 
 # Task states that indicate the task is ready for or past processing.
 VERIFIED_TASK_STATES = {
@@ -1812,7 +1816,58 @@ class ImageClassifier:
             )
             images = await cur.fetchall()
 
-        # Calculate coverage using PostGIS (same logic, no batch filter)
+        # Determine buffer radius from altitude and camera FOV.
+        # Try project-level altitude first, then average EXIF altitude.
+        buffer_radius = COVERAGE_BUFFER_METERS_FALLBACK
+        try:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT altitude_from_ground FROM projects
+                    WHERE id = %(project_id)s
+                    """,
+                    {"project_id": str(project_id)},
+                )
+                proj_row = await cur.fetchone()
+                altitude = (
+                    proj_row["altitude_from_ground"]
+                    if proj_row and proj_row.get("altitude_from_ground")
+                    else None
+                )
+
+            if altitude is None:
+                async with db.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(
+                        """
+                        SELECT AVG(
+                            NULLIF(regexp_replace(
+                                COALESCE(exif->>'AbsoluteAltitude',''),
+                                '[^0-9+\\-.]+', '', 'g'
+                            ), '')::double precision
+                        ) AS avg_alt
+                        FROM project_images
+                        WHERE task_id = %(task_id)s
+                          AND project_id = %(project_id)s
+                          AND status = %(status)s
+                          AND location IS NOT NULL
+                        """,
+                        {
+                            "task_id": str(task_id),
+                            "project_id": str(project_id),
+                            "status": ImageStatus.ASSIGNED.value,
+                        },
+                    )
+                    alt_row = await cur.fetchone()
+                    if alt_row and alt_row.get("avg_alt"):
+                        altitude = float(alt_row["avg_alt"])
+
+            if altitude and altitude > 0:
+                # Half the forward (narrow) footprint: altitude * VERTICAL_FOV / 2
+                buffer_radius = altitude * _MIN_VERTICAL_FOV / 2
+        except Exception as e:
+            log.warning(f"Could not determine altitude for coverage buffer: {e}")
+
+        # Calculate coverage using PostGIS with altitude-derived buffer
         coverage_query = """
             WITH image_points AS (
                 SELECT location
@@ -1828,7 +1883,9 @@ class ImageClassifier:
                 WHERE id = %(task_id)s
             ),
             buffered_points AS (
-                SELECT ST_Union(ST_Buffer(location::geography, 20)::geometry) as coverage
+                SELECT ST_Union(
+                    ST_Buffer(location::geography, %(buffer_radius)s)::geometry
+                ) as coverage
                 FROM image_points
             )
             SELECT
@@ -1855,6 +1912,7 @@ class ImageClassifier:
                         "task_id": str(task_id),
                         "project_id": str(project_id),
                         "status": ImageStatus.ASSIGNED.value,
+                        "buffer_radius": buffer_radius,
                     },
                 )
                 coverage_result = await cur.fetchone()
