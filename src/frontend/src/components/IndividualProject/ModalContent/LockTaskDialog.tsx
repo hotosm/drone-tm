@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@Components/RadixComponents/Button";
 import { ProjectUser, useGetUsersQuery } from "@Api/projects";
 import { createMentionToken } from "@Utils/mentions";
@@ -24,6 +25,7 @@ const LockTaskDialog = ({ handleLockTask, setShowLockDialog }: ILockTaskDialogPr
   const [mentionStartIndex, setMentionStartIndex] = useState<number>(-1);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [selectedMentions, setSelectedMentions] = useState<SelectedMention[]>([]);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,6 +134,18 @@ const LockTaskDialog = ({ handleLockTask, setShowLockDialog }: ILockTaskDialogPr
     }
   };
 
+  // Position the dropdown portal beneath the textarea
+  useEffect(() => {
+    if (mentionQuery !== null && textareaRef.current) {
+      const rect = textareaRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }, [mentionQuery]);
+
   // Scroll selected item into view
   useEffect(() => {
     if (dropdownRef.current && mentionQuery !== null) {
@@ -159,19 +173,25 @@ const LockTaskDialog = ({ handleLockTask, setShowLockDialog }: ILockTaskDialogPr
       <p className="naxatw-text-body-md naxatw-text-grey-800">
         Add an optional comment. Use <strong>@</strong> to tag a user.
       </p>
-      <div className="naxatw-relative">
-        <textarea
-          ref={textareaRef}
-          className="naxatw-flex naxatw-h-[80px] naxatw-w-full naxatw-resize-none naxatw-rounded-[4px] naxatw-border naxatw-border-[#555555] naxatw-bg-transparent naxatw-p-2 naxatw-text-body-md hover:naxatw-border-red focus:naxatw-border-red focus:naxatw-bg-transparent focus:naxatw-outline-none"
-          placeholder="e.g. Locked for @Joe - Team ZimZam"
-          value={comment}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-        />
-        {mentionQuery !== null && filteredUsers.length > 0 && (
+      <textarea
+        ref={textareaRef}
+        className="naxatw-flex naxatw-h-[80px] naxatw-w-full naxatw-resize-none naxatw-rounded-[4px] naxatw-border naxatw-border-[#555555] naxatw-bg-transparent naxatw-p-2 naxatw-text-body-md hover:naxatw-border-red focus:naxatw-border-red focus:naxatw-bg-transparent focus:naxatw-outline-none"
+        placeholder="e.g. Locked for @Joe - Team ZimZam"
+        value={comment}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+      />
+      {mentionQuery !== null &&
+        filteredUsers.length > 0 &&
+        createPortal(
           <div
             ref={dropdownRef}
-            className="naxatw-absolute naxatw-left-0 naxatw-z-20 naxatw-mt-1 naxatw-max-h-[160px] naxatw-w-full naxatw-overflow-y-auto naxatw-rounded-[4px] naxatw-border naxatw-border-grey-400 naxatw-bg-white naxatw-shadow-lg"
+            className="naxatw-fixed naxatw-z-[999999] naxatw-max-h-[40vh] naxatw-overflow-y-auto naxatw-rounded-[4px] naxatw-border naxatw-border-grey-400 naxatw-bg-white naxatw-shadow-lg"
+            style={{
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+            }}
           >
             {filteredUsers.map((user: ProjectUser, index: number) => (
               <button
@@ -196,9 +216,9 @@ const LockTaskDialog = ({ handleLockTask, setShowLockDialog }: ILockTaskDialogPr
                 <span>{user.name}</span>
               </button>
             ))}
-          </div>
+          </div>,
+          document.body,
         )}
-      </div>
       <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
         <Button className="!naxatw-text-red" onClick={() => setShowLockDialog(false)}>
           Cancel
