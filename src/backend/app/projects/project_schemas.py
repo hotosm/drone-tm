@@ -801,13 +801,6 @@ class ProjectOut(BaseModel):
     pagination: Optional[Pagination] = {}
 
 
-class PresignedUrlRequest(BaseModel):
-    project_id: uuid.UUID
-    task_id: uuid.UUID
-    image_name: List[str]
-    expiry: int  # Expiry time in hours
-
-
 class MultipartUploadRequest(BaseModel):
     project_id: uuid.UUID
     task_id: Optional[uuid.UUID] = None

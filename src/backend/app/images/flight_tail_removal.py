@@ -102,7 +102,7 @@ async def _flag_flight_tail_images(
 
 
 async def mark_and_remove_flight_tail_imagery(
-    db: Connection, project_id: UUID, batch_id: UUID, task_id: UUID
+    db: Connection, project_id: UUID, batch_id: UUID | None, task_id: UUID
 ) -> None:
     """
     Identifies and flags flight tail imagery taken during takeoff and landing to prevent photogrammetric distortion.
@@ -113,19 +113,27 @@ async def mark_and_remove_flight_tail_imagery(
     Args:
         db: Database connection
         project_id: Project ID
-        batch_id: Batch ID
+        batch_id: Batch ID (None to process images without a batch)
+        task_id: Task ID
 
     Returns:
         None. Updates the status of identified tail images to ImageStatus.REJECTED in the database.
     """
-    params = {
+    params: dict = {
         "project_id": project_id,
-        "batch_id": batch_id,
         "task_id": task_id,
         "status": ImageStatus.ASSIGNED.value,
     }
 
-    sql = """
+    # Handle NULL batch_id: use IS NULL instead of = to match images
+    # that were uploaded without a batch grouping.
+    if batch_id is not None:
+        batch_filter = "AND batch_id = %(batch_id)s"
+        params["batch_id"] = batch_id
+    else:
+        batch_filter = "AND batch_id IS NULL"
+
+    sql = f"""
         WITH ordered AS (
             SELECT
                 id,
@@ -139,7 +147,7 @@ async def mark_and_remove_flight_tail_imagery(
                 NULLIF(regexp_replace(COALESCE(exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m
             FROM project_images
             WHERE project_id = %(project_id)s
-              AND batch_id = %(batch_id)s
+              {batch_filter}
               AND task_id = %(task_id)s
               AND status = %(status)s
               AND rejection_reason IS NULL

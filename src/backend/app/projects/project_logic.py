@@ -43,7 +43,6 @@ from app.s3 import (
     maybe_presign_s3_key,
     get_file_from_bucket,
     get_object_metadata,
-    list_objects_from_bucket,
 )
 from app.tasks.task_splitter import (
     GeometryTopologyError,
@@ -941,20 +940,12 @@ async def process_all_drone_images(
 
 
 def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
-    """Helper function to get the number of images and the URL to download the assets."""
+    """Helper function to get ODM assets and orthophoto URLs for a task.
+
+    Note: image_count is no longer derived from S3 listings. The caller
+    is responsible for setting it from the database.
+    """
     try:
-        # Prefix for the images
-        images_prefix = f"projects/{project_id}/{task_id}/images/"
-
-        # List and count the images
-        objects = list_objects_from_bucket(
-            settings.S3_BUCKET_NAME, prefix=images_prefix
-        )
-        image_extensions = (".jpg", ".jpeg", ".png", ".tif", ".tiff")
-        image_count = sum(
-            1 for obj in objects if obj.object_name.lower().endswith(image_extensions)
-        )
-
         # Check for ODM assets under the odm/ prefix via a single-object probe.
         presigned_url = None
         odm_prefix = f"projects/{project_id}/{task_id}/odm/"
@@ -998,7 +989,7 @@ def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
         return project_schemas.AssetsInfo(
             project_id=str(project_id),
             task_id=str(task_id),
-            image_count=image_count,
+            image_count=0,  # Overridden by caller with DB count
             assets_url=presigned_url,
             orthophoto_url=orthophoto_url,
         )

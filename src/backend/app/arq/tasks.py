@@ -300,6 +300,7 @@ async def process_uploaded_image(
                     duplicate_of=duplicate_of_id,
                 )
                 image = await create_project_image(db, image_data)
+                await db.commit()
                 return {
                     "image_id": str(image.id),
                     "status": ImageStatus.DUPLICATE.value,
@@ -562,6 +563,8 @@ async def classify_project_images(
             try:
                 async with db_pool.connection() as conn:
                     async with conn.cursor() as cur:
+                        # Include images with NULL batch_id - they are grouped
+                        # under a synthetic NULL key so tail detection still runs.
                         await cur.execute(
                             """
                             SELECT DISTINCT batch_id, task_id
@@ -570,7 +573,6 @@ async def classify_project_images(
                               AND id = ANY(%(image_ids)s)
                               AND status = 'assigned'
                               AND task_id IS NOT NULL
-                              AND batch_id IS NOT NULL
                             """,
                             {
                                 "project_id": project_id,
@@ -579,7 +581,9 @@ async def classify_project_images(
                         )
                         rows = await cur.fetchall()
 
-                    pairs = [(row[0], row[1]) for row in rows if row[0] and row[1]]
+                    # row[0] (batch_id) may be None for images uploaded without
+                    # a batch - still include them for tail detection.
+                    pairs = [(row[0], row[1]) for row in rows if row[1] is not None]
                     if pairs:
                         log.info(
                             f"Inspecting project {project_id} for flightplan tails: "
@@ -589,15 +593,16 @@ async def classify_project_images(
                         await mark_and_remove_flight_tail_imagery(
                             conn,
                             UUID(project_id),
-                            UUID(str(batch_id)),
+                            UUID(str(batch_id)) if batch_id else None,
                             UUID(str(task_id)),
                         )
                     if pairs:
                         await conn.commit()
             except Exception as tail_err:
-                log.warning(
+                log.error(
                     f"Flight tail detection failed for project {project_id} "
-                    f"(post-classification): {tail_err}"
+                    f"(post-classification): {tail_err}",
+                    exc_info=True,
                 )
 
         log.info(
@@ -635,21 +640,31 @@ async def move_task_images_for_processing(
             result = await ImageClassifier.move_task_images_to_folder(
                 conn, UUID(project_id), UUID(task_id)
             )
-            if result.get("failed_count", 0) > 0:
-                await conn.rollback()
+            failed = result.get("failed_count", 0)
+            moved = result.get("moved_count", 0)
+
+            if failed > 0:
+                failed_names = result.get("failed_filenames", [])
+                # Images that moved successfully are already committed
+                # individually, so we only report the failures here.
                 raise RuntimeError(
-                    f"Failed to move {result['failed_count']} image(s) to task folder"
+                    f"Failed to move {failed} of {moved + failed} image(s) "
+                    f"to task folder: {', '.join(failed_names[:5])}"
+                    + (
+                        f" (and {len(failed_names) - 5} more)"
+                        if len(failed_names) > 5
+                        else ""
+                    )
                 )
 
-            await conn.commit()
             log.info(
                 f"Completed move_task_images_for_processing (Job ID: {job_id}): "
-                f"moved={result.get('moved_count', 0)}"
+                f"moved={moved}"
             )
             return {
                 "project_id": project_id,
                 "task_id": task_id,
-                "moved_count": result.get("moved_count", 0),
+                "moved_count": moved,
                 "failed_count": 0,
             }
     except Exception as e:

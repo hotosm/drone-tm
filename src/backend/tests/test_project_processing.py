@@ -418,7 +418,9 @@ async def test_move_task_images_for_processing_commits_on_success(monkeypatch):
         "moved_count": 4,
         "failed_count": 0,
     }
-    assert conn.commit_calls == 1
+    # Per-image commits happen inside move_task_images_to_folder (mocked here).
+    # The caller no longer does a bulk commit.
+    assert conn.commit_calls == 0
     assert conn.rollback_calls == 0
 
 
@@ -446,13 +448,15 @@ async def test_move_task_images_for_processing_rolls_back_on_failure_count(monke
         fake_update_task_state_system,
     )
 
-    with pytest.raises(RuntimeError, match=r"Failed to move 2 image\(s\)"):
+    with pytest.raises(RuntimeError, match=r"Failed to move 2 of 3 image\(s\)"):
         await arq_tasks.move_task_images_for_processing(
             ctx, str(project_id), str(task_id)
         )
 
+    # Per-image commits happen inside the (mocked) move function.
+    # The error handler commits the IMAGE_PROCESSING_FAILED state transition.
     assert conn.commit_calls == 1
-    assert conn.rollback_calls == 1
+    assert conn.rollback_calls == 0
 
 
 @pytest.mark.asyncio
@@ -481,11 +485,13 @@ async def test_move_task_images_for_processing_handles_transfer_failure_state_up
         fake_update_task_state_system,
     )
 
-    with pytest.raises(RuntimeError, match=r"Failed to move 1 image\(s\)"):
+    with pytest.raises(RuntimeError, match=r"Failed to move 1 of 1 image\(s\)"):
         await arq_tasks.move_task_images_for_processing(
             ctx, str(project_id), str(task_id)
         )
 
+    # No images moved successfully, so no per-image commits should have happened.
+    # The error handler's commit also fails (update_task_state_system raises).
     assert conn.commit_calls == 0
     assert conn.rollback_calls == 1
 

@@ -885,10 +885,12 @@ class ImageClassifier:
                                     "user_id": str(task_row["user_id"]),
                                 },
                             )
-                        await db.commit()
                         log.info(
                             f"Auto-transitioned task {task_row['task_id']} to HAS_IMAGERY"
                         )
+                    # Commit all task transitions atomically so we don't end
+                    # up with some tasks at HAS_IMAGERY and others not.
+                    await db.commit()
             except Exception as e:
                 log.error(f"Failed to auto-transition tasks to HAS_IMAGERY: {e}")
 
@@ -1370,8 +1372,9 @@ class ImageClassifier:
         Copies images from user-uploads staging area to:
             projects/{project_id}/{task_id}/images/{filename}
 
-        This is called after marking a task as verified/fully flown so that
-        the images are in the expected location for ODM processing.
+        Each image is committed individually so that DB stays in sync with S3.
+        If an S3 move succeeds, the DB update is committed immediately - a later
+        failure cannot roll back already-moved images and cause S3/DB divergence.
         """
         query = """
             SELECT
@@ -1403,6 +1406,7 @@ class ImageClassifier:
 
         moved_count = 0
         failed_count = 0
+        failed_filenames: list[str] = []
 
         for image in images:
             filename = image["filename"]
@@ -1434,6 +1438,7 @@ class ImageClassifier:
                     )
                 else:
                     failed_count += 1
+                    failed_filenames.append(filename)
                     log.error(f"Failed to move image {filename} to task {task_id}")
                     continue
 
@@ -1471,6 +1476,10 @@ class ImageClassifier:
                         )
                         new_thumb_key = None
 
+            # Commit per-image so DB stays in sync with S3. If this commit
+            # fails the image is already in S3 at dest_key, so we let the
+            # exception propagate - the caller will see the partial counts
+            # and the next run can recover via the dest_exists reconciliation.
             update_fields = "SET s3_key = %(new_s3_key)s"
             update_params: dict[str, Any] = {
                 "new_s3_key": dest_key,
@@ -1485,15 +1494,17 @@ class ImageClassifier:
                     f"UPDATE project_images {update_fields} WHERE id = %(image_id)s",
                     update_params,
                 )
+            await db.commit()
             moved_count += 1
             log.info(f"Moved image {filename} to task {task_id}")
 
-        # NOTE: caller is responsible for commit/rollback so that the task
-        # state event and the image moves are in the same transaction.
-
         log.info(f"Task {task_id}: Moved {moved_count} images, {failed_count} failed")
 
-        return {"moved_count": moved_count, "failed_count": failed_count}
+        return {
+            "moved_count": moved_count,
+            "failed_count": failed_count,
+            "failed_filenames": failed_filenames,
+        }
 
     # ─── Project-level (task-centric) methods ─────────────────────────────
 

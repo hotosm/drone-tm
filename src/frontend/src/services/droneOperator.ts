@@ -15,19 +15,3 @@ export const postUnflyableComment = ({
       "Content-Type": "application/json",
     },
   });
-
-/**
- * @deprecated This function uses the old single-file presigned URL upload.
- * Use the new resumable multipart upload workflow instead via UppyFileUploader.
- * The new workflow is accessible from the Project Details page > Drone Image Processing Workflow.
- */
-export const getImageUploadLink = (replaceExistingImages: boolean, data: any) =>
-  authenticated(api).post(
-    `/projects/generate-presigned-url/?replace_existing=${replaceExistingImages}`,
-    data,
-    {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    },
-  );

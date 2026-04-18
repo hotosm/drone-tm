@@ -219,9 +219,9 @@ async def test_move_task_images_to_folder_removes_staging_objects(
     await db.commit()
 
     result = await ImageClassifier.move_task_images_to_folder(db, project_id, task_id)
-    await db.commit()
 
-    assert result == {"moved_count": 1, "failed_count": 0}
+    assert result["moved_count"] == 1
+    assert result["failed_count"] == 0
 
     async with db.cursor() as cur:
         await cur.execute(
@@ -295,9 +295,9 @@ async def test_move_task_images_to_folder_reconciles_when_destination_exists(
     )
 
     result = await ImageClassifier.move_task_images_to_folder(db, project_id, task_id)
-    await db.commit()
 
-    assert result == {"moved_count": 1, "failed_count": 0}
+    assert result["moved_count"] == 1
+    assert result["failed_count"] == 0
 
     async with db.cursor() as cur:
         await cur.execute(

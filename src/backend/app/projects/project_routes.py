@@ -50,7 +50,6 @@ from app.s3 import (
     check_file_exists,
     complete_multipart_upload,
     delete_objects_by_prefix,
-    generate_presigned_put_url,
     generate_presigned_multipart_upload_url,
     initiate_multipart_upload,
     list_parts,
@@ -362,90 +361,6 @@ async def normalize_project_aoi(
 ):
     """Normalise an uploaded AOI and return a merged single-polygon FeatureCollection."""
     return aoi
-
-
-@router.post(
-    "/generate-presigned-url/",
-    tags=["Image Upload"],
-    deprecated=True,
-)
-async def generate_presigned_url(
-    db: Annotated[Connection, Depends(database.get_db)],
-    user: Annotated[AuthUser, Depends(login_required)],
-    data: project_schemas.PresignedUrlRequest,
-    replace_existing: bool = False,
-):
-    """[DEPRECATED] Generate a pre-signed URL for uploading an image to S3 Bucket.
-
-    WARNING: This endpoint is deprecated and will be removed in a future release.
-    Use the new resumable multipart upload workflow instead:
-    - POST /projects/initiate-multipart-upload/
-    - POST /projects/sign-part-upload/
-    - POST /projects/complete-multipart-upload/
-
-    The new workflow supports large file uploads, resumable uploads, and better
-    integration with the Drone Image Processing Workflow.
-
-    ---
-
-    This endpoint generates a pre-signed URL that allows users to upload an image to
-    an S3 bucket. The URL expires after a specified duration.
-
-    Args:
-        image_name: The name of the image(s) you want to upload.
-        expiry : Expiry time in hours.
-        replace_existing: A boolean flag to indicate if the image should be replaced.
-
-    Returns:
-        list: A list of dictionaries with the image name and the pre-signed URL to upload.
-    """
-    log.warning(
-        f"Deprecated endpoint /generate-presigned-url/ called by user {user.id}. "
-        "This endpoint will be removed in a future release."
-    )
-    try:
-        # Initialize the S3 client
-        client = s3_client()
-        urls = []
-
-        # Process each image in the request
-        for image in data.image_name:
-            image_path = f"projects/{data.project_id}/{data.task_id}/images/{image}"
-
-            # If replace_existing is True, delete the image first
-            if replace_existing:
-                image_dir = f"projects/{data.project_id}/{data.task_id}/images/"
-                try:
-                    # Delete objects under the prefix (MinIO SDK).
-                    # This endpoint is deprecated, so we keep the implementation simple.
-                    for obj in client.list_objects(
-                        settings.S3_BUCKET_NAME,
-                        prefix=image_dir.lstrip("/"),
-                        recursive=True,
-                    ):
-                        client.remove_object(settings.S3_BUCKET_NAME, obj.object_name)
-
-                except Exception as e:
-                    raise HTTPException(
-                        status_code=HTTPStatus.BAD_REQUEST,
-                        detail=f"Failed to delete existing image. {e}",
-                    )
-
-            # Generate a new pre-signed URL for the image upload
-            url = generate_presigned_put_url(
-                settings.S3_BUCKET_NAME,
-                image_path,
-                expires_hours=data.expiry,
-            )
-            urls.append({"image_name": image, "url": url})
-
-        return urls
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"Failed to generate pre-signed URL. {e}",
-        )
 
 
 @router.get("/", tags=["Projects"], response_model=project_schemas.ProjectOut)
@@ -816,19 +731,46 @@ async def get_assets_info(
     for a given project and task. If no task_id is provided, returns info
     for all tasks associated with the project.
     """
+    # Get image counts from DB (authoritative source) instead of S3 listing.
+    image_counts: dict[uuid.UUID, int] = {}
+    async with db.cursor() as cur:
+        if task_id is None:
+            await cur.execute(
+                """
+                SELECT task_id, COUNT(*) as cnt
+                FROM project_images
+                WHERE project_id = %(pid)s
+                  AND task_id IS NOT NULL
+                  AND status = 'assigned'
+                GROUP BY task_id
+                """,
+                {"pid": str(project.id)},
+            )
+        else:
+            await cur.execute(
+                """
+                SELECT task_id, COUNT(*) as cnt
+                FROM project_images
+                WHERE project_id = %(pid)s
+                  AND task_id = %(tid)s
+                  AND status = 'assigned'
+                GROUP BY task_id
+                """,
+                {"pid": str(project.id), "tid": str(task_id)},
+            )
+        for row in await cur.fetchall():
+            image_counts[row[0]] = row[1]
+
     if task_id is None:
-        # Fetch all tasks associated with the project
         tasks = await project_deps.get_tasks_by_project_id(project.id, db)
         results = []
 
         for task in tasks:
-            task_info = project_logic.get_project_info_from_s3(
-                project.id, task.get("id")
-            )
+            tid = task.get("id")
+            task_info = project_logic.get_project_info_from_s3(project.id, tid)
+            task_info.image_count = image_counts.get(tid, 0)
             try:
-                current_state = await task_logic.get_task_state(
-                    db, project.id, task.get("id")
-                )
+                current_state = await task_logic.get_task_state(db, project.id, tid)
                 task_info.state = current_state.get("state") if current_state else None
             except Exception:
                 task_info.state = None
@@ -838,6 +780,7 @@ async def get_assets_info(
     else:
         current_state = await task_logic.get_task_state(db, project.id, task_id)
         project_info = project_logic.get_project_info_from_s3(project.id, task_id)
+        project_info.image_count = image_counts.get(task_id, 0)
         project_info.state = current_state.get("state")
         return project_info
 
@@ -1081,6 +1024,13 @@ async def complete_upload(
                 _queue_name="default_queue",
                 _defer_by=timedelta(seconds=3),
             )
+            if job is None:
+                log.error(f"Failed to enqueue ODM import job for file: {data.file_key}")
+                raise HTTPException(
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                    detail="Upload completed but failed to queue processing job. "
+                    "Please trigger ingestion manually.",
+                )
             log.info(f"Queued ODM import job: {job.job_id} for task: {data.task_id}")
             return {
                 "message": "ODM import queued",
@@ -1104,6 +1054,16 @@ async def complete_upload(
             _queue_name="default_queue",
             _defer_by=timedelta(seconds=2),
         )
+
+        if job is None:
+            log.error(
+                f"Failed to enqueue image processing job for file: {data.filename}"
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail="Upload completed but failed to queue processing job. "
+                "Please trigger ingestion manually.",
+            )
 
         log.info(f"Queued image processing job: {job.job_id} for file: {data.filename}")
 
