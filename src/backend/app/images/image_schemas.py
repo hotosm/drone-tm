@@ -80,3 +80,4 @@ class ProjectImageOut(ProjectImageBase):
     duplicate_of: Optional[UUID]
     batch_id: Optional[UUID]
     rejection_reason: Optional[str] = None
+    terrain_type: Optional[str] = None
