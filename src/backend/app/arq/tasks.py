@@ -673,6 +673,7 @@ async def move_task_images_for_processing(
             "Please retry by marking this task as fully flown again. "
             f"Details: {str(e)}"
         )
+        conn = None
         try:
             async with db_pool.connection() as conn:
                 transition = await task_logic.update_task_state_system(
@@ -687,6 +688,8 @@ async def move_task_images_for_processing(
                 if transition is not None:
                     await conn.commit()
         except Exception as state_error:
+            if conn is not None:
+                await conn.rollback()
             log.error(
                 f"Failed to persist transfer failure state for task {task_id}: "
                 f"{state_error}"
