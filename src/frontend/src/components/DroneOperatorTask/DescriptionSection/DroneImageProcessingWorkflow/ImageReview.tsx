@@ -192,7 +192,7 @@ const TaskAccordionContent = ({
                       }`}
                       onClick={() => onImageClick(image, imageUrlMap)}
                       onDoubleClick={() => onImageDoubleClick(image, imageUrlMap)}
-                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ""} (double-click to view)`}
+                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ""}${image.terrain_type ? ` [${image.terrain_type}]` : ""} (double-click to view)`}
                     >
                       {thumbSrc ? (
                         <img
@@ -227,6 +227,11 @@ const TaskAccordionContent = ({
                         </div>
                       )}
                       <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
+                      {image.terrain_type && (
+                        <div className="naxatw-absolute naxatw-top-0 naxatw-left-0 naxatw-bg-blue-600 naxatw-bg-opacity-80 naxatw-px-1 naxatw-py-0.5 naxatw-text-[8px] naxatw-font-medium naxatw-text-white naxatw-rounded-br naxatw-leading-tight">
+                          {image.terrain_type.replace("_", " ")}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -292,6 +297,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     filename: string;
     status: string;
     rejection_reason?: string;
+    terrain_type?: string;
   } | null>(null);
   const [highlightedImageId, setHighlightedImageId] = useState<string | null>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
@@ -467,6 +473,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     filename: string;
     status: string;
     rejection_reason?: string;
+    terrain_type?: string;
   }) => {
     const statusColors: Record<string, string> = {
       assigned: "#22c55e",
@@ -490,6 +497,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};"></span>
           ${escapeHtml((props.status || "unknown").replace("_", " "))}
         </div>
+        ${props.terrain_type ? `<div style="font-size:11px;color:#2563eb;margin-top:2px;">Terrain: ${escapeHtml(props.terrain_type.replace("_", " "))}</div>` : ""}
         ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(props.status) ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${safeReason}</div>` : ""}
         <div>
           <button data-inspect-image-id="${safeId}" style="${btnStyle}background:#2563eb;color:white;">
@@ -814,6 +822,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
       filename: image.filename,
       status: image.status,
       rejection_reason: image.rejection_reason,
+      terrain_type: image.terrain_type,
     });
     // If we don't have a full-resolution URL, fetch it on demand
     if (!urls?.url) {
@@ -1344,6 +1353,11 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
                 <p className="naxatw-text-xs naxatw-uppercase naxatw-tracking-wider naxatw-text-gray-300 naxatw-mb-1">
                   Status: {selectedImage.status.replace("_", " ")}
                 </p>
+                {selectedImage.terrain_type && (
+                  <p className="naxatw-text-xs naxatw-text-blue-300">
+                    Terrain: {selectedImage.terrain_type.replace("_", " ")}
+                  </p>
+                )}
                 {selectedImage.rejection_reason && (
                   <p className="naxatw-text-sm naxatw-text-red-300">
                     Reason: {selectedImage.rejection_reason}

@@ -13,6 +13,109 @@ from app.models.enums import ImageStatus
 from app.images.image_classification import ImageClassifier, QualityThresholds
 
 
+def _encode_image(gray_array: np.ndarray) -> bytes:
+    import cv2
+
+    bgr = cv2.cvtColor(gray_array, cv2.COLOR_GRAY2BGR)
+    _, buf = cv2.imencode(".jpg", bgr)
+    return buf.tobytes()
+
+
+def _make_bgr(b: int, g: int, r: int, size: int = 100) -> np.ndarray:
+    img = np.zeros((size, size, 3), dtype=np.uint8)
+    img[:, :, 0] = b
+    img[:, :, 1] = g
+    img[:, :, 2] = r
+    return img
+
+
+def test_grid_sharpness_water_not_rejected():
+    """Water imagery (uniform dark) should not be rejected as blurry when
+    enough textured cells exist in the image."""
+    h, w = 400, 400
+    img = np.full((h, w), 60, dtype=np.uint8)
+    for y in range(0, h // 2):
+        for x in range(0, w // 2):
+            img[y, x] = np.uint8((y * 7 + x * 13) % 256)
+
+    result = ImageClassifier.calculate_sharpness_grid(_encode_image(img))
+    assert result["sharpness"] >= QualityThresholds.min_sharpness
+    assert result["terrain_type"] in ("mixed", "water", "bare_soil")
+
+
+def test_grid_sharpness_fully_blurry_still_rejected():
+    """A truly blurry image (all cells low variance) is still rejected."""
+    img = np.full((400, 400), 128, dtype=np.uint8)
+    noise = np.random.RandomState(42).randint(-2, 3, (400, 400), dtype=np.int16)
+    img = np.clip(img.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+
+    result = ImageClassifier.calculate_sharpness_grid(_encode_image(img))
+    assert result["sharpness"] < QualityThresholds.min_sharpness
+
+
+def test_terrain_classification_water():
+    bgr = _make_bgr(180, 80, 50)  # blue-dominant
+    terrain = ImageClassifier._classify_terrain(bgr, 0.8, [])
+    assert terrain == "water"
+
+
+def test_terrain_classification_water_bright():
+    """Bright water with sun reflection should still be classified as water, not snow."""
+    bgr = _make_bgr(220, 180, 160)  # bright but still blue-dominant
+    terrain = ImageClassifier._classify_terrain(bgr, 0.8, [])
+    assert terrain == "water"
+
+
+def test_terrain_classification_water_dirty():
+    bgr = _make_bgr(60, 100, 140)  # brown/tan, no blue
+    terrain = ImageClassifier._classify_terrain(bgr, 0.95, [])
+    assert terrain == "water"
+
+
+def test_terrain_classification_snow():
+    bgr = _make_bgr(240, 240, 240)  # achromatic bright = snow
+    terrain = ImageClassifier._classify_terrain(bgr, 0.8, [])
+    assert terrain == "snow_ice"
+
+
+def test_terrain_classification_sand():
+    bgr = _make_bgr(100, 160, 200)  # warm orange-yellow in BGR
+    terrain = ImageClassifier._classify_terrain(bgr, 0.8, [15.0])
+    assert terrain == "sand"
+
+
+def test_terrain_classification_bare_soil():
+    bgr = _make_bgr(110, 115, 120)  # neutral mid-tone, low saturation
+    terrain = ImageClassifier._classify_terrain(bgr, 0.7, [])
+    assert terrain == "bare_soil"
+
+
+def test_terrain_classification_dense_vegetation():
+    bgr = _make_bgr(30, 80, 20)  # dark green
+    terrain = ImageClassifier._classify_terrain(bgr, 0.1, [200.0, 300.0])
+    assert terrain == "dense_vegetation"
+
+
+def test_terrain_classification_urban():
+    bgr = np.zeros((100, 100, 3), dtype=np.uint8)
+    bgr[:50, :] = [200, 200, 200]
+    bgr[50:, :] = [30, 30, 30]
+    terrain = ImageClassifier._classify_terrain(bgr, 0.1, [500.0, 600.0])
+    assert terrain == "urban"
+
+
+def test_terrain_classification_vegetation():
+    bgr = _make_bgr(40, 140, 50)  # green, moderate brightness
+    terrain = ImageClassifier._classify_terrain(bgr, 0.1, [150.0])
+    assert terrain == "vegetation"
+
+
+def test_terrain_classification_mixed():
+    bgr = _make_bgr(120, 120, 120)  # neutral
+    terrain = ImageClassifier._classify_terrain(bgr, 0.4, [200.0])
+    assert terrain == "mixed"
+
+
 def test_classifier_exposure_detects_lens_cap():
     """Verifies _exposure_issues flags very dark images (Lens Cap)."""
     # Dark image
