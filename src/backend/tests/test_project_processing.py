@@ -48,17 +48,6 @@ class _FakePool:
         return _FakePoolConnection(self.conn)
 
 
-class _FakeDbPoolContext:
-    def __init__(self, conn):
-        self.conn = conn
-
-    async def __aenter__(self):
-        return _FakePool(self.conn)
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-
 class _FakeZipFile:
     def __init__(self, *args, **kwargs):
         self._members = ["odm_orthophoto/odm_orthophoto.tif", "odm_report/report.pdf"]
@@ -523,7 +512,7 @@ async def test_process_assets_from_odm_does_not_mark_single_task_project_complet
             return FakeTask()
 
     async def fake_get_db_connection_pool():
-        return _FakeDbPoolContext(conn)
+        return _FakePool(conn)
 
     async def fake_update_task_state_system(**kwargs):
         return {
