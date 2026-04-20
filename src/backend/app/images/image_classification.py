@@ -3,6 +3,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+import math
 from math import cos, radians, sqrt
 from typing import Optional, Any, Literal
 import re
@@ -38,9 +39,12 @@ CLASSIFICATION_PER_IMAGE_TIMEOUT_SECONDS = 120
 # Fallback buffer radius in meters when altitude is unknown.
 COVERAGE_BUFFER_METERS_FALLBACK = 20.0
 
-# Minimum vertical FOV across supported drones (conservative estimate).
-# Used with altitude to compute the image footprint for coverage calculation.
-_MIN_VERTICAL_FOV = 0.93
+# Default diagonal FOV in degrees for coverage calculations when no better
+# data is available.  82.1° matches the DJI Mini 4 Pro (common platform).
+_DEFAULT_DIAGONAL_FOV_DEG = 82.1
+
+# Default image aspect ratio (width / height) when EXIF is unavailable.
+_DEFAULT_ASPECT_RATIO = 4 / 3
 
 # Task states that indicate the task is ready for or past processing.
 VERIFIED_TASK_STATES = {
@@ -51,6 +55,45 @@ VERIFIED_TASK_STATES = {
 }
 
 ImageUrlVariant = Literal["thumb", "full", "both"]
+
+
+def _coverage_buffer_radius(
+    gsd_cm_px: float | None,
+    altitude: float | None,
+    avg_img_width: float | None = None,
+    avg_img_height: float | None = None,
+) -> float:
+    """Compute an area-equivalent circle radius for the image ground footprint.
+
+    Priority:
+    1. GSD + image pixel dimensions → exact ground footprint →
+       area-equivalent circle radius = sqrt(W * H / pi)
+    2. Altitude + default diagonal FOV + default aspect ratio → footprint
+       from trigonometry → area-equivalent circle radius
+    3. Fallback constant
+
+    Using an area-equivalent radius (rather than circumscribing) avoids
+    inflating coverage when ST_Buffer creates circles around each point.
+    """
+    img_w = avg_img_width or 4000  # reasonable default for most drones
+    img_h = avg_img_height or 3000
+
+    # Method 1: GSD-based (most accurate)
+    if gsd_cm_px and gsd_cm_px > 0:
+        ground_w = gsd_cm_px * img_w / 100  # meters
+        ground_h = gsd_cm_px * img_h / 100
+        return math.sqrt(ground_w * ground_h / math.pi)
+
+    # Method 2: Altitude + FOV based
+    if altitude and altitude > 0:
+        fov_rad = math.radians(_DEFAULT_DIAGONAL_FOV_DEG)
+        diagonal = 2 * altitude * math.tan(fov_rad / 2)
+        aspect = img_w / img_h if img_w and img_h else _DEFAULT_ASPECT_RATIO
+        footprint_h = diagonal / math.sqrt(1 + aspect**2)
+        footprint_w = aspect * footprint_h
+        return math.sqrt(footprint_w * footprint_h / math.pi)
+
+    return COVERAGE_BUFFER_METERS_FALLBACK
 
 
 @dataclass(frozen=True)
@@ -1614,12 +1657,12 @@ class ImageClassifier:
         union of all task outlines, and returns the percentage of the
         project area that is covered.
         """
-        # Determine buffer radius from project altitude or average EXIF altitude.
+        # Determine buffer radius from GSD + image dimensions, or altitude + FOV.
         buffer_radius = COVERAGE_BUFFER_METERS_FALLBACK
         try:
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "SELECT altitude_from_ground FROM projects WHERE id = %(pid)s",
+                    "SELECT altitude_from_ground, gsd_cm_px FROM projects WHERE id = %(pid)s",
                     {"pid": str(project_id)},
                 )
                 proj_row = await cur.fetchone()
@@ -1628,35 +1671,58 @@ class ImageClassifier:
                     if proj_row and proj_row.get("altitude_from_ground")
                     else None
                 )
+                gsd = (
+                    proj_row["gsd_cm_px"]
+                    if proj_row and proj_row.get("gsd_cm_px")
+                    else None
+                )
 
-            if altitude is None:
-                async with db.cursor(row_factory=dict_row) as cur:
-                    await cur.execute(
-                        """
-                        SELECT AVG(
+            # Get average image dimensions and fallback altitude from EXIF
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT
+                        AVG(COALESCE(
+                            (exif->>'ImageWidth')::double precision,
+                            (exif->>'ExifImageWidth')::double precision
+                        )) AS avg_w,
+                        AVG(COALESCE(
+                            (exif->>'ImageHeight')::double precision,
+                            (exif->>'ExifImageHeight')::double precision
+                        )) AS avg_h,
+                        AVG(
                             NULLIF(regexp_replace(
                                 COALESCE(exif->>'AbsoluteAltitude',''),
                                 '[^0-9+\\-.]+', '', 'g'
                             ), '')::double precision
                         ) AS avg_alt
-                        FROM project_images
-                        WHERE project_id = %(pid)s
-                          AND status = %(status)s
-                          AND location IS NOT NULL
-                        """,
-                        {
-                            "pid": str(project_id),
-                            "status": ImageStatus.ASSIGNED.value,
-                        },
-                    )
-                    alt_row = await cur.fetchone()
-                    if alt_row and alt_row.get("avg_alt"):
-                        altitude = float(alt_row["avg_alt"])
+                    FROM project_images
+                    WHERE project_id = %(pid)s
+                      AND status = %(status)s
+                      AND location IS NOT NULL
+                    """,
+                    {
+                        "pid": str(project_id),
+                        "status": ImageStatus.ASSIGNED.value,
+                    },
+                )
+                exif_row = await cur.fetchone()
+                avg_w = (
+                    float(exif_row["avg_w"])
+                    if exif_row and exif_row.get("avg_w")
+                    else None
+                )
+                avg_h = (
+                    float(exif_row["avg_h"])
+                    if exif_row and exif_row.get("avg_h")
+                    else None
+                )
+                if altitude is None and exif_row and exif_row.get("avg_alt"):
+                    altitude = float(exif_row["avg_alt"])
 
-            if altitude and altitude > 0:
-                buffer_radius = altitude * _MIN_VERTICAL_FOV / 2
+            buffer_radius = _coverage_buffer_radius(gsd, altitude, avg_w, avg_h)
         except Exception as e:
-            log.warning(f"Could not determine altitude for project coverage: {e}")
+            log.warning(f"Could not determine buffer radius for project coverage: {e}")
 
         # Single query: union all image buffers, intersect with project area.
         coverage_query = """
@@ -1951,14 +2017,13 @@ class ImageClassifier:
             )
             images = await cur.fetchall()
 
-        # Determine buffer radius from altitude and camera FOV.
-        # Try project-level altitude first, then average EXIF altitude.
+        # Determine buffer radius from GSD + image dimensions, or altitude + FOV.
         buffer_radius = COVERAGE_BUFFER_METERS_FALLBACK
         try:
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
                     """
-                    SELECT altitude_from_ground FROM projects
+                    SELECT altitude_from_ground, gsd_cm_px FROM projects
                     WHERE id = %(project_id)s
                     """,
                     {"project_id": str(project_id)},
@@ -1967,6 +2032,48 @@ class ImageClassifier:
                 altitude = (
                     proj_row["altitude_from_ground"]
                     if proj_row and proj_row.get("altitude_from_ground")
+                    else None
+                )
+                gsd = (
+                    proj_row["gsd_cm_px"]
+                    if proj_row and proj_row.get("gsd_cm_px")
+                    else None
+                )
+
+            # Get average image dimensions from EXIF for this task
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT
+                        AVG(COALESCE(
+                            (exif->>'ImageWidth')::double precision,
+                            (exif->>'ExifImageWidth')::double precision
+                        )) AS avg_w,
+                        AVG(COALESCE(
+                            (exif->>'ImageHeight')::double precision,
+                            (exif->>'ExifImageHeight')::double precision
+                        )) AS avg_h
+                    FROM project_images
+                    WHERE task_id = %(task_id)s
+                      AND project_id = %(project_id)s
+                      AND status = %(status)s
+                      AND location IS NOT NULL
+                    """,
+                    {
+                        "task_id": str(task_id),
+                        "project_id": str(project_id),
+                        "status": ImageStatus.ASSIGNED.value,
+                    },
+                )
+                dim_row = await cur.fetchone()
+                avg_w = (
+                    float(dim_row["avg_w"])
+                    if dim_row and dim_row.get("avg_w")
+                    else None
+                )
+                avg_h = (
+                    float(dim_row["avg_h"])
+                    if dim_row and dim_row.get("avg_h")
                     else None
                 )
 
@@ -1996,11 +2103,9 @@ class ImageClassifier:
                     if alt_row and alt_row.get("avg_alt"):
                         altitude = float(alt_row["avg_alt"])
 
-            if altitude and altitude > 0:
-                # Half the forward (narrow) footprint: altitude * VERTICAL_FOV / 2
-                buffer_radius = altitude * _MIN_VERTICAL_FOV / 2
+            buffer_radius = _coverage_buffer_radius(gsd, altitude, avg_w, avg_h)
         except Exception as e:
-            log.warning(f"Could not determine altitude for coverage buffer: {e}")
+            log.warning(f"Could not determine coverage buffer radius: {e}")
 
         # Calculate coverage using PostGIS with altitude-derived buffer
         coverage_query = """

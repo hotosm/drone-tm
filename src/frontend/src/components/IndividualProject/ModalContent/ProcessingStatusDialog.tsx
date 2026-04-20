@@ -156,7 +156,7 @@ const ProcessingStatusDialog = () => {
       queryClient.invalidateQueries({
         queryKey: ["projectTaskImagerySummary", projectId],
       });
-      toast.success("Final processing started — this may take a long time.");
+      toast.success("Final processing started - this may take a long time.");
     },
     onError: (error) => {
       const detail =
