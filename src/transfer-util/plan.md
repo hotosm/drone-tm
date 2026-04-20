@@ -358,3 +358,13 @@ Next phases (not yet built):
 - Phase 3: SAF fallback strategy
 - Phase 4: QField plugin integration + DroneTM web integration
 - Phase 5: HTTP transfer for network scenarios
+
+---
+
+How the fallback works:
+
+1. App tries MTP first (primary strategy)
+2. If MTP fails at any step, it switches to SAF mode with a clear message
+3. In SAF mode, the user picks the waypoint directory ONCE -- permission is persisted in SharedPreferences
+4. Subsequent transfers skip the picker entirely
+5. User can manually switch between modes via the strategy indicator bar

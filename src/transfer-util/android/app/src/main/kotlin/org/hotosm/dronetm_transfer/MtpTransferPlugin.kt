@@ -114,6 +114,11 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
                 result.success(true)
             }
             "getDeviceStatus" -> getDeviceStatus(result)
+            "readContentUri" -> {
+                val uri = call.argument<String>("uri") ?: return result.error("INVALID_ARGS", "uri required", null)
+                readContentUri(uri, result)
+            }
+            "getInitialIntent" -> getInitialIntent(result)
             else -> result.notImplemented()
         }
     }
@@ -327,6 +332,89 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
         result.success(mapOf(
             "isConnected" to (currentMtpDevice != null)
         ))
+    }
+
+    /**
+     * Read bytes from a content:// URI using ContentResolver.
+     * Returns a map with "bytes" (ByteArray), "name" (String), and "size" (Long).
+     */
+    private fun readContentUri(uriString: String, result: MethodChannel.Result) {
+        try {
+            val uri = android.net.Uri.parse(uriString)
+            val contentResolver = activity.contentResolver
+
+            // Get display name
+            var displayName = "unknown.kmz"
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex >= 0) {
+                        displayName = cursor.getString(nameIndex) ?: displayName
+                    }
+                }
+            }
+
+            // Read bytes
+            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes == null) {
+                result.error("READ_FAILED", "Could not read file from URI", null)
+                return
+            }
+
+            result.success(mapOf(
+                "bytes" to bytes,
+                "name" to displayName,
+                "size" to bytes.size.toLong()
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read content URI", e)
+            result.error("READ_ERROR", "Failed to read file: ${e.message}", null)
+        }
+    }
+
+    /**
+     * Return the intent that launched the activity (for cold-start share/deeplink handling).
+     */
+    private var initialIntentHandled = false
+    private fun getInitialIntent(result: MethodChannel.Result) {
+        if (initialIntentHandled) {
+            result.success(null)
+            return
+        }
+        initialIntentHandled = true
+        val intent = activity.intent ?: return result.success(null)
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+                if (uri != null) {
+                    result.success(mapOf("action" to "share", "uri" to uri.toString()))
+                } else {
+                    result.success(null)
+                }
+            }
+            Intent.ACTION_VIEW -> {
+                val uri = intent.data
+                if (uri != null) {
+                    if (uri.scheme == "dronetm") {
+                        result.success(mapOf(
+                            "action" to "deeplink",
+                            "uri" to (uri.getQueryParameter("file") ?: ""),
+                            "host" to (uri.host ?: "")
+                        ))
+                    } else {
+                        result.success(mapOf("action" to "view", "uri" to uri.toString()))
+                    }
+                } else {
+                    result.success(null)
+                }
+            }
+            else -> result.success(null)
+        }
     }
 
     /**

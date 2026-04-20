@@ -413,11 +413,11 @@ QfDialog {
       Label {
         visible: generationState === "transfer_failed"
         text: qsTr("To transfer the flightplan to your DJI controller:\n\n" +
-          "1. Ensure the controller is connected via USB and has at least one prior waypoint mission\n" +
-          "2. Use a file manager app to copy the .kmz from this project's flightplans/ folder to:\n" +
-          "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n" +
-          "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
-          "Tip: If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.")
+          "1. Connect the controller to your phone via USB cable\n" +
+          "2. Tap 'Copy to Flight Controller' below — this opens the DroneTM Transfer app\n" +
+          "3. In the Transfer app: grant USB permission, select the mission slot, and tap Transfer\n\n" +
+          "If the DroneTM Transfer app is not installed, you'll be prompted to save the file manually.\n\n" +
+          "Tip: If this is a new controller, fly one short waypoint mission first so DJI creates the waypoint directory.")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
