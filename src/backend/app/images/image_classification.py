@@ -184,13 +184,26 @@ class ImageClassifier:
         km_lon = dlon * 111.0 * cos(radians(mean_lat))
         return float(sqrt(km_lat * km_lat + km_lon * km_lon))
 
+    GRID_SIZE = 4
+    LOW_TEXTURE_LAPLACIAN = 30.0
+    LOW_TEXTURE_RATIO_WATER = 0.6
+    TEXTURED_PERCENTILE = 75
+
+    # Terrain types where low Laplacian variance is expected and does not
+    # indicate an out-of-focus image.  Only includes types with strong color
+    # signals (water, snow/ice, sand).  bare_soil is excluded because real
+    # soil has grain/micro-shadows that produce some textured cells - a fully
+    # featureless achromatic image is more likely defocused than actual soil.
+    LOW_TEXTURE_TERRAINS = frozenset({"water", "snow_ice", "sand"})
+
     @staticmethod
     def calculate_sharpness(image_bytes: bytes) -> float:
-        """Calculate image sharpness using Laplacian variance method.
+        """Calculate image sharpness using grid-based Laplacian variance.
 
-        The Laplacian variance method detects blur by computing the variance
-        of the Laplacian (second derivative) of the image. A low variance
-        indicates a blurry image, while a high variance indicates a sharp image.
+        Divides the image into a grid and computes per-cell Laplacian variance.
+        The representative sharpness is derived from cells that have texture,
+        which prevents uniform regions (water, sand, snow) from dragging down
+        the score.
 
         Args:
             image_bytes: Raw image file bytes
@@ -206,30 +219,169 @@ class ImageClassifier:
         Raises:
             ValueError: If image cannot be decoded
         """
+        result = ImageClassifier.calculate_sharpness_grid(image_bytes)
+        return result["sharpness"]
+
+    @staticmethod
+    def calculate_sharpness_grid(image_bytes: bytes) -> dict[str, Any]:
+        """Calculate grid-based sharpness and detect terrain type.
+
+        Returns a dict with:
+            sharpness: float - representative sharpness score
+            terrain_type: str - detected terrain ("mixed", "water", "uniform", "textured")
+            cell_scores: list[float] - per-cell Laplacian variances
+            low_texture_ratio: float - fraction of cells that are low-texture
+        """
         try:
-            # Convert bytes to numpy array
             nparr = np.frombuffer(image_bytes, np.uint8)
-
-            # Decode image
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
             if img is None:
                 raise ValueError("Failed to decode image")
 
-            # Convert to grayscale for better edge detection
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            h, w = gray.shape
+            grid = ImageClassifier.GRID_SIZE
+            cell_h, cell_w = h // grid, w // grid
 
-            # Calculate Laplacian variance
-            laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-            variance = laplacian.var()
+            cell_scores: list[float] = []
+            for row in range(grid):
+                for col in range(grid):
+                    y0 = row * cell_h
+                    x0 = col * cell_w
+                    y1 = h if row == grid - 1 else y0 + cell_h
+                    x1 = w if col == grid - 1 else x0 + cell_w
+                    cell = gray[y0:y1, x0:x1]
+                    lap = cv2.Laplacian(cell, cv2.CV_64F)
+                    cell_scores.append(float(lap.var()))
 
-            log.debug(f"Calculated sharpness score: {variance:.2f}")
+            low_texture_cells = [
+                s for s in cell_scores if s < ImageClassifier.LOW_TEXTURE_LAPLACIAN
+            ]
+            textured_cells = [
+                s for s in cell_scores if s >= ImageClassifier.LOW_TEXTURE_LAPLACIAN
+            ]
+            low_texture_ratio = (
+                len(low_texture_cells) / len(cell_scores) if cell_scores else 0.0
+            )
 
-            return float(variance)
+            terrain_type = ImageClassifier._classify_terrain(
+                img, low_texture_ratio, textured_cells
+            )
+
+            if textured_cells:
+                sharpness = float(
+                    np.percentile(textured_cells, ImageClassifier.TEXTURED_PERCENTILE)
+                )
+            else:
+                sharpness = float(np.mean(cell_scores)) if cell_scores else 0.0
+
+            log.debug(
+                f"Grid sharpness: score={sharpness:.1f} terrain={terrain_type} "
+                f"low_texture_ratio={low_texture_ratio:.0%} "
+                f"cells={len(cell_scores)} textured={len(textured_cells)}"
+            )
+
+            return {
+                "sharpness": sharpness,
+                "terrain_type": terrain_type,
+                "cell_scores": cell_scores,
+                "low_texture_ratio": low_texture_ratio,
+            }
 
         except Exception as e:
             log.error(f"Error calculating sharpness: {e}")
             raise ValueError(f"Failed to calculate sharpness: {e}") from e
+
+    @staticmethod
+    def _classify_terrain(
+        bgr: np.ndarray,
+        low_texture_ratio: float,
+        textured_cells: list[float],
+    ) -> str:
+        """An heuristic for classifying dominant terrain type using color analysis (HSV/LAB).
+
+        Uses HSV hue and saturation as the primary signal - these are largely
+        invariant to brightness, solving false classifications caused by
+        lighting conditions (e.g. bright water misclassified as snow).
+
+        Returns one of:
+            "water"            - blue/cyan hue, low texture (river, lake, ocean)
+            "snow_ice"         - very low saturation, high value (snow, ice, glaciers)
+            "sand"             - warm hue (yellow-orange), low saturation
+            "bare_soil"        - warm-to-neutral hue, low saturation, mid-tone
+            "dense_vegetation" - green hue, dark, low texture
+            "urban"            - high texture, high contrast (buildings, roads)
+            "vegetation"       - green hue, moderate texture (farmland, grassland)
+            "mixed"            - mix of textured and low-texture regions
+        """
+        # --- Mostly textured image: use texture/contrast for urban vs vegetation ---
+        if low_texture_ratio < 0.25:
+            hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+            h, s, v = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+            mean_hue = float(np.mean(h))
+            mean_sat = float(np.mean(s))
+            std_v = float(np.std(v))
+
+            # Green-dominant → vegetation or dense_vegetation
+            if 30 <= mean_hue <= 85 and mean_sat > 40:
+                mean_v = float(np.mean(v))
+                if mean_v < 90:
+                    return "dense_vegetation"
+                return "vegetation"
+
+            if std_v > 50:
+                return "urban"
+            return "vegetation"
+
+        # --- Mixed texture ---
+        if low_texture_ratio < ImageClassifier.LOW_TEXTURE_RATIO_WATER:
+            return "mixed"
+
+        # --- High low-texture ratio: use color to distinguish terrain ---
+        hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+        h, s, v = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+
+        mean_hue = float(np.mean(h))  # 0-180 in OpenCV
+        mean_sat = float(np.mean(s))  # 0-255
+        mean_val = float(np.mean(v))  # 0-255
+
+        blue_ratio = float(np.mean((h >= 85) & (h <= 135)))
+        if blue_ratio > 0.3 and mean_sat > 20:
+            return "water"
+
+        if mean_val < 80 and mean_sat < 40 and blue_ratio > 0.15:
+            return "water"
+
+        # Dirty/muddy water: colored but extremely uniform texture.
+        # Water (even turbid) has near-zero Laplacian variance across the entire
+        # image, unlike sand/soil which show grain and micro-shadows.
+        # Require minimum saturation (> 10) to avoid misclassifying genuinely
+        # blurry achromatic images (gray, overcast) as water.
+        if low_texture_ratio >= 0.9 and not textured_cells and mean_sat > 10:
+            return "water"
+
+        if mean_sat < 30 and mean_val > 180:
+            return "snow_ice"
+
+        # Sand: warm hue (10-30 in OpenCV = orange-yellow), moderate saturation
+        warm_ratio = float(np.mean(((h >= 8) & (h <= 35)) | (h < 8)))
+        if warm_ratio > 0.4 and mean_sat > 25 and mean_sat < 120:
+            return "sand"
+
+        # Bare soil: low saturation, mid-tone, no strong hue
+        if mean_sat < 50 and 60 < mean_val < 180:
+            return "bare_soil"
+
+        # Dense vegetation: green hue, dark
+        green_ratio = float(np.mean((h >= 30) & (h <= 85)))
+        if green_ratio > 0.3 and mean_val < 120:
+            return "dense_vegetation"
+
+        # Fallback by brightness
+        if mean_val > 160:
+            return "sand"
+
+        return "bare_soil"
 
     @staticmethod
     def _decode_gray(image_bytes: bytes) -> np.ndarray:
@@ -460,18 +612,36 @@ class ImageClassifier:
         # Check sharpness and exposure if image bytes available
         if image_bytes:
             try:
-                # Use the calculate_sharpness method
-                sharpness_score = ImageClassifier.calculate_sharpness(image_bytes)
-                if sharpness_score < Q.min_sharpness:
+                grid_result = ImageClassifier.calculate_sharpness_grid(image_bytes)
+                sharpness_score = grid_result["sharpness"]
+                terrain_type = grid_result["terrain_type"]
+
+                # Low-texture natural terrain (water, snow, sand, bare soil)
+                # inherently has low Laplacian variance - that does not mean the
+                # camera was out of focus.  Only flag as blurry when enough
+                # textured cells exist to make a meaningful measurement.
+                low_texture_terrain = (
+                    terrain_type in ImageClassifier.LOW_TEXTURE_TERRAINS
+                )
+
+                if sharpness_score < Q.min_sharpness and not low_texture_terrain:
                     issues.append(
                         f"Blurry (sharpness: {sharpness_score:.1f}, min: {Q.min_sharpness})"
                     )
                     log.debug(
-                        f"Sharpness check FAILED: image_id={image_id} score={sharpness_score:.1f} min={Q.min_sharpness}"
+                        f"Sharpness check FAILED: image_id={image_id} score={sharpness_score:.1f} "
+                        f"min={Q.min_sharpness} terrain={terrain_type}"
+                    )
+                elif sharpness_score < Q.min_sharpness and low_texture_terrain:
+                    log.info(
+                        f"Sharpness below threshold but low-texture terrain detected, "
+                        f"skipping blur rejection: image_id={image_id} "
+                        f"score={sharpness_score:.1f} terrain={terrain_type}"
                     )
                 else:
                     log.debug(
-                        f"Sharpness check passed: image_id={image_id} score={sharpness_score:.1f}"
+                        f"Sharpness check passed: image_id={image_id} score={sharpness_score:.1f} "
+                        f"terrain={terrain_type}"
                     )
 
                 # Check exposure issues
