@@ -514,7 +514,6 @@ class ImageClassifier:
         exif_data = image.get("exif") or {}
         s3_key = image.get("s3_key")
         sharpness_score = None
-        terrain_type = None
 
         # Check EXIF data FIRST before downloading image
         if not exif_data:
@@ -608,7 +607,7 @@ class ImageClassifier:
             try:
                 grid_result = ImageClassifier.calculate_sharpness_grid(image_bytes)
                 sharpness_score = grid_result["sharpness"]
-                terrain_type = grid_result["terrain_type"]
+                terrain_type = grid_result["terrain_type"]  # used for logging only
 
                 if sharpness_score < Q.min_sharpness:
                     issues.append(
@@ -665,7 +664,7 @@ class ImageClassifier:
             )
 
             await ImageClassifier._update_image_status(
-                db, image_id, status, rejection_reason, sharpness_score, terrain_type
+                db, image_id, status, rejection_reason, sharpness_score
             )
             log.info(
                 f"Image rejected: image_id={image_id} status={status.value} reason={rejection_reason}"
@@ -675,7 +674,6 @@ class ImageClassifier:
                 "status": status,
                 "reason": rejection_reason,
                 "sharpness_score": sharpness_score,
-                "terrain_type": terrain_type,
             }
 
         # All checks passed
@@ -718,7 +716,7 @@ class ImageClassifier:
             }
 
         await ImageClassifier._assign_image_to_task(
-            db, image_id, task_id, sharpness_score, terrain_type
+            db, image_id, task_id, sharpness_score
         )
         log.info(f"Image assigned: image_id={image_id} task_id={task_id}")
 
@@ -727,7 +725,6 @@ class ImageClassifier:
             "status": ImageStatus.ASSIGNED,
             "task_id": str(task_id),
             "sharpness_score": sharpness_score,
-            "terrain_type": terrain_type,
         }
 
     @staticmethod
@@ -737,14 +734,12 @@ class ImageClassifier:
         status: ImageStatus,
         rejection_reason: Optional[str] = None,
         sharpness_score: Optional[float] = None,
-        terrain_type: Optional[str] = None,
     ) -> None:
         query = """
             UPDATE project_images
             SET status = %(status)s,
                 rejection_reason = %(rejection_reason)s,
                 sharpness_score = %(sharpness_score)s,
-                terrain_type = %(terrain_type)s,
                 classified_at = %(classified_at)s
             WHERE id = %(image_id)s
         """
@@ -757,7 +752,6 @@ class ImageClassifier:
                     "status": status.value,
                     "rejection_reason": rejection_reason,
                     "sharpness_score": sharpness_score,
-                    "terrain_type": terrain_type,
                     "classified_at": datetime.utcnow(),
                 },
             )
@@ -768,14 +762,12 @@ class ImageClassifier:
         image_id: uuid.UUID,
         task_id: uuid.UUID,
         sharpness_score: Optional[float] = None,
-        terrain_type: Optional[str] = None,
     ) -> None:
         query = """
             UPDATE project_images
             SET status = %(status)s,
                 task_id = %(task_id)s,
                 sharpness_score = %(sharpness_score)s,
-                terrain_type = %(terrain_type)s,
                 classified_at = %(classified_at)s,
                 rejection_reason = NULL
             WHERE id = %(image_id)s
@@ -789,7 +781,6 @@ class ImageClassifier:
                     "status": ImageStatus.ASSIGNED.value,
                     "task_id": str(task_id),
                     "sharpness_score": sharpness_score,
-                    "terrain_type": terrain_type,
                     "classified_at": datetime.utcnow(),
                 },
             )
@@ -1120,7 +1111,6 @@ class ImageClassifier:
                 classified_at,
                 uploaded_at,
                 exif,
-                terrain_type,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
             FROM project_images
@@ -1982,8 +1972,7 @@ class ImageClassifier:
                         'filename', pi.filename,
                         'status', pi.status,
                         'rejection_reason', pi.rejection_reason,
-                        'uploaded_at', pi.uploaded_at,
-                        'terrain_type', pi.terrain_type
+                        'uploaded_at', pi.uploaded_at
                     ) ORDER BY pi.uploaded_at
                 ) as images
             FROM project_images pi
@@ -2061,7 +2050,6 @@ class ImageClassifier:
                 status,
                 rejection_reason,
                 task_id,
-                terrain_type,
                 ST_X(location::geometry) as longitude,
                 ST_Y(location::geometry) as latitude
             FROM project_images
@@ -2085,7 +2073,6 @@ class ImageClassifier:
                 "status": img["status"],
                 "task_id": str(img["task_id"]) if img["task_id"] else None,
                 "rejection_reason": img["rejection_reason"],
-                "terrain_type": img.get("terrain_type"),
             }
 
             if img["longitude"] is not None and img["latitude"] is not None:

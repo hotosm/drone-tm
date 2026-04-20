@@ -40,7 +40,11 @@ def test_grid_sharpness_water_not_rejected():
 
     result = ImageClassifier.calculate_sharpness_grid(_encode_image(img))
     assert result["sharpness"] >= QualityThresholds.min_sharpness
-    assert result["terrain_type"] in ("mixed", "water", "bare_soil")
+    assert result["terrain_type"] in (
+        "mixed",
+        "water",
+        "bare_soil",
+    )  # terrain_type still in grid result for internal use
 
 
 def test_grid_sharpness_fully_blurry_still_rejected():

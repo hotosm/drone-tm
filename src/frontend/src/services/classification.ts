@@ -20,7 +20,6 @@ export interface TaskGroupImage {
   url?: string;
   status: "assigned" | "rejected" | "invalid_exif" | "duplicate" | "unmatched";
   rejection_reason?: string;
-  terrain_type?: string;
   uploaded_at: string;
 }
 
@@ -290,7 +289,6 @@ export interface TaskImageData {
   url?: string;
   status: string;
   rejection_reason?: string;
-  terrain_type?: string;
   location?: {
     type: string;
     coordinates: [number, number];

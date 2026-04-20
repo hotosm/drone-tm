@@ -250,7 +250,6 @@ class DbProjectImage(Base):
     )
     rejection_reason = cast(str, Column(Text, nullable=True))
     sharpness_score = cast(float, Column(Float, nullable=True))
-    terrain_type = cast(str, Column(String, nullable=True))
     duplicate_of = cast(
         str,
         Column(
