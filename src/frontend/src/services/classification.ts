@@ -199,6 +199,20 @@ export const getProjectTaskImagerySummary = async (
   return response.data;
 };
 
+export interface ProjectCoverage {
+  total_tasks: number;
+  total_images: number;
+  coverage_percentage: number;
+}
+
+/**
+ * Get spatial imagery coverage percentage for the entire project
+ */
+export const getProjectCoverage = async (projectId: string): Promise<ProjectCoverage> => {
+  const response = await authenticated(api).get(`/projects/${projectId}/imagery/coverage/`);
+  return response.data;
+};
+
 /**
  * Get project-level review data: images grouped by task across all batches
  */

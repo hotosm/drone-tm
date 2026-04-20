@@ -1603,6 +1603,130 @@ class ImageClassifier:
         return result
 
     @staticmethod
+    async def get_project_coverage(
+        db: Connection,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Compute spatial imagery coverage for the entire project.
+
+        Uses a single PostGIS query: buffers all assigned image GPS points
+        by an altitude-derived radius, unions them, intersects with the
+        union of all task outlines, and returns the percentage of the
+        project area that is covered.
+        """
+        # Determine buffer radius from project altitude or average EXIF altitude.
+        buffer_radius = COVERAGE_BUFFER_METERS_FALLBACK
+        try:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "SELECT altitude_from_ground FROM projects WHERE id = %(pid)s",
+                    {"pid": str(project_id)},
+                )
+                proj_row = await cur.fetchone()
+                altitude = (
+                    proj_row["altitude_from_ground"]
+                    if proj_row and proj_row.get("altitude_from_ground")
+                    else None
+                )
+
+            if altitude is None:
+                async with db.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(
+                        """
+                        SELECT AVG(
+                            NULLIF(regexp_replace(
+                                COALESCE(exif->>'AbsoluteAltitude',''),
+                                '[^0-9+\\-.]+', '', 'g'
+                            ), '')::double precision
+                        ) AS avg_alt
+                        FROM project_images
+                        WHERE project_id = %(pid)s
+                          AND status = %(status)s
+                          AND location IS NOT NULL
+                        """,
+                        {
+                            "pid": str(project_id),
+                            "status": ImageStatus.ASSIGNED.value,
+                        },
+                    )
+                    alt_row = await cur.fetchone()
+                    if alt_row and alt_row.get("avg_alt"):
+                        altitude = float(alt_row["avg_alt"])
+
+            if altitude and altitude > 0:
+                buffer_radius = altitude * _MIN_VERTICAL_FOV / 2
+        except Exception as e:
+            log.warning(f"Could not determine altitude for project coverage: {e}")
+
+        # Single query: union all image buffers, intersect with project area.
+        coverage_query = """
+            WITH project_area AS (
+                SELECT ST_Union(outline) AS geom
+                FROM tasks
+                WHERE project_id = %(pid)s
+            ),
+            image_points AS (
+                SELECT location
+                FROM project_images
+                WHERE project_id = %(pid)s
+                  AND status = %(status)s
+                  AND location IS NOT NULL
+            ),
+            buffered AS (
+                SELECT ST_Union(
+                    ST_Buffer(location::geography, %(buffer_radius)s)::geometry
+                ) AS geom
+                FROM image_points
+            )
+            SELECT
+                (SELECT COUNT(*) FROM tasks WHERE project_id = %(pid)s) AS total_tasks,
+                (SELECT COUNT(*) FROM image_points) AS total_images,
+                CASE
+                    WHEN (SELECT COUNT(*) FROM image_points) = 0 THEN 0
+                    ELSE LEAST(100, (
+                        ST_Area(
+                            ST_Intersection(
+                                (SELECT geom FROM buffered),
+                                (SELECT geom FROM project_area)
+                            )::geography
+                        ) /
+                        NULLIF(ST_Area(
+                            (SELECT geom FROM project_area)::geography
+                        ), 0)
+                    ) * 100)
+                END AS coverage_percentage
+        """
+
+        try:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    coverage_query,
+                    {
+                        "pid": str(project_id),
+                        "status": ImageStatus.ASSIGNED.value,
+                        "buffer_radius": buffer_radius,
+                    },
+                )
+                row = await cur.fetchone()
+
+            return {
+                "total_tasks": row["total_tasks"] if row else 0,
+                "total_images": row["total_images"] if row else 0,
+                "coverage_percentage": (
+                    round(float(row["coverage_percentage"]), 1)
+                    if row and row.get("coverage_percentage")
+                    else 0.0
+                ),
+            }
+        except Exception as e:
+            log.error(f"Failed to compute project coverage: {e}")
+            return {
+                "total_tasks": 0,
+                "total_images": 0,
+                "coverage_percentage": 0.0,
+            }
+
+    @staticmethod
     async def get_project_review_data(
         db: Connection,
         project_id: uuid.UUID,

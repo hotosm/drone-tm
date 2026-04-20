@@ -494,6 +494,27 @@ async def get_project_task_imagery_summary(
         )
 
 
+@router.get("/{project_id}/imagery/coverage/", tags=["Image Classification"])
+async def get_project_coverage(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Spatial imagery coverage percentage for the entire project.
+
+    Uses PostGIS to compute what fraction of the project area is covered
+    by buffered image GPS points.
+    """
+    try:
+        return await ImageClassifier.get_project_coverage(db, project_id)
+    except Exception as e:
+        log.error(f"Failed to get project coverage: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Failed to compute project coverage: {e}",
+        )
+
+
 @router.get("/{project_id}/imagery/review/", tags=["Image Classification"])
 async def get_project_review(
     project_id: UUID,

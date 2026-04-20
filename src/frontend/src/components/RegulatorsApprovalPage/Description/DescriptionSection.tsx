@@ -278,9 +278,15 @@ const DescriptionSection = ({
             )}
 
             {projectData?.image_processing_status === "PROCESSING" && (
-              <Button className="naxatw-bg-gray-500" withLoader isLoading onClick={() => {}}>
-                Processing
-              </Button>
+              <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+                <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-600">
+                  <span className="material-icons naxatw-animate-spin !naxatw-text-base">sync</span>
+                  <span>Imagery processing in progress...</span>
+                </div>
+                <p className="naxatw-text-xs naxatw-text-gray-400">
+                  Download and upload options will be available once processing is complete.
+                </p>
+              </div>
             )}
           </div>
         )}

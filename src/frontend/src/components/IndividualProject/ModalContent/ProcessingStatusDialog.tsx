@@ -8,7 +8,12 @@ import { useGetProjectsDetailQuery } from "@Api/projects";
 import { useGetAllTaskAssetsInfo, useGetOdmQueueInfo } from "@Api/tasks";
 import { postProcessImagery } from "@Services/tasks";
 import { processAllImagery, saveGcpFile } from "@Services/project";
-import { getProjectTaskImagerySummary, TaskImagerySummary } from "@Services/classification";
+import {
+  getProjectTaskImagerySummary,
+  getProjectCoverage,
+  TaskImagerySummary,
+  ProjectCoverage,
+} from "@Services/classification";
 import { formatString, buildDownloadUrl } from "@Utils/index";
 import { Button } from "@Components/RadixComponents/Button";
 import Icon from "@Components/common/Icon";
@@ -36,6 +41,7 @@ type ProcessingDialogTask = {
 type ProcessingDialogProjectDetail = {
   total_task_count?: number;
   has_gcp?: boolean;
+  image_processing_status?: string;
 };
 
 type OdmQueueTask = {
@@ -100,6 +106,17 @@ const ProcessingStatusDialog = () => {
     enabled: !!projectId,
   });
 
+  // Spatial coverage: actual PostGIS-computed percentage of project area covered
+  const {
+    data: projectCoverage,
+    refetch: refetchCoverage,
+    isFetching: isCoverageFetching,
+  } = useQuery<ProjectCoverage>({
+    queryKey: ["projectCoverage", projectId],
+    queryFn: () => getProjectCoverage(projectId),
+    enabled: !!projectId,
+  });
+
   const {
     data: queueInfo,
     refetch: refetchQueueInfo,
@@ -139,8 +156,7 @@ const ProcessingStatusDialog = () => {
       queryClient.invalidateQueries({
         queryKey: ["projectTaskImagerySummary", projectId],
       });
-      toast.success("Final processing started");
-      dispatch(toggleModal());
+      toast.success("Final processing started — this may take a long time.");
     },
     onError: (error) => {
       const detail =
@@ -396,21 +412,28 @@ const ProcessingStatusDialog = () => {
     [taskSummary, totalTaskCount],
   );
 
+  const coveragePercentage = projectCoverage?.coverage_percentage ?? 0;
+
+  const tasksReady = useMemo(() => {
+    if (!Array.isArray(taskSummary)) return 0;
+    return taskSummary.filter((t) => t.has_ready_imagery).length;
+  }, [taskSummary]);
+
+  const isFinalProcessingRunning =
+    projectDetail?.image_processing_status === "PROCESSING" || isProcessingAll;
+
   const finalProcessingDisabledReason = useMemo(() => {
-    if (isProcessingAll) {
-      return "Final processing is already starting.";
+    if (isFinalProcessingRunning) {
+      return "Final processing is already in progress.";
     }
     if (!totalTaskCount) {
       return "No project tasks are available yet.";
     }
-    if (!Array.isArray(taskSummary) || taskSummary.length < totalTaskCount) {
-      return "Every task must have imagery and finish quick processing first.";
-    }
-    if (!allTasksProcessed) {
-      return "All tasks must reach Complete before final processing can start.";
+    if (tasksReady === 0) {
+      return "No tasks are ready for processing. Upload and verify imagery first.";
     }
     return "";
-  }, [isProcessingAll, totalTaskCount, taskSummary, allTasksProcessed]);
+  }, [isFinalProcessingRunning, totalTaskCount, tasksReady]);
 
   const hasSavedGcp = Boolean(projectDetail?.has_gcp);
   const queueLastUpdated = queueUpdatedAt ? new Date(queueUpdatedAt).toLocaleTimeString() : null;
@@ -634,18 +657,19 @@ const ProcessingStatusDialog = () => {
               </span>
             )}
           </p>
-          <button
-            type="button"
-            onClick={() => refetchTaskSummary()}
-            disabled={isTaskSummaryFetching}
-            className="naxatw-inline-flex naxatw-items-center naxatw-rounded naxatw-p-0.5 naxatw-text-gray-400 hover:naxatw-text-gray-600 disabled:naxatw-opacity-50"
-            title="Refresh task status"
+          <Button
+            variant="outline"
+            className="naxatw-h-8 naxatw-shrink-0 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
+            leftIcon="refresh"
+            iconClassname={`!naxatw-text-sm ${isTaskSummaryFetching || isCoverageFetching ? "naxatw-animate-spin" : ""}`}
+            onClick={() => {
+              refetchTaskSummary();
+              refetchCoverage();
+            }}
+            disabled={isTaskSummaryFetching || isCoverageFetching}
           >
-            <Icon
-              name="refresh"
-              className={`!naxatw-text-sm ${isTaskSummaryFetching ? "naxatw-animate-spin" : ""}`}
-            />
-          </button>
+            Refresh
+          </Button>
         </div>
 
         {taskList.length === 0 && (
@@ -743,23 +767,75 @@ const ProcessingStatusDialog = () => {
               {finalProcessingDisabledReason}
             </p>
           )}
+          {!finalProcessingDisabledReason && !allTasksProcessed && (
+            <div
+              className={`naxatw-w-full naxatw-rounded-lg naxatw-border naxatw-px-4 naxatw-py-3 naxatw-text-xs ${
+                coveragePercentage < 90
+                  ? "naxatw-border-amber-200 naxatw-bg-amber-50 naxatw-text-amber-800"
+                  : "naxatw-border-blue-200 naxatw-bg-blue-50 naxatw-text-blue-800"
+              }`}
+            >
+              <p className="naxatw-font-semibold">
+                {coveragePercentage}% imagery coverage
+                {isCoverageFetching && " (calculating...)"}
+              </p>
+              <p className="naxatw-mt-0.5">
+                {tasksReady} of {totalTaskCount} tasks ready for processing
+              </p>
+              {coveragePercentage < 90 && (
+                <p className="naxatw-mt-1">
+                  Coverage is below 90%. You can still process, but the results may be affected.
+                </p>
+              )}
+            </div>
+          )}
+          {isFinalProcessingRunning && (
+            <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-600">
+              <Icon name="sync" className="naxatw-animate-spin !naxatw-text-base" />
+              <span>
+                {isProcessingAll
+                  ? "Final processing is being submitted..."
+                  : "Final processing is in progress. Check the queue for details."}
+              </span>
+            </div>
+          )}
           <Button
             variant="ghost"
             className="naxatw-bg-red naxatw-px-8 naxatw-py-2 naxatw-text-white disabled:naxatw-bg-gray-400"
-            leftIcon="play_arrow"
+            leftIcon={isFinalProcessingRunning ? "sync" : "play_arrow"}
+            iconClassname={isFinalProcessingRunning ? "naxatw-animate-spin" : ""}
             onClick={() => {
-              if (
-                !window.confirm(
-                  "Are you sure? This will re-process all task imagery into a single orthophoto and 3D model. This may take a long time.",
-                )
-              ) {
-                return;
+              let confirmMessage =
+                `This will process ${tasksReady} of ${totalTaskCount} tasks ` +
+                "into a single orthophoto and 3D model. This may take a long time.\n\n" +
+                "Continue?";
+
+              if (!allTasksProcessed && coveragePercentage < 90) {
+                confirmMessage =
+                  `WARNING: Only ${coveragePercentage}% of the project area has imagery coverage.\n\n` +
+                  `${tasksReady} of ${totalTaskCount} tasks will be processed.\n\n` +
+                  "With incomplete coverage:\n" +
+                  "- Gaps may appear in the final orthophoto where no imagery exists\n" +
+                  "- Alignment may suffer near uncovered areas, causing slight distortion\n" +
+                  "- Edge areas near gaps may have reduced accuracy due to fewer tie points\n\n" +
+                  "Are you sure you want to proceed?";
               }
+
+              if (!window.confirm(confirmMessage)) return;
               handleStartFinalProcessing(false);
             }}
-            disabled={Boolean(finalProcessingDisabledReason)}
+            disabled={
+              Boolean(finalProcessingDisabledReason) ||
+              isFinalProcessingRunning ||
+              isTaskSummaryFetching ||
+              isCoverageFetching
+            }
           >
-            Start Final Processing
+            {isFinalProcessingRunning
+              ? "Processing..."
+              : isTaskSummaryFetching || isCoverageFetching
+                ? "Refreshing..."
+                : "Start Final Processing"}
           </Button>
         </div>
       </div>
