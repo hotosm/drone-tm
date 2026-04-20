@@ -47,14 +47,63 @@ def test_grid_sharpness_water_not_rejected():
     )  # terrain_type still in grid result for internal use
 
 
+def test_grid_sharpness_pure_water_not_rejected():
+    """A 100% water image (all cells low-texture, blue hue) should not be
+    rejected as blurry - low Laplacian variance is expected for water."""
+    import cv2
+
+    # Uniform blue image simulating open water
+    bgr = _make_bgr(180, 80, 50, size=400)
+    # Add very slight noise so JPEG encode doesn't collapse to a single value
+    rng = np.random.RandomState(99)
+    bgr = np.clip(
+        bgr.astype(np.int16) + rng.randint(-3, 4, bgr.shape, dtype=np.int16),
+        0,
+        255,
+    ).astype(np.uint8)
+    _, buf = cv2.imencode(".jpg", bgr)
+    image_bytes = buf.tobytes()
+
+    result = ImageClassifier.calculate_sharpness_grid(image_bytes)
+    # Sharpness will be very low (no texture), but terrain should be "water"
+    assert result["sharpness"] < QualityThresholds.min_sharpness
+    assert result["terrain_type"] == "water"
+    # The key assertion: water terrain is in LOW_TEXTURE_TERRAINS so the
+    # blur rejection should be skipped by classify_single_image.
+    assert result["terrain_type"] in ImageClassifier.LOW_TEXTURE_TERRAINS
+
+
+def test_grid_sharpness_pure_snow_not_rejected():
+    """A 100% snow image should not be rejected as blurry."""
+    import cv2
+
+    bgr = _make_bgr(240, 240, 240, size=400)
+    rng = np.random.RandomState(42)
+    bgr = np.clip(
+        bgr.astype(np.int16) + rng.randint(-2, 3, bgr.shape, dtype=np.int16),
+        0,
+        255,
+    ).astype(np.uint8)
+    _, buf = cv2.imencode(".jpg", bgr)
+    image_bytes = buf.tobytes()
+
+    result = ImageClassifier.calculate_sharpness_grid(image_bytes)
+    assert result["sharpness"] < QualityThresholds.min_sharpness
+    assert result["terrain_type"] == "snow_ice"
+    assert result["terrain_type"] in ImageClassifier.LOW_TEXTURE_TERRAINS
+
+
 def test_grid_sharpness_fully_blurry_still_rejected():
-    """A truly blurry image (all cells low variance) is still rejected."""
+    """A truly blurry image (all cells low variance) with non-natural terrain
+    (e.g. uniform gray - classified as mixed/vegetation/urban) is still rejected."""
     img = np.full((400, 400), 128, dtype=np.uint8)
     noise = np.random.RandomState(42).randint(-2, 3, (400, 400), dtype=np.int16)
     img = np.clip(img.astype(np.int16) + noise, 0, 255).astype(np.uint8)
 
     result = ImageClassifier.calculate_sharpness_grid(_encode_image(img))
     assert result["sharpness"] < QualityThresholds.min_sharpness
+    # Uniform gray is NOT a low-texture terrain type, so blur rejection applies
+    assert result["terrain_type"] not in ImageClassifier.LOW_TEXTURE_TERRAINS
 
 
 def test_terrain_classification_water():

@@ -189,6 +189,13 @@ class ImageClassifier:
     LOW_TEXTURE_RATIO_WATER = 0.6
     TEXTURED_PERCENTILE = 75
 
+    # Terrain types where low Laplacian variance is expected and does not
+    # indicate an out-of-focus image.  Only includes types with strong color
+    # signals (water, snow/ice, sand).  bare_soil is excluded because real
+    # soil has grain/micro-shadows that produce some textured cells - a fully
+    # featureless achromatic image is more likely defocused than actual soil.
+    LOW_TEXTURE_TERRAINS = frozenset({"water", "snow_ice", "sand"})
+
     @staticmethod
     def calculate_sharpness(image_bytes: bytes) -> float:
         """Calculate image sharpness using grid-based Laplacian variance.
@@ -220,10 +227,10 @@ class ImageClassifier:
         """Calculate grid-based sharpness and detect terrain type.
 
         Returns a dict with:
-            sharpness: float — representative sharpness score
-            terrain_type: str — detected terrain ("mixed", "water", "uniform", "textured")
-            cell_scores: list[float] — per-cell Laplacian variances
-            low_texture_ratio: float — fraction of cells that are low-texture
+            sharpness: float - representative sharpness score
+            terrain_type: str - detected terrain ("mixed", "water", "uniform", "textured")
+            cell_scores: list[float] - per-cell Laplacian variances
+            low_texture_ratio: float - fraction of cells that are low-texture
         """
         try:
             nparr = np.frombuffer(image_bytes, np.uint8)
@@ -293,19 +300,19 @@ class ImageClassifier:
     ) -> str:
         """An heuristic for classifying dominant terrain type using color analysis (HSV/LAB).
 
-        Uses HSV hue and saturation as the primary signal — these are largely
+        Uses HSV hue and saturation as the primary signal - these are largely
         invariant to brightness, solving false classifications caused by
         lighting conditions (e.g. bright water misclassified as snow).
 
         Returns one of:
-            "water"            — blue/cyan hue, low texture (river, lake, ocean)
-            "snow_ice"         — very low saturation, high value (snow, ice, glaciers)
-            "sand"             — warm hue (yellow-orange), low saturation
-            "bare_soil"        — warm-to-neutral hue, low saturation, mid-tone
-            "dense_vegetation" — green hue, dark, low texture
-            "urban"            — high texture, high contrast (buildings, roads)
-            "vegetation"       — green hue, moderate texture (farmland, grassland)
-            "mixed"            — mix of textured and low-texture regions
+            "water"            - blue/cyan hue, low texture (river, lake, ocean)
+            "snow_ice"         - very low saturation, high value (snow, ice, glaciers)
+            "sand"             - warm hue (yellow-orange), low saturation
+            "bare_soil"        - warm-to-neutral hue, low saturation, mid-tone
+            "dense_vegetation" - green hue, dark, low texture
+            "urban"            - high texture, high contrast (buildings, roads)
+            "vegetation"       - green hue, moderate texture (farmland, grassland)
+            "mixed"            - mix of textured and low-texture regions
         """
         # --- Mostly textured image: use texture/contrast for urban vs vegetation ---
         if low_texture_ratio < 0.25:
@@ -345,12 +352,12 @@ class ImageClassifier:
         if mean_val < 80 and mean_sat < 40 and blue_ratio > 0.15:
             return "water"
 
-        # Dirty/muddy water: any hue but extremely uniform texture.
+        # Dirty/muddy water: colored but extremely uniform texture.
         # Water (even turbid) has near-zero Laplacian variance across the entire
         # image, unlike sand/soil which show grain and micro-shadows.
-        # The key signal is texture, not color: zero textured cells means no
-        # surface detail at all, which only happens with water (sand has grain).
-        if low_texture_ratio >= 0.9 and textured_cells == []:
+        # Require minimum saturation (> 10) to avoid misclassifying genuinely
+        # blurry achromatic images (gray, overcast) as water.
+        if low_texture_ratio >= 0.9 and not textured_cells and mean_sat > 10:
             return "water"
 
         if mean_sat < 30 and mean_val > 180:
@@ -607,15 +614,29 @@ class ImageClassifier:
             try:
                 grid_result = ImageClassifier.calculate_sharpness_grid(image_bytes)
                 sharpness_score = grid_result["sharpness"]
-                terrain_type = grid_result["terrain_type"]  # used for logging only
+                terrain_type = grid_result["terrain_type"]
 
-                if sharpness_score < Q.min_sharpness:
+                # Low-texture natural terrain (water, snow, sand, bare soil)
+                # inherently has low Laplacian variance - that does not mean the
+                # camera was out of focus.  Only flag as blurry when enough
+                # textured cells exist to make a meaningful measurement.
+                low_texture_terrain = (
+                    terrain_type in ImageClassifier.LOW_TEXTURE_TERRAINS
+                )
+
+                if sharpness_score < Q.min_sharpness and not low_texture_terrain:
                     issues.append(
                         f"Blurry (sharpness: {sharpness_score:.1f}, min: {Q.min_sharpness})"
                     )
                     log.debug(
                         f"Sharpness check FAILED: image_id={image_id} score={sharpness_score:.1f} "
                         f"min={Q.min_sharpness} terrain={terrain_type}"
+                    )
+                elif sharpness_score < Q.min_sharpness and low_texture_terrain:
+                    log.info(
+                        f"Sharpness below threshold but low-texture terrain detected, "
+                        f"skipping blur rejection: image_id={image_id} "
+                        f"score={sharpness_score:.1f} terrain={terrain_type}"
                     )
                 else:
                     log.debug(
