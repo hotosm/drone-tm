@@ -90,11 +90,14 @@ const ProcessingStatusDialog = () => {
   const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
 
   // Backend summary: authoritative source for has_ready_imagery
-  const { data: taskSummary } = useQuery<TaskImagerySummary[]>({
+  const {
+    data: taskSummary,
+    refetch: refetchTaskSummary,
+    isFetching: isTaskSummaryFetching,
+  } = useQuery<TaskImagerySummary[]>({
     queryKey: ["projectTaskImagerySummary", projectId],
     queryFn: () => getProjectTaskImagerySummary(projectId),
     enabled: !!projectId,
-    refetchInterval: 30000,
   });
 
   const {
@@ -622,7 +625,7 @@ const ProcessingStatusDialog = () => {
         )}
 
         {/* Status summary */}
-        <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-1">
+        <div className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-gap-2">
           <p className="naxatw-text-center naxatw-text-xs naxatw-text-gray-500">
             {processedCount}/{taskList.length} tasks processed
             {taskList.length < totalTaskCount && (
@@ -631,6 +634,18 @@ const ProcessingStatusDialog = () => {
               </span>
             )}
           </p>
+          <button
+            type="button"
+            onClick={() => refetchTaskSummary()}
+            disabled={isTaskSummaryFetching}
+            className="naxatw-inline-flex naxatw-items-center naxatw-rounded naxatw-p-0.5 naxatw-text-gray-400 hover:naxatw-text-gray-600 disabled:naxatw-opacity-50"
+            title="Refresh task status"
+          >
+            <Icon
+              name="refresh"
+              className={`!naxatw-text-sm ${isTaskSummaryFetching ? "naxatw-animate-spin" : ""}`}
+            />
+          </button>
         </div>
 
         {taskList.length === 0 && (
