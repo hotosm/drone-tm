@@ -45,6 +45,10 @@ chart *args:
       -o {{justfile_directory()}}/tasks/chart.just;
     @just --justfile {{justfile_directory()}}/tasks/chart.just --set chart_name "drone-tm" {{args}}
 
+# Run database migrations
+migrate:
+  docker compose run --rm migrations alembic upgrade head
+
 # Run pre-commit hooks
 lint:
   #!/usr/bin/env sh
