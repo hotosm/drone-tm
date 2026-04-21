@@ -30,7 +30,8 @@ backend:
     {{docker}} compose -f compose.test.yaml build backend
     # Must run separately to avoid exit 0 from createbuckets
     {{docker}} compose -f compose.test.yaml run --rm createbuckets
-    {{docker}} compose -f compose.test.yaml up --detach --wait backend arq-worker
+    {{docker}} compose -f compose.test.yaml up --detach --wait backend arq-worker \
+        || (echo "--- Backend logs ---"; {{docker}} compose -f compose.test.yaml logs backend --tail=80; exit 1)
     # We run like this to ensure correct cleanup after tests done (or early exit)
     sh -c 'trap "just test backend-cleanup || true" EXIT; {{docker}} compose -f compose.test.yaml exec -T backend pytest'
 

@@ -22,7 +22,7 @@ services:
     environment:
       MONITORING: ""
       LOG_LEVEL: "INFO"
-      ODM_ENDPOINT: http://nodeodm:3000
+      ODM_ENDPOINT: http://nodeodm:9900
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
 
@@ -60,7 +60,7 @@ services:
       file: compose.yaml
       service: arq-worker
     environment:
-      ODM_ENDPOINT: http://nodeodm:3000
+      ODM_ENDPOINT: http://nodeodm:9900
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
 
@@ -78,6 +78,3 @@ services:
     extends:
       file: compose.yaml
       service: nodeodm
-    ports:
-      # Using 9901 to avoid collision with the inherited file's 9900
-      - "9901:3000"
