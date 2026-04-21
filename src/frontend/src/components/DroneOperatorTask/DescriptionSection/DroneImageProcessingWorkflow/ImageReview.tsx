@@ -490,7 +490,7 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};"></span>
           ${escapeHtml((props.status || "unknown").replace("_", " "))}
         </div>
-        ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(props.status) ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${safeReason}</div>` : ""}
+${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(props.status) ? `<div style="font-size:11px;color:#b91c1c;margin-top:4px;">${safeReason}</div>` : ""}
         <div>
           <button data-inspect-image-id="${safeId}" style="${btnStyle}background:#2563eb;color:white;">
             <span class="material-icons" style="font-size:14px;">visibility</span> Inspect
