@@ -20,6 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ALTER TYPE ... ADD VALUE cannot run inside a transaction in PostgreSQL.
+    # We must COMMIT, add values outside a transaction, then re-open one so
+    # that Alembic's version-stamp UPDATE (and any subsequent migration) runs
+    # inside a proper transaction.
     op.execute("COMMIT")
 
     # Only add values if the image_status enum exists (created by 001_project_images).
@@ -30,6 +33,10 @@ def upgrade() -> None:
     if result.scalar():
         for value in ("uploaded", "classifying", "assigned", "rejected"):
             op.execute(f"ALTER TYPE image_status ADD VALUE IF NOT EXISTS '{value}'")
+
+    # Re-open a transaction so that the version-stamp UPDATE and subsequent
+    # migrations are not running in autocommit mode.
+    op.execute("BEGIN")
 
 
 def downgrade() -> None:
