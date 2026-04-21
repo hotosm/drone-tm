@@ -122,7 +122,12 @@ class Settings(BaseSettings):
 
         if domain:
             scheme = "http" if debug else "https"
+            # The API domain (only needed if frontend deployed via subpath)
             default_origins.append(f"{scheme}://{domain}")
+            # If the backend DOMAIN is api.X, also allow the frontend at X
+            if domain.startswith("api."):
+                frontend_domain = domain[len("api.") :]
+                default_origins.append(f"{scheme}://{frontend_domain}")
 
         # Dev-friendly defaults: include localhost + 127.0.0.1 for the frontend port.
         # This helps when DOMAIN is set but you still access via a different host alias.
@@ -234,8 +239,11 @@ class Settings(BaseSettings):
 
     # Hanko SSO (when AUTH_PROVIDER="hanko")
     HANKO_API_URL: Optional[str] = None
-    COOKIE_SECRET: Optional[str] = None
     COOKIE_DOMAIN: Optional[str] = None
+    # This var is perhaps poorly named, but is necessary for the underlying
+    # osm_auth lib that includes all the unified HOT login endpoints.
+    # The variable must match that already set in the HOT login backend deployment.
+    COOKIE_SECRET: Optional[str] = None
 
     MONITORING: Optional[MonitoringTypes] = None
 
