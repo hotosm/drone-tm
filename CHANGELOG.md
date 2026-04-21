@@ -1,3 +1,10 @@
+## 2026.3.1 (2026-04-21)
+
+### Fix
+
+- **backend**: migrations bodged after many cherry-picks / merges, fixed
+- **frontend**: ensure protectedroute has login, else clear login state
+
 ## 2026.3.0 (2026-04-21)
 
 ### Feat
