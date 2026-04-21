@@ -1,3 +1,32 @@
+## 2026.3.0 (2026-04-21)
+
+### Feat
+
+- **backend**: replace global blur detection with grid-based sharpness and HSV terrain classification (#792)
+
+### Fix
+
+- **backend**: improve the image coverage calcs to be more accurate
+- fix #794, final project processing logic for enable / disable
+- **frontend**: do not poll for processing dialog, instead use manual refresh button
+- small refactors, fix to task image count, and removal of deprecated code
+- **backend**: better determination of photo coverage complete per task, fix #782
+- **backend**: reconcile current migrations with hanko migration
+- **frontend**: fix #779 where user tagging dialog was cut off within modal
+- **backend**: reset all classification tasks (instead of time interval)
+- **frontend**: add confirmation dialogs when re-running processing (avoid accidental)
+- **backend**: re-use the same db connection when processing imagery job
+- **backend**: increase db pool size and timeout 30s --> 60s
+- **backend**: migration revert reference accidentally hanko
+- large update to processing workflow = prod ready, resilient
+- **backend**: fixes to task splitting recorded in sentry, related to #759
+- **backend**: sanitise logs to prevent accidential creds being present
+- **frontend**: small fix to classification dialog polling error
+
+### Refactor
+
+- **backend**: ensure the default frontend origin is included in CORS, add comments to vars
+
 ## 2026.2.10 (2026-04-15)
 
 ### Fix

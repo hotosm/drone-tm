@@ -1,6 +1,6 @@
 [project]
 name = "drone-tm"
-version = "2026.2.10"
+version = "2026.3.0"
 description = "Community-driven drone imagery generation"
 authors = [{ name = "HOTOSM", email = "sysadmin@hotosm.org" }]
 dependencies = [
@@ -85,7 +85,7 @@ members = ["packages/*"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "2026.2.10"
+version = "2026.3.0"
 version_provider = "uv"
 version_files = [
   "pyproject.toml:version",
