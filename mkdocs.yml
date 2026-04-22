@@ -79,6 +79,7 @@ nav:
       - FAQ: about/faq.md
       - The Team: about/team.md
   - User Manuals:
+      - Creating Projects: manuals/creating-projects.md
       - Flying Drones:
           - Drone Operators Guide: manuals/operators.md
           - DJI Drones (General): manuals/dji.md
