@@ -1061,10 +1061,17 @@ def generate_square_geojson(center_lat, center_lon, side_length_meters):
     return geojson
 
 
-async def get_ready_tasks_with_pending_transfer_count(
+async def get_processable_tasks_with_pending_transfer_count(
     project_id, db
-) -> tuple[list[str], int]:
-    """Return READY task ids and how many still have assigned user-uploads imagery."""
+) -> tuple[list[str], list[str], int]:
+    """Return task ids eligible for project-wide processing.
+
+    Returns a tuple of:
+      - ready_task_ids: tasks in READY_FOR_PROCESSING state
+      - has_imagery_task_ids: tasks in HAS_IMAGERY state (not yet marked ready)
+      - pending_transfer_count: how many of the eligible tasks still have
+        imagery being transferred
+    """
     async with db.cursor() as cur:
         await cur.execute(
             """
@@ -1084,12 +1091,24 @@ async def get_ready_tasks_with_pending_transfer_count(
                 WHERE t.project_id = %(project_id)s
                   AND lts.state::text = 'READY_FOR_PROCESSING'
             ),
-            pending_ready_tasks AS (
-                SELECT DISTINCT rt.id
-                FROM ready_tasks rt
+            has_imagery_tasks AS (
+                SELECT t.id, t.project_task_index
+                FROM tasks t
+                JOIN latest_task_state lts ON lts.task_id = t.id
+                WHERE t.project_id = %(project_id)s
+                  AND lts.state::text = 'HAS_IMAGERY'
+            ),
+            all_eligible AS (
+                SELECT id FROM ready_tasks
+                UNION ALL
+                SELECT id FROM has_imagery_tasks
+            ),
+            pending_eligible_tasks AS (
+                SELECT DISTINCT ae.id
+                FROM all_eligible ae
                 JOIN project_images pi
                   ON pi.project_id = %(project_id)s
-                 AND pi.task_id = rt.id
+                 AND pi.task_id = ae.id
                 WHERE pi.status = 'assigned'
                   AND pi.s3_key LIKE '%%user-uploads%%'
             )
@@ -1102,25 +1121,34 @@ async def get_ready_tasks_with_pending_transfer_count(
                     ),
                     ARRAY[]::text[]
                 ) AS ready_task_ids,
-                (SELECT COUNT(*) FROM pending_ready_tasks) AS pending_ready_count
+                COALESCE(
+                    ARRAY(
+                        SELECT ht.id::text
+                        FROM has_imagery_tasks ht
+                        ORDER BY ht.project_task_index
+                    ),
+                    ARRAY[]::text[]
+                ) AS has_imagery_task_ids,
+                (SELECT COUNT(*) FROM pending_eligible_tasks) AS pending_transfer_count
             """,
             {"project_id": project_id},
         )
         row = await cur.fetchone()
 
     if not row:
-        return [], 0
+        return [], [], 0
 
     ready_task_ids = list(row[0] or [])
-    pending_ready_count = int(row[1] or 0)
-    return ready_task_ids, pending_ready_count
+    has_imagery_task_ids = list(row[1] or [])
+    pending_transfer_count = int(row[2] or 0)
+    return ready_task_ids, has_imagery_task_ids, pending_transfer_count
 
 
 async def get_all_tasks_for_project(project_id, db):
     """Get all unique tasks associated with the project ID
     that are in state READY_FOR_PROCESSING.
     """
-    ready_task_ids, _ = await get_ready_tasks_with_pending_transfer_count(
+    ready_task_ids, _, _ = await get_processable_tasks_with_pending_transfer_count(
         project_id, db
     )
     return ready_task_ids

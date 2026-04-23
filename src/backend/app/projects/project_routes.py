@@ -486,21 +486,25 @@ async def process_all_imagery(
         )
 
     (
-        tasks,
-        pending_ready_tasks,
-    ) = await project_logic.get_ready_tasks_with_pending_transfer_count(project.id, db)
+        ready_tasks,
+        has_imagery_tasks,
+        pending_transfer_count,
+    ) = await project_logic.get_processable_tasks_with_pending_transfer_count(
+        project.id, db
+    )
 
-    if not tasks:
+    all_tasks = ready_tasks + has_imagery_tasks
+    if not all_tasks:
         raise HTTPException(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-            detail="No tasks are in READY_FOR_PROCESSING state.",
+            detail="No tasks have imagery available for processing.",
         )
 
-    if pending_ready_tasks > 0:
+    if pending_transfer_count > 0:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail=(
-                "Imagery for ready tasks is still being transferred. "
+                "Imagery for some tasks is still being transferred. "
                 "Please wait and retry processing."
             ),
         )
@@ -520,13 +524,14 @@ async def process_all_imagery(
     job = await redis_pool.enqueue_job(
         "process_all_drone_images",
         project.id,
-        tasks,
+        all_tasks,
         user_id,
         _queue_name="default_queue",
     )
 
     return {
-        "message": f"Processing started for {len(tasks)} tasks.",
+        "message": f"Processing started for {len(all_tasks)} tasks"
+        f" ({len(ready_tasks)} verified, {len(has_imagery_tasks)} unverified).",
         "job_id": job.job_id,
     }
 

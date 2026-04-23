@@ -433,6 +433,14 @@ const ProcessingStatusDialog = () => {
     return taskSummary.filter((t) => t.has_ready_imagery).length;
   }, [taskSummary]);
 
+  const tasksWithImagery = useMemo(() => {
+    if (!Array.isArray(taskSummary)) return 0;
+    return taskSummary.filter((t) => t.task_state === "HAS_IMAGERY" && t.assigned_images > 0)
+      .length;
+  }, [taskSummary]);
+
+  const totalProcessable = tasksReady + tasksWithImagery;
+
   const isFinalProcessingRunning =
     projectDetail?.image_processing_status === "PROCESSING" || isProcessingAll;
 
@@ -443,11 +451,11 @@ const ProcessingStatusDialog = () => {
     if (!totalTaskCount) {
       return "No project tasks are available yet.";
     }
-    if (tasksReady === 0) {
-      return "No tasks are ready for processing. Upload and verify imagery first.";
+    if (totalProcessable === 0) {
+      return "No tasks have imagery available for processing. Upload imagery first.";
     }
     return "";
-  }, [isFinalProcessingRunning, totalTaskCount, tasksReady]);
+  }, [isFinalProcessingRunning, totalTaskCount, totalProcessable]);
 
   const hasSavedGcp = Boolean(projectDetail?.has_gcp);
   const queueLastUpdated = queueUpdatedAt ? new Date(queueUpdatedAt).toLocaleTimeString() : null;
@@ -833,20 +841,25 @@ const ProcessingStatusDialog = () => {
             iconClassname={isFinalProcessingRunning ? "naxatw-animate-spin" : ""}
             onClick={() => {
               let confirmMessage =
-                `This will process ${tasksReady} of ${totalTaskCount} tasks ` +
-                "into a single orthophoto and 3D model. This may take a long time.\n\n" +
-                "Continue?";
+                `This will process ${totalProcessable} of ${totalTaskCount} tasks ` +
+                "into a single orthophoto and 3D model. This may take a long time.\n\n";
+
+              if (tasksWithImagery > 0) {
+                confirmMessage +=
+                  `NOTE: ${tasksWithImagery} task(s) have imagery but were not individually ` +
+                  "verified/marked as ready. They will be included in processing.\n\n";
+              }
 
               if (!allTasksProcessed && coveragePercentage < 90) {
-                confirmMessage =
+                confirmMessage +=
                   `WARNING: Only ${coveragePercentage}% of the project area has imagery coverage.\n\n` +
-                  `${tasksReady} of ${totalTaskCount} tasks will be processed.\n\n` +
                   "With incomplete coverage:\n" +
                   "- Gaps may appear in the final orthophoto where no imagery exists\n" +
                   "- Alignment may suffer near uncovered areas, causing slight distortion\n" +
-                  "- Edge areas near gaps may have reduced accuracy due to fewer tie points\n\n" +
-                  "Are you sure you want to proceed?";
+                  "- Edge areas near gaps may have reduced accuracy due to fewer tie points\n\n";
               }
+
+              confirmMessage += "Are you sure you want to proceed?";
 
               if (!window.confirm(confirmMessage)) return;
               handleStartFinalProcessing(false);
