@@ -24,7 +24,7 @@ on:
 
 jobs:
   pytest:
-    uses: hotosm/gh-workflows/.github/workflows/just.yml@3.6.0
+    uses: hotosm/gh-workflows/.github/workflows/just.yml@4.0.0
     with:
       environment: "test"
       command: "test backend"

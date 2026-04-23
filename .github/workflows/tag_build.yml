@@ -9,7 +9,7 @@ on:
 
 jobs:
   backend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.6.0
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@4.0.0
     with:
       context: ./src
       build_target: service
@@ -20,7 +20,7 @@ jobs:
       multi_arch: true
 
   frontend-build:
-    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@3.6.0
+    uses: hotosm/gh-workflows/.github/workflows/image_build.yml@4.0.0
     with:
       context: ./src
       build_target: prod
