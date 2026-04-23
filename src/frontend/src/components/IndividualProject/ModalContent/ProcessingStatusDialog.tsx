@@ -257,6 +257,20 @@ const ProcessingStatusDialog = () => {
     }
   }, []);
 
+  const handleDownloadOrtho = useCallback((assetsUrl: string) => {
+    try {
+      const orthoUrl = assetsUrl.replace(/\/$/, "/orthophoto/");
+      const link = document.createElement("a");
+      link.href = buildDownloadUrl(orthoUrl);
+      link.setAttribute("download", "");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(`Download failed: ${error}`);
+    }
+  }, []);
+
   const getProcessButtonLabel = useCallback((task: ProcessingDialogTask) => {
     if (task.state === "IMAGE_PROCESSING_FAILED") {
       return "Retry";
@@ -561,19 +575,32 @@ const ProcessingStatusDialog = () => {
                       ) : (
                         <div className="naxatw-flex naxatw-justify-end naxatw-gap-2">
                           {task.state === "IMAGE_PROCESSING_FINISHED" && task.assets_url ? (
-                            <Button
-                              variant="ghost"
-                              className="naxatw-h-7 naxatw-px-2 naxatw-text-xs naxatw-text-blue-600 hover:naxatw-bg-blue-50"
-                              leftIcon="download"
-                              iconClassname="!naxatw-text-sm"
-                              onClick={() => {
-                                if (task.assets_url) {
-                                  handleDownloadAssets(task.assets_url);
-                                }
-                              }}
-                            >
-                              Download
-                            </Button>
+                            <>
+                              <button
+                                type="button"
+                                title="Download orthophoto (.tif)"
+                                className="naxatw-flex naxatw-h-7 naxatw-w-7 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-text-blue-600 hover:naxatw-bg-blue-50"
+                                onClick={() => {
+                                  if (task.assets_url) {
+                                    handleDownloadOrtho(task.assets_url);
+                                  }
+                                }}
+                              >
+                                <Icon name="download" className="!naxatw-text-base" />
+                              </button>
+                              <button
+                                type="button"
+                                title="Download all ODM assets (.zip)"
+                                className="naxatw-flex naxatw-h-7 naxatw-w-7 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-text-gray-400 hover:naxatw-bg-gray-100"
+                                onClick={() => {
+                                  if (task.assets_url) {
+                                    handleDownloadAssets(task.assets_url);
+                                  }
+                                }}
+                              >
+                                <Icon name="folder_zip" className="!naxatw-text-base" />
+                              </button>
+                            </>
                           ) : null}
                           {canProcess ? (
                             <Button

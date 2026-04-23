@@ -1586,6 +1586,62 @@ async def get_odm_queue_info(
 
 
 @router.get(
+    "/odm/export/{project_id}/{task_id}/orthophoto/",
+    tags=["Image Processing"],
+)
+@router.get(
+    "/odm/export/{project_id}/orthophoto/",
+    tags=["Image Processing"],
+)
+async def export_odm_orthophoto(
+    request: Request,
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: Optional[uuid.UUID] = None,
+):
+    """Stream only the orthophoto TIF for a task (or whole project).
+
+    Much smaller than the full ODM assets ZIP - ideal for low-bandwidth
+    contexts where only the orthophoto preview is needed.
+    """
+    task_segment = f"{task_id}/" if task_id else ""
+    ortho_key = (
+        f"projects/{project.id}/{task_segment}odm/odm_orthophoto/odm_orthophoto.tif"
+    )
+
+    try:
+        s3_client().stat_object(settings.S3_BUCKET_NAME, ortho_key)
+    except Exception:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="No orthophoto found for this task.",
+        )
+
+    label = task_id or project_id
+    filename = f"orthophoto_{label}.tif"
+
+    def generate():
+        response = s3_client().get_object(settings.S3_BUCKET_NAME, ortho_key)
+        try:
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
+
+    return StreamingResponse(
+        generate(),
+        media_type="image/tiff",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get(
     "/odm/export/{project_id}/{task_id}/",
     tags=["Image Processing"],
 )

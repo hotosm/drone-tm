@@ -48,6 +48,21 @@ const contributionsDataColumns = [
         }
       };
 
+      const handleDownloadOrtho = () => {
+        if (!rowData?.assets_url) return;
+        try {
+          const orthoUrl = rowData.assets_url.replace(/\/$/, "/orthophoto/");
+          const link = document.createElement("a");
+          link.href = buildDownloadUrl(orthoUrl);
+          link.setAttribute("download", "");
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        } catch (error) {
+          toast.error(`There was an error while downloading file ${error}`);
+        }
+      };
+
       const currentOrthophoto = visibleOrthophotoList?.find(
         (orthophoto: Record<string, any>) => orthophoto?.taskId === rowData.task_id,
       );
@@ -95,7 +110,21 @@ const contributionsDataColumns = [
             </div>
           </div>
           <div
-            className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1 naxatw-text-center naxatw-font-semibold naxatw-text-red"
+            className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1 naxatw-text-center naxatw-text-xs naxatw-font-semibold naxatw-text-blue-600"
+            title="Download orthophoto only"
+            tabIndex={0}
+            role="button"
+            onKeyDown={() => {}}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownloadOrtho();
+            }}
+          >
+            <Icon className="!naxatw-text-icon-sm" name="download" />
+          </div>
+          <div
+            className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1 naxatw-text-center naxatw-text-xs naxatw-font-semibold naxatw-text-gray-500"
+            title="Download all ODM assets"
             tabIndex={0}
             role="button"
             onKeyDown={() => {}}
@@ -104,7 +133,7 @@ const contributionsDataColumns = [
               handleDownloadResult();
             }}
           >
-            <Icon className="!naxatw-text-icon-sm" name="download" />
+            <Icon className="!naxatw-text-icon-sm" name="folder_zip" />
           </div>
         </div>
       );
