@@ -936,6 +936,24 @@ async def process_all_drone_images(
 
     except Exception as e:
         log.error(f"Error in process_all_drone_images (Job ID: {job_id}): {e}")
+        try:
+            pool = ctx["db_pool"]
+            async with pool.connection() as conn:
+                await conn.execute(
+                    """
+                    UPDATE projects
+                    SET image_processing_status = %(status)s,
+                        last_updated = NOW()
+                    WHERE id = %(project_id)s;
+                    """,
+                    {
+                        "status": ImageProcessingStatus.FAILED.name,
+                        "project_id": project_id,
+                    },
+                )
+                await conn.commit()
+        except Exception:
+            log.error(f"Failed to reset processing status for project {project_id}")
         raise
 
 

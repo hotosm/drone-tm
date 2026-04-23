@@ -36,6 +36,7 @@ from app.db import database
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import (
     HTTPStatus,
+    ImageProcessingStatus,
     OAMUploadStatus,
     ProjectCompletionStatus,
     State,
@@ -478,10 +479,22 @@ async def process_all_imagery(
     """
     user_id = user_data.id
 
+    if project.image_processing_status == "PROCESSING":
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="Image processing is already running for this project.",
+        )
+
     (
         tasks,
         pending_ready_tasks,
     ) = await project_logic.get_ready_tasks_with_pending_transfer_count(project.id, db)
+
+    if not tasks:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail="No tasks are in READY_FOR_PROCESSING state.",
+        )
 
     if pending_ready_tasks > 0:
         raise HTTPException(
@@ -491,6 +504,18 @@ async def process_all_imagery(
                 "Please wait and retry processing."
             ),
         )
+
+    await db.execute(
+        """
+        UPDATE projects
+        SET image_processing_status = %(status)s, last_updated = NOW()
+        WHERE id = %(project_id)s;
+        """,
+        {
+            "status": ImageProcessingStatus.PROCESSING.name,
+            "project_id": project.id,
+        },
+    )
 
     job = await redis_pool.enqueue_job(
         "process_all_drone_images",
