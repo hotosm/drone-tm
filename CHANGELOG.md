@@ -1,3 +1,12 @@
+## 2026.3.2 (2026-04-23)
+
+### Fix
+
+- allow downloading only the ortho, or all.zip assets, fixes #797
+- **backend**: ensure project processing cannot be triggered multiple times, fixes #796
+- **backend**: fix #798 to correctly show users tasks in dashboard
+- override AUTH_PROVIDER for test setup for simplest config
+
 ## 2026.3.1 (2026-04-21)
 
 ### Fix
