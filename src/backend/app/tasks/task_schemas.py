@@ -218,7 +218,7 @@ class UserTasksOut(BaseModel):
 
     @staticmethod
     async def get_tasks_by_user(
-        db: Connection, user_id: str, role: str, skip: int = 0, limit: int = 50
+        db: Connection, user_id: str, skip: int = 0, limit: int = 50
     ):
         async with db.cursor(row_factory=class_row(UserTasksOut)) as cur:
             await cur.execute(
@@ -247,33 +247,21 @@ class UserTasksOut(BaseModel):
                     user_profile ON task_events.user_id = user_profile.user_id
                 WHERE
                     (
-                        %(role)s = 'DRONE_PILOT'
-                        AND task_events.user_id = %(user_id)s AND task_events.state::text NOT IN ('UNLOCKED')
+                        task_events.user_id = %(user_id)s
+                        AND task_events.state::text NOT IN ('UNLOCKED')
                     )
                     OR
-                    (
-                        %(role)s = 'PROJECT_CREATOR'
-                        AND (
-                            (
-                                task_events.user_id = %(user_id)s AND task_events.state::text NOT IN ('AWAITING_APPROVAL')
-                            )
-                            OR
-                            (
-                             task_events.project_id IN (
-                                SELECT p.id
-                                FROM projects p
-                                WHERE
-                                    p.author_id = %(user_id)s
-                                )
-                            )
-                        )
+                    task_events.project_id IN (
+                        SELECT p.id
+                        FROM projects p
+                        WHERE p.author_id = %(user_id)s
                     )
                 ORDER BY
                     tasks.id, task_events.created_at DESC
                 OFFSET %(skip)s
                 LIMIT %(limit)s;
                 """,
-                {"user_id": user_id, "role": role, "skip": skip, "limit": limit},
+                {"user_id": user_id, "skip": skip, "limit": limit},
             )
             try:
                 return await cur.fetchall()

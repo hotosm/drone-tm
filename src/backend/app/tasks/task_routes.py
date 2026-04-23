@@ -2,7 +2,6 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
 
@@ -79,13 +78,9 @@ async def list_tasks(
     skip: int = 0,
     limit: int = 50,
 ):
-    """Get all tasks for a all user."""
+    """Get all tasks for a user."""
     user_id = user_data.id
-    role = user_data.role
-    log.info(f"Fetching tasks for user {user_id} with role: {role}")
-    return await task_schemas.UserTasksOut.get_tasks_by_user(
-        db, user_id, role, skip, limit
-    )
+    return await task_schemas.UserTasksOut.get_tasks_by_user(db, user_id, skip, limit)
 
 
 @router.get("/states/{project_id}")

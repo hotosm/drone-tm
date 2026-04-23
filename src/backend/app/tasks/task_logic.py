@@ -50,30 +50,20 @@ async def get_task_stats(db: Connection, user_data: AuthUser):
                     FROM task_events te
                     WHERE
                         (
-                        %(role)s = 'DRONE_PILOT'
-                        AND te.user_id = %(user_id)s AND te.state::text NOT IN ('UNLOCKED')
-                    )
-                    OR
-                    (
-                        %(role)s = 'PROJECT_CREATOR'
-                        AND (
-                            te.user_id = %(user_id)s AND te.state::text NOT IN ('AWAITING_APPROVAL')
-                            OR
-                            te.project_id IN (
-                                SELECT p.id
-                                FROM projects p
-                                WHERE
-                                    p.author_id = %(user_id)s
-                            )
+                            te.user_id = %(user_id)s
+                            AND te.state::text NOT IN ('UNLOCKED')
                         )
-                    )
+                        OR
+                        te.project_id IN (
+                            SELECT p.id
+                            FROM projects p
+                            WHERE p.author_id = %(user_id)s
+                        )
                     ORDER BY te.task_id, te.created_at DESC
                 ) AS te;
             """
 
-            await cur.execute(
-                raw_sql, {"user_id": user_data.id, "role": user_data.role}
-            )
+            await cur.execute(raw_sql, {"user_id": user_data.id})
             db_counts = await cur.fetchone()
 
         return db_counts
