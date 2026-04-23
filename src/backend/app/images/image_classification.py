@@ -119,6 +119,11 @@ class QualityThresholds:
     # AOI sanity check (rough): if image is > ~100km away from project centroid, it's likely wrong project.
     far_from_project_km: float = 100.0
 
+    # Buffer radius (meters) applied to peripheral (edge) tasks when an image
+    # falls just outside the project AOI.  Helps capture near-boundary photos
+    # needed for seamless ortho stitching.
+    peripheral_buffer_meters: float = 100.0
+
 
 Q = QualityThresholds()
 
@@ -467,6 +472,59 @@ class ImageClassifier:
             return task_id if isinstance(task_id, uuid.UUID) else uuid.UUID(task_id)
 
     @staticmethod
+    async def find_matching_peripheral_task(
+        db: Connection,
+        project_id: uuid.UUID,
+        latitude: float,
+        longitude: float,
+        buffer_meters: float = 100.0,
+    ) -> Optional[uuid.UUID]:
+        """Find the nearest peripheral (edge) task within *buffer_meters* of a point.
+
+        Peripheral tasks are those whose outline touches the project boundary.
+        A geographic buffer is applied so that images captured just outside the
+        AOI can still be assigned to the closest edge task.
+        """
+        query = """
+            WITH peripheral_tasks AS (
+                SELECT t.id, t.outline
+                FROM tasks t
+                JOIN projects p ON p.id = t.project_id
+                WHERE t.project_id = %(project_id)s
+                  AND ST_Intersects(t.outline, ST_Boundary(p.outline))
+            )
+            SELECT
+                id,
+                ST_Distance(
+                    outline::geography,
+                    ST_SetSRID(ST_MakePoint(%(longitude)s, %(latitude)s), 4326)::geography
+                ) AS dist_m
+            FROM peripheral_tasks
+            WHERE ST_Intersects(
+                ST_Buffer(outline::geography, %(buffer_m)s)::geometry,
+                ST_SetSRID(ST_MakePoint(%(longitude)s, %(latitude)s), 4326)
+            )
+            ORDER BY dist_m
+            LIMIT 1;
+        """
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {
+                    "project_id": str(project_id),
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "buffer_m": buffer_meters,
+                },
+            )
+            result = await cur.fetchone()
+            if not result:
+                return None
+            task_id = result["id"]
+            return task_id if isinstance(task_id, uuid.UUID) else uuid.UUID(task_id)
+
+    @staticmethod
     async def classify_single_image(
         db: Connection,
         image_id: uuid.UUID,
@@ -711,6 +769,20 @@ class ImageClassifier:
         task_id = await ImageClassifier.find_matching_task(
             db, project_id, latitude, longitude
         )
+
+        if not task_id:
+            # Fallback: try peripheral tasks with outward buffer for near-boundary images
+            task_id = await ImageClassifier.find_matching_peripheral_task(
+                db,
+                project_id,
+                latitude,
+                longitude,
+                buffer_meters=Q.peripheral_buffer_meters,
+            )
+            if task_id:
+                log.info(
+                    f"Image matched via peripheral buffer: image_id={image_id} task_id={task_id}"
+                )
 
         if not task_id:
             rejection_reason = "Image location is outside of all task areas"
