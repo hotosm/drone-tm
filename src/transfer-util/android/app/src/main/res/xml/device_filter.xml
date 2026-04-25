@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DJI RC2 Controller -->
+    <usb-device vendor-id="11427" product-id="4129" />
+    <!-- DJI RC-N1 / RC-N2 -->
+    <usb-device vendor-id="11427" />
+</resources>

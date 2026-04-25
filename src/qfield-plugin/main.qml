@@ -577,15 +577,27 @@ Item {
 
     log("Attempting to export KMZ to flight controller...")
 
-    // First try the direct-write path (works when QField runs on the DJI RC
-    // itself or the controller is mounted with relaxed scoped-storage rules).
+    // Strategy 1: Open DroneTM Transfer app via deeplink.
+    // The transfer app handles MTP/SAF to write onto the DJI controller.
+    try {
+      var fileUri = "file://" + lastKmzPath
+      var deeplink = "dronetm://transfer?file=" + encodeURIComponent(fileUri)
+      log("Trying DroneTM Transfer deeplink: " + deeplink)
+      Qt.openUrlExternally(deeplink)
+      mainWindow.displayToast(qsTr('Opening DroneTM Transfer...'))
+      flightplanDialog.resultMessage = qsTr('Sent to DroneTM Transfer app. Follow the steps there to complete the transfer.')
+      return
+    } catch (e) {
+      log("DroneTM Transfer deeplink failed: " + e)
+    }
+
+    // Strategy 2: Direct filesystem write (works when QField runs on the DJI
+    // RC itself or the controller is mounted with relaxed scoped-storage).
     if (lastKmzData && _tryDirectCopyToController()) {
       return
     }
 
-    // Fall back to the platform file-picker so the user can choose where to
-    // save.  platformUtilities.exportDatasetTo() shows Android's SAF folder
-    // picker and copies the file for us (not yet available on iOS).
+    // Strategy 3: Platform file-picker (Android SAF folder picker).
     try {
       if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
         log("Opening file picker via platformUtilities.exportDatasetTo")
@@ -599,14 +611,15 @@ Item {
       log("platformUtilities.exportDatasetTo failed: " + e)
     }
 
-    // Neither method worked
-    log("Could not export KMZ via direct copy or file picker")
+    // No method worked
+    log("Could not export KMZ via any method")
     mainWindow.displayToast(
       qsTr('DJI controller not found - see transfer options below')
     )
     flightplanDialog.generationState = "transfer_failed"
     flightplanDialog.resultMessage = qsTr(
-      'Could not find DJI controller storage. The KMZ is saved in the project flightplans/ folder.'
+      'Could not find DJI controller storage. The KMZ is saved in the project flightplans/ folder.\n\n' +
+      'Install the DroneTM Transfer app for reliable USB transfer.'
     )
   }
 
