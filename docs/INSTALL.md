@@ -7,6 +7,28 @@
 - [Docker](https://docs.docker.com/engine/install) and
   [Docker Compose](https://docs.docker.com/compose/install) installed
 - [Just](https://github.com/casey/just#installation) task runner installed
+- An **S3-compatible object store** (see below)
+
+### S3 Object Storage
+
+The production stack does **not** bundle an S3 service - you must provide one
+before deploying. Drone imagery and project assets are stored here.
+
+Options:
+
+- **Self-hosted [RustFS](https://github.com/rustfs/rustfs)** - lightweight,
+  single-binary S3 server you can run on the same machine or a separate host.
+- **Any S3-compatible provider** - AWS S3, Cloudflare R2, Backblaze B2,
+  Wasabi, DigitalOcean Spaces, self-hosted MinIO, etc.
+
+You will need the endpoint URL, a bucket name, and an access/secret key pair.
+The setup wizard (`just config setup`) will prompt for these values.
+
+!!! tip
+
+    For a simple single-server deployment, run RustFS or MinIO alongside
+    Drone-TM on the same host and use `http://localhost:9000` as the S3
+    endpoint.
 
 !!! tip
 
@@ -33,14 +55,14 @@ just config setup
 
 This wizard will prompt you for:
 
-| Prompt             | Description                                                            |
-| ------------------ | ---------------------------------------------------------------------- |
-| **Domain**         | Your public domain (e.g. `dronetm.example.org`)                        |
-| **Cert email**     | Email for Let's Encrypt TLS certificates                               |
-| **Auth provider**  | `hanko` (HOT SSO, default) or `legacy` (Google OAuth)                  |
-| **S3 endpoint**    | Object storage URL (default `http://localhost:9000` for bundled MinIO) |
-| **S3 bucket**      | Bucket name (default `dtm-bucket`)                                     |
-| **S3 credentials** | Access key and secret key for your S3-compatible store                 |
+| Prompt             | Description                                                             |
+| ------------------ | ----------------------------------------------------------------------- |
+| **Domain**         | Your public domain (e.g. `dronetm.example.org`)                         |
+| **Cert email**     | Email for Let's Encrypt TLS certificates                                |
+| **Auth provider**  | `hanko` (HOT SSO, default) or `legacy` (Google OAuth)                   |
+| **S3 endpoint**    | Object storage URL (e.g. `http://localhost:9000` for a local S3 server) |
+| **S3 bucket**      | Bucket name (default `dtm-bucket`)                                      |
+| **S3 credentials** | Access key and secret key for your S3-compatible store                  |
 
 Secrets such as `SECRET_KEY` and `POSTGRES_PASSWORD` are auto-generated.
 

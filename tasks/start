@@ -50,23 +50,25 @@ _select-version:
   # Fetch latest tags from remote
   git fetch --tags --quiet
 
-  # Collect Drone-TM release tags (v20xx.*), most recent 8
-  mapfile -t tags < <(git tag -l 'v20*' --sort=-v:refname | head -n 8)
+  # Collect Drone-TM release tags (20xx.* with or without v prefix), most recent 8
+  # Strip 'v' prefix for consistent numeric sorting, then restore original tag names
+  mapfile -t tags < <(
+    { git tag -l 'v20*'; git tag -l '20*'; } | sort -u |
+    sed 's/^v//' | sort -t. -k1,1nr -k2,2nr -k3,3nr |
+    while read -r t; do
+      # Prefer the original tag name (check v-prefixed first, then bare)
+      if git rev-parse "v${t}" >/dev/null 2>&1; then echo "v${t}"
+      else echo "${t}"
+      fi
+    done | head -n 8
+  )
   if [ ${#tags[@]} -eq 0 ]; then
     just _echo-red "No Drone-TM release tags found."
     exit 1
   fi
 
   echo ""
-  just _echo-blue "Select Drone-TM version to deploy:"
-  echo ""
-  PS3="Enter number: "
-  select chosen in "${tags[@]}"; do
-    if [ -n "$chosen" ]; then
-      break
-    fi
-    echo "Invalid selection, try again."
-  done
+  chosen=$(just _select-menu "Select Drone-TM version:" "${tags[@]}")
 
   just _echo-blue "Checking out ${chosen}..."
   git checkout "${chosen}"

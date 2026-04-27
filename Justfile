@@ -96,6 +96,57 @@ _install-curl:
       echo "✓ curl installed"
   fi
 
+# Arrow-key selection menu. Draws on stderr, prints chosen item to stdout.
+# Usage: chosen=$(just _select-menu "Pick one:" item1 item2 item3)
+[no-cd]
+_select-menu prompt +items:
+  #!/usr/bin/env bash
+  set -e
+
+  IFS=' ' read -ra opts <<< "{{ items }}"
+  count=${#opts[@]}
+  selected=0
+
+  # Print prompt
+  printf "\033[0;34m%s\033[0m\n" "{{ prompt }}" >&2
+
+  # Hide cursor, restore on exit
+  tput civis >&2 2>/dev/null
+  trap 'tput cnorm >&2 2>/dev/null' EXIT
+
+  draw_menu() {
+    for i in "${!opts[@]}"; do
+      tput el >&2 2>/dev/null
+      if [ "$i" -eq "$selected" ]; then
+        printf "  \033[7m > %s \033[0m\n" "${opts[$i]}" >&2
+      else
+        printf "    %s\n" "${opts[$i]}" >&2
+      fi
+    done
+  }
+
+  draw_menu
+  while true; do
+    read -rsn1 key
+    case "$key" in
+      $'\x1b')
+        read -rsn2 rest
+        case "$rest" in
+          '[A') ((selected > 0)) && ((selected--)) || true ;;
+          '[B') ((selected < count - 1)) && ((selected++)) || true ;;
+        esac
+        ;;
+      '')  # enter
+        break
+        ;;
+    esac
+    printf "\033[%dA" "$count" >&2
+    draw_menu
+  done
+
+  printf "\n" >&2
+  echo "${opts[$selected]}"
+
 # Echo to terminal with blue colour
 [no-cd]
 _echo-blue text:
