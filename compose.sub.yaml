@@ -84,10 +84,11 @@ services:
       ${DOMAIN}_REVERSE_PROXY_HOST: http://backend:8000
       ${DOMAIN}_REVERSE_PROXY_URL: /api
       # SPA routing: serve index.html for unknown routes (client-side routing)
+      # We need $$$$ for double envsubst processing
       ${DOMAIN}_CUSTOM_CONF_SERVER_HTTP_spa: |
         location / {
           root /var/www/html/${DOMAIN};
-          try_files $$uri $$uri/index.html /index.html;
+          try_files $$$$uri $$$$uri/index.html /index.html;
         }
     ports:
       - 80:8080
