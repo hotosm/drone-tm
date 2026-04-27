@@ -43,7 +43,7 @@ services:
       REVERSE_PROXY_INTERCEPT_ERRORS: no
       ALLOWED_METHODS: OPTIONS|HEAD|GET|POST|PATCH|PUT|DELETE
       USE_REAL_IP: yes
-      SERVE_FILES: yes
+      SERVE_FILES: no
       USE_BACKUP: no
       USE_METRICS: no
       # USE_ANTIBOT: yes
