@@ -5,7 +5,25 @@
 This page contains a checklist for flight preparation, flight
 execution, emergency response, and post-flight follow-up.
 
-## 1. Airspace Conditions
+## 1. Mapping Imagery Conditions
+
+Not all flyable weather produces good mapping imagery. To get the best results
+from your flight, check the following:
+
+- [ ] Flying between 10 a.m. and 2 p.m. (high sun angle minimises shadows;
+      colour depth and tone of imagery is at its best)
+- [ ] Stable skies - clear, or uniformly overcast (scattered or patchy clouds
+      moving across the area of interest cause frame-to-frame exposure variation
+      that creates visible seams in the mosaic; postpone 15-30 minutes and
+      conditions often improve enough to fly)
+- [ ] Wind is light (high or even moderate winds may pose difficulties, as
+      many light drones do not operate well in such conditions)
+- [ ] Controller can be kept in shade (high temperatures cause overheating;
+      fly from a shaded area while still maintaining visual line of sight)
+- [ ] If conditions change mid-mission, pause or abort (a partial mission in
+      good light is worth more than a completed mission in mixed light)
+
+## 2. Airspace Conditions
 
 - [ ] Ensure you have assessed the surrounding before takeoff. Is there
       anything overhead? Might the conditions here change over time
@@ -25,7 +43,7 @@ execution, emergency response, and post-flight follow-up.
 
     UNSURE of even ONE condition? POSTPONE FLIGHT
 
-## 2. Drone
+## 3. Drone
 
 - [ ] Gimbal cover removed
 - [ ] Arms fully extended
@@ -34,7 +52,7 @@ execution, emergency response, and post-flight follow-up.
 - [ ] SD card installed in drone
 - [ ] Drone powers on
 
-## 3. Controller
+## 4. Controller
 
 - [ ] Attach joysticks, extend antennas
 - [ ] Controller powers on
@@ -44,7 +62,7 @@ execution, emergency response, and post-flight follow-up.
 - [ ] Camera view is visible and sharp
 - [ ] Error message appears? DO NOT FLY
 
-## 4. Flight Settings
+## 5. Flight Settings
 
 - [ ] Manual Obstacle Avoidance: Bypass
 - [ ] Auto RTH Altitude: 120 m
@@ -52,9 +70,10 @@ execution, emergency response, and post-flight follow-up.
 - [ ] Max Distance: 5000 m
 - [ ] Camera Aspect Ratio: 4:3
 - [ ] Camera Resolution: 12 MP
+- [ ] Camera Format: JPEG (not DNG/RAW)
 - [ ] Storage: SD Card
 
-## 5. Pre-Flight Inspection
+## 6. Pre-Flight Inspection
 
 The pilot is recommended to follow a sequence of checks to ensure that they do
 not miss any major issues that may lead to an unsafe flight for the pilot and
@@ -110,7 +129,7 @@ The pilot can proceed to conduct the UAS checks.
 - [ ] Motors: Ensure that the motors should be able to spin freely. If the
       motor does not spin smoothly, it is likely to be faulty.
 
-## 6. Take-Off
+## 7. Take-Off
 
 - [ ] Is the drone facing away from you before takeoff? The drone should be in
       an orientation that is easily controllable, should there be an issue
@@ -129,7 +148,7 @@ The pilot can proceed to conduct the UAS checks.
 - [ ] Set capture mode to Timed Shot, 2s
 - [ ] Confirm your Observer is ready
 
-## 7. In-Flight Check
+## 8. In-Flight Check
 
 Once the pre-flight inspections are completed, the pilot can proceed to arm
 the UA without taking off the ground. The pilot should wait for 30s to ensure
@@ -137,7 +156,7 @@ that there is no issue, such as a propeller flying out, before hovering for
 15 - 30s. During hovering, the pilot should lightly push the sticks to
 elevate, yaw, pitch, and roll to ensure that the UA is responding correctly.
 
-## 8. Flight Execution
+## 9. Flight Execution
 
 - [ ] Initiate flight plan
 - [ ] At first waypoint, start photo capture
@@ -155,7 +174,7 @@ elevate, yaw, pitch, and roll to ensure that the UA is responding correctly.
       away from the sun. Or fly from a shaded area, but ensuring you can still
       see the drone.
 
-## 9. Emergency Procedures
+## 10. Emergency Procedures
 
 - [ ] In case of rain or wind warning: Hold RTH till beep
 - [ ] To hold in place: Tap RTH/pause
@@ -163,7 +182,7 @@ elevate, yaw, pitch, and roll to ensure that the UA is responding correctly.
 - [ ] If a bird is approaching: Fly straight up
 - [ ] If an aircraft is approaching: Descend; land
 
-## 10. Post-Flight
+## 11. Post-Flight
 
 - [ ] Power off drone
 - [ ] Remove drone battery
@@ -172,7 +191,7 @@ elevate, yaw, pitch, and roll to ensure that the UA is responding correctly.
 - [ ] Upload images to DroneTM
 - [ ] Initiate image processing
 
-## 11. Post-Flight Inspection
+## 12. Post-Flight Inspection
 
 The post-flight inspection is largely similar to the pre-flight inspection with
 additional checks of the battery and motor.

@@ -60,6 +60,118 @@ this for your model).
   first put the card into a computed, format to **exFAT**, then place
   back into the controller.
 
+## Field Team Roles
+
+Teams in the field should include at least two people: a pilot who monitors
+the drone's flight on the computer screen, and an observer who maintains sight
+of the drone and surrounding airspace at all times while flying within visual
+line of sight.
+
+At the takeoff location, the team's designated safety officer ensures that all
+precautions are taken before, during, and after flights. At every step from
+launch to landing, the designated safety officer should coordinate actions and
+communications (with loud voice signals).
+
+For sustained multi-day operations (such as post-disaster response), a
+minimum **three-person crew** is recommended: two in the field collecting data and
+operating the aircraft, and the third processing data from the day before.
+Rotating the third person through the data collection and flight crew provides
+crew members with rest, while also ensuring progress on data
+collection/processing. The full day of flying means that hours are spent at
+night ensuring batteries are charged, data backed up, missions planned, and
+equipment ready for the next day.
+
+## Battery and Power Management
+
+Lithium polymer (LiPo) batteries used in drones are highly flammable and must
+be transported in LiPo safety bags when travelling. On commercial flights,
+passengers are allowed a maximum of two 100-160 Wh batteries, which must be
+kept in carry-on luggage. Quantities of smaller batteries are not usually
+limited, but some airlines or airport security staff may take away what they
+perceive as excessive quantities of batteries. Before travelling with batteries
+related to a drone mission, it is advisable to obtain the airline's transport
+policy in writing so there will be no question of permissibility.
+
+When working in the field, power can be limited. A good power supply should be
+ensured both on site and at the facility where processing of the data will take
+place. Options include:
+
+- Solar charger or car inverter for field charging
+- Reliable electricity or on-site generator at the hotel or office
+- Multiple fully charged battery packs as backup
+
+Plan power for both drone batteries and processing devices (laptops, tablets,
+controllers).
+
+> _Adapted from: World Bank and Humanitarian OpenStreetMap Team (2019).
+> Technical Guidelines for Small Island Mapping with UAVs.
+> CC BY 4.0._
+
+## Always Fly Autonomous Missions
+
+All mapping flights must be flown in autonomous mode following a pre-planned
+flight plan in order to obtain images suitable for creating a mosaic. Pilots
+manoeuvring the aircraft manually cannot ensure that the correct pattern is
+being followed and enough overlap is maintained between frames and flight lines.
+
+- Use a mission planner (DroneTM, or any tool that produces a structured grid
+  the drone executes autonomously).
+- Set overlaps explicitly: 75-80% front, 70% side for good 3D products.
+- Preview the generated grid in the planner before flight to confirm full
+  coverage of the area of interest.
+- If a mission needs more coverage than originally planned, extend the planned
+  grid and re-fly - don't improvise extra coverage with manual flying.
+
+## Consistent Altitude Across Tasks
+
+This is the single biggest factor affecting DSM/elevation quality without RTK
+or GCPs. If per-task flight altitudes vary significantly across a project, the
+photogrammetric bundle adjustment produces a DSM that mirrors flight-altitude
+differences instead of real ground elevation.
+
+- Set altitude as AGL (above ground level) relative to the area of interest's
+  mean ground elevation, not "above home point". 100-120 m AGL is standard.
+- For variable-terrain areas of interest, use terrain-following mode with a
+  DEM-aware mission planner.
+- Across all tasks of one project, target altitudes should agree to within
+  +/- 5 m.
+- If the planner only supports "above home point", take off from the same
+  launch location for every task in the project.
+
+## Camera Settings
+
+Camera settings are a judgement call based on conditions, not a fixed default.
+Full auto (per-frame auto-exposure + auto white balance) is the one mode to
+avoid - it creates tonal inconsistency that fights ODM / DroneDeploy mosaic
+blending.
+
+- **Stable light:** full manual (fixed ISO / shutter / aperture / white balance)
+  gives the most consistent mosaic.
+- **Moderately variable light:** AE-lock (meter once, lock for the mission,
+  re-meter if conditions shift noticeably) adapts better than pure manual
+  without per-frame hunting.
+- Keep shutter speed at 1/2000 s or faster on a moving drone to limit motion
+  blur.
+
+## Image Format and Resolution
+
+For mapping work, there is no need to capture at the sensor's maximum
+resolution. Processing software resizes images during feature matching (ODM
+defaults to 2048 px wide), and final orthos are produced at the target GSD you
+pick (usually 2-5 cm/pixel), not the sensor maximum.
+
+- **Resolution:** 4096 px wide (~3 cm GSD) is a safe ceiling for
+  settlement/urban mapping and is visually indistinguishable from native
+  resolution. 2048 px wide (~6 cm GSD) still cleanly resolves buildings, roofs,
+  and vehicles.
+- **JPEG vs DNG/RAW:** Capture in JPEG under stable conditions - it saves 3-4x
+  storage and upload time, and avoids compatibility issues with some processors
+  (see [#777](https://github.com/hotosm/drone-tm/issues/777)). Use DNG+JPEG as
+  insurance only when conditions are variable or for high-stakes captures. DNG
+  enables roughly a 2-stop shadow recovery for uniformly dark frames, but is
+  less helpful for mixed-light gradient frames (e.g. a cloud edge crossing
+  mid-shot).
+
 ## Flight Checklist
 
 Be sure to review the [Flight Checklists](./flight-checklists.md)

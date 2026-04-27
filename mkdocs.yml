@@ -96,8 +96,8 @@ nav:
           - Alternative Transfer Methods: manuals/alternative-transfer.md
           - Manual Flightplan Generation: manuals/generate-flightplans.md
       - Processing Imagery:
+          - Processing Imagery: manuals/processing-external-imagery.md
           - Ground Control Points: manuals/ground-control-points.md
-          - Processing External Imagery: manuals/processing-external-imagery.md
           - Correcting Orthomosaics: manuals/correcting-stitching-orthomosaics.md
       - Building Drones: manuals/custom-drones.md
   - Developer Guide:

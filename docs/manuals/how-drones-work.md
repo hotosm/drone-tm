@@ -37,6 +37,33 @@ the interface device, such as mobile phones, tablets, or integrated monitors;
 telemetry transceiver (transmitter and receiver); video receiver, if any; and
 the Command & Control (C2) System, usually the remote controller.
 
+## When to Use a Drone vs. Other Methods
+
+Drones are not always the best mapping tool for a project. Before deciding
+whether to use a drone, a satellite, or other tool, the project's data needs,
+budget, and time frame must be understood.
+
+|                        | Satellite            | Airplane            | Drone                                |
+| :--------------------- | :------------------- | :------------------ | :----------------------------------- |
+| **Area per day**       | ~10,000 km²          | ~750 km²            | 1-25 km²                             |
+| **Detail level**       | 30-50 cm/pixel       | > 6 cm/pixel        | 3-10 cm/pixel                        |
+| **Time to deploy**     | 24 hours - 1 week    | 3 days              | 24 hours (with permits)              |
+| **Ease of deployment** | Easy (once in orbit) | Medium              | Easy                                 |
+| **Blocked by clouds**  | Yes                  | Depends on altitude | No (but fog and rain affect results) |
+| **Blocked by wind**    | No                   | No                  | Yes                                  |
+| **Regulatory burden**  | Low                  | Medium-high         | Medium-high                          |
+
+A drone is preferable for mapping a small footprint (e.g. small pockets of
+high-risk areas, a small and remote community). Satellites are most practical
+for acquiring baseline imagery of large areas at a resolution of 50 cm/pixel
+with a capture window of one year. More often than not, a single method is not
+used exclusively; rather, the various survey methods are used to complement one
+another.
+
+> _Adapted from: World Bank and Humanitarian OpenStreetMap Team (2019).
+> Technical Guidelines for Small Island Mapping with UAVs.
+> CC BY 4.0._
+
 ## How Drones Fly
 
 There are different forces acting on a UA. Lift is the force created by the
@@ -121,6 +148,72 @@ The UA employs its sensors to automatically avoid obstacles.
 
 Return-to-Home (RTH) is a safety feature that automatically flies a UA back to
 its original takeoff location (home point) using GPS.
+
+## Image Overlap: Why It Matters
+
+When flying, drone sensors collect images frame by frame. After the flight,
+these frames need to be stitched together to create a mosaic image that shows
+the entire area seamlessly. The processing software (Structure from Motion)
+works by finding matching features between overlapping photos, so sufficient
+overlap between frames is essential.
+
+Forward and side overlap - the amount of overlap between frames in the forward
+and lateral direction from the platform's direction of movement - must be
+properly handled to create seamless mosaics that represent the location of
+features in the image.
+
+**Recommended minimums:**
+
+- **Basic 2D orthomosaic:** minimum 60% forward overlap and 30% side overlap
+- **Accurate terrain models (3D):** minimum 80% forward overlap and 75% side
+  overlap, to maximise the number of observations of landscape features
+
+There is a tradeoff between the time available for the survey and the overlap.
+The more overlap, the more time is required to complete the flying, and the more
+storage is needed for the images. However, more overlap produces better results.
+
+When creating a flight plan, it is important to include extra flight lines and
+frames outside of the area of interest to cover all perimeter zones with enough
+frames. As a rule of thumb, two extra frames at the end of each flight line and
+one extra flight line on each side of the area of interest are normally enough
+to ensure proper coverage. Most flight-planning software will already account
+for the need for additional overlap.
+
+Flight altitude should be set at a fixed value above mean sea level for areas
+with homogeneous ground elevation and should be adjusted above ground level when
+elevation changes significantly (e.g. mountainous areas). This ensures a
+consistent overlap ratio between frames even when the distance between platform
+and target ground changes.
+
+## Landscape Limitations for Mapping
+
+Processing software relies on automatic extraction of point features from
+input images. In the case of imagery collected over visually homogeneous pattern
+areas such as water, bare desert, or snow and ice, it is almost impossible for
+the software to discriminate unique points and match frames correctly. Accurate
+IMU (inertial measurement unit) information may sometimes compensate for the
+lack of feature points in these areas and provide enough positional information
+for correct orthomosaicking.
+
+If your area of interest includes large stretches of water or other uniform
+surfaces, expect reduced quality in those zones of the final mosaic.
+
+## GPS Geotagging
+
+For post-processing, each frame taken by the camera needs to be tagged with its
+GPS location. This is an important process to ensure positional accuracy of the
+output. Most consumer mapping drones (such as the DJI Mini series) handle this
+automatically - the camera is linked to the onboard GPS, and each image is
+tagged with location information via EXIF metadata.
+
+Before flying, always ensure you have a strong GPS lock (the flight controller
+will typically indicate this). Without accurate GPS tags on images, the
+processing software cannot position images correctly and the final mosaic will
+have poor georeferencing.
+
+> _Adapted from: World Bank and Humanitarian OpenStreetMap Team (2019).
+> Technical Guidelines for Small Island Mapping with UAVs.
+> CC BY 4.0._
 
 ## Reasons Why UA Fail
 

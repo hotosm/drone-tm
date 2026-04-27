@@ -188,11 +188,47 @@ should **conduct a risk assessment appropriate to the local context and regulati
 It is also important to implement **no-fly zones or restricted areas**, particularly
 around critical infrastructure, military installations, or other sensitive locations.
 
+If necessary, measures such as downsampling or blurring can be taken to protect
+people's privacy or respect the sensitivity of specific areas. The
+UAViators Humanitarian Code of Conduct and
+[summary of best practices](http://uaviators.org/docs) can help guide decisions
+on how to handle and share collected imagery.
+
 The following risks are less of a concern for a typical DroneTM project:
 
 - Reliable facial identification.
 - Detailed behavioural tracking, as DroneTM projects typically involve
   infrequent data collection rather than continuous monitoring.
+
+### Q. Why should we collect baseline imagery before a disaster?
+
+Collecting high-quality baseline data before a disaster strikes is vitally
+important. During the response to Tropical Cyclone Gita in Tonga (2018), having
+collected baseline drone imagery only a few months before the cyclone proved
+invaluable. It not only provided usable data for post-disaster comparison, thus
+facilitating accurate damage assessments, but it also acted as a trial run for
+the actual disaster, enabling the development of procedures, location of
+suitable flight areas, and rectification of problems.
+
+The baseline imagery was used for:
+
+- **Crowdsourced building damage assessment** by comparing pre- and post-event
+  imagery
+- **Supporting the claims validation process** when homeowners repaired damage
+  before government assessments took place
+- **Quantifying damage and recovery needs** of school buildings for
+  reconstruction planning
+
+For any area at risk of natural disasters, establishing a routine of baseline
+imagery collection means that when a disaster does occur, teams already know the
+flight areas, have regulatory approvals in place, and have a comparison dataset
+ready.
+
+> _Adapted from: World Bank and Humanitarian OpenStreetMap Team (2019).
+> Technical Guidelines for Small Island Mapping with UAVs.
+> CC BY 4.0._
+
+---
 
 ## Info For Drone Operators
 
