@@ -174,6 +174,15 @@ setup:
     just config update-dotenv S3_SECRET_KEY "$s3_secret"
   fi
 
+  # --- ODM URL ---
+  echo ""
+  just _echo-blue "ODM Processing Server"
+  printf "NodeODM endpoint URL (leave empty to skip): "
+  read odm_endpoint
+  if [ -n "$odm_endpoint" ]; then
+    just config update-dotenv ODM_ENDPOINT "$odm_endpoint"
+  fi
+
   # --- Auto-generate secrets & passwords ---
   just config update-dotenv SECRET_KEY "$(openssl rand -base64 32)"
   just config update-dotenv POSTGRES_PASSWORD "$(openssl rand -base64 24)"
