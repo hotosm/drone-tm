@@ -68,12 +68,12 @@ _select-version:
   fi
 
   # Prepend 'latest' option (uses dev branch with latest pre-built images)
-  tags=("latest (unstable dev)" "${tags[@]}")
+  tags=("latest-unstable-dev" "${tags[@]}")
 
   echo ""
   chosen=$(just _select-menu "Select Drone-TM version:" "${tags[@]}")
 
-  if [[ "$chosen" == latest* ]]; then
+  if [ "$chosen" = "latest-unstable-dev" ]; then
     just _echo-blue "Checking out dev branch (latest)..."
     git checkout dev
     echo "dev" > /tmp/.dtm_deploy_tag
