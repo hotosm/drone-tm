@@ -3,3 +3,32 @@
   --md-primary-fg-color--light: #e27575;
   --md-primary-fg-color--dark: #c22929;
 }
+
+/* Print button */
+.print-btn {
+  padding: 8px 20px;
+  background: var(--md-primary-fg-color);
+  color: #fff !important;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.print-btn:hover {
+  background: var(--md-primary-fg-color--dark);
+}
+
+/* Print: hide chrome, full-width content */
+@media print {
+  .print-btn,
+  .md-header,
+  .md-sidebar,
+  .md-footer,
+  .md-tabs {
+    display: none !important;
+  }
+  .md-content {
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+}

@@ -45,6 +45,8 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight
   - pymdownx.emoji:
+  - pymdownx.tasklist:
+      custom_checkbox: false
   - pymdownx.tabbed:
       alternate_style: true
   - mdx_truly_sane_lists
@@ -79,9 +81,14 @@ nav:
       - FAQ: about/faq.md
       - The Team: about/team.md
   - User Manuals:
-      - Creating Projects: manuals/creating-projects.md
-      - Flying Drones:
-          - Drone Operators Guide: manuals/operators.md
+      - General Drone Theory:
+          - How Drones Work: manuals/how-drones-work.md
+          - Flying Drones Manually: manuals/flying-drones-manually.md
+      - DroneTM Managers:
+          - Creating Projects: manuals/creating-projects.md
+      - DroneTM Operators:
+          - Drone Operators Guide: manuals/dronetm-operators.md
+          - Flight Checklists: manuals/flight-checklists.md
           - DJI Drones (General): manuals/dji.md
           - Specific Drone Models:
               - DJI Mini 5 Pro: manuals/specific-models/dji-mini-5-pro.md
