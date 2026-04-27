@@ -56,41 +56,134 @@ generate-dotenv branch="main":
   #!/usr/bin/env sh
   set -e
 
-  # By default we deploy from 'dev' branch, but can be overridden
-
   cd {{justfile_directory()}}
   just prep envsubst
 
-  # Check if .env already exists and warn, but continue
   if [ -f .env ]; then
-    just _echo-yellow "'.env' file already exists. Skipping dotenv generation to avoid overwriting."
+    just _echo-yellow "'.env' already exists. Skipping generation."
   else
     # Generate a .env file from .env.example, substituting values from environment
-    # NOTE: We run envsubst twice so defaults that reference other vars like:
-    #   VITE_API_URL=${VITE_API_URL:-http://localhost:$BACKEND_WEB_APP_PORT/api}
-    # can be fully resolved in a second pass.
+    # NOTE: We run envsubst twice so defaults that reference other vars can be fully resolved.
     ./envsubst -i .env.example | ./envsubst | grep -vE '^\s*#|^\s*$' > .env
   fi
 
-  # Re-export .env to the environment, with cleaned variables
+  # Export all variables from .env into the environment
   if [ -f .env ]; then
-      while IFS= read -r line; do
-          # Skip comments and empty lines
-          case "$line" in
-              \#*|'') continue ;;
-          esac
-          # Remove surrounding quotes (single or double)
-          clean_line=$(echo "$line" | sed -E 's/^([^=]+)=(["'\'']?)(.*)\2$/\1=\3/')
-          var_name=$(echo "$clean_line" | cut -d= -f1)
-          var_value=$(echo "$clean_line" | cut -d= -f2-)
-          export "$var_name=$var_value"
-      done < .env
+    set -a
+    . ./.env
+    set +a
   fi
 
-  # Generate compose file (default dev, but can be overridden)
+  # Generate compose file (default main, but can be overridden)
   export GIT_BRANCH="{{ branch }}"
   echo ""
   just _echo-blue "Final compose file output for branch {{ branch }}:"
   echo ""
   # NOTE we run through envsubst twice for nested vars
   ./envsubst -i compose.sub.yaml | ./envsubst
+
+# Interactive setup for production / self-hosted deployments
+[no-cd]
+setup:
+  #!/usr/bin/env bash
+  set -e
+
+  cd {{justfile_directory()}}
+
+  echo ""
+  just _echo-blue "Drone-TM Production Setup"
+  just _echo-blue "========================="
+  echo ""
+  echo "This will generate a .env file and configure it for your domain."
+  echo "Secrets and database passwords are auto-generated."
+  echo ""
+
+  # Remove existing .env so generate-dotenv creates a fresh one
+  rm -f .env
+  just config generate-dotenv > /dev/null 2>&1
+
+  # --- Domain ---
+  printf "Enter your domain (e.g. dronetm.example.org): "
+  read ftm_domain
+  if [ -z "$ftm_domain" ]; then
+    just _echo-red "Domain is required. Aborting."
+    exit 1
+  fi
+  just config update-dotenv DOMAIN "$ftm_domain"
+
+  # --- Cert email ---
+  printf "Email for Let's Encrypt certificates: "
+  read cert_email
+  if [ -z "$cert_email" ]; then
+    just _echo-red "Certificate email is required. Aborting."
+    exit 1
+  fi
+  just config update-dotenv CERT_EMAIL "$cert_email"
+
+  # --- Auth provider ---
+  echo ""
+  echo "Auth provider options:"
+  echo "  1) hanko   - Hanko SSO (default, recommended)"
+  echo "  2) legacy  - Google OAuth"
+  printf "Select auth provider [1]: "
+  read auth_choice
+  case "$auth_choice" in
+    2)
+      just config update-dotenv AUTH_PROVIDER legacy
+      printf "Google Client ID: "
+      read google_id
+      printf "Google Client Secret: "
+      read google_secret
+      just config update-dotenv GOOGLE_CLIENT_ID "$google_id"
+      just config update-dotenv GOOGLE_CLIENT_SECRET "$google_secret"
+      just config update-dotenv GOOGLE_LOGIN_REDIRECT_URI "https://$ftm_domain/auth"
+      ;;
+    *)
+      just config update-dotenv AUTH_PROVIDER hanko
+      printf "Hanko API URL [https://dev.login.hotosm.org]: "
+      read hanko_url
+      hanko_url="${hanko_url:-https://dev.login.hotosm.org}"
+      just config update-dotenv HANKO_API_URL "$hanko_url"
+      just config update-dotenv COOKIE_DOMAIN "$ftm_domain"
+      ;;
+  esac
+
+  # --- S3 / Object storage ---
+  echo ""
+  just _echo-blue "S3 / Object Storage"
+  printf "S3 endpoint URL [http://localhost:9000]: "
+  read s3_endpoint
+  s3_endpoint="${s3_endpoint:-http://localhost:9000}"
+  just config update-dotenv S3_ENDPOINT_UPLOAD "$s3_endpoint"
+  just config update-dotenv S3_ENDPOINT_DOWNLOAD "$s3_endpoint"
+
+  printf "S3 bucket name [dtm-bucket]: "
+  read s3_bucket
+  s3_bucket="${s3_bucket:-dtm-bucket}"
+  just config update-dotenv S3_BUCKET_NAME "$s3_bucket"
+
+  printf "S3 access key: "
+  read s3_access
+  if [ -n "$s3_access" ]; then
+    just config update-dotenv S3_ACCESS_KEY "$s3_access"
+  fi
+
+  printf "S3 secret key: "
+  read s3_secret
+  if [ -n "$s3_secret" ]; then
+    just config update-dotenv S3_SECRET_KEY "$s3_secret"
+  fi
+
+  # --- Auto-generate secrets & passwords ---
+  just config update-dotenv SECRET_KEY "$(openssl rand -base64 32)"
+  just config update-dotenv POSTGRES_PASSWORD "$(openssl rand -base64 24)"
+
+  # Production defaults
+  just config update-dotenv DEBUG "False"
+  just config update-dotenv EXTRA_CORS_ORIGINS "https://$ftm_domain"
+
+  echo ""
+  just _echo-blue "Setup complete. Config written to .env"
+  echo ""
+  just _echo-yellow "Review .env as needed, then run: just start prod"
+  echo ""

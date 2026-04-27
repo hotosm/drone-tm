@@ -24,7 +24,7 @@ docker := env("DOCKER_ALIAS", if `command -v docker >/dev/null 2>&1 && echo foun
 default:
   just --justfile {{justfile()}} --list start
 
-# Start Drone-TM
+# Start Drone-TM (dev mode, local build)
 [no-cd]
 all:
   #!/usr/bin/env sh
@@ -32,39 +32,76 @@ all:
   cd {{justfile_directory()}}
   {{docker}} compose up -d
 
-# Production deploy, depending which branch on current
+# Prompt the user to select a release tag and export GIT_BRANCH.
+# Exits if the working tree is dirty or no tags are found.
 [no-cd]
-prod branch="none" build="true":
-  #!/usr/bin/env sh
+_select-version:
+  #!/usr/bin/env bash
   set -e
 
   cd {{justfile_directory()}}
 
-  # Use passed in git branch, or determine from current checked out branch
-  GIT_BRANCH="{{ branch }}"
-  if [ "$GIT_BRANCH" = "none" ]; then
-    export GIT_BRANCH=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)
+  # Guard: refuse to deploy with uncommitted changes
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    just _echo-red "You have unstaged / uncommitted changes. Stash them first before deploy."
+    exit 1
   fi
-  export GIT_BRANCH
-  just _echo-blue "Using branch: ${GIT_BRANCH}"
 
-  # Config
+  # Fetch latest tags from remote
+  git fetch --tags --quiet
+
+  # Collect Drone-TM release tags (v20xx.*), most recent 8
+  mapfile -t tags < <(git tag -l 'v20*' --sort=-v:refname | head -n 8)
+  if [ ${#tags[@]} -eq 0 ]; then
+    just _echo-red "No Drone-TM release tags found."
+    exit 1
+  fi
+
+  echo ""
+  just _echo-blue "Select Drone-TM version to deploy:"
+  echo ""
+  PS3="Enter number: "
+  select chosen in "${tags[@]}"; do
+    if [ -n "$chosen" ]; then
+      break
+    fi
+    echo "Invalid selection, try again."
+  done
+
+  just _echo-blue "Checking out ${chosen}..."
+  git checkout "${chosen}"
+
+  # Persist the chosen tag for the calling recipe
+  echo "${chosen}" > /tmp/.dtm_deploy_tag
+
+# Production deploy from a tagged release (pre-built images)
+[no-cd]
+prod:
+  #!/usr/bin/env bash
+  set -e
+
+  # Source exported env vars from .bashrc (e.g. CONTAINERD_SNAPSHOTTER)
+  eval "$(grep '^export ' ~/.bashrc 2>/dev/null)" || true
+
+  just start _select-version
+  export GIT_BRANCH=$(cat /tmp/.dtm_deploy_tag)
+
+  cd {{justfile_directory()}}
+
+  # Generate .env if missing
   just config generate-dotenv "${GIT_BRANCH}"
 
-  # Pull images
+  # Pull pre-built images for the selected tag
+  just _echo-blue "Pulling images for ${GIT_BRANCH}..."
   ./envsubst -no-unset -i compose.sub.yaml | {{docker}} compose -f - pull
 
-  # Build frontends
-  if [ "{{ build }}" = "true" ]; then
-    just build frontends-prod "${GIT_BRANCH}"
-  fi
-
   # Deploy
+  just _echo-blue "Deploying Drone-TM ${GIT_BRANCH}..."
   ./envsubst -no-unset -i compose.sub.yaml | \
         {{docker}} compose -f - up --detach \
         --remove-orphans --force-recreate
 
-  just _echo-blue "DroneTM started successfully"
+  just _echo-blue "Drone-TM ${GIT_BRANCH} started successfully"
 
 # Start backend API only
 [no-cd]

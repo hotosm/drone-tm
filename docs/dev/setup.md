@@ -1,5 +1,10 @@
 # Setting Up DroneTM For Development
 
+!!! info
+
+    This guide is for **local development**. For production / self-hosted
+    deployments, see the [Installation Guide](../INSTALL.md).
+
 ## Prerequisites
 
 !!! important
@@ -67,7 +72,7 @@ Just is required too:
 ### Build and Run The Containers
 
 - The `Justfile` in the project root contains all the logic needed to build and run the application.
-- `compose.sub.yaml` is used for production builds - `compose.yaml`, meanwhile, is used for development.
+- `compose.sub.yaml` is used for production deploys (`just start prod`) - `compose.yaml`, meanwhile, is used for development.
 - To start the application, run:
   `just start all`
 - This command will pull the required Docker images and start all services correctly.

@@ -75,7 +75,7 @@ nav:
   # - API Docs: https://hotosm.github.io/swagger/?url=https://docs.drone.hotosm.org/openapi.json
   - Get Started:
       - About: about/about.md
-      - Installation: INSTALL.md
+      - Installation & Deployment: INSTALL.md
       - Contribution Guidelines: CONTRIBUTING.md
       - Code of Conduct: https://docs.hotosm.org/code-of-conduct
       - FAQ: about/faq.md
