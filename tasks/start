@@ -67,14 +67,21 @@ _select-version:
     exit 1
   fi
 
+  # Prepend 'latest' option (uses dev branch with latest pre-built images)
+  tags=("latest" "${tags[@]}")
+
   echo ""
   chosen=$(just _select-menu "Select Drone-TM version:" "${tags[@]}")
 
-  just _echo-blue "Checking out ${chosen}..."
-  git checkout "${chosen}"
-
-  # Persist the chosen tag for the calling recipe
-  echo "${chosen}" > /tmp/.dtm_deploy_tag
+  if [ "$chosen" = "latest" ]; then
+    just _echo-blue "Checking out dev branch (latest)..."
+    git checkout dev
+    echo "dev" > /tmp/.dtm_deploy_tag
+  else
+    just _echo-blue "Checking out ${chosen}..."
+    git checkout "${chosen}"
+    echo "${chosen}" > /tmp/.dtm_deploy_tag
+  fi
 
 # Production deploy from a tagged release (pre-built images)
 [no-cd]
