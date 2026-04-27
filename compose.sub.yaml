@@ -87,7 +87,7 @@ services:
       ${DOMAIN}_CUSTOM_CONF_SERVER_HTTP_spa: |
         location / {
           root /var/www/html/${DOMAIN};
-          try_files $$uri /index.html;
+          try_files $$uri $$uri/index.html /index.html;
         }
     ports:
       - 80:8080
