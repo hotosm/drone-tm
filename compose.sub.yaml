@@ -53,9 +53,11 @@ services:
       LIMIT_CONN_MAX_HTTP1: 50
       # BAD_BEHAVIOUR disabled as it's difficult to work with...
       USE_BAD_BEHAVIOR: no
-      # Rate limiting only on /api - static frontend assets are served by nginx
-      # and don't need throttling (SPA loads many asset URLs on first visit).
+      # Rate limiting on /api only - static frontend assets are served by nginx
+      # and don't need throttling (SPA loads many assets on first visit).
+      # Global rate is permissive; tighter limits applied per-URL below.
       USE_LIMIT_REQ: yes
+      LIMIT_REQ_RATE: 100r/s
       LIMIT_REQ_URL_1: /api/
       LIMIT_REQ_RATE_1: 15r/s
       # Uppy AwsS3 multipart signing is bursty: one request per part (and parts can be pipelined),
@@ -85,7 +87,7 @@ services:
       ${DOMAIN}_CUSTOM_CONF_SERVER_HTTP_spa: |
         location / {
           root /var/www/html/${DOMAIN};
-          try_files $$uri $$uri/ /index.html;
+          try_files $$uri /index.html;
         }
     ports:
       - 80:8080
