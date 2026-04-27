@@ -57,6 +57,8 @@ services:
       # In dev, use the host-exposed MinIO port for presigned URLs.
       # (Path-rewriting proxies like `/s3` break S3 presigned signatures.)
       S3_ENDPOINT_DOWNLOAD: ${S3_ENDPOINT_DOWNLOAD:-http://localhost:9000}
+      # Dev uses network_mode:service:backend (shared namespace), so localhost
+      DRAGONFLY_DSN: redis://localhost:6379/0
     networks:
       - dtm-network
     extra_hosts:
@@ -182,6 +184,7 @@ services:
     env_file: .env
     environment:
       QGIS_URL: ${QGIS_URL:-http://localhost:8080}
+      DRAGONFLY_DSN: redis://localhost:6379/0
     network_mode: service:backend
     restart: unless-stopped
     healthcheck:

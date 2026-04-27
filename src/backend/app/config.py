@@ -206,7 +206,7 @@ class Settings(BaseSettings):
     # ODM (NodeODM) API endpoint
     ODM_ENDPOINT: Optional[str] = "http://nodeodm:9900"
     QGIS_URL: Optional[str] = "http://qgis:8080"
-    DRAGONFLY_DSN: str = "redis://localhost:6379/0"
+    DRAGONFLY_DSN: str = "redis://dragonfly:6379/0"
 
     # - S3_ENDPOINT_UPLOAD: endpoint used for presigned uploads (browser calls this; can be S3 TA).
     # - S3_ENDPOINT_DOWNLOAD: endpoint used for browser downloads/display (can be CloudFront).

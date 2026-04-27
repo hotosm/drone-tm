@@ -26,6 +26,7 @@ services:
       ODM_ENDPOINT: http://nodeodm:9900
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
+      DRAGONFLY_DSN: redis://localhost:6379/0
 
   frontend:
     extends:
@@ -64,6 +65,7 @@ services:
       ODM_ENDPOINT: http://nodeodm:9900
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
+      DRAGONFLY_DSN: redis://localhost:6379/0
 
   dragonfly:
     extends:
