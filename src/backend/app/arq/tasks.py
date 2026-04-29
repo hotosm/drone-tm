@@ -277,6 +277,15 @@ async def process_uploaded_image(
 
             log.info(f"Calculating hash for: {filename}")
             file_hash = calculate_file_hash(file_content)
+            # NOTE: We deliberately compute MD5 from the file content rather than
+            # using the S3 ETag. The ETag is upload-method-dependent: single-part
+            # PUTs produce a plain MD5, but multipart uploads produce a compound
+            # hash ({md5_of_parts}-{N}) that differs even for identical content
+            # depending on chunk size. Server-side S3 copies preserve the source
+            # ETag, so the same file ingested via different paths (browser upload,
+            # transfer script, S3 copy) would get different ETags and dedup would
+            # silently miss them. MD5 of the content is always consistent regardless
+            # of how or where the file was uploaded.
 
             # Check for duplicates - create record with DUPLICATE status
             # Downstream the EXIF extraction and processing is skipped
