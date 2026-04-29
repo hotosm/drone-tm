@@ -33,7 +33,7 @@ const appRoutes: IRoute[] = [
     path: "/projects",
     name: "Projects ",
     component: Projects,
-    authenticated: true,
+    authenticated: false,
   },
   {
     path: "/auth",
@@ -63,7 +63,7 @@ const appRoutes: IRoute[] = [
     path: "/projects/:id",
     name: "Individual Project",
     component: IndividualProject,
-    authenticated: true,
+    authenticated: false,
   },
   {
     path: "/complete-profile",

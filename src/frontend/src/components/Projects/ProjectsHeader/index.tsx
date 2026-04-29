@@ -9,10 +9,12 @@ import { Select } from "@Components/common/FormUI";
 import { setCreateProjectState } from "@Store/actions/createproject";
 import SearchInput from "@Components/common/FormUI/SearchInput";
 import useDebounceListener from "@Hooks/useDebouncedListener";
+import useAuth from "@Hooks/useAuth";
 
 export default function ProjectsHeader() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const signedInAs = localStorage.getItem("signedInAs") || "PROJECT_CREATOR";
   const showMap = useTypedSelector((state) => state.common.showMap);
   const projectsFilterByOwner = useTypedSelector(
@@ -95,7 +97,7 @@ export default function ProjectsHeader() {
           />
         </FlexRow>
 
-        {signedInAs === "PROJECT_CREATOR" && (
+        {isAuthenticated() && signedInAs === "PROJECT_CREATOR" && (
           <Button
             variant="secondary"
             className="!naxatw-bg-red naxatw-text-white"
