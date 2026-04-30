@@ -2,6 +2,9 @@ import asyncio
 import base64
 import hashlib
 import io
+import json
+import urllib.parse
+import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -58,6 +61,22 @@ from app.projects import project_logic
 
 
 THUMBNAIL_SIZE = (200, 200)
+
+
+# ── EXIF-based project creation from a remote S3-compatible bucket ────────────
+#
+# Pulls the first ~128KB of each JPEG in a public bucket via HTTP Range
+# requests, runs exiftool to read the GPS, builds a buffered convex hull as
+# the AOI, then creates a drone-tm project + 600m task split. Imagery transfer
+# and ingestion are handled by separate flows (existing justfile + ingest
+# endpoint) - this task only creates the project shell.
+_EXIF_HEAD_BYTES = 128 * 1024
+_HULL_BUFFER_METERS = 100
+_TASK_SPLIT_METERS = 600
+_MIN_GPS_RATIO = 0.8
+_MAX_DEPTH_FROM_PREFIX = 3
+_LIST_PAGE_SIZE = 1000
+_FETCH_CONCURRENCY = 8
 
 
 async def startup(ctx: Dict[Any, Any]) -> None:
@@ -1264,6 +1283,259 @@ async def process_odm_webhook_assets(
             await redis.delete(lock_key)
 
 
+def _normalize_s3_endpoint(endpoint: str) -> str:
+    """Return a base URL (scheme + host) for the S3-compatible endpoint."""
+    endpoint = endpoint.strip().rstrip("/")
+    if endpoint.startswith("http://") or endpoint.startswith("https://"):
+        return endpoint
+    return f"https://{endpoint}"
+
+
+async def _list_s3_jpegs(
+    session: "aiohttp.ClientSession",
+    base_url: str,
+    bucket: str,
+    prefix: str,
+) -> list[str]:
+    """List object keys in a public S3-compatible bucket via the v2 list API.
+
+    Filters to .jpg/.jpeg extensions and limits depth to <=3 segments below
+    the user-provided prefix. Handles pagination via continuation tokens.
+    """
+    keys: list[str] = []
+    continuation: Optional[str] = None
+    list_url = f"{base_url}/{bucket}"
+    ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
+
+    normalized_prefix = prefix.lstrip("/")
+    if normalized_prefix and not normalized_prefix.endswith("/"):
+        normalized_prefix = normalized_prefix + "/"
+
+    while True:
+        params: dict[str, str] = {
+            "list-type": "2",
+            "max-keys": str(_LIST_PAGE_SIZE),
+        }
+        if normalized_prefix:
+            params["prefix"] = normalized_prefix
+        if continuation:
+            params["continuation-token"] = continuation
+
+        query = urllib.parse.urlencode(params)
+        async with session.get(f"{list_url}?{query}") as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                raise RuntimeError(
+                    f"S3 list failed ({resp.status}) for {list_url}: {body[:300]}"
+                )
+            xml_text = await resp.text()
+
+        root = ET.fromstring(xml_text)
+        for content in root.findall("s3:Contents", ns):
+            key_el = content.find("s3:Key", ns)
+            if key_el is None or not key_el.text:
+                continue
+            key = key_el.text
+            ext = os.path.splitext(key)[1].lower()
+            if ext not in (".jpg", ".jpeg"):
+                continue
+            relative = key[len(normalized_prefix) :] if normalized_prefix else key
+            if relative.count("/") > _MAX_DEPTH_FROM_PREFIX:
+                continue
+            keys.append(key)
+
+        truncated_el = root.find("s3:IsTruncated", ns)
+        if truncated_el is None or (truncated_el.text or "").lower() != "true":
+            break
+        next_token_el = root.find("s3:NextContinuationToken", ns)
+        if next_token_el is None or not next_token_el.text:
+            break
+        continuation = next_token_el.text
+
+    return keys
+
+
+async def _fetch_gps_for_key(
+    session: "aiohttp.ClientSession",
+    base_url: str,
+    bucket: str,
+    key: str,
+    semaphore: asyncio.Semaphore,
+) -> Optional[Tuple[float, float]]:
+    """Fetch the first ~128KB of an image and extract GPS lat/lon, or None."""
+    url = f"{base_url}/{bucket}/{key}"
+    async with semaphore:
+        try:
+            async with session.get(
+                url, headers={"Range": f"bytes=0-{_EXIF_HEAD_BYTES - 1}"}
+            ) as resp:
+                if resp.status not in (200, 206):
+                    log.debug(f"EXIF fetch HTTP {resp.status} for {key}")
+                    return None
+                head_bytes = await resp.read()
+        except Exception as e:
+            log.debug(f"EXIF fetch failed for {key}: {e}")
+            return None
+
+    try:
+        _, location, _ = await asyncio.get_running_loop().run_in_executor(
+            None, extract_exif_data, head_bytes
+        )
+    except Exception as e:
+        log.debug(f"EXIF parse failed for {key}: {e}")
+        return None
+
+    if not location or "lat" not in location or "lon" not in location:
+        return None
+    return (float(location["lat"]), float(location["lon"]))
+
+
+async def _build_buffered_hull_geojson(
+    db,
+    coords: list[Tuple[float, float]],
+) -> dict[str, Any]:
+    """Convex hull of (lat, lon) points, buffered by 100m, as a GeoJSON
+    FeatureCollection containing a single Polygon feature.
+
+    Computed in PostGIS to match the rest of the codebase: ST_Buffer over a
+    geography cast gives an accurate metric buffer that accounts for earth
+    curvature (see image_classification.py for the same pattern).
+    """
+    lons = [lon for (_, lon) in coords]
+    lats = [lat for (lat, _) in coords]
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT ST_AsGeoJSON(
+                ST_Buffer(
+                    ST_ConvexHull(
+                        ST_Collect(ST_SetSRID(ST_MakePoint(lon, lat), 4326))
+                    )::geography,
+                    %(buffer_m)s
+                )::geometry
+            )
+            FROM unnest(%(lons)s::float8[], %(lats)s::float8[]) AS t(lon, lat)
+            """,
+            {
+                "lons": lons,
+                "lats": lats,
+                "buffer_m": _HULL_BUFFER_METERS,
+            },
+        )
+        row = await cur.fetchone()
+
+    if not row or not row[0]:
+        raise RuntimeError("PostGIS failed to build buffered hull from GPS points")
+
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": json.loads(row[0]),
+            }
+        ],
+    }
+
+
+async def create_project_from_imagery_exif(
+    ctx: Dict[Any, Any],
+    user_id: str,
+    endpoint: str,
+    bucket_name: str,
+    path: str,
+    project_name: str,
+    **_kwargs: Any,
+) -> Dict[str, Any]:
+    """Create a drone-tm project by scanning EXIF GPS from a remote S3 bucket.
+
+    Steps: list .jpg/.jpeg keys (depth <=3) → fetch first ~128KB per file →
+    extract GPS via exiftool → buffered convex hull AOI → create project +
+    600m task split. Image transfer + ingest are handled separately.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    log.info(
+        f"create_project_from_imagery_exif (job {job_id}): "
+        f"endpoint={endpoint} bucket={bucket_name} path={path!r} user={user_id}"
+    )
+
+    db_pool = ctx.get("db_pool")
+    redis: ArqRedis = ctx.get("redis")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    base_url = _normalize_s3_endpoint(endpoint)
+
+    timeout = aiohttp.ClientTimeout(total=None, connect=30, sock_read=60)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        keys = await _list_s3_jpegs(session, base_url, bucket_name, path)
+        log.info(f"Found {len(keys)} JPEG candidates under {bucket_name}/{path!r}")
+
+        if not keys:
+            raise RuntimeError(
+                f"No .jpg/.jpeg files found at {base_url}/{bucket_name}/{path}"
+            )
+
+        semaphore = asyncio.Semaphore(_FETCH_CONCURRENCY)
+        results = await asyncio.gather(
+            *(
+                _fetch_gps_for_key(session, base_url, bucket_name, key, semaphore)
+                for key in keys
+            )
+        )
+
+    coords: list[Tuple[float, float]] = [r for r in results if r is not None]
+    gps_ratio = len(coords) / len(keys)
+    log.info(
+        f"GPS extracted from {len(coords)}/{len(keys)} ({gps_ratio:.0%}) imagery files"
+    )
+
+    if gps_ratio < _MIN_GPS_RATIO:
+        raise RuntimeError(
+            f"Only {gps_ratio:.0%} of images had valid GPS data "
+            f"(min required: {_MIN_GPS_RATIO:.0%}). Aborting project creation."
+        )
+    if len(coords) < 3:
+        raise RuntimeError(
+            f"Need at least 3 images with GPS to build an AOI; found {len(coords)}."
+        )
+
+    async with db_pool.connection() as db:
+        outline = await _build_buffered_hull_geojson(db, coords)
+
+        project_in = project_schemas.ProjectIn(
+            name=project_name,
+            description="This project was created in an automated way by ingesting imagery",
+            outline=outline,
+            task_split_dimension=_TASK_SPLIT_METERS,
+            final_output=["ORTHOPHOTO_2D"],
+        )
+
+        project_id = await project_schemas.DbProject.create(db, project_in, user_id)
+
+        # Split into 600m tasks and persist them, mirroring the
+        # /upload-task-boundaries flow used by manual project creation.
+        split_features = await project_logic.preview_split_by_square(
+            outline, _TASK_SPLIT_METERS
+        )
+        await project_logic.create_tasks_from_geojson(
+            db, project_id, split_features, project_in, redis
+        )
+
+    log.info(
+        f"create_project_from_imagery_exif (job {job_id}): "
+        f"created project {project_id} from {len(coords)} GPS-tagged images"
+    )
+
+    return {
+        "project_id": str(project_id),
+        "image_count": len(keys),
+        "gps_count": len(coords),
+    }
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -1283,6 +1555,7 @@ class WorkerSettings:
         generate_qfield_project,
         process_imported_odm_assets,
         process_odm_webhook_assets,
+        create_project_from_imagery_exif,
     ]
 
     queue_name = "default_queue"

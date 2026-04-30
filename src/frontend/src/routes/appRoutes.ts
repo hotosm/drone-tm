@@ -15,6 +15,7 @@ const TaskDescription = lazy(() => import("@Views/TaskDescription"));
 const UpdateUserProfile = lazy(() => import("@Views/UpdateUserProfile"));
 const RegulatorsApprovalPage = lazy(() => import("@Views/RegulatorsApprovalPage"));
 const Tutorials = lazy(() => import("@Views/Tutorial"));
+const ImportPage = lazy(() => import("@Views/Import"));
 
 const appRoutes: IRoute[] = [
   ...userRoutes,
@@ -89,6 +90,12 @@ const appRoutes: IRoute[] = [
     name: "Task project approval",
     component: RegulatorsApprovalPage,
     authenticated: false,
+  },
+  {
+    path: "/import",
+    name: "Import Imagery",
+    component: ImportPage,
+    authenticated: true,
   },
 ];
 

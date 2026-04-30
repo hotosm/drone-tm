@@ -17,6 +17,7 @@ from app.db import database
 from app.models.enums import HTTPStatus, State
 from app.images.image_classification import ImageClassifier
 from app.images.flight_gap_identification import identify_flight_gaps
+from app.projects import project_schemas
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.waypoints.flightplan_output import (
@@ -201,6 +202,49 @@ async def ingest_existing_uploads(
         "job_id": job.job_id,
         "project_id": str(project_id),
         "batch_id": batch_id,
+    }
+
+
+@router.post("/project-from-imagery-exif/", tags=["Image Classification"])
+async def create_project_from_imagery_exif(
+    body: project_schemas.ProjectFromImageryExifIn,
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    user: Annotated[AuthUser, Depends(login_required)],
+):
+    """Create a drone-tm project by scanning EXIF GPS from a remote S3 path.
+
+    Lists JPEG files (depth <=3 from the given prefix) in a public S3-compatible
+    bucket, extracts GPS via exiftool on the first ~128KB of each, builds a
+    100m-buffered convex hull as the AOI, then creates the project with a 600m
+    task split. Imagery transfer and ingestion are run separately afterwards
+    (existing justfile + ingest endpoint).
+    """
+    job = await redis.enqueue_job(
+        "create_project_from_imagery_exif",
+        user.id,
+        body.endpoint,
+        body.bucket_name,
+        body.path,
+        body.project_name,
+        _queue_name="default_queue",
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Failed to enqueue project creation job",
+        )
+
+    log.info(
+        f"create_project_from_imagery_exif: queued job {job.job_id} "
+        f"for user {user.id} ({body.bucket_name}/{body.path})"
+    )
+
+    return {
+        "message": (
+            "Please be patient while the project is created in the background. "
+            "For many images, this may take several hours."
+        ),
     }
 
 
