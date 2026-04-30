@@ -6,7 +6,7 @@ networks:
 
 volumes:
   db-data:
-  minio-data:
+  rustfs-data:
   frontend-html:
 
 services:
@@ -40,15 +40,15 @@ services:
       file: compose.yaml
       service: db
 
-  minio:
+  s3:
     extends:
       file: compose.yaml
-      service: minio
+      service: s3
 
-  createbuckets:
+  s3-init:
     extends:
       file: compose.yaml
-      service: createbuckets
+      service: s3-init
 
   migrations:
     extends:

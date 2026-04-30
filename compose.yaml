@@ -7,8 +7,8 @@ volumes:
     name: drone-tm-db-data
   frontend-html:
     name: drone-tm-frontend-html
-  minio-data:
-    name: drone-tm-minio-data
+  rustfs-data:
+    name: drone-tm-rustfs-data
 
 services:
   backend:
@@ -40,7 +40,7 @@ services:
         condition: service_completed_successfully
     ports:
       - ${BACKEND_WEB_APP_PORT:-8000}:8000
-      # For minio
+      # For RustFS S3 (API :9000, console :9090)
       - 9000:9000
       - 9090:9090
     volumes:
@@ -51,10 +51,10 @@ services:
       - frontend-html:/project/src/backend/frontend_html
     env_file: .env
     environment:
-      # In dev the browser can't resolve docker DNS names like `minio`,
+      # In dev the browser can't resolve docker DNS names like `s3`,
       # so presigned URLs must use a host-accessible base.
       S3_ENDPOINT_UPLOAD: ${S3_ENDPOINT_UPLOAD:-http://localhost:9000}
-      # In dev, use the host-exposed MinIO port for presigned URLs.
+      # In dev, use the host-exposed RustFS port for presigned URLs.
       # (Path-rewriting proxies like `/s3` break S3 presigned signatures.)
       S3_ENDPOINT_DOWNLOAD: ${S3_ENDPOINT_DOWNLOAD:-http://localhost:9000}
       # Dev uses network_mode:service:backend (shared namespace), so localhost
@@ -82,7 +82,7 @@ services:
     depends_on:
       backend:
         condition: service_started
-      createbuckets:
+      s3-init:
         condition: service_completed_successfully
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}/api}
@@ -121,33 +121,80 @@ services:
       timeout: 5s
       retries: 3
 
-  minio:
-    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
-    command: server /export --console-address 0.0.0.0:9090 --address 0.0.0.0:9000
+  s3:
+    image: "rustfs/rustfs:1.0.0-alpha.90"
+    command: server /data --console-address ":9090" --address ":9000"
     volumes:
-      - minio-data:/export
+      - rustfs-data:/data
     environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-admin}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-somelongpassword}
-    env_file:
-      - .env
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-somelongpassword}
     network_mode: service:backend
     restart: unless-stopped
     healthcheck:
-      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:9000/health"]
       interval: 5s
       retries: 3
       start_period: 5s
       timeout: 5s
 
-  createbuckets:
-    image: "docker.io/minio/minio:${MINIO_TAG:-RELEASE.2024-08-03T04-33-23Z}"
-    entrypoint: >
-      /bin/sh -c " mc config host add minio http://localhost:9000 \$S3_ACCESS_KEY \$S3_SECRET_KEY; mc mb minio/\$S3_BUCKET_NAME; mc anonymous set download minio/\$S3_BUCKET_NAME/publicuploads/; mc anonymous set download minio/\$S3_BUCKET_NAME/tutorials/; exit 0; "
-    env_file:
-      - .env
+  s3-init:
+    image: "docker.io/python:3.13-slim-bookworm"
+    entrypoint:
+      - /bin/sh
+      - -eu
+      - -c
+      - |
+        python -m pip install --no-cache-dir boto3 >/dev/null
+        python - <<'PY'
+        import json
+        import os
+        import boto3
+        import botocore.config
+        import botocore.exceptions
+
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=os.environ["AWS_ENDPOINT_URL"],
+            region_name="us-east-1",
+            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+            config=botocore.config.Config(s3={"addressing_style": "path"}),
+        )
+
+        bucket = os.environ["S3_BUCKET_NAME"]
+        try:
+            s3.create_bucket(Bucket=bucket)
+            print(f"Created bucket '{bucket}'")
+        except botocore.exceptions.ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
+                print(f"Bucket '{bucket}' already exists")
+            else:
+                raise
+
+        policy = json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"AWS": ["*"]},
+                "Action": ["s3:GetObject"],
+                "Resource": [
+                    f"arn:aws:s3:::{bucket}/publicuploads/*",
+                    f"arn:aws:s3:::{bucket}/tutorials/*",
+                ],
+            }],
+        })
+        s3.put_bucket_policy(Bucket=bucket, Policy=policy)
+        print("Anonymous download policy set for publicuploads/ and tutorials/.")
+        PY
+    environment:
+      AWS_ENDPOINT_URL: http://localhost:9000
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-somelongpassword}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-dtm-bucket}
     depends_on:
-      minio:
+      s3:
         condition: service_healthy
     network_mode: service:backend
     restart: "no"
