@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Optional, Union
 
@@ -218,6 +219,18 @@ class TaskSplitter:
             shapely_transform(transformer_to_mercator.transform, self.aoi)
         )
         xmin, ymin, xmax, ymax = aoi_mercator.bounds
+        est_cols = int((xmax - xmin) / meters) + 1
+        est_rows = int((ymax - ymin) / meters) + 1
+        log.debug(
+            f"splitBySquare: AOI bounds {xmin:.0f},{ymin:.0f} → {xmax:.0f},{ymax:.0f} (~{est_cols}×{est_rows} grid)"
+        )
+        _MAX_CELLS = 50_000
+        if est_cols * est_rows > _MAX_CELLS:
+            raise GeometryValidationError(
+                f"AOI grid would require {est_cols * est_rows:,} cells at {meters}m - "
+                "this is almost certainly caused by invalid GPS coordinates in the imagery. "
+                f"AOI spans {(xmax - xmin) / 1000:.1f} km × {(ymax - ymin) / 1000:.1f} km."
+            )
 
         # Generate grid columns and rows based on AOI bounds and specified square length in meters
         def frange(start: float, stop: float, step: float):
@@ -235,6 +248,7 @@ class TaskSplitter:
         small_polygons = []
 
         area_threshold = (meters**2) / 3
+        _t0 = time.perf_counter()
 
         # Create a grid of square cells in Web Mercator
         for x in cols[:-1]:
@@ -258,6 +272,12 @@ class TaskSplitter:
                         polygons.append(clipped_polygon)
                 else:
                     polygons.append(clipped_polygon)
+
+        log.debug(
+            f"splitBySquare: grid intersections done in {time.perf_counter() - _t0:.2f}s "
+            f"({len(polygons)} full cells, {len(small_polygons)} slivers to merge)"
+        )
+        _t1 = time.perf_counter()
 
         for small_polygon in small_polygons:
             while True:
@@ -306,6 +326,11 @@ class TaskSplitter:
                     # If no adjacent polygon is found, add the small polygon as is
                     polygons.append(small_polygon)
                     break
+
+        log.debug(
+            f"splitBySquare: sliver merge done in {time.perf_counter() - _t1:.2f}s; "
+            f"total {time.perf_counter() - _t0:.2f}s → {len(polygons)} final polygons"
+        )
 
         # Transform all polygons back to WGS84 for final output
         polygons_wgs84 = [

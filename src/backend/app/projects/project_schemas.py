@@ -100,6 +100,31 @@ def enum_to_str(value: Union[IntEnum, str]) -> str:
     return value
 
 
+class ProjectFromImageryExifIn(BaseModel):
+    """Request body for creating a project by scanning EXIF GPS from a remote S3 path.
+
+    The endpoint, bucket, and path are kept as separate params so we work
+    against any S3-compatible provider (AWS S3, Wasabi, MinIO, B2, etc).
+    """
+
+    endpoint: str = Field(
+        ...,
+        description=(
+            "S3-compatible host, e.g. 's3.amazonaws.com', "
+            "'s3.us-west-1.wasabisys.com'. May include scheme; defaults to https."
+        ),
+    )
+    bucket_name: str = Field(..., description="Bucket containing the imagery")
+    path: str = Field(
+        "",
+        description=(
+            "Prefix within the bucket. Subdirectories are scanned up to 3 "
+            "levels deep from this prefix."
+        ),
+    )
+    project_name: str = Field(..., min_length=1, description="Project name")
+
+
 class ProjectIn(BaseModel):
     """Upload new project."""
 

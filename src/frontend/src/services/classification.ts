@@ -108,6 +108,32 @@ export const ingestExistingUploads = async (
   return response.data;
 };
 
+export interface ProjectFromImageryExifRequest {
+  endpoint: string;
+  bucket_name: string;
+  path: string;
+  project_name: string;
+}
+
+/**
+ * Submit a job to create a drone-tm project by scanning EXIF GPS from a remote
+ * S3-compatible bucket. The backend handles listing, GPS extraction, AOI
+ * computation, and project + task creation. Imagery transfer + ingest are
+ * performed separately afterwards.
+ *
+ * Fire-and-forget: the backend runs the job in the background and may take
+ * several hours for large datasets. Users can find the project on their
+ * dashboard once it has been created.
+ */
+export const createProjectFromImageryExif = async (
+  body: ProjectFromImageryExifRequest,
+): Promise<{ message: string }> => {
+  const response = await authenticated(api).post(`/projects/project-from-imagery-exif/`, body, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return response.data;
+};
+
 /**
  * Reset images stuck in 'classifying' state back to 'uploaded' so they can be re-classified.
  * Resets all images stuck in 'classifying' state back to 'uploaded'.

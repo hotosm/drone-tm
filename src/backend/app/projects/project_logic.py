@@ -540,6 +540,10 @@ async def process_task_metrics(db, tasks_data, project):
         gsd = project.gsd_cm_px
         altitude = project.altitude_from_ground
 
+        if altitude is None or gsd is None:
+            task_updates.append((total_area_sqkm, None, None, task_id))
+            continue
+
         parameters = calculate_parameters(
             forward_overlap, side_overlap, altitude, gsd, 2
         )
