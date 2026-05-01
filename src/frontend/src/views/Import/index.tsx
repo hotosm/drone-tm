@@ -93,11 +93,11 @@ const Import = () => {
           </FormControl>
 
           <Button
+            className="naxatw-bg-red naxatw-mt-2 naxatw-self-end"
             type="submit"
             disabled={submitting}
             withLoader
             isLoading={submitting}
-            className="naxatw-mt-2 naxatw-self-end"
           >
             Create project
           </Button>
