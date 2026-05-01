@@ -1408,12 +1408,14 @@ async def _build_buffered_hull_geojson(
         await cur.execute(
             """
             SELECT ST_AsGeoJSON(
-                ST_Buffer(
-                    ST_ConvexHull(
-                        ST_Collect(ST_SetSRID(ST_MakePoint(lon, lat), 4326))
-                    )::geography,
-                    %(buffer_m)s
-                )::geometry
+                ST_Envelope(
+                    ST_Buffer(
+                        ST_ConvexHull(
+                            ST_Collect(ST_SetSRID(ST_MakePoint(lon, lat), 4326))
+                        )::geography,
+                        %(buffer_m)s
+                    )::geometry
+                )
             )
             FROM unnest(%(lons)s::float8[], %(lats)s::float8[]) AS t(lon, lat)
             """,
