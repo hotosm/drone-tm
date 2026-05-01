@@ -32,8 +32,6 @@ dtm_secret   := env("S3_SECRET_KEY", "somelongpassword")
 default:
   just --justfile {{justfile()}} --list process
 
-# Copy imagery from an external S3 path into a DroneTM project's user-uploads dir.
-#
 # Runs rclone in a docker container - no volume mounts needed (S3-to-S3).
 # Uses --checksum for efficient delta sync.
 #
@@ -41,43 +39,84 @@ default:
 # "Ingest Existing S3 Imagery" to load the files into the database.
 # Then proceed to the Classify dialog as normal.
 #
+# Credentials and endpoint are optional:
+#   - Omit credentials for public buckets (uses anonymous/unsigned requests).
+#   - Omit endpoint to target standard AWS S3; provide it for S3-compatible services.
+#
 # Usage:
-#   just process import-imagery <project_id> \
-#       <src_bucket> <src_prefix> <src_endpoint> <src_access_key> <src_secret_key>
+#   just process import-imagery <project_id> <src_bucket> <src_prefix> \
+#       [src_endpoint] [src_access_key] [src_secret_key]
 #
 # Examples:
-#   # From AWS S3
+#   # DroneTM public test data (AWS S3, no credentials needed)
+#   just process import-imagery abc-123-def dronetm-testdata surveys/2026-04
+#
+#   # Private AWS S3 bucket
 #   just process import-imagery abc-123-def \
 #       my-bucket surveys/2026-04/flight-data \
-#       https://s3.amazonaws.com AKIAEXAMPLE wJalrXUtnFEMI/EXAMPLEKEY
+#       "" AKIAEXAMPLE wJalrXUtnFEMI/EXAMPLEKEY
 #
-#   # From another MinIO instance
+#   # Private S3-compatible service
 #   just process import-imagery abc-123-def \
 #       source-bucket raw-images \
-#       http://other-minio:9000 otheradmin otherpassword
-import-imagery project_id src_bucket src_prefix src_endpoint src_access_key src_secret_key:
+#       http://rustfs-endpoint:9000 otheradmin otherpassword
+#
+#   # Public S3-compatible service (no credentials)
+#   just process import-imagery abc-123-def \
+#       public-bucket raw-images \
+#       http://rustfs-endpoint:9000
+#
+# Copy imagery from an external S3 path into a DroneTM project's user-uploads dir.
+import-imagery project_id src_bucket src_prefix src_endpoint="" src_access_key="" src_secret_key="":
   #!/usr/bin/env bash
   set -euo pipefail
 
   DEST="{{ dtm_bucket }}/projects/{{ project_id }}/user-uploads/"
+  ACCESS="{{ src_access_key }}"
+  SECRET="{{ src_secret_key }}"
+  ENDPOINT="{{ src_endpoint }}"
 
-  echo "==> Copying imagery"
+  # Build source remote config as Docker -e flags to avoid rclone connection-string
+  # parsing issues with URLs containing '://' (the colon is the config/path delimiter).
+  SRC_ENV=(-e RCLONE_CONFIG_SRC_TYPE=s3)
+
+  if [ -n "$ENDPOINT" ]; then
+    SRC_ENV+=(-e RCLONE_CONFIG_SRC_PROVIDER=Other -e "RCLONE_CONFIG_SRC_ENDPOINT=${ENDPOINT}")
+  else
+    # No endpoint = standard AWS S3; rclone requires an explicit provider value.
+    SRC_ENV+=(-e RCLONE_CONFIG_SRC_PROVIDER=AWS)
+  fi
+
+  if [ -n "$ACCESS" ] && [ -n "$SECRET" ]; then
+    SRC_ENV+=(-e "RCLONE_CONFIG_SRC_ACCESS_KEY_ID=${ACCESS}" -e "RCLONE_CONFIG_SRC_SECRET_ACCESS_KEY=${SECRET}")
+    echo "==> Copying imagery (authenticated)"
+  else
+    SRC_ENV+=(-e RCLONE_CONFIG_SRC_NO_SIGN_REQUEST=true)
+    echo "==> Copying imagery (public / anonymous)"
+  fi
+
   echo "    Source: {{ src_bucket }}/{{ src_prefix }}"
   echo "    Dest:   ${DEST}"
-  echo "    Source endpoint: {{ src_endpoint }}"
+  echo "    Source endpoint: ${ENDPOINT:-https://s3.amazonaws.com}"
   echo "    Dest endpoint:   {{ dtm_endpoint }}"
   echo ""
 
   {{ docker }} run --rm --network host \
+    "${SRC_ENV[@]}" \
+    -e RCLONE_CONFIG_DTM_TYPE=s3 \
+    -e RCLONE_CONFIG_DTM_PROVIDER=Other \
+    -e "RCLONE_CONFIG_DTM_ENDPOINT={{ dtm_endpoint }}" \
+    -e "RCLONE_CONFIG_DTM_ACCESS_KEY_ID={{ dtm_access }}" \
+    -e "RCLONE_CONFIG_DTM_SECRET_ACCESS_KEY={{ dtm_secret }}" \
+    -e RCLONE_CONFIG_DTM_NO_CHECK_BUCKET=true \
     rclone/rclone:latest \
     copy \
-      ":s3,provider=Other,endpoint={{ src_endpoint }},access_key_id={{ src_access_key }},secret_access_key={{ src_secret_key }}:{{ src_bucket }}/{{ src_prefix }}" \
-      ":s3,provider=Other,endpoint={{ dtm_endpoint }},access_key_id={{ dtm_access }},secret_access_key={{ dtm_secret }}:${DEST}" \
+      "src:{{ src_bucket }}/{{ src_prefix }}" \
+      "dtm:${DEST}" \
       --checksum \
       --include "*.jpg" --include "*.JPG" --include "*.jpeg" --include "*.JPEG" \
       --include "*.tif" --include "*.TIF" --include "*.tiff" --include "*.TIFF" \
       --include "*.png" --include "*.PNG" --include "*.dng"  --include "*.DNG" \
-      --s3-no-check-bucket \
       --transfers 8 \
       --progress \
       -v
