@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from drone_flightplan.drone_type import DroneType
 
-from app.arq.tasks import get_redis_pool
+from app.arq.tasks import get_redis_pool, validate_s3_access
 from app.db import database
 from app.models.enums import HTTPStatus, State
 from app.images.image_classification import ImageClassifier
@@ -219,6 +219,11 @@ async def create_project_from_imagery_exif(
     task split. Imagery transfer and ingestion are run separately afterwards
     (existing justfile + ingest endpoint).
     """
+    try:
+        await validate_s3_access(body.endpoint, body.bucket_name, body.path)
+    except ValueError as e:
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(e))
+
     job = await redis.enqueue_job(
         "create_project_from_imagery_exif",
         user.id,

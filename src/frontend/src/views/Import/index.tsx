@@ -95,7 +95,7 @@ const Import = () => {
           <Button
             className="naxatw-bg-red naxatw-mt-2 naxatw-self-end"
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !endpoint || !bucketName || !projectName}
             withLoader
             isLoading={submitting}
           >

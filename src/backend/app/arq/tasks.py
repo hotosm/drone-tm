@@ -3,15 +3,17 @@ import base64
 import hashlib
 import io
 import json
+import os
+import shutil
+import statistics
+import tempfile
+import time
 import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
-import os
-import shutil
-import tempfile
 
 import aiohttp
 from arq import ArqRedis, create_pool
@@ -1291,6 +1293,70 @@ def _normalize_s3_endpoint(endpoint: str) -> str:
     return f"https://{endpoint}"
 
 
+async def validate_s3_access(endpoint: str, bucket_name: str, path: str) -> None:
+    """Quickly verify the S3 bucket/path is reachable before queuing the full job.
+
+    Raises ValueError with a user-readable message on any problem:
+    - 301 PermanentRedirect (wrong region / endpoint style)
+    - 403/404 (bucket not found or not public)
+    - Empty listing (path prefix has no objects at all)
+    """
+    base_url = _normalize_s3_endpoint(endpoint)
+    list_url = f"{base_url}/{bucket_name}"
+    normalized_prefix = path.lstrip("/")
+    if normalized_prefix and not normalized_prefix.endswith("/"):
+        normalized_prefix = normalized_prefix + "/"
+
+    params: dict[str, str] = {"list-type": "2", "max-keys": "1"}
+    if normalized_prefix:
+        params["prefix"] = normalized_prefix
+    query = urllib.parse.urlencode(params)
+
+    timeout = aiohttp.ClientTimeout(total=10, connect=5)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(f"{list_url}?{query}", allow_redirects=False) as resp:
+            body = await resp.text()
+
+    if resp.status == 301:
+        hint = ""
+        try:
+            root = ET.fromstring(body)
+            ep_el = root.find("Endpoint")
+            if ep_el is not None and ep_el.text:
+                hint = f" Try using endpoint: {ep_el.text}"
+        except Exception:
+            pass
+        raise ValueError(
+            f"Bucket '{bucket_name}' requires a different endpoint (got 301 redirect).{hint}"
+        )
+    if resp.status == 403:
+        raise ValueError(
+            f"Bucket '{bucket_name}' is not publicly accessible (403 Forbidden). "
+            "Ensure the bucket has public read enabled."
+        )
+    if resp.status == 404:
+        raise ValueError(f"Bucket '{bucket_name}' not found at {base_url} (404).")
+    if resp.status != 200:
+        raise ValueError(
+            f"S3 list returned HTTP {resp.status} for {list_url}: {body[:200]}"
+        )
+
+    ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
+    try:
+        root = ET.fromstring(body)
+        key_count_el = root.find("s3:KeyCount", ns)
+        key_count = int(key_count_el.text) if key_count_el is not None else -1
+    except Exception:
+        key_count = -1
+
+    if key_count == 0:
+        path_hint = f" under path '{path}'" if path else ""
+        raise ValueError(
+            f"No files found in bucket '{bucket_name}'{path_hint}. "
+            "Check that the bucket name and path are correct."
+        )
+
+
 async def _list_s3_jpegs(
     session: "aiohttp.ClientSession",
     base_url: str,
@@ -1387,7 +1453,15 @@ async def _fetch_gps_for_key(
 
     if not location or "lat" not in location or "lon" not in location:
         return None
-    return (float(location["lat"]), float(location["lon"]))
+    lat, lon = float(location["lat"]), float(location["lon"])
+    if lat == 0.0 and lon == 0.0:
+        # Unset GPS fields (common on DJI drones without a lock) rather than
+        # actual null-island coordinates - exclude to avoid a cross-continental AOI.
+        return None
+    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
+        log.debug(f"GPS out of range for {key}: lat={lat}, lon={lon} - skipping")
+        return None
+    return (lat, lon)
 
 
 async def _build_buffered_hull_geojson(
@@ -1404,6 +1478,10 @@ async def _build_buffered_hull_geojson(
     lons = [lon for (_, lon) in coords]
     lats = [lat for (lat, _) in coords]
 
+    log.debug(
+        f"_build_buffered_hull_geojson: running PostGIS query for {len(coords)} coords"
+    )
+    t0 = time.perf_counter()
     async with db.cursor() as cur:
         await cur.execute(
             """
@@ -1426,6 +1504,9 @@ async def _build_buffered_hull_geojson(
             },
         )
         row = await cur.fetchone()
+    log.debug(
+        f"_build_buffered_hull_geojson: PostGIS query took {time.perf_counter() - t0:.2f}s"
+    )
 
     if not row or not row[0]:
         raise RuntimeError("PostGIS failed to build buffered hull from GPS points")
@@ -1488,11 +1569,42 @@ async def create_project_from_imagery_exif(
             )
         )
 
-    coords: list[Tuple[float, float]] = [r for r in results if r is not None]
-    gps_ratio = len(coords) / len(keys)
+    key_coords: list[Tuple[str, float, float]] = [
+        (keys[i], r[0], r[1]) for i, r in enumerate(results) if r is not None
+    ]
+    gps_ratio = len(key_coords) / len(keys)
     log.info(
-        f"GPS extracted from {len(coords)}/{len(keys)} ({gps_ratio:.0%}) imagery files"
+        f"GPS extracted from {len(key_coords)}/{len(keys)} ({gps_ratio:.0%}) imagery files"
     )
+
+    # Detect and discard GPS outliers using median ± threshold.
+    # Drone surveys never span more than a few dozen km; anything beyond
+    # _OUTLIER_THRESHOLD_DEG (~222 km) from the median is a bad reading.
+    _OUTLIER_THRESHOLD_DEG = 2.0
+    if len(key_coords) >= 3:
+        median_lat = statistics.median(lat for _, lat, _ in key_coords)
+        median_lon = statistics.median(lon for _, _, lon in key_coords)
+        filtered: list[Tuple[str, float, float]] = []
+        for key, lat, lon in key_coords:
+            if (
+                abs(lat - median_lat) > _OUTLIER_THRESHOLD_DEG
+                or abs(lon - median_lon) > _OUTLIER_THRESHOLD_DEG
+            ):
+                log.warning(
+                    f"GPS outlier discarded: {key} "
+                    f"lat={lat:.6f}, lon={lon:.6f} "
+                    f"(median lat={median_lat:.6f}, lon={median_lon:.6f})"
+                )
+            else:
+                filtered.append((key, lat, lon))
+        if len(filtered) < len(key_coords):
+            log.info(
+                f"Discarded {len(key_coords) - len(filtered)} GPS outlier(s); "
+                f"{len(filtered)} coords remaining"
+            )
+        key_coords = filtered
+
+    coords: list[Tuple[float, float]] = [(lat, lon) for _, lat, lon in key_coords]
 
     if gps_ratio < _MIN_GPS_RATIO:
         raise RuntimeError(
@@ -1505,7 +1617,12 @@ async def create_project_from_imagery_exif(
         )
 
     async with db_pool.connection() as db:
+        t_hull = time.perf_counter()
         outline = await _build_buffered_hull_geojson(db, coords)
+        log.debug(
+            f"create_project_from_imagery_exif (job {job_id}): "
+            f"hull built in {time.perf_counter() - t_hull:.2f}s"
+        )
 
         project_in = project_schemas.ProjectIn(
             name=project_name,
@@ -1515,15 +1632,32 @@ async def create_project_from_imagery_exif(
             final_output=["ORTHOPHOTO_2D"],
         )
 
+        t_proj = time.perf_counter()
         project_id = await project_schemas.DbProject.create(db, project_in, user_id)
+        log.debug(
+            f"create_project_from_imagery_exif (job {job_id}): "
+            f"project row inserted ({project_id}) in {time.perf_counter() - t_proj:.2f}s"
+        )
 
         # Split into 600m tasks and persist them, mirroring the
         # /upload-task-boundaries flow used by manual project creation.
+        t_split = time.perf_counter()
         split_features = await project_logic.preview_split_by_square(
             outline, _TASK_SPLIT_METERS
         )
+        n_tasks = len(split_features.get("features", []))
+        log.debug(
+            f"create_project_from_imagery_exif (job {job_id}): "
+            f"AOI split into {n_tasks} tasks in {time.perf_counter() - t_split:.2f}s"
+        )
+
+        t_tasks = time.perf_counter()
         await project_logic.create_tasks_from_geojson(
             db, project_id, split_features, project_in, redis
+        )
+        log.debug(
+            f"create_project_from_imagery_exif (job {job_id}): "
+            f"tasks persisted in {time.perf_counter() - t_tasks:.2f}s"
         )
 
     log.info(
