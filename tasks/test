@@ -28,8 +28,8 @@ default:
 [no-cd]
 backend:
     {{docker}} compose -f compose.test.yaml build backend
-    # Must run separately to avoid exit 0 from createbuckets
-    {{docker}} compose -f compose.test.yaml run --rm createbuckets
+    # Must run separately to avoid exit 0 from s3-init
+    {{docker}} compose -f compose.test.yaml run --rm s3-init
     {{docker}} compose -f compose.test.yaml up --detach --wait backend arq-worker \
         || (echo "--- Backend logs ---"; {{docker}} compose -f compose.test.yaml logs backend --tail=80; exit 1)
     # We run like this to ensure correct cleanup after tests done (or early exit)
