@@ -1,3 +1,15 @@
+## 2026.4.0 (2026-05-01)
+
+### Feat
+
+- automated project creation option using image upload and EXIF scan to determine AOI (#802)
+
+### Fix
+
+- **frontend**: disable auth requirement for main projects + details pages, fix #610
+- **backend**: pull in images on the periphery of tasks (aoi edge), fix #764
+- ensure whole project processing can proceed, despite individual task states
+
 ## 2026.3.2 (2026-04-23)
 
 ### Fix
