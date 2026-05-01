@@ -86,6 +86,7 @@ nav:
           - Flying Drones Manually: manuals/flying-drones-manually.md
       - DroneTM Managers:
           - Creating Projects: manuals/creating-projects.md
+          - Ingesting Existing Imagery: manuals/ingest-imagery.md
       - DroneTM Operators:
           - Drone Operators Guide: manuals/dronetm-operators.md
           - Flight Checklists: manuals/flight-checklists.md
