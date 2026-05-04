@@ -107,12 +107,6 @@ repos:
         files: src/backend/pyproject.toml
         args: [--project, src/backend]
 
-  # Upgrade: upgrade Python syntax
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.2
-    hooks:
-      - id: pyupgrade
-
   # # Lint: code cognitive complexity
   # - repo: https://github.com/rohaquinlop/complexipy-pre-commit
   #   rev: v5.1.0
