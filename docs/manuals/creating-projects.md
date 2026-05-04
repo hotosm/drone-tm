@@ -72,3 +72,20 @@ All credit for this guide goes to Bertha Phiri @ CCode Malawi 🙌
 ## Lastly
 
 - Hit the 'Create' button.
+
+## After creating your project
+
+Once the project is live, operators can discover and claim tasks.
+
+### Monitoring progress
+
+- Open the project from your dashboard.
+- The task map shows each task's current status (available, locked, flown, etc.).
+- You can see which operators have claimed tasks and when imagery was uploaded.
+
+### Reviewing the final output
+
+- Once all tasks are marked as complete and imagery has been processed, the
+  final orthomosaic and elevation models are available on the project page.
+- Download outputs or view them directly in the DroneTM map viewer.
+- If any tasks have gaps or quality issues, you can re-open them for re-flight.

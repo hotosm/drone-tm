@@ -4,7 +4,6 @@ import AboutTM from "./AboutTM";
 import OurRationale from "./OurRationale";
 import OpenSource from "./OpenSource";
 import Features from "./Features";
-import UserAndRoles from "./UserAndRoles";
 import MajorImpacts from "./MajorImpacts";
 import CaseStudies from "./CaseStudies";
 import ClientAndPartners from "./ClientsAndPartners";
@@ -19,7 +18,6 @@ export {
   OurRationale,
   OpenSource,
   Features,
-  UserAndRoles,
   MajorImpacts,
   CaseStudies,
   ClientAndPartners,

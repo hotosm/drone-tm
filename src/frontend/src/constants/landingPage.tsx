@@ -188,14 +188,29 @@ export const aboutData = [
 export const caseStudiesData = [
   {
     id: 1,
-    title: "Piloting drone tasking manager in the caribbean",
+    tag: "Urban Planning & Climate Resilience",
+    location: "Freetown, Sierra Leone",
+    title: "Community-Led Drone Mapping in Freetown City",
     description:
-      " Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.",
+      "30 Freetown residents - including persons with disabilities - used DroneTM and low-cost drones to map 80km² of the city at 5cm resolution. The imagery now drives urban planning, flood preparedness, infrastructure management, and accessibility assessments across the city.",
+    link: "https://www.hotosm.org/en/projects/kyc-africa-drone-mapping-in-freetown-city/",
   },
   {
     id: 2,
-    title: "Piloting drone tasking manager in the caribbean",
+    tag: "Disaster Resilience",
+    location: "Coulibistrie, Dominica",
+    title: "Drone Imagery for Climate Resilience in Dominica",
     description:
-      " Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.",
+      "After repeated hurricane disasters, HOT drone imagery of Coulibistrie supported a community resilience workshop where 30 residents mapped flood risks and shaped local response planning - demonstrating how open aerial data empowers communities to prepare for climate impacts.",
+    link: "https://www.hotosm.org/en/news/boosting-caribbean-resilience-collaborative-efforts-using-drone-imagery-in-coulibistrie-dominica/",
+  },
+  {
+    id: 3,
+    tag: "Environmental Conservation",
+    location: "La Paz, Baja California Sur, Mexico",
+    title: "Mangrove Monitoring with Low-Cost Drones in Mexico",
+    description:
+      "Local community groups used DroneTM to capture high-resolution imagery of threatened mangroves, generating 3D models and openly published orthophotos. This enables ongoing monitoring of mangrove cover, vegetation health, and coastal change at a fraction of traditional costs.",
+    link: "https://www.hotosm.org/en/news/can-low-cost-drones-contribute-to-mangrove-monitoring-and-conservation-testing-drone-tasking-manager-in-la-paz-mexico/",
   },
 ];

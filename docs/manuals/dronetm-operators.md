@@ -1,5 +1,22 @@
 # Drone Operator Manual
 
+## Getting started
+
+1. **Register and set your role** - sign up at <https://drone.hotosm.org/> and
+   select "I am a drone operator" on your profile.
+2. **Browse available projects** - open the Projects list to find mapping
+   projects near you or that match your equipment.
+3. **Claim a task** - select an individual task area within a project that you
+   are available and equipped to fly. Tasks are sized to be flyable on a single
+   battery charge.
+4. **Download the flight plan** - once a task is locked to you, download the
+   flight plan file appropriate for your drone model and controller.
+5. **Fly the mission** - transfer the plan to your drone and execute it in
+   autonomous mode (see [Always Fly Autonomous Missions](#always-fly-autonomous-missions)).
+6. **Upload your images** - after landing, upload the raw images from your SD
+   card via the task upload dialog. The platform will handle pre-processing and
+   final orthomosaic generation automatically.
+
 See drone specific advice under:
 
 - [DJI](./dji.md)

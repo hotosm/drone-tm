@@ -28,7 +28,7 @@ export default function Features() {
         <div className="naxatw-grid naxatw-grid-cols-1 lg:naxatw-grid-cols-4">
           <div className="naxatw-col-span-1">
             <p className="naxatw-text-[40px] naxatw-font-medium naxatw-leading-[3.125rem] naxatw-text-landing-red">
-              Features of Drone Tasking Manager
+              Features
             </p>
           </div>
           <motion.div

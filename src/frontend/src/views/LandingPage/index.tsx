@@ -9,9 +9,8 @@ import {
   OurRationale,
   OpenSource,
   Features,
-  UserAndRoles,
   MajorImpacts,
-  // CaseStudies,
+  CaseStudies,
   ClientAndPartners,
   Footer,
   SignInOverlay,
@@ -40,13 +39,12 @@ export default function LandingPage() {
       <AnimatePresence>{openSignInMenu && <SignInOverlay />}</AnimatePresence>
       <Home />
       <AboutTM />
+      <CaseStudies />
       <OurRationale />
       <OpenSource />
       <Features />
       <MobileAppDownload />
-      <UserAndRoles />
       <MajorImpacts />
-      {/* <CaseStudies /> */}
       <ClientAndPartners />
       <TalkToUs />
       <Footer />
