@@ -107,11 +107,12 @@ To get started with DroneTM:
 |✅| 🖥️ improved user feedback and retry capabilities during imagery processing | [v2026.2.0][7] |
 |✅| 🖥️ identify flight gaps in the captured imagery, generating a second flightplan | [v2026.2.1][8] |
 |✅| 🖥️ Unified HOT login system, linking to other tools | [v2026.3.0][9] |
+|✅| 🖥️ scaling of ODM imagery processing to thousands of images in parallel | [v2026.5.0][10] |
 |⚙️| 📱 better method to load flightplans onto drones: direct send to drone, instead of manual copy | |
 |⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
-|⚙️| 🖥️ scaling of ODM imagery processing to hundreds of images in parallel | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 | | 📱 allow modification and division of flightplans by user before flight | |
+| | 🖥️ add processing workflows for thermal imagery and accuracy improvements at city-scale | |
 | | 🖥️ user access management for each part of the UI | |
 | | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
@@ -176,3 +177,4 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [7]: https://github.com/hotosm/drone-tm/releases/tag/2026.2.0
 [8]: https://github.com/hotosm/drone-tm/releases/tag/2026.2.1
 [9]: https://github.com/hotosm/drone-tm/releases/tag/2026.3.0
+[10]: https://github.com/hotosm/drone-tm/releases/tag/2026.5.0

@@ -635,7 +635,7 @@ const ProcessingStatusDialog = () => {
                                 }
                                 if (e.ctrlKey || e.metaKey) {
                                   const odmUrl = window.prompt(
-                                    "Enter a NodeODM server URL for processing\n(e.g. https://odm.example.com/?token=YOUR_TOKEN)",
+                                    "Enter a ScaleODM server URL for processing\n(e.g. https://scaleodm.example.com/)",
                                   );
                                   if (odmUrl !== null) {
                                     handleProcessSingle(task.task_id, odmUrl || undefined);

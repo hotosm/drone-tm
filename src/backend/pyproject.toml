@@ -29,7 +29,6 @@ dependencies = [
   "aiohttp==3.11.11",
   "aiosmtplib==3.0.1",
   "python-slugify==8.0.4",
-  "pyodm==1.5.11",
   "asgiref==3.8.1",
   "bcrypt==4.2.1",
   "Scrapy==2.14.1",

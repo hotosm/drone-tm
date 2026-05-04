@@ -435,7 +435,7 @@ async def process_imagery(
     user_data: Annotated[AuthUser, Depends(login_required)],
     db: Annotated[Connection, Depends(database.get_db)],
     redis_pool: ArqRedis = Depends(get_redis_pool),
-    odm_url: Optional[str] = Query(None, description="Custom NodeODM server URL"),
+    odm_url: Optional[str] = Query(None, description="Custom ScaleODM server URL"),
 ):
     """Start a queued task to process drone imagery."""
     pending_transfer_count = await ImageClassifier.get_task_pending_transfer_count(
@@ -474,8 +474,10 @@ async def process_all_imagery(
 ):
     """API endpoint to process all tasks associated with a project.
 
-    If a GCP file has been saved for this project (via POST /gcp/save/),
-    it will be automatically included during ODM processing.
+    Submits a single ScaleODM run with ``processingMode=standard`` and a
+    project-wide ``s3ScanDepth`` so all per-task ``images/`` subdirs roll
+    up into one ODM run. If a GCP file has been saved for this project
+    (via POST /gcp/save/), it will be automatically included.
     """
     user_id = user_data.id
 
@@ -557,14 +559,14 @@ async def odm_webhook_for_processing_whole_project(
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
 
     if status["code"] in {30, 40}:
-        # Use the endpoint persisted when processing started so downloads
+        # Use the endpoint persisted when processing started so finalize jobs
         # target the correct server even if config has changed since.
-        node_odm_url = await _get_project_odm_endpoint(db, dtm_project_id)
+        scaleodm_url = await _get_project_odm_endpoint(db, dtm_project_id)
         await redis_pool.enqueue_job(
-            "process_odm_webhook_assets",
-            node_odm_url=node_odm_url,
+            "finalize_scaleodm_task",
+            scaleodm_url=scaleodm_url,
             dtm_project_id=str(dtm_project_id),
-            odm_task_id=odm_task_id,
+            odm_task_uuid=odm_task_id,
             odm_status_code=status["code"],
             _job_id=f"odm-assets:project:{dtm_project_id}",
             _queue_name="default_queue",
@@ -583,19 +585,19 @@ async def odm_webhook_for_processing_a_single_task(
     dtm_project_id: uuid.UUID,
     dtm_task_id: uuid.UUID,
     redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
-    odm_url: Optional[str] = Query(None, description="Custom NodeODM server URL"),
+    odm_url: Optional[str] = Query(None, description="Custom ScaleODM server URL"),
 ):
     payload = await request.json()
     odm_task_id = payload.get("uuid")
     status = payload.get("status")
-    node_odm_endpoint = odm_url or settings.ODM_ENDPOINT
+    scaleodm_endpoint = odm_url or settings.ODM_ENDPOINT
     log.info(
         "ODM webhook (single task): project={} task={} odm_task={} status={} odm_url={}",
         dtm_project_id,
         dtm_task_id,
         odm_task_id,
         status,
-        node_odm_endpoint,
+        scaleodm_endpoint,
     )
 
     if not odm_task_id or not status:
@@ -612,10 +614,10 @@ async def odm_webhook_for_processing_a_single_task(
 
     if status["code"] == 40:
         await redis_pool.enqueue_job(
-            "process_odm_webhook_assets",
-            node_odm_url=node_odm_endpoint,
+            "finalize_scaleodm_task",
+            scaleodm_url=scaleodm_endpoint,
             dtm_project_id=str(dtm_project_id),
-            odm_task_id=odm_task_id,
+            odm_task_uuid=odm_task_id,
             state_name=state_value.name,
             message="Task completed.",
             dtm_task_id=str(dtm_task_id),
@@ -625,21 +627,14 @@ async def odm_webhook_for_processing_a_single_task(
         )
 
     elif status["code"] == 30 and state_value != State.IMAGE_PROCESSING_FAILED:
-        # Use system-level update since webhook may be called from batch processor
-        await task_logic.update_task_state_system(
-            db,
-            dtm_project_id,
-            dtm_task_id,
-            "Image processing failed.",
-            state_value,
-            State.IMAGE_PROCESSING_FAILED,
-            timestamp(),
-        )
+        # Finalize handler records the failure and clears the ScaleODM row.
+        # We don't pre-flip state here so the finalize job can pull the real
+        # errorMessage from ScaleODM and write a more descriptive comment.
         await redis_pool.enqueue_job(
-            "process_odm_webhook_assets",
-            node_odm_url=node_odm_endpoint,
+            "finalize_scaleodm_task",
+            scaleodm_url=scaleodm_endpoint,
             dtm_project_id=str(dtm_project_id),
-            odm_task_id=odm_task_id,
+            odm_task_uuid=odm_task_id,
             state_name=state_value.name,
             message="Image processing failed.",
             dtm_task_id=str(dtm_task_id),
@@ -1194,11 +1189,11 @@ async def get_odm_queue_info(
 ):
     """Get the ODM processing queue info for this project.
 
-    Queries our DB for tasks that have been submitted to NodeODM
+    Queries our DB for tasks that have been submitted to ScaleODM
     (have an odm_task_uuid), then fetches each task's real status
-    from NodeODM via /task/{uuid}/info.
+    from ScaleODM via /task/{uuid}/info.
 
-    If a task is stuck as IMAGE_PROCESSING_STARTED in our DB but NodeODM
+    If a task is stuck as IMAGE_PROCESSING_STARTED in our DB but ScaleODM
     reports it as failed/completed/canceled (or doesn't know about it),
     we reconcile the state automatically.
     """
@@ -1221,8 +1216,8 @@ async def get_odm_queue_info(
         return urlunparse((parsed.scheme, parsed.netloc, path, "", odm_query, ""))
 
     # Minimum age (seconds) a task must be in STARTED state before
-    # "not found on NodeODM" is treated as a definitive loss.  Prevents
-    # false failure when a task was just submitted and NodeODM hasn't
+    # "not found on ScaleODM" is treated as a definitive loss.  Prevents
+    # false failure when a task was just submitted and ScaleODM hasn't
     # registered it yet.
     NOT_FOUND_AGE_THRESHOLD_SEC = 1800  # 30 minutes
 
@@ -1277,9 +1272,9 @@ async def get_odm_queue_info(
             groups=project_odm_info.get("groups", []),
         )
 
-    # Fetch real status from NodeODM for each task via /task/{uuid}/info
+    # Fetch real status from ScaleODM for each task via /task/{uuid}/info
     # We use a sentinel to distinguish "fetch failed" (timeout, network error)
-    # from "task genuinely not found on NodeODM" (got a 200 response but no
+    # from "task genuinely not found on ScaleODM" (got a 200 response but no
     # valid status, or an error JSON like {"error": "uuid not found"}).
     _FETCH_ERROR = object()
     odm_info_by_uuid: dict[str, dict | object] = {}
@@ -1300,7 +1295,7 @@ async def get_odm_queue_info(
                                 await resp.json()
                             )
                         log.warning(
-                            "NodeODM /task/{}/info returned status {}",
+                            "ScaleODM /task/{}/info returned status {}",
                             odm_uuid,
                             resp.status,
                         )
@@ -1308,7 +1303,7 @@ async def get_odm_queue_info(
                         return odm_uuid, _FETCH_ERROR
                 except Exception as e:
                     log.warning(
-                        "Failed to fetch NodeODM task info for {}: {}", odm_uuid, e
+                        "Failed to fetch ScaleODM task info for {}: {}", odm_uuid, e
                     )
                     return odm_uuid, _FETCH_ERROR
 
@@ -1319,7 +1314,7 @@ async def get_odm_queue_info(
                 if info is not None:
                     odm_info_by_uuid[odm_uuid] = info
     except aiohttp.ClientError as e:
-        log.warning("Failed to reach NodeODM at {}: {}", odm_url, e)
+        log.warning("Failed to reach ScaleODM at {}: {}", odm_url, e)
         raise HTTPException(
             status_code=503,
             detail="Unable to connect to the processing server.",
@@ -1362,25 +1357,25 @@ async def get_odm_queue_info(
                 task_index=task_index,
             )
 
-            # Reconcile: DB says STARTED but NodeODM says otherwise
+            # Reconcile: DB says STARTED but ScaleODM says otherwise
             if db_state == "IMAGE_PROCESSING_STARTED" and status_code in (30, 40, 50):
                 if status_code == 40:
-                    # Completed on NodeODM but webhook was missed.
-                    # Trigger the same asset-download pipeline the webhook uses.
+                    # Completed on ScaleODM but webhook was missed.
+                    # Trigger the same finalize pipeline the webhook uses.
                     await redis_pool.enqueue_job(
-                        "process_odm_webhook_assets",
-                        node_odm_url=odm_url,
+                        "finalize_scaleodm_task",
+                        scaleodm_url=odm_url,
                         dtm_project_id=str(project.id),
-                        odm_task_id=odm_uuid,
+                        odm_task_uuid=odm_uuid,
                         state_name=State.IMAGE_PROCESSING_STARTED.name,
-                        message="Reconciled: processing completed on NodeODM (missed webhook).",
+                        message="Reconciled: processing completed on ScaleODM (missed webhook).",
                         dtm_task_id=str(dtm_task_id),
                         odm_status_code=40,
                         _job_id=f"odm-assets:task:{dtm_task_id}",
                         _queue_name="default_queue",
                     )
                     reconciled.append(
-                        f"Task {task_index} ({dtm_task_id}): STARTED -> downloading assets (missed webhook)"
+                        f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (missed webhook)"
                     )
                     log.warning(
                         "Reconciling completed task (missed webhook): project={} dtm_task={} odm_uuid={}",
@@ -1395,7 +1390,7 @@ async def get_odm_queue_info(
                             db,
                             project.id,
                             dtm_task_id,
-                            f"Reconciled: NodeODM reports {status_label}",
+                            f"Reconciled: ScaleODM reports {status_label}",
                             State.IMAGE_PROCESSING_STARTED,
                             State.IMAGE_PROCESSING_FAILED,
                             timestamp(),
@@ -1413,7 +1408,7 @@ async def get_odm_queue_info(
                     except Exception as e:
                         log.error("Failed to reconcile task {}: {}", dtm_task_id, e)
         elif fetch_failed:
-            # Could not reach NodeODM for this task (timeout, network error).
+            # Could not reach ScaleODM for this task (timeout, network error).
             # Do NOT reconcile - the task may still be running. Show it as
             # "in progress" based on the DB state so the UI doesn't flip to failed.
             if db_state == "IMAGE_PROCESSING_STARTED":
@@ -1441,10 +1436,10 @@ async def get_odm_queue_info(
                 task_index=task_index,
             )
         else:
-            # NodeODM returned a valid response but doesn't know this task
+            # ScaleODM returned a valid response but doesn't know this task
             # (deleted/expired). Only treat as a definitive loss if the task
             # has been in STARTED state long enough; otherwise it may simply
-            # not have been registered on NodeODM yet.
+            # not have been registered on ScaleODM yet.
             state_entered_at = db_task.get("state_entered_at")
             if db_state == "IMAGE_PROCESSING_STARTED":
                 age_ok = True
@@ -1458,7 +1453,7 @@ async def get_odm_queue_info(
                 if not age_ok:
                     # Too young to declare lost - keep showing as running.
                     status_code = 20
-                    status_label = "Running (awaiting NodeODM registration)"
+                    status_label = "Running (awaiting ScaleODM registration)"
                     log.debug(
                         "Skipping not-found reconciliation for task {} "
                         "(only {}s in STARTED, threshold {}s)",
@@ -1467,7 +1462,7 @@ async def get_odm_queue_info(
                         NOT_FOUND_AGE_THRESHOLD_SEC,
                     )
                 else:
-                    # Old enough - mark as failed since NodeODM lost it.
+                    # Old enough - mark as failed since ScaleODM lost it.
                     status_code = 30
                     status_label = "Failed (lost)"
                     try:
@@ -1475,16 +1470,16 @@ async def get_odm_queue_info(
                             db,
                             project.id,
                             dtm_task_id,
-                            "Reconciled: task not found on NodeODM",
+                            "Reconciled: task not found on ScaleODM",
                             State.IMAGE_PROCESSING_STARTED,
                             State.IMAGE_PROCESSING_FAILED,
                             timestamp(),
                         )
                         reconciled.append(
-                            f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED (not found on NodeODM)"
+                            f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED (not found on ScaleODM)"
                         )
                         log.warning(
-                            "Reconciled lost task: project={} dtm_task={} odm_uuid={} not found on NodeODM",
+                            "Reconciled lost task: project={} dtm_task={} odm_uuid={} not found on ScaleODM",
                             project.id,
                             dtm_task_id,
                             odm_uuid,

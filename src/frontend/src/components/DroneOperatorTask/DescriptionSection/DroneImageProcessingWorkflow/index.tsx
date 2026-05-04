@@ -47,7 +47,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
     },
   });
 
-  // Hold Ctrl to reveal the ingest button (same pattern as NodeODM server prompt)
+  // Hold Ctrl to reveal the ingest button (same pattern as ScaleODM server prompt)
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {

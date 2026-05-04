@@ -19,7 +19,6 @@ from loguru import logger as log
 from minio.error import S3Error
 from psycopg import Connection
 from psycopg.rows import dict_row
-from pyodm.exceptions import NodeResponseError
 from shapely.errors import GEOSException
 from shapely.geometry import shape
 from shapely.ops import transform
@@ -36,7 +35,10 @@ from drone_flightplan.enums import FlightMode
 from app.config import settings
 from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
-from app.images.image_processing import DroneImageProcessor
+from app.images.image_processing import (
+    ScaleOdmSubmitError,
+    submit_scaleodm_task,
+)
 from app.s3 import (
     s3_client,
     add_obj_to_bucket,
@@ -67,10 +69,11 @@ ODM_STATUS_LABELS = {
 
 
 def parse_odm_status(raw_status) -> tuple[int, str]:
-    """Parse a NodeODM status field into (status_code, status_label).
+    """Parse an ODM status field into (status_code, status_label).
 
-    NodeODM returns status as an object like ``{"code": 20}`` or as a plain
-    integer.  We normalise both forms into an ``(int, str)`` pair.
+    ScaleODM preserves the NodeODM payload shape: status is either an
+    object like ``{"code": 20}`` or a plain integer. We normalise both
+    forms into an ``(int, str)`` pair.
     """
     if isinstance(raw_status, dict):
         code = raw_status.get("code", 0)
@@ -83,11 +86,12 @@ def parse_odm_status(raw_status) -> tuple[int, str]:
 
 
 def extract_valid_odm_task_info(payload: dict | None) -> dict | None:
-    """Return only real NodeODM task info payloads.
+    """Return only real ODM task info payloads.
 
-    NodeODM can return HTTP 200 with an error JSON for deleted tasks, for example
-    ``{"error": "<uuid> not found"}``. Those payloads should be treated as
-    missing task info so the DB-backed fallback logic can classify the task.
+    ScaleODM (like NodeODM) can return HTTP 200 with an error JSON for
+    deleted tasks, e.g. ``{"error": "<uuid> not found"}``. Those payloads
+    should be treated as missing so the DB-backed fallback logic can
+    classify the task.
     """
     if not isinstance(payload, dict):
         return None
@@ -125,8 +129,8 @@ async def reconcile_project_level_odm(
 ) -> dict:
     """Handle queue-info for project-level ODM runs (no per-task ODM UUIDs).
 
-    Fetches the single project-level ODM task status and reconciles:
-    - Completed but webhook missed -> enqueue asset download
+    Fetches the single project-level ScaleODM task status and reconciles:
+    - Completed but webhook missed -> enqueue finalize job (reproject + state)
     - Failed/canceled -> mark project FAILED
     - Not found (age > threshold) -> mark project FAILED
     - Otherwise -> report current status
@@ -147,7 +151,7 @@ async def reconcile_project_level_odm(
     if not project_odm_uuid or project_status != "PROCESSING":
         return empty
 
-    # Fetch status from NodeODM
+    # Fetch status from ScaleODM
     path = f"{parsed_url.path.rstrip('/')}/task/{project_odm_uuid}/info"
     info_url = urlunparse(
         (parsed_url.scheme, parsed_url.netloc, path, "", odm_query, "")
@@ -173,7 +177,7 @@ async def reconcile_project_level_odm(
         fetch_failed = True
 
     if fetch_failed:
-        # Can't reach NodeODM - show as running, don't reconcile.
+        # Can't reach ScaleODM - show as running, don't reconcile.
         task_entry = project_schemas.OdmQueueTask(
             uuid=project_odm_uuid,
             name=f"Project {project.id}",
@@ -200,21 +204,21 @@ async def reconcile_project_level_odm(
         status_code, status_label = parse_odm_status(odm_info.get("status"))
 
         if status_code == 40:
-            # Completed but webhook was missed - enqueue asset download.
-            node_odm_endpoint = (
+            # Completed but webhook was missed - enqueue finalize job.
+            scaleodm_endpoint = (
                 getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
             )
             await redis_pool.enqueue_job(
-                "process_odm_webhook_assets",
-                node_odm_url=node_odm_endpoint,
+                "finalize_scaleodm_task",
+                scaleodm_url=scaleodm_endpoint,
                 dtm_project_id=str(project.id),
-                odm_task_id=project_odm_uuid,
+                odm_task_uuid=project_odm_uuid,
                 odm_status_code=40,
                 _job_id=f"odm-assets:project:{project.id}",
                 _queue_name="default_queue",
             )
             log.warning(
-                "Reconciling project-level completed ODM task (missed webhook): "
+                "Reconciling project-level completed ScaleODM task (missed webhook): "
                 "project={} odm_uuid={}",
                 project.id,
                 project_odm_uuid,
@@ -223,7 +227,7 @@ async def reconcile_project_level_odm(
                 uuid=project_odm_uuid,
                 name=f"Project {project.id}",
                 status_code=20,
-                status_label="Downloading assets (missed webhook)",
+                status_label="Finalizing assets (missed webhook)",
                 images_count=odm_info.get("imagesCount"),
                 progress=odm_info.get("progress"),
                 date_created=odm_info.get("dateCreated"),
@@ -322,7 +326,7 @@ async def reconcile_project_level_odm(
         ]
         return result
 
-    # NodeODM responded but doesn't know this task (not found).
+    # ScaleODM responded but doesn't know this task (not found).
     # Apply the same age guard as task-level reconciliation.
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -343,7 +347,7 @@ async def reconcile_project_level_odm(
         try:
             await update_processing_status(db, project.id, ImageProcessingStatus.FAILED)
             log.warning(
-                "Reconciled project-level lost ODM task: project={} odm_uuid={} not found on NodeODM",
+                "Reconciled project-level lost ODM task: project={} odm_uuid={} not found on ScaleODM",
                 project.id,
                 project_odm_uuid,
             )
@@ -377,7 +381,7 @@ async def reconcile_project_level_odm(
         uuid=project_odm_uuid,
         name=f"Project {project.id}",
         status_code=20,
-        status_label="Running (awaiting NodeODM registration)",
+        status_label="Running (awaiting ScaleODM registration)",
     )
     return {
         "running": 1,
@@ -695,7 +699,7 @@ async def process_drone_images(
     odm_url: Optional[str] = None,
     **_kwargs: Any,
 ) -> Dict[str, Any]:
-    """Process drone images using ODM.
+    """Submit a per-task ScaleODM run.
 
     NOTE: **_kwargs absorbs extra keys (e.g. ``_carrier``) that OpenTelemetry's
     now-removed ArqInstrumentor injected into job payloads stored in Redis.
@@ -755,25 +759,15 @@ async def process_drone_images(
 
             await conn.commit()
 
-            # Initialize the processor with the database connection
-            node_odm_endpoint = odm_url or settings.ODM_ENDPOINT
-            log.info(f"Using NodeODM endpoint: {node_odm_endpoint}")
-            processor = DroneImageProcessor(
-                node_odm_url=node_odm_endpoint,
-                project_id=project_id,
-                task_id=task_id,
-                user_id=user_id,
-                db=conn,
-                task_ids=None,
-            )
+            scaleodm_endpoint = odm_url or settings.ODM_ENDPOINT
+            log.info(f"Using ScaleODM endpoint: {scaleodm_endpoint}")
 
-            # Define processing options
             options = [
                 {"name": "dsm", "value": True},
                 {"name": "orthophoto-resolution", "value": 5},
             ]
 
-            # Use public URL when processing on an external NodeODM, internal otherwise
+            # Use public URL when processing on an external ScaleODM, internal otherwise.
             if odm_url:
                 from urllib.parse import quote
 
@@ -782,35 +776,48 @@ async def process_drone_images(
             else:
                 webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{project_id}/{task_id}/"
 
-            result = await processor.process_images_from_s3(
-                settings.S3_BUCKET_NAME,
+            read_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/images/"
+            write_s3_path = (
+                f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/odm/"
+            )
+
+            odm_uuid = await submit_scaleodm_task(
+                scaleodm_url=scaleodm_endpoint,
+                read_s3_path=read_s3_path,
+                write_s3_path=write_s3_path,
                 name=f"DTM-Task-{task_id}",
                 options=options,
                 webhook=webhook_url,
+                processing_mode="standard",
+                s3_scan_depth=0,
+                exclude_paths=["*/thumbs/*"],
+                s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
             )
 
             await update_task_field(
-                conn,
-                project_id,
-                task_id,
-                "odm_task_uuid",
-                str(result.uuid),
+                conn, project_id, task_id, "odm_task_uuid", odm_uuid
             )
             await conn.commit()
-            log.info(f"Stored ODM task UUID {result.uuid} for task {task_id}")
+            log.info(f"Stored ScaleODM task UUID {odm_uuid} for task {task_id}")
 
             return {
                 "job_id": job_id,
                 "project_id": str(project_id),
                 "task_id": str(task_id),
                 "status": "processing_started",
-                "result": result,
+                "odm_task_uuid": odm_uuid,
             }
 
     except Exception as e:
         failure_message = str(e).strip() or e.__class__.__name__
-        if isinstance(e, NodeResponseError) and "Not enough images" in failure_message:
-            failure_message = "Not enough images for ODM processing. At least 3 task images are required."
+        if (
+            isinstance(e, ScaleOdmSubmitError)
+            and "Not enough images" in failure_message
+        ):
+            failure_message = (
+                "Not enough images for ODM processing. "
+                "At least 3 task images are required."
+            )
 
         try:
             pool = ctx["db_pool"]
@@ -887,17 +894,6 @@ async def process_all_drone_images(
     try:
         pool = ctx["db_pool"]
         async with pool.connection() as conn:
-            # Initialize the processor
-            processor = DroneImageProcessor(
-                node_odm_url=settings.ODM_ENDPOINT,
-                project_id=project_id,
-                task_id=None,
-                user_id=user_id,
-                task_ids=tasks,
-                db=conn,
-            )
-
-            # Define processing options
             options = [
                 {"name": "dsm", "value": True},
                 {"name": "orthophoto-resolution", "value": 5},
@@ -905,16 +901,27 @@ async def process_all_drone_images(
             webhook_url = (
                 f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{project_id}/"
             )
-            result = await processor.process_images_for_all_tasks(
-                settings.S3_BUCKET_NAME,
-                name_prefix=f"DTM-Task-{project_id}",
+
+            # Project-wide submission: scan under projects/{pid}/ just deep
+            # enough to include {tid}/images/file. Bounded depth is important
+            # because generated derivatives live below that, e.g.
+            # {tid}/images/thumbs/file, and must not become ODM inputs.
+            read_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/"
+            write_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/odm/"
+
+            odm_uuid = await submit_scaleodm_task(
+                scaleodm_url=settings.ODM_ENDPOINT,
+                read_s3_path=read_s3_path,
+                write_s3_path=write_s3_path,
+                name=f"DTM-Project-{project_id}",
                 options=options,
                 webhook=webhook_url,
+                processing_mode="standard",
+                s3_scan_depth=2,
+                use_default_excludes=True,
+                exclude_paths=["*/thumbs/*"],
+                s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
             )
-            if result is None or not getattr(result, "uuid", None):
-                raise RuntimeError(
-                    "ODM did not return a valid task object after submission"
-                )
 
             # Persist ODM metadata for reconciliation/recovery, then mark PROCESSING.
             # Overwrite on every new run so retries never reconcile against stale metadata.
@@ -928,14 +935,14 @@ async def process_all_drone_images(
                 WHERE id = %(project_id)s;
                 """,
                 {
-                    "odm_uuid": str(result.uuid),
+                    "odm_uuid": odm_uuid,
                     "odm_endpoint": settings.ODM_ENDPOINT,
                     "status": ImageProcessingStatus.PROCESSING.name,
                     "project_id": project_id,
                 },
             )
             await conn.commit()
-            log.info(f"Stored ODM task UUID {result.uuid} for project {project_id}")
+            log.info(f"Stored ScaleODM task UUID {odm_uuid} for project {project_id}")
             return
 
     except Exception as e:
