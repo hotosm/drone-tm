@@ -89,3 +89,9 @@ src/backend/frontend_html
 *.json
 !**/package.json
 !**/tsconfig.json
+
+# LLM tools
+.claude
+.codex
+plans
+checkpoints

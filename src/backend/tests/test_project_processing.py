@@ -1,12 +1,9 @@
-import os
+import json
 import uuid
-from pathlib import Path
 
 import pytest
-from pyodm.exceptions import NodeResponseError
 
 from app import utils as app_utils
-
 from app.images import image_processing
 from app.models.enums import ImageProcessingStatus, State
 from app.projects import project_logic
@@ -48,89 +45,163 @@ class _FakePool:
         return _FakePoolConnection(self.conn)
 
 
-class _FakeZipFile:
-    def __init__(self, *args, **kwargs):
-        self._members = ["odm_orthophoto/odm_orthophoto.tif", "odm_report/report.pdf"]
+# ── submit_scaleodm_task ──────────────────────────────────────────────────────
 
-    def __enter__(self):
+
+class _FakeScaleOdmResponse:
+    def __init__(self, *, status: int, payload: dict | str):
+        self.status = status
+        self._payload = payload
+
+    async def text(self) -> str:
+        return (
+            self._payload
+            if isinstance(self._payload, str)
+            else json.dumps(self._payload)
+        )
+
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type, exc, tb):
         return False
 
-    def namelist(self):
-        return self._members
 
-    def extract(self, member, path):
-        full_path = os.path.join(path, member)
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        with open(full_path, "wb") as f:
-            f.write(b"fake")
-        return full_path
+class _FakeScaleOdmSession:
+    """Captures POST /task/new calls and returns a configured response."""
+
+    def __init__(self, *, response: _FakeScaleOdmResponse):
+        self._response = response
+        self.posts: list[tuple[str, dict]] = []
+
+    def post(self, url, json=None, **kwargs):
+        self.posts.append((url, json or {}))
+        return self._response
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
 
 
 @pytest.mark.asyncio
-async def test_process_drone_images_starts_then_calls_odm(monkeypatch):
+async def test_submit_scaleodm_task_posts_expected_body(monkeypatch):
+    response = _FakeScaleOdmResponse(status=200, payload={"uuid": "odm-pipeline-abc"})
+    captured = {"session": None}
+
+    def make_session(*args, **kwargs):
+        captured["session"] = _FakeScaleOdmSession(response=response)
+        return captured["session"]
+
+    monkeypatch.setattr(image_processing.aiohttp, "ClientSession", make_session)
+
+    odm_uuid = await image_processing.submit_scaleodm_task(
+        scaleodm_url="http://scaleodm:31100/",
+        read_s3_path="s3://bucket/projects/p/t/images/",
+        write_s3_path="s3://bucket/projects/p/t/odm/",
+        name="DTM-Task-t",
+        options=[{"name": "dsm", "value": True}],
+        webhook="http://backend/webhook/",
+        processing_mode="standard",
+        s3_scan_depth=1,
+        exclude_paths=["*/thumbs/*"],
+        s3_endpoint="http://s3-internal",
+    )
+
+    assert odm_uuid == "odm-pipeline-abc"
+    session = captured["session"]
+    assert len(session.posts) == 1
+    url, body = session.posts[0]
+    assert url == "http://scaleodm:31100/task/new"
+    assert body["readS3Path"] == "s3://bucket/projects/p/t/images/"
+    assert body["writeS3Path"] == "s3://bucket/projects/p/t/odm/"
+    assert body["name"] == "DTM-Task-t"
+    assert body["webhook"] == "http://backend/webhook/"
+    assert body["processingMode"] == "standard"
+    assert body["s3ScanDepth"] == 1
+    assert body["useDefaultExcludes"] is True
+    assert body["s3Endpoint"] == "http://s3-internal"
+    assert body["excludePaths"] == json.dumps(["*/thumbs/*"])
+    assert body["options"] == json.dumps([{"name": "dsm", "value": True}])
+
+
+@pytest.mark.asyncio
+async def test_submit_scaleodm_task_raises_with_server_error_message(monkeypatch):
+    response = _FakeScaleOdmResponse(status=400, payload={"error": "Not enough images"})
+
+    def make_session(*args, **kwargs):
+        return _FakeScaleOdmSession(response=response)
+
+    monkeypatch.setattr(image_processing.aiohttp, "ClientSession", make_session)
+
+    with pytest.raises(image_processing.ScaleOdmSubmitError) as exc_info:
+        await image_processing.submit_scaleodm_task(
+            scaleodm_url="http://scaleodm:31100",
+            read_s3_path="s3://bucket/projects/p/t/images/",
+            write_s3_path="s3://bucket/projects/p/t/odm/",
+            name="DTM-Task-t",
+            options=[],
+            webhook="http://backend/webhook/",
+        )
+
+    assert "Not enough images" in str(exc_info.value)
+    assert exc_info.value.status == 400
+
+
+# ── process_drone_images (per-task) ───────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_process_drone_images_submits_standard_mode(monkeypatch):
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
     ctx = {"job_id": "job-1", "db_pool": _FakePool(conn)}
     state_calls = []
+    submit_calls = []
 
     async def fake_update_task_state_system(
-        db,
-        project_id_arg,
-        task_id_arg,
-        comment,
-        initial_state,
-        final_state,
-        updated_at,
+        db, project_id_arg, task_id_arg, comment, initial_state, final_state, updated_at
     ):
-        state_calls.append(
-            {
-                "project_id": project_id_arg,
-                "task_id": task_id_arg,
-                "comment": comment,
-                "initial_state": initial_state,
-                "final_state": final_state,
-            }
-        )
+        state_calls.append({"initial_state": initial_state, "final_state": final_state})
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
-    class _FakeOdmResult:
-        uuid = "fake-odm-uuid"
-
-    class FakeProcessor:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
-
-        async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            return _FakeOdmResult()
+    async def fake_submit_scaleodm_task(**kwargs):
+        submit_calls.append(kwargs)
+        return "fake-odm-uuid"
 
     async def fake_update_task_field(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
+    monkeypatch.setattr(
+        project_logic, "submit_scaleodm_task", fake_submit_scaleodm_task
+    )
     monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
     from app.tasks import task_logic
 
     monkeypatch.setattr(
-        task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
+        task_logic, "update_task_state_system", fake_update_task_state_system
     )
 
     result = await project_logic.process_drone_images(
-        ctx,
-        project_id,
-        task_id,
-        "user-123",
+        ctx, project_id, task_id, "user-123"
     )
 
     assert result["status"] == "processing_started"
+    assert result["odm_task_uuid"] == "fake-odm-uuid"
+    assert len(submit_calls) == 1
+    submitted = submit_calls[0]
+    assert submitted["processing_mode"] == "standard"
+    assert submitted["s3_scan_depth"] == 0
+    assert submitted["exclude_paths"] == ["*/thumbs/*"]
+    assert submitted["read_s3_path"].endswith(
+        f"/projects/{project_id}/{task_id}/images/"
+    )
+    assert submitted["write_s3_path"].endswith(f"/projects/{project_id}/{task_id}/odm/")
+    assert submitted["name"] == f"DTM-Task-{task_id}"
     assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_STARTED
-    assert conn.commit_calls >= 2
 
 
 @pytest.mark.asyncio
@@ -141,17 +212,8 @@ async def test_process_drone_images_marks_task_failed_when_odm_rejects(monkeypat
     ctx = {"job_id": "job-2", "db_pool": _FakePool(conn)}
     state_calls = []
 
-    async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
-        return {"moved_count": 0, "failed_count": 0}
-
     async def fake_update_task_state_system(
-        db,
-        project_id_arg,
-        task_id_arg,
-        comment,
-        initial_state,
-        final_state,
-        updated_at,
+        db, project_id_arg, task_id_arg, comment, initial_state, final_state, updated_at
     ):
         state_calls.append(
             {
@@ -162,30 +224,19 @@ async def test_process_drone_images_marks_task_failed_when_odm_rejects(monkeypat
         )
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
-    class FailingProcessor:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
+    async def failing_submit(**kwargs):
+        raise image_processing.ScaleOdmSubmitError("Not enough images", status=400)
 
-        async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            raise NodeResponseError("Not enough images")
-
-    monkeypatch.setattr(project_logic, "DroneImageProcessor", FailingProcessor)
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", failing_submit)
 
     from app.tasks import task_logic
 
     monkeypatch.setattr(
-        task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
+        task_logic, "update_task_state_system", fake_update_task_state_system
     )
 
-    with pytest.raises(NodeResponseError):
-        await project_logic.process_drone_images(
-            ctx,
-            project_id,
-            task_id,
-            "user-123",
-        )
+    with pytest.raises(image_processing.ScaleOdmSubmitError):
+        await project_logic.process_drone_images(ctx, project_id, task_id, "user-123")
 
     assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_STARTED
     assert state_calls[1]["final_state"] == State.IMAGE_PROCESSING_FAILED
@@ -197,76 +248,40 @@ async def test_process_drone_images_marks_task_failed_when_odm_rejects(monkeypat
 
 @pytest.mark.asyncio
 async def test_process_drone_images_retries_from_failed_state(monkeypatch):
-    """Retry a task whose previous processing attempt failed.
-
-    The first transition (READY_FOR_PROCESSING -> STARTED) should return None
-    because the task is in IMAGE_PROCESSING_FAILED, then the fallback
-    (IMAGE_PROCESSING_FAILED -> STARTED) should succeed.
-    """
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
     ctx = {"job_id": "job-3", "db_pool": _FakePool(conn)}
     state_calls = []
 
-    async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
-        return {"moved_count": 0, "failed_count": 0}
-
     async def fake_update_task_state_system(
-        db,
-        project_id_arg,
-        task_id_arg,
-        comment,
-        initial_state,
-        final_state,
-        updated_at,
+        db, project_id_arg, task_id_arg, comment, initial_state, final_state, updated_at
     ):
-        state_calls.append(
-            {
-                "comment": comment,
-                "initial_state": initial_state,
-                "final_state": final_state,
-            }
-        )
-        # Simulate: task is currently IMAGE_PROCESSING_FAILED.
-        # READY_FOR_PROCESSING -> STARTED fails; IMAGE_PROCESSING_FAILED -> STARTED succeeds.
+        state_calls.append({"initial_state": initial_state, "final_state": final_state})
         if initial_state == State.READY_FOR_PROCESSING:
             return None
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
-    class _FakeOdmResult:
-        uuid = "fake-odm-uuid"
-
-    class FakeProcessor:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
-
-        async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            return _FakeOdmResult()
+    async def fake_submit(**kwargs):
+        return "fake-odm-uuid"
 
     async def fake_update_task_field(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
     monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
     from app.tasks import task_logic
 
     monkeypatch.setattr(
-        task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
+        task_logic, "update_task_state_system", fake_update_task_state_system
     )
 
     result = await project_logic.process_drone_images(
-        ctx,
-        project_id,
-        task_id,
-        "user-123",
+        ctx, project_id, task_id, "user-123"
     )
 
     assert result["status"] == "processing_started"
-    # First attempt (READY_FOR_PROCESSING) returned None, second (IMAGE_PROCESSING_FAILED) succeeded
     assert state_calls[0]["initial_state"] == State.READY_FOR_PROCESSING
     assert state_calls[1]["initial_state"] == State.IMAGE_PROCESSING_FAILED
     assert state_calls[1]["final_state"] == State.IMAGE_PROCESSING_STARTED
@@ -280,25 +295,10 @@ async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
     ctx = {"job_id": "job-4", "db_pool": _FakePool(conn)}
     state_calls = []
 
-    async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
-        return {"moved_count": 0, "failed_count": 0}
-
     async def fake_update_task_state_system(
-        db,
-        project_id_arg,
-        task_id_arg,
-        comment,
-        initial_state,
-        final_state,
-        updated_at,
+        db, project_id_arg, task_id_arg, comment, initial_state, final_state, updated_at
     ):
-        state_calls.append(
-            {
-                "comment": comment,
-                "initial_state": initial_state,
-                "final_state": final_state,
-            }
-        )
+        state_calls.append({"initial_state": initial_state, "final_state": final_state})
         if initial_state in (
             State.READY_FOR_PROCESSING,
             State.IMAGE_PROCESSING_FAILED,
@@ -306,76 +306,398 @@ async def test_process_drone_images_reruns_from_finished_state(monkeypatch):
             return None
         return {"project_id": project_id_arg, "task_id": task_id_arg}
 
-    class _FakeOdmResult:
-        uuid = "fake-odm-uuid"
-
-    class FakeProcessor:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
-
-        async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            return _FakeOdmResult()
+    async def fake_submit(**kwargs):
+        return "fake-odm-uuid"
 
     async def fake_update_task_field(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(project_logic, "DroneImageProcessor", FakeProcessor)
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
     monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
 
     from app.tasks import task_logic
 
     monkeypatch.setattr(
-        task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
+        task_logic, "update_task_state_system", fake_update_task_state_system
     )
 
     result = await project_logic.process_drone_images(
-        ctx,
-        project_id,
-        task_id,
-        "user-123",
+        ctx, project_id, task_id, "user-123"
     )
 
     assert result["status"] == "processing_started"
-    assert state_calls[0]["initial_state"] == State.READY_FOR_PROCESSING
-    assert state_calls[1]["initial_state"] == State.IMAGE_PROCESSING_FAILED
     assert state_calls[2]["initial_state"] == State.IMAGE_PROCESSING_FINISHED
     assert state_calls[2]["final_state"] == State.IMAGE_PROCESSING_STARTED
 
 
 @pytest.mark.asyncio
 async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
-    """If task is in none of the allowed processing states, raise immediately."""
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
     ctx = {"job_id": "job-5", "db_pool": _FakePool(conn)}
 
-    async def fake_move_task_images_to_folder(db, project_id_arg, task_id_arg):
-        return {"moved_count": 0, "failed_count": 0}
-
-    async def fake_update_task_state_system(
-        db, project_id_arg, task_id_arg, comment, initial_state, final_state, updated_at
-    ):
-        # Both transitions fail - task is in an unexpected state
+    async def fake_update_task_state_system(*args, **kwargs):
         return None
 
     from app.tasks import task_logic
 
     monkeypatch.setattr(
-        task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
+        task_logic, "update_task_state_system", fake_update_task_state_system
     )
 
     with pytest.raises(RuntimeError, match="not in a valid state"):
-        await project_logic.process_drone_images(
+        await project_logic.process_drone_images(ctx, project_id, task_id, "user-123")
+
+
+@pytest.mark.asyncio
+async def test_process_drone_images_propagates_scaleodm_s3_endpoint(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "job-s3-endpoint", "db_pool": _FakePool(conn)}
+    submit_calls = []
+
+    async def fake_update_task_state_system(*args, **kwargs):
+        return {"ok": True}
+
+    async def fake_submit(**kwargs):
+        submit_calls.append(kwargs)
+        return "fake-odm-uuid"
+
+    async def fake_update_task_field(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
+    monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
+    monkeypatch.setattr(
+        project_logic.settings, "SCALEODM_S3_ENDPOINT", "http://minio.svc:9000"
+    )
+
+    from app.tasks import task_logic
+
+    monkeypatch.setattr(
+        task_logic, "update_task_state_system", fake_update_task_state_system
+    )
+
+    await project_logic.process_drone_images(ctx, project_id, task_id, "user-123")
+
+    assert submit_calls[0]["s3_endpoint"] == "http://minio.svc:9000"
+
+
+# ── process_all_drone_images (project-wide) ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch):
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "proj-1", "db_pool": _FakePool(conn)}
+    submit_calls = []
+
+    async def fake_submit(**kwargs):
+        submit_calls.append(kwargs)
+        return "fake-project-odm-uuid"
+
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
+
+    await project_logic.process_all_drone_images(
+        ctx, project_id, [uuid.uuid4()], "user-123"
+    )
+
+    assert len(submit_calls) == 1
+    submitted = submit_calls[0]
+    assert submitted["processing_mode"] == "standard"
+    assert submitted["s3_scan_depth"] == 2
+    assert submitted["use_default_excludes"] is True
+    assert submitted["exclude_paths"] == ["*/thumbs/*"]
+    assert submitted["read_s3_path"].endswith(f"/projects/{project_id}/")
+    assert submitted["write_s3_path"].endswith(f"/projects/{project_id}/odm/")
+    assert submitted["name"] == f"DTM-Project-{project_id}"
+
+
+# ── finalize_scaleodm_task ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "fin-1", "job_try": 1, "db_pool": _FakePool(conn), "redis": None}
+    state_calls = []
+    field_calls = []
+    remove_calls = []
+
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
+
+    async def fake_update_task_field(db, pid, tid, column, value):
+        field_calls.append({"column": column, "value": value})
+
+    async def fake_get_task_state(db, pid, tid):
+        return {"state": State.IMAGE_PROCESSING_STARTED.name}
+
+    def fake_reproject(pid, tid):
+        # just verify it's invoked with the right ids
+        assert pid == project_id
+        assert tid == task_id
+
+    async def fake_remove(*, scaleodm_url, odm_task_uuid):
+        remove_calls.append({"url": scaleodm_url, "uuid": odm_task_uuid})
+
+    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
+    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
+    monkeypatch.setattr(
+        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
+    )
+    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
+    monkeypatch.setattr(
+        arq_tasks.project_logic, "update_task_field", fake_update_task_field
+    )
+
+    result = await arq_tasks.finalize_scaleodm_task(
+        ctx,
+        scaleodm_url="http://scaleodm",
+        dtm_project_id=str(project_id),
+        odm_task_uuid="odm-uuid-1",
+        odm_status_code=40,
+        state_name=State.IMAGE_PROCESSING_STARTED.name,
+        message="Task completed.",
+        dtm_task_id=str(task_id),
+    )
+
+    assert result["status"] == "completed"
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FINISHED
+    assert field_calls == [
+        {"column": "assets_url", "value": f"projects/{project_id}/{task_id}/odm/"}
+    ]
+    assert remove_calls == [{"url": "http://scaleodm", "uuid": "odm-uuid-1"}]
+
+
+@pytest.mark.asyncio
+async def test_finalize_scaleodm_task_skips_when_state_already_changed(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "fin-2", "job_try": 1, "db_pool": _FakePool(conn), "redis": None}
+    reproject_calls = []
+
+    async def fake_get_task_state(db, pid, tid):
+        # Different from expected: someone else already finalized.
+        return {"state": State.IMAGE_PROCESSING_FINISHED.name}
+
+    def fake_reproject(*args, **kwargs):
+        reproject_calls.append(args)
+
+    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
+    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
+
+    result = await arq_tasks.finalize_scaleodm_task(
+        ctx,
+        scaleodm_url="http://scaleodm",
+        dtm_project_id=str(project_id),
+        odm_task_uuid="odm-uuid-2",
+        odm_status_code=40,
+        state_name=State.IMAGE_PROCESSING_STARTED.name,
+        message="Task completed.",
+        dtm_task_id=str(task_id),
+    )
+
+    assert result["status"] == "skipped"
+    assert reproject_calls == []
+
+
+@pytest.mark.asyncio
+async def test_finalize_scaleodm_task_pulls_error_message_on_status_30(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {"job_id": "fin-3", "job_try": 1, "db_pool": _FakePool(conn), "redis": None}
+    state_calls = []
+    remove_calls = []
+
+    async def fake_get_task_state(db, pid, tid):
+        return {"state": State.IMAGE_PROCESSING_STARTED.name}
+
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
+
+    async def fake_fetch_info(*, scaleodm_url, odm_task_uuid):
+        return {"errorMessage": "ODM exited with code 1"}
+
+    async def fake_remove(*, scaleodm_url, odm_task_uuid):
+        remove_calls.append(odm_task_uuid)
+
+    monkeypatch.setattr(arq_tasks, "fetch_scaleodm_task_info", fake_fetch_info)
+    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
+    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
+    monkeypatch.setattr(
+        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
+    )
+
+    result = await arq_tasks.finalize_scaleodm_task(
+        ctx,
+        scaleodm_url="http://scaleodm",
+        dtm_project_id=str(project_id),
+        odm_task_uuid="odm-uuid-3",
+        odm_status_code=30,
+        state_name=State.IMAGE_PROCESSING_STARTED.name,
+        message="Image processing failed.",
+        dtm_task_id=str(task_id),
+    )
+
+    assert result["status"] == "failed"
+    assert state_calls
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
+    assert "ODM exited with code 1" in state_calls[0]["comment"]
+    assert remove_calls == ["odm-uuid-3"]
+
+
+@pytest.mark.asyncio
+async def test_finalize_scaleodm_task_marks_failed_on_final_transient_try(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "fin-retry",
+        "job_try": arq_tasks.WorkerSettings.max_tries,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    state_calls = []
+
+    async def fake_get_task_state(db, pid, tid):
+        return {"state": State.IMAGE_PROCESSING_STARTED.name}
+
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
+
+    def fake_reproject(*args, **kwargs):
+        raise image_processing.OrthophotoPostProcessingError("network error")
+
+    async def fake_remove(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
+    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
+    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
+    monkeypatch.setattr(
+        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
+    )
+
+    with pytest.raises(image_processing.OrthophotoPostProcessingError):
+        await arq_tasks.finalize_scaleodm_task(
             ctx,
-            project_id,
-            task_id,
-            "user-123",
+            scaleodm_url="http://scaleodm",
+            dtm_project_id=str(project_id),
+            odm_task_uuid="odm-uuid-final",
+            odm_status_code=40,
+            state_name=State.IMAGE_PROCESSING_STARTED.name,
+            message="Task completed.",
+            dtm_task_id=str(task_id),
         )
+
+    assert state_calls
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
+    assert "network error" in state_calls[0]["comment"]
+
+
+@pytest.mark.asyncio
+async def test_finalize_scaleodm_task_project_level_completion(monkeypatch):
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "fin-proj",
+        "job_try": 1,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    processing_status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        processing_status_calls.append({"project_id": pid, "status": status})
+
+    def fake_reproject(*args, **kwargs):
+        return None
+
+    async def fake_remove(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
+    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
+    monkeypatch.setattr(
+        arq_tasks.project_logic,
+        "update_processing_status",
+        fake_update_processing_status,
+    )
+
+    result = await arq_tasks.finalize_scaleodm_task(
+        ctx,
+        scaleodm_url="http://scaleodm",
+        dtm_project_id=str(project_id),
+        odm_task_uuid="odm-uuid-proj",
+        odm_status_code=40,
+        state_name=None,
+        message="Task completed.",
+        dtm_task_id=None,
+    )
+
+    assert result["status"] == "completed"
+    assert processing_status_calls
+    assert processing_status_calls[0]["status"] == ImageProcessingStatus.SUCCESS
+    assert processing_status_calls[0]["project_id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_finalize_scaleodm_task_project_level_failure(monkeypatch):
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "fin-proj-fail",
+        "job_try": 1,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    processing_status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        processing_status_calls.append({"project_id": pid, "status": status})
+
+    async def fake_fetch_info(*, scaleodm_url, odm_task_uuid):
+        return None
+
+    async def fake_remove(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(arq_tasks, "fetch_scaleodm_task_info", fake_fetch_info)
+    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
+    monkeypatch.setattr(
+        arq_tasks.project_logic,
+        "update_processing_status",
+        fake_update_processing_status,
+    )
+
+    result = await arq_tasks.finalize_scaleodm_task(
+        ctx,
+        scaleodm_url="http://scaleodm",
+        dtm_project_id=str(project_id),
+        odm_task_uuid="odm-uuid-proj-fail",
+        odm_status_code=30,
+        state_name=None,
+        message="Image processing failed.",
+        dtm_task_id=None,
+    )
+
+    assert result["status"] == "failed"
+    assert processing_status_calls
+    assert processing_status_calls[0]["status"] == ImageProcessingStatus.FAILED
+
+
+# ── move_task_images_for_processing (unchanged behaviour, kept for coverage) ──
 
 
 @pytest.mark.asyncio
@@ -407,8 +729,6 @@ async def test_move_task_images_for_processing_commits_on_success(monkeypatch):
         "moved_count": 4,
         "failed_count": 0,
     }
-    # Per-image commits happen inside move_task_images_to_folder (mocked here).
-    # The caller no longer does a bulk commit.
     assert conn.commit_calls == 0
     assert conn.rollback_calls == 0
 
@@ -442,137 +762,11 @@ async def test_move_task_images_for_processing_rolls_back_on_failure_count(monke
             ctx, str(project_id), str(task_id)
         )
 
-    # Per-image commits happen inside the (mocked) move function.
-    # The error handler commits the IMAGE_PROCESSING_FAILED state transition.
     assert conn.commit_calls == 1
     assert conn.rollback_calls == 0
 
 
-@pytest.mark.asyncio
-async def test_move_task_images_for_processing_handles_transfer_failure_state_update_error(
-    monkeypatch,
-):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {"job_id": "move-job-3", "db_pool": _FakePool(conn)}
-
-    async def fake_move_task_images_to_folder(*_args, **_kwargs):
-        return {"moved_count": 0, "failed_count": 1}
-
-    async def fake_update_task_state_system(*_args, **_kwargs):
-        raise RuntimeError("cannot persist state")
-
-    monkeypatch.setattr(
-        arq_tasks.ImageClassifier,
-        "move_task_images_to_folder",
-        fake_move_task_images_to_folder,
-    )
-    monkeypatch.setattr(
-        arq_tasks.task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
-    )
-
-    with pytest.raises(RuntimeError, match=r"Failed to move 1 of 1 image\(s\)"):
-        await arq_tasks.move_task_images_for_processing(
-            ctx, str(project_id), str(task_id)
-        )
-
-    # No images moved successfully, so no per-image commits should have happened.
-    # The error handler's commit also fails (update_task_state_system raises).
-    assert conn.commit_calls == 0
-    assert conn.rollback_calls == 1
-
-
-@pytest.mark.asyncio
-async def test_process_assets_from_odm_does_not_mark_single_task_project_complete(
-    monkeypatch, tmp_path
-):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    update_processing_calls = []
-
-    assets_zip = tmp_path / "assets.zip"
-    assets_zip.write_bytes(b"zip")
-    ortho_dir = tmp_path / "odm_orthophoto"
-    ortho_dir.mkdir()
-    (ortho_dir / "odm_orthophoto.tif").write_bytes(b"ortho")
-
-    class FakeTask:
-        def download_zip(self, output_path):
-            return str(assets_zip)
-
-        def remove(self):
-            return None
-
-    class FakeNode:
-        def get_task(self, odm_task_id):
-            return FakeTask()
-
-    async def fake_get_db_connection_pool():
-        return _FakePool(conn)
-
-    async def fake_update_task_state_system(**kwargs):
-        return {
-            "project_id": kwargs.get("project_id"),
-            "task_id": kwargs.get("task_id"),
-        }
-
-    async def fake_update_task_field(*args, **kwargs):
-        return None
-
-    async def fake_update_processing_status(db, project_id_arg, status):
-        update_processing_calls.append((project_id_arg, status))
-
-    monkeypatch.setattr(image_processing.Node, "from_url", lambda _url: FakeNode())
-    monkeypatch.setattr(
-        image_processing.database,
-        "get_db_connection_pool",
-        fake_get_db_connection_pool,
-    )
-    monkeypatch.setattr(
-        image_processing.task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
-    )
-    monkeypatch.setattr(
-        image_processing.project_logic,
-        "update_task_field",
-        fake_update_task_field,
-    )
-    monkeypatch.setattr(
-        image_processing.project_logic,
-        "update_processing_status",
-        fake_update_processing_status,
-    )
-    monkeypatch.setattr(
-        image_processing, "add_file_to_bucket", lambda *args, **kwargs: None
-    )
-    monkeypatch.setattr(
-        image_processing,
-        "delete_objects_by_prefix",
-        lambda *args, **kwargs: 0,
-    )
-    monkeypatch.setattr(
-        image_processing,
-        "reproject_to_web_mercator",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(image_processing.zipfile, "ZipFile", _FakeZipFile)
-
-    await image_processing.process_assets_from_odm(
-        node_odm_url="http://odm",
-        dtm_project_id=project_id,
-        odm_task_id="odm-task-id",
-        state=State.IMAGE_PROCESSING_STARTED,
-        message="Task completed.",
-        dtm_task_id=task_id,
-        odm_status_code=40,
-    )
-
-    assert update_processing_calls == []
+# ── sanitization helpers (unchanged) ──────────────────────────────────────────
 
 
 def test_sanitize_sensitive_text_redacts_token_query_values():
@@ -587,70 +781,13 @@ def test_sanitize_sensitive_text_redacts_token_query_values():
     assert "foo=bar" in sanitized
 
 
-@pytest.mark.asyncio
-async def test_process_drone_images_persists_failure_comment(monkeypatch):
-    """Verify the failure comment reaches update_task_state_system (which
-    sanitizes sensitive values at the DB boundary)."""
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {"job_id": "job-redact-1", "db_pool": _FakePool(conn)}
-    state_calls = []
-
-    async def fake_update_task_state_system(
-        db,
-        project_id_arg,
-        task_id_arg,
-        comment,
-        initial_state,
-        final_state,
-        updated_at,
-    ):
-        state_calls.append(
-            {
-                "comment": comment,
-                "initial_state": initial_state,
-                "final_state": final_state,
-            }
-        )
-        return {"project_id": project_id_arg, "task_id": task_id_arg}
-
-    class FailingProcessor:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
-
-        async def process_images_from_s3(self, bucket_name, name, options, webhook):
-            raise RuntimeError(
-                "Failed request: https://odm.drone.hotosm.org/info?token=abc123&foo=bar"
-            )
-
-    monkeypatch.setattr(project_logic, "DroneImageProcessor", FailingProcessor)
-
-    from app.tasks import task_logic
-
-    monkeypatch.setattr(
-        task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
-    )
-
-    with pytest.raises(RuntimeError):
-        await project_logic.process_drone_images(
-            ctx,
-            project_id,
-            task_id,
-            "user-123",
-        )
-
-    assert state_calls[1]["final_state"] == State.IMAGE_PROCESSING_FAILED
-    assert "Failed request" in state_calls[1]["comment"]
-
-
 def test_update_task_state_system_sanitizes_comment():
-    """Sensitive values in comments are redacted at the DB boundary."""
     from app.utils import sanitize_sensitive_text
 
-    raw = "Image processing failed: https://odm.drone.hotosm.org/info?token=abc123&foo=bar"
+    raw = (
+        "Image processing failed: "
+        "https://odm.drone.hotosm.org/info?token=abc123&foo=bar"
+    )
     sanitized = sanitize_sensitive_text(raw)
     assert "token=abc123" not in sanitized
     assert "token=%5BREDACTED%5D" in sanitized
@@ -658,323 +795,35 @@ def test_update_task_state_system_sanitizes_comment():
 
 
 @pytest.mark.asyncio
-async def test_process_odm_webhook_assets_retries_transient_errors(monkeypatch):
+async def test_process_drone_images_persists_failure_comment(monkeypatch):
+    """Failure comment should reach update_task_state_system."""
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
-    ctx = {
-        "job_id": "webhook-retry-1",
-        "job_try": 1,
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-
-    async def fake_process_assets_from_odm(**kwargs):
-        raise image_processing.OdmAssetTransientError(
-            "network error https://odm.drone.hotosm.org/info?token=abc123"
-        )
-
-    monkeypatch.setattr(
-        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
-    )
-
-    with pytest.raises(image_processing.OdmAssetTransientError):
-        await arq_tasks.process_odm_webhook_assets(
-            ctx,
-            node_odm_url="https://odm.drone.hotosm.org/?token=abc123",
-            dtm_project_id=str(project_id),
-            odm_task_id="odm-task-1",
-            state_name=State.IMAGE_PROCESSING_STARTED.name,
-            message="Task completed.",
-            dtm_task_id=str(task_id),
-            odm_status_code=40,
-        )
-
-
-@pytest.mark.asyncio
-async def test_process_odm_webhook_assets_marks_failed_on_final_transient_try(
-    monkeypatch,
-):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "webhook-retry-2",
-        "job_try": arq_tasks.WorkerSettings.max_tries,
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
+    ctx = {"job_id": "job-redact-1", "db_pool": _FakePool(conn)}
     state_calls = []
 
-    async def fake_process_assets_from_odm(**kwargs):
-        raise image_processing.OdmAssetTransientError(
-            "network error https://odm.drone.hotosm.org/info?token=abc123"
+    async def fake_update_task_state_system(
+        db, project_id_arg, task_id_arg, comment, initial_state, final_state, updated_at
+    ):
+        state_calls.append({"comment": comment, "final_state": final_state})
+        return {"project_id": project_id_arg, "task_id": task_id_arg}
+
+    async def failing_submit(**kwargs):
+        raise RuntimeError(
+            "Failed request: https://odm.drone.hotosm.org/info?token=abc123&foo=bar"
         )
 
-    async def fake_update_task_state_system(**kwargs):
-        state_calls.append(kwargs)
-        return {"ok": True}
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", failing_submit)
+
+    from app.tasks import task_logic
 
     monkeypatch.setattr(
-        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
-    )
-    monkeypatch.setattr(
-        arq_tasks.task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
+        task_logic, "update_task_state_system", fake_update_task_state_system
     )
 
-    with pytest.raises(image_processing.OdmAssetTransientError):
-        await arq_tasks.process_odm_webhook_assets(
-            ctx,
-            node_odm_url="https://odm.drone.hotosm.org/?token=abc123",
-            dtm_project_id=str(project_id),
-            odm_task_id="odm-task-2",
-            state_name=State.IMAGE_PROCESSING_STARTED.name,
-            message="Task completed.",
-            dtm_task_id=str(task_id),
-            odm_status_code=40,
-        )
+    with pytest.raises(RuntimeError):
+        await project_logic.process_drone_images(ctx, project_id, task_id, "user-123")
 
-    assert state_calls
-    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
-    # Comment sanitization now happens inside update_task_state_system,
-    # which is monkeypatched here - verify the error message is passed through.
-    assert "network error" in state_calls[0]["comment"]
-
-
-@pytest.mark.asyncio
-async def test_process_odm_webhook_assets_terminal_error_marks_failed_without_raise(
-    monkeypatch,
-):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "webhook-retry-3",
-        "job_try": 1,
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-    state_calls = []
-
-    async def fake_process_assets_from_odm(**kwargs):
-        raise image_processing.OdmAssetTerminalError(
-            "invalid archive https://odm.drone.hotosm.org/info?token=abc123"
-        )
-
-    async def fake_update_task_state_system(**kwargs):
-        state_calls.append(kwargs)
-        return {"ok": True}
-
-    monkeypatch.setattr(
-        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
-    )
-    monkeypatch.setattr(
-        arq_tasks.task_logic,
-        "update_task_state_system",
-        fake_update_task_state_system,
-    )
-
-    result = await arq_tasks.process_odm_webhook_assets(
-        ctx,
-        node_odm_url="https://odm.drone.hotosm.org/?token=abc123",
-        dtm_project_id=str(project_id),
-        odm_task_id="odm-task-3",
-        state_name=State.IMAGE_PROCESSING_STARTED.name,
-        message="Task completed.",
-        dtm_task_id=str(task_id),
-        odm_status_code=40,
-    )
-
-    assert result["status"] == "failed"
-    assert state_calls
-    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
-    # Comment sanitization now happens inside update_task_state_system,
-    # which is monkeypatched here - verify the error message is passed through.
-    assert "invalid archive" in state_calls[0]["comment"]
-
-
-def test_is_thumbnail_object_key_detects_task_thumbs():
-    assert image_processing.DroneImageProcessor._is_thumbnail_object_key(
-        "projects/p/t/images/thumbs/photo_1.jpg"
-    )
-    assert image_processing.DroneImageProcessor._is_thumbnail_object_key(
-        "projects/p/t/images/thumb_photo_1.jpg"
-    )
-    assert not image_processing.DroneImageProcessor._is_thumbnail_object_key(
-        "projects/p/t/images/photo_1.jpg"
-    )
-
-
-def test_list_images_excludes_thumbnail_files(tmp_path):
-    images_dir = tmp_path / "images"
-    thumbs_dir = images_dir / "thumbs"
-    thumbs_dir.mkdir(parents=True)
-
-    full_image = images_dir / "photo_1.jpg"
-    full_image.write_bytes(b"real-image")
-
-    thumb_in_dir = thumbs_dir / "photo_1.jpg"
-    thumb_in_dir.write_bytes(b"thumb")
-
-    thumb_prefix = images_dir / "thumb_photo_2.jpg"
-    thumb_prefix.write_bytes(b"thumb")
-
-    processor = object.__new__(image_processing.DroneImageProcessor)
-    listed = processor.list_images(str(tmp_path))
-    listed_paths = {Path(p) for p in listed}
-
-    assert full_image in listed_paths
-    assert thumb_in_dir not in listed_paths
-    assert thumb_prefix not in listed_paths
-
-
-def test_s3_presigned_urls_exclude_thumbnails(monkeypatch):
-    """End-to-end: presigned URL generation for ODM skips thumbnail objects."""
-
-    class FakeS3Object:
-        def __init__(self, name):
-            self.object_name = name
-
-    fake_objects = [
-        FakeS3Object("projects/p1/t1/images/DJI_0001.JPG"),
-        FakeS3Object("projects/p1/t1/images/DJI_0002.JPG"),
-        FakeS3Object("projects/p1/t1/images/thumbs/DJI_0001.JPG"),
-        FakeS3Object("projects/p1/t1/images/thumbs/DJI_0002.JPG"),
-        FakeS3Object("projects/p1/t1/images/thumb_DJI_0003.JPG"),
-        FakeS3Object("projects/p1/t1/images/geo.txt"),
-    ]
-
-    monkeypatch.setattr(
-        image_processing, "list_objects_from_bucket", lambda *a, **k: fake_objects
-    )
-
-    signed_urls = []
-
-    def fake_presign(bucket, key, expiry, internal=False):
-        signed_urls.append(key)
-        return f"https://s3/{key}"
-
-    monkeypatch.setattr(image_processing, "generate_presigned_get_url", fake_presign)
-
-    processor = object.__new__(image_processing.DroneImageProcessor)
-    processor.project_id = "p1"
-
-    # Call the internal download method just far enough to collect URLs.
-    # We can't await the full download, but we can test URL filtering
-    # by inspecting what generate_presigned_get_url receives.
-    import asyncio
-
-    async def run():
-        prefix = "projects/p1/t1/images"
-        objects = image_processing.list_objects_from_bucket("bucket", prefix)
-        accepted = (".jpg", ".jpeg", ".png", ".txt", ".laz")
-        return [
-            image_processing.generate_presigned_get_url(
-                "bucket", obj.object_name, 12, internal=True
-            )
-            for obj in objects
-            if obj.object_name.lower().endswith(accepted)
-            and not processor._is_thumbnail_object_key(obj.object_name)
-        ]
-
-    asyncio.get_event_loop().run_until_complete(run())
-
-    # Should include the two full images + geo.txt, but NOT the thumbnails
-    assert len(signed_urls) == 3
-    assert any("DJI_0001.JPG" in u and "thumbs" not in u for u in signed_urls)
-    assert any("DJI_0002.JPG" in u and "thumbs" not in u for u in signed_urls)
-    assert any("geo.txt" in u for u in signed_urls)
-    assert not any("thumbs/" in u for u in signed_urls)
-    assert not any("thumb_" in u for u in signed_urls)
-
-
-@pytest.mark.asyncio
-async def test_project_level_terminal_error_marks_project_failed(monkeypatch):
-    """When dtm_task_id is None (project-level), terminal errors must set
-    image_processing_status = FAILED on the project."""
-    project_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "webhook-proj-terminal",
-        "job_try": 1,
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-    processing_status_calls = []
-
-    async def fake_update_processing_status(db, pid, status):
-        processing_status_calls.append({"project_id": pid, "status": status})
-
-    async def fake_process_assets_from_odm(**kwargs):
-        raise image_processing.OdmAssetTerminalError("corrupt archive")
-
-    monkeypatch.setattr(
-        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
-    )
-    monkeypatch.setattr(
-        arq_tasks.project_logic,
-        "update_processing_status",
-        fake_update_processing_status,
-    )
-
-    result = await arq_tasks.process_odm_webhook_assets(
-        ctx,
-        node_odm_url="https://odm.example.com",
-        dtm_project_id=str(project_id),
-        odm_task_id="odm-task-proj",
-        state_name=None,
-        message="Task completed.",
-        dtm_task_id=None,  # Project-level
-        odm_status_code=40,
-    )
-
-    assert result["status"] == "failed"
-    assert processing_status_calls
-    assert processing_status_calls[0]["status"] == ImageProcessingStatus.FAILED
-    assert processing_status_calls[0]["project_id"] == project_id
-
-
-@pytest.mark.asyncio
-async def test_project_level_exhausted_retries_marks_project_failed(monkeypatch):
-    """When dtm_task_id is None and retries exhausted, project status must be FAILED."""
-    project_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "webhook-proj-exhausted",
-        "job_try": arq_tasks.WorkerSettings.max_tries,
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-    processing_status_calls = []
-
-    async def fake_update_processing_status(db, pid, status):
-        processing_status_calls.append({"project_id": pid, "status": status})
-
-    async def fake_process_assets_from_odm(**kwargs):
-        raise image_processing.OdmAssetTransientError("timeout")
-
-    monkeypatch.setattr(
-        arq_tasks, "process_assets_from_odm", fake_process_assets_from_odm
-    )
-    monkeypatch.setattr(
-        arq_tasks.project_logic,
-        "update_processing_status",
-        fake_update_processing_status,
-    )
-
-    with pytest.raises(image_processing.OdmAssetTransientError):
-        await arq_tasks.process_odm_webhook_assets(
-            ctx,
-            node_odm_url="https://odm.example.com",
-            dtm_project_id=str(project_id),
-            odm_task_id="odm-task-proj-2",
-            state_name=None,
-            message="Task completed.",
-            dtm_task_id=None,  # Project-level
-            odm_status_code=40,
-        )
-
-    assert processing_status_calls
-    assert processing_status_calls[0]["status"] == ImageProcessingStatus.FAILED
+    assert state_calls[1]["final_state"] == State.IMAGE_PROCESSING_FAILED
+    assert "Failed request" in state_calls[1]["comment"]

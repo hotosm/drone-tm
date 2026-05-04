@@ -27,10 +27,58 @@ default:
 # Start Drone-TM (dev mode, local build)
 [no-cd]
 all:
-  #!/usr/bin/env sh
+  #!/usr/bin/env bash
 
   cd {{justfile_directory()}}
+
+  # Auto-detect Docker gateway IP for ScaleODM Talos worker pods.
+  #
+  # ScaleODM runs inside a local Talos k8s cluster (itself Docker containers).
+  # Workflow pods need to reach DroneTM's S3 (RustFS), which is published on
+  # the Docker host at port 9000. The reachable address from inside those pods
+  # is the Docker network's gateway IP — not localhost.
+  #
+  # We only auto-detect when SCALEODM_S3_ENDPOINT is unset/empty, so an
+  # explicit value in .env always wins.
+  if [ -z "${SCALEODM_S3_ENDPOINT}" ]; then
+    worker=$(docker ps --format '{{{{.Names}}' 2>/dev/null \
+      | grep -m1 'scaleodm.*worker' || true)
+    if [ -n "$worker" ]; then
+      net=$(docker inspect "$worker" \
+        --format '{{{{range $name,$_ := .NetworkSettings.Networks}}{{{{println $name}}{{{{end}}' \
+        2>/dev/null | head -n1 | tr -d '[:space:]')
+      gw=$(docker network inspect "$net" \
+        --format '{{{{(index .IPAM.Config 0).Gateway}}' \
+        2>/dev/null | tr -d '[:space:]' || true)
+      if [ -n "$gw" ]; then
+        export SCALEODM_S3_ENDPOINT="http://${gw}:9000"
+        just _echo-blue "ScaleODM: auto-set SCALEODM_S3_ENDPOINT=${SCALEODM_S3_ENDPOINT} (worker: ${worker})"
+        # Persist to .env so later docker compose invocations (restart, etc.) also use it.
+        if grep -q '^SCALEODM_S3_ENDPOINT=' .env 2>/dev/null; then
+          sed -i "s|^SCALEODM_S3_ENDPOINT=.*|SCALEODM_S3_ENDPOINT=${SCALEODM_S3_ENDPOINT}|" .env
+        elif [ -f .env ]; then
+          printf 'SCALEODM_S3_ENDPOINT=%s\n' "${SCALEODM_S3_ENDPOINT}" >> .env
+        fi
+      else
+        just _echo-yellow "ScaleODM worker '${worker}' found but could not determine gateway IP."
+        just _echo-yellow "Set SCALEODM_S3_ENDPOINT manually in .env for processing to work."
+      fi
+    fi
+  fi
+
   {{docker}} compose up -d
+
+  # Soft probe: end-to-end imagery processing requires ScaleODM on the host.
+  # The compose stack ships a NodeODM placeholder, but it can't complete a
+  # ScaleODM-flow run (no S3 writer). See docs/dev/setup.md.
+  scaleodm_url="${SCALEODM_PROBE_URL:-http://localhost:31100/info}"
+  if command -v curl >/dev/null 2>&1; then
+    if ! curl -fsS --max-time 2 "$scaleodm_url" >/dev/null 2>&1; then
+      just _echo-yellow "Warning: ScaleODM not reachable at ${scaleodm_url}."
+      just _echo-yellow "         End-to-end imagery processing won't work until you start it."
+      just _echo-yellow "         See docs/dev/setup.md ('End-to-end imagery processing')."
+    fi
+  fi
 
 # Prompt the user to select a release tag and export GIT_BRANCH.
 # Exits if the working tree is dirty or no tags are found.

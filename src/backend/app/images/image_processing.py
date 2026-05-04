@@ -1,378 +1,159 @@
-import asyncio
+import json
 import os
-import shutil
 import tempfile
 import uuid
 import zipfile
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Literal, Optional
 
 import aiohttp
 from loguru import logger as log
 from osgeo import gdal
-from psycopg import Connection
-from pyodm import Node
 
 from app.config import settings
-from app.db import database
-from app.models.enums import ImageProcessingStatus, State
-from app.projects import project_logic
 from app.s3 import (
     add_file_to_bucket,
     delete_objects_by_prefix,
-    generate_presigned_get_url,
     get_file_from_bucket,
-    list_objects_from_bucket,
-)
-from app.tasks import task_logic
-from app.utils import timestamp
-
-ODM_GET_TASK_TIMEOUT_SEC = 60
-ODM_DOWNLOAD_ZIP_TIMEOUT_SEC = (
-    7200  # 2 hours - large projects can produce multi-GB zips
 )
 
 
-class OdmAssetProcessingError(RuntimeError):
-    """Base exception for ODM asset post-processing failures."""
+SCALEODM_SUBMIT_TIMEOUT_SEC = 30
 
 
-class OdmAssetTransientError(OdmAssetProcessingError):
-    """Retryable ODM asset post-processing failure."""
+ProcessingMode = Literal["standard", "merge-existing", "thermal", "city-scale"]
 
 
-class OdmAssetTerminalError(OdmAssetProcessingError):
-    """Non-retryable ODM asset post-processing failure."""
+class ScaleOdmSubmitError(RuntimeError):
+    """Raised when POST /task/new is rejected by ScaleODM."""
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
-def _is_retryable_odm_exception(exc: Exception) -> bool:
-    if isinstance(exc, (asyncio.TimeoutError, TimeoutError, ConnectionError, OSError)):
-        return True
-
-    details = str(exc).lower()
-    transient_markers = (
-        "no route to host",
-        "max retries exceeded",
-        "failed to establish a new connection",
-        "connection refused",
-        "temporarily unavailable",
-        "temporary failure",
-        "timed out",
-    )
-    return any(marker in details for marker in transient_markers)
+class OrthophotoPostProcessingError(RuntimeError):
+    """Raised when the in-place orthophoto reprojection fails."""
 
 
-class DroneImageProcessor:
-    def __init__(
-        self,
-        node_odm_url: str,
-        project_id: uuid.UUID,
-        user_id: str,
-        db: Connection,
-        task_id: Optional[uuid.UUID] = None,
-        task_ids: Optional[List[uuid.UUID]] = None,
-    ):
-        """Base initialization for drone image processing.
+async def submit_scaleodm_task(
+    *,
+    scaleodm_url: str,
+    read_s3_path: str,
+    write_s3_path: str,
+    name: str,
+    options: list[dict[str, Any]],
+    webhook: str,
+    processing_mode: ProcessingMode = "standard",
+    s3_scan_depth: int = 1,
+    use_default_excludes: bool = True,
+    exclude_paths: Optional[list[str]] = None,
+    s3_endpoint: Optional[str] = None,
+) -> str:
+    """Create a ScaleODM task via POST /task/new.
 
-        :param node_odm_url: URL of the ODM node
-        :param project_id: Project UUID
-        :param user_id: User ID
-        :param db: Database connection
-        :param task_id: Optional single task ID
-        :param task_ids: Optional list of task IDs
-        """
-        self.node = Node.from_url(node_odm_url)
-        self.project_id = project_id
-        self.user_id = user_id
-        self.db = db
-        self.task_id = task_id
-        self.task_ids = task_ids or ([] if task_id is None else [task_id])
-        self.max_concurrent_downloads = 4
+    Returns the ScaleODM task UUID. Raises :class:`ScaleOdmSubmitError`
+    on a non-2xx response (with the server's ``error``/``errorMessage``
+    string when present).
+    """
+    body: dict[str, Any] = {
+        "name": name,
+        "readS3Path": read_s3_path,
+        "writeS3Path": write_s3_path,
+        "webhook": webhook,
+        "processingMode": processing_mode,
+        "s3ScanDepth": s3_scan_depth,
+        "useDefaultExcludes": use_default_excludes,
+    }
+    if options:
+        body["options"] = json.dumps(options)
+    if exclude_paths:
+        body["excludePaths"] = json.dumps(exclude_paths)
+    if s3_endpoint:
+        body["s3Endpoint"] = s3_endpoint
 
-    def options_list_to_dict(
-        self, options: List[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Convert options list to a dictionary.
+    base = scaleodm_url.rstrip("/")
+    url = f"{base}/task/new"
+    timeout = aiohttp.ClientTimeout(total=SCALEODM_SUBMIT_TIMEOUT_SEC)
 
-        :param options: List of option dictionaries
-        :return: Dictionary of options
-        """
-        opts = {}
-        if options is not None:
-            for o in options:
-                opts[o["name"]] = o["value"]
-        return opts
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, json=body) as resp:
+            text = await resp.text()
+            payload: Optional[dict[str, Any]] = None
+            try:
+                payload = json.loads(text) if text else None
+            except json.JSONDecodeError:
+                payload = None
 
-    @staticmethod
-    def _is_thumbnail_object_key(object_key: str) -> bool:
-        normalized_key = object_key.lower().replace("\\", "/")
-        return "/thumbs/" in normalized_key or Path(normalized_key).name.startswith(
-            "thumb_"
-        )
-
-    def list_images(self, directory: str) -> List[str]:
-        """List all image files in a directory.
-
-        :param directory: Directory path
-        :return: List of image file paths
-        """
-        images = []
-        path = Path(directory)
-
-        for file in path.rglob("*"):
-            if file.suffix.lower() not in {".jpg", ".jpeg", ".png", ".txt", ".laz"}:
-                continue
-            if self._is_thumbnail_object_key(str(file)):
-                continue
-            images.append(str(file))
-        return images
-
-    async def download_image(self, session, url, save_path) -> bool:
-        """Download a single image from URL to local path.
-
-        Returns:
-            bool: True if download succeeded, False otherwise
-        """
-        try:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    with open(save_path, "wb") as f:
-                        f.write(await response.read())
-                    return True
-                else:
-                    log.error(f"Failed to download {url}, status: {response.status}")
-                    return False
-        except Exception as e:
-            log.error(f"Error downloading {url}: {e}")
-            return False
-
-    async def download_images_from_s3(
-        self,
-        bucket_name: str,
-        local_dir: str,
-        task_id: uuid.UUID,
-        batch_size: int = 20,
-    ):
-        """Asynchronously download images from S3 in batches.
-
-        :param bucket_name: Bucket name
-        :param local_dir: Local directory to save images
-        :param task_id: Optional specific task ID
-        :param batch_size: Number of images to download concurrently
-        """
-        prefix = f"projects/{self.project_id}/{task_id}/images"
-        objects = list_objects_from_bucket(bucket_name, prefix)
-
-        if not objects:
-            log.warning(f"No images found in S3 for task {task_id}")
-            return
-
-        log.info(f"Downloading images from S3 for task {task_id}...")
-
-        accepted_file_extensions = (".jpg", ".jpeg", ".png", ".txt", ".laz")
-
-        # Use internal=True so the presigned URL is signed against S3 directly,
-        # not against CloudFront (which would fail with AccessDenied).
-        object_urls = [
-            generate_presigned_get_url(bucket_name, obj.object_name, 12, internal=True)
-            for obj in objects
-            if obj.object_name.lower().endswith(accepted_file_extensions)
-            and not self._is_thumbnail_object_key(obj.object_name)
-        ]
-
-        total_files = len(object_urls)
-        log.info(f"{total_files} images found in S3 for task {task_id}")
-
-        successful_downloads = 0
-        failed_downloads = 0
-
-        async with aiohttp.ClientSession() as session:
-            for i in range(0, total_files, batch_size):
-                batch = object_urls[i : i + batch_size]
-                batch_number = i // batch_size + 1
-                total_batches = (total_files + batch_size - 1) // batch_size
-
-                log.info(f"Downloading batch {batch_number}/{total_batches}")
-                tasks = [
-                    self.download_image(
-                        session,
-                        url,
-                        os.path.join(local_dir, f"{task_id}_file_{i + j + 1}.jpg"),
+            if resp.status >= 400:
+                err = None
+                if isinstance(payload, dict):
+                    err = (
+                        payload.get("error")
+                        or payload.get("errorMessage")
+                        or payload.get("message")
                     )
-                    for j, url in enumerate(batch)
-                ]
-                results = await asyncio.gather(*tasks)
-                successful_downloads += sum(1 for r in results if r)
-                failed_downloads += sum(1 for r in results if not r)
+                raise ScaleOdmSubmitError(
+                    err
+                    or f"ScaleODM /task/new returned HTTP {resp.status}: {text[:300]}",
+                    status=resp.status,
+                )
 
-        log.info(
-            f"Completed downloading {successful_downloads}/{total_files} images "
-            f"({failed_downloads} failed)"
-        )
-
-        if successful_downloads < 3:
-            log.error(
-                f"Only {successful_downloads} images downloaded successfully. "
-                f"ODM requires at least 3 images."
+            uuid_value = (
+                (payload or {}).get("uuid") if isinstance(payload, dict) else None
             )
+            if not uuid_value:
+                raise ScaleOdmSubmitError(
+                    f"ScaleODM /task/new response missing uuid: {text[:300]}"
+                )
+            log.info(f"ScaleODM accepted task {uuid_value} ({name})")
+            return str(uuid_value)
 
-    def process_new_task(
-        self,
-        images: List[str],
-        name: Optional[str] = None,
-        options: Optional[List[Dict[str, Any]]] = None,
-        progress_callback: Optional[Any] = None,
-        webhook: Optional[str] = None,
-    ):
-        """Create a new processing task.
 
-        :param images: List of image file paths
-        :param name: Task name
-        :param options: Processing options
-        :param progress_callback: Progress tracking callback
-        :param webhook: Webhook URL
-        :return: Created task object
-        """
-        opts = self.options_list_to_dict(options)
-        task = self.node.create_task(
-            images, opts, name, progress_callback, webhook=webhook
-        )
-        return task
-
-    async def _process_images(
-        self,
-        bucket_name: str,
-        name: Optional[str] = None,
-        options: Optional[List[Dict[str, Any]]] = None,
-        webhook: Optional[str] = None,
-        single_task: bool = True,
-    ):
-        """Internal method to process images for a single task or multiple tasks.
-
-        :param bucket_name: Bucket name
-        :param name: Task name
-        :param options: Processing options
-        :param webhook: Webhook URL
-        :param single_task: Whether processing a single or multiple tasks
-        :return: Created task object
-        """
-        # Create a temporary directory to store downloaded images
-        temp_dir = tempfile.mkdtemp()
-        try:
-            images_list = []
-            # Download images based on single or multiple task processing
-            if single_task:  # and self.task_id:
-                await self.download_images_from_s3(bucket_name, temp_dir, self.task_id)
-                images_list = self.list_images(temp_dir)
-            else:
-                gcp_list_file = f"projects/{self.project_id}/gcp.txt"
-                gcp_file_path = os.path.join(temp_dir, "gcp.txt")
-
-                # Check and add the GCP file to the images list if it exists
-                if get_file_from_bucket(bucket_name, gcp_list_file, gcp_file_path):
-                    images_list.append(gcp_file_path)
-                else:
-                    log.info(
-                        f"GCP file not available for project ID {self.project_id}."
+async def remove_scaleodm_task(*, scaleodm_url: str, odm_task_uuid: str) -> None:
+    """Best-effort POST /task/remove. Logs and swallows failures."""
+    base = scaleodm_url.rstrip("/")
+    url = f"{base}/task/remove"
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=SCALEODM_SUBMIT_TIMEOUT_SEC)
+        ) as session:
+            async with session.post(url, json={"uuid": odm_task_uuid}) as resp:
+                if resp.status >= 400:
+                    body = await resp.text()
+                    log.warning(
+                        "ScaleODM /task/remove returned HTTP {} for {}: {}",
+                        resp.status,
+                        odm_task_uuid,
+                        body[:200],
                     )
+                    return
+        log.info(f"Removed ScaleODM task {odm_task_uuid}")
+    except Exception as e:
+        log.warning(f"Failed to remove ScaleODM task {odm_task_uuid}: {e}")
 
-                for task_id in self.task_ids:
-                    await self.download_images_from_s3(bucket_name, temp_dir, task_id)
-                    images_list.extend(self.list_images(temp_dir))
 
-            # Start a new processing task
-            task = self.process_new_task(
-                list(set(images_list)),
-                name=name
-                or (
-                    f"DTM-Task-{self.task_id}"
-                    if single_task
-                    else f"DTM-Project-{self.project_id}"
-                ),
-                options=options,
-                webhook=webhook,
-            )
-
-            return task
-        finally:
-            # Clean up temporary directory
-            shutil.rmtree(temp_dir)
-
-    async def process_single_task(
-        self,
-        bucket_name: str,
-        name: Optional[str] = None,
-        options: Optional[List[Dict[str, Any]]] = None,
-        webhook: Optional[str] = None,
-    ):
-        """Process images for a single task.
-
-        :param bucket_name: Bucket name
-        :param name: Task name
-        :param options: Processing options
-        :param webhook: Webhook URL
-        :return: Created task object
-        """
-        return await self._process_images(
-            bucket_name, name=name, options=options, webhook=webhook, single_task=True
-        )
-
-    async def process_multiple_tasks(
-        self,
-        bucket_name: str,
-        name: Optional[str] = None,
-        options: Optional[List[Dict[str, Any]]] = None,
-        webhook: Optional[str] = None,
-    ):
-        """Process images for multiple tasks.
-
-        :param bucket_name: Bucket name
-        :param name: Task name
-        :param options: Processing options
-        :param webhook: Webhook URL
-        :return: Created task object
-        """
-        return await self._process_images(
-            bucket_name, name=name, options=options, webhook=webhook, single_task=False
-        )
-
-    def monitor_task(self, task):
-        """Monitors the task progress until completion.
-
-        :param task: The task object.
-        """
-        log.info(f"Monitoring task {task.uuid}...")
-        task.wait_for_completion(interval=5)
-        log.info("Task completed.")
-        return task
-
-    async def process_images_from_s3(
-        self,
-        bucket_name: str,
-        name: Optional[str] = None,
-        options: Optional[List[Dict[str, Any]]] = None,
-        webhook: Optional[str] = None,
-    ):
-        """Process images from S3 for a single task."""
-        task = await self.process_single_task(
-            bucket_name, name=name, options=options, webhook=webhook
-        )
-
-        return task
-
-    async def process_images_for_all_tasks(
-        self,
-        bucket_name: str,
-        name_prefix: Optional[str] = None,
-        options: Optional[List[Dict[str, Any]]] = None,
-        webhook: Optional[str] = None,
-    ):
-        """Process images for all tasks in a project."""
-        task = await self.process_multiple_tasks(
-            bucket_name, name=name_prefix, options=options, webhook=webhook
-        )
-
-        return task
+async def fetch_scaleodm_task_info(
+    *, scaleodm_url: str, odm_task_uuid: str
+) -> Optional[dict[str, Any]]:
+    """Fetch /task/{uuid}/info from ScaleODM. Returns ``None`` on failure."""
+    base = scaleodm_url.rstrip("/")
+    url = f"{base}/task/{odm_task_uuid}/info"
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=15)
+        ) as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    log.warning(
+                        "ScaleODM /task/{}/info returned HTTP {}",
+                        odm_task_uuid,
+                        resp.status,
+                    )
+                    return None
+                return await resp.json()
+    except Exception as e:
+        log.warning(f"Failed to fetch ScaleODM task info for {odm_task_uuid}: {e}")
+        return None
 
 
 def reproject_to_web_mercator(input_file, output_file):
@@ -381,17 +162,11 @@ def reproject_to_web_mercator(input_file, output_file):
     Done in two steps to avoid a known issue where combining the COG
     driver with Warp + creationOptions + memory caps produces truncated
     output: first Warp to a plain GeoTIFF, then Translate that to COG.
-
-    Args:
-        input_file (str): Path to the input orthophoto.
-        output_file (str): Path to the final reprojected COG.
     """
     warped_path = output_file + ".warped.tif"
     try:
-        # Cap GDAL block cache so large orthophotos don't OOM the worker.
         gdal.SetConfigOption("GDAL_CACHEMAX", "256")
 
-        # Step 1: Warp to an intermediate GeoTIFF in EPSG:3857.
         gdal.Warp(
             warped_path,
             input_file,
@@ -403,7 +178,6 @@ def reproject_to_web_mercator(input_file, output_file):
             creationOptions=["COMPRESS=DEFLATE", "BIGTIFF=IF_SAFER", "TILED=YES"],
         )
 
-        # Step 2: Convert the warped GeoTIFF into a proper COG.
         gdal.Translate(
             output_file,
             warped_path,
@@ -423,33 +197,111 @@ def reproject_to_web_mercator(input_file, output_file):
                 pass
 
 
+def _orthophoto_s3_key(project_id: uuid.UUID, task_id: Optional[uuid.UUID]) -> str:
+    task_segment = f"{task_id}/" if task_id else ""
+    return f"projects/{project_id}/{task_segment}odm/odm_orthophoto/odm_orthophoto.tif"
+
+
+def reproject_orthophoto_in_place(
+    project_id: uuid.UUID,
+    task_id: Optional[uuid.UUID],
+) -> None:
+    """Pull odm_orthophoto.tif from S3, reproject to EPSG:3857 COG, overwrite the same key.
+
+    Single-file equivalent of the orthophoto branch inside
+    extract_and_upload_odm_assets, used as the only post-processing step
+    after a ScaleODM run completes.
+    """
+    s3_key = _orthophoto_s3_key(project_id, task_id)
+
+    temp_dir = tempfile.mkdtemp()
+    src_path = os.path.join(temp_dir, "odm_orthophoto.tif")
+    out_path = os.path.join(temp_dir, "odm_orthophoto_3857.tif")
+
+    try:
+        ok = get_file_from_bucket(settings.S3_BUCKET_NAME, s3_key, src_path)
+        if ok is False or not os.path.exists(src_path):
+            raise OrthophotoPostProcessingError(
+                f"Could not download orthophoto from s3://{settings.S3_BUCKET_NAME}/{s3_key}"
+            )
+
+        try:
+            src_ds = gdal.Open(src_path)
+            if src_ds is not None:
+                log.info(
+                    "Source ScaleODM orthophoto: size={}x{}, bands={}, "
+                    "filesize={} bytes, geotransform={}, projection={}",
+                    src_ds.RasterXSize,
+                    src_ds.RasterYSize,
+                    src_ds.RasterCount,
+                    os.path.getsize(src_path),
+                    src_ds.GetGeoTransform(),
+                    (src_ds.GetProjection() or "(none)")[:200],
+                )
+                src_ds = None
+            else:
+                log.warning(f"GDAL could not open source ortho at {src_path}")
+        except Exception as inspect_err:
+            log.warning(f"Failed to inspect source ortho: {inspect_err}")
+
+        try:
+            reproject_to_web_mercator(src_path, out_path)
+        except Exception as e:
+            raise OrthophotoPostProcessingError(
+                f"Reprojection failed for {s3_key}: {e}"
+            ) from e
+
+        try:
+            out_ds = gdal.Open(out_path)
+            if out_ds is not None:
+                log.info(
+                    "Reprojected COG orthophoto: size={}x{}, filesize={} bytes",
+                    out_ds.RasterXSize,
+                    out_ds.RasterYSize,
+                    os.path.getsize(out_path),
+                )
+                out_ds = None
+        except Exception:
+            pass
+
+        try:
+            add_file_to_bucket(settings.S3_BUCKET_NAME, out_path, s3_key)
+        except Exception as e:
+            raise OrthophotoPostProcessingError(
+                f"Upload of reprojected ortho failed for {s3_key}: {e}"
+            ) from e
+
+        log.info(f"Uploaded reprojected COG orthophoto to {s3_key}")
+
+    finally:
+        for path in (src_path, out_path, out_path + ".warped.tif"):
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
+        try:
+            os.rmdir(temp_dir)
+        except Exception:
+            pass
+
+
 def extract_and_upload_odm_assets(
     zip_path: str,
     temp_dir: str,
     project_id: uuid.UUID,
-    task_id: uuid.UUID | None,
+    task_id: Optional[uuid.UUID],
 ) -> bool:
     """Extract files from an ODM zip one-by-one and upload each to S3.
 
-    Uploads individual files under ``projects/{pid}/{tid}/odm/``.  The raw
-    orthophoto is **not** uploaded; instead it is reprojected to EPSG:3857
-    COG and the COG is stored at
-    ``projects/{pid}/{tid}/odm/odm_orthophoto/odm_orthophoto.tif``,
-    eliminating the previous duplication into a separate ``orthophoto/``
-    prefix.
-
-    Uses a single pass over the zip.  The orthophoto is *kept* on disk
-    (without uploading the raw version) so that reprojection can happen
-    after the zip is deleted - cutting peak disk usage roughly in half
-    for large archives.
-
-    Returns True on success.
+    Used by the manual ODM zip import flow. Uploads individual files
+    under ``projects/{pid}/{tid}/odm/`` and replaces the raw orthophoto
+    with an EPSG:3857 COG at
+    ``projects/{pid}/{tid}/odm/odm_orthophoto/odm_orthophoto.tif``.
     """
     task_segment = f"{task_id}/" if task_id else ""
     odm_prefix = f"projects/{project_id}/{task_segment}odm/"
 
-    # Clear any existing objects under the prefix so retries/reimports
-    # produce a clean set rather than a union of old and new files.
     existing = delete_objects_by_prefix(settings.S3_BUCKET_NAME, odm_prefix)
     if existing:
         log.info(f"Cleared {existing} existing objects under {odm_prefix}")
@@ -457,16 +309,11 @@ def extract_and_upload_odm_assets(
     ortho_member = "odm_orthophoto/odm_orthophoto.tif"
     ortho_local: str | None = None
 
-    # Single pass: extract, upload, and delete - except the orthophoto,
-    # which we keep on disk for post-processing after the zip is removed.
-    # The raw orthophoto is NOT uploaded here; it is replaced by the
-    # reprojected COG after the zip is deleted (saves ~50% ortho storage).
     with zipfile.ZipFile(zip_path, "r") as zf:
         for member in zf.namelist():
             if member.endswith("/"):
                 continue
 
-            # Reject path-traversal attempts (absolute paths or ../ components)
             resolved = os.path.realpath(os.path.join(temp_dir, member))
             if not resolved.startswith(os.path.realpath(temp_dir) + os.sep):
                 log.warning(f"Skipping zip member with unsafe path: {member}")
@@ -474,7 +321,6 @@ def extract_and_upload_odm_assets(
 
             extracted_path = zf.extract(member, temp_dir)
 
-            # Keep orthophoto on disk only (don't upload raw - COG replaces it later)
             if member == ortho_member:
                 ortho_local = extracted_path
                 continue
@@ -490,22 +336,14 @@ def extract_and_upload_odm_assets(
 
             os.remove(extracted_path)
 
-    # Delete the zip now to free disk before the expensive reprojection.
-    # The orthophoto we kept is independent of the zip.
     if os.path.exists(zip_path):
         os.remove(zip_path)
         log.info(f"Deleted zip {zip_path} to free disk before reprojection")
 
-    # Reproject orthophoto and upload the COG directly into the odm/ tree,
-    # replacing the raw version (which was intentionally not uploaded above).
     if ortho_local and os.path.exists(ortho_local):
-        # Log the source orthophoto's dimensions and CRS up front so we can
-        # tell whether a tiny output is caused by a bad source from ODM or
-        # by the reprojection step itself.
         try:
             src_ds = gdal.Open(ortho_local)
             if src_ds is not None:
-                src_proj = src_ds.GetProjection() or "(none)"
                 log.info(
                     "Source ODM orthophoto: size={}x{}, bands={}, "
                     "filesize={} bytes, geotransform={}, projection={}",
@@ -514,7 +352,7 @@ def extract_and_upload_odm_assets(
                     src_ds.RasterCount,
                     os.path.getsize(ortho_local),
                     src_ds.GetGeoTransform(),
-                    src_proj[:200],
+                    (src_ds.GetProjection() or "(none)")[:200],
                 )
                 src_ds = None
             else:
@@ -526,7 +364,6 @@ def extract_and_upload_odm_assets(
         try:
             reproject_to_web_mercator(ortho_local, reprojected_path)
 
-            # Log reprojected dimensions for comparison.
             try:
                 out_ds = gdal.Open(reprojected_path)
                 if out_ds is not None:
@@ -554,224 +391,3 @@ def extract_and_upload_odm_assets(
         )
 
     return True
-
-
-async def process_assets_from_odm(
-    node_odm_url: str,
-    dtm_project_id: uuid.UUID,
-    odm_task_id: str,
-    state=None,
-    message=None,
-    dtm_task_id=None,
-    odm_status_code: Optional[int] = None,
-    persist_failure_state: bool = True,
-    db_pool=None,
-):
-    """Downloads results from ODM, reprojects the orthophoto, and uploads assets to S3.
-    Updates task state if required.
-
-    :param node_odm_url: URL of the ODM node.
-    :param dtm_project_id: UUID of the project.
-    :param odm_task_id: UUID of the ODM task.
-    :param state: Current state of the task.
-    :param message: Message to log upon completion.
-    :param dtm_task_id: Task ID for state updates.
-    :param db_pool: Optional shared connection pool (e.g. from arq worker context).
-        When provided, this pool is reused instead of creating throwaway pools.
-    """
-
-    async def _get_conn():
-        """Get a DB connection from the shared pool or a one-off pool."""
-        if db_pool:
-            return db_pool.connection()
-        # Fallback: create a temporary pool (legacy / test usage).
-        pool = await database.get_db_connection_pool()
-        return pool.connection()
-
-    # Deduplication: verify the task is still in the expected state before
-    # doing any heavy work.  This prevents double-processing when both a
-    # webhook and the reconciliation loop fire for the same task.
-    if dtm_task_id and state:
-        try:
-            async with await _get_conn() as conn:
-                current = await task_logic.get_task_state(
-                    conn, dtm_project_id, dtm_task_id
-                )
-                current_state = current.get("state") if current else None
-                if current_state and current_state != state.name:
-                    log.warning(
-                        "Skipping process_assets_from_odm for task {}: "
-                        "expected state {} but found {} (already handled)",
-                        dtm_task_id,
-                        state.name,
-                        current_state,
-                    )
-                    return
-        except Exception as e:
-            log.warning(
-                "Could not verify task state before processing (continuing): {}", e
-            )
-
-    log.info(f"Starting processing for project {dtm_project_id}")
-    node = Node.from_url(node_odm_url)
-    output_file_path = f"/tmp/{uuid.uuid4()}"
-    task = None
-
-    try:
-        os.makedirs(output_file_path, exist_ok=True)
-        try:
-            task = await asyncio.wait_for(
-                asyncio.to_thread(node.get_task, odm_task_id),
-                timeout=ODM_GET_TASK_TIMEOUT_SEC,
-            )
-        except asyncio.TimeoutError as e:
-            raise OdmAssetTransientError(
-                f"Timed out fetching ODM task info after {ODM_GET_TASK_TIMEOUT_SEC}s"
-            ) from e
-        except Exception as e:
-            if _is_retryable_odm_exception(e):
-                raise OdmAssetTransientError(
-                    f"Failed to fetch ODM task info: {e}"
-                ) from e
-            raise
-
-        log.info(f"Downloading results for task {odm_task_id} to {output_file_path}")
-
-        if str(odm_status_code) == "30":
-            status = ImageProcessingStatus.FAILED
-        elif str(odm_status_code) == "40":
-            try:
-                assets_path = await asyncio.wait_for(
-                    asyncio.to_thread(task.download_zip, output_file_path),
-                    timeout=ODM_DOWNLOAD_ZIP_TIMEOUT_SEC,
-                )
-            except asyncio.TimeoutError as e:
-                raise OdmAssetTransientError(
-                    f"Timed out downloading ODM assets after {ODM_DOWNLOAD_ZIP_TIMEOUT_SEC}s"
-                ) from e
-            except Exception as e:
-                if _is_retryable_odm_exception(e):
-                    raise OdmAssetTransientError(
-                        f"Failed to download ODM assets: {e}"
-                    ) from e
-                raise
-
-            if not os.path.exists(assets_path):
-                log.error(f"Downloaded file not found: {assets_path}")
-                raise FileNotFoundError(f"Downloaded file not found: {assets_path}")
-            log.info(f"Successfully downloaded ZIP to {assets_path}")
-
-            # Extract all ODM files individually to S3 under odm/ prefix
-            # and reproject the orthophoto to EPSG:3857.  The helper deletes
-            # the zip after extraction to free disk before the expensive
-            # GDAL reprojection step.
-            extract_and_upload_odm_assets(
-                assets_path, output_file_path, dtm_project_id, dtm_task_id
-            )
-
-            log.info(f"Processing complete for project {dtm_project_id}")
-
-            if state and dtm_task_id:
-                async with await _get_conn() as conn:
-                    await task_logic.update_task_state_system(
-                        db=conn,
-                        project_id=dtm_project_id,
-                        task_id=dtm_task_id,
-                        comment=message,
-                        initial_state=state,
-                        final_state=State.IMAGE_PROCESSING_FINISHED,
-                        updated_at=timestamp(),
-                    )
-                    log.info(
-                        f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FINISHED in the database."
-                    )
-
-                    task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-                    assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
-                    await project_logic.update_task_field(
-                        conn,
-                        dtm_project_id,
-                        dtm_task_id,
-                        "assets_url",
-                        assets_prefix,
-                    )
-
-            status = ImageProcessingStatus.SUCCESS
-        if not dtm_task_id:
-            # Update the image processing status
-            async with await _get_conn() as conn:
-                await project_logic.update_processing_status(
-                    conn, dtm_project_id, status
-                )
-
-    except Exception as e:
-        log.error(f"Error during processing for project {dtm_project_id}: {e}")
-
-        # Clean up any partially-uploaded ODM assets so a retry starts clean.
-        try:
-            task_segment = f"{dtm_task_id}/" if dtm_task_id else ""
-            partial_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
-            delete_objects_by_prefix(settings.S3_BUCKET_NAME, partial_prefix)
-            target = dtm_task_id or dtm_project_id
-            log.info(f"Cleaned up partial ODM assets for {target}")
-        except Exception as cleanup_err:
-            log.warning(
-                f"Failed to clean up partial ODM assets: {cleanup_err}",
-            )
-
-        if persist_failure_state:
-            try:
-                async with await _get_conn() as conn:
-                    if state and dtm_task_id:
-                        await task_logic.update_task_state_system(
-                            db=conn,
-                            project_id=dtm_project_id,
-                            task_id=dtm_task_id,
-                            comment=f"Image processing failed: {e}",
-                            initial_state=state,
-                            final_state=State.IMAGE_PROCESSING_FAILED,
-                            updated_at=timestamp(),
-                        )
-                        log.info(
-                            f"Task {dtm_task_id} state updated to IMAGE_PROCESSING_FAILED."
-                        )
-                    elif not dtm_task_id:
-                        await project_logic.update_processing_status(
-                            conn, dtm_project_id, ImageProcessingStatus.FAILED
-                        )
-                        log.info(f"Project {dtm_project_id} status updated to FAILED.")
-            except Exception as state_err:
-                target = dtm_task_id or dtm_project_id
-                log.error(f"Failed to persist failure state for {target}: {state_err}")
-
-        if isinstance(e, OdmAssetTerminalError):
-            raise
-        if isinstance(e, OdmAssetTransientError):
-            raise
-
-        if _is_retryable_odm_exception(e):
-            raise OdmAssetTransientError(str(e)) from e
-
-        raise OdmAssetTerminalError(str(e)) from e
-
-    finally:
-        if task:
-            try:
-                log.info(f"Attempting to delete task {odm_task_id} from NodeODM.")
-                task.remove()
-                log.info(
-                    f"Successful attempt at deleting task {odm_task_id} from NodeODM."
-                )
-            except Exception as e:
-                log.error(
-                    f"Error occurred while cleaning up task {odm_task_id} from NodeODM: {e}."
-                )
-
-        if os.path.exists(output_file_path):
-            try:
-                shutil.rmtree(output_file_path)
-                log.info(f"Temporary directory {output_file_path} cleaned up.")
-            except Exception as cleanup_error:
-                log.error(
-                    f"Error cleaning up directory {output_file_path}: {cleanup_error}"
-                )

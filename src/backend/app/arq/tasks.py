@@ -51,10 +51,11 @@ from app.s3 import (
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
 from app.images.image_processing import (
-    OdmAssetTerminalError,
-    OdmAssetTransientError,
+    OrthophotoPostProcessingError,
     extract_and_upload_odm_assets,
-    process_assets_from_odm,
+    fetch_scaleodm_task_info,
+    remove_scaleodm_task,
+    reproject_orthophoto_in_place,
 )
 from app.models.enums import ImageProcessingStatus, State
 from app.tasks import task_logic
@@ -1189,36 +1190,38 @@ async def _persist_odm_failure(
         log.error(f"Failed to persist ODM failure state for {target}: {state_err}")
 
 
-async def process_odm_webhook_assets(
+async def finalize_scaleodm_task(
     ctx: Dict[Any, Any],
-    node_odm_url: str,
+    *,
+    scaleodm_url: str,
     dtm_project_id: str,
-    odm_task_id: str,
+    odm_task_uuid: str,
+    odm_status_code: int,
     state_name: Optional[str] = None,
     message: Optional[str] = None,
     dtm_task_id: Optional[str] = None,
-    odm_status_code: Optional[int] = None,
     **_kwargs: Any,
 ) -> Dict[str, Any]:
-    """ARQ wrapper for process_assets_from_odm (webhook flow).
+    """Finalize a ScaleODM task after a webhook (or reconciler) reports terminal status.
 
-    Offloads the heavy zip download, extraction, and GDAL reprojection
-    from the API server to the worker so it doesn't trigger liveness
-    probe failures.
-
-    Uses a Redis lock (SET NX) to prevent concurrent processing of the
-    same task, in addition to arq's ``_job_id`` dedup at enqueue time.
+    On status 40 (completed), pulls odm_orthophoto.tif from the ScaleODM
+    output prefix, reprojects it to EPSG:3857 COG, overwrites the same key,
+    sets ``assets_url`` and transitions to IMAGE_PROCESSING_FINISHED. On 30
+    (failed) records an error message and marks the task/project failed.
+    Either way, best-effort POST /task/remove cleans up the ScaleODM row.
     """
     job_id = ctx.get("job_id", "unknown")
     log.info(
-        "Starting process_odm_webhook_assets (Job ID: {}): project={} odm_task={}",
+        "Starting finalize_scaleodm_task (Job ID: {}): project={} odm_task={} code={}",
         job_id,
         dtm_project_id,
-        odm_task_id,
+        odm_task_uuid,
+        odm_status_code,
     )
 
-    # Distributed lock: prevent two workers from processing the same
-    # task concurrently (belt-and-suspenders alongside _job_id dedup).
+    # Distributed lock: belt-and-suspenders alongside arq's _job_id dedup.
+    # Lock key is intentionally identical to the legacy one so a webhook
+    # and a reconciliation pass can never race even across deploy boundaries.
     lock_target = dtm_task_id or dtm_project_id
     lock_key = f"lock:odm-assets:{lock_target}"
     redis = ctx.get("redis")
@@ -1228,58 +1231,138 @@ async def process_odm_webhook_assets(
             lock_key,
             job_id,
             nx=True,
-            ex=21600,  # 6 hours - must exceed worst-case download + reprojection
+            ex=21600,  # 6 hours - must exceed worst-case reprojection
         )
         if not lock_acquired:
             log.warning(
-                "Skipping process_odm_webhook_assets for {}: "
+                "Skipping finalize_scaleodm_task for {}: "
                 "another job already holds the lock",
                 lock_target,
             )
             return {"status": "skipped", "reason": "concurrent_lock"}
 
-    try:
-        project_uuid = UUID(dtm_project_id)
-        task_uuid = UUID(dtm_task_id) if dtm_task_id else None
-        state = State[state_name] if state_name else None
-        job_try = int(ctx.get("job_try") or 1)
-        max_tries = int(getattr(WorkerSettings, "max_tries", 3) or 3)
+    project_uuid = UUID(dtm_project_id)
+    task_uuid = UUID(dtm_task_id) if dtm_task_id else None
+    state = State[state_name] if state_name else None
+    db_pool = ctx.get("db_pool")
+    job_try = int(ctx.get("job_try") or 1)
+    max_tries = int(getattr(WorkerSettings, "max_tries", 3) or 3)
 
-        try:
-            await process_assets_from_odm(
-                node_odm_url=node_odm_url,
-                dtm_project_id=project_uuid,
-                odm_task_id=odm_task_id,
-                state=state,
-                message=message,
-                dtm_task_id=task_uuid,
-                odm_status_code=odm_status_code,
-                persist_failure_state=False,
-                db_pool=ctx.get("db_pool"),
-            )
-        except OdmAssetTransientError as e:
-            if job_try < max_tries:
+    try:
+        # Pre-flight: skip if the task is no longer in the expected state
+        # (a previous webhook + reconciler may have already finalized).
+        if task_uuid and state and db_pool:
+            try:
+                async with db_pool.connection() as conn:
+                    current = await task_logic.get_task_state(
+                        conn, project_uuid, task_uuid
+                    )
+                    current_state = current.get("state") if current else None
+                    if current_state and current_state != state.name:
+                        log.warning(
+                            "Skipping finalize for task {}: expected state {} "
+                            "but found {} (already handled)",
+                            task_uuid,
+                            state.name,
+                            current_state,
+                        )
+                        return {"status": "skipped", "reason": "state_mismatch"}
+            except Exception as e:
                 log.warning(
-                    f"Transient ODM asset processing error "
-                    f"(try {job_try}/{max_tries}), retrying: {e}",
+                    "Could not verify task state before finalizing (continuing): {}",
+                    e,
                 )
+
+        if int(odm_status_code) == 40:
+            try:
+                await asyncio.to_thread(
+                    reproject_orthophoto_in_place, project_uuid, task_uuid
+                )
+            except OrthophotoPostProcessingError as e:
+                if job_try < max_tries:
+                    log.warning(
+                        "Transient orthophoto post-processing failure "
+                        "(try {}/{}), retrying: {}",
+                        job_try,
+                        max_tries,
+                        e,
+                    )
+                    raise
+                log.error(
+                    "Orthophoto post-processing exhausted retries ({}/{}): {}",
+                    job_try,
+                    max_tries,
+                    e,
+                )
+                await _persist_odm_failure(ctx, project_uuid, task_uuid, state, str(e))
                 raise
 
-            log.error(
-                f"ODM asset processing exhausted retries ({job_try}/{max_tries}): {e}",
+            task_segment = f"{task_uuid}/" if task_uuid else ""
+            assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
+
+            if db_pool:
+                async with db_pool.connection() as conn:
+                    if task_uuid and state:
+                        await task_logic.update_task_state_system(
+                            db=conn,
+                            project_id=project_uuid,
+                            task_id=task_uuid,
+                            comment=message,
+                            initial_state=state,
+                            final_state=State.IMAGE_PROCESSING_FINISHED,
+                            updated_at=timestamp(),
+                        )
+                        await project_logic.update_task_field(
+                            conn,
+                            project_uuid,
+                            task_uuid,
+                            "assets_url",
+                            assets_prefix,
+                        )
+                        log.info(
+                            f"Task {task_uuid} state updated to IMAGE_PROCESSING_FINISHED."
+                        )
+                    elif not task_uuid:
+                        await project_logic.update_processing_status(
+                            conn, project_uuid, ImageProcessingStatus.SUCCESS
+                        )
+                        log.info(f"Project {project_uuid} status updated to SUCCESS.")
+                    await conn.commit()
+
+            await remove_scaleodm_task(
+                scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
             )
-            await _persist_odm_failure(ctx, project_uuid, task_uuid, state, str(e))
-            raise
-        except OdmAssetTerminalError as e:
-            log.error(f"Terminal ODM asset processing error: {e}")
-            await _persist_odm_failure(ctx, project_uuid, task_uuid, state, str(e))
+            return {"status": "completed", "project_id": dtm_project_id}
+
+        if int(odm_status_code) == 30:
+            error_detail = message or "ODM processing failed"
+            info = await fetch_scaleodm_task_info(
+                scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
+            )
+            if info and isinstance(info, dict):
+                err = info.get("errorMessage") or info.get("error")
+                if err:
+                    error_detail = str(err)
+
+            await _persist_odm_failure(
+                ctx, project_uuid, task_uuid, state, error_detail
+            )
+
+            await remove_scaleodm_task(
+                scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
+            )
             return {
                 "status": "failed",
-                "reason": "terminal_error",
+                "reason": "odm_status_30",
                 "project_id": dtm_project_id,
             }
 
-        return {"status": "completed", "project_id": dtm_project_id}
+        log.warning(
+            "finalize_scaleodm_task called with unexpected status code {} "
+            "(expected 30 or 40); skipping",
+            odm_status_code,
+        )
+        return {"status": "skipped", "reason": "unexpected_status_code"}
     finally:
         if redis and lock_acquired:
             await redis.delete(lock_key)
@@ -1690,7 +1773,7 @@ class WorkerSettings:
         download_and_upload_dem,
         generate_qfield_project,
         process_imported_odm_assets,
-        process_odm_webhook_assets,
+        finalize_scaleodm_task,
         create_project_from_imagery_exif,
     ]
 
