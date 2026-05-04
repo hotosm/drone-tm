@@ -61,6 +61,11 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   // get altitude
   const agl = measurementType === "gsd" ? gsdToAltitude(gsdInputValue) : altitudeInputValue;
 
+  // Terrain/elevation outputs (DTM index 1, DSM index 2) need higher overlap for triangulation
+  const isTerrainOutput = final_output?.[1] || final_output?.[2];
+  const frontOverlapRecommendation = isTerrainOutput ? "85%" : "75%";
+  const sideOverlapRecommendation = isTerrainOutput ? "85%" : "65%";
+
   return (
     <div className="naxatw-h-fit">
       {/* <RadioButton
@@ -183,68 +188,93 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
             />
           </FormControl>
           {imageMergeType === "overlap" ? (
-            <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
-              <FormControl className="naxatw-mt-2 naxatw-gap-1">
-                <Label required>Front Overlap in (%)</Label>
-                <Input
-                  placeholder="Image Overlap"
-                  type="number"
-                  max={100}
-                  min={0}
-                  {...register("front_overlap", {
-                    required: "Front Overlap is Required",
-                    valueAsNumber: true,
-                    max: {
-                      value: 100,
-                      message: "Front Overlap too high",
-                    },
-                    min: {
-                      value: 0,
-                      message: "Front Overlap cannot be negative",
-                    },
-                  })}
-                />
-                {frontOverlapInputValue && agl ? (
-                  <InfoMessage
-                    message={`Equivalent forward spacing is ${getForwardSpacing(agl, frontOverlapInputValue)?.replace(/\.00$/, "")} m`}
+            <>
+              <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
+                <FormControl className="naxatw-mt-2 naxatw-gap-1">
+                  <Label required>Front Overlap in (%)</Label>
+                  <Input
+                    placeholder="Image Overlap"
+                    type="number"
+                    max={100}
+                    min={0}
+                    {...register("front_overlap", {
+                      required: "Front Overlap is Required",
+                      valueAsNumber: true,
+                      max: {
+                        value: 100,
+                        message: "Front Overlap too high",
+                      },
+                      min: {
+                        value: 0,
+                        message: "Front Overlap cannot be negative",
+                      },
+                    })}
                   />
-                ) : (
-                  <></>
-                )}
-                <ErrorMessage message={errors?.forward_overlap_percent?.message as string} />
-                <p className="naxatw-text-[#68707F]">Recommended : 75%</p>
-              </FormControl>
-              <FormControl className="naxatw-mt-2 naxatw-gap-1">
-                <Label required>Side Overlap in (%)</Label>
-                <Input
-                  placeholder="Image Overlap"
-                  type="number"
-                  max={100}
-                  min={0}
-                  {...register("side_overlap", {
-                    required: "Side Overlap is required",
-                    valueAsNumber: true,
-                    max: {
-                      value: 100,
-                      message: "Side Overlap too high",
-                    },
-                    min: {
-                      value: 0,
-                      message: "Side Overlap cannot be negative",
-                    },
-                  })}
-                />
-                {sideOverlapInputValue && agl ? (
-                  <InfoMessage
-                    message={`Equivalent side spacing is ${getSideSpacing(agl, sideOverlapInputValue)?.replace(/\.00$/, "")} m`}
+                  {frontOverlapInputValue && agl ? (
+                    <InfoMessage
+                      message={`Equivalent forward spacing is ${getForwardSpacing(agl, frontOverlapInputValue)?.replace(/\.00$/, "")} m`}
+                    />
+                  ) : (
+                    <></>
+                  )}
+                  <ErrorMessage message={errors?.forward_overlap_percent?.message as string} />
+                  <p className="naxatw-text-[#68707F]">
+                    Recommended : {frontOverlapRecommendation}
+                  </p>
+                </FormControl>
+                <FormControl className="naxatw-mt-2 naxatw-gap-1">
+                  <Label required>Side Overlap in (%)</Label>
+                  <Input
+                    placeholder="Image Overlap"
+                    type="number"
+                    max={100}
+                    min={0}
+                    {...register("side_overlap", {
+                      required: "Side Overlap is required",
+                      valueAsNumber: true,
+                      max: {
+                        value: 100,
+                        message: "Side Overlap too high",
+                      },
+                      min: {
+                        value: 0,
+                        message: "Side Overlap cannot be negative",
+                      },
+                    })}
                   />
-                ) : (
-                  <></>
-                )}
-                <ErrorMessage message={errors?.side_overlap_percent?.message as string} />
-                <p className="naxatw-text-[#68707F]">Recommended : 75%</p>
-              </FormControl>
-            </FlexRow>
+                  {sideOverlapInputValue && agl ? (
+                    <InfoMessage
+                      message={`Equivalent side spacing is ${getSideSpacing(agl, sideOverlapInputValue)?.replace(/\.00$/, "")} m`}
+                    />
+                  ) : (
+                    <></>
+                  )}
+                  <ErrorMessage message={errors?.side_overlap_percent?.message as string} />
+                  <p className="naxatw-text-[#68707F]">Recommended : {sideOverlapRecommendation}</p>
+                </FormControl>
+              </FlexRow>
+              <div className="naxatw-mt-3 naxatw-rounded-md naxatw-border naxatw-border-[#17A2B8] naxatw-bg-[#e6f7fb] naxatw-p-3">
+                <p className="naxatw-mb-1 naxatw-text-sm naxatw-font-semibold naxatw-text-[#17A2B8]">
+                  Overlap guidance
+                </p>
+                <ul className="naxatw-ml-4 naxatw-list-disc naxatw-space-y-1 naxatw-text-sm naxatw-text-[#4A5568]">
+                  {isTerrainOutput ? (
+                    <li>
+                      Terrain and elevation models need <strong>85% or higher on both axes</strong>{" "}
+                      for accurate triangulation. Side overlap below 70% is not recommended.
+                    </li>
+                  ) : (
+                    <li>For orthophotos, 75% front and 65% side is a reliable minimum.</li>
+                  )}
+                  <li>
+                    Low-texture areas (sand, water, bare ground, dense vegetation) and mountainous
+                    terrain benefit from higher overlaps to ensure sufficient matching points
+                    between images.
+                  </li>
+                  <li>Never go below 72% front overlap as a practical floor.</li>
+                </ul>
+              </div>
+            </>
           ) : (
             <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
               <FormControl className="naxatw-mt-4 naxatw-gap-1">
