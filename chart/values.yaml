@@ -199,8 +199,8 @@ worker:
         - arq
         - app.arq.tasks.WorkerSettings
         - --check
-    initialDelaySeconds: 15
-    periodSeconds: 15
+    initialDelaySeconds: 70
+    periodSeconds: 60
     timeoutSeconds: 5
     failureThreshold: 3
 

@@ -1781,7 +1781,7 @@ class WorkerSettings:
     max_jobs = 20
     job_timeout = 86400  # 24 hours
     max_tries = 3
-    health_check_interval = 300  # 5 minutes
+    health_check_interval = 60
     on_startup = startup
     on_shutdown = shutdown
 
