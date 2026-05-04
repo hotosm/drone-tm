@@ -65,7 +65,19 @@ See [tutorial videos](https://drone.hotosm.org/tutorials) on the DroneTM platfor
          drone reaches the 2nd waypoint on the mission** (i.e. once it reaches
          the start of the photo capture grid, after the initial takeoff
          waypoint). Also ensure the photo capture is turned off when the final
-         waypoint is captured for the mission.
+         waypoint is captured for the mission. You must use 12MP JPEG to allow
+         2 second photo interval.
+
+         !!! note "Flight speed in waylines mode"
+
+             The drone's flight speed in waylines mode is calculated from your
+             **front overlap** setting and the 2-second photo interval, so that
+             photos are spaced correctly along each strip. A higher front overlap
+             means a lower flight speed. The controller will display this
+             calculated speed when the mission is loaded - do not manually
+             adjust it. If the speed looks unexpectedly high, check that the
+             front overlap value in DroneTM is set correctly before downloading
+             the flightplan.
 
       5. Do not interfere with the device mid-flight. Wait for the mission
          to finish before carrying out other operations on the controller.

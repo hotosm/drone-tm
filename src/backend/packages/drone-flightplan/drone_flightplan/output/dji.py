@@ -337,10 +337,15 @@ def create_placemark(placemark, final_index: int):
     )
 
     if take_photo:
-        # Take photo action, for waypoint mode
+        # Waypoint mode: one photo per waypoint; waypointSpeed controls timing.
         take_photo_action(action_group1, "1")
     else:
-        # Gimbal rotate action (immediate), prior to setting photo interval timer
+        # Waylines mode: photos are triggered by the operator's manual timer on the
+        # controller (set to 2 s). The waypointSpeed value is still set from the
+        # overlap-derived ground speed so the drone maintains the correct forward
+        # overlap during flight - it is NOT fixed at a default.
+        # The in-WPML interval timer (issue #612) is commented out below as it does
+        # not work reliably; for now operators must start/stop the timer manually.
         gimbal_rotate_action(action_group1, "1", str(gimbal_angle))
 
         # FIXME we are trying to enable and disable the photo capture interval

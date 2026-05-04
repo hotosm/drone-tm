@@ -179,22 +179,23 @@ def calculate_parameters(
     side_spacing = side_photo_width - side_overlap_distance
     ground_speed = forward_spacing / image_interval
 
-    # While Mini 4 Pro can go 12m/s and Mini 5 Pro 15m/s, we cap the ground speed at 11.5 m/s to
-    # avoid problems with the RC2 controller.
-    # Speeds over 12 m/s cause the controller to change the speed to 2.5 m/s, which is too slow.
-    # Keeping it below 12 m/s ensures the flight plan works correctly.
-    if ground_speed > 12 and (
-        drone_type
-        in [DroneType.DJI_MINI_5_PRO, DroneType.DJI_MINI_4_PRO, DroneType.DJI_AIR_3]
-    ):
-        ground_speed = 11.5
+    # Cap ground speed based on drone-specific limits.
+    # DJI RC2 controller silently resets speeds > 12 m/s down to 2.5 m/s, so we
+    # stay safely below that ceiling. The calculated speed from forward overlap must
+    # be respected when it is already below the cap (e.g. high overlap → slow speed).
+    if drone_type in [
+        DroneType.DJI_MINI_5_PRO,
+        DroneType.DJI_MINI_4_PRO,
+        DroneType.DJI_AIR_3,
+    ]:
+        ground_speed = min(ground_speed, 11.5)
     elif drone_type == DroneType.POTENSIC_ATOM_1:
         # NOTE This seems to be the max speed for the Potensic Atom 1
         # upon testing. This value could be updated if reported otherwise
-        ground_speed = 8.0
+        ground_speed = min(ground_speed, 8.0)
     else:
-        # FIXME what should be the default?
-        ground_speed = 11.5
+        # FIXME is this default appropriate for all drones?
+        ground_speed = min(ground_speed, 11.5)
 
     adjusted_max_battery_life = calculate_adjusted_max_battery_life(
         drone_type, ground_speed
