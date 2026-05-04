@@ -930,7 +930,7 @@ async def test_process_all_imagery_blocks_when_all_ready_tasks_transferring(
 
     assert response.status_code == 409
     assert response.json()["detail"] == (
-        "Imagery for ready tasks is still being transferred. "
+        "Imagery for some tasks is still being transferred. "
         "Please wait and retry processing."
     )
 
@@ -1000,7 +1000,7 @@ async def test_process_all_imagery_blocks_when_ready_tasks_are_mixed_transfer_st
 
     assert response.status_code == 409
     assert response.json()["detail"] == (
-        "Imagery for ready tasks is still being transferred. "
+        "Imagery for some tasks is still being transferred. "
         "Please wait and retry processing."
     )
     assert fake_redis.jobs == []
