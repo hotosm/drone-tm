@@ -83,9 +83,33 @@ DroneTM Backend: [http://localhost:8000](http://localhost:8000)
 
 DroneTM Frontend: [http://localhost:3040](http://localhost:3040)
 
-Web ODM: [http://localhost:9900](http://localhost:9900)
-
-- Default user: `admin`
-- Default password: `password`
-
 > Note the ports may be different if you changed them in the dotenv file.
+
+## End-to-end imagery processing (ScaleODM)
+
+DroneTM submits processing jobs to **ScaleODM**, which reads imagery directly
+from S3 and writes outputs back to S3. The compose stack ships a small NodeODM
+container as a placeholder so the backend boots cleanly, **but NodeODM cannot
+complete an end-to-end run**: it has no S3 writer, so the finalize step (which
+expects the orthophoto to already be in S3) will fail. To exercise the full
+pipeline locally you need ScaleODM running.
+
+1. Start ScaleODM on your host (kind/k3d, see the [ScaleODM
+   quickstart](https://github.com/hotosm/scaleodm)). It exposes its API on
+   `localhost:31100` by default.
+2. Point the backend at it from inside the compose network. Set in `.env`:
+
+   ```dotenv
+   # Backend container reaches the host via host.docker.internal
+   ODM_ENDPOINT=http://host.docker.internal:31100
+   # Only set this if your S3 hostname differs from what ScaleODM workflow
+   # pods can resolve (self-hosted MinIO/RustFS):
+   # SCALEODM_S3_ENDPOINT=http://host.docker.internal:9000
+   ```
+
+3. Restart the backend: `just start backend`.
+
+When `just start all` runs it will probe `localhost:31100/info` and warn if
+ScaleODM isn't reachable. The warning is informational - the rest of DroneTM
+(uploads, ingest, classification, UI) works without ScaleODM; only the
+processing path needs it.

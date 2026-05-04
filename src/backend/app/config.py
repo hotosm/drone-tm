@@ -203,8 +203,12 @@ class Settings(BaseSettings):
 
     # Internal backend URL for Docker-internal services (webhooks from ODM, etc.)
     BACKEND_URL_INTERNAL: str = "http://backend:8000"
-    # ODM (NodeODM) API endpoint
-    ODM_ENDPOINT: Optional[str] = "http://nodeodm:9900"
+    # ODM (ScaleODM) API endpoint
+    ODM_ENDPOINT: Optional[str] = "http://host.docker.internal:31100"
+    # In-cluster S3 endpoint passed to ScaleODM workflow pods.
+    # Needed when the browser-facing S3 hostname differs from what
+    # workflow pods can resolve (self-hosted MinIO/RustFS).
+    SCALEODM_S3_ENDPOINT: Optional[str] = None
     QGIS_URL: Optional[str] = "http://qgis:8080"
     DRAGONFLY_DSN: str = "redis://dragonfly:6379/0"
 
