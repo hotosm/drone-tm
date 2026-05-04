@@ -11,7 +11,7 @@ from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.waypoints import create_waypoint
 from drone_flightplan.drone_type import DroneType, DRONE_PARAMS, drone_type_arg
-from drone_flightplan.enums import FlightMode, flight_mode_arg
+from drone_flightplan.enums import FlightMode, GimbalAngle, flight_mode_arg
 from drone_flightplan.output.dji import create_wpml
 from drone_flightplan.output.potensic_v1 import create_potensic_sqlite
 from drone_flightplan.output.potensic_v2 import create_potensic_json
@@ -35,6 +35,7 @@ def create_flightplan(
     rotation_angle: float = 0.0,
     take_off_point: list[float] = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
+    gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ):
     """Arguments:
         aoi: The area of interest in GeoJSON format.
@@ -72,6 +73,7 @@ def create_flightplan(
         take_off_point=take_off_point,
         drone_type=drone_type,
         mode=flight_mode,
+        gimbal_angle=gimbal_angle,
     )
     waypoint_data = create_waypoint(**waypoint_params)
     points_geojson = waypoint_data["geojson"]

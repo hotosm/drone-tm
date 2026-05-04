@@ -177,6 +177,7 @@ async def get_task_flightplan(
             rotation_angle=rotation_angle,
             take_off_point=take_off_point,
             drone_type=drone_type,
+            gimbal_angle=gimbal_angle,
         )
     finally:
         if dem_path and os.path.exists(dem_path):
