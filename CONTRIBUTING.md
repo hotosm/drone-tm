@@ -87,6 +87,19 @@ it's much easier to read.
 See a detailed guide on documentation contributions
 [here](https://docs.hotosm.org/techdoc).
 
+### Python environment
+
+Python 3.10 or later is required.
+
+We recommend you manage your Python environment with `uv`.
+These setup commands will install `uv` and
+ensure you have a sufficiently recent Python:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install
+```
+
 ### Pre-Commit Hooks
 
 [Pre-Commit Hooks][5] are used in this repo to enforce coding style:
@@ -100,7 +113,7 @@ See a detailed guide on documentation contributions
 Please install the pre-commit hooks before contributing:
 
 ```bash
-pip install pre-commit
+uv tool install pre-commit
 pre-commit install
 ```
 
