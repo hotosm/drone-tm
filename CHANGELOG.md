@@ -1,3 +1,17 @@
+## 2026.5.0 (2026-05-05)
+
+### Feat
+
+- implement ScaleODM remote scalable processing (#806)
+
+### Fix
+
+- **drone-flightplan**: correctly pass through user configured gimbal angle, fixes #784
+
+### Refactor
+
+- **frontend**: improve landing page, add case studies section, fixes #631
+
 ## 2026.4.0 (2026-05-01)
 
 ### Feat
