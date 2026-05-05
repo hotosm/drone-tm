@@ -1,3 +1,15 @@
+## 2026.5.1 (2026-05-05)
+
+### Feat
+
+- **scripts**: add a script to make a CSV catalog of EXIF/XMP fields from drone photos in S3 or in a folder (#803)
+
+### Fix
+
+- **backend**: ensure we also use default excludes for project processing
+- **backend**: ensure the processing params specified are respected for ScaleODM
+- **worker**: decrease healthcheck interval + tune for better k8s response
+
 ## 2026.5.0 (2026-05-05)
 
 ### Feat
