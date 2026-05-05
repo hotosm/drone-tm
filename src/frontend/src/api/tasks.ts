@@ -112,13 +112,6 @@ export const useGetAllTaskAssetsInfo = (
     queryFn: () => getAllTaskAssetsInfo(projectId),
     select: (res: any) => res.data,
     staleTime: 15_000,
-    refetchInterval: (query: any) => {
-      const data = query?.state?.data?.data;
-      const hasProcessing =
-        Array.isArray(data) && data.some((t: any) => t.state === "IMAGE_PROCESSING_STARTED");
-      // 30s when processing, 60s otherwise (was 10s/30s)
-      return hasProcessing ? 30_000 : 60_000;
-    },
     ...queryOptions,
   });
 };

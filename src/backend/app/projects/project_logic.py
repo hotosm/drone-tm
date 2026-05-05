@@ -130,7 +130,7 @@ async def reconcile_project_level_odm(
     """Handle queue-info for project-level ODM runs (no per-task ODM UUIDs).
 
     Fetches the single project-level ScaleODM task status and reconciles:
-    - Completed but webhook missed -> enqueue finalize job (reproject + state)
+    - Completed on ScaleODM -> enqueue finalize job (reproject + state)
     - Failed/canceled -> enqueue finalize job (captures error + cleanup)
     - Not found (age > threshold) -> mark project FAILED
     - Otherwise -> report current status
@@ -204,7 +204,7 @@ async def reconcile_project_level_odm(
         status_code, status_label = parse_odm_status(odm_info.get("status"))
 
         if status_code == 40:
-            # Completed but webhook was missed - enqueue finalize job.
+            # Completed on ScaleODM - enqueue finalize job.
             scaleodm_endpoint = (
                 getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
             )
@@ -218,8 +218,7 @@ async def reconcile_project_level_odm(
                 _queue_name="default_queue",
             )
             log.warning(
-                "Reconciling project-level completed ScaleODM task (missed webhook): "
-                "project={} odm_uuid={}",
+                "Reconciling project-level completed ScaleODM task: project={} odm_uuid={}",
                 project.id,
                 project_odm_uuid,
             )
@@ -227,7 +226,7 @@ async def reconcile_project_level_odm(
                 uuid=project_odm_uuid,
                 name=f"Project {project.id}",
                 status_code=20,
-                status_label="Finalizing assets (missed webhook)",
+                status_label="Finalizing assets",
                 images_count=odm_info.get("imagesCount"),
                 progress=odm_info.get("progress"),
                 date_created=odm_info.get("dateCreated"),
@@ -781,15 +780,6 @@ async def process_drone_images(
                 {"name": "orthophoto-resolution", "value": gsd},
             ]
 
-            # Use public URL when processing on an external ScaleODM, internal otherwise.
-            if odm_url:
-                from urllib.parse import quote
-
-                base_url = settings.PUBLIC_BASE_URL
-                webhook_url = f"{base_url}/api/projects/odm/webhook/{project_id}/{task_id}/?odm_url={quote(odm_url, safe='')}"
-            else:
-                webhook_url = f"{settings.BACKEND_URL_INTERNAL}/api/projects/odm/webhook/{project_id}/{task_id}/"
-
             read_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/images/"
             write_s3_path = (
                 f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/odm/"
@@ -801,7 +791,6 @@ async def process_drone_images(
                 write_s3_path=write_s3_path,
                 name=f"DTM-Task-{task_id}",
                 options=options,
-                webhook=webhook_url,
                 processing_mode="standard",
                 s3_scan_depth=0,
                 use_default_excludes=True,
@@ -924,10 +913,6 @@ async def process_all_drone_images(
             if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
                 options.append({"name": "dtm", "value": True})
 
-            webhook_url = (
-                f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{project_id}/"
-            )
-
             # Project-wide submission: scan under projects/{pid}/ just deep
             # enough to include {tid}/images/file. Bounded depth is important
             # because generated derivatives live below that, e.g.
@@ -941,7 +926,6 @@ async def process_all_drone_images(
                 write_s3_path=write_s3_path,
                 name=f"DTM-Project-{project_id}",
                 options=options,
-                webhook=webhook_url,
                 processing_mode="standard",
                 s3_scan_depth=2,
                 use_default_excludes=True,

@@ -538,132 +538,6 @@ async def process_all_imagery(
     }
 
 
-@router.post("/odm/webhook/{dtm_project_id}/", tags=["Image Processing"])
-async def odm_webhook_for_processing_whole_project(
-    request: Request,
-    dtm_project_id: uuid.UUID,
-    db: Annotated[Connection, Depends(database.get_db)],
-    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
-):
-    payload = await request.json()
-    odm_task_id = payload.get("uuid")
-    status = payload.get("status")
-    log.info(
-        "ODM webhook (whole project): project={} odm_task={} status={}",
-        dtm_project_id,
-        odm_task_id,
-        status,
-    )
-
-    if not odm_task_id or not status:
-        raise HTTPException(status_code=400, detail="Invalid webhook payload")
-
-    if status["code"] in {30, 40, 50}:
-        # Use the endpoint persisted when processing started so finalize jobs
-        # target the correct server even if config has changed since.
-        scaleodm_url = await _get_project_odm_endpoint(db, dtm_project_id)
-        await redis_pool.enqueue_job(
-            "finalize_scaleodm_task",
-            scaleodm_url=scaleodm_url,
-            dtm_project_id=str(dtm_project_id),
-            odm_task_uuid=odm_task_id,
-            odm_status_code=30 if status["code"] == 50 else status["code"],
-            _job_id=f"odm-assets:project:{dtm_project_id}",
-            _queue_name="default_queue",
-        )
-
-    return {"message": "Webhook received", "task_id": dtm_project_id}
-
-
-@router.post(
-    "/odm/webhook/{dtm_project_id}/{dtm_task_id}/",
-    tags=["Image Processing"],
-)
-async def odm_webhook_for_processing_a_single_task(
-    request: Request,
-    db: Annotated[Connection, Depends(database.get_db)],
-    dtm_project_id: uuid.UUID,
-    dtm_task_id: uuid.UUID,
-    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
-    odm_url: Optional[str] = Query(None, description="Custom ScaleODM server URL"),
-):
-    payload = await request.json()
-    odm_task_id = payload.get("uuid")
-    status = payload.get("status")
-    scaleodm_endpoint = odm_url or settings.ODM_ENDPOINT
-    log.info(
-        "ODM webhook (single task): project={} task={} odm_task={} status={} odm_url={}",
-        dtm_project_id,
-        dtm_task_id,
-        odm_task_id,
-        status,
-        scaleodm_endpoint,
-    )
-
-    if not odm_task_id or not status:
-        raise HTTPException(status_code=400, detail="Invalid webhook payload")
-
-    current_state = await task_logic.get_task_state(db, dtm_project_id, dtm_task_id)
-    state_value = State[current_state.get("state")]
-    log.info(
-        "ODM webhook: task {} current DB state={}, ODM status code={}",
-        dtm_task_id,
-        state_value,
-        status["code"],
-    )
-
-    # Reject stale webhooks from a previous ScaleODM submission so they
-    # can't corrupt state after a user re-submits a failed task.
-    async with db.cursor(row_factory=dict_row) as _cur:
-        await _cur.execute(
-            "SELECT odm_task_uuid FROM tasks WHERE id = %(tid)s AND project_id = %(pid)s",
-            {"tid": str(dtm_task_id), "pid": str(dtm_project_id)},
-        )
-        _row = await _cur.fetchone()
-    current_odm_uuid = _row["odm_task_uuid"] if _row else None
-    if current_odm_uuid and odm_task_id != str(current_odm_uuid):
-        log.warning(
-            "ODM webhook for task {}: payload uuid {} does not match current odm_task_uuid {} - ignoring stale webhook",
-            dtm_task_id,
-            odm_task_id,
-            current_odm_uuid,
-        )
-        return {"message": "Webhook ignored (stale)", "odm_task_id": odm_task_id}
-
-    if status["code"] == 40:
-        await redis_pool.enqueue_job(
-            "finalize_scaleodm_task",
-            scaleodm_url=scaleodm_endpoint,
-            dtm_project_id=str(dtm_project_id),
-            odm_task_uuid=odm_task_id,
-            state_name=state_value.name,
-            message="Task completed.",
-            dtm_task_id=str(dtm_task_id),
-            odm_status_code=40,
-            _job_id=f"odm-assets:task:{dtm_task_id}",
-            _queue_name="default_queue",
-        )
-
-    elif status["code"] in {30, 50} and state_value != State.IMAGE_PROCESSING_FAILED:
-        # Finalize handler records the failure and clears the ScaleODM row.
-        # We don't pre-flip state here so the finalize job can pull the real
-        # errorMessage from ScaleODM and write a more descriptive comment.
-        await redis_pool.enqueue_job(
-            "finalize_scaleodm_task",
-            scaleodm_url=scaleodm_endpoint,
-            dtm_project_id=str(dtm_project_id),
-            odm_task_uuid=odm_task_id,
-            state_name=state_value.name,
-            message="Image processing failed.",
-            dtm_task_id=str(dtm_task_id),
-            odm_status_code=30,
-            _job_id=f"odm-assets:task:{dtm_task_id}",
-            _queue_name="default_queue",
-        )
-
-    return {"message": "Webhook received", "odm_task_id": odm_task_id}
-
-
 @router.post("/regulator/comment/{project_id}/", tags=["regulator"])
 async def regulator_approval(
     project_id: str,
@@ -1378,25 +1252,24 @@ async def get_odm_queue_info(
             # Reconcile: DB says STARTED but ScaleODM says otherwise
             if db_state == "IMAGE_PROCESSING_STARTED" and status_code in (30, 40, 50):
                 if status_code == 40:
-                    # Completed on ScaleODM but webhook was missed.
-                    # Trigger the same finalize pipeline the webhook uses.
+                    # Completed on ScaleODM - enqueue finalize pipeline.
                     await redis_pool.enqueue_job(
                         "finalize_scaleodm_task",
                         scaleodm_url=odm_url,
                         dtm_project_id=str(project.id),
                         odm_task_uuid=odm_uuid,
                         state_name=State.IMAGE_PROCESSING_STARTED.name,
-                        message="Reconciled: processing completed on ScaleODM (missed webhook).",
+                        message="Reconciled: processing completed on ScaleODM.",
                         dtm_task_id=str(dtm_task_id),
                         odm_status_code=40,
                         _job_id=f"odm-assets:task:{dtm_task_id}",
                         _queue_name="default_queue",
                     )
                     reconciled.append(
-                        f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (missed webhook)"
+                        f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing"
                     )
                     log.warning(
-                        "Reconciling completed task (missed webhook): project={} dtm_task={} odm_uuid={}",
+                        "Reconciling completed task: project={} dtm_task={} odm_uuid={}",
                         project.id,
                         dtm_task_id,
                         odm_uuid,
@@ -1404,8 +1277,6 @@ async def get_odm_queue_info(
                 else:
                     # Failed or canceled - enqueue finalize to capture the real
                     # error message from ScaleODM and clean up the ScaleODM row.
-                    # Direct update_task_state_system here would skip cleanup and
-                    # cause the subsequent ScaleODM webhook to be silently ignored.
                     await redis_pool.enqueue_job(
                         "finalize_scaleodm_task",
                         scaleodm_url=odm_url,

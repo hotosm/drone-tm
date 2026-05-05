@@ -126,7 +126,6 @@ async def test_submit_scaleodm_task_posts_expected_body(monkeypatch):
         write_s3_path="s3://bucket/projects/p/t/odm/",
         name="DTM-Task-t",
         options=[{"name": "dsm", "value": True}],
-        webhook="http://backend/webhook/",
         processing_mode="standard",
         s3_scan_depth=1,
         exclude_paths=["*/thumbs/*"],
@@ -141,7 +140,7 @@ async def test_submit_scaleodm_task_posts_expected_body(monkeypatch):
     assert body["readS3Path"] == "s3://bucket/projects/p/t/images/"
     assert body["writeS3Path"] == "s3://bucket/projects/p/t/odm/"
     assert body["name"] == "DTM-Task-t"
-    assert body["webhook"] == "http://backend/webhook/"
+    assert "webhook" not in body
     assert body["processingMode"] == "standard"
     assert body["s3ScanDepth"] == 1
     assert body["useDefaultExcludes"] is True
@@ -166,7 +165,6 @@ async def test_submit_scaleodm_task_raises_with_server_error_message(monkeypatch
             write_s3_path="s3://bucket/projects/p/t/odm/",
             name="DTM-Task-t",
             options=[],
-            webhook="http://backend/webhook/",
         )
 
     assert "Not enough images" in str(exc_info.value)

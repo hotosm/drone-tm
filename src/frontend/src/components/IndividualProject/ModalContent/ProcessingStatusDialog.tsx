@@ -97,7 +97,11 @@ const ProcessingStatusDialog = () => {
     data?: ProcessingDialogProjectDetail;
   };
   const projectId = (projectDetail as any)?.id || projectRouteId;
-  const { data: allTaskAssets } = useGetAllTaskAssetsInfo(projectId);
+  const {
+    data: allTaskAssets,
+    refetch: refetchAllTaskAssets,
+    isFetching: isAllTasksFetching,
+  } = useGetAllTaskAssetsInfo(projectId);
 
   // Backend summary: authoritative source for has_ready_imagery
   const {
@@ -121,12 +125,22 @@ const ProcessingStatusDialog = () => {
     enabled: !!projectId,
   });
 
+  // Enable queue-info (which triggers pull-based reconciliation against ScaleODM)
+  // whenever tasks are stuck in IMAGE_PROCESSING_STARTED, not only when the queue
+  // panel is explicitly open.  Derived from raw query data so this is available
+  // before the taskList memo runs.
+  const hasProcessingTasks =
+    (Array.isArray(taskSummary) &&
+      taskSummary.some((t) => t.task_state === "IMAGE_PROCESSING_STARTED")) ||
+    (Array.isArray(allTaskAssets) &&
+      (allTaskAssets as any[]).some((t) => t.state === "IMAGE_PROCESSING_STARTED"));
+
   const {
     data: queueInfo,
     refetch: refetchQueueInfo,
     isFetching: isQueueFetching,
     dataUpdatedAt: queueUpdatedAt,
-  } = useGetOdmQueueInfo(projectId, showQueueInfo) as {
+  } = useGetOdmQueueInfo(projectId, showQueueInfo || hasProcessingTasks) as {
     data?: OdmQueueInfo;
     refetch: () => Promise<any>;
     isFetching: boolean;
@@ -732,12 +746,16 @@ const ProcessingStatusDialog = () => {
             variant="outline"
             className="naxatw-h-8 naxatw-shrink-0 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
             leftIcon="refresh"
-            iconClassname={`!naxatw-text-sm ${isTaskSummaryFetching || isCoverageFetching ? "naxatw-animate-spin" : ""}`}
+            iconClassname={`!naxatw-text-sm ${isTaskSummaryFetching || isCoverageFetching || isQueueFetching || isAllTasksFetching ? "naxatw-animate-spin" : ""}`}
             onClick={() => {
               refetchTaskSummary();
               refetchCoverage();
+              refetchQueueInfo();
+              refetchAllTaskAssets();
             }}
-            disabled={isTaskSummaryFetching || isCoverageFetching}
+            disabled={
+              isTaskSummaryFetching || isCoverageFetching || isQueueFetching || isAllTasksFetching
+            }
           >
             Refresh
           </Button>
@@ -915,7 +933,7 @@ const ProcessingStatusDialog = () => {
           </Button>
         </div>
 
-        {/* Final processing results — shown once processing is complete */}
+        {/* Final processing results - shown once processing is complete */}
         {projectDetail?.image_processing_status === "SUCCESS" && (
           <>
             <hr className="naxatw-border-gray-200" />
