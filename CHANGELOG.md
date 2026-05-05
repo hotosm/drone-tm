@@ -1,3 +1,12 @@
+## 2026.5.4 (2026-05-05)
+
+### Fix
+
+- **backend**: update ScaleODM reconcile logic to also include fallback S3 asset check
+- do not reproject the final project ortho as web mercator & don't display on map
+- add potensic atom 2 output handling to qfield plugin
+- **frontend**: ensure we include cookie with requests to download task areas
+
 ## 2026.5.3 (2026-05-05)
 
 ### Feat
