@@ -206,10 +206,15 @@ def reproject_orthophoto_in_place(
 ) -> None:
     """Pull odm_orthophoto.tif from S3, reproject to EPSG:3857 COG, overwrite the same key.
 
-    Single-file equivalent of the orthophoto branch inside
-    extract_and_upload_odm_assets, used as the only post-processing step
-    after a ScaleODM run completes.
+    Used for task-level preview orthophotos that are display artifacts. Do not
+    use this for project-level final ODM orthophotos, which must remain in
+    their native processing CRS for download and publication.
     """
+    if task_id is None:
+        raise OrthophotoPostProcessingError(
+            "Project-level final orthophotos must not be reprojected in place"
+        )
+
     s3_key = _orthophoto_s3_key(project_id, task_id)
 
     temp_dir = tempfile.mkdtemp()

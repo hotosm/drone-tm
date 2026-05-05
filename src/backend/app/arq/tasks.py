@@ -1204,11 +1204,13 @@ async def finalize_scaleodm_task(
 ) -> Dict[str, Any]:
     """Finalize a ScaleODM task after a webhook (or reconciler) reports terminal status.
 
-    On status 40 (completed), pulls odm_orthophoto.tif from the ScaleODM
-    output prefix, reprojects it to EPSG:3857 COG, overwrites the same key,
-    sets ``assets_url`` and transitions to IMAGE_PROCESSING_FINISHED. On 30
-    (failed) records an error message and marks the task/project failed.
-    Either way, best-effort POST /task/remove cleans up the ScaleODM row.
+    On task status 40 (completed), pulls odm_orthophoto.tif from the ScaleODM
+    output prefix, reprojects it to EPSG:3857 COG for map display, overwrites
+    the task-level key, sets ``assets_url`` and transitions to
+    IMAGE_PROCESSING_FINISHED. Project-level status 40 leaves the native ODM
+    orthophoto untouched and marks processing successful. On 30 (failed)
+    records an error message and marks the task/project failed. Either way,
+    best-effort POST /task/remove cleans up the ScaleODM row.
     """
     job_id = ctx.get("job_id", "unknown")
     log.info(
@@ -1274,28 +1276,31 @@ async def finalize_scaleodm_task(
                 )
 
         if int(odm_status_code) == 40:
-            try:
-                await asyncio.to_thread(
-                    reproject_orthophoto_in_place, project_uuid, task_uuid
-                )
-            except OrthophotoPostProcessingError as e:
-                if job_try < max_tries:
-                    log.warning(
-                        "Transient orthophoto post-processing failure "
-                        "(try {}/{}), retrying: {}",
+            if task_uuid:
+                try:
+                    await asyncio.to_thread(
+                        reproject_orthophoto_in_place, project_uuid, task_uuid
+                    )
+                except OrthophotoPostProcessingError as e:
+                    if job_try < max_tries:
+                        log.warning(
+                            "Transient task orthophoto post-processing failure "
+                            "(try {}/{}), retrying: {}",
+                            job_try,
+                            max_tries,
+                            e,
+                        )
+                        raise
+                    log.error(
+                        "Task orthophoto post-processing exhausted retries ({}/{}): {}",
                         job_try,
                         max_tries,
                         e,
                     )
+                    await _persist_odm_failure(
+                        ctx, project_uuid, task_uuid, state, str(e)
+                    )
                     raise
-                log.error(
-                    "Orthophoto post-processing exhausted retries ({}/{}): {}",
-                    job_try,
-                    max_tries,
-                    e,
-                )
-                await _persist_odm_failure(ctx, project_uuid, task_uuid, state, str(e))
-                raise
 
             task_segment = f"{task_uuid}/" if task_uuid else ""
             assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"

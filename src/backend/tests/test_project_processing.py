@@ -450,6 +450,7 @@ async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeyp
     state_calls = []
     field_calls = []
     remove_calls = []
+    reproject_calls = []
 
     async def fake_update_task_state_system(**kwargs):
         state_calls.append(kwargs)
@@ -465,6 +466,7 @@ async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeyp
         # just verify it's invoked with the right ids
         assert pid == project_id
         assert tid == task_id
+        reproject_calls.append({"project_id": pid, "task_id": tid})
 
     async def fake_remove(*, scaleodm_url, odm_task_uuid):
         remove_calls.append({"url": scaleodm_url, "uuid": odm_task_uuid})
@@ -495,6 +497,7 @@ async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeyp
     assert field_calls == [
         {"column": "assets_url", "value": f"projects/{project_id}/{task_id}/odm/"}
     ]
+    assert reproject_calls == [{"project_id": project_id, "task_id": task_id}]
     assert remove_calls == [{"url": "http://scaleodm", "uuid": "odm-uuid-1"}]
 
 
@@ -639,12 +642,13 @@ async def test_finalize_scaleodm_task_project_level_completion(monkeypatch):
         "redis": None,
     }
     processing_status_calls = []
+    reproject_calls = []
 
     async def fake_update_processing_status(db, pid, status):
         processing_status_calls.append({"project_id": pid, "status": status})
 
     def fake_reproject(*args, **kwargs):
-        return None
+        reproject_calls.append({"args": args, "kwargs": kwargs})
 
     async def fake_remove(*args, **kwargs):
         return None
@@ -672,6 +676,7 @@ async def test_finalize_scaleodm_task_project_level_completion(monkeypatch):
     assert processing_status_calls
     assert processing_status_calls[0]["status"] == ImageProcessingStatus.SUCCESS
     assert processing_status_calls[0]["project_id"] == project_id
+    assert reproject_calls == []
 
 
 @pytest.mark.asyncio
