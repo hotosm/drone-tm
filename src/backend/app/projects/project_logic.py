@@ -131,7 +131,7 @@ async def reconcile_project_level_odm(
 
     Fetches the single project-level ScaleODM task status and reconciles:
     - Completed but webhook missed -> enqueue finalize job (reproject + state)
-    - Failed/canceled -> mark project FAILED
+    - Failed/canceled -> enqueue finalize job (captures error + cleanup)
     - Not found (age > threshold) -> mark project FAILED
     - Otherwise -> report current status
 
@@ -250,19 +250,25 @@ async def reconcile_project_level_odm(
             }
 
         if status_code in (30, 50):
-            # Failed or canceled - mark project FAILED.
-            try:
-                await update_processing_status(
-                    db, project.id, ImageProcessingStatus.FAILED
-                )
-                log.warning(
-                    "Reconciled project-level ODM failure: project={} odm_uuid={} status={}",
-                    project.id,
-                    project_odm_uuid,
-                    status_label,
-                )
-            except Exception as e:
-                log.error("Failed to reconcile project ODM failure: {}", e)
+            # Failed or canceled - enqueue finalize to capture error message + cleanup.
+            scaleodm_endpoint = (
+                getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
+            )
+            await redis_pool.enqueue_job(
+                "finalize_scaleodm_task",
+                scaleodm_url=scaleodm_endpoint,
+                dtm_project_id=str(project.id),
+                odm_task_uuid=project_odm_uuid,
+                odm_status_code=30,  # normalize 50 (canceled) → 30 (failed)
+                _job_id=f"odm-assets:project:{project.id}",
+                _queue_name="default_queue",
+            )
+            log.warning(
+                "Reconciling project-level ODM failure: project={} odm_uuid={} status={}",
+                project.id,
+                project_odm_uuid,
+                status_label,
+            )
 
             display_label = "Failed (canceled)" if status_code == 50 else status_label
             task_entry = project_schemas.OdmQueueTask(

@@ -36,7 +36,7 @@ all:
   # ScaleODM runs inside a local Talos k8s cluster (itself Docker containers).
   # Workflow pods need to reach DroneTM's S3 (RustFS), which is published on
   # the Docker host at port 9000. The reachable address from inside those pods
-  # is the Docker network's gateway IP — not localhost.
+  # is the Docker network's gateway IP - not localhost.
   #
   # We only auto-detect when SCALEODM_S3_ENDPOINT is unset/empty, so an
   # explicit value in .env always wins.

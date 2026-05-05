@@ -10,11 +10,32 @@ from app.projects import project_logic
 from app.arq import tasks as arq_tasks
 
 
+class _FakeCursor:
+    """Minimal async context-manager cursor; fetchone() returns None by default."""
+
+    def __init__(self, fetchone_result=None):
+        self._fetchone_result = fetchone_result
+        self.executed = []
+
+    async def execute(self, query, params=None):
+        self.executed.append({"query": query, "params": params})
+
+    async def fetchone(self):
+        return self._fetchone_result
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
 class _FakeConn:
-    def __init__(self):
+    def __init__(self, cursor_fetchone=None):
         self.commit_calls = 0
         self.rollback_calls = 0
         self.executed = []
+        self._cursor_fetchone = cursor_fetchone
 
     async def execute(self, query, params=None):
         self.executed.append({"query": query, "params": params})
@@ -24,6 +45,9 @@ class _FakeConn:
 
     async def rollback(self):
         self.rollback_calls += 1
+
+    def cursor(self, **kwargs):
+        return _FakeCursor(self._cursor_fetchone)
 
 
 class _FakePoolConnection:
