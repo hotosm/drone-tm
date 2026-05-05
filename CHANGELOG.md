@@ -1,3 +1,14 @@
+## 2026.5.3 (2026-05-05)
+
+### Feat
+
+- add a script for marking a project as complete, and updating ortho url
+
+### Fix
+
+- **backend**: scaleodm processing reconciliation logic, replace webhook with pull scan
+- ensure all assets can be downloaded from final project processing
+
 ## 2026.5.2 (2026-05-05)
 
 ### Fix
