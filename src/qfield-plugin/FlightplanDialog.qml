@@ -34,9 +34,10 @@ QfDialog {
   signal clearTakeoff()
 
   // Post-generation state
-  property string generationState: "idle"  // "idle", "done", "error"
+  property string generationState: "idle"  // "idle", "done", "error", "manual_transfer", "transfer_failed"
   property string resultMessage: ""
   property bool kmzAvailable: false
+  property string lastDroneType: ""
 
   parent: iface.mainWindow().contentItem
   width: Math.min(parent.width * 0.9, 400)
@@ -385,11 +386,15 @@ QfDialog {
       // --- File write failure help ---
       Label {
         visible: generationState === "error"
-        text: qsTr("The WPML has been copied to your clipboard. To get the flightplan to your drone:\n\n" +
-          "1. Paste clipboard into a new file named <task>.wpml using a text editor\n" +
-          "2. Use a file manager app to copy the .kmz or .wpml from this project's flightplans/ folder to the DJI controller storage\n" +
-          "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
-          "Files are saved to: flightplans/ in the QField project directory")
+        text: lastDroneType === "POTENSIC_ATOM_2"
+          ? qsTr("File write failed. The mission zip may be partially saved in the flightplans/ folder.\n\n" +
+              "Connect your phone via USB and manually copy the zip contents to:\n" +
+              "Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/")
+          : qsTr("The WPML has been copied to your clipboard. To get the flightplan to your drone:\n\n" +
+              "1. Paste clipboard into a new file named <task>.wpml using a text editor\n" +
+              "2. Use a file manager app to copy the .kmz or .wpml from this project's flightplans/ folder to the DJI controller storage\n" +
+              "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
+              "Files are saved to: flightplans/ in the QField project directory")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
@@ -398,12 +403,20 @@ QfDialog {
       // --- Manual transfer help (file picker was used) ---
       Label {
         visible: generationState === "manual_transfer"
-        text: qsTr("A file picker was opened to save the KMZ. To load it on your DJI controller:\n\n" +
-          "1. Save the file to a location you can find (e.g. Downloads)\n" +
-          "2. Connect the controller via USB or use a file manager app\n" +
-          "3. Copy the .kmz to:\n" +
-          "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n\n" +
-          "Tip: The controller must have at least one prior waypoint mission for the waypoint directory to exist.")
+        text: lastDroneType === "POTENSIC_ATOM_2"
+          ? qsTr("A file picker was opened to save the mission zip. To load it on your Potensic controller:\n\n" +
+              "1. Save the zip to a location you can find (e.g. Downloads)\n" +
+              "2. Extract the zip — it contains global.json and a timestamped .json file\n" +
+              "3. Connect your phone via USB and navigate to:\n" +
+              "   Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
+              "4. Replace global.json and rename the timestamped .json to match the existing filename\n\n" +
+              "Tip: Create one test mission in Potensic Eve first so the Waypoint directory exists.")
+          : qsTr("A file picker was opened to save the KMZ. To load it on your DJI controller:\n\n" +
+              "1. Save the file to a location you can find (e.g. Downloads)\n" +
+              "2. Connect the controller via USB or use a file manager app\n" +
+              "3. Copy the .kmz to:\n" +
+              "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n\n" +
+              "Tip: The controller must have at least one prior waypoint mission for the waypoint directory to exist.")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
@@ -412,12 +425,19 @@ QfDialog {
       // --- Controller transfer failure help ---
       Label {
         visible: generationState === "transfer_failed"
-        text: qsTr("To transfer the flightplan to your DJI controller:\n\n" +
-          "1. Ensure the controller is connected via USB and has at least one prior waypoint mission\n" +
-          "2. Use a file manager app to copy the .kmz from this project's flightplans/ folder to:\n" +
-          "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n" +
-          "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
-          "Tip: If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.")
+        text: lastDroneType === "POTENSIC_ATOM_2"
+          ? qsTr("Could not find the Potensic waypoint directory. To transfer manually:\n\n" +
+              "1. Create one test mission in Potensic Eve and save it\n" +
+              "2. Connect your phone via USB and navigate to:\n" +
+              "   Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
+              "3. Replace global.json and rename the mission .json to match the existing filename\n" +
+              "4. Or extract the zip from the project's flightplans/ folder and copy the files manually")
+          : qsTr("To transfer the flightplan to your DJI controller:\n\n" +
+              "1. Ensure the controller is connected via USB and has at least one prior waypoint mission\n" +
+              "2. Use a file manager app to copy the .kmz from this project's flightplans/ folder to:\n" +
+              "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n" +
+              "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
+              "Tip: If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
@@ -608,6 +628,7 @@ QfDialog {
     generationState = "idle";
     resultMessage = "";
     kmzAvailable = false;
+    lastDroneType = "";
     loadSettings();
     populateDemLayers();
     updateFlightModeOptions();

@@ -16,6 +16,7 @@ Side-by-side diff:
 import sys
 import os
 import json
+import zipfile
 
 # Add drone-flightplan package to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),
@@ -25,6 +26,7 @@ from drone_flightplan.waypoints import create_waypoint, calculate_optimal_rotati
 from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.drone_type import DroneType
 from drone_flightplan.enums import FlightMode
+from drone_flightplan.output.potensic_v2 import create_potensic_json
 
 import pyproj
 from shapely.geometry import shape
@@ -167,3 +169,69 @@ geojson3 = json.loads(result3["geojson"])
 print_stats("Run 3: Auto rotation, GSD=3.5, overlap=75/75, WAYPOINTS", geojson3, params)
 print(f"  Est. flight time (min): {result3['estimated_flight_time_minutes']}")
 print(f"  Battery warning:       {result3['battery_warning']}")
+
+# ============================================================================
+# Potensic Atom 2 JSON output format comparison
+# Uses fixed sample features so the comparison is independent of the polygon.
+# ============================================================================
+
+SAMPLE_FEATURES = [
+    {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [20.306835, 51.4583672, 80]},
+        "properties": {"index": 0, "heading": -90, "take_photo": False,
+                       "gimbal_angle": "-80", "speed": 5.0},
+    },
+    {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [20.307056, 51.4583026, 90]},
+        "properties": {"index": 1, "heading": 90, "take_photo": True,
+                       "gimbal_angle": "-80", "speed": 5.0},
+    },
+    {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [20.3065566, 51.4583901, 80]},
+        "properties": {"index": 2, "heading": -90, "take_photo": True,
+                       "gimbal_angle": "-80", "speed": 5.0},
+    },
+]
+sample_featcol = {"type": "FeatureCollection", "features": SAMPLE_FEATURES}
+
+zip_path = create_potensic_json(sample_featcol, default_speed=11.5)
+with zipfile.ZipFile(zip_path) as z:
+    names = z.namelist()
+    ts_dir = names[0].split("/")[0]
+    with z.open(ts_dir + "/global.json") as f:
+        global_data = json.load(f)
+    with z.open(ts_dir + "/" + ts_dir + ".json") as f:
+        content = f.read().decode("utf-8")
+
+waypoints_str, poi_str = content.split(";", 1)
+waypoints = json.loads(waypoints_str)
+poi_list = json.loads(poi_str)
+
+FIELDS = ["action", "lat", "lng", "height", "speed", "speedType", "gimbalPitch", "yaw", "hoverTime"]
+
+
+def _js_num(v):
+    """Serialize a value the same way JS JSON.stringify does.
+
+    JS doesn't distinguish int vs float: 5.0 → "5", 11.5 → "11.5".
+    Python json.dumps preserves the float suffix: 5.0 → "5.0".
+    This normalizes whole-number floats to match JS output.
+    """
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return json.dumps(v)
+
+
+print("\n========================================")
+print("Potensic Atom 2 Output Format (Python)")
+print("========================================")
+for k, v in global_data.items():
+    print(f"  global.json {k}: {_js_num(v)}")
+print(f"  Waypoint count: {len(waypoints)}")
+print(f"  POI list: {json.dumps(poi_list)}")
+for i, wp in enumerate(waypoints):
+    vals = " ".join(f"{f}={_js_num(wp.get(f))}" for f in FIELDS)
+    print(f"  WP[{i}]: {vals}")

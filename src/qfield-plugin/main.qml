@@ -8,6 +8,7 @@ import "flightplan/core.js" as Flightplan
 import "flightplan/drone_specs.js" as Specs
 import "output/dji.js" as DjiOutput
 import "output/kmz.js" as Kmz
+import "output/potensic_v2.js" as PotensicV2Output
 
 Item {
   id: plugin
@@ -20,6 +21,21 @@ Item {
   property var flightplanResult: null
   property string lastKmzPath: ""
   property var lastKmzData: null
+
+  // Potensic Atom 2 output state
+  property string lastPotensicZipPath: ""
+  property var lastPotensicZipData: null
+  property string lastPotensicGlobalJson: ""
+  property string lastPotensicMissionJson: ""
+  property string lastPotensicMissionDirName: ""
+
+  // Last generated drone type (persists until next generation, used by copy logic)
+  property string lastDroneType: ""
+
+  property var potensicWaypointPaths: [
+    "/storage/emulated/0/Android/data/com.ipotensic.atom/files/Waypoint",
+    "/sdcard/Android/data/com.ipotensic.atom/files/Waypoint"
+  ]
 
   // Takeoff point state
   property var takeoffPoint: null  // {lon, lat} or null
@@ -380,13 +396,9 @@ Item {
   }
 
   function outputFlightplan(placemarks, config, taskId) {
-    var globalHeight = 100
-    if (placemarks.features.length > 0) {
-      var firstCoords = placemarks.features[0].geometry.coordinates
-      if (firstCoords.length > 2) globalHeight = firstCoords[2]
-    }
-
-    var wpmlXml = DjiOutput.createWpml(placemarks, globalHeight)
+    var droneType = config.droneType || "DJI_MINI_4_PRO"
+    lastDroneType = droneType
+    flightplanDialog.lastDroneType = droneType
 
     var outputDir = qgisProject.homePath + '/flightplans'
     platformUtilities.createDir(qgisProject.homePath, 'flightplans')
@@ -396,14 +408,29 @@ Item {
 
     var geojsonStr = JSON.stringify(placemarks, null, 2)
     var geojsonPath = outputDir + '/' + filename + '.geojson'
-    var wpmlPath = outputDir + '/' + filename + '.wpml'
-    var kmzPath = outputDir + '/' + filename + '.kmz'
-
     log("Saving to " + outputDir)
     var geojsonOk = saveTextFile(geojsonPath, geojsonStr)
+
+    if (droneType === "POTENSIC_ATOM_2") {
+      _outputPotensicV2(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId)
+    } else {
+      _outputDji(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId)
+    }
+  }
+
+  function _outputDji(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId) {
+    var globalHeight = 100
+    if (placemarks.features.length > 0) {
+      var firstCoords = placemarks.features[0].geometry.coordinates
+      if (firstCoords.length > 2) globalHeight = firstCoords[2]
+    }
+
+    var wpmlXml = DjiOutput.createWpml(placemarks, globalHeight)
+    var wpmlPath = outputDir + '/' + filename + '.wpml'
+    var kmzPath  = outputDir + '/' + filename + '.kmz'
+
     var wpmlOk = saveTextFile(wpmlPath, wpmlXml)
 
-    // Create KMZ (ZIP containing wpmz/waylines.wpml)
     var kmzOk = false
     try {
       var kmzData = Kmz.createKmz(wpmlXml)
@@ -420,46 +447,12 @@ Item {
     if (geojsonOk && wpmlOk) {
       var msg = qsTr('Saved: %1').arg(filename)
       mainWindow.displayToast(msg)
-
-      // Update dialog with result
       flightplanDialog.generationState = "done"
       flightplanDialog.resultMessage = msg
       flightplanDialog.kmzAvailable = kmzOk
-
-      // Scroll dialog to reveal the Copy/Close buttons
       flightplanDialog.scrollToBottom()
-
-      // Load GeoJSON as visualization layer inside a "Flightplans" group
-      try {
-        var vectorLayer = LayerUtils.loadVectorLayer(geojsonPath, 'flightplan_' + taskId)
-        if (vectorLayer) {
-          ProjectUtils.addMapLayer(qgisProject, vectorLayer)
-
-          // Move the layer into a "Flightplans" group (create if needed)
-          try {
-            var root = qgisProject.layerTreeRoot
-            var group = root.findGroup("Flightplans")
-            if (!group) {
-              group = root.addGroup("Flightplans")
-              log("Created 'Flightplans' layer group")
-            }
-            var layerNode = root.findLayer(vectorLayer.id)
-            if (layerNode) {
-              var clone = layerNode.clone()
-              group.insertChildNode(0, clone)
-              root.removeChildNode(layerNode)
-            }
-          } catch (ge) {
-            log("Could not move layer to group: " + ge)
-          }
-
-          log("Flightplan layer added")
-        }
-      } catch (e) {
-        log("Could not add flightplan layer: " + e)
-      }
+      _loadFlightplanLayer(geojsonPath, taskId)
     } else {
-      // File write failed - copy WPML to clipboard as fallback
       log("File write failed, copying WPML to clipboard")
       flightplanDialog.generationState = "error"
       try {
@@ -473,6 +466,77 @@ Item {
         flightplanDialog.resultMessage = qsTr('File write failed - could not copy to clipboard either')
         mainWindow.displayToast(qsTr('File write failed - check app storage permissions'))
       }
+    }
+  }
+
+  function _outputPotensicV2(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId) {
+    var defaultSpeed = 11.5
+    if (placemarks.features.length > 0) {
+      var s = placemarks.features[0].properties.speed
+      if (s) defaultSpeed = s
+    }
+
+    var tsMs = Date.now()
+    var potensic
+    try {
+      potensic = PotensicV2Output.createPotensicZip(placemarks, defaultSpeed, tsMs)
+    } catch (e) {
+      log("Potensic V2 ZIP creation error: " + e)
+      flightplanDialog.generationState = "error"
+      flightplanDialog.resultMessage = qsTr('Flightplan generation failed: %1').arg(e)
+      return
+    }
+
+    var zipPath = outputDir + '/' + filename + '.zip'
+    var zipOk = saveBinaryFile(zipPath, potensic.zipData)
+
+    if (geojsonOk && zipOk) {
+      lastPotensicZipPath = zipPath
+      lastPotensicZipData = potensic.zipData
+      lastPotensicGlobalJson = potensic.globalJson
+      lastPotensicMissionJson = potensic.missionJson
+      lastPotensicMissionDirName = String(tsMs)
+
+      var msg = qsTr('Saved: %1').arg(filename)
+      mainWindow.displayToast(msg)
+      flightplanDialog.generationState = "done"
+      flightplanDialog.resultMessage = msg
+      flightplanDialog.kmzAvailable = true
+      flightplanDialog.scrollToBottom()
+      _loadFlightplanLayer(geojsonPath, taskId)
+    } else {
+      log("Potensic file write failed")
+      flightplanDialog.generationState = "error"
+      flightplanDialog.resultMessage = qsTr('File write failed - check storage permissions')
+      mainWindow.displayToast(qsTr('File write failed - check app storage permissions'))
+    }
+  }
+
+  function _loadFlightplanLayer(geojsonPath, taskId) {
+    try {
+      var vectorLayer = LayerUtils.loadVectorLayer(geojsonPath, 'flightplan_' + taskId)
+      if (vectorLayer) {
+        ProjectUtils.addMapLayer(qgisProject, vectorLayer)
+        try {
+          var root = qgisProject.layerTreeRoot
+          var group = root.findGroup("Flightplans")
+          if (!group) {
+            group = root.addGroup("Flightplans")
+            log("Created 'Flightplans' layer group")
+          }
+          var layerNode = root.findLayer(vectorLayer.id)
+          if (layerNode) {
+            var clone = layerNode.clone()
+            group.insertChildNode(0, clone)
+            root.removeChildNode(layerNode)
+          }
+        } catch (ge) {
+          log("Could not move layer to group: " + ge)
+        }
+        log("Flightplan layer added")
+      }
+    } catch (e) {
+      log("Could not add flightplan layer: " + e)
     }
   }
 
@@ -570,22 +634,25 @@ Item {
   ]
 
   function copyToFlightController() {
+    if (lastDroneType === "POTENSIC_ATOM_2") {
+      _copyToPotensicController()
+    } else {
+      _copyToDjiController()
+    }
+  }
+
+  function _copyToDjiController() {
     if (!lastKmzPath) {
       mainWindow.displayToast(qsTr('No flightplan generated yet'))
       return
     }
 
-    log("Attempting to export KMZ to flight controller...")
+    log("Attempting to export KMZ to DJI flight controller...")
 
-    // First try the direct-write path (works when QField runs on the DJI RC
-    // itself or the controller is mounted with relaxed scoped-storage rules).
-    if (lastKmzData && _tryDirectCopyToController()) {
+    if (lastKmzData && _tryDirectCopyToDjiController()) {
       return
     }
 
-    // Fall back to the platform file-picker so the user can choose where to
-    // save.  platformUtilities.exportDatasetTo() shows Android's SAF folder
-    // picker and copies the file for us (not yet available on iOS).
     try {
       if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
         log("Opening file picker via platformUtilities.exportDatasetTo")
@@ -599,20 +666,15 @@ Item {
       log("platformUtilities.exportDatasetTo failed: " + e)
     }
 
-    // Neither method worked
     log("Could not export KMZ via direct copy or file picker")
-    mainWindow.displayToast(
-      qsTr('DJI controller not found - see transfer options below')
-    )
+    mainWindow.displayToast(qsTr('DJI controller not found - see transfer options below'))
     flightplanDialog.generationState = "transfer_failed"
     flightplanDialog.resultMessage = qsTr(
       'Could not find DJI controller storage. The KMZ is saved in the project flightplans/ folder.'
     )
   }
 
-  function _tryDirectCopyToController() {
-    // Scan for DJI waypoint directory and write directly.
-    // This may fail on modern Android due to scoped storage restrictions.
+  function _tryDirectCopyToDjiController() {
     for (var p = 0; p < djiWaypointPaths.length; p++) {
       var basePath = djiWaypointPaths[p]
       var uuids = listDirectory(basePath)
@@ -620,7 +682,6 @@ Item {
         var uuid = uuids[0]
         var targetPath = basePath + "/" + uuid + "/" + uuid + ".kmz"
         log("Found DJI waypoint dir: " + basePath + ", UUID: " + uuid)
-
         if (saveBinaryFile(targetPath, lastKmzData)) {
           mainWindow.displayToast(qsTr('Copied to flight controller'))
           flightplanDialog.resultMessage = qsTr('Copied to flight controller')
@@ -630,19 +691,16 @@ Item {
       }
     }
 
-    // Also try scanning /storage/ for USB volumes
     var storageVolumes = listDirectory("/storage")
     for (var v = 0; v < storageVolumes.length; v++) {
       var vol = storageVolumes[v]
       if (vol === "emulated" || vol === "self") continue
-
       var volWaypointPath = "/storage/" + vol + "/Android/data/dji.go.v5/files/waypoint"
       var volUuids = listDirectory(volWaypointPath)
       if (volUuids.length > 0) {
         var volUuid = volUuids[0]
         var volTarget = volWaypointPath + "/" + volUuid + "/" + volUuid + ".kmz"
         log("Found DJI waypoint on USB volume: " + vol + ", UUID: " + volUuid)
-
         if (saveBinaryFile(volTarget, lastKmzData)) {
           mainWindow.displayToast(qsTr('Copied to flight controller'))
           flightplanDialog.resultMessage = qsTr('Copied to flight controller')
@@ -650,6 +708,80 @@ Item {
           return true
         }
       }
+    }
+
+    return false
+  }
+
+  function _copyToPotensicController() {
+    if (!lastPotensicGlobalJson) {
+      mainWindow.displayToast(qsTr('No flightplan generated yet'))
+      return
+    }
+
+    log("Attempting to copy mission JSON to Potensic controller...")
+
+    if (_tryDirectCopyToPotensicController()) {
+      return
+    }
+
+    // Fallback: export zip via file picker
+    if (lastPotensicZipPath) {
+      try {
+        if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
+          platformUtilities.exportDatasetTo(lastPotensicZipPath)
+          mainWindow.displayToast(qsTr('Choose a location to save the mission zip'))
+          flightplanDialog.generationState = "manual_transfer"
+          flightplanDialog.resultMessage = qsTr('Save the zip, then copy its contents to the Potensic waypoint folder')
+          return
+        }
+      } catch (e) {
+        log("exportDatasetTo failed for Potensic: " + e)
+      }
+    }
+
+    log("Could not copy Potensic mission via direct copy or file picker")
+    mainWindow.displayToast(qsTr('Potensic controller not found - see transfer options below'))
+    flightplanDialog.generationState = "transfer_failed"
+    flightplanDialog.resultMessage = qsTr(
+      'Could not find Potensic waypoint directory. The zip is saved in the project flightplans/ folder.'
+    )
+  }
+
+  function _tryDirectCopyToPotensicController() {
+    // Scan for an existing Potensic mission directory and overwrite its JSON files.
+    // The user must have created one test mission first via the Potensic Eve app.
+    var searchPaths = potensicWaypointPaths.slice()
+
+    var storageVolumes = listDirectory("/storage")
+    for (var v = 0; v < storageVolumes.length; v++) {
+      var vol = storageVolumes[v]
+      if (vol !== "emulated" && vol !== "self") {
+        searchPaths.push("/storage/" + vol + "/Android/data/com.ipotensic.atom/files/Waypoint")
+      }
+    }
+
+    for (var p = 0; p < searchPaths.length; p++) {
+      var basePath = searchPaths[p]
+      var missionDirs = listDirectory(basePath)
+      if (missionDirs.length === 0) continue
+
+      var missionDirName = missionDirs[0]
+      var missionPath = basePath + "/" + missionDirName
+      log("Found Potensic mission dir: " + missionPath)
+
+      var globalOk  = saveTextFile(missionPath + "/global.json", lastPotensicGlobalJson)
+      // Rename the mission JSON to match the existing directory name so Eve can load it
+      var missionOk = saveTextFile(missionPath + "/" + missionDirName + ".json", lastPotensicMissionJson)
+
+      if (globalOk && missionOk) {
+        mainWindow.displayToast(qsTr('Copied to Potensic controller'))
+        flightplanDialog.resultMessage = qsTr('Copied to Potensic controller')
+        log("Potensic mission copied to: " + missionPath)
+        return true
+      }
+
+      log("Write failed in: " + missionPath)
     }
 
     return false

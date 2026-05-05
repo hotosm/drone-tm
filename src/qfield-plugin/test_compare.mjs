@@ -189,3 +189,52 @@ const result3 = Core.generate(polygonCoords, {
   imageInterval: 2,
 });
 printStats("Run 3: Auto rotation, GSD=3.5, overlap=75/75, WAYPOINTS", result3);
+
+// ─── Potensic Atom 2 JSON output format comparison ─────────────────────────
+// Uses fixed sample features matching test_compare.py — independent of polygon.
+
+const potensicV2Src = loadQmlJs('output/potensic_v2.js');
+const PotensicV2 = buildModule(potensicV2Src);
+
+const sampleFeatures = [
+  {
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [20.306835, 51.4583672, 80] },
+    properties: { index: 0, heading: -90, take_photo: false, gimbal_angle: '-80', speed: 5.0 },
+  },
+  {
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [20.307056, 51.4583026, 90] },
+    properties: { index: 1, heading: 90, take_photo: true, gimbal_angle: '-80', speed: 5.0 },
+  },
+  {
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [20.3065566, 51.4583901, 80] },
+    properties: { index: 2, heading: -90, take_photo: true, gimbal_angle: '-80', speed: 5.0 },
+  },
+];
+
+// Fixed timestamp so fileName field is deterministic (excluded from diff anyway)
+const testTs = 1000000000000;
+const potensicResult = PotensicV2.createPotensicZip({ features: sampleFeatures }, 11.5, testTs);
+
+const globalData = JSON.parse(potensicResult.globalJson);
+const [waypointsStr, poiStr] = potensicResult.missionJson.split(';');
+const waypoints = JSON.parse(waypointsStr);
+const poiList = JSON.parse(poiStr);
+
+const FIELDS = ['action', 'lat', 'lng', 'height', 'speed', 'speedType', 'gimbalPitch', 'yaw', 'hoverTime'];
+
+console.log('\n========================================');
+console.log('Potensic Atom 2 Output Format (JS)');
+console.log('========================================');
+for (const [k, v] of Object.entries(globalData)) {
+  console.log(`  global.json ${k}: ${JSON.stringify(v)}`);
+}
+console.log(`  Waypoint count: ${waypoints.length}`);
+console.log(`  POI list: ${JSON.stringify(poiList)}`);
+for (let i = 0; i < waypoints.length; i++) {
+  const wp = waypoints[i];
+  const vals = FIELDS.map(f => `${f}=${JSON.stringify(wp[f])}`).join(' ');
+  console.log(`  WP[${i}]: ${vals}`);
+}
