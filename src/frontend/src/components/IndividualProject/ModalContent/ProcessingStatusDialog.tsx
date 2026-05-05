@@ -97,6 +97,7 @@ const ProcessingStatusDialog = () => {
     data?: ProcessingDialogProjectDetail;
   };
   const projectId = (projectDetail as any)?.id || projectRouteId;
+  const isProjectProcessing = projectDetail?.image_processing_status === "PROCESSING";
   const {
     data: allTaskAssets,
     refetch: refetchAllTaskAssets,
@@ -125,22 +126,16 @@ const ProcessingStatusDialog = () => {
     enabled: !!projectId,
   });
 
-  // Enable queue-info (which triggers pull-based reconciliation against ScaleODM)
-  // whenever tasks are stuck in IMAGE_PROCESSING_STARTED, not only when the queue
-  // panel is explicitly open.  Derived from raw query data so this is available
-  // before the taskList memo runs.
-  const hasProcessingTasks =
-    (Array.isArray(taskSummary) &&
-      taskSummary.some((t) => t.task_state === "IMAGE_PROCESSING_STARTED")) ||
-    (Array.isArray(allTaskAssets) &&
-      (allTaskAssets as any[]).some((t) => t.state === "IMAGE_PROCESSING_STARTED"));
-
   const {
     data: queueInfo,
     refetch: refetchQueueInfo,
     isFetching: isQueueFetching,
     dataUpdatedAt: queueUpdatedAt,
-  } = useGetOdmQueueInfo(projectId, showQueueInfo || hasProcessingTasks) as {
+  } = useGetOdmQueueInfo(projectId, showQueueInfo, {
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+  }) as {
     data?: OdmQueueInfo;
     refetch: () => Promise<any>;
     isFetching: boolean;
@@ -367,6 +362,28 @@ const ProcessingStatusDialog = () => {
     [projectId, uploadGcpFile],
   );
 
+  const handleRefreshProcessingStatus = useCallback(async () => {
+    if (!projectId) return;
+
+    // Queue-info is also the backend reconciliation check for both task-level
+    // and project-level ScaleODM jobs. Keep it user-triggered via Refresh.
+    await refetchQueueInfo().catch(() => undefined);
+
+    await Promise.allSettled([
+      refetchTaskSummary(),
+      refetchCoverage(),
+      refetchAllTaskAssets(),
+      queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] }),
+    ]);
+  }, [
+    projectId,
+    queryClient,
+    refetchAllTaskAssets,
+    refetchCoverage,
+    refetchQueueInfo,
+    refetchTaskSummary,
+  ]);
+
   const totalTaskCount = useMemo(() => {
     if (typeof projectDetail?.total_task_count === "number") {
       return projectDetail.total_task_count;
@@ -491,8 +508,7 @@ const ProcessingStatusDialog = () => {
 
   const totalProcessable = tasksReady + tasksWithImagery;
 
-  const isFinalProcessingRunning =
-    projectDetail?.image_processing_status === "PROCESSING" || isProcessingAll;
+  const isFinalProcessingRunning = isProjectProcessing || isProcessingAll;
 
   const finalProcessingDisabledReason = useMemo(() => {
     if (isFinalProcessingRunning) {
@@ -747,12 +763,7 @@ const ProcessingStatusDialog = () => {
             className="naxatw-h-8 naxatw-shrink-0 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
             leftIcon="refresh"
             iconClassname={`!naxatw-text-sm ${isTaskSummaryFetching || isCoverageFetching || isQueueFetching || isAllTasksFetching ? "naxatw-animate-spin" : ""}`}
-            onClick={() => {
-              refetchTaskSummary();
-              refetchCoverage();
-              refetchQueueInfo();
-              refetchAllTaskAssets();
-            }}
+            onClick={handleRefreshProcessingStatus}
             disabled={
               isTaskSummaryFetching || isCoverageFetching || isQueueFetching || isAllTasksFetching
             }
@@ -1069,7 +1080,7 @@ const ProcessingStatusDialog = () => {
                     iconClassname={
                       isQueueFetching ? "naxatw-animate-spin !naxatw-text-sm" : "!naxatw-text-sm"
                     }
-                    onClick={() => refetchQueueInfo()}
+                    onClick={handleRefreshProcessingStatus}
                     disabled={isQueueFetching}
                   >
                     Refresh
