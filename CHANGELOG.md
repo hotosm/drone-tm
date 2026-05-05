@@ -1,3 +1,9 @@
+## 2026.5.6 (2026-05-05)
+
+### Fix
+
+- **backend**: more decisive update of project level processing status
+
 ## 2026.5.5 (2026-05-05)
 
 ### Fix
