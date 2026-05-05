@@ -163,7 +163,7 @@ const IndividualProject = () => {
   const downloadProjectTaskGeojson = () => {
     fetch(
       `${API_URL}/projects/${projectData?.id}/download-boundaries?split_area=true&export_type=geojson`,
-      { method: "GET", headers: { "Access-token": Token || "" } },
+      { method: "GET", headers: { "Access-token": Token || "" }, credentials: "include" },
     )
       .then((response) => {
         if (!response.ok) {

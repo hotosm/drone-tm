@@ -138,7 +138,7 @@ const DroneOperatorDescriptionBox = () => {
   const downloadTaskAreaKml = () => {
     fetch(
       `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=kml`,
-      { method: "GET", headers: { "Access-token": Token || "" } },
+      { method: "GET", headers: { "Access-token": Token || "" }, credentials: "include" },
     )
       .then((response) => {
         if (!response.ok) {
@@ -165,7 +165,7 @@ const DroneOperatorDescriptionBox = () => {
   const downloadTaskAreaGeojson = () => {
     fetch(
       `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=geojson`,
-      { method: "GET", headers: { "Access-token": Token || "" } },
+      { method: "GET", headers: { "Access-token": Token || "" }, credentials: "include" },
     )
       .then((response) => {
         if (!response.ok) {
