@@ -443,6 +443,40 @@ def get_orthophoto_url_for_project(project_id: str):
     return None
 
 
+def get_dem_url_for_project(project_id: str):
+    """Generate browser URL for the project-level ODM DEM output.
+
+    Args:
+        project_id: The unique identifier for the project
+
+    Returns:
+        str | None: Presigned URL to download the DEM, or None if not found
+    """
+    dem_path = f"projects/{project_id}/odm/odm_dem/odm_dem.tif"
+    if check_file_exists(settings.S3_BUCKET_NAME, dem_path):
+        return maybe_presign_s3_key(dem_path, expires_hours=12)
+
+    log.warning("DEM not found in S3 bucket")
+    return None
+
+
+def get_pointcloud_url_for_project(project_id: str):
+    """Generate browser URL for the project-level ODM point cloud output.
+
+    Args:
+        project_id: The unique identifier for the project
+
+    Returns:
+        str | None: Presigned URL to download the point cloud, or None if not found
+    """
+    laz_path = f"projects/{project_id}/odm/odm_pointcloud/odm_pointcloud.laz"
+    if check_file_exists(settings.S3_BUCKET_NAME, laz_path):
+        return maybe_presign_s3_key(laz_path, expires_hours=12)
+
+    log.warning("Point cloud not found in S3 bucket")
+    return None
+
+
 def move_file_within_bucket(
     bucket_name: str, source_path: str, destination_path: str
 ) -> bool:

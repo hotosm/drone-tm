@@ -48,17 +48,36 @@ const DescriptionSection = ({
     [projectData?.tasks],
   );
 
-  const handleDownloadResult = () => {
-    if (!projectData?.assets_url) return;
+  const handleDownloadFile = (url: string, filename: string) => {
     try {
       const link = document.createElement("a");
-      link.href = buildDownloadUrl(projectData.assets_url);
-      link.setAttribute("download", "");
+      link.href = buildDownloadUrl(url);
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (error) {
-      toast.error(`There was an error while downloading file ${error}`);
+      toast.error(`There was an error while downloading the file: ${error}`);
+    }
+  };
+
+  const handleDownloadAllAssets = async () => {
+    const projectId = projectData?.id;
+    if (!projectId) return;
+    const assetsPath = `/api/projects/odm/export/${projectId}/`;
+    try {
+      const resp = await fetch(buildDownloadUrl(assetsPath), { method: "HEAD" });
+      if (resp.status === 404) {
+        toast.warning("No ODM assets found for this project.");
+        return;
+      }
+      if (!resp.ok) {
+        toast.error("Failed to check ODM assets availability.");
+        return;
+      }
+      handleDownloadFile(assetsPath, `odm_assets_${projectId}.zip`);
+    } catch (error) {
+      toast.error(`There was an error while downloading the file: ${error}`);
     }
   };
 
@@ -238,42 +257,87 @@ const DescriptionSection = ({
           <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
             {projectData?.image_processing_status === "SUCCESS" && (
               <>
-                <Button
-                  className="naxatw-bg-red"
-                  leftIcon="download"
-                  onClick={() => handleDownloadResult()}
-                >
-                  Download Results
-                </Button>
-                {String(projectData?.author_id || "") === String(userDetails?.id || "") && (
-                  <>
-                    {projectData?.oam_upload_status === "NOT_STARTED" ? (
-                      <Button
-                        className="naxatw-bg-red"
-                        withLoader
-                        leftIcon="upload"
-                        onClick={() => {
-                          dispatch(toggleModal("upload-to-oam"));
-                        }}
-                      >
-                        Upload to OAM
-                      </Button>
-                    ) : projectData?.oam_upload_status === "FAILED" ? (
-                      <Button
-                        className="naxatw-bg-red"
-                        withLoader
-                        leftIcon="upload"
-                        onClick={() => {
-                          dispatch(toggleModal("upload-to-oam"));
-                        }}
-                      >
-                        Re-upload to OAM
-                      </Button>
-                    ) : (
-                      <></>
-                    )}
-                  </>
+                <p className="naxatw-w-full naxatw-text-xs naxatw-font-semibold naxatw-uppercase naxatw-tracking-wide naxatw-text-gray-500">
+                  Downloads
+                </p>
+                {projectData?.orthophoto_url && (
+                  <Button
+                    variant="outline"
+                    className="naxatw-border-red naxatw-text-red"
+                    leftIcon="download"
+                    onClick={() =>
+                      handleDownloadFile(
+                        projectData.orthophoto_url,
+                        `orthophoto_${projectData.id}.tif`,
+                      )
+                    }
+                  >
+                    Orthophoto (.tif)
+                  </Button>
                 )}
+                {projectData?.dem_url && (
+                  <Button
+                    variant="outline"
+                    className="naxatw-border-red naxatw-text-red"
+                    leftIcon="download"
+                    onClick={() =>
+                      handleDownloadFile(projectData.dem_url, `dem_${projectData.id}.tif`)
+                    }
+                  >
+                    DEM (.tif)
+                  </Button>
+                )}
+                {projectData?.pointcloud_url && (
+                  <Button
+                    variant="outline"
+                    className="naxatw-border-red naxatw-text-red"
+                    leftIcon="download"
+                    onClick={() =>
+                      handleDownloadFile(
+                        projectData.pointcloud_url,
+                        `pointcloud_${projectData.id}.laz`,
+                      )
+                    }
+                  >
+                    Point Cloud (.laz)
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  className="naxatw-border-red naxatw-text-red"
+                  leftIcon="folder_zip"
+                  onClick={handleDownloadAllAssets}
+                >
+                  All ODM Assets (.zip)
+                </Button>
+                {String(projectData?.author_id || "") === String(userDetails?.id || "") &&
+                  projectData?.orthophoto_url && (
+                    <>
+                      {projectData?.oam_upload_status === "NOT_STARTED" ? (
+                        <Button
+                          className="naxatw-bg-red"
+                          withLoader
+                          leftIcon="upload"
+                          onClick={() => {
+                            dispatch(toggleModal("upload-to-oam"));
+                          }}
+                        >
+                          Upload to OAM
+                        </Button>
+                      ) : projectData?.oam_upload_status === "FAILED" ? (
+                        <Button
+                          className="naxatw-bg-red"
+                          withLoader
+                          leftIcon="upload"
+                          onClick={() => {
+                            dispatch(toggleModal("upload-to-oam"));
+                          }}
+                        >
+                          Re-upload to OAM
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
               </>
             )}
 

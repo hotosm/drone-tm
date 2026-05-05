@@ -1663,6 +1663,98 @@ async def export_odm_orthophoto(
 
 
 @router.get(
+    "/odm/export/{project_id}/dem/",
+    tags=["Image Processing"],
+)
+async def export_odm_dem(
+    request: Request,
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Stream the DEM GeoTIFF for the project-level ODM output.
+
+    Looks for the file at ``projects/{pid}/odm/odm_dem/odm_dem.tif``.
+    """
+    dem_key = f"projects/{project.id}/odm/odm_dem/odm_dem.tif"
+
+    try:
+        s3_client().stat_object(settings.S3_BUCKET_NAME, dem_key)
+    except Exception:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="No DEM found for this project.",
+        )
+
+    filename = f"dem_{project_id}.tif"
+
+    def generate():
+        response = s3_client().get_object(settings.S3_BUCKET_NAME, dem_key)
+        try:
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
+
+    return StreamingResponse(
+        generate(),
+        media_type="image/tiff",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get(
+    "/odm/export/{project_id}/pointcloud/",
+    tags=["Image Processing"],
+)
+async def export_odm_pointcloud(
+    request: Request,
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Stream the point cloud LAZ file for the project-level ODM output.
+
+    Looks for the file at ``projects/{pid}/odm/odm_pointcloud/odm_pointcloud.laz``.
+    """
+    laz_key = f"projects/{project.id}/odm/odm_pointcloud/odm_pointcloud.laz"
+
+    try:
+        s3_client().stat_object(settings.S3_BUCKET_NAME, laz_key)
+    except Exception:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="No point cloud found for this project.",
+        )
+
+    filename = f"pointcloud_{project_id}.laz"
+
+    def generate():
+        response = s3_client().get_object(settings.S3_BUCKET_NAME, laz_key)
+        try:
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get(
     "/odm/export/{project_id}/{task_id}/",
     tags=["Image Processing"],
 )
@@ -1717,7 +1809,7 @@ async def export_odm_assets(
     if probe is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="No ODM assets found.",
+            detail="No ODM assets found for this project.",
         )
 
     filename = (

@@ -34,7 +34,9 @@ from app.models.enums import (
 from app.config import settings
 from app.s3 import (
     check_file_exists,
+    get_dem_url_for_project,
     get_orthophoto_url_for_project,
+    get_pointcloud_url_for_project,
     maybe_presign_s3_key,
     s3_client,
 )
@@ -145,8 +147,9 @@ class ProjectIn(BaseModel):
         AfterValidator(validate_geojson),
     ] = None
     output_orthophoto_url: Optional[str] = None
+    output_dem_url: Optional[str] = None
     output_pointcloud_url: Optional[str] = None
-    output_raw_url: Optional[str] = None
+    output_odm_assets_url: Optional[str] = None
     deadline_at: Optional[date] = None
     visibility: Annotated[ProjectVisibility | str, PlainSerializer(enum_to_str)] = (
         ProjectVisibility.PUBLIC
@@ -255,6 +258,12 @@ class DbProject(BaseModel):
     odm_endpoint_used: Optional[str] = None
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
+    dem_url: Optional[str] = None
+    pointcloud_url: Optional[str] = None
+    output_orthophoto_url: Optional[str] = None
+    output_dem_url: Optional[str] = None
+    output_pointcloud_url: Optional[str] = None
+    output_odm_assets_url: Optional[str] = None
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
     author_id: Optional[str] = None
@@ -712,6 +721,12 @@ class ProjectInfo(BaseModel):
     oam_upload_status: Optional[str] = None
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
+    dem_url: Optional[str] = None
+    pointcloud_url: Optional[str] = None
+    output_orthophoto_url: Optional[str] = None
+    output_dem_url: Optional[str] = None
+    output_pointcloud_url: Optional[str] = None
+    output_odm_assets_url: Optional[str] = None
     has_gcp: bool = False
     regulator_comment: Optional[str] = None
     commenting_regulator_id: Optional[str] = None
@@ -749,8 +764,13 @@ class ProjectInfo(BaseModel):
             values.assets_url = None
             return values
 
-        # Project-level final processing stores individual files under
-        # projects/{pid}/odm/.  Probe for at least one object.
+        # Prefer DB-stored URL (set when processing completes) to avoid an S3
+        # probe on every project detail fetch.
+        if values.output_odm_assets_url:
+            values.assets_url = values.output_odm_assets_url
+            return values
+
+        # Fallback: probe S3 for the project-level ODM prefix.
         odm_prefix = f"projects/{project_id}/odm/"
         try:
             probe = next(
@@ -759,12 +779,11 @@ class ProjectInfo(BaseModel):
                 ),
                 None,
             )
-            if probe is not None:
-                values.assets_url = (
-                    f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
-                )
-            else:
-                values.assets_url = None
+            values.assets_url = (
+                f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
+                if probe is not None
+                else None
+            )
         except Exception:
             values.assets_url = None
 
@@ -777,9 +796,49 @@ class ProjectInfo(BaseModel):
             values.orthophoto_url = None
             return values
 
+        if values.output_orthophoto_url:
+            values.orthophoto_url = values.output_orthophoto_url
+            return values
+
         values.orthophoto_url = safe_url(
             lambda: get_orthophoto_url_for_project(project_id),
             label="orthophoto_url",
+        )
+
+        return values
+
+    @model_validator(mode="after")
+    def set_dem_url(cls, values):
+        project_id = values.id
+        if not project_id or values.image_processing_status != "SUCCESS":
+            values.dem_url = None
+            return values
+
+        if values.output_dem_url:
+            values.dem_url = values.output_dem_url
+            return values
+
+        values.dem_url = safe_url(
+            lambda: get_dem_url_for_project(project_id),
+            label="dem_url",
+        )
+
+        return values
+
+    @model_validator(mode="after")
+    def set_pointcloud_url(cls, values):
+        project_id = values.id
+        if not project_id or values.image_processing_status != "SUCCESS":
+            values.pointcloud_url = None
+            return values
+
+        if values.output_pointcloud_url:
+            values.pointcloud_url = values.output_pointcloud_url
+            return values
+
+        values.pointcloud_url = safe_url(
+            lambda: get_pointcloud_url_for_project(project_id),
+            label="pointcloud_url",
         )
 
         return values

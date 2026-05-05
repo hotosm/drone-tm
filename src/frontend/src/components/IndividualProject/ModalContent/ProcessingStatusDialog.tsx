@@ -42,6 +42,10 @@ type ProcessingDialogProjectDetail = {
   total_task_count?: number;
   has_gcp?: boolean;
   image_processing_status?: string;
+  orthophoto_url?: string | null;
+  dem_url?: string | null;
+  pointcloud_url?: string | null;
+  assets_url?: string | null;
 };
 
 type OdmQueueTask = {
@@ -270,6 +274,38 @@ const ProcessingStatusDialog = () => {
       toast.error(`Download failed: ${error}`);
     }
   }, []);
+
+  const handleDownloadProjectFile = useCallback((url: string, filename: string) => {
+    try {
+      const link = document.createElement("a");
+      link.href = buildDownloadUrl(url);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(`Download failed: ${error}`);
+    }
+  }, []);
+
+  const handleDownloadProjectAssets = useCallback(async () => {
+    const assetsPath = `/api/projects/odm/export/${projectId}/`;
+    const url = buildDownloadUrl(assetsPath);
+    try {
+      const resp = await fetch(url, { method: "HEAD" });
+      if (resp.status === 404) {
+        toast.warning("No ODM assets found for this project.");
+        return;
+      }
+      if (!resp.ok) {
+        toast.error("Failed to check ODM assets availability.");
+        return;
+      }
+      handleDownloadProjectFile(assetsPath, `odm_assets_${projectId}.zip`);
+    } catch (error) {
+      toast.error(`Download failed: ${error}`);
+    }
+  }, [projectId, handleDownloadProjectFile]);
 
   const getProcessButtonLabel = useCallback((task: ProcessingDialogTask) => {
     if (task.state === "IMAGE_PROCESSING_FAILED") {
@@ -878,6 +914,77 @@ const ProcessingStatusDialog = () => {
                 : "Start Final Processing"}
           </Button>
         </div>
+
+        {/* Final processing results — shown once processing is complete */}
+        {projectDetail?.image_processing_status === "SUCCESS" && (
+          <>
+            <hr className="naxatw-border-gray-200" />
+            <div>
+              <h3 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
+                Final Processing Results
+              </h3>
+              <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
+                Download the outputs from the completed final processing run.
+              </p>
+            </div>
+            <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
+              {projectDetail.orthophoto_url && (
+                <Button
+                  variant="outline"
+                  className="naxatw-h-8 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
+                  leftIcon="download"
+                  iconClassname="!naxatw-text-sm"
+                  onClick={() =>
+                    handleDownloadProjectFile(
+                      projectDetail.orthophoto_url!,
+                      `orthophoto_${projectId}.tif`,
+                    )
+                  }
+                >
+                  Orthophoto (.tif)
+                </Button>
+              )}
+              {projectDetail.dem_url && (
+                <Button
+                  variant="outline"
+                  className="naxatw-h-8 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
+                  leftIcon="download"
+                  iconClassname="!naxatw-text-sm"
+                  onClick={() =>
+                    handleDownloadProjectFile(projectDetail.dem_url!, `dem_${projectId}.tif`)
+                  }
+                >
+                  DEM (.tif)
+                </Button>
+              )}
+              {projectDetail.pointcloud_url && (
+                <Button
+                  variant="outline"
+                  className="naxatw-h-8 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
+                  leftIcon="download"
+                  iconClassname="!naxatw-text-sm"
+                  onClick={() =>
+                    handleDownloadProjectFile(
+                      projectDetail.pointcloud_url!,
+                      `pointcloud_${projectId}.laz`,
+                    )
+                  }
+                >
+                  Point Cloud (.laz)
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="naxatw-h-8 naxatw-border-gray-400 naxatw-px-3 naxatw-text-xs naxatw-text-gray-700"
+                leftIcon="folder_zip"
+                iconClassname="!naxatw-text-sm"
+                onClick={handleDownloadProjectAssets}
+              >
+                All ODM Assets (.zip)
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       {showQueueInfo && (

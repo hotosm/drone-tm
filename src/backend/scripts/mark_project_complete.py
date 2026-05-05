@@ -42,7 +42,7 @@ from loguru import logger as log
 from psycopg.rows import dict_row
 
 from app.db.database import get_db_connection_pool
-from app.models.enums import ImageProcessingStatus, State
+from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
 
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
@@ -111,37 +111,64 @@ async def _update_project(
     conn,
     project_id: str,
     ortho_url: str,
+    dem_url: str | None,
+    pointcloud_url: str | None,
+    mark_oam_uploaded: bool,
     now: datetime,
     dry_run: bool,
 ) -> None:
+    # The odm_assets_url points to the streaming endpoint for the ZIP download.
+    odm_assets_url = f"/api/projects/odm/export/{project_id}/"
+    oam_status = OAMUploadStatus.UPLOADED.name if mark_oam_uploaded else None
+
     if dry_run:
         log.info(
             f"  [dry-run] would update project {project_id}: "
             f"output_orthophoto_url={ortho_url!r}, "
+            f"output_dem_url={dem_url!r}, "
+            f"output_pointcloud_url={pointcloud_url!r}, "
+            f"output_odm_assets_url={odm_assets_url!r}, "
             f"image_processing_status={ImageProcessingStatus.SUCCESS.name!r}"
+            + (f", oam_upload_status={oam_status!r}" if oam_status else "")
         )
         return
 
-    await conn.execute(
-        """
+    sql = """
         UPDATE projects
         SET output_orthophoto_url   = %(ortho_url)s,
+            output_dem_url          = %(dem_url)s,
+            output_pointcloud_url   = %(pointcloud_url)s,
+            output_odm_assets_url   = %(odm_assets_url)s,
             image_processing_status = %(status)s,
             odm_task_uuid           = NULL,
             odm_endpoint_used       = NULL,
             last_updated            = %(now)s
-        WHERE id = %(project_id)s
-        """,
-        {
-            "ortho_url": ortho_url,
-            "status": ImageProcessingStatus.SUCCESS.name,
-            "now": now,
-            "project_id": project_id,
-        },
-    )
+    """
+    params: dict = {
+        "ortho_url": ortho_url,
+        "dem_url": dem_url,
+        "pointcloud_url": pointcloud_url,
+        "odm_assets_url": odm_assets_url,
+        "status": ImageProcessingStatus.SUCCESS.name,
+        "now": now,
+        "project_id": project_id,
+    }
+    if oam_status:
+        sql += ",\n            oam_upload_status = %(oam_status)s"
+        params["oam_status"] = oam_status
+    sql += "\n        WHERE id = %(project_id)s"
+
+    await conn.execute(sql, params)
 
 
-async def run(project_id: str, ortho_url: str, dry_run: bool) -> int:
+async def run(
+    project_id: str,
+    ortho_url: str,
+    dem_url: str | None,
+    pointcloud_url: str | None,
+    mark_oam_uploaded: bool,
+    dry_run: bool,
+) -> int:
     pool = await get_db_connection_pool()
     try:
         async with pool.connection() as conn:
@@ -167,7 +194,16 @@ async def run(project_id: str, ortho_url: str, dry_run: bool) -> int:
                 )
                 log.info(f"  task {task_id}: event inserted")
 
-            await _update_project(conn, project_id, ortho_url, now, dry_run)
+            await _update_project(
+                conn,
+                project_id,
+                ortho_url,
+                dem_url,
+                pointcloud_url,
+                mark_oam_uploaded,
+                now,
+                dry_run,
+            )
             log.info(f"Project {project_id}: output_orthophoto_url set.")
 
             if not dry_run:
@@ -191,7 +227,22 @@ def main() -> int:
     parser.add_argument(
         "--ortho-url",
         required=True,
-        help="Public/pre-signed URL of the final orthophoto asset to store on the project.",
+        help="Public URL of the final orthophoto asset to store on the project.",
+    )
+    parser.add_argument(
+        "--dem-url",
+        default=None,
+        help="Public URL of the final DEM asset to store on the project (optional).",
+    )
+    parser.add_argument(
+        "--pointcloud-url",
+        default=None,
+        help="Public URL of the final point cloud asset to store on the project (optional).",
+    )
+    parser.add_argument(
+        "--mark-oam-uploaded",
+        action="store_true",
+        help="Set oam_upload_status = UPLOADED on the project (use when the orthophoto has already been submitted to OAM outside of DroneTM).",
     )
     parser.add_argument(
         "--dry-run",
@@ -207,7 +258,16 @@ def main() -> int:
     log.info(
         f"mark_project_complete: project_id={args.project_id} dry_run={args.dry_run}"
     )
-    return asyncio.run(run(args.project_id, args.ortho_url, args.dry_run))
+    return asyncio.run(
+        run(
+            args.project_id,
+            args.ortho_url,
+            args.dem_url,
+            args.pointcloud_url,
+            args.mark_oam_uploaded,
+            args.dry_run,
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -134,8 +134,9 @@ class DbProject(Base):
     dem_url = cast(str, Column(String, nullable=True))
     hashtags = cast(list, Column(ARRAY(String)))  # Project hashtag
     output_orthophoto_url = cast(str, Column(String, nullable=True))
+    output_dem_url = cast(str, Column(String, nullable=True))
     output_pointcloud_url = cast(str, Column(String, nullable=True))
-    output_raw_url = cast(str, Column(String, nullable=True))
+    output_odm_assets_url = cast(str, Column(String, nullable=True))
 
     # PROJECT CREATION
     author_id = cast(
