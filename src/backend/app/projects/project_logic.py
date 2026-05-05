@@ -177,6 +177,47 @@ async def check_s3_for_odm_orthophoto_and_enqueue(
     return True
 
 
+async def project_level_odm_output_exists(project_id: uuid.UUID) -> bool:
+    """Return True when the project-level ODM orthophoto is present in S3."""
+    s3_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+    try:
+        return await asyncio.to_thread(
+            s3_object_exists, settings.S3_BUCKET_NAME, s3_key
+        )
+    except Exception as err:
+        log.warning(
+            "S3 project-level orthophoto check failed (project={}): {}",
+            project_id,
+            err,
+        )
+        return False
+
+
+async def mark_project_level_odm_success_from_refresh(
+    db: Connection, project_id: uuid.UUID, *, reason: str
+) -> dict:
+    """Mark a completed project-level ODM run successful during manual refresh.
+
+    Project-level finalization does not need the task-level reprojection step,
+    so the user-triggered reconciliation path can safely update the project
+    status directly once the final output is known to be complete.
+    """
+    await update_processing_status(db, project_id, ImageProcessingStatus.SUCCESS)
+    log.warning(
+        "Reconciled project-level ODM success on refresh: project={} reason={}",
+        project_id,
+        reason,
+    )
+    return {
+        "queued": 0,
+        "running": 0,
+        "failed": 0,
+        "completed": 1,
+        "total": 1,
+        "groups": [],
+    }
+
+
 async def reconcile_project_level_odm(
     db: Connection,
     project: "project_schemas.DbProject",
@@ -189,7 +230,8 @@ async def reconcile_project_level_odm(
     """Handle queue-info for project-level ODM runs (no per-task ODM UUIDs).
 
     Fetches the single project-level ScaleODM task status and reconciles:
-    - Completed on ScaleODM -> enqueue finalize job (reproject + state)
+    - Completed on ScaleODM -> mark project SUCCESS directly
+    - Project output in S3 but ODM metadata missing -> mark project SUCCESS
     - Failed/canceled -> enqueue finalize job (captures error + cleanup)
     - Not found (age > threshold) -> mark project FAILED
     - Otherwise -> report current status
@@ -207,7 +249,15 @@ async def reconcile_project_level_odm(
 
     project_odm_uuid = getattr(project, "odm_task_uuid", None)
     project_status = getattr(project, "image_processing_status", None)
-    if not project_odm_uuid or project_status != "PROCESSING":
+    if project_status not in {"PROCESSING", "FAILED"}:
+        return empty
+    if not project_odm_uuid:
+        if project_status == "PROCESSING" and await project_level_odm_output_exists(
+            project.id
+        ):
+            return await mark_project_level_odm_success_from_refresh(
+                db, project.id, reason="project output found in S3 without ODM UUID"
+            )
         return empty
 
     # Fetch status from ScaleODM
@@ -263,49 +313,12 @@ async def reconcile_project_level_odm(
         status_code, status_label = parse_odm_status(odm_info.get("status"))
 
         if status_code == 40:
-            # Completed on ScaleODM - enqueue finalize job.
-            scaleodm_endpoint = (
-                getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
+            # Project-level completion does not require task orthophoto
+            # reprojection. Mark it successful directly so manual Refresh is
+            # not dependent on an ARQ finalizer job being picked up.
+            return await mark_project_level_odm_success_from_refresh(
+                db, project.id, reason="ScaleODM reported completed"
             )
-            await redis_pool.enqueue_job(
-                "finalize_scaleodm_task",
-                scaleodm_url=scaleodm_endpoint,
-                dtm_project_id=str(project.id),
-                odm_task_uuid=project_odm_uuid,
-                odm_status_code=40,
-                _job_id=f"odm-assets:project:{project.id}",
-                _queue_name="default_queue",
-            )
-            log.warning(
-                "Reconciling project-level completed ScaleODM task: project={} odm_uuid={}",
-                project.id,
-                project_odm_uuid,
-            )
-            task_entry = project_schemas.OdmQueueTask(
-                uuid=project_odm_uuid,
-                name=f"Project {project.id}",
-                status_code=20,
-                status_label="Finalizing assets",
-                images_count=odm_info.get("imagesCount"),
-                progress=odm_info.get("progress"),
-                date_created=odm_info.get("dateCreated"),
-                processing_time=odm_info.get("processingTime"),
-            )
-            return {
-                "running": 1,
-                "queued": 0,
-                "failed": 0,
-                "completed": 0,
-                "total": 1,
-                "groups": [
-                    project_schemas.OdmStatusGroup(
-                        status_code=20,
-                        status_label="Running",
-                        count=1,
-                        tasks=[task_entry],
-                    )
-                ],
-            }
 
         if status_code in (30, 50):
             # Failed or canceled - enqueue finalize to capture error message + cleanup.

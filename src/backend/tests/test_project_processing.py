@@ -1,5 +1,7 @@
 import json
 import uuid
+from types import SimpleNamespace
+from urllib.parse import urlparse
 
 import pytest
 
@@ -101,6 +103,21 @@ class _FakeScaleOdmSession:
     def post(self, url, json=None, **kwargs):
         self.posts.append((url, json or {}))
         return self._response
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+class _FakeScaleOdmInfoResponse:
+    def __init__(self, *, status: int, payload: dict):
+        self.status = status
+        self._payload = payload
+
+    async def json(self):
+        return self._payload
 
     async def __aenter__(self):
         return self
@@ -436,6 +453,157 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
     assert submitted["read_s3_path"].endswith(f"/projects/{project_id}/")
     assert submitted["write_s3_path"].endswith(f"/projects/{project_id}/odm/")
     assert submitted["name"] == f"DTM-Project-{project_id}"
+
+
+# ── reconcile_project_level_odm ───────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_reconcile_project_level_odm_marks_success_on_scaleodm_completed(
+    monkeypatch,
+):
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    status_calls = []
+    enqueue_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        status_calls.append({"project_id": pid, "status": status})
+
+    class FakeRedis:
+        async def enqueue_job(self, *args, **kwargs):
+            enqueue_calls.append({"args": args, "kwargs": kwargs})
+
+    class FakeSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, _url):
+            return _FakeScaleOdmInfoResponse(
+                status=200, payload={"status": {"code": 40}}
+            )
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        project_logic, "update_processing_status", fake_update_processing_status
+    )
+    monkeypatch.setattr(project_logic.aiohttp, "ClientSession", FakeSession)
+
+    result = await project_logic.reconcile_project_level_odm(
+        conn,
+        SimpleNamespace(
+            id=project_id,
+            odm_task_uuid="project-odm-uuid",
+            odm_endpoint_used="http://scaleodm",
+            image_processing_status="PROCESSING",
+        ),
+        "http://scaleodm",
+        urlparse("http://scaleodm"),
+        "",
+        FakeRedis(),
+        1800,
+    )
+
+    assert result["completed"] == 1
+    assert result["running"] == 0
+    assert status_calls == [
+        {"project_id": project_id, "status": ImageProcessingStatus.SUCCESS}
+    ]
+    assert enqueue_calls == []
+
+
+@pytest.mark.asyncio
+async def test_reconcile_project_level_odm_recovers_failed_project_with_completed_uuid(
+    monkeypatch,
+):
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        status_calls.append({"project_id": pid, "status": status})
+
+    class FakeSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, _url):
+            return _FakeScaleOdmInfoResponse(
+                status=200, payload={"status": {"code": 40}}
+            )
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        project_logic, "update_processing_status", fake_update_processing_status
+    )
+    monkeypatch.setattr(project_logic.aiohttp, "ClientSession", FakeSession)
+
+    result = await project_logic.reconcile_project_level_odm(
+        conn,
+        SimpleNamespace(
+            id=project_id,
+            odm_task_uuid="project-odm-uuid",
+            odm_endpoint_used="http://scaleodm",
+            image_processing_status="FAILED",
+        ),
+        "http://scaleodm",
+        urlparse("http://scaleodm"),
+        "",
+        SimpleNamespace(),
+        1800,
+    )
+
+    assert result["completed"] == 1
+    assert status_calls == [
+        {"project_id": project_id, "status": ImageProcessingStatus.SUCCESS}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_reconcile_project_level_odm_recovers_success_from_s3_without_uuid(
+    monkeypatch,
+):
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        status_calls.append({"project_id": pid, "status": status})
+
+    monkeypatch.setattr(
+        project_logic, "update_processing_status", fake_update_processing_status
+    )
+    monkeypatch.setattr(project_logic, "s3_object_exists", lambda *_args: True)
+
+    result = await project_logic.reconcile_project_level_odm(
+        conn,
+        SimpleNamespace(
+            id=project_id,
+            odm_task_uuid=None,
+            odm_endpoint_used="http://scaleodm",
+            image_processing_status="PROCESSING",
+        ),
+        "http://scaleodm",
+        urlparse("http://scaleodm"),
+        "",
+        SimpleNamespace(),
+        1800,
+    )
+
+    assert result["completed"] == 1
+    assert status_calls == [
+        {"project_id": project_id, "status": ImageProcessingStatus.SUCCESS}
+    ]
 
 
 # ── finalize_scaleodm_task ────────────────────────────────────────────────────
