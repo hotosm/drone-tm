@@ -33,7 +33,7 @@ from drone_flightplan import (
 from drone_flightplan.enums import FlightMode
 
 from app.config import settings
-from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
+from app.models.enums import FinalOutput, ImageProcessingStatus, OAMUploadStatus, State
 from app.projects import project_schemas
 from app.images.image_processing import (
     ScaleOdmSubmitError,
@@ -762,9 +762,17 @@ async def process_drone_images(
             scaleodm_endpoint = odm_url or settings.ODM_ENDPOINT
             log.info(f"Using ScaleODM endpoint: {scaleodm_endpoint}")
 
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "SELECT gsd_cm_px FROM projects WHERE id = %(project_id)s",
+                    {"project_id": project_id},
+                )
+                proj_row = await cur.fetchone()
+            gsd = proj_row["gsd_cm_px"] if proj_row and proj_row["gsd_cm_px"] else 5
+
             options = [
-                {"name": "dsm", "value": True},
-                {"name": "orthophoto-resolution", "value": 5},
+                {"name": "fast-orthophoto", "value": True},
+                {"name": "orthophoto-resolution", "value": gsd},
             ]
 
             # Use public URL when processing on an external ScaleODM, internal otherwise.
@@ -894,10 +902,21 @@ async def process_all_drone_images(
     try:
         pool = ctx["db_pool"]
         async with pool.connection() as conn:
-            options = [
-                {"name": "dsm", "value": True},
-                {"name": "orthophoto-resolution", "value": 5},
-            ]
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "SELECT final_output, gsd_cm_px FROM projects WHERE id = %(project_id)s",
+                    {"project_id": project_id},
+                )
+                row = await cur.fetchone()
+            requested_outputs = row["final_output"] or [] if row else []
+            gsd = row["gsd_cm_px"] if row and row["gsd_cm_px"] else 5
+
+            options = [{"name": "orthophoto-resolution", "value": gsd}]
+            if FinalOutput.DIGITAL_SURFACE_MODEL in requested_outputs:
+                options.append({"name": "dsm", "value": True})
+            if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
+                options.append({"name": "dtm", "value": True})
+
             webhook_url = (
                 f"{settings.PUBLIC_BASE_URL}/api/projects/odm/webhook/{project_id}/"
             )
