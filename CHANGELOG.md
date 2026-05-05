@@ -1,3 +1,9 @@
+## 2026.5.2 (2026-05-05)
+
+### Fix
+
+- **backend**: ensure processing job reconciliation against ScaleODM works well
+
 ## 2026.5.1 (2026-05-05)
 
 ### Feat
