@@ -1276,6 +1276,9 @@ async def finalize_scaleodm_task(
                 )
 
         if int(odm_status_code) == 40:
+            # NOTE we don't do web mercator reprojection of the throwaway task fast orthos
+            # NOTE if in future we decide on a 'stitching' based final project processing,
+            # to stitch all the final orthos, we could remove this entirely
             if task_uuid:
                 try:
                     await asyncio.to_thread(
@@ -1334,6 +1337,10 @@ async def finalize_scaleodm_task(
                         log.info(f"Project {project_uuid} status updated to SUCCESS.")
                     await conn.commit()
 
+            # drone-tm DB is now committed - safe to remove the ScaleODM record.
+            # This call is best-effort; a 404 (record already gone) is silently
+            # ignored, so re-runs of this task after a prior partial execution
+            # are safe.
             await remove_scaleodm_task(
                 scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
             )
@@ -1349,10 +1356,12 @@ async def finalize_scaleodm_task(
                 if err:
                     error_detail = str(err)
 
+            # _persist_odm_failure commits the failure state in drone-tm DB.
             await _persist_odm_failure(
                 ctx, project_uuid, task_uuid, state, error_detail
             )
 
+            # DB committed - remove the ScaleODM record.
             await remove_scaleodm_task(
                 scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
             )

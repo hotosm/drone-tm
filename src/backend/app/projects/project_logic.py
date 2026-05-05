@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import shutil
@@ -45,6 +46,7 @@ from app.s3 import (
     maybe_presign_s3_key,
     get_file_from_bucket,
     get_object_metadata,
+    s3_object_exists,
 )
 from app.tasks.task_splitter import (
     GeometryTopologyError,
@@ -116,6 +118,63 @@ async def get_project_odm_endpoint(db: Connection, project_id: uuid.UUID) -> str
     if row and row.get("odm_endpoint_used"):
         return row["odm_endpoint_used"]
     return settings.ODM_ENDPOINT
+
+
+async def check_s3_for_odm_orthophoto_and_enqueue(
+    redis_pool: ArqRedis,
+    scaleodm_url: str,
+    project_id: uuid.UUID,
+    odm_task_uuid: str,
+    *,
+    task_id=None,
+) -> bool:
+    """Check S3 for a completed ODM orthophoto and enqueue finalization if found.
+
+    Returns True if the orthophoto exists in S3 and a finalize job was enqueued.
+    Pass task_id for per-task ODM runs; omit it for project-level runs.
+    """
+    if task_id is not None:
+        s3_key = (
+            f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+        )
+        job_id = f"odm-assets:task:{task_id}"
+        extra_kwargs: dict = {
+            "state_name": State.IMAGE_PROCESSING_STARTED.name,
+            "dtm_task_id": str(task_id),
+        }
+    else:
+        s3_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+        job_id = f"odm-assets:project:{project_id}"
+        extra_kwargs = {}
+
+    try:
+        found = await asyncio.to_thread(
+            s3_object_exists, settings.S3_BUCKET_NAME, s3_key
+        )
+    except Exception as err:
+        log.warning(
+            "S3 orthophoto check failed (project={} task={}): {}",
+            project_id,
+            task_id,
+            err,
+        )
+        return False
+
+    if not found:
+        return False
+
+    await redis_pool.enqueue_job(
+        "finalize_scaleodm_task",
+        scaleodm_url=scaleodm_url,
+        dtm_project_id=str(project_id),
+        odm_task_uuid=odm_task_uuid,
+        odm_status_code=40,
+        message="Reconciled: orthophoto found in S3 after ScaleODM record lost",
+        **extra_kwargs,
+        _job_id=job_id,
+        _queue_name="default_queue",
+    )
+    return True
 
 
 async def reconcile_project_level_odm(
@@ -349,6 +408,40 @@ async def reconcile_project_level_odm(
         age_ok = age_sec >= not_found_age_sec
 
     if age_ok:
+        scaleodm_endpoint = (
+            getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
+        )
+        recovered = await check_s3_for_odm_orthophoto_and_enqueue(
+            redis_pool, scaleodm_endpoint, project.id, project_odm_uuid
+        )
+        if recovered:
+            log.warning(
+                "Reconciled project-level S3-complete task: project={} odm_uuid={} orthophoto found in S3",
+                project.id,
+                project_odm_uuid,
+            )
+            task_entry = project_schemas.OdmQueueTask(
+                uuid=project_odm_uuid,
+                name=f"Project {project.id}",
+                status_code=20,
+                status_label="Finalizing (recovered from S3)",
+            )
+            return {
+                "running": 1,
+                "queued": 0,
+                "failed": 0,
+                "completed": 0,
+                "total": 1,
+                "groups": [
+                    project_schemas.OdmStatusGroup(
+                        status_code=20,
+                        status_label="Running",
+                        count=1,
+                        tasks=[task_entry],
+                    )
+                ],
+            }
+
         try:
             await update_processing_status(db, project.id, ImageProcessingStatus.FAILED)
             log.warning(

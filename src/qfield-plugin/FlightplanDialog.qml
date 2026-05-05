@@ -406,7 +406,7 @@ QfDialog {
         text: lastDroneType === "POTENSIC_ATOM_2"
           ? qsTr("A file picker was opened to save the mission zip. To load it on your Potensic controller:\n\n" +
               "1. Save the zip to a location you can find (e.g. Downloads)\n" +
-              "2. Extract the zip — it contains global.json and a timestamped .json file\n" +
+              "2. Extract the zip - it contains global.json and a timestamped .json file\n" +
               "3. Connect your phone via USB and navigate to:\n" +
               "   Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
               "4. Replace global.json and rename the timestamped .json to match the existing filename\n\n" +

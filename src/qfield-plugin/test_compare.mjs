@@ -191,7 +191,7 @@ const result3 = Core.generate(polygonCoords, {
 printStats("Run 3: Auto rotation, GSD=3.5, overlap=75/75, WAYPOINTS", result3);
 
 // ─── Potensic Atom 2 JSON output format comparison ─────────────────────────
-// Uses fixed sample features matching test_compare.py — independent of polygon.
+// Uses fixed sample features matching test_compare.py - independent of polygon.
 
 const potensicV2Src = loadQmlJs('output/potensic_v2.js');
 const PotensicV2 = buildModule(potensicV2Src);

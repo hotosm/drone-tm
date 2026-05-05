@@ -1113,7 +1113,9 @@ async def get_odm_queue_info(
     # registered it yet.
     NOT_FOUND_AGE_THRESHOLD_SEC = 1800  # 30 minutes
 
-    # Get all project tasks that have been sent to ODM (any state)
+    # Only fetch tasks still in the active processing state. Completed and
+    # failed tasks are excluded so we don't make unnecessary ScaleODM requests
+    # for historical records (ScaleODM records are now kept after finalization).
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """
@@ -1136,6 +1138,7 @@ async def get_odm_queue_info(
             WHERE
                 t.project_id = %(project_id)s
                 AND t.odm_task_uuid IS NOT NULL
+                AND ls.state = 'IMAGE_PROCESSING_STARTED'
             ORDER BY t.project_task_index;
             """,
             {"project_id": project.id},
@@ -1354,32 +1357,54 @@ async def get_odm_queue_info(
                         NOT_FOUND_AGE_THRESHOLD_SEC,
                     )
                 else:
-                    # Old enough - mark as failed since ScaleODM lost it.
-                    status_code = 30
-                    status_label = "Failed (lost)"
-                    try:
-                        await task_logic.update_task_state_system(
-                            db,
+                    # Old enough - check S3 before declaring lost.
+                    recovered = (
+                        await project_logic.check_s3_for_odm_orthophoto_and_enqueue(
+                            redis_pool,
+                            odm_url,
                             project.id,
-                            dtm_task_id,
-                            "Reconciled: task not found on ScaleODM",
-                            State.IMAGE_PROCESSING_STARTED,
-                            State.IMAGE_PROCESSING_FAILED,
-                            timestamp(),
+                            odm_uuid,
+                            task_id=dtm_task_id,
                         )
+                    )
+                    if recovered:
                         reconciled.append(
-                            f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED (not found on ScaleODM)"
+                            f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (S3 recovery)"
                         )
                         log.warning(
-                            "Reconciled lost task: project={} dtm_task={} odm_uuid={} not found on ScaleODM",
+                            "Reconciled S3-complete task: project={} dtm_task={} odm_uuid={} orthophoto found in S3",
                             project.id,
                             dtm_task_id,
                             odm_uuid,
                         )
-                    except Exception as e:
-                        log.error(
-                            "Failed to reconcile lost task {}: {}", dtm_task_id, e
-                        )
+                        continue  # finalize job is in flight; skip queue display
+                    else:
+                        # Genuinely lost - no output in S3.
+                        status_code = 30
+                        status_label = "Failed (lost)"
+                        try:
+                            await task_logic.update_task_state_system(
+                                db,
+                                project.id,
+                                dtm_task_id,
+                                "Reconciled: task not found on ScaleODM and no S3 output",
+                                State.IMAGE_PROCESSING_STARTED,
+                                State.IMAGE_PROCESSING_FAILED,
+                                timestamp(),
+                            )
+                            reconciled.append(
+                                f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED (not found on ScaleODM)"
+                            )
+                            log.warning(
+                                "Reconciled lost task: project={} dtm_task={} odm_uuid={} not found on ScaleODM",
+                                project.id,
+                                dtm_task_id,
+                                odm_uuid,
+                            )
+                        except Exception as e:
+                            log.error(
+                                "Failed to reconcile lost task {}: {}", dtm_task_id, e
+                            )
             elif db_state == "IMAGE_PROCESSING_FINISHED":
                 continue
             elif db_state == "IMAGE_PROCESSING_FAILED":
