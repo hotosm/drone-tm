@@ -1,3 +1,10 @@
+## 2026.5.5 (2026-05-05)
+
+### Fix
+
+- **frontend**: also detect when project level processing is done
+- **qfield**: improvements to saving files from qfield plugin flightplan gen
+
 ## 2026.5.4 (2026-05-05)
 
 ### Fix
