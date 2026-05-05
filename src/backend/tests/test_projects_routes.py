@@ -658,7 +658,7 @@ async def test_odm_queue_info_enqueues_missed_webhook_processing(
         "dtm_project_id": project_id,
         "odm_task_uuid": odm_task_uuid,
         "state_name": "IMAGE_PROCESSING_STARTED",
-        "message": "Reconciled: processing completed on ScaleODM (missed webhook).",
+        "message": "Reconciled: processing completed on ScaleODM.",
         "dtm_task_id": task_id,
         "odm_status_code": 40,
         "_job_id": f"odm-assets:task:{task_id}",
