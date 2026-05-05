@@ -192,7 +192,7 @@ export const caseStudiesData = [
     location: "Freetown, Sierra Leone",
     title: "Community-Led Drone Mapping in Freetown City",
     description:
-      "30 Freetown residents - including persons with disabilities - used DroneTM and low-cost drones to map 80km² of the city at 5cm resolution. The imagery now drives urban planning, flood preparedness, infrastructure management, and accessibility assessments across the city.",
+      "30 Freetown residents used DroneTM and low-cost drones to map 80km² of the city at 5cm resolution. The imagery now drives urban planning, flood preparedness, infrastructure management, and accessibility assessments across the city.",
     link: "https://www.hotosm.org/en/projects/kyc-africa-drone-mapping-in-freetown-city/",
   },
   {
