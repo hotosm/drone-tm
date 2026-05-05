@@ -798,6 +798,7 @@ async def process_drone_images(
                 webhook=webhook_url,
                 processing_mode="standard",
                 s3_scan_depth=0,
+                use_default_excludes=True,
                 exclude_paths=["*/thumbs/*"],
                 s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
             )
