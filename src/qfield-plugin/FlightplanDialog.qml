@@ -29,6 +29,7 @@ QfDialog {
 
   signal generateRequested(var config)
   signal copyToControllerRequested()
+  signal exportToDeviceRequested()
   signal useGpsTakeoff()
   signal placeMapTakeoff()
   signal clearTakeoff()
@@ -387,14 +388,14 @@ QfDialog {
       Label {
         visible: generationState === "error"
         text: lastDroneType === "POTENSIC_ATOM_2"
-          ? qsTr("File write failed. The mission zip may be partially saved in the flightplans/ folder.\n\n" +
+          ? qsTr("File write failed. The mission zip may be partially saved in the flightplans_potensic2/ folder.\n\n" +
               "Connect your phone via USB and manually copy the zip contents to:\n" +
               "Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/")
           : qsTr("The WPML has been copied to your clipboard. To get the flightplan to your drone:\n\n" +
               "1. Paste clipboard into a new file named <task>.wpml using a text editor\n" +
-              "2. Use a file manager app to copy the .kmz or .wpml from this project's flightplans/ folder to the DJI controller storage\n" +
+              "2. Use a file manager app to copy the .kmz or .wpml from this project's flightplans_dji/ folder to the DJI controller storage\n" +
               "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
-              "Files are saved to: flightplans/ in the QField project directory")
+              "Files are saved to: flightplans_dji/ in the QField project directory")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
@@ -431,10 +432,10 @@ QfDialog {
               "2. Connect your phone via USB and navigate to:\n" +
               "   Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
               "3. Replace global.json and rename the mission .json to match the existing filename\n" +
-              "4. Or extract the zip from the project's flightplans/ folder and copy the files manually")
+              "4. Or copy global.json and the mission .json from flightplans_potensic2/{timestamp}/ in the project folder")
           : qsTr("To transfer the flightplan to your DJI controller:\n\n" +
               "1. Ensure the controller is connected via USB and has at least one prior waypoint mission\n" +
-              "2. Use a file manager app to copy the .kmz from this project's flightplans/ folder to:\n" +
+              "2. Use a file manager app to copy the .kmz from this project's flightplans_dji/ folder to:\n" +
               "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n" +
               "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
               "Tip: If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.")
@@ -452,6 +453,17 @@ QfDialog {
 
         onClicked: {
           copyToControllerRequested();
+        }
+      }
+
+      // --- Save to Device Button ---
+      QfButton {
+        Layout.fillWidth: true
+        visible: kmzAvailable && (generationState === "done" || generationState === "transfer_failed" || generationState === "manual_transfer")
+        text: qsTr("Save to Device")
+
+        onClicked: {
+          exportToDeviceRequested();
         }
       }
 

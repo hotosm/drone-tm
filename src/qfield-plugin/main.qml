@@ -106,6 +106,10 @@ Item {
       copyToFlightController()
     }
 
+    onExportToDeviceRequested: {
+      exportFlightplanToDevice()
+    }
+
     onUseGpsTakeoff: {
       setTakeoffFromGps()
     }
@@ -400,21 +404,26 @@ Item {
     lastDroneType = droneType
     flightplanDialog.lastDroneType = droneType
 
-    var outputDir = qgisProject.homePath + '/flightplans'
+    var geojsonDir = qgisProject.homePath + '/flightplans'
     platformUtilities.createDir(qgisProject.homePath, 'flightplans')
 
     var timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
     var filename = 'task_' + taskId + '_' + timestamp
 
     var geojsonStr = JSON.stringify(placemarks, null, 2)
-    var geojsonPath = outputDir + '/' + filename + '.geojson'
-    log("Saving to " + outputDir)
+    var geojsonPath = geojsonDir + '/' + filename + '.geojson'
     var geojsonOk = saveTextFile(geojsonPath, geojsonStr)
 
     if (droneType === "POTENSIC_ATOM_2") {
-      _outputPotensicV2(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId)
+      var potensicDir = qgisProject.homePath + '/flightplans_potensic2'
+      platformUtilities.createDir(qgisProject.homePath, 'flightplans_potensic2')
+      log("Saving Potensic files to " + potensicDir)
+      _outputPotensicV2(placemarks, filename, potensicDir, geojsonPath, geojsonOk, taskId)
     } else {
-      _outputDji(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId)
+      var djiDir = qgisProject.homePath + '/flightplans_dji'
+      platformUtilities.createDir(qgisProject.homePath, 'flightplans_dji')
+      log("Saving DJI files to " + djiDir)
+      _outputDji(placemarks, filename, djiDir, geojsonPath, geojsonOk, taskId)
     }
   }
 
@@ -487,15 +496,26 @@ Item {
       return
     }
 
+    // Save JSON files as text - this is the reliable cross-platform write.
+    // Binary XHR PUT (used for the zip) silently fails on Windows desktop.
+    var tsStr = String(tsMs)
+    var tsSubDir = outputDir + '/' + tsStr
+    platformUtilities.createDir(outputDir, tsStr)
+    var globalOk  = saveTextFile(tsSubDir + '/global.json', potensic.globalJson)
+    var missionOk = saveTextFile(tsSubDir + '/' + tsStr + '.json', potensic.missionJson)
+    var jsonFilesOk = globalOk && missionOk
+
+    // Also save zip for file-picker export (works on Android; may silently fail on Windows).
     var zipPath = outputDir + '/' + filename + '.zip'
     var zipOk = saveBinaryFile(zipPath, potensic.zipData)
+    if (!zipOk) log("Potensic zip write failed (expected on Windows desktop) - JSON files used instead")
 
-    if (geojsonOk && zipOk) {
-      lastPotensicZipPath = zipPath
+    if (geojsonOk && jsonFilesOk) {
+      lastPotensicZipPath = zipOk ? zipPath : ""
       lastPotensicZipData = potensic.zipData
       lastPotensicGlobalJson = potensic.globalJson
       lastPotensicMissionJson = potensic.missionJson
-      lastPotensicMissionDirName = String(tsMs)
+      lastPotensicMissionDirName = tsStr
 
       var msg = qsTr('Saved: %1').arg(filename)
       mainWindow.displayToast(msg)
@@ -641,6 +661,33 @@ Item {
     }
   }
 
+  function exportFlightplanToDevice() {
+    var filePath = lastDroneType === "POTENSIC_ATOM_2" ? lastPotensicZipPath : lastKmzPath
+    if (!filePath) {
+      if (lastDroneType === "POTENSIC_ATOM_2" && lastPotensicGlobalJson) {
+        // Zip write failed (Windows desktop) - JSON files are in flightplans_potensic2/{ts}/
+        mainWindow.displayToast(qsTr('Zip not available - find JSON files in flightplans_potensic2/'))
+      } else {
+        mainWindow.displayToast(qsTr('No flightplan generated yet'))
+      }
+      return
+    }
+    try {
+      if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
+        platformUtilities.exportDatasetTo(filePath)
+        mainWindow.displayToast(qsTr('Choose a location to save the file'))
+        flightplanDialog.generationState = "manual_transfer"
+        flightplanDialog.resultMessage = lastDroneType === "POTENSIC_ATOM_2"
+          ? qsTr('Save the zip, then copy its contents to the Potensic waypoint folder')
+          : qsTr('Save the KMZ file, then copy it to your controller')
+        return
+      }
+    } catch (e) {
+      log("exportDatasetTo failed: " + e)
+    }
+    mainWindow.displayToast(qsTr('File picker not available on this device'))
+  }
+
   function _copyToDjiController() {
     if (!lastKmzPath) {
       mainWindow.displayToast(qsTr('No flightplan generated yet'))
@@ -653,24 +700,11 @@ Item {
       return
     }
 
-    try {
-      if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
-        log("Opening file picker via platformUtilities.exportDatasetTo")
-        platformUtilities.exportDatasetTo(lastKmzPath)
-        mainWindow.displayToast(qsTr('Choose a location to save the KMZ'))
-        flightplanDialog.generationState = "manual_transfer"
-        flightplanDialog.resultMessage = qsTr('Save the KMZ file, then copy it to your controller')
-        return
-      }
-    } catch (e) {
-      log("platformUtilities.exportDatasetTo failed: " + e)
-    }
-
-    log("Could not export KMZ via direct copy or file picker")
+    log("Could not find DJI controller storage")
     mainWindow.displayToast(qsTr('DJI controller not found - see transfer options below'))
     flightplanDialog.generationState = "transfer_failed"
     flightplanDialog.resultMessage = qsTr(
-      'Could not find DJI controller storage. The KMZ is saved in the project flightplans/ folder.'
+      'Could not find DJI controller storage. The KMZ is saved in the project flightplans_dji/ folder.'
     )
   }
 
@@ -725,26 +759,11 @@ Item {
       return
     }
 
-    // Fallback: export zip via file picker
-    if (lastPotensicZipPath) {
-      try {
-        if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
-          platformUtilities.exportDatasetTo(lastPotensicZipPath)
-          mainWindow.displayToast(qsTr('Choose a location to save the mission zip'))
-          flightplanDialog.generationState = "manual_transfer"
-          flightplanDialog.resultMessage = qsTr('Save the zip, then copy its contents to the Potensic waypoint folder')
-          return
-        }
-      } catch (e) {
-        log("exportDatasetTo failed for Potensic: " + e)
-      }
-    }
-
-    log("Could not copy Potensic mission via direct copy or file picker")
+    log("Could not find Potensic waypoint directory")
     mainWindow.displayToast(qsTr('Potensic controller not found - see transfer options below'))
     flightplanDialog.generationState = "transfer_failed"
     flightplanDialog.resultMessage = qsTr(
-      'Could not find Potensic waypoint directory. The zip is saved in the project flightplans/ folder.'
+      'Could not find Potensic waypoint directory. JSON files are saved in flightplans_potensic2/{timestamp}/ in the project folder.'
     )
   }
 
