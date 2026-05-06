@@ -28,6 +28,7 @@ Item {
   property string lastPotensicGlobalJson: ""
   property string lastPotensicMissionJson: ""
   property string lastPotensicMissionDirName: ""
+  property string lastPotensicTsSubDir: ""
 
   // Last generated drone type (persists until next generation, used by copy logic)
   property string lastDroneType: ""
@@ -129,25 +130,63 @@ Item {
     id: demEvaluator
   }
 
-  // --- Map tap handler for placing takeoff point ---
-  Connections {
-    target: mapCanvas
-    function onClicked(point) {
-      if (!placingTakeoff) return
-      placingTakeoff = false
+  // --- Takeoff placement overlay: crosshair + confirm button ---
+  Item {
+    id: takeoffPlacementOverlay
+    visible: plugin.placingTakeoff
+    parent: iface.mainWindow().contentItem
+    anchors.fill: parent
+    z: 1000
 
-      var wgs84Crs = CoordinateReferenceSystemUtils.fromDescription("EPSG:4326")
-      var mapCrs = mapCanvas.mapSettings.destinationCrs
-      var mapPoint = mapCanvas.mapSettings.screenToCoordinate(point)
-      var projected = GeometryUtils.reprojectPoint(
-        GeometryUtils.point(mapPoint.x, mapPoint.y), mapCrs, wgs84Crs
-      )
+    Rectangle {
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 56
+      color: Qt.rgba(0, 0, 0, 0.75)
 
-      takeoffPoint = { lon: projected.x, lat: projected.y }
-      flightplanDialog.takeoffPoint = takeoffPoint
-      mainWindow.displayToast(qsTr('Takeoff point set'))
-      flightplanDialog.populateTaskList()
-      flightplanDialog.open()
+      Label {
+        anchors.centerIn: parent
+        text: qsTr("Pan map to takeoff location")
+        color: "white"
+        font.pixelSize: Theme.defaultFont.pixelSize
+      }
+    }
+
+    Rectangle {
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      width: 2
+      height: 36
+      color: "#C53639"
+    }
+    Rectangle {
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      width: 36
+      height: 2
+      color: "#C53639"
+    }
+
+    Row {
+      anchors.bottom: parent.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.bottomMargin: 96
+      spacing: 16
+
+      QfButton {
+        text: qsTr("Cancel")
+        onClicked: {
+          plugin.placingTakeoff = false
+          flightplanDialog.open()
+        }
+      }
+
+      QfButton {
+        text: qsTr("Set Here")
+        bgcolor: "#C53639"
+        onClicked: plugin.confirmMapTakeoff()
+      }
     }
   }
 
@@ -190,7 +229,21 @@ Item {
   function setTakeoffFromMap() {
     placingTakeoff = true
     flightplanDialog.close()
-    mainWindow.displayToast(qsTr('Tap map to set takeoff point'))
+  }
+
+  function confirmMapTakeoff() {
+    placingTakeoff = false
+    var center = mapCanvas.mapSettings.center
+    var wgs84Crs = CoordinateReferenceSystemUtils.fromDescription("EPSG:4326")
+    var mapCrs = mapCanvas.mapSettings.destinationCrs
+    var projected = GeometryUtils.reprojectPoint(
+      GeometryUtils.point(center.x, center.y), mapCrs, wgs84Crs
+    )
+    takeoffPoint = { lon: projected.x, lat: projected.y }
+    flightplanDialog.takeoffPoint = takeoffPoint
+    mainWindow.displayToast(qsTr('Takeoff point set'))
+    flightplanDialog.populateTaskList()
+    flightplanDialog.open()
   }
 
   function findTaskLayer() {
@@ -445,6 +498,10 @@ Item {
       var kmzData = Kmz.createKmz(wpmlXml)
       kmzOk = saveBinaryFile(kmzPath, kmzData)
       if (kmzOk) {
+        kmzOk = _verifyZipFile(kmzPath, kmzData.byteLength)
+        if (!kmzOk) log("KMZ failed read-back sanity check — treating as failed write")
+      }
+      if (kmzOk) {
         lastKmzPath = kmzPath
         lastKmzData = kmzData
         log("KMZ saved: " + kmzPath + " (" + kmzData.byteLength + " bytes)")
@@ -505,9 +562,15 @@ Item {
     var missionOk = saveTextFile(tsSubDir + '/' + tsStr + '.json', potensic.missionJson)
     var jsonFilesOk = globalOk && missionOk
 
-    // Also save zip for file-picker export (works on Android; may silently fail on Windows).
+    // Also save zip for file-picker export. Use FileUtils first (Android-safe), then
+    // verify the write by reading back the magic bytes — XHR PUT silently corrupts
+    // binary files on Android 11+ scoped storage, so we can't trust the return value alone.
     var zipPath = outputDir + '/' + filename + '.zip'
     var zipOk = saveBinaryFile(zipPath, potensic.zipData)
+    if (zipOk) {
+      zipOk = _verifyZipFile(zipPath, potensic.zipData.byteLength)
+      if (!zipOk) log("Potensic zip failed read-back sanity check — treating as failed write")
+    }
     if (!zipOk) log("Potensic zip write failed (expected on Windows desktop) - JSON files used instead")
 
     if (geojsonOk && jsonFilesOk) {
@@ -516,11 +579,13 @@ Item {
       lastPotensicGlobalJson = potensic.globalJson
       lastPotensicMissionJson = potensic.missionJson
       lastPotensicMissionDirName = tsStr
+      lastPotensicTsSubDir = tsSubDir
 
       var msg = qsTr('Saved: %1').arg(filename)
       mainWindow.displayToast(msg)
       flightplanDialog.generationState = "done"
       flightplanDialog.resultMessage = msg
+      // kmzAvailable gates the Export button — JSON files are always the reliable output
       flightplanDialog.kmzAvailable = true
       flightplanDialog.scrollToBottom()
       _loadFlightplanLayer(geojsonPath, taskId)
@@ -546,8 +611,7 @@ Item {
           }
           var layerNode = root.findLayer(vectorLayer.id)
           if (layerNode) {
-            var clone = layerNode.clone()
-            group.insertChildNode(0, clone)
+            group.addLayer(vectorLayer)
             root.removeChildNode(layerNode)
           }
         } catch (ge) {
@@ -574,16 +638,20 @@ Item {
     // Method 2: Try FileUtils (QField native utility)
     try {
       if (typeof FileUtils !== 'undefined') {
-        // Try common method names
         if (FileUtils.writeFileContent) {
-          FileUtils.writeFileContent(filepath, content)
-          log("Saved via FileUtils.writeFileContent: " + filepath)
-          return true
-        }
-        if (FileUtils.createFile) {
-          FileUtils.createFile(filepath, content)
-          log("Saved via FileUtils.createFile: " + filepath)
-          return true
+          var ok = FileUtils.writeFileContent(filepath, content)
+          if (ok) {
+            log("Saved via FileUtils.writeFileContent: " + filepath)
+            return true
+          }
+          log("FileUtils.writeFileContent returned false for " + filepath)
+        } else if (FileUtils.createFile) {
+          var ok2 = FileUtils.createFile(filepath, content)
+          if (ok2) {
+            log("Saved via FileUtils.createFile: " + filepath)
+            return true
+          }
+          log("FileUtils.createFile returned false for " + filepath)
         }
       }
     } catch (e) {
@@ -618,7 +686,21 @@ Item {
   }
 
   function saveBinaryFile(filepath, arrayBuffer) {
-    // Method 1: XHR PUT with ArrayBuffer (Qt 6 QML supports this)
+    // Method 1: FileUtils.writeFileContent — QField native, handles Android scoped storage correctly
+    try {
+      if (typeof FileUtils !== 'undefined' && FileUtils.writeFileContent) {
+        var ok = FileUtils.writeFileContent(filepath, arrayBuffer)
+        if (ok) {
+          log("Binary saved via FileUtils.writeFileContent: " + filepath)
+          return true
+        }
+        log("FileUtils.writeFileContent returned false for " + filepath)
+      }
+    } catch (e) {
+      log("FileUtils.writeFileContent not available: " + e)
+    }
+
+    // Method 2: XHR PUT with ArrayBuffer (Qt 6 QML — partial support, flaky on Android 11+)
     try {
       var xhr = new XMLHttpRequest()
       xhr.open("PUT", "file://" + filepath, false)
@@ -629,7 +711,7 @@ Item {
       log("XHR PUT binary failed: " + e)
     }
 
-    // Method 2: Try triple-slash file URL
+    // Method 3: Triple-slash file URL
     try {
       var xhr2 = new XMLHttpRequest()
       xhr2.open("PUT", "file:///" + filepath, false)
@@ -642,6 +724,31 @@ Item {
 
     log("ERROR: Binary file write failed for " + filepath)
     return false
+  }
+
+  // Read back the first bytes of a written file and verify ZIP magic (PK\x03\x04).
+  // Returns false if the read fails or bytes don't match — signals a corrupt write.
+  function _verifyZipFile(filepath, expectedByteLength) {
+    try {
+      var xhr = new XMLHttpRequest()
+      xhr.open("GET", "file://" + filepath, false)
+      xhr.responseType = "arraybuffer"
+      xhr.send()
+      if (xhr.status !== 200 && xhr.status !== 0) return false
+      var buf = xhr.response
+      if (!buf || buf.byteLength < 4) return false
+      if (buf.byteLength !== expectedByteLength) {
+        log("ZIP size mismatch: got " + buf.byteLength + ", expected " + expectedByteLength)
+        return false
+      }
+      var view = new Uint8Array(buf)
+      var valid = view[0] === 0x50 && view[1] === 0x4B && view[2] === 0x03 && view[3] === 0x04
+      if (!valid) log("ZIP magic bytes invalid: " + view[0] + " " + view[1] + " " + view[2] + " " + view[3])
+      return valid
+    } catch (e) {
+      log("ZIP verify read-back failed: " + e)
+      return false
+    }
   }
 
   // DJI flight controller waypoint paths to scan
@@ -662,30 +769,71 @@ Item {
   }
 
   function exportFlightplanToDevice() {
-    var filePath = lastDroneType === "POTENSIC_ATOM_2" ? lastPotensicZipPath : lastKmzPath
-    if (!filePath) {
-      if (lastDroneType === "POTENSIC_ATOM_2" && lastPotensicGlobalJson) {
-        // Zip write failed (Windows desktop) - JSON files are in flightplans_potensic2/{ts}/
-        mainWindow.displayToast(qsTr('Zip not available - find JSON files in flightplans_potensic2/'))
-      } else {
-        mainWindow.displayToast(qsTr('No flightplan generated yet'))
-      }
+    if (lastDroneType === "POTENSIC_ATOM_2") {
+      _exportPotensicToDevice()
+      return
+    }
+
+    // DJI: export KMZ
+    if (!lastKmzPath) {
+      mainWindow.displayToast(qsTr('No flightplan generated yet'))
       return
     }
     try {
       if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
-        platformUtilities.exportDatasetTo(filePath)
+        platformUtilities.exportDatasetTo(lastKmzPath)
         mainWindow.displayToast(qsTr('Choose a location to save the file'))
         flightplanDialog.generationState = "manual_transfer"
-        flightplanDialog.resultMessage = lastDroneType === "POTENSIC_ATOM_2"
-          ? qsTr('Save the zip, then copy its contents to the Potensic waypoint folder')
-          : qsTr('Save the KMZ file, then copy it to your controller')
+        flightplanDialog.resultMessage = qsTr('Save the KMZ file, then copy it to your controller')
         return
       }
     } catch (e) {
       log("exportDatasetTo failed: " + e)
     }
     mainWindow.displayToast(qsTr('File picker not available on this device'))
+  }
+
+  function _exportPotensicToDevice() {
+    if (!lastPotensicGlobalJson) {
+      mainWindow.displayToast(qsTr('No flightplan generated yet'))
+      return
+    }
+
+    // Primary: export the mission folder — avoids ZIP binary corruption on Android 11+
+    // scoped storage.  The folder contains global.json + mission JSON, which is what
+    // the Potensic Eve app reads directly.
+    try {
+      if (typeof platformUtilities !== 'undefined' && platformUtilities.exportFolderTo
+          && lastPotensicTsSubDir) {
+        platformUtilities.exportFolderTo(lastPotensicTsSubDir)
+        mainWindow.displayToast(qsTr('Choose a location to save the mission folder'))
+        flightplanDialog.generationState = "manual_transfer"
+        flightplanDialog.resultMessage = qsTr('Save the folder, then copy its contents to the Potensic waypoint folder')
+        return
+      }
+    } catch (e) {
+      log("exportFolderTo not available: " + e)
+    }
+
+    // Fallback: export verified ZIP (sanity-checked after write, so not corrupt)
+    if (lastPotensicZipPath) {
+      try {
+        if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
+          platformUtilities.exportDatasetTo(lastPotensicZipPath)
+          mainWindow.displayToast(qsTr('Choose a location to save the ZIP'))
+          flightplanDialog.generationState = "manual_transfer"
+          flightplanDialog.resultMessage = qsTr('Save the zip, then copy its contents to the Potensic waypoint folder')
+          return
+        }
+      } catch (e) {
+        log("exportDatasetTo (zip) failed: " + e)
+      }
+    }
+
+    // Last resort: point user at the saved JSON files
+    mainWindow.displayToast(qsTr('File picker not available'))
+    flightplanDialog.generationState = "manual_transfer"
+    flightplanDialog.resultMessage = qsTr('Find mission files in flightplans_potensic2/%1/ in the project folder').arg(lastPotensicMissionDirName)
   }
 
   function _copyToDjiController() {
@@ -716,12 +864,14 @@ Item {
         var uuid = uuids[0]
         var targetPath = basePath + "/" + uuid + "/" + uuid + ".kmz"
         log("Found DJI waypoint dir: " + basePath + ", UUID: " + uuid)
-        if (saveBinaryFile(targetPath, lastKmzData)) {
+        if (saveBinaryFile(targetPath, lastKmzData) &&
+            _verifyZipFile(targetPath, lastKmzData.byteLength)) {
           mainWindow.displayToast(qsTr('Copied to flight controller'))
           flightplanDialog.resultMessage = qsTr('Copied to flight controller')
           log("KMZ copied to: " + targetPath)
           return true
         }
+        log("KMZ write to " + targetPath + " failed verification — trying next path")
       }
     }
 
@@ -735,12 +885,14 @@ Item {
         var volUuid = volUuids[0]
         var volTarget = volWaypointPath + "/" + volUuid + "/" + volUuid + ".kmz"
         log("Found DJI waypoint on USB volume: " + vol + ", UUID: " + volUuid)
-        if (saveBinaryFile(volTarget, lastKmzData)) {
+        if (saveBinaryFile(volTarget, lastKmzData) &&
+            _verifyZipFile(volTarget, lastKmzData.byteLength)) {
           mainWindow.displayToast(qsTr('Copied to flight controller'))
           flightplanDialog.resultMessage = qsTr('Copied to flight controller')
           log("KMZ copied to: " + volTarget)
           return true
         }
+        log("KMZ write to " + volTarget + " failed verification — trying next path")
       }
     }
 

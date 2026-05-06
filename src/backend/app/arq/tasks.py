@@ -879,7 +879,12 @@ async def generate_qfield_project(
             async with conn.cursor(row_factory=dict_row) as cur:
                 # Fetch project info
                 await cur.execute(
-                    "SELECT id, name, ST_AsGeoJSON(outline)::jsonb AS outline, dem_url FROM projects WHERE id = %s",
+                    """
+                    SELECT id, name, ST_AsGeoJSON(outline)::jsonb AS outline,
+                           dem_url, gsd_cm_px, front_overlap, side_overlap,
+                           altitude_from_ground
+                    FROM projects WHERE id = %s
+                    """,
                     (project_id,),
                 )
                 project = await cur.fetchone()
@@ -930,12 +935,22 @@ async def generate_qfield_project(
         if not safe_name:
             safe_name = f"project-{project_id[:8]}"
 
+        flight_params = {}
+        if project.get("gsd_cm_px") is not None:
+            flight_params["gsd"] = project["gsd_cm_px"]
+        if project.get("altitude_from_ground") is not None:
+            flight_params["agl"] = project["altitude_from_ground"]
+        if project.get("front_overlap") is not None:
+            flight_params["forward_overlap"] = project["front_overlap"]
+        if project.get("side_overlap") is not None:
+            flight_params["side_overlap"] = project["side_overlap"]
+
         payload = {
             "project_id": project_id,
             "project_name": safe_name,
             "tasks_geojson": tasks_geojson,
             "extent": extent_str,
-            "flight_params": {},
+            "flight_params": flight_params,
             "dem_url": None,
             "plugin_zip": None,
         }

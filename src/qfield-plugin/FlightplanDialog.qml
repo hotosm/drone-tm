@@ -388,8 +388,8 @@ QfDialog {
       Label {
         visible: generationState === "error"
         text: lastDroneType === "POTENSIC_ATOM_2"
-          ? qsTr("File write failed. The mission zip may be partially saved in the flightplans_potensic2/ folder.\n\n" +
-              "Connect your phone via USB and manually copy the zip contents to:\n" +
+          ? qsTr("File write failed. Mission JSON files may still be saved in flightplans_potensic2/ in the project folder.\n\n" +
+              "To transfer manually, connect your phone via USB and copy global.json and the timestamped .json into:\n" +
               "Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/")
           : qsTr("The WPML has been copied to your clipboard. To get the flightplan to your drone:\n\n" +
               "1. Paste clipboard into a new file named <task>.wpml using a text editor\n" +
@@ -405,12 +405,13 @@ QfDialog {
       Label {
         visible: generationState === "manual_transfer"
         text: lastDroneType === "POTENSIC_ATOM_2"
-          ? qsTr("A file picker was opened to save the mission zip. To load it on your Potensic controller:\n\n" +
-              "1. Save the zip to a location you can find (e.g. Downloads)\n" +
-              "2. Extract the zip - it contains global.json and a timestamped .json file\n" +
-              "3. Connect your phone via USB and navigate to:\n" +
+          ? qsTr("A file picker was opened to export the mission. To load it on your Potensic controller:\n\n" +
+              "If a folder was exported (global.json + timestamped .json):\n" +
+              "1. Save the folder to a location you can find (e.g. Downloads)\n" +
+              "2. Connect your phone via USB and navigate to:\n" +
               "   Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
-              "4. Replace global.json and rename the timestamped .json to match the existing filename\n\n" +
+              "3. Copy global.json and the timestamped .json into that folder\n\n" +
+              "If a .zip was exported instead, extract it first, then follow steps 2-3 above.\n\n" +
               "Tip: Create one test mission in Potensic Eve first so the Waypoint directory exists.")
           : qsTr("A file picker was opened to save the KMZ. To load it on your DJI controller:\n\n" +
               "1. Save the file to a location you can find (e.g. Downloads)\n" +
@@ -550,10 +551,10 @@ QfDialog {
   function populateDemLayers() {
     var layers = ["None"];
     try {
-      var demNames = ["dem", "DEM", "dtm", "DTM", "dsm", "DSM", "elevation"];
+      var demNames = ["dem", "DEM", "dtm", "DTM", "dsm", "DSM"];
       for (var i = 0; i < demNames.length; i++) {
         var found = qgisProject.mapLayersByName(demNames[i]);
-        if (found.length > 0) {
+        if (found.length > 0 && found[0].type === 1) {  // type 1 = raster
           layers.push(found[0].name);
         }
       }
