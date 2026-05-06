@@ -124,13 +124,18 @@ async def check_s3_for_odm_orthophoto_and_enqueue(
     redis_pool: ArqRedis,
     scaleodm_url: str,
     project_id: uuid.UUID,
-    odm_task_uuid: str,
+    odm_task_uuid: Optional[str],
     *,
     task_id=None,
-) -> bool:
+) -> bool | None:
     """Check S3 for a completed ODM orthophoto and enqueue finalization if found.
 
-    Returns True if the orthophoto exists in S3 and a finalize job was enqueued.
+    Returns:
+      True  - orthophoto found in S3; finalize job enqueued.
+      False - orthophoto definitively absent; caller should mark task FAILED.
+      None  - S3 check timed out or errored; caller should keep task STARTED
+              and retry on the next reconciliation poll.
+
     Pass task_id for per-task ODM runs; omit it for project-level runs.
     """
     if task_id is not None:
@@ -148,17 +153,25 @@ async def check_s3_for_odm_orthophoto_and_enqueue(
         extra_kwargs = {}
 
     try:
-        found = await asyncio.to_thread(
-            s3_object_exists, settings.S3_BUCKET_NAME, s3_key
+        found = await asyncio.wait_for(
+            asyncio.to_thread(s3_object_exists, settings.S3_BUCKET_NAME, s3_key),
+            timeout=30.0,
         )
+    except asyncio.TimeoutError:
+        log.warning(
+            "S3 orthophoto check timed out (project={} task={}): will retry next poll",
+            project_id,
+            task_id,
+        )
+        return None
     except Exception as err:
         log.warning(
-            "S3 orthophoto check failed (project={} task={}): {}",
+            "S3 orthophoto check failed (project={} task={}): {}: will retry next poll",
             project_id,
             task_id,
             err,
         )
-        return False
+        return None
 
     if not found:
         return False
@@ -177,20 +190,25 @@ async def check_s3_for_odm_orthophoto_and_enqueue(
     return True
 
 
-async def project_level_odm_output_exists(project_id: uuid.UUID) -> bool:
-    """Return True when the project-level ODM orthophoto is present in S3."""
+async def project_level_odm_output_exists(project_id: uuid.UUID) -> bool | None:
+    """Check S3 for the project-level ODM orthophoto.
+
+    Returns True/False on definitive result, None on timeout or error.
+    """
     s3_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
     try:
-        return await asyncio.to_thread(
-            s3_object_exists, settings.S3_BUCKET_NAME, s3_key
+        return await asyncio.wait_for(
+            asyncio.to_thread(s3_object_exists, settings.S3_BUCKET_NAME, s3_key),
+            timeout=30.0,
         )
+    except asyncio.TimeoutError:
+        log.warning("S3 project orthophoto check timed out (project={})", project_id)
+        return None
     except Exception as err:
         log.warning(
-            "S3 project-level orthophoto check failed (project={}): {}",
-            project_id,
-            err,
+            "S3 project orthophoto check failed (project={}): {}", project_id, err
         )
-        return False
+        return None
 
 
 async def mark_project_level_odm_success_from_refresh(
@@ -227,14 +245,7 @@ async def reconcile_project_level_odm(
     redis_pool: ArqRedis,
     not_found_age_sec: int,
 ) -> dict:
-    """Handle queue-info for project-level ODM runs (no per-task ODM UUIDs).
-
-    Fetches the single project-level ScaleODM task status and reconciles:
-    - Completed on ScaleODM -> mark project SUCCESS directly
-    - Project output in S3 but ODM metadata missing -> mark project SUCCESS
-    - Failed/canceled -> enqueue finalize job (captures error + cleanup)
-    - Not found (age > threshold) -> mark project FAILED
-    - Otherwise -> report current status
+    """Fetch and reconcile the single project-level ScaleODM task status.
 
     Returns a dict with keys matching OdmQueueInfo counts + groups.
     """
@@ -249,18 +260,92 @@ async def reconcile_project_level_odm(
 
     project_odm_uuid = getattr(project, "odm_task_uuid", None)
     project_status = getattr(project, "image_processing_status", None)
+
     if project_status not in {"PROCESSING", "FAILED"}:
         return empty
+
+    # Fetch project age once - reused across multiple paths below.
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            "SELECT last_updated FROM projects WHERE id = %(pid)s",
+            {"pid": project.id},
+        )
+        row = await cur.fetchone()
+
+    def _age_sec() -> float | None:
+        if not (row and row.get("last_updated")):
+            return None
+        entered = row["last_updated"]
+        if entered.tzinfo is None:
+            entered = entered.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - entered).total_seconds()
+
+    def _running(label: str = "Running") -> dict:
+        entry = project_schemas.OdmQueueTask(
+            uuid=project_odm_uuid or str(project.id),
+            name=f"Project {project.id}",
+            status_code=20,
+            status_label=label,
+        )
+        return {
+            "running": 1,
+            "queued": 0,
+            "failed": 0,
+            "completed": 0,
+            "total": 1,
+            "groups": [
+                project_schemas.OdmStatusGroup(
+                    status_code=20, status_label="Running", count=1, tasks=[entry]
+                )
+            ],
+        }
+
+    def _failed(label: str = "Failed (lost)") -> dict:
+        entry = project_schemas.OdmQueueTask(
+            uuid=project_odm_uuid or str(project.id),
+            name=f"Project {project.id}",
+            status_code=30,
+            status_label=label,
+        )
+        return {
+            "running": 0,
+            "queued": 0,
+            "failed": 1,
+            "completed": 0,
+            "total": 1,
+            "groups": [
+                project_schemas.OdmStatusGroup(
+                    status_code=30, status_label="Failed", count=1, tasks=[entry]
+                )
+            ],
+        }
+
     if not project_odm_uuid:
-        if project_status == "PROCESSING" and await project_level_odm_output_exists(
-            project.id
-        ):
-            return await mark_project_level_odm_success_from_refresh(
-                db, project.id, reason="project output found in S3 without ODM UUID"
-            )
+        # UUID was never written - submission likely failed between the two DB commits.
+        s3_result = await project_level_odm_output_exists(project.id)
+        if project_status == "PROCESSING":
+            if s3_result is True:
+                return await mark_project_level_odm_success_from_refresh(
+                    db, project.id, reason="output found in S3 without ODM UUID"
+                )
+            if s3_result is None:
+                return _running("Running (S3 check pending)")
+            age = _age_sec()
+            if age is not None and age >= not_found_age_sec:
+                try:
+                    await update_processing_status(
+                        db, project.id, ImageProcessingStatus.FAILED
+                    )
+                    log.warning(
+                        "project={} FAILED: no UUID, no S3 output, age={}s",
+                        project.id,
+                        int(age),
+                    )
+                except Exception as e:
+                    log.error("Failed to mark project FAILED (no UUID): {}", e)
         return empty
 
-    # Fetch status from ScaleODM
+    # Fetch live status from ScaleODM.
     path = f"{parsed_url.path.rstrip('/')}/task/{project_odm_uuid}/info"
     info_url = urlunparse(
         (parsed_url.scheme, parsed_url.netloc, path, "", odm_query, "")
@@ -275,53 +360,40 @@ async def reconcile_project_level_odm(
             async with session.get(info_url) as resp:
                 if resp.status == 200:
                     odm_info = extract_valid_odm_task_info(await resp.json())
-                else:
+                elif resp.status != 404:
                     fetch_failed = True
     except Exception as e:
         log.warning(
-            "Failed to fetch project-level ODM task info for {}: {}",
-            project_odm_uuid,
-            e,
+            "ScaleODM fetch failed for project-level task {}: {}", project_odm_uuid, e
         )
         fetch_failed = True
 
     if fetch_failed:
-        # Can't reach ScaleODM - show as running, don't reconcile.
-        task_entry = project_schemas.OdmQueueTask(
-            uuid=project_odm_uuid,
-            name=f"Project {project.id}",
-            status_code=20,
-            status_label="Running (status pending)",
-        )
-        return {
-            "running": 1,
-            "queued": 0,
-            "failed": 0,
-            "completed": 0,
-            "total": 1,
-            "groups": [
-                project_schemas.OdmStatusGroup(
-                    status_code=20,
-                    status_label="Running",
-                    count=1,
-                    tasks=[task_entry],
-                )
-            ],
-        }
+        # Transient network error - keep showing as running.
+        # Permanently unreachable ScaleODM requires a manual operator action;
+        # auto-failing here would risk killing legitimate long-running jobs on
+        # a single network blip.
+        return _running("Running (status pending)")
 
     if odm_info:
         status_code, status_label = parse_odm_status(odm_info.get("status"))
 
         if status_code == 40:
-            # Project-level completion does not require task orthophoto
-            # reprojection. Mark it successful directly so manual Refresh is
-            # not dependent on an ARQ finalizer job being picked up.
             return await mark_project_level_odm_success_from_refresh(
                 db, project.id, reason="ScaleODM reported completed"
             )
 
         if status_code in (30, 50):
-            # Failed or canceled - enqueue finalize to capture error message + cleanup.
+            # Mark FAILED immediately - don't depend on ARQ being live.
+            # Still enqueue finalize for error-detail capture and ScaleODM record cleanup.
+            try:
+                await update_processing_status(
+                    db, project.id, ImageProcessingStatus.FAILED
+                )
+            except Exception as e:
+                log.error(
+                    "Failed to mark project FAILED on ODM {}: {}", status_label, e
+                )
             scaleodm_endpoint = (
                 getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
             )
@@ -330,17 +402,15 @@ async def reconcile_project_level_odm(
                 scaleodm_url=scaleodm_endpoint,
                 dtm_project_id=str(project.id),
                 odm_task_uuid=project_odm_uuid,
-                odm_status_code=30,  # normalize 50 (canceled) → 30 (failed)
+                odm_status_code=30,
                 _job_id=f"odm-assets:project:{project.id}",
                 _queue_name="default_queue",
             )
             log.warning(
-                "Reconciling project-level ODM failure: project={} odm_uuid={} status={}",
+                "project={} ODM {} - marked FAILED, cleanup enqueued",
                 project.id,
-                project_odm_uuid,
                 status_label,
             )
-
             display_label = "Failed (canceled)" if status_code == 50 else status_label
             task_entry = project_schemas.OdmQueueTask(
                 uuid=project_odm_uuid,
@@ -366,7 +436,6 @@ async def reconcile_project_level_odm(
                 ],
             }
 
-        # Still running or queued
         task_entry = project_schemas.OdmQueueTask(
             uuid=project_odm_uuid,
             name=odm_info.get("name") or f"Project {project.id}",
@@ -403,112 +472,38 @@ async def reconcile_project_level_odm(
         ]
         return result
 
-    # ScaleODM responded but doesn't know this task (not found).
-    # Apply the same age guard as task-level reconciliation.
-    async with db.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            "SELECT last_updated FROM projects WHERE id = %(pid)s",
-            {"pid": project.id},
-        )
-        row = await cur.fetchone()
+    # ScaleODM returned 404 - age-guard before S3 check.
+    age = _age_sec()
+    if age is not None and age < not_found_age_sec:
+        return _running("Running (awaiting ScaleODM registration)")
 
-    age_ok = True
-    if row and row.get("last_updated"):
-        entered = row["last_updated"]
-        if entered.tzinfo is None:
-            entered = entered.replace(tzinfo=timezone.utc)
-        age_sec = (datetime.now(timezone.utc) - entered).total_seconds()
-        age_ok = age_sec >= not_found_age_sec
-
-    if age_ok:
-        scaleodm_endpoint = (
-            getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
-        )
-        recovered = await check_s3_for_odm_orthophoto_and_enqueue(
-            redis_pool, scaleodm_endpoint, project.id, project_odm_uuid
-        )
-        if recovered:
-            log.warning(
-                "Reconciled project-level S3-complete task: project={} odm_uuid={} orthophoto found in S3",
-                project.id,
-                project_odm_uuid,
-            )
-            task_entry = project_schemas.OdmQueueTask(
-                uuid=project_odm_uuid,
-                name=f"Project {project.id}",
-                status_code=20,
-                status_label="Finalizing (recovered from S3)",
-            )
-            return {
-                "running": 1,
-                "queued": 0,
-                "failed": 0,
-                "completed": 0,
-                "total": 1,
-                "groups": [
-                    project_schemas.OdmStatusGroup(
-                        status_code=20,
-                        status_label="Running",
-                        count=1,
-                        tasks=[task_entry],
-                    )
-                ],
-            }
-
-        try:
-            await update_processing_status(db, project.id, ImageProcessingStatus.FAILED)
-            log.warning(
-                "Reconciled project-level lost ODM task: project={} odm_uuid={} not found on ScaleODM",
-                project.id,
-                project_odm_uuid,
-            )
-        except Exception as e:
-            log.error("Failed to reconcile project-level lost task: {}", e)
-
-        task_entry = project_schemas.OdmQueueTask(
-            uuid=project_odm_uuid,
-            name=f"Project {project.id}",
-            status_code=30,
-            status_label="Failed (lost)",
-        )
-        return {
-            "running": 0,
-            "queued": 0,
-            "failed": 1,
-            "completed": 0,
-            "total": 1,
-            "groups": [
-                project_schemas.OdmStatusGroup(
-                    status_code=30,
-                    status_label="Failed",
-                    count=1,
-                    tasks=[task_entry],
-                )
-            ],
-        }
-
-    # Too young to declare lost
-    task_entry = project_schemas.OdmQueueTask(
-        uuid=project_odm_uuid,
-        name=f"Project {project.id}",
-        status_code=20,
-        status_label="Running (awaiting ScaleODM registration)",
+    scaleodm_endpoint = (
+        getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
     )
-    return {
-        "running": 1,
-        "queued": 0,
-        "failed": 0,
-        "completed": 0,
-        "total": 1,
-        "groups": [
-            project_schemas.OdmStatusGroup(
-                status_code=20,
-                status_label="Running",
-                count=1,
-                tasks=[task_entry],
-            )
-        ],
-    }
+    recovered = await check_s3_for_odm_orthophoto_and_enqueue(
+        redis_pool, scaleodm_endpoint, project.id, project_odm_uuid
+    )
+
+    if recovered is True:
+        # Output is in S3 - no reprojection needed for project-level runs.
+        # Commit success directly; enqueued finalize handles ScaleODM cleanup.
+        return await mark_project_level_odm_success_from_refresh(
+            db, project.id, reason="output found in S3 after ScaleODM 404"
+        )
+
+    if recovered is None:
+        return _running("Running (S3 check pending)")
+
+    try:
+        await update_processing_status(db, project.id, ImageProcessingStatus.FAILED)
+        log.warning(
+            "project={} odm_uuid={} FAILED: not on ScaleODM, no S3 output",
+            project.id,
+            project_odm_uuid,
+        )
+    except Exception as e:
+        log.error("Failed to reconcile lost project-level task: {}", e)
+    return _failed()
 
 
 async def get_centroids(db: Connection):

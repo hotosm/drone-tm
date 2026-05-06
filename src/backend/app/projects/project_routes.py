@@ -42,6 +42,7 @@ from app.models.enums import (
     State,
 )
 from app.images.image_classification import ImageClassifier
+from app.images.image_processing import remove_scaleodm_task
 from app.projects import project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
@@ -1137,16 +1138,83 @@ async def get_odm_queue_info(
             JOIN latest_state ls ON ls.task_id = t.id
             WHERE
                 t.project_id = %(project_id)s
-                AND t.odm_task_uuid IS NOT NULL
                 AND ls.state = 'IMAGE_PROCESSING_STARTED'
             ORDER BY t.project_task_index;
             """,
             {"project_id": project.id},
         )
-        all_odm_tasks = await cur.fetchall()
+        all_started_tasks = await cur.fetchall()
 
-    if not all_odm_tasks:
-        # No per-task ODM submissions. Check for a project-level ODM run.
+    # Partition: tasks with a ScaleODM UUID (normal path) vs. tasks that
+    # got stuck in STARTED before the UUID could be written (second DB commit
+    # never landed). The latter are invisible to normal reconciliation because
+    # they have no UUID to poll ScaleODM with.
+    orphaned_tasks = [t for t in all_started_tasks if t["odm_task_uuid"] is None]
+    all_odm_tasks = [t for t in all_started_tasks if t["odm_task_uuid"] is not None]
+    reconciled: list[str] = []
+
+    for o_task in orphaned_tasks:
+        o_task_id = o_task["id"]
+        o_task_index = o_task["project_task_index"]
+        state_entered_at = o_task.get("state_entered_at")
+        age_ok = False
+        if state_entered_at:
+            entered = state_entered_at
+            if entered.tzinfo is None:
+                entered = entered.replace(tzinfo=timezone.utc)
+            age_sec = (datetime.now(timezone.utc) - entered).total_seconds()
+            age_ok = age_sec >= NOT_FOUND_AGE_THRESHOLD_SEC
+        if not age_ok:
+            continue
+
+        # ScaleODM may have accepted the task even though the UUID write failed.
+        # Check the deterministic S3 path before declaring it lost.
+        recovered = await project_logic.check_s3_for_odm_orthophoto_and_enqueue(
+            redis_pool,
+            odm_url,
+            project.id,
+            odm_task_uuid=None,
+            task_id=o_task_id,
+        )
+        if recovered is True:
+            reconciled.append(
+                f"Task {o_task_index} ({o_task_id}): STARTED (no UUID) -> finalizing (S3 recovery)"
+            )
+            log.warning(
+                "Reconciled orphaned task via S3: project={} dtm_task={}",
+                project.id,
+                o_task_id,
+            )
+            continue
+        if recovered is None:
+            # S3 indeterminate - keep running, retry next poll.
+            continue
+        # S3 definitively absent - mark failed.
+        try:
+            await task_logic.update_task_state_system(
+                db,
+                project.id,
+                o_task_id,
+                "Reconciled: task stuck in STARTED with no ScaleODM UUID (submission failed)",
+                State.IMAGE_PROCESSING_STARTED,
+                State.IMAGE_PROCESSING_FAILED,
+                timestamp(),
+            )
+            reconciled.append(
+                f"Task {o_task_index} ({o_task_id}): STARTED (no UUID) -> FAILED"
+            )
+            log.warning(
+                "Reconciled orphaned task (no UUID, no S3 output): project={} dtm_task={}",
+                project.id,
+                o_task_id,
+            )
+        except Exception as e:
+            log.error("Failed to reconcile orphaned task {}: {}", o_task_id, e)
+
+    # Project has its own odm_task_uuid → project-level ODM run; stale per-task
+    # STARTED rows should not block its reconciliation.
+    project_has_own_uuid = bool(getattr(project, "odm_task_uuid", None))
+    if not all_odm_tasks or project_has_own_uuid:
         project_odm_info = await project_logic.reconcile_project_level_odm(
             db,
             project,
@@ -1173,7 +1241,6 @@ async def get_odm_queue_info(
     # valid status, or an error JSON like {"error": "uuid not found"}).
     _FETCH_ERROR = object()
     odm_info_by_uuid: dict[str, dict | object] = {}
-    reconciled: list[str] = []
 
     try:
         async with aiohttp.ClientSession(
@@ -1189,12 +1256,19 @@ async def get_odm_queue_info(
                             return odm_uuid, _extract_valid_odm_task_info(
                                 await resp.json()
                             )
+                        if resp.status == 404:
+                            # Definitively not found - routes to S3 fallback branch
+                            log.warning(
+                                "ScaleODM /task/{}/info returned 404 (task not found on ScaleODM)",
+                                odm_uuid,
+                            )
+                            return odm_uuid, None
                         log.warning(
                             "ScaleODM /task/{}/info returned status {}",
                             odm_uuid,
                             resp.status,
                         )
-                        # Non-200 could be transient; treat as fetch error
+                        # Other non-200 could be transient; treat as fetch error
                         return odm_uuid, _FETCH_ERROR
                 except Exception as e:
                     log.warning(
@@ -1255,7 +1329,20 @@ async def get_odm_queue_info(
             # Reconcile: DB says STARTED but ScaleODM says otherwise
             if db_state == "IMAGE_PROCESSING_STARTED" and status_code in (30, 40, 50):
                 if status_code == 40:
-                    # Completed on ScaleODM - enqueue finalize pipeline.
+                    # ScaleODM complete - orthophoto reprojection still needed.
+                    # Show as "Finalizing" (code 20) so the task stays visible in the
+                    # queue display while the ARQ job runs. status_code=40 is not in
+                    # ODM_QUEUE_DISPLAY_CODES so the task would silently disappear otherwise.
+                    t = project_schemas.OdmQueueTask(
+                        uuid=odm_uuid,
+                        name=name,
+                        status_code=20,
+                        status_label="Finalizing",
+                        images_count=odm_info.get("imagesCount"),
+                        processing_time=odm_info.get("processingTime"),
+                        dtm_task_id=str(dtm_task_id),
+                        task_index=task_index,
+                    )
                     await redis_pool.enqueue_job(
                         "finalize_scaleodm_task",
                         scaleodm_url=odm_url,
@@ -1278,49 +1365,65 @@ async def get_odm_queue_info(
                         odm_uuid,
                     )
                 else:
-                    # Failed or canceled - enqueue finalize to capture the real
-                    # error message from ScaleODM and clean up the ScaleODM row.
-                    await redis_pool.enqueue_job(
-                        "finalize_scaleodm_task",
-                        scaleodm_url=odm_url,
-                        dtm_project_id=str(project.id),
-                        odm_task_uuid=odm_uuid,
-                        state_name=State.IMAGE_PROCESSING_STARTED.name,
-                        message=f"Reconciled: ScaleODM reports {status_label}",
-                        dtm_task_id=str(dtm_task_id),
-                        odm_status_code=30,  # normalize 50 (canceled) → 30 (failed)
-                        _job_id=f"odm-assets:task:{dtm_task_id}",
-                        _queue_name="default_queue",
+                    # Mark FAILED directly and remove the ScaleODM record inline.
+                    # odm_info is already in scope so no extra HTTP round-trip needed.
+                    error_detail = str(
+                        odm_info.get("errorMessage")
+                        or odm_info.get("error")
+                        or f"ScaleODM reports {status_label}"
                     )
-                    reconciled.append(
-                        f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED ({status_label}, enqueued finalize)"
-                    )
-                    log.warning(
-                        "Reconciling failed/canceled task: project={} dtm_task={} odm_uuid={} odm_status={}",
-                        project.id,
-                        dtm_task_id,
-                        odm_uuid,
-                        status_label,
-                    )
+                    cleanup_allowed = False
+                    state_transitioned = False
+                    try:
+                        transition = await task_logic.update_task_state_system(
+                            db,
+                            project.id,
+                            dtm_task_id,
+                            f"Reconciled: {error_detail}",
+                            State.IMAGE_PROCESSING_STARTED,
+                            State.IMAGE_PROCESSING_FAILED,
+                            timestamp(),
+                        )
+                        await db.commit()
+                        state_transitioned = bool(transition)
+                        cleanup_allowed = True
+                    except Exception as e:
+                        log.error(
+                            "Failed to mark task FAILED on ODM {}: {}", status_label, e
+                        )
+                    if cleanup_allowed:
+                        await remove_scaleodm_task(
+                            scaleodm_url=odm_url, odm_task_uuid=odm_uuid
+                        )
+                    if state_transitioned:
+                        reconciled.append(
+                            f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED ({status_label})"
+                        )
+                        log.warning(
+                            "Reconciled failed/canceled task: project={} dtm_task={} odm_uuid={} odm_status={}",
+                            project.id,
+                            dtm_task_id,
+                            odm_uuid,
+                            status_label,
+                        )
+                    elif cleanup_allowed:
+                        log.warning(
+                            "Cleaned up terminal ScaleODM task after state was already handled: "
+                            "project={} dtm_task={} odm_uuid={} odm_status={}",
+                            project.id,
+                            dtm_task_id,
+                            odm_uuid,
+                            status_label,
+                        )
         elif fetch_failed:
-            # Could not reach ScaleODM for this task (timeout, network error).
-            # Do NOT reconcile - the task may still be running. Show it as
-            # "in progress" based on the DB state so the UI doesn't flip to failed.
-            if db_state == "IMAGE_PROCESSING_STARTED":
-                status_code = 20
-                status_label = "Running (status pending)"
-                log.debug(
-                    "Skipping reconciliation for task {} (fetch failed), keeping STARTED state",
-                    dtm_task_id,
-                )
-            elif db_state == "IMAGE_PROCESSING_FINISHED":
+            if db_state == "IMAGE_PROCESSING_FINISHED":
                 continue
-            elif db_state == "IMAGE_PROCESSING_FAILED":
-                status_code = 30
-                status_label = "Failed"
+            if db_state == "IMAGE_PROCESSING_FAILED":
+                status_code, status_label = 30, "Failed"
+            elif db_state == "IMAGE_PROCESSING_STARTED":
+                status_code, status_label = 20, "Running (status pending)"
             else:
-                status_code = 0
-                status_label = f"Unknown ({db_state})"
+                status_code, status_label = 0, f"Unknown ({db_state})"
 
             t = project_schemas.OdmQueueTask(
                 uuid=odm_uuid,
@@ -1367,7 +1470,7 @@ async def get_odm_queue_info(
                             task_id=dtm_task_id,
                         )
                     )
-                    if recovered:
+                    if recovered is True:
                         reconciled.append(
                             f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (S3 recovery)"
                         )
@@ -1378,6 +1481,14 @@ async def get_odm_queue_info(
                             odm_uuid,
                         )
                         continue  # finalize job is in flight; skip queue display
+                    elif recovered is None:
+                        # S3 check failed transiently - keep showing as running.
+                        status_code = 20
+                        status_label = "Running (S3 check pending)"
+                        log.warning(
+                            "S3 check indeterminate for task {}, will retry next poll",
+                            dtm_task_id,
+                        )
                     else:
                         # Genuinely lost - no output in S3.
                         status_code = 30

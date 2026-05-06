@@ -670,6 +670,65 @@ async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_finalize_scaleodm_task_skips_remove_when_odm_uuid_unknown(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    ctx = {
+        "job_id": "fin-orphan",
+        "job_try": 1,
+        "db_pool": _FakePool(conn),
+        "redis": None,
+    }
+    state_calls = []
+    field_calls = []
+
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
+
+    async def fake_update_task_field(db, pid, tid, column, value):
+        field_calls.append({"column": column, "value": value})
+
+    async def fake_get_task_state(db, pid, tid):
+        return {"state": State.IMAGE_PROCESSING_STARTED.name}
+
+    def fake_reproject(pid, tid):
+        assert pid == project_id
+        assert tid == task_id
+
+    async def fake_remove(*args, **kwargs):
+        raise AssertionError("remove_scaleodm_task should not be called")
+
+    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
+    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
+    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
+    monkeypatch.setattr(
+        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
+    )
+    monkeypatch.setattr(
+        arq_tasks.project_logic, "update_task_field", fake_update_task_field
+    )
+
+    result = await arq_tasks.finalize_scaleodm_task(
+        ctx,
+        scaleodm_url="http://scaleodm",
+        dtm_project_id=str(project_id),
+        odm_task_uuid=None,
+        odm_status_code=40,
+        state_name=State.IMAGE_PROCESSING_STARTED.name,
+        message="Task completed.",
+        dtm_task_id=str(task_id),
+    )
+
+    assert result["status"] == "completed"
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FINISHED
+    assert field_calls == [
+        {"column": "assets_url", "value": f"projects/{project_id}/{task_id}/odm/"}
+    ]
+
+
+@pytest.mark.asyncio
 async def test_finalize_scaleodm_task_skips_when_state_already_changed(monkeypatch):
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()

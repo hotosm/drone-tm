@@ -1195,7 +1195,7 @@ async def finalize_scaleodm_task(
     *,
     scaleodm_url: str,
     dtm_project_id: str,
-    odm_task_uuid: str,
+    odm_task_uuid: Optional[str],
     odm_status_code: int,
     state_name: Optional[str] = None,
     message: Optional[str] = None,
@@ -1209,8 +1209,9 @@ async def finalize_scaleodm_task(
     the task-level key, sets ``assets_url`` and transitions to
     IMAGE_PROCESSING_FINISHED. Project-level status 40 leaves the native ODM
     orthophoto untouched and marks processing successful. On 30 (failed)
-    records an error message and marks the task/project failed. Either way,
-    best-effort POST /task/remove cleans up the ScaleODM row.
+    records an error message and marks the task/project failed. When a
+    ScaleODM UUID is known, best-effort POST /task/remove cleans up the
+    ScaleODM row.
     """
     job_id = ctx.get("job_id", "unknown")
     log.info(
@@ -1337,34 +1338,35 @@ async def finalize_scaleodm_task(
                         log.info(f"Project {project_uuid} status updated to SUCCESS.")
                     await conn.commit()
 
-            # drone-tm DB is now committed - safe to remove the ScaleODM record.
-            # This call is best-effort; a 404 (record already gone) is silently
-            # ignored, so re-runs of this task after a prior partial execution
-            # are safe.
-            await remove_scaleodm_task(
-                scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
-            )
+            # drone-tm DB is now committed - safe to remove the ScaleODM record
+            # when we know its UUID. The call is best-effort; a 404 is ignored.
+            if odm_task_uuid:
+                await remove_scaleodm_task(
+                    scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
+                )
             return {"status": "completed", "project_id": dtm_project_id}
 
         if int(odm_status_code) == 30:
             error_detail = message or "ODM processing failed"
-            info = await fetch_scaleodm_task_info(
-                scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
-            )
-            if info and isinstance(info, dict):
-                err = info.get("errorMessage") or info.get("error")
-                if err:
-                    error_detail = str(err)
+            if odm_task_uuid:
+                info = await fetch_scaleodm_task_info(
+                    scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
+                )
+                if info and isinstance(info, dict):
+                    err = info.get("errorMessage") or info.get("error")
+                    if err:
+                        error_detail = str(err)
 
             # _persist_odm_failure commits the failure state in drone-tm DB.
             await _persist_odm_failure(
                 ctx, project_uuid, task_uuid, state, error_detail
             )
 
-            # DB committed - remove the ScaleODM record.
-            await remove_scaleodm_task(
-                scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
-            )
+            # DB committed - remove the ScaleODM record when we know its UUID.
+            if odm_task_uuid:
+                await remove_scaleodm_task(
+                    scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
+                )
             return {
                 "status": "failed",
                 "reason": "odm_status_30",
