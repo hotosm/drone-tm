@@ -1014,10 +1014,11 @@ async def process_all_drone_images(
             if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
                 options.append({"name": "dtm", "value": True})
 
-            # Project-wide submission: scan under projects/{pid}/ just deep
-            # enough to include {tid}/images/file. Bounded depth is important
-            # because generated derivatives live below that, e.g.
-            # {tid}/images/thumbs/file, and must not become ODM inputs.
+            # Project-wide submission: scan under projects/{pid}/ deep enough
+            # to include {tid}/images/file (3 levels: {tid}/ → images/ → file).
+            # Exclude user-uploads/ entirely (staging area, not inputs) and
+            # thumb_* filenames so DroneTM-generated thumbnails are never fed
+            # to ODM regardless of where they reside.
             read_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/"
             write_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/odm/"
 
@@ -1028,9 +1029,9 @@ async def process_all_drone_images(
                 name=f"DTM-Project-{project_id}",
                 options=options,
                 processing_mode="standard",
-                s3_scan_depth=2,
+                s3_scan_depth=3,
                 use_default_excludes=True,
-                exclude_paths=["*/thumbs/*"],
+                exclude_paths=["*/thumbs/*", "user-uploads/*", "thumb_*"],
                 s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
             )
 
