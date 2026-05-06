@@ -1,3 +1,9 @@
+## 2026.5.7 (2026-05-06)
+
+### Fix
+
+- **backend**: tighten up the scaleodm task status reconcile process
+
 ## 2026.5.6 (2026-05-05)
 
 ### Fix
