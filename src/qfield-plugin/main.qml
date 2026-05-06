@@ -499,7 +499,7 @@ Item {
       kmzOk = saveBinaryFile(kmzPath, kmzData)
       if (kmzOk) {
         kmzOk = _verifyZipFile(kmzPath, kmzData.byteLength)
-        if (!kmzOk) log("KMZ failed read-back sanity check — treating as failed write")
+        if (!kmzOk) log("KMZ failed read-back sanity check - treating as failed write")
       }
       if (kmzOk) {
         lastKmzPath = kmzPath
@@ -563,13 +563,13 @@ Item {
     var jsonFilesOk = globalOk && missionOk
 
     // Also save zip for file-picker export. Use FileUtils first (Android-safe), then
-    // verify the write by reading back the magic bytes — XHR PUT silently corrupts
+    // verify the write by reading back the magic bytes - XHR PUT silently corrupts
     // binary files on Android 11+ scoped storage, so we can't trust the return value alone.
     var zipPath = outputDir + '/' + filename + '.zip'
     var zipOk = saveBinaryFile(zipPath, potensic.zipData)
     if (zipOk) {
       zipOk = _verifyZipFile(zipPath, potensic.zipData.byteLength)
-      if (!zipOk) log("Potensic zip failed read-back sanity check — treating as failed write")
+      if (!zipOk) log("Potensic zip failed read-back sanity check - treating as failed write")
     }
     if (!zipOk) log("Potensic zip write failed (expected on Windows desktop) - JSON files used instead")
 
@@ -585,7 +585,7 @@ Item {
       mainWindow.displayToast(msg)
       flightplanDialog.generationState = "done"
       flightplanDialog.resultMessage = msg
-      // kmzAvailable gates the Export button — JSON files are always the reliable output
+      // kmzAvailable gates the Export button - JSON files are always the reliable output
       flightplanDialog.kmzAvailable = true
       flightplanDialog.scrollToBottom()
       _loadFlightplanLayer(geojsonPath, taskId)
@@ -686,7 +686,7 @@ Item {
   }
 
   function saveBinaryFile(filepath, arrayBuffer) {
-    // Method 1: FileUtils.writeFileContent — QField native, handles Android scoped storage correctly
+    // Method 1: FileUtils.writeFileContent - QField native, handles Android scoped storage correctly
     try {
       if (typeof FileUtils !== 'undefined' && FileUtils.writeFileContent) {
         var ok = FileUtils.writeFileContent(filepath, arrayBuffer)
@@ -700,7 +700,7 @@ Item {
       log("FileUtils.writeFileContent not available: " + e)
     }
 
-    // Method 2: XHR PUT with ArrayBuffer (Qt 6 QML — partial support, flaky on Android 11+)
+    // Method 2: XHR PUT with ArrayBuffer (Qt 6 QML - partial support, flaky on Android 11+)
     try {
       var xhr = new XMLHttpRequest()
       xhr.open("PUT", "file://" + filepath, false)
@@ -727,7 +727,7 @@ Item {
   }
 
   // Read back the first bytes of a written file and verify ZIP magic (PK\x03\x04).
-  // Returns false if the read fails or bytes don't match — signals a corrupt write.
+  // Returns false if the read fails or bytes don't match - signals a corrupt write.
   function _verifyZipFile(filepath, expectedByteLength) {
     try {
       var xhr = new XMLHttpRequest()
@@ -799,7 +799,7 @@ Item {
       return
     }
 
-    // Primary: export the mission folder — avoids ZIP binary corruption on Android 11+
+    // Primary: export the mission folder - avoids ZIP binary corruption on Android 11+
     // scoped storage.  The folder contains global.json + mission JSON, which is what
     // the Potensic Eve app reads directly.
     try {
@@ -871,7 +871,7 @@ Item {
           log("KMZ copied to: " + targetPath)
           return true
         }
-        log("KMZ write to " + targetPath + " failed verification — trying next path")
+        log("KMZ write to " + targetPath + " failed verification - trying next path")
       }
     }
 
@@ -892,7 +892,7 @@ Item {
           log("KMZ copied to: " + volTarget)
           return true
         }
-        log("KMZ write to " + volTarget + " failed verification — trying next path")
+        log("KMZ write to " + volTarget + " failed verification - trying next path")
       }
     }
 

@@ -47,6 +47,7 @@ from app.s3 import (
     s3_client,
     get_file_from_bucket,
     delete_objects_by_prefix,
+    s3_object_exists,
 )
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
@@ -527,8 +528,13 @@ async def ingest_existing_uploads(
             if obj.is_dir:
                 continue
             key = obj.object_name
+            relative_key = key[len(prefix) :] if key.startswith(prefix) else key
+            path_parts = relative_key.split("/")
             filename = key.rsplit("/", 1)[-1]
-            if filename.startswith("thumb_"):
+            filename_lower = filename.lower()
+            if any(
+                part.lower() == "thumbs" for part in path_parts[:-1]
+            ) or filename_lower.startswith(("thumb_", "thumbs_", "thumbs-")):
                 continue
             ext = os.path.splitext(filename)[1].lower()
             if ext not in image_extensions:
@@ -558,7 +564,130 @@ async def ingest_existing_uploads(
         log.info(
             f"Ingest job {job_id}: enqueued {enqueued} images for project {project_id}"
         )
-        return {"project_id": project_id, "batch_id": batch_id, "enqueued": enqueued}
+
+        # Second pass: reconcile assigned images whose DB path is still user-uploads.
+        # This unblocks get_processable_tasks_with_pending_transfer_count when the
+        # move job was lost (Redis flush, worker down) or partially completed.
+        #
+        # Three outcomes per stuck image:
+        #   A) S3 file exists at user-uploads path  → move job never ran → re-enqueue it
+        #   B) S3 file at expected task dest path   → move ran but DB not updated → fix DB
+        #   C) S3 file not found anywhere           → orphaned DB record → delete it
+        async with db_pool.connection() as db:
+            async with db.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT id, s3_key, task_id, filename, thumbnail_url
+                    FROM project_images
+                    WHERE project_id = %(pid)s
+                      AND status = 'assigned'
+                      AND s3_key LIKE '%%user-uploads%%'
+                    """,
+                    {"pid": project_id},
+                )
+                stuck_images = await cur.fetchall()
+
+        tasks_needing_move: set[str] = set()
+        db_fixes: list[tuple[str, str, str | None]] = []
+        orphan_ids: list[str] = []
+
+        for img in stuck_images:
+            image_id = str(img["id"])
+            s3_key = img["s3_key"]
+            task_id_str = str(img["task_id"])
+            filename = img["filename"]
+            old_thumb = img.get("thumbnail_url")
+            image_id_prefix = image_id[:8]
+            dest_key = (
+                f"projects/{project_id}/{task_id_str}/images/"
+                f"{image_id_prefix}_{filename}"
+            )
+            dest_thumb_key = (
+                f"projects/{project_id}/{task_id_str}/images/thumbs/"
+                f"{image_id_prefix}_{filename}"
+            )
+
+            if s3_object_exists(bucket, s3_key):
+                # Case A: file still in user-uploads; just need to re-trigger the move
+                tasks_needing_move.add(task_id_str)
+            elif s3_object_exists(bucket, dest_key):
+                # Case B: S3 move completed but DB update didn't commit
+                new_thumb: str | None = None
+                if old_thumb and "user-uploads" in old_thumb:
+                    new_thumb = (
+                        dest_thumb_key
+                        if s3_object_exists(bucket, dest_thumb_key)
+                        else None
+                    )
+                db_fixes.append((image_id, dest_key, new_thumb))
+            else:
+                # Case C: file gone from S3 entirely - orphaned record
+                orphan_ids.append(image_id)
+
+        if db_fixes:
+            async with db_pool.connection() as db:
+                for image_id, new_s3_key, new_thumb in db_fixes:
+                    fields = "SET s3_key = %(new_s3_key)s"
+                    params: dict[str, Any] = {
+                        "new_s3_key": new_s3_key,
+                        "image_id": image_id,
+                    }
+                    if new_thumb:
+                        fields += ", thumbnail_url = %(new_thumb)s"
+                        params["new_thumb"] = new_thumb
+                    async with db.cursor() as cur:
+                        await cur.execute(
+                            f"UPDATE project_images {fields} WHERE id = %(image_id)s",
+                            params,
+                        )
+                await db.commit()
+            log.info(
+                f"Ingest job {job_id}: fixed s3_key for {len(db_fixes)} images "
+                f"whose S3 move completed but DB was not updated"
+            )
+
+        if orphan_ids:
+            async with db_pool.connection() as db:
+                async with db.cursor() as cur:
+                    await cur.execute(
+                        "DELETE FROM project_images WHERE id = ANY(%(ids)s::uuid[])",
+                        {"ids": orphan_ids},
+                    )
+                await db.commit()
+            log.info(
+                f"Ingest job {job_id}: deleted {len(orphan_ids)} orphaned image "
+                f"records (assigned status but S3 file not found)"
+            )
+
+        move_enqueued = 0
+        for task_id_str in tasks_needing_move:
+            stable_move_id = f"move-task-images:{task_id_str}"
+            move_job = await redis.enqueue_job(
+                "move_task_images_for_processing",
+                project_id,
+                task_id_str,
+                _queue_name="default_queue",
+                _job_id=stable_move_id,
+            )
+            if move_job is not None:
+                move_enqueued += 1
+
+        if tasks_needing_move:
+            log.info(
+                f"Ingest job {job_id}: re-enqueued move jobs for {move_enqueued} tasks "
+                f"({len(tasks_needing_move) - move_enqueued} already queued or running)"
+            )
+
+        return {
+            "project_id": project_id,
+            "batch_id": batch_id,
+            "enqueued": enqueued,
+            "reconciled": {
+                "move_jobs_enqueued": move_enqueued,
+                "db_keys_fixed": len(db_fixes),
+                "orphans_deleted": len(orphan_ids),
+            },
+        }
     finally:
         await redis.delete(lock_key)
 
