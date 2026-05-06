@@ -327,12 +327,12 @@ const ProcessingStatusDialog = () => {
   }, []);
 
   const handleStartFinalProcessing = useCallback(
-    (withGcp: boolean) => {
+    (withGcp: boolean, capacityType?: string) => {
       if (withGcp) {
         dispatch(setProjectState({ showGcpEditor: true }));
         dispatch(toggleModal());
       } else {
-        startAllImageProcessing({ projectId });
+        startAllImageProcessing({ projectId, capacityType });
       }
     },
     [dispatch, startAllImageProcessing, projectId],
@@ -904,7 +904,8 @@ const ProcessingStatusDialog = () => {
             className="naxatw-bg-red naxatw-px-8 naxatw-py-2 naxatw-text-white disabled:naxatw-bg-gray-400"
             leftIcon={isFinalProcessingRunning ? "sync" : "play_arrow"}
             iconClassname={isFinalProcessingRunning ? "naxatw-animate-spin" : ""}
-            onClick={() => {
+            onClick={(e) => {
+              const onDemand = e.ctrlKey || e.metaKey;
               let confirmMessage =
                 `This will process ${totalProcessable} of ${totalTaskCount} tasks ` +
                 "into a single orthophoto and 3D model. This may take a long time.\n\n";
@@ -924,10 +925,15 @@ const ProcessingStatusDialog = () => {
                   "- Edge areas near gaps may have reduced accuracy due to fewer tie points\n\n";
               }
 
+              if (onDemand) {
+                confirmMessage +=
+                  "ON-DEMAND MODE: Processing will run on a dedicated on-demand node and will not be interrupted.\n\n";
+              }
+
               confirmMessage += "Are you sure you want to proceed?";
 
               if (!window.confirm(confirmMessage)) return;
-              handleStartFinalProcessing(false);
+              handleStartFinalProcessing(false, onDemand ? "on-demand" : undefined);
             }}
             disabled={
               Boolean(finalProcessingDisabledReason) ||

@@ -472,6 +472,7 @@ async def process_all_imagery(
     user_data: Annotated[AuthUser, Depends(login_required)],
     db: Annotated[Connection, Depends(database.get_db)],
     redis_pool: ArqRedis = Depends(get_redis_pool),
+    capacity_type: Annotated[Optional[str], Body(embed=True)] = None,
 ):
     """API endpoint to process all tasks associated with a project.
 
@@ -529,6 +530,7 @@ async def process_all_imagery(
         project.id,
         all_tasks,
         user_id,
+        capacity_type,
         _queue_name="default_queue",
     )
 

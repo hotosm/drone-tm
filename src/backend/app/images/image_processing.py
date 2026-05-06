@@ -47,6 +47,7 @@ async def submit_scaleodm_task(
     use_default_excludes: bool = True,
     exclude_paths: Optional[list[str]] = None,
     s3_endpoint: Optional[str] = None,
+    capacity_type: Optional[str] = None,
 ) -> str:
     """Create a ScaleODM task via POST /task/new.
 
@@ -68,6 +69,8 @@ async def submit_scaleodm_task(
         body["excludePaths"] = json.dumps(exclude_paths)
     if s3_endpoint:
         body["s3Endpoint"] = s3_endpoint
+    if capacity_type:
+        body["capacityType"] = capacity_type
 
     base = scaleodm_url.rstrip("/")
     url = f"{base}/task/new"

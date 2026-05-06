@@ -13,8 +13,11 @@ export const postTaskStatus = (payload: Record<string, any>) => {
 export const getRequestedTasks = () => authenticated(api).get("/tasks/requested_tasks/pending");
 
 export const processAllImagery = (data: Record<string, any>) => {
-  const { projectId } = data;
-  return authenticated(api).post(`/projects/process_all_imagery/${projectId}/`);
+  const { projectId, capacityType } = data;
+  return authenticated(api).post(
+    `/projects/process_all_imagery/${projectId}/`,
+    capacityType ? { capacity_type: capacityType } : undefined,
+  );
 };
 
 export const saveGcpFile = (data: { projectId: string; gcp_file: File }) => {

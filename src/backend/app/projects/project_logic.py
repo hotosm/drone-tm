@@ -991,6 +991,7 @@ async def process_all_drone_images(
     project_id: uuid.UUID,
     tasks: list,
     user_id: str,
+    capacity_type: Optional[str] = None,
     **_kwargs: Any,
 ):
     job_id = ctx.get("job_id", "unknown")
@@ -1033,6 +1034,7 @@ async def process_all_drone_images(
                 use_default_excludes=True,
                 exclude_paths=["*/thumbs/*", "user-uploads/*", "thumb_*"],
                 s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
+                capacity_type=capacity_type,
             )
 
             # Persist ODM metadata for reconciliation/recovery, then mark PROCESSING.
