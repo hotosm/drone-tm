@@ -102,6 +102,47 @@ platform, ensuring critical information is easily available to stakeholders for 
 
 ---
 
+### Q. Can drones be weaponized? Is DroneTM technology a security risk?
+
+When people hear "drone attack" in the news, they are generally thinking of large
+military unmanned aerial vehicles - a completely different technology to what we
+use.
+
+**Weight is the key distinction.** Civil aviation authorities worldwide use
+250 grams as the threshold separating micro-drones (essentially a flying camera)
+from larger, potentially hazardous aircraft. The drones we operate - primarily
+the DJI Mini 4 Pro at 249g - fall below this threshold. At that weight:
+
+- The motors are too small to carry meaningful payloads. A grenade alone weighs
+  over 400g; a DJI Mavic 3 (895g) has been cited in security literature as
+  capable of carrying one. A DJI Mini 4 Pro cannot.
+- A drone this light falling from the sky cannot normally cause more than trivial
+  injury or property damage.
+- Many jurisdictions require no special operator certification for sub-250g drones,
+  precisely because regulators treat them as low-risk consumer devices.
+
+**What about reconnaissance?** This is a more nuanced concern. Even a lightweight
+mapping drone can theoretically be used for intelligence gathering. DroneTM
+addresses this through radical transparency: our platform can be used to share
+automated flight paths with civil aviation authorities, so regulators know
+exactly where every drone will fly before it does so. Where sensitive areas are
+involved, we exclude them from flight plans entirely, or - if applicable to
+the context being flown - fly those areas under direct authority supervision and
+reduce the resolution of the resulting data to levels comparable to commercial
+satellite imagery.
+
+**Our community-first approach** is a further safeguard. Every project involves
+extensive stakeholder engagement and community participation. We maintain a strict
+neutral stance and do not partner with military actors as clients or operators.
+Even in conflict-prone areas, arriving with a tiny DJI Mini and demonstrating the
+transparent, participatory nature of the work has consistently secured acceptance
+from communities and authorities alike.
+
+In short: the drones we use are not weapons, and our platform is designed so you
+don't have to take that on faith.
+
+---
+
 ### Q. How do I get started with DroneTM?
 
 You can contribute to DroneTM in multiple ways:
