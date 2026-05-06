@@ -1,3 +1,16 @@
+## 2026.5.9 (2026-05-07)
+
+### Feat
+
+- add option to override spot processing --> on-demand for VIP workflow
+
+### Fix
+
+- **frontend**: missed style on image review dialog for Accept button
+- **backend**: reconcile stray user-uploads images that may have been missed
+- **qfield**: cleanup file save flightplan logic, ensure gsd + overlap params passed through
+- ensure s3 images are deleted when rejected + add scan button for stray user-uploads
+
 ## 2026.5.8 (2026-05-06)
 
 ### Fix
