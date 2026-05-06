@@ -1,3 +1,9 @@
+## 2026.5.8 (2026-05-06)
+
+### Fix
+
+- **backend**: ensure all the images are correctly picked up for project level processing
+
 ## 2026.5.7 (2026-05-06)
 
 ### Fix
