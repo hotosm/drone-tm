@@ -1442,7 +1442,8 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 Cancel
               </Button>
               <Button
-                variant="default"
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white"
                 onClick={() =>
                   assignTaskMutation.mutate({
                     imageId: confirmMatch.imageId,
