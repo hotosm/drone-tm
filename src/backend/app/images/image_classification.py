@@ -1497,6 +1497,71 @@ class ImageClassifier:
         }
 
     @staticmethod
+    async def delete_image(
+        db: Connection,
+        image_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        """Delete one image from S3 before removing its database row."""
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT id, filename, s3_key, thumbnail_url, status
+                FROM project_images
+                WHERE id = %(image_id)s AND project_id = %(project_id)s
+                """,
+                {"image_id": str(image_id), "project_id": str(project_id)},
+            )
+            image = await cur.fetchone()
+
+        if not image:
+            raise ValueError(f"Image {image_id} not found in project {project_id}")
+
+        deleted_s3_count = 0
+        if image["status"] != ImageStatus.DUPLICATE.value:
+            keys: list[str] = []
+            for key in (image.get("thumbnail_url"), image.get("s3_key")):
+                if not key:
+                    continue
+                normalized = str(key).lstrip("/")
+                if normalized not in keys:
+                    keys.append(normalized)
+
+            client = s3_client()
+            for key in keys:
+                try:
+                    client.remove_object(settings.S3_BUCKET_NAME, key)
+                    deleted_s3_count += 1
+                except Exception as e:
+                    log.error(
+                        f"Failed to delete S3 object {key} for image {image_id}: {e}"
+                    )
+                    raise RuntimeError(
+                        f"Failed to delete image storage object: {key}"
+                    ) from e
+
+        async with db.cursor() as cur:
+            await cur.execute(
+                """
+                DELETE FROM project_images
+                WHERE id = %(image_id)s AND project_id = %(project_id)s
+                """,
+                {"image_id": str(image_id), "project_id": str(project_id)},
+            )
+
+        await db.commit()
+        log.info(
+            f"Deleted image {image_id} from project {project_id}; "
+            f"deleted_s3_count={deleted_s3_count}"
+        )
+
+        return {
+            "message": "Image deleted successfully",
+            "image_id": str(image_id),
+            "deleted_s3_count": deleted_s3_count,
+        }
+
+    @staticmethod
     async def delete_invalid_images(
         db: Connection,
         project_id: uuid.UUID,

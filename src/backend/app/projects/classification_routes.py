@@ -462,39 +462,12 @@ async def delete_image(
 ):
     """Delete a single image from a project."""
     try:
-        # First verify the image belongs to this project
-        async with db.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT id, s3_key FROM project_images
-                WHERE id = %(image_id)s AND project_id = %(project_id)s
-                """,
-                {"image_id": str(image_id), "project_id": str(project_id)},
-            )
-            image = await cur.fetchone()
-
-            if not image:
-                raise HTTPException(
-                    status_code=HTTPStatus.NOT_FOUND,
-                    detail="Image not found in this project",
-                )
-
-            # Delete the image record
-            await cur.execute(
-                "DELETE FROM project_images WHERE id = %(image_id)s",
-                {"image_id": str(image_id)},
-            )
-
-        await db.commit()
-        log.info(f"Deleted image {image_id} from project {project_id}")
-
-        return {
-            "message": "Image deleted successfully",
-            "image_id": str(image_id),
-        }
-
-    except HTTPException:
-        raise
+        return await ImageClassifier.delete_image(db, image_id, project_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=str(e),
+        )
     except Exception as e:
         log.error(f"Failed to delete image: {e}")
         raise HTTPException(

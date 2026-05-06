@@ -323,6 +323,22 @@ export const ClassifyImageryDialog = ({
     },
   });
 
+  const scanUploadsMutation = useIngestExistingUploadsMutation({
+    onSuccess: (data) => {
+      const alreadyQueued = data.message.toLowerCase().includes("already");
+      toast.info(
+        alreadyQueued
+          ? "Scan is already running. New images will appear here once they are ingested."
+          : "Scan started. Any untracked user-upload images will be added for classification.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["project-imagery-status", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to scan for images: ${error?.message || "Unknown error"}`);
+    },
+  });
+
   // Query for project status - only poll while classification is running
   const {
     data: projectStatus,
@@ -371,6 +387,10 @@ export const ClassifyImageryDialog = ({
   const handleStartClassification = useCallback(() => {
     startClassificationMutation.mutate({ projectId });
   }, [projectId, startClassificationMutation]);
+
+  const handleScanForImages = useCallback(() => {
+    scanUploadsMutation.mutate({ projectId });
+  }, [projectId, scanUploadsMutation]);
 
   const handleClose = () => {
     queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
@@ -427,6 +447,22 @@ export const ClassifyImageryDialog = ({
         show={isOpen}
         onClose={handleClose}
         title="Classify Imagery"
+        headerContent={
+          <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-gap-4 naxatw-pr-3">
+            <div className="naxatw-space-y-1">
+              <h3 className="naxatw-font-bold">Classify Imagery</h3>
+            </div>
+            <Button
+              variant="outline"
+              className="naxatw-shrink-0 naxatw-border-gray-300 naxatw-text-sm"
+              onClick={handleScanForImages}
+              disabled={scanUploadsMutation.isPending}
+              leftIcon="cloud_sync"
+            >
+              {scanUploadsMutation.isPending ? "Scanning..." : "Scan For Images"}
+            </Button>
+          </div>
+        }
         className="!naxatw-max-w-[600px] !naxatw-w-[600px] !naxatw-flex !naxatw-flex-col"
         bodyScrollable={false}
       >

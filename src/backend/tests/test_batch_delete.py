@@ -168,6 +168,85 @@ async def test_delete_batch_removes_db_rows_and_s3_objects(
 
 
 @pytest.mark.asyncio
+async def test_delete_image_removes_db_row_and_s3_objects(
+    db, create_test_project, auth_user
+):
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+    image_id = uuid.uuid4()
+    s3_key = f"projects/{project_id}/user-uploads/{batch_id}/single.jpg"
+    thumbnail_key = f"projects/{project_id}/user-uploads/{batch_id}/thumbs/single.jpg"
+
+    _upload_test_object(s3_key, b"image-bytes")
+    _upload_test_object(thumbnail_key, b"thumb-bytes")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="single.jpg",
+        s3_key=s3_key,
+        thumbnail_url=thumbnail_key,
+        status="assigned",
+        image_id=image_id,
+    )
+    await db.commit()
+
+    result = await ImageClassifier.delete_image(db, image_id, project_id)
+
+    assert result["message"] == "Image deleted successfully"
+    assert result["image_id"] == str(image_id)
+    assert result["deleted_s3_count"] == 2
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT COUNT(*) FROM project_images WHERE id = %s", (image_id,)
+        )
+        row = await cur.fetchone()
+
+    assert int(row[0]) == 0
+    assert not check_file_exists(settings.S3_BUCKET_NAME, s3_key)
+    assert not check_file_exists(settings.S3_BUCKET_NAME, thumbnail_key)
+
+
+@pytest.mark.asyncio
+async def test_delete_duplicate_image_keeps_shared_s3_object(
+    db, create_test_project, auth_user
+):
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+    image_id = uuid.uuid4()
+    s3_key = f"projects/{project_id}/user-uploads/{batch_id}/duplicate-source.jpg"
+
+    _upload_test_object(s3_key, b"shared-image-bytes")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="duplicate-source.jpg",
+        s3_key=s3_key,
+        thumbnail_url="",
+        status="duplicate",
+        image_id=image_id,
+    )
+    await db.commit()
+
+    result = await ImageClassifier.delete_image(db, image_id, project_id)
+
+    assert result["deleted_s3_count"] == 0
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT COUNT(*) FROM project_images WHERE id = %s", (image_id,)
+        )
+        row = await cur.fetchone()
+
+    assert int(row[0]) == 0
+    assert check_file_exists(settings.S3_BUCKET_NAME, s3_key)
+
+
+@pytest.mark.asyncio
 async def test_move_task_images_to_folder_removes_staging_objects(
     db, create_test_project, auth_user
 ):

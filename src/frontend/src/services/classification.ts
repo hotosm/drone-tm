@@ -363,7 +363,7 @@ export const markTaskAsVerified = async (
 export const deleteTaskImage = async (
   projectId: string,
   imageId: string,
-): Promise<{ message: string; image_id: string }> => {
+): Promise<{ message: string; image_id: string; deleted_s3_count: number }> => {
   const response = await authenticated(api).delete(`/projects/${projectId}/images/${imageId}/`);
   return response.data;
 };

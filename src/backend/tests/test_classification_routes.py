@@ -263,6 +263,8 @@ async def test_ingest_existing_uploads_task_enqueues_child_jobs_once(
         f"{prefix}alpha.jpg",
         f"{prefix}beta.JPG",
         f"{prefix}thumb_gamma.jpg",
+        f"{prefix}thumbs_delta.jpg",
+        f"{prefix}thumbs/epsilon.jpg",
         f"{prefix}notes.txt",
     ]
 

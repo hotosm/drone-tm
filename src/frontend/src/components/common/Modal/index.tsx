@@ -10,7 +10,7 @@ interface IModalProps {
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
-  headerContent?: string;
+  headerContent?: ReactNode;
   zIndex?: number;
   hideCloseButton?: boolean;
   bodyScrollable?: boolean;
