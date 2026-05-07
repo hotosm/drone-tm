@@ -1710,13 +1710,19 @@ async def export_odm_dem(
 ):
     """Stream the DEM GeoTIFF for the project-level ODM output.
 
-    Looks for the file at ``projects/{pid}/odm/odm_dem/odm_dem.tif``.
+    Checks for dsm.tif first, then dtm.tif under odm_dem/.
     """
-    dem_key = f"projects/{project.id}/odm/odm_dem/odm_dem.tif"
+    dem_key = None
+    for filename in ("dsm.tif", "dtm.tif"):
+        candidate = f"projects/{project.id}/odm/odm_dem/{filename}"
+        try:
+            s3_client().stat_object(settings.S3_BUCKET_NAME, candidate)
+            dem_key = candidate
+            break
+        except Exception:
+            continue
 
-    try:
-        s3_client().stat_object(settings.S3_BUCKET_NAME, dem_key)
-    except Exception:
+    if dem_key is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="No DEM found for this project.",

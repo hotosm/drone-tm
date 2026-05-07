@@ -452,9 +452,10 @@ def get_dem_url_for_project(project_id: str):
     Returns:
         str | None: Presigned URL to download the DEM, or None if not found
     """
-    dem_path = f"projects/{project_id}/odm/odm_dem/odm_dem.tif"
-    if check_file_exists(settings.S3_BUCKET_NAME, dem_path):
-        return maybe_presign_s3_key(dem_path, expires_hours=12)
+    for filename in ("dsm.tif", "dtm.tif"):
+        dem_path = f"projects/{project_id}/odm/odm_dem/{filename}"
+        if check_file_exists(settings.S3_BUCKET_NAME, dem_path):
+            return maybe_presign_s3_key(dem_path, expires_hours=12)
 
     log.warning("DEM not found in S3 bucket")
     return None
