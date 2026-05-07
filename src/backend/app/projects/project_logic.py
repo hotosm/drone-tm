@@ -221,6 +221,12 @@ async def mark_project_level_odm_success_from_refresh(
     status directly once the final output is known to be complete.
     """
     await update_processing_status(db, project_id, ImageProcessingStatus.SUCCESS)
+    odm_assets_url = f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
+    await db.execute(
+        "UPDATE projects SET output_odm_assets_url = %(url)s WHERE id = %(pid)s",
+        {"url": odm_assets_url, "pid": project_id},
+    )
+    await db.commit()
     log.warning(
         "Reconciled project-level ODM success on refresh: project={} reason={}",
         project_id,

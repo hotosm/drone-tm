@@ -117,7 +117,7 @@ the DJI Mini 4 Pro at 249g - fall below this threshold. At that weight:
   over 400g; a DJI Mavic 3 (895g) has been cited in security literature as
   capable of carrying one. A DJI Mini 4 Pro cannot.
 - A drone this light falling from the sky cannot normally cause more than trivial
-  injury or property damage — and consumer drones actively resist uncontrolled
+  injury or property damage - and consumer drones actively resist uncontrolled
   descent: they return home automatically on low battery, follow a failsafe
   routine if the signal drops (including jamming attempts), and carry
   obstacle-avoidance sensors that brake before impact.

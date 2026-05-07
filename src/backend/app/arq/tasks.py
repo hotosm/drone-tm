@@ -1479,6 +1479,14 @@ async def finalize_scaleodm_task(
                         await project_logic.update_processing_status(
                             conn, project_uuid, ImageProcessingStatus.SUCCESS
                         )
+                        # Persist the streaming download URL so future requests
+                        # don't need to re-probe S3 to determine availability.
+                        odm_assets_url = f"{settings.API_PREFIX}/projects/odm/export/{dtm_project_id}/"
+                        await conn.execute(
+                            "UPDATE projects SET output_odm_assets_url = %(url)s"
+                            " WHERE id = %(pid)s",
+                            {"url": odm_assets_url, "pid": project_uuid},
+                        )
                         log.info(f"Project {project_uuid} status updated to SUCCESS.")
                     await conn.commit()
 

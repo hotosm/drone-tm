@@ -775,7 +775,7 @@ class ProjectInfo(BaseModel):
         try:
             probe = next(
                 s3_client().list_objects(
-                    settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=False
+                    settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=True
                 ),
                 None,
             )

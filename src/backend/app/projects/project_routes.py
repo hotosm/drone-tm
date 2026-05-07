@@ -1809,9 +1809,11 @@ async def export_odm_assets(
 
     # Probe for at least one object so we can 404 before streaming starts,
     # then list lazily during the stream to avoid loading all metadata upfront.
+    # Use recursive=True so we find files at any depth (e.g. odm_orthophoto/odm_orthophoto.tif)
+    # rather than relying on common-prefix returns which vary by S3 implementation.
     probe = next(
         s3_client().list_objects(
-            settings.S3_BUCKET_NAME, prefix=prefix, recursive=False
+            settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
         ),
         None,
     )
