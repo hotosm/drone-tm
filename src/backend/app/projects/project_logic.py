@@ -1038,7 +1038,14 @@ async def process_all_drone_images(
                 processing_mode="standard",
                 s3_scan_depth=3,
                 use_default_excludes=True,
-                exclude_paths=["*/thumbs/*", "user-uploads/*", "thumb_*"],
+                exclude_paths=[
+                    "*/thumbs/*",
+                    "user-uploads/*",
+                    "thumb_*",
+                    "dem.tif",
+                    "map_screenshot.png",
+                    "odm/*",
+                ],
                 s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
                 capacity_type=capacity_type,
             )
