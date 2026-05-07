@@ -1,3 +1,16 @@
+## 2026.5.11 (2026-05-07)
+
+### Feat
+
+- add script by @zestyping for local odm process + stats (timed)
+
+### Fix
+
+- **backend**: ensure dem download path is correct to expose for frontend download
+- move odm asset download to export section, fix download logic
+- **frontend**: ensure the user is updated immediately with processing status on refresh
+- **frontend**: ensure we set content type on axios call with capacityType
+
 ## 2026.5.10 (2026-05-07)
 
 ### Fix
