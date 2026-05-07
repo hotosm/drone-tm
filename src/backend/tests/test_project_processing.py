@@ -449,7 +449,14 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
     assert submitted["processing_mode"] == "standard"
     assert submitted["s3_scan_depth"] == 3
     assert submitted["use_default_excludes"] is True
-    assert submitted["exclude_paths"] == ["*/thumbs/*", "user-uploads/*", "thumb_*"]
+    assert submitted["exclude_paths"] == [
+        "*/thumbs/*",
+        "user-uploads/*",
+        "thumb_*",
+        "dem.tif",
+        "map_screenshot.png",
+        "odm/*",
+    ]
     assert submitted["read_s3_path"].endswith(f"/projects/{project_id}/")
     assert submitted["write_s3_path"].endswith(f"/projects/{project_id}/odm/")
     assert submitted["name"] == f"DTM-Project-{project_id}"
