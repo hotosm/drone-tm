@@ -60,7 +60,10 @@ async def get_project_by_id(
     try:
         return await DbProject.one_by_slug(db, project_id)
     except KeyError as e:
-        raise HTTPException(status_code=HTTPStatus.FORBIDDEN) from e
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail=f"Project with ID or slug {project_id} not found.",
+        ) from e
 
 
 async def geojson_upload(

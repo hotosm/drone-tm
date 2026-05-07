@@ -63,7 +63,7 @@ from app.users.permissions import (
     IsSuperUser,
     check_permissions,
 )
-from app.users.user_deps import login_required
+from app.users.user_deps import login_dependency, login_required
 from app.users.user_schemas import AuthUser
 from app.utils import (
     geojson_to_kml,
@@ -251,7 +251,7 @@ async def create_project(
     project_info: project_schemas.ProjectIn,
     db: Annotated[Connection, Depends(database.get_db)],
     background_tasks: BackgroundTasks,
-    user_data: Annotated[AuthUser, Depends(login_required)],
+    user_data: Annotated[AuthUser, Depends(login_dependency)],
     dem: UploadFile = File(None),
     image: UploadFile = File(None),
 ):
@@ -275,6 +275,11 @@ async def create_project(
     # Update DEM URL in the database if uploaded
     if dem_url:
         await project_logic.update_url(db, project_id, dem_url)
+
+    # The frontend immediately follows this response with
+    # /upload-task-boundaries. Commit here so that dependency can read the
+    # project from a new DB transaction.
+    await db.commit()
 
     if project_info.requires_approval_from_regulator:
         regulator_emails = project_info.regulator_emails

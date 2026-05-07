@@ -884,6 +884,9 @@ async def process_drone_images(
 
             options = [
                 {"name": "fast-orthophoto", "value": True},
+                # NOTE deletes large intermediate files after processed
+                # reducing disk space requirements
+                # {"name": "optimize-disk-space", "value": True},
                 {"name": "orthophoto-resolution", "value": gsd},
             ]
 

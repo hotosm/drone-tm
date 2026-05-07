@@ -5,7 +5,7 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from httpx import ASGITransport, AsyncClient
 from loguru import logger as log
 
@@ -33,6 +33,41 @@ async def test_create_project_with_files(
     response = await client.post("/api/projects/", files=files)
     assert response.status_code == 200
     return response.json()
+
+
+@pytest.mark.asyncio
+async def test_create_project_commits_before_return(monkeypatch, project_info):
+    """Create should commit before returning the id used by task-boundary upload."""
+    project_id = uuid.uuid4()
+
+    class FakeDb:
+        committed = False
+
+        async def commit(self):
+            self.committed = True
+
+    db = FakeDb()
+
+    async def fake_create(_db, _project_info, _user_id):
+        return project_id
+
+    monkeypatch.setattr(project_schemas.DbProject, "create", fake_create)
+
+    response = await project_routes.create_project(
+        project_info=project_info,
+        db=db,
+        background_tasks=BackgroundTasks(),
+        user_data=SimpleNamespace(
+            id="101039844375937810000",
+            email="admin@hotosm.org",
+            name="admin",
+        ),
+        dem=None,
+        image=None,
+    )
+
+    assert db.committed is True
+    assert response["project_id"] == project_id
 
 
 @pytest.mark.asyncio
@@ -135,6 +170,38 @@ async def test_project_slug_uses_name_without_timestamp():
     assert project.slug == "my-project"
 
 
+def test_project_info_serializes_project_planning_metadata(monkeypatch):
+    """Project detail response model should preserve creation and planning fields."""
+    monkeypatch.setattr(
+        project_schemas, "maybe_presign_s3_key", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr(
+        project_schemas, "check_file_exists", lambda *_args, **_kwargs: False
+    )
+
+    project = project_schemas.ProjectInfo(
+        id=uuid.uuid4(),
+        name="Planning Metadata",
+        description="",
+        requires_approval_from_manager_for_locking=False,
+        outline=None,
+        author_id="101039844375937810000",
+        created_at=datetime(2026, 5, 7, tzinfo=timezone.utc),
+        final_output=["ORTHOPHOTO_2D", "DIGITAL_TERRAIN_MODEL"],
+        gsd_cm_px=2.5,
+        altitude_from_ground=74.25,
+        task_split_dimension=400,
+    )
+
+    data = project.model_dump(mode="json")
+
+    assert data["created_at"] == "2026-05-07T00:00:00Z"
+    assert data["final_output"] == ["ORTHOPHOTO_2D", "DIGITAL_TERRAIN_MODEL"]
+    assert data["gsd_cm_px"] == 2.5
+    assert data["altitude_from_ground"] == 74.25
+    assert data["task_split_dimension"] == 400
+
+
 @pytest.mark.asyncio
 async def test_read_project_includes_has_gcp_flag(
     client, create_test_project, monkeypatch
@@ -146,6 +213,23 @@ async def test_read_project_includes_has_gcp_flag(
 
     assert response.status_code == 200
     assert response.json()["has_gcp"] is True
+
+
+@pytest.mark.asyncio
+async def test_read_project_includes_project_planning_metadata(
+    client, create_test_project
+):
+    project_id = create_test_project
+
+    response = await client.get(f"/api/projects/{project_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["created_at"]
+    assert data["final_output"] == ["ORTHOPHOTO_2D"]
+    assert data["gsd_cm_px"] == 1
+    assert data["altitude_from_ground"] is None
+    assert data["task_split_dimension"] == 400
 
 
 @pytest.mark.asyncio

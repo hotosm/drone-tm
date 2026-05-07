@@ -59,6 +59,27 @@ const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
   }
 };
 
+const defaultWizardState = {
+  activeStep: 1,
+  splitGeojson: null,
+  uploadedProjectArea: null,
+  uploadedNoFlyZone: null,
+  projectCountry: null,
+  capturedProjectMap: true,
+  projectMapImage: null,
+  isTerrainFollow: false,
+  requireApprovalFromManagerForLocking: "not_required",
+  requiresApprovalFromRegulator: "not_required",
+  regulatorEmails: [],
+  demType: "auto",
+  imageMergeType: "overlap",
+  measurementType: "gsd",
+  totalProjectArea: 0,
+  totalNoFlyZoneArea: 0,
+};
+
+const isBlank = (value: unknown) => value === undefined || value === null || value === "";
+
 const CreateprojectLayout = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
@@ -113,6 +134,7 @@ const CreateprojectLayout = () => {
     watch,
   } = useForm({
     defaultValues: initialState,
+    shouldUnregister: false,
   });
 
   const { mutate: uploadTaskBoundary, isPending } = useMutation<any, any, any, unknown>({
@@ -238,12 +260,37 @@ const CreateprojectLayout = () => {
       return;
     }
 
+    const finalOutput = data?.final_output?.filter((output: string | boolean) => output);
+    if (
+      !data?.name ||
+      !data?.outline ||
+      !finalOutput?.length ||
+      isBlank(data?.task_split_dimension)
+    ) {
+      toast.error("Please complete the project setup steps before creating the project.");
+      dispatch(setCreateProjectState({ activeStep: 1 }));
+      return;
+    }
+
+    if (measurementType === "gsd" && isBlank(data?.gsd_cm_px)) {
+      toast.error("Please enter the project GSD before creating the project.");
+      dispatch(setCreateProjectState({ activeStep: 3 }));
+      return;
+    }
+
+    if (measurementType === "altitude" && isBlank(data?.altitude_from_ground)) {
+      toast.error("Please enter the flight altitude before creating the project.");
+      dispatch(setCreateProjectState({ activeStep: 3 }));
+      return;
+    }
+
     // get altitude
     const agl =
       measurementType === "gsd" ? gsdToAltitude(data?.gsd_cm_px) : data?.altitude_from_ground;
 
     const refactoredData = {
       ...data,
+      final_output: finalOutput,
       is_terrain_follow: isTerrainFollow,
       requires_approval_from_manager_for_locking:
         requireApprovalFromManagerForLocking === "required",
@@ -267,6 +314,9 @@ const CreateprojectLayout = () => {
     if (measurementType === "gsd") delete refactoredData?.altitude_from_ground;
     else delete refactoredData?.gsd_cm_px;
     if (requiresApprovalFromRegulator !== "required") delete refactoredData?.regulator_emails;
+    Object.keys(refactoredData).forEach((key) => {
+      if (refactoredData[key] === "") delete refactoredData[key];
+    });
 
     // make form data with value JSON stringify to combine value on single json / form data with only 2 keys (backend didn't found project_info on non-stringified data)
     const formData = new FormData();
@@ -280,19 +330,13 @@ const CreateprojectLayout = () => {
   };
 
   useEffect(() => {
+    dispatch(resetUploadedAndDrawnAreas());
+    dispatch(setCreateProjectState(defaultWizardState));
+
     return () => {
       reset();
       dispatch(resetUploadedAndDrawnAreas());
-      dispatch(
-        setCreateProjectState({
-          activeStep: 1,
-          splitGeojson: null,
-          uploadedProjectArea: null,
-          uploadedNoFlyZone: null,
-          projectCountry: null,
-          totalProjectArea: 0,
-        }),
-      );
+      dispatch(setCreateProjectState(defaultWizardState));
     };
   }, [reset, dispatch]);
 

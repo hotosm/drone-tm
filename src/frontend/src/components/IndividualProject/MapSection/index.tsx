@@ -193,21 +193,16 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
 
   // zoom to layer in the project area
   const bbox = useMemo(() => {
-    if (!tasksData) return null;
-    const tasksCollectiveGeojson = tasksData?.reduce(
-      (acc, curr) => {
-        return {
-          ...acc,
-          features: [...acc.features, curr.outline],
-        };
-      },
-      {
-        type: "FeatureCollection",
-        features: [],
-      },
-    );
-    return getBbox(tasksCollectiveGeojson as FeatureCollection);
-  }, [tasksData]);
+    if (tasksData && tasksData.length > 0) {
+      const tasksCollectiveGeojson = tasksData.reduce(
+        (acc, curr) => ({ ...acc, features: [...acc.features, curr.outline] }),
+        { type: "FeatureCollection", features: [] },
+      );
+      return getBbox(tasksCollectiveGeojson as FeatureCollection);
+    }
+    // No tasks yet — fall back to the project outline bbox
+    return projectData?.outline?.properties?.bbox ?? null;
+  }, [tasksData, projectData?.outline]);
 
   useEffect(() => {
     if (!bbox) return;

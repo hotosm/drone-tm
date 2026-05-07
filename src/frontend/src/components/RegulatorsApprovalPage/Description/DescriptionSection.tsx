@@ -3,11 +3,11 @@ import { useMemo } from "react";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { Button } from "@Components/RadixComponents/Button";
-import { descriptionItems } from "@Constants/projectDescription";
+import { descriptionItems, finalOutputLabels } from "@Constants/projectDescription";
 import { toggleModal } from "@Store/actions/common";
 import { useGetUserDetailsQuery } from "@Api/projects";
 import Skeleton from "@Components/RadixComponents/Skeleton";
-import { formatString, buildDownloadUrl } from "@Utils/index";
+import { formatString, buildDownloadUrl, gsdToAltitude, altitudeToGsd } from "@Utils/index";
 import ApprovalSection from "./ApprovalSection";
 
 const statusAfterImageUploaded = [
@@ -16,6 +16,71 @@ const statusAfterImageUploaded = [
   "IMAGE_PROCESSING_STARTED",
   "IMAGE_PROCESSING_FINISHED",
 ];
+
+type DescriptionDataType = (typeof descriptionItems)[number]["expectedDataType"];
+
+const hasDescriptionValue = (value: unknown, dataType: DescriptionDataType) => {
+  if (dataType === "boolean") return typeof value === "boolean";
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== undefined && value !== null && value !== "";
+};
+
+const formatNumber = (value: unknown, decimalPlaces: number) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return String(value);
+  return numericValue.toFixed(decimalPlaces).replace(/\.?0+$/, "");
+};
+
+const formatDate = (value: unknown) => {
+  const dateValue = new Date(String(value));
+  if (Number.isNaN(dateValue.getTime())) return String(value);
+
+  return dateValue.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatDescriptionValue = (value: unknown, dataType: DescriptionDataType) => {
+  if (dataType === "boolean") return value ? "Yes" : "No";
+  if (dataType === "double") return formatNumber(value, 3);
+  if (dataType === "number") return formatNumber(value, 2);
+  if (dataType === "array") return Array.isArray(value) ? value.length : String(value);
+  if (dataType === "date") return formatDate(value);
+  if (dataType === "finalOutput") {
+    const outputs = Array.isArray(value) ? value : [value];
+    return outputs
+      .map((output) => finalOutputLabels[String(output)] || formatString(String(output)))
+      .join(", ");
+  }
+  return String(value);
+};
+
+const getDescriptionValue = (projectData: Record<string, any>, key: string) => {
+  if (key === "gsd_cm_px") {
+    if (projectData?.gsd_cm_px !== undefined && projectData?.gsd_cm_px !== null) {
+      return projectData.gsd_cm_px;
+    }
+
+    const altitude = Number(projectData?.altitude_from_ground);
+    return Number.isFinite(altitude) && altitude > 0 ? altitudeToGsd(altitude) : null;
+  }
+
+  if (key === "flight_altitude") {
+    if (
+      projectData?.altitude_from_ground !== undefined &&
+      projectData?.altitude_from_ground !== null
+    ) {
+      return projectData.altitude_from_ground;
+    }
+
+    const gsd = Number(projectData?.gsd_cm_px);
+    return Number.isFinite(gsd) && gsd > 0 ? gsdToAltitude(gsd) : null;
+  }
+
+  return projectData?.[key];
+};
 
 const DescriptionSection = ({
   page = "project-approval",
@@ -86,28 +151,16 @@ const DescriptionSection = ({
             </div>
           )}
           {descriptionItems.map((descriptionItem) => {
-            if (
-              projectData?.[descriptionItem.key] ||
-              descriptionItem.expectedDataType === "boolean"
-            ) {
-              const dataType = descriptionItem.expectedDataType;
-              const value = projectData?.[descriptionItem.key];
-              const unite = descriptionItem?.unite || "";
+            const dataType = descriptionItem.expectedDataType;
+            const value = getDescriptionValue(projectData, descriptionItem.key);
+            if (hasDescriptionValue(value, dataType)) {
+              const unit = descriptionItem?.unit || descriptionItem?.unite || "";
               return (
                 <div className="naxatw-flex naxatw-gap-2" key={descriptionItem.key}>
                   <p className="naxatw-w-[146px]">{descriptionItem.label}</p>
                   <p>:</p>
                   <p className="naxatw-font-semibold">
-                    {dataType === "boolean"
-                      ? value
-                        ? "Yes"
-                        : "No"
-                      : dataType === "double"
-                        ? value.toFixed(3)?.replace(/\.00$/, "") || ""
-                        : dataType === "array"
-                          ? value?.length
-                          : value}{" "}
-                    {unite}
+                    {formatDescriptionValue(value, dataType)} {unit}
                   </p>
                 </div>
               );

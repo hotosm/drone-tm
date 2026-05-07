@@ -128,7 +128,37 @@ export const startProcessingOptions = [
   },
 ];
 
-export const descriptionItems = [
+type DescriptionDataType =
+  | "array"
+  | "boolean"
+  | "date"
+  | "double"
+  | "finalOutput"
+  | "number"
+  | "string";
+
+type DescriptionItem = {
+  label: string;
+  key: string;
+  expectedDataType: DescriptionDataType;
+  unit?: string;
+  unite?: string;
+};
+
+export const finalOutputLabels: Record<string, string> = {
+  ORTHOPHOTO_2D: "Orthophoto",
+  TEXTURED_MODEL_3D: "3D Textured Model",
+  DIGITAL_TERRAIN_MODEL: "DTM",
+  DIGITAL_SURFACE_MODEL: "DSM",
+  POINT_CLOUD: "Point Cloud",
+};
+
+export const descriptionItems: DescriptionItem[] = [
+  {
+    label: "Project Created",
+    key: "created_at",
+    expectedDataType: "date",
+  },
   {
     label: "Total Project Area",
     key: "project_area",
@@ -146,10 +176,27 @@ export const descriptionItems = [
     expectedDataType: "string",
   },
   {
+    label: "Outputs",
+    key: "final_output",
+    expectedDataType: "finalOutput",
+  },
+  {
+    label: "GSD",
+    key: "gsd_cm_px",
+    expectedDataType: "number",
+    unit: "cm/px",
+  },
+  {
     label: "Flight Altitude",
     key: "flight_altitude",
     expectedDataType: "number",
-    unite: "m",
+    unit: "m",
+  },
+  {
+    label: "Task Split Size",
+    key: "task_split_dimension",
+    expectedDataType: "number",
+    unit: "m",
   },
   {
     label: "Front Overlap",

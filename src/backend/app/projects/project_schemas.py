@@ -15,6 +15,7 @@ from pydantic import (
     EmailStr,
     Field,
     computed_field,
+    field_validator,
     model_validator,
 )
 from pydantic.functional_serializers import PlainSerializer
@@ -131,7 +132,7 @@ class ProjectIn(BaseModel):
     """Upload new project."""
 
     name: str
-    description: str
+    description: Optional[str] = None
     per_task_instructions: Optional[str] = None
     task_split_dimension: Optional[int] = None
     gsd_cm_px: Optional[float] = None
@@ -161,9 +162,10 @@ class ProjectIn(BaseModel):
         ...,
         json_schema_extra=[
             "ORTHOPHOTO_2D",
-            "ORTHOPHOTO_3D",
+            "TEXTURED_MODEL_3D",
             "DIGITAL_TERRAIN_MODEL",
             "DIGITAL_SURFACE_MODEL",
+            "POINT_CLOUD",
         ],
     )
     requires_approval_from_manager_for_locking: Optional[bool] = False
@@ -240,7 +242,7 @@ class DbProject(BaseModel):
     name: str
     slug: Optional[str] = None
     short_description: Optional[str] = None
-    description: str = None
+    description: Optional[str] = None
     per_task_instructions: Optional[str] = None
     organisation_id: Optional[int] = None
     outline: Optional[Polygon | Feature | FeatureCollection]
@@ -269,13 +271,25 @@ class DbProject(BaseModel):
     author_id: Optional[str] = None
     author_name: Optional[str] = None
     project_area: Optional[float] = None
+    task_split_dimension: Optional[int] = None
     front_overlap: Optional[float] = None
     side_overlap: Optional[float] = None
     gsd_cm_px: Optional[float] = None
     altitude_from_ground: Optional[float] = None
     is_terrain_follow: bool = False
+    final_output: Optional[List[FinalOutput]] = None
     image_url: Optional[str] = None
     created_at: datetime
+
+    @field_validator("final_output", mode="before")
+    @classmethod
+    def parse_pg_enum_array(cls, v):
+        # psycopg3 returns unregistered PostgreSQL enum arrays as a raw string
+        # like '{ORTHOPHOTO_2D,DIGITAL_TERRAIN_MODEL}' rather than a Python list.
+        if isinstance(v, str):
+            stripped = v.strip("{}")
+            return [item.strip() for item in stripped.split(",")] if stripped else []
+        return v
 
     async def one(db: Connection, project_id: uuid.UUID):
         """Get a single project &  all associated tasks by ID."""
@@ -298,27 +312,31 @@ class DbProject(BaseModel):
                         ),
                         'id', projects.id
                     ) AS outline,
-                    jsonb_build_object(
-                        'type', 'Feature',
-                        'geometry', ST_AsGeoJSON(projects.outline)::jsonb,
-                        'properties', jsonb_build_object(
-                            'id', projects.id,
-                            'bbox', jsonb_build_array(
-                                ST_XMin(ST_Envelope(projects.no_fly_zones)),
-                                ST_YMin(ST_Envelope(projects.no_fly_zones)),
-                                ST_XMax(ST_Envelope(projects.no_fly_zones)),
-                                ST_YMax(ST_Envelope(projects.no_fly_zones))
+                    CASE
+                        WHEN projects.no_fly_zones IS NOT NULL THEN
+                            jsonb_build_object(
+                                'type', 'Feature',
+                                'geometry', ST_AsGeoJSON(projects.no_fly_zones)::jsonb,
+                                'properties', jsonb_build_object(
+                                    'id', projects.id,
+                                    'bbox', jsonb_build_array(
+                                        ST_XMin(ST_Envelope(projects.no_fly_zones)),
+                                        ST_YMin(ST_Envelope(projects.no_fly_zones)),
+                                        ST_XMax(ST_Envelope(projects.no_fly_zones)),
+                                        ST_YMax(ST_Envelope(projects.no_fly_zones))
+                                    )
+                                ),
+                                'id', projects.id
                             )
-                        ),
-                        'id', projects.id
-                    ) AS no_fly_zones,
+                        ELSE NULL
+                    END AS no_fly_zones,
                     ST_AsGeoJSON(projects.centroid)::jsonb AS centroid,
                     users.name as author_name,
                     COALESCE(SUM(ST_Area(tasks.outline::geography)) / 1000000, 0) AS project_area
 
                 FROM
                     projects
-                JOIN
+                LEFT JOIN
                     users ON projects.author_id = users.id
                 LEFT JOIN
                     tasks ON projects.id = tasks.project_id
@@ -708,7 +726,7 @@ class ProjectInfo(BaseModel):
     id: uuid.UUID
     slug: Optional[str] = None
     name: str
-    description: str
+    description: Optional[str] = None
     per_task_instructions: Optional[str] = None
     requires_approval_from_manager_for_locking: Optional[bool] = None
     outline: Optional[Polygon | Feature | FeatureCollection]
@@ -732,6 +750,12 @@ class ProjectInfo(BaseModel):
     commenting_regulator_id: Optional[str] = None
     author_name: Optional[str] = None
     project_area: Optional[float] = None
+    task_split_dimension: Optional[int] = None
+    final_output: Optional[List[FinalOutput]] = None
+    front_overlap: Optional[float] = None
+    side_overlap: Optional[float] = None
+    gsd_cm_px: Optional[float] = None
+    altitude_from_ground: Optional[float] = None
     total_task_count: int = 0
     tasks: Optional[list[TaskOut]] = []
     image_url: Optional[str] = None

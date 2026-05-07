@@ -17,10 +17,10 @@ class IntEnum(int, Enum):
 
 class FinalOutput(StrEnum):
     ORTHOPHOTO_2D = "ORTHOPHOTO_2D"
-    # NOTE 3D ortho isn't an output type in ODM? This should probably be removed
-    ORTHOPHOTO_3D = "ORTHOPHOTO_3D"
+    TEXTURED_MODEL_3D = "TEXTURED_MODEL_3D"
     DIGITAL_TERRAIN_MODEL = "DIGITAL_TERRAIN_MODEL"
     DIGITAL_SURFACE_MODEL = "DIGITAL_SURFACE_MODEL"
+    POINT_CLOUD = "POINT_CLOUD"
 
 
 class TaskSplitType(IntEnum):
