@@ -1,3 +1,10 @@
+## 2026.5.10 (2026-05-07)
+
+### Fix
+
+- **backend**: ensure we don't include the dem.tif in the final project processing!!
+- **backend**: stream-zip of final odm assets for the project
+
 ## 2026.5.9 (2026-05-07)
 
 ### Feat
