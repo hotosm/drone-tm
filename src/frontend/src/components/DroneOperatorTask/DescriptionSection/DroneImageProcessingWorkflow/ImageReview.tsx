@@ -322,6 +322,35 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     taskMatchingImageRef.current = taskMatchingImage;
   }, [taskMatchingImage]);
 
+  // Box-select state
+  const [boxSelectMode, setBoxSelectMode] = useState(false);
+  const boxSelectModeRef = useRef(false);
+  useEffect(() => {
+    boxSelectModeRef.current = boxSelectMode;
+  }, [boxSelectMode]);
+  const boxOverlayRef = useRef<HTMLDivElement>(null);
+  const [boxSelectedImages, setBoxSelectedImages] = useState<
+    Array<{ id: string; filename: string; status: string }>
+  >([]);
+  const boxSelectedImagesRef = useRef<Array<{ id: string; filename: string; status: string }>>([]);
+  useEffect(() => {
+    boxSelectedImagesRef.current = boxSelectedImages;
+  }, [boxSelectedImages]);
+  const [bulkTaskMatchingImages, setBulkTaskMatchingImages] = useState<Array<{
+    id: string;
+    filename: string;
+  }> | null>(null);
+  const bulkTaskMatchingImagesRef = useRef<Array<{ id: string; filename: string }> | null>(null);
+  useEffect(() => {
+    bulkTaskMatchingImagesRef.current = bulkTaskMatchingImages;
+  }, [bulkTaskMatchingImages]);
+  const [confirmBulkMatch, setConfirmBulkMatch] = useState<{
+    imageIds: string[];
+    taskId: string;
+    taskIndex: number;
+  } | null>(null);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
   // Refs for sidebar scrolling
   const imageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -571,6 +600,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     const layerId = "review-image-points-layer";
 
     const handleClick = (e: any) => {
+      if (boxSelectModeRef.current) return;
       const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
       if (!features?.length) return;
 
@@ -620,7 +650,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     };
   }, [map, isMapLoaded]);
 
-  // Update map highlight when highlightedImageId changes
+  // Update map highlight when highlightedImageId or boxSelectedImages changes
   useEffect(() => {
     if (!map || !isMapLoaded) return;
 
@@ -629,7 +659,27 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     try {
       if (!map.getLayer(layerId)) return;
 
-      if (highlightedImageId) {
+      if (boxSelectedImages.length > 0) {
+        const ids = boxSelectedImages.map((i) => i.id);
+        map.setPaintProperty(layerId, "circle-stroke-width", [
+          "case",
+          ["in", ["get", "id"], ["literal", ids]],
+          4,
+          2,
+        ]);
+        map.setPaintProperty(layerId, "circle-stroke-color", [
+          "case",
+          ["in", ["get", "id"], ["literal", ids]],
+          "#7c3aed",
+          "#ffffff",
+        ]);
+        map.setPaintProperty(layerId, "circle-radius", [
+          "case",
+          ["in", ["get", "id"], ["literal", ids]],
+          8,
+          5,
+        ]);
+      } else if (highlightedImageId) {
         map.setPaintProperty(layerId, "circle-stroke-width", [
           "case",
           ["==", ["get", "id"], highlightedImageId],
@@ -656,19 +706,20 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     } catch {
       // Layer might not exist yet
     }
-  }, [map, isMapLoaded, highlightedImageId]);
+  }, [map, isMapLoaded, highlightedImageId, boxSelectedImages]);
 
   // Task picker mode: highlight tasks on hover and handle click to select
   useEffect(() => {
     if (!map || !isMapLoaded) return;
 
     const fillLayerId = "review-task-polygons-layer";
-    const isPickerActive = () => !!taskMatchingImageRef.current;
+    const isPickerActive = () =>
+      !!taskMatchingImageRef.current || !!bulkTaskMatchingImagesRef.current;
 
     const onMouseMove = (e: any) => {
       if (!isPickerActive()) return;
       const features = map.queryRenderedFeatures(e.point, { layers: [fillLayerId] });
-      map.getCanvas().style.cursor = features?.length ? "crosshair" : "crosshair";
+      map.getCanvas().style.cursor = features?.length ? "pointer" : "crosshair";
       try {
         if (features?.length) {
           const hoveredId = features[0].properties?.id;
@@ -700,11 +751,18 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
       const features = map.queryRenderedFeatures(e.point, { layers: [fillLayerId] });
       if (!features?.length) return;
       const taskProps = features[0].properties;
-      const matching = taskMatchingImageRef.current;
-      if (matching && taskProps) {
+      const singleMatching = taskMatchingImageRef.current;
+      const bulkMatching = bulkTaskMatchingImagesRef.current;
+      if (singleMatching && taskProps) {
         setConfirmMatch({
-          imageId: matching.id,
-          imageFilename: matching.filename,
+          imageId: singleMatching.id,
+          imageFilename: singleMatching.filename,
+          taskId: taskProps.id,
+          taskIndex: taskProps.task_index,
+        });
+      } else if (bulkMatching && taskProps) {
+        setConfirmBulkMatch({
+          imageIds: bulkMatching.map((i) => i.id),
           taskId: taskProps.id,
           taskIndex: taskProps.task_index,
         });
@@ -722,11 +780,122 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     };
   }, [map, isMapLoaded]);
 
-  // Update cursor when entering/leaving picker mode
+  // Update cursor when entering/leaving picker or box-select mode
   useEffect(() => {
     if (!map) return;
-    map.getCanvas().style.cursor = taskMatchingImage ? "crosshair" : "";
-  }, [map, taskMatchingImage]);
+    if (taskMatchingImage || bulkTaskMatchingImages) {
+      map.getCanvas().style.cursor = "crosshair";
+    } else if (!boxSelectMode) {
+      map.getCanvas().style.cursor = "";
+    }
+  }, [map, taskMatchingImage, bulkTaskMatchingImages, boxSelectMode]);
+
+  // Box-select: disable drag-pan, capture rubber-band rect, query features on mouseup
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+
+    if (!boxSelectMode) {
+      map.dragPan.enable();
+      return;
+    }
+
+    map.dragPan.disable();
+    const canvas = map.getCanvas();
+
+    let dragStart: { x: number; y: number } | null = null;
+
+    const onMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      dragStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      if (boxOverlayRef.current) {
+        boxOverlayRef.current.style.left = `${dragStart.x}px`;
+        boxOverlayRef.current.style.top = `${dragStart.y}px`;
+        boxOverlayRef.current.style.width = "0px";
+        boxOverlayRef.current.style.height = "0px";
+        boxOverlayRef.current.style.display = "block";
+      }
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragStart) return;
+      const rect = canvas.getBoundingClientRect();
+      const curX = Math.max(0, Math.min(e.clientX - rect.left, canvas.offsetWidth));
+      const curY = Math.max(0, Math.min(e.clientY - rect.top, canvas.offsetHeight));
+      if (boxOverlayRef.current) {
+        boxOverlayRef.current.style.left = `${Math.min(dragStart.x, curX)}px`;
+        boxOverlayRef.current.style.top = `${Math.min(dragStart.y, curY)}px`;
+        boxOverlayRef.current.style.width = `${Math.abs(curX - dragStart.x)}px`;
+        boxOverlayRef.current.style.height = `${Math.abs(curY - dragStart.y)}px`;
+      }
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      if (!dragStart) return;
+      const rect = canvas.getBoundingClientRect();
+      const endX = Math.max(0, Math.min(e.clientX - rect.left, canvas.offsetWidth));
+      const endY = Math.max(0, Math.min(e.clientY - rect.top, canvas.offsetHeight));
+
+      if (boxOverlayRef.current) {
+        boxOverlayRef.current.style.display = "none";
+      }
+
+      if (Math.abs(endX - dragStart.x) > 5 || Math.abs(endY - dragStart.y) > 5) {
+        const sw: [number, number] = [Math.min(dragStart.x, endX), Math.min(dragStart.y, endY)];
+        const ne: [number, number] = [Math.max(dragStart.x, endX), Math.max(dragStart.y, endY)];
+        const features = map.queryRenderedFeatures([sw, ne], {
+          layers: ["review-image-points-layer"],
+        });
+
+        const seen = new Set<string>();
+        const selected = features
+          .map((f) => ({
+            id: f.properties?.id as string,
+            filename: f.properties?.filename as string,
+            status: f.properties?.status as string,
+          }))
+          .filter((i) => {
+            if (!i.id || seen.has(i.id)) return false;
+            seen.add(i.id);
+            return true;
+          });
+
+        setBoxSelectedImages(selected);
+      }
+
+      dragStart = null;
+    };
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      map.dragPan.enable();
+      if (boxOverlayRef.current) {
+        boxOverlayRef.current.style.display = "none";
+      }
+    };
+  }, [map, isMapLoaded, boxSelectMode]);
+
+  // Escape: cancel bulk picker → clear selection → exit box-select mode
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (bulkTaskMatchingImagesRef.current) {
+        setBulkTaskMatchingImages(null);
+      } else if (boxSelectedImagesRef.current.length > 0) {
+        setBoxSelectedImages([]);
+      } else if (boxSelectModeRef.current) {
+        setBoxSelectMode(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const acceptMutation = useMutation({
     mutationFn: (imageId: string) => acceptImage(projectId, imageId),
@@ -895,6 +1064,62 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     }
   };
 
+  const handleBulkOverrideRejection = async () => {
+    const toOverride = boxSelectedImages.filter((i) => canOverrideImageRejection(i.status));
+    if (!toOverride.length) return;
+    setIsBulkProcessing(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const img of toOverride) {
+      try {
+        await acceptImage(projectId, img.id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setIsBulkProcessing(false);
+    if (failCount > 0) {
+      toast.error(`Accepted ${successCount}, failed to accept ${failCount} images.`);
+    } else {
+      toast.success(`${successCount} image${successCount > 1 ? "s" : ""} accepted`);
+    }
+    queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    setBoxSelectedImages([]);
+  };
+
+  const handleBulkAssignConfirm = async () => {
+    if (!confirmBulkMatch) return;
+    const { imageIds, taskId, taskIndex } = confirmBulkMatch;
+    setIsBulkProcessing(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const imageId of imageIds) {
+      try {
+        await assignImageToTask(projectId, imageId, taskId);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setIsBulkProcessing(false);
+    if (failCount > 0) {
+      toast.error(`Assigned ${successCount}, failed to assign ${failCount} images.`);
+    } else {
+      toast.success(
+        `${successCount} image${successCount > 1 ? "s" : ""} assigned to Task #${taskIndex}`,
+      );
+    }
+    queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    setConfirmBulkMatch(null);
+    setBulkTaskMatchingImages(null);
+    setBoxSelectedImages([]);
+  };
+
   if (isLoading) {
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
@@ -1021,6 +1246,32 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
       <div className="naxatw-flex naxatw-flex-1 naxatw-gap-4 naxatw-min-h-0 naxatw-overflow-hidden">
         {/* Map Section */}
         <div className="naxatw-w-1/2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-overflow-hidden naxatw-relative naxatw-flex naxatw-flex-col">
+          {/* Map toolbar */}
+          <div className="naxatw-flex naxatw-shrink-0 naxatw-items-center naxatw-gap-3 naxatw-border-b naxatw-border-gray-200 naxatw-bg-white naxatw-px-3 naxatw-py-1.5">
+            <button
+              onClick={() => {
+                if (boxSelectMode) setBoxSelectedImages([]);
+                setBoxSelectMode(!boxSelectMode);
+              }}
+              title={boxSelectMode ? "Exit multi-select (Esc)" : "Select multiple images on map"}
+              className={`naxatw-flex naxatw-items-center naxatw-gap-1.5 naxatw-rounded naxatw-border naxatw-px-2.5 naxatw-py-1 naxatw-text-xs naxatw-font-medium naxatw-transition-colors ${
+                boxSelectMode
+                  ? "naxatw-border-violet-600 naxatw-bg-violet-600 naxatw-text-white"
+                  : "naxatw-border-gray-300 naxatw-bg-white naxatw-text-gray-700 hover:naxatw-border-violet-400 hover:naxatw-text-violet-600"
+              }`}
+            >
+              <span className="material-icons" style={{ fontSize: "14px" }}>
+                select_all
+              </span>
+              Select Multiple
+            </button>
+            {boxSelectMode && (
+              <span className="naxatw-text-xs naxatw-text-gray-500">
+                Drag a rectangle to select multiple images
+              </span>
+            )}
+          </div>
+
           {/* Map Container */}
           <div
             className="naxatw-flex-1 naxatw-relative"
@@ -1141,6 +1392,95 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                   </div>
                   <p className="naxatw-text-sm naxatw-text-gray-600">Loading map data...</p>
                 </div>
+              </div>
+            )}
+
+            {/* Rubber-band selection rectangle — updated via ref to avoid re-renders */}
+            <div
+              ref={boxOverlayRef}
+              style={{
+                position: "absolute",
+                pointerEvents: "none",
+                zIndex: 15,
+                border: "2px dashed #7c3aed",
+                backgroundColor: "rgba(124, 58, 237, 0.1)",
+                display: "none",
+              }}
+            />
+
+            {/* Bulk action bar */}
+            {boxSelectedImages.length > 0 && !bulkTaskMatchingImages && !taskMatchingImage && (
+              <div className="naxatw-absolute naxatw-top-2 naxatw-left-2 naxatw-right-2 naxatw-z-20 naxatw-rounded naxatw-bg-violet-600 naxatw-px-3 naxatw-py-2 naxatw-shadow-lg">
+                <div className="naxatw-mb-2 naxatw-flex naxatw-items-center naxatw-justify-between">
+                  <span className="naxatw-text-sm naxatw-font-medium naxatw-text-white">
+                    {boxSelectedImages.length} image
+                    {boxSelectedImages.length > 1 ? "s" : ""} selected
+                  </span>
+                  <button
+                    onClick={() => setBoxSelectedImages([])}
+                    className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
+                  >
+                    Clear (Esc)
+                  </button>
+                </div>
+                <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
+                  {(() => {
+                    const overridable = boxSelectedImages.filter((i) =>
+                      canOverrideImageRejection(i.status),
+                    );
+                    const matchable = boxSelectedImages.filter((i) =>
+                      canManuallyMatchImage(i.status),
+                    );
+                    return (
+                      <>
+                        {overridable.length > 0 && (
+                          <button
+                            onClick={handleBulkOverrideRejection}
+                            disabled={isBulkProcessing}
+                            className="naxatw-flex naxatw-items-center naxatw-gap-1 naxatw-rounded naxatw-bg-green-600 naxatw-px-3 naxatw-py-1 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-green-700 disabled:naxatw-opacity-50"
+                          >
+                            <span className="material-icons" style={{ fontSize: "12px" }}>
+                              check
+                            </span>
+                            Override rejection ({overridable.length})
+                          </button>
+                        )}
+                        {matchable.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setBoxSelectMode(false);
+                              setBulkTaskMatchingImages(matchable);
+                            }}
+                            disabled={isBulkProcessing}
+                            className="naxatw-flex naxatw-items-center naxatw-gap-1 naxatw-rounded naxatw-bg-yellow-500 naxatw-px-3 naxatw-py-1 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-yellow-600 disabled:naxatw-opacity-50"
+                          >
+                            <span className="material-icons" style={{ fontSize: "12px" }}>
+                              my_location
+                            </span>
+                            Assign to task ({matchable.length})
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Bulk task picker mode banner */}
+            {bulkTaskMatchingImages && (
+              <div className="naxatw-absolute naxatw-top-2 naxatw-left-2 naxatw-right-2 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-between naxatw-rounded naxatw-bg-yellow-500 naxatw-px-4 naxatw-py-2 naxatw-shadow-lg">
+                <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-font-medium naxatw-text-white">
+                  <span className="material-icons naxatw-text-base">my_location</span>
+                  Click a task area to assign{" "}
+                  <span className="naxatw-font-bold">{bulkTaskMatchingImages.length} images</span>
+                </div>
+                <button
+                  onClick={() => setBulkTaskMatchingImages(null)}
+                  className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-3 naxatw-py-1 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
+                >
+                  Cancel (Esc)
+                </button>
               </div>
             )}
 
@@ -1454,6 +1794,51 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 leftIcon="check"
               >
                 {assignTaskMutation.isPending ? "Assigning..." : "Confirm"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk task assignment confirmation dialog */}
+      {confirmBulkMatch && (
+        <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[10000] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
+          <div className="naxatw-w-full naxatw-max-w-md naxatw-rounded-lg naxatw-bg-white naxatw-p-6 naxatw-shadow-xl">
+            <div className="naxatw-mb-4 naxatw-flex naxatw-items-center naxatw-gap-3">
+              <span className="material-icons naxatw-text-3xl naxatw-text-yellow-500">
+                my_location
+              </span>
+              <h3 className="naxatw-text-lg naxatw-font-semibold naxatw-text-gray-900">
+                Assign {confirmBulkMatch.imageIds.length} images to task?
+              </h3>
+            </div>
+            <p className="naxatw-mb-2 naxatw-text-gray-600">
+              Assign{" "}
+              <span className="naxatw-font-semibold">
+                {confirmBulkMatch.imageIds.length} unmatched images
+              </span>{" "}
+              to <span className="naxatw-font-semibold">Task #{confirmBulkMatch.taskIndex}</span>?
+            </p>
+            <p className="naxatw-mb-6 naxatw-text-xs naxatw-text-gray-400">
+              This will override the automatic classification result for each image.
+            </p>
+            <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
+              <Button
+                variant="outline"
+                className="naxatw-border-gray-300"
+                onClick={() => setConfirmBulkMatch(null)}
+                disabled={isBulkProcessing}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="ghost"
+                className="naxatw-bg-red naxatw-text-white"
+                onClick={handleBulkAssignConfirm}
+                disabled={isBulkProcessing}
+                leftIcon="check"
+              >
+                {isBulkProcessing ? "Assigning..." : "Confirm"}
               </Button>
             </div>
           </div>
