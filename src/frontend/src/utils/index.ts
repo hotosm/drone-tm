@@ -223,19 +223,20 @@ export function findNearestCoordinate(coord1: number[], coord2: number[], center
 
 /**
  * Builds a download URL for assets. Presigned S3 URLs (https://) are used
- * as-is. Relative API paths (e.g. /projects/odm/export/...) get the API
+ * as-is. Relative API paths, including legacy /api/... paths, get the API
  * base URL prepended and an auth token appended as a query parameter so
  * that browser <a> tag downloads work without custom headers.
  */
 export function buildDownloadUrl(assetsUrl: string): string {
   if (assetsUrl.startsWith("http")) return assetsUrl;
 
-  const apiBase = getRuntimeConfig("VITE_API_URL", "/api");
-  const normalizedApiBase = apiBase.endsWith("/api") ? apiBase.slice(0, -4) : apiBase;
-
-  const base = assetsUrl.startsWith("/api/")
-    ? `${normalizedApiBase}${assetsUrl}`
-    : `${apiBase}${assetsUrl}`;
+  const apiBase = getRuntimeConfig("VITE_API_URL", "/api").replace(/\/+$/, "");
+  const relativePath = assetsUrl.startsWith("/") ? assetsUrl : `/${assetsUrl}`;
+  const apiPath =
+    relativePath === "/api" || relativePath.startsWith("/api/")
+      ? relativePath.slice(4)
+      : relativePath;
+  const base = `${apiBase}${apiPath}`;
 
   const token = localStorage.getItem("token");
   if (!token) return base;

@@ -192,13 +192,13 @@ const IndividualProject = () => {
     const projectId = projectData?.id || id;
     if (!projectId) return;
 
-    const assetsPath = `/api/projects/odm/export/${projectId}/`;
+    const assetsPath = `/projects/odm/export/${projectId}/`;
     const downloadUrl = buildDownloadUrl(assetsPath);
 
     try {
       const response = await fetch(downloadUrl, { method: "HEAD" });
       if (response.status === 404) {
-        toast.warning("No entire ODM project export found for this project.");
+        toast.warning("No ODM project export found for this project.");
         return;
       }
       if (!response.ok) {
