@@ -1395,7 +1395,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
               </div>
             )}
 
-            {/* Rubber-band selection rectangle — updated via ref to avoid re-renders */}
+            {/* Rubber-band selection rectangle - updated via ref to avoid re-renders */}
             <div
               ref={boxOverlayRef}
               style={{

@@ -200,7 +200,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       );
       return getBbox(tasksCollectiveGeojson as FeatureCollection);
     }
-    // No tasks yet — fall back to the project outline bbox
+    // No tasks yet - fall back to the project outline bbox
     return projectData?.outline?.properties?.bbox ?? null;
   }, [tasksData, projectData?.outline]);
 
