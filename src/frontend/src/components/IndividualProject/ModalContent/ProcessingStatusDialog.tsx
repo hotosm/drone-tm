@@ -142,6 +142,14 @@ const ProcessingStatusDialog = () => {
     dataUpdatedAt: number;
   };
 
+  // Reconciliation runs during the queue-info fetch; invalidate project-detail
+  // so the project status reflects the updated DB state immediately.
+  useEffect(() => {
+    if (queueInfo) {
+      queryClient.invalidateQueries({ queryKey: ["project-detail"] });
+    }
+  }, [queueInfo, queryClient]);
+
   // Build a lookup from task_id → has_ready_imagery so the backend is the
   // single source of truth for readiness decisions.
   const readinessMap = useMemo(() => {
