@@ -61,26 +61,6 @@ const DescriptionSection = ({
     }
   };
 
-  const handleDownloadAllAssets = async () => {
-    const projectId = projectData?.id;
-    if (!projectId) return;
-    const assetsPath = `/api/projects/odm/export/${projectId}/`;
-    try {
-      const resp = await fetch(buildDownloadUrl(assetsPath), { method: "HEAD" });
-      if (resp.status === 404) {
-        toast.warning("No ODM assets found for this project.");
-        return;
-      }
-      if (!resp.ok) {
-        toast.error("Failed to check ODM assets availability.");
-        return;
-      }
-      handleDownloadFile(assetsPath, `odm_assets_${projectId}.zip`);
-    } catch (error) {
-      toast.error(`There was an error while downloading the file: ${error}`);
-    }
-  };
-
   if (isProjectDataLoading)
     return (
       <div className="naxatw-py-4">
@@ -302,14 +282,6 @@ const DescriptionSection = ({
                     Point Cloud (.laz)
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  className="naxatw-border-red naxatw-text-red"
-                  leftIcon="folder_zip"
-                  onClick={handleDownloadAllAssets}
-                >
-                  All ODM Assets (.zip)
-                </Button>
                 {String(projectData?.author_id || "") === String(userDetails?.id || "") &&
                   projectData?.orthophoto_url && (
                     <>
