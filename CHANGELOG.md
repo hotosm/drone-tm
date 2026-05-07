@@ -1,3 +1,15 @@
+## 2026.5.12 (2026-05-07)
+
+### Feat
+
+- **frontend**: add box select / select multiple option for image override / task matching
+- display more useful info on project details page
+
+### Fix
+
+- **frontend**: hardcoded /api/ in odm assets HEAD url checker
+- **frontend**: remove Download ODM Assets button from main details page
+
 ## 2026.5.11 (2026-05-07)
 
 ### Feat

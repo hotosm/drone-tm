@@ -1,8 +1,8 @@
 apiVersion: v2
 name: drone-tm
 description: Drone Tasking Manager - coordinated drone mapping
-version: "2026.5.11"
-appVersion: "2026.5.11"
+version: "2026.5.12"
+appVersion: "2026.5.12"
 maintainers:
   - email: sysadmin@hotosm.org
     name: HOTOSM
