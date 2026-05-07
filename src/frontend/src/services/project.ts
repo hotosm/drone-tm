@@ -17,6 +17,7 @@ export const processAllImagery = (data: Record<string, any>) => {
   return authenticated(api).post(
     `/projects/process_all_imagery/${projectId}/`,
     capacityType ? { capacity_type: capacityType } : undefined,
+    { headers: { "Content-Type": "application/json" } },
   );
 };
 
