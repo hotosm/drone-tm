@@ -21,6 +21,7 @@ import { deleteProject } from "@Services/project";
 import { setProjectState } from "@Store/actions/project";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { buildDownloadUrl } from "@Utils/index";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import QFieldExportDialog from "@Components/IndividualProject/QFieldExport";
 import QFieldLogo from "@Components/IndividualProject/QFieldExport/QFieldLogo";
@@ -187,6 +188,35 @@ const IndividualProject = () => {
       );
   };
 
+  const downloadEntireOdmProject = async () => {
+    const projectId = projectData?.id || id;
+    if (!projectId) return;
+
+    const assetsPath = `/api/projects/odm/export/${projectId}/`;
+    const downloadUrl = buildDownloadUrl(assetsPath);
+
+    try {
+      const response = await fetch(downloadUrl, { method: "HEAD" });
+      if (response.status === 404) {
+        toast.warning("No entire ODM project export found for this project.");
+        return;
+      }
+      if (!response.ok) {
+        toast.error("Failed to check ODM project export availability.");
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `entire_odm_project_${projectId}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(`There was an error while downloading file: ${error}`);
+    }
+  };
+
   return (
     <>
       <section className="individual project naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
@@ -235,7 +265,7 @@ const IndividualProject = () => {
                     className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                     role="button"
                     tabIndex={0}
-                    onKeyDown={() => console.log("here")}
+                    onKeyDown={() => {}}
                     onClick={() => {
                       setExportingContent(true);
                       html2canvas(exportRef?.current).then((canvas: any) => {
@@ -263,6 +293,21 @@ const IndividualProject = () => {
                     <QFieldLogo />
                     Export for QField
                   </div>
+                  {projectData?.image_processing_status === "SUCCESS" && (
+                    <div
+                      className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                      onClick={() => {
+                        setShowDownloadOptions(false);
+                        downloadEntireOdmProject();
+                      }}
+                    >
+                      <span className="material-icons naxatw-text-base">folder_zip</span>
+                      Entire ODM Project
+                    </div>
+                  )}
                 </div>
               )}
             </div>

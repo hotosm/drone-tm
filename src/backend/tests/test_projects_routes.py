@@ -1,12 +1,16 @@
 import json
 import uuid
+from datetime import datetime, timezone
 from io import BytesIO
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from httpx import ASGITransport, AsyncClient
 from loguru import logger as log
 
 from app.arq.tasks import get_redis_pool
+from app.projects import project_deps
 from app.projects import project_routes
 from app.projects import project_schemas
 from app.projects import project_logic
@@ -142,6 +146,69 @@ async def test_read_project_includes_has_gcp_flag(
 
     assert response.status_code == 200
     assert response.json()["has_gcp"] is True
+
+
+@pytest.mark.asyncio
+async def test_head_project_odm_assets_returns_available(app, monkeypatch):
+    project_id = uuid.uuid4()
+    s3_object = SimpleNamespace(
+        object_name=f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif",
+        is_dir=False,
+        last_modified=datetime.now(timezone.utc),
+    )
+
+    class FakeS3Client:
+        def list_objects(self, bucket_name, prefix, recursive=False):
+            assert recursive is True
+            assert prefix == f"projects/{project_id}/odm/"
+            return (obj for obj in [s3_object] if obj.object_name.startswith(prefix))
+
+    monkeypatch.setattr(project_routes, "s3_client", lambda: FakeS3Client())
+    app.dependency_overrides[project_deps.get_project_by_id] = lambda: SimpleNamespace(
+        id=project_id
+    )
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as test_client:
+            response = await test_client.head(f"/api/projects/odm/export/{project_id}/")
+    finally:
+        app.dependency_overrides.pop(project_deps.get_project_by_id, None)
+
+    assert response.status_code == 200
+    assert response.content == b""
+    assert response.headers["content-type"].startswith("application/zip")
+    assert (
+        response.headers["content-disposition"]
+        == f"attachment; filename=odm_assets_{project_id}.zip"
+    )
+
+
+@pytest.mark.asyncio
+async def test_head_project_odm_assets_returns_404_when_missing(app, monkeypatch):
+    project_id = uuid.uuid4()
+
+    class FakeS3Client:
+        def list_objects(self, bucket_name, prefix, recursive=False):
+            return iter(())
+
+    monkeypatch.setattr(project_routes, "s3_client", lambda: FakeS3Client())
+    app.dependency_overrides[project_deps.get_project_by_id] = lambda: SimpleNamespace(
+        id=project_id
+    )
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as test_client:
+            response = await test_client.head(f"/api/projects/odm/export/{project_id}/")
+    finally:
+        app.dependency_overrides.pop(project_deps.get_project_by_id, None)
+
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

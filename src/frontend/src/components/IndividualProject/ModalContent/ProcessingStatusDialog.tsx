@@ -305,25 +305,6 @@ const ProcessingStatusDialog = () => {
     }
   }, []);
 
-  const handleDownloadProjectAssets = useCallback(async () => {
-    const assetsPath = `/api/projects/odm/export/${projectId}/`;
-    const url = buildDownloadUrl(assetsPath);
-    try {
-      const resp = await fetch(url, { method: "HEAD" });
-      if (resp.status === 404) {
-        toast.warning("No ODM assets found for this project.");
-        return;
-      }
-      if (!resp.ok) {
-        toast.error("Failed to check ODM assets availability.");
-        return;
-      }
-      handleDownloadProjectFile(assetsPath, `odm_assets_${projectId}.zip`);
-    } catch (error) {
-      toast.error(`Download failed: ${error}`);
-    }
-  }, [projectId, handleDownloadProjectFile]);
-
   const getProcessButtonLabel = useCallback((task: ProcessingDialogTask) => {
     if (task.state === "IMAGE_PROCESSING_FAILED") {
       return "Retry";
@@ -1016,15 +997,6 @@ const ProcessingStatusDialog = () => {
                   Point Cloud (.laz)
                 </Button>
               )}
-              <Button
-                variant="outline"
-                className="naxatw-h-8 naxatw-border-gray-400 naxatw-px-3 naxatw-text-xs naxatw-text-gray-700"
-                leftIcon="folder_zip"
-                iconClassname="!naxatw-text-sm"
-                onClick={handleDownloadProjectAssets}
-              >
-                All ODM Assets (.zip)
-              </Button>
             </div>
           </>
         )}

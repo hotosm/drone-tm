@@ -88,6 +88,32 @@ _extract_valid_odm_task_info = project_logic.extract_valid_odm_task_info
 _get_project_odm_endpoint = project_logic.get_project_odm_endpoint
 
 
+def _odm_assets_prefix(project_id: uuid.UUID, task_id: Optional[uuid.UUID]) -> str:
+    task_segment = f"{task_id}/" if task_id else ""
+    return f"projects/{project_id}/{task_segment}odm/"
+
+
+def _odm_assets_available(prefix: str) -> bool:
+    probe = next(
+        s3_client().list_objects(
+            settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
+        ),
+        None,
+    )
+    return probe is not None
+
+
+def _odm_assets_filename(project_id: uuid.UUID, task_id: Optional[uuid.UUID]) -> str:
+    return f"odm_assets_{task_id}.zip" if task_id else f"odm_assets_{project_id}.zip"
+
+
+def _raise_no_odm_assets() -> None:
+    raise HTTPException(
+        status_code=HTTPStatus.NOT_FOUND,
+        detail="No ODM assets found for this project.",
+    )
+
+
 @router.get(
     "/centroids", tags=["Projects"], response_model=list[project_schemas.CentroidOut]
 )
@@ -1804,28 +1830,16 @@ async def export_odm_assets(
     #         detail="Only the project creator may export ODM assets",
     #     )
 
-    task_segment = f"{task_id}/" if task_id else ""
-    prefix = f"projects/{project.id}/{task_segment}odm/"
+    prefix = _odm_assets_prefix(project.id, task_id)
 
     # Probe for at least one object so we can 404 before streaming starts,
     # then list lazily during the stream to avoid loading all metadata upfront.
     # Use recursive=True so we find files at any depth (e.g. odm_orthophoto/odm_orthophoto.tif)
     # rather than relying on common-prefix returns which vary by S3 implementation.
-    probe = next(
-        s3_client().list_objects(
-            settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
-        ),
-        None,
-    )
-    if probe is None:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="No ODM assets found for this project.",
-        )
+    if not _odm_assets_available(prefix):
+        _raise_no_odm_assets()
 
-    filename = (
-        f"odm_assets_{task_id}.zip" if task_id else f"odm_assets_{project_id}.zip"
-    )
+    filename = _odm_assets_filename(project_id, task_id)
 
     def member_files():
         for obj in s3_client().list_objects(
@@ -1855,6 +1869,34 @@ async def export_odm_assets(
 
     return StreamingResponse(
         generate(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.head(
+    "/odm/export/{project_id}/{task_id}/",
+    tags=["Image Processing"],
+)
+@router.head(
+    "/odm/export/{project_id}/",
+    tags=["Image Processing"],
+)
+async def head_odm_assets(
+    request: Request,
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    task_id: Optional[uuid.UUID] = None,
+):
+    """Check whether ODM assets exist without streaming the zip."""
+    prefix = _odm_assets_prefix(project.id, task_id)
+    if not _odm_assets_available(prefix):
+        _raise_no_odm_assets()
+
+    filename = _odm_assets_filename(project_id, task_id)
+    return Response(
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
