@@ -125,3 +125,24 @@ import-imagery project_id src_bucket src_prefix src_endpoint="" src_access_key="
   echo "==> Copy complete."
   echo "    Open the Upload Imagery dialog in the DroneTM UI and click"
   echo "    'Ingest Existing S3 Imagery' to load files into the database."
+
+# Build ODM with `time` installed, then run the team's stats script.
+odm-with-stats name +s3_paths:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  cd {{ justfile_directory() }}
+
+  odm_image="${ODM_IMAGE:-opendronemap/odm-with-stats:latest}"
+
+  {{ docker }} build -t "$odm_image" - <<'DOCKERFILE'
+  FROM opendronemap/odm:latest
+  USER root
+  RUN apt-get update && apt-get install -y time
+  DOCKERFILE
+
+  s3_paths={{ quote(s3_paths) }}
+  read -r -a args <<< "$s3_paths"
+
+  DOCKER_ALIAS={{ quote(docker) }} ODM_IMAGE="$odm_image" \
+    bash scripts/odm-with-stats.sh {{ quote(name) }} "${args[@]}"
