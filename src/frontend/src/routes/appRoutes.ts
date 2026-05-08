@@ -16,6 +16,7 @@ const UpdateUserProfile = lazy(() => import("@Views/UpdateUserProfile"));
 const RegulatorsApprovalPage = lazy(() => import("@Views/RegulatorsApprovalPage"));
 const Tutorials = lazy(() => import("@Views/Tutorial"));
 const ImportPage = lazy(() => import("@Views/Import"));
+const View3DModel = lazy(() => import("@Views/View3DModel"));
 
 const appRoutes: IRoute[] = [
   ...userRoutes,
@@ -96,6 +97,12 @@ const appRoutes: IRoute[] = [
     name: "Import Imagery",
     component: ImportPage,
     authenticated: true,
+  },
+  {
+    path: "/projects/:id/3d-model",
+    name: "3D Model Viewer",
+    component: View3DModel,
+    authenticated: false,
   },
 ];
 

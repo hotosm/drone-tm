@@ -24,9 +24,11 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
+from minio.error import S3Error
 from psycopg import Connection
 from psycopg.rows import dict_row
 from stream_zip import NO_COMPRESSION_64, stream_zip
@@ -1910,6 +1912,185 @@ async def head_odm_assets(
     return Response(
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3D Tiles proxy
+#
+# 3D Tiles consist of a root ``tileset.json`` plus a tree of individual tile
+# binaries (``.b3dm``, ``.glb``, …) referenced via relative paths.  Presigning
+# every tile would be impractical (hundreds of files, expiry windows, mutated
+# URLs in tileset.json), so we stream them through the backend instead.  All
+# authentication and access control happens here; S3 stays private.
+#
+# Layout in S3:  ``projects/{project_id}/3d-tiles/...``
+# ---------------------------------------------------------------------------
+
+# Cache lifetime for proxied tiles.  Tiles are content-addressed (they don't
+# change once written for a given pipeline run) so 1 hour is conservative.
+# ETag-based revalidation handles changes after expiry.
+_TILE_CACHE_MAX_AGE = 3600
+
+_TILE_CONTENT_TYPES: dict[str, str] = {
+    ".b3dm": "application/octet-stream",
+    ".i3dm": "application/octet-stream",
+    ".cmpt": "application/octet-stream",
+    ".pnts": "application/octet-stream",
+    ".glb": "model/gltf-binary",
+    ".gltf": "model/gltf+json",
+    ".json": "application/json",
+    ".bin": "application/octet-stream",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".ktx2": "image/ktx2",
+    ".webp": "image/webp",
+}
+
+
+def _tile_content_type(file_path: str) -> str:
+    suffix = f".{file_path.rsplit('.', 1)[-1].lower()}" if "." in file_path else ""
+    return _TILE_CONTENT_TYPES.get(suffix, "application/octet-stream")
+
+
+def _validate_tile_path(file_path: str) -> str:
+    """Validate and normalise a tile sub-path.
+
+    Rejects empty paths, absolute paths, parent traversal (raw or URL-encoded -
+    FastAPI URL-decodes path params already, so a single ``..`` check suffices),
+    backslashes (Windows-style), and any control characters that could be used
+    to inject CR/LF into S3 keys.
+    """
+    if not file_path:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Empty tile path."
+        )
+    if file_path.startswith("/") or "\\" in file_path:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Invalid tile path."
+        )
+    # Split on '/' and reject any '..' segment.  Substring check would also
+    # match legitimate filenames like ``foo..bar`` so we go segment-wise.
+    for segment in file_path.split("/"):
+        if segment in {"", ".", ".."}:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST, detail="Invalid tile path."
+            )
+    if any(ord(c) < 0x20 for c in file_path):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Invalid tile path."
+        )
+    return file_path
+
+
+def _build_tile_response_headers(stat) -> dict[str, str]:
+    """Common cache + integrity headers for tile responses (HEAD and GET)."""
+    headers = {
+        "Cache-Control": f"public, max-age={_TILE_CACHE_MAX_AGE}",
+        "Content-Length": str(stat.size),
+    }
+    if stat.etag:
+        # MinIO surfaces the raw S3 ETag (already wrapped in quotes when
+        # multi-part).  Strip surrounding whitespace just in case.
+        headers["ETag"] = stat.etag.strip('"')
+    if stat.last_modified:
+        headers["Last-Modified"] = stat.last_modified.strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        )
+    return headers
+
+
+async def _stat_3d_tile(project_id: uuid.UUID, file_path: str):
+    """Stat a 3D-tile object.  404 on miss, propagates other errors as 502."""
+    object_key = f"projects/{project_id}/3d-tiles/{file_path}"
+    try:
+        return await run_in_threadpool(
+            s3_client().stat_object, settings.S3_BUCKET_NAME, object_key
+        ), object_key
+    except S3Error as exc:
+        if exc.code in {"NoSuchKey", "NoSuchBucket"}:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"3D tile not found: {file_path}",
+            )
+        log.exception(f"S3 error fetching 3D tile {object_key}: {exc}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_GATEWAY, detail="Object store error."
+        )
+
+
+@router.head("/{project_id}/3d-tiles/{file_path:path}", tags=["3D Model"])
+async def head_3d_tile(
+    project_id: uuid.UUID,
+    file_path: str,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Check whether a 3D tile exists without streaming its content.
+
+    Used by the frontend before initialising TilesRenderer so the placeholder
+    can be shown immediately when tiles haven't been generated yet.
+    """
+    file_path = _validate_tile_path(file_path)
+    stat, _ = await _stat_3d_tile(project_id, file_path)
+    return Response(
+        media_type=_tile_content_type(file_path),
+        headers=_build_tile_response_headers(stat),
+    )
+
+
+@router.get("/{project_id}/3d-tiles/{file_path:path}", tags=["3D Model"])
+async def stream_3d_tile(
+    request: Request,
+    project_id: uuid.UUID,
+    file_path: str,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Stream a single 3D Tiles asset (tileset.json or a tile file) from S3.
+
+    TilesRenderer fetches ``tileset.json`` then resolves all tile paths
+    relative to it.  This endpoint proxies every such request through the
+    backend so the private S3 bucket is never exposed directly.
+
+    The response carries ``Cache-Control: public, max-age=3600`` and the
+    object's S3 ETag so the browser can cache aggressively and revalidate
+    cheaply via ``If-None-Match`` on cache expiry.
+    """
+    file_path = _validate_tile_path(file_path)
+    stat, object_key = await _stat_3d_tile(project_id, file_path)
+
+    response_headers = _build_tile_response_headers(stat)
+
+    # Conditional GET: if the client already has the current version, return
+    # 304 immediately and skip the S3 download entirely.
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and response_headers.get("ETag"):
+        client_etags = {tag.strip().strip('"') for tag in if_none_match.split(",")}
+        if response_headers["ETag"] in client_etags or "*" in client_etags:
+            return Response(
+                status_code=HTTPStatus.NOT_MODIFIED, headers=response_headers
+            )
+
+    def generate():
+        response = s3_client().get_object(settings.S3_BUCKET_NAME, object_key)
+        try:
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
+
+    return StreamingResponse(
+        generate(),
+        media_type=_tile_content_type(file_path),
+        headers=response_headers,
     )
 
 
