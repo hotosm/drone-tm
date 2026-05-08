@@ -265,6 +265,17 @@ const IndividualProject = () => {
             >
               {m.individual_project_button_gcp_editor()}
             </Button>
+            {projectData?.image_processing_status === "SUCCESS" && (
+              <Button
+                variant="ghost"
+                className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                leftIcon="view_in_ar"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => navigate(`/projects/${projectData?.id || id}/3d-model`)}
+              >
+                View 3D Model
+              </Button>
+            )}
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
