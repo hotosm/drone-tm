@@ -4,8 +4,6 @@
 
 <h1>The Drone-TM Team</h1>
 
-<p>Drone-TM is developed by HOT's Tech Team.</p>
-
 <p>Drone-TM has been developed as a collaboration between HOT's Tech Team &
 <a
   href="https://naxa.com.np"
