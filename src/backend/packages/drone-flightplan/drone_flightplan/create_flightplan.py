@@ -1,5 +1,7 @@
 import argparse
 import logging
+import os
+import tempfile
 from typing import Union
 
 import geojson
@@ -80,11 +82,14 @@ def create_flightplan(
 
     # ---- Terrain follow support ----
     if dem:
-        outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-        add_elevation_from_dem(dem, points_geojson, outfile_with_elevation)
+        with tempfile.TemporaryDirectory(prefix="dtm-flightplan-") as tmp_dir:
+            outfile_with_elevation = os.path.join(
+                tmp_dir, "output_file_with_elevation.geojson"
+            )
+            add_elevation_from_dem(dem, points_geojson, outfile_with_elevation)
 
-        with open(outfile_with_elevation) as f:
-            points_geojson = f.read()
+            with open(outfile_with_elevation) as f:
+                points_geojson = f.read()
 
         # If user asked for WAYLINES, convert after terrain-following
         if flight_mode == FlightMode.WAYLINES:

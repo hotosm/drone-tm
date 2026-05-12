@@ -22,6 +22,8 @@ https://mavlink.io/en/messages/common.html#MAV_CMD
 import argparse
 import json
 import logging
+import os
+import tempfile
 from typing import Union, Optional
 
 import geojson
@@ -352,7 +354,7 @@ def create_return_to_launch_item() -> dict:
 
 def create_qgroundcontrol_plan(
     placemark_geojson: Union[str, FeatureCollection, dict],
-    output_file_path: str = "/tmp/mission.plan",
+    output_file_path: Optional[str] = None,
     flight_mode: FlightMode = FlightMode.WAYPOINTS,
     photo_interval_time: float = 2.0,
     photo_interval_distance: Optional[float] = None,
@@ -398,6 +400,9 @@ def create_qgroundcontrol_plan(
     Raises:
         ValueError: If no waypoints found or invalid GeoJSON format
     """
+    if output_file_path is None:
+        output_file_path = os.path.join(tempfile.gettempdir(), "mission.plan")
+
     # Parse GeoJSON if it's a string
     if isinstance(placemark_geojson, str):
         placemark_geojson = geojson.loads(placemark_geojson)

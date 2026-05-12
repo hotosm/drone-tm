@@ -28,6 +28,8 @@ https://github.com/OpenGeoOne/qgis-drone-flight-planner/blob/main/algoritmos/Fun
 import argparse
 import csv
 import logging
+import os
+import tempfile
 from typing import Union, Optional
 
 import geojson
@@ -149,7 +151,7 @@ def create_litchi_waypoint(
 
 def create_litchi_csv(
     placemark_geojson: Union[str, FeatureCollection, dict],
-    output_file_path: str = "/tmp/mission.csv",
+    output_file_path: Optional[str] = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
     photo_interval_time: float = 2.0,
     photo_interval_distance: Optional[float] = None,
@@ -200,6 +202,9 @@ def create_litchi_csv(
     Raises:
         ValueError: If no waypoints found or invalid GeoJSON format
     """
+    if output_file_path is None:
+        output_file_path = os.path.join(tempfile.gettempdir(), "mission.csv")
+
     # Parse GeoJSON if it's a string
     if isinstance(placemark_geojson, str):
         placemark_geojson = geojson.loads(placemark_geojson)
