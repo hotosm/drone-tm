@@ -1,3 +1,19 @@
+## 2026.5.13 (2026-05-13)
+
+### Feat
+
+- **backend**: add image rejection based on sun position < 10 deg - bad lighting
+- **frontend**: add additional image rejection criteria for images with significant shadow
+
+### Fix
+
+- **frontend**: use radix switch for Verify Imagery modal flight tail toggle
+- add a toggle to 'Disable Flight Tail Detection' in imagery classification modal
+
+### Refactor
+
+- tweak comment styles
+
 ## 2026.5.12 (2026-05-07)
 
 ### Feat
