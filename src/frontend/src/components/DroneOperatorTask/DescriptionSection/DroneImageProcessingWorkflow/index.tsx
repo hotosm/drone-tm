@@ -285,6 +285,7 @@ export const ClassifyImageryDialog = ({
   const [isPolling, setIsPolling] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [disableFlightTailDetection, setDisableFlightTailDetection] = useState(false);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -292,6 +293,7 @@ export const ClassifyImageryDialog = ({
       setIsPolling(false);
       setHasStarted(false);
       setIsComplete(false);
+      setDisableFlightTailDetection(false);
     }
   }, [isOpen]);
 
@@ -385,8 +387,11 @@ export const ClassifyImageryDialog = ({
   }, [projectStatus, isPolling]);
 
   const handleStartClassification = useCallback(() => {
-    startClassificationMutation.mutate({ projectId });
-  }, [projectId, startClassificationMutation]);
+    startClassificationMutation.mutate({
+      projectId,
+      disableFlightTailDetection,
+    });
+  }, [projectId, disableFlightTailDetection, startClassificationMutation]);
 
   const handleScanForImages = useCallback(() => {
     scanUploadsMutation.mutate({ projectId });
@@ -490,6 +495,23 @@ export const ClassifyImageryDialog = ({
                     This will classify all pending images in the project across all upload sessions.
                   </span>
                 </div>
+                <label className="naxatw-mb-2 naxatw-flex naxatw-items-start naxatw-gap-2 naxatw-cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={disableFlightTailDetection}
+                    onChange={(e) => setDisableFlightTailDetection(e.target.checked)}
+                    className="naxatw-mt-0.5 naxatw-cursor-pointer"
+                  />
+                  <span className="naxatw-flex naxatw-flex-col naxatw-gap-0.5">
+                    <span className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-700">
+                      Disable flight tail detection
+                    </span>
+                    <span className="naxatw-text-xs naxatw-text-gray-500">
+                      Skip automatic rejection of takeoff/landing transit imagery. Use this if
+                      detection is producing false positives on your dataset.
+                    </span>
+                  </span>
+                </label>
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
                   <button
                     onClick={handleStartClassification}

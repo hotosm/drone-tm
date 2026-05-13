@@ -34,6 +34,10 @@ router = APIRouter(
 ImageUrlVariant = Literal["thumb", "full", "both"]
 
 
+class ClassifyProjectRequest(BaseModel):
+    disable_flight_tail_detection: bool = False
+
+
 class FlightGapDetectionRequest(BaseModel):
     manual_gap_polygons: dict | None = None
     drone_type: DroneType | None = None
@@ -100,12 +104,14 @@ async def start_project_classification(
     db: Annotated[Connection, Depends(database.get_db)],
     redis: Annotated[ArqRedis, Depends(get_redis_pool)],
     user: Annotated[AuthUser, Depends(login_required)],
+    body: ClassifyProjectRequest | None = None,
 ):
     """Classify all staged/uploaded images in a project (across all batches).
 
     Also reclaims 'classifying' rows stranded by a crashed worker (stale > 10 min).
     """
     log.info(f"Received project classification request: project_id={project_id}")
+    disable_flight_tail_detection = bool(body and body.disable_flight_tail_detection)
 
     async with db.cursor() as cur:
         await cur.execute(
@@ -138,6 +144,7 @@ async def start_project_classification(
     job = await redis.enqueue_job(
         "classify_project_images",
         str(project_id),
+        disable_flight_tail_detection=disable_flight_tail_detection,
         _queue_name="default_queue",
     )
 

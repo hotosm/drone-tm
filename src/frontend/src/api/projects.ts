@@ -92,11 +92,12 @@ export const useStartProjectClassificationMutation = (
   mutationOptions?: UseMutationOptions<
     { job_id: string; message: string; project_id: string; image_count: number },
     Error,
-    { projectId: string }
+    { projectId: string; disableFlightTailDetection?: boolean }
   >,
 ) => {
   return useMutation({
-    mutationFn: ({ projectId }) => startProjectClassification(projectId),
+    mutationFn: ({ projectId, disableFlightTailDetection }) =>
+      startProjectClassification(projectId, { disableFlightTailDetection }),
     ...mutationOptions,
   });
 };

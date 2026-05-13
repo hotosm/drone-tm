@@ -151,15 +151,22 @@ export const resetStaleClassification = async (
 
 // ─── Project-scoped classification endpoints ────────────────────────────────
 
+export interface StartProjectClassificationOptions {
+  disableFlightTailDetection?: boolean;
+}
+
 /**
  * Start classification job for all staged images in a project (across batches)
  */
 export const startProjectClassification = async (
   projectId: string,
+  options: StartProjectClassificationOptions = {},
 ): Promise<{ job_id: string; message: string; project_id: string; image_count: number }> => {
   const response = await authenticated(api).post(
     `/projects/${projectId}/classify/`,
-    {},
+    {
+      disable_flight_tail_detection: options.disableFlightTailDetection ?? false,
+    },
     {
       headers: {
         "Content-Type": "application/json",

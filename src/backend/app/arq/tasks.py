@@ -695,11 +695,15 @@ async def ingest_existing_uploads(
 async def classify_project_images(
     ctx: Dict[Any, Any],
     project_id: str,
+    disable_flight_tail_detection: bool = False,
     **_kwargs: Any,
 ) -> Dict:
     """Classify all staged images in a project (across all batches)."""
     job_id = ctx.get("job_id", "unknown")
-    log.info(f"Starting project classification job {job_id} for project {project_id}")
+    log.info(
+        f"Starting project classification job {job_id} for project {project_id} "
+        f"(flight tail detection {'disabled' if disable_flight_tail_detection else 'enabled'})"
+    )
 
     db_pool = ctx.get("db_pool")
     if not db_pool:
@@ -719,7 +723,12 @@ async def classify_project_images(
             for img in result.get("images", [])
             if img.get("status") == ImageStatus.ASSIGNED
         ]
-        if classified_image_ids:
+        if disable_flight_tail_detection:
+            log.info(
+                f"Skipping flight tail detection for project {project_id} "
+                f"(disabled by user request)"
+            )
+        if classified_image_ids and not disable_flight_tail_detection:
             try:
                 async with db_pool.connection() as conn:
                     async with conn.cursor() as cur:
