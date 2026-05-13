@@ -18,6 +18,10 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 from app.models.enums import ImageStatus
+from app.images.solar_position import (
+    derive_utc_datetime_from_exif,
+    solar_elevation_deg,
+)
 from app.s3 import (
     get_obj_from_bucket,
     maybe_presign_s3_key,
@@ -124,6 +128,11 @@ class QualityThresholds:
     shadow_dark_cell_max: float = 60.0  # a "dark" cell has mean <= this
     shadow_bright_cell_min: float = 130.0  # a "bright" cell has mean >= this
     shadow_min_dark_cells: int = 2  # require at least this many dark cells
+
+    # Low-sun-angle rejection.  Requires (a) valid lat/lon and (b) an
+    # unambiguous UTC capture time derivable from EXIF; if either is
+    # missing the check is skipped, never speculated.
+    min_sun_elevation_deg: float = 10.0
 
     # AOI sanity check (rough): if image is > ~100km away from project centroid, it's likely wrong project.
     far_from_project_km: float = 100.0
@@ -673,6 +682,43 @@ class ImageClassifier:
             log.debug(
                 f"GPS check passed: image_id={image_id} lat={latitude:.6f} lon={longitude:.6f}"
             )
+
+            # Low-sun-angle check.  Only runs when we can build an
+            # unambiguous UTC datetime from EXIF (GPSDateTime, GPS
+            # date+time stamps, or DateTimeOriginal with an explicit
+            # OffsetTimeOriginal). Silently skipped otherwise - we never
+            # guess the timezone, since a wrong guess would reject good
+            # imagery captured in the middle of the day.
+            try:
+                utc_dt = derive_utc_datetime_from_exif(exif_data)
+                if utc_dt is not None:
+                    elevation = solar_elevation_deg(
+                        float(latitude), float(longitude), utc_dt
+                    )
+                    log.debug(
+                        f"Solar elevation: image_id={image_id} "
+                        f"elevation={elevation:.1f}° utc={utc_dt.isoformat()}"
+                    )
+                    if elevation < Q.min_sun_elevation_deg:
+                        issues.append(
+                            f"Sun too low at capture time (elevation: {elevation:.1f}°, "
+                            f"min: {Q.min_sun_elevation_deg:.0f}°). Long shadows can "
+                            f"degrade image matching during stitching."
+                        )
+                        log.debug(
+                            f"Solar elevation check FAILED: image_id={image_id} "
+                            f"elevation={elevation:.1f}° min={Q.min_sun_elevation_deg:.0f}°"
+                        )
+                else:
+                    log.debug(
+                        f"Solar elevation check skipped: image_id={image_id} "
+                        f"no unambiguous UTC datetime in EXIF"
+                    )
+            except Exception as e:
+                # Never let a bad EXIF field block classification.
+                log.warning(
+                    f"Solar elevation check errored, skipping: image_id={image_id} err={e}"
+                )
 
         # Parse UserComment for drone metadata (pitch, yaw, etc.)
         user_comment = exif_data.get("UserComment")

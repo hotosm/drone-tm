@@ -13,7 +13,14 @@ An image is rejected if any of the following is true:
 - The image is too blurry.
 - The image is too dark (almost all black, e.g. lens cap on).
 - The image is too bright (almost all white, e.g. over-exposed from the sun).
+- The sun was too low or in a bad position, causing long shadows, glare, or
+  uneven lighting.
+- The lighting is too poor for mapping, even if the image is not fully dark or
+  fully bright.
 - The image could not be downloaded or checked.
+
+These lighting checks help avoid images where the ground is hard to see clearly
+or where shadows and glare could make the map harder to stitch.
 
 If an image passes all the checks but its GPS location is not inside any task
 area, it is marked **Unmatched** (not rejected).

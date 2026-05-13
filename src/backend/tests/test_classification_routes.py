@@ -206,7 +206,10 @@ async def test_start_project_classification_enqueues_job_for_staged_images(
     assert fake_redis.jobs == [
         (
             ("classify_project_images", project_id),
-            {"_queue_name": "default_queue"},
+            {
+                "disable_flight_tail_detection": False,
+                "_queue_name": "default_queue",
+            },
         )
     ]
 
