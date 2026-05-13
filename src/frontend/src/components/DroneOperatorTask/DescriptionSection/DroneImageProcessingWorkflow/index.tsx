@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import Modal from "@Components/common/Modal";
 import { Button } from "@Components/RadixComponents/Button";
+import Switch from "@Components/RadixComponents/Switch";
 import { deleteBatch } from "@Services/classification";
 import {
   useStartProjectClassificationMutation,
@@ -495,23 +496,6 @@ export const ClassifyImageryDialog = ({
                     This will classify all pending images in the project across all upload sessions.
                   </span>
                 </div>
-                <label className="naxatw-mb-2 naxatw-flex naxatw-items-start naxatw-gap-2 naxatw-cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={disableFlightTailDetection}
-                    onChange={(e) => setDisableFlightTailDetection(e.target.checked)}
-                    className="naxatw-mt-0.5 naxatw-cursor-pointer"
-                  />
-                  <span className="naxatw-flex naxatw-flex-col naxatw-gap-0.5">
-                    <span className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-700">
-                      Disable flight tail detection
-                    </span>
-                    <span className="naxatw-text-xs naxatw-text-gray-500">
-                      Skip automatic rejection of takeoff/landing transit imagery. Use this if
-                      detection is producing false positives on your dataset.
-                    </span>
-                  </span>
-                </label>
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
                   <button
                     onClick={handleStartClassification}
@@ -664,7 +648,25 @@ export const ClassifyImageryDialog = ({
             </div>
           )}
 
-          <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-justify-end naxatw-border-t naxatw-pt-4">
+          <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-between naxatw-gap-4 naxatw-border-t naxatw-pt-4">
+            {!hasStarted ? (
+              <label
+                htmlFor="disable-flight-tail-toggle"
+                className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2"
+                title="Skip automatic rejection of takeoff/landing transit imagery. Use this if detection is producing false positives on your dataset."
+              >
+                <Switch
+                  id="disable-flight-tail-toggle"
+                  checked={disableFlightTailDetection}
+                  onCheckedChange={setDisableFlightTailDetection}
+                />
+                <span className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-700">
+                  Disable flight tail detection
+                </span>
+              </label>
+            ) : (
+              <span />
+            )}
             <Button variant="outline" className="naxatw-border-gray-300" onClick={handleClose}>
               Close
             </Button>
