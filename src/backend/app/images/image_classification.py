@@ -755,7 +755,10 @@ class ImageClassifier:
                 "sharpness_score": sharpness_score,
             }
 
-        # All checks passed
+        # Quality checks intentionally run before spatial matching. This keeps
+        # the most useful rejection reason (for example bad gimbal pitch or
+        # blur) from being replaced by "outside task area", and keeps those
+        # images out of the unmatched/manual-assignment workflow.
         quality_details = (
             f"Gimbal: {gimbal_angle:.1f}°"
             if gimbal_angle is not None

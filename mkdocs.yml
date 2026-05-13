@@ -87,6 +87,7 @@ nav:
       - DroneTM Managers:
           - Creating Projects: manuals/creating-projects.md
           - Ingesting Existing Imagery: manuals/ingest-imagery.md
+          - Imagery Quality Criteria: manuals/image-quality.md
       - DroneTM Operators:
           - Drone Operators Guide: manuals/dronetm-operators.md
           - Flight Checklists: manuals/flight-checklists.md
