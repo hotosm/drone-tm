@@ -196,6 +196,38 @@ def test_classifier_exposure_detects_sun_glare():
     assert metrics["mean"] == 250.0
 
 
+def test_classifier_shadow_detects_split_lighting():
+    """Half-bright/half-dark frame (e.g. long sun-angle shadow) is flagged."""
+    img = np.full((200, 200), 180, dtype=np.uint8)
+    # darken the left half well below the dark-cell threshold
+    img[:, :100] = 30
+
+    issues, metrics = ImageClassifier._shadow_issues(img)
+
+    assert any("Significant shadow detected" in issue for issue in issues)
+    assert metrics["shadow_spread"] >= 90
+    assert metrics["shadow_dark_cells"] >= 2
+
+
+def test_classifier_shadow_no_false_positive_on_uniform_image():
+    """Uniformly mid-tone images must not be flagged as shadowed."""
+    img = np.full((200, 200), 140, dtype=np.uint8)
+
+    issues, _ = ImageClassifier._shadow_issues(img)
+
+    assert issues == []
+
+
+def test_classifier_shadow_no_false_positive_on_dark_image():
+    """Fully dark frames should fall to the exposure check, not the shadow
+    check (no bright anchor cell present)."""
+    img = np.full((200, 200), 15, dtype=np.uint8)
+
+    issues, _ = ImageClassifier._shadow_issues(img)
+
+    assert issues == []
+
+
 def test_classifier_rough_distance():
     """Verifies the _rough_distance_km correctly identifies outside coordinates is 'Far Away' from current project."""
     # Project centroid
