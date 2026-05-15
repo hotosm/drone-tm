@@ -16,7 +16,7 @@ of the same companies also offer cloud-based processing services that allow for
 uploading imagery to scalable cloud computing infrastructure.
 
 The most popular and mature open source programs are
-[OpenDroneMap](https://www.opendronemap.org/) and 
+[OpenDroneMap](https://www.opendronemap.org/) and
 [WebODM](https://webodm.org).
 
 On the commercial side, two of the most widely used options are
