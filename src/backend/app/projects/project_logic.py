@@ -781,7 +781,10 @@ async def create_tasks_from_geojson(
         raise HTTPException(e) from e
 
 
-async def preview_split_by_square(boundary: str, meters: int):
+async def preview_split_by_square(db, boundary, meters: int):
+    async with db.cursor() as cur:
+        await cur.execute(
+
     """Preview split by square for a project boundary.
 
     Use a lambda function to remove the "z" dimension from each
@@ -799,6 +802,8 @@ async def preview_split_by_square(boundary: str, meters: int):
     except (GeometryValidationError, GeometryTopologyError, GEOSException) as e:
         raise HTTPException(
             status_code=422,
+            ...,
+        ) from e
             detail="Invalid geometry for split preview. Please fix AOI or no-fly zone geometry and retry.",
         ) from e
 
