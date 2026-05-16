@@ -8,6 +8,8 @@ bridging that CrawlerRunner required.
 import io
 import asyncio
 import os
+import shutil
+import tempfile
 from pathlib import Path
 
 from loguru import logger as log
@@ -187,9 +189,10 @@ async def download_and_upload_dem(
         f"with coordinates: {coordinates_str}"
     )
 
-    # Use project-specific directory to avoid conflicts in k8s
-    project_dir = Path(f"/tmp/tif_processing/{project_id}")
-    project_dir.mkdir(parents=True, exist_ok=True)
+    # Use a project-scoped temp directory so concurrent jobs don't collide
+    # in k8s. tempfile picks the system temp root (TMPDIR / TEMP / /tmp)
+    # and the directory is cleaned up automatically on success or failure.
+    project_dir = Path(tempfile.mkdtemp(prefix=f"dtm-dem-{project_id}-"))
     tif_file_path = str(project_dir / "merged.tif")
 
     try:
@@ -208,24 +211,6 @@ async def download_and_upload_dem(
         log.error(
             f"DEM download job failed for project ({project_id}): {e}", exc_info=True
         )
-
-        # Clean up on failure
-        if os.path.exists(tif_file_path):
-            os.remove(tif_file_path)
-            log.info(f"Cleaned up partial file: {tif_file_path}")
-
-        if project_dir.exists():
-            # Try to clean up any remaining files
-            for file in project_dir.glob("*"):
-                try:
-                    file.unlink()
-                except Exception as cleanup_error:
-                    log.warning(f"Could not clean up {file}: {cleanup_error}")
-
-            # Remove directory if empty
-            try:
-                project_dir.rmdir()
-            except Exception:
-                pass
-
         raise
+    finally:
+        shutil.rmtree(project_dir, ignore_errors=True)

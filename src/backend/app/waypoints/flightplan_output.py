@@ -1,5 +1,8 @@
+from typing import Optional
+
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from drone_flightplan.drone_type import DRONE_PARAMS, DroneType
 
@@ -44,11 +47,19 @@ def build_flightplan_download_response(
     outpath: str,
     drone_type: DroneType,
     filename_stem: str,
+    cleanup: Optional[BackgroundTask] = None,
 ):
-    """Wrap a generated flightplan file in the correct download response."""
+    """Wrap a generated flightplan file in the correct download response.
+
+    If ``cleanup`` is supplied, it runs after the response body has been
+    streamed to the client. Callers that generate the file in a
+    ``tempfile.TemporaryDirectory`` should pass a BackgroundTask that
+    removes the directory so it does not leak on disk.
+    """
     config = get_flightplan_output_config(drone_type)
     return FileResponse(
         outpath,
         media_type=config["media_type"],
         filename=f"{filename_stem}{config['suffix']}",
+        background=cleanup,
     )

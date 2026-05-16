@@ -23,6 +23,7 @@ device and partially supported WPML functions in the DJI waypoint implementation
 import argparse
 import logging
 import os
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Optional
@@ -468,7 +469,9 @@ def create_kml(mission_config, folder):
     return kml
 
 
-def create_xml(placemarks, global_height, output_file_path="/tmp/"):
+def create_xml(placemarks, global_height, output_file_path=None):
+    if output_file_path is None:
+        output_file_path = tempfile.gettempdir() + os.sep
     mission_config = create_mission_config(global_height)
     folder = create_folder(placemarks)
     kml = create_kml(mission_config, folder)
@@ -486,14 +489,17 @@ def create_xml(placemarks, global_height, output_file_path="/tmp/"):
 
 def create_wpml(
     placemark_geojson: str | FeatureCollection | dict,
-    output_file_path: str = "/tmp/",
+    output_file_path: Optional[str] = None,
 ):
     """Arguments:
         placemark_geojson: The placemark coordinates to be included in the flightplan mission
-        output_file_path: The output file path for the wpml file
+        output_file_path: The output file path for the wpml file. Defaults to
+            the system temp directory.
     Returns:
         wpml file.
     """
+    if output_file_path is None:
+        output_file_path = tempfile.gettempdir() + os.sep
     # global height is taken from the first point
     try:
         global_height = placemark_geojson["features"][0]["geometry"]["coordinates"][2]
