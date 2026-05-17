@@ -430,7 +430,7 @@ async def preview_split_by_square(
                     aoi_geometry = json.loads(row[0])
 
     result_geojson = geojson.Feature(geometry=aoi_geometry)
-    return await project_logic.preview_split_by_square(result_geojson, dimension)
+    return await project_logic.preview_split_by_square(db, result_geojson, dimension)
 
 
 @router.post("/normalize-aoi/", tags=["Projects"])
