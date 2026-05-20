@@ -4,6 +4,7 @@ import qrcode from "qrcode-generator";
 import Modal from "@Components/common/Modal";
 import { Button } from "@Components/RadixComponents/Button";
 import { generateQFieldProject, getQFieldProjectStatus } from "@Services/qfield";
+import { m } from "@/paraglide/messages";
 
 interface QFieldExportDialogProps {
   show: boolean;
@@ -48,7 +49,7 @@ function QFieldExportDialog({ show, onClose, projectId }: QFieldExportDialogProp
     setError(null);
     try {
       await generateQFieldProject(projectId);
-      toast.success("QField project generation started");
+      toast.success(m.qfield_generation_started());
       // Poll for completion
       const pollInterval = setInterval(async () => {
         try {
@@ -67,16 +68,16 @@ function QFieldExportDialog({ show, onClose, projectId }: QFieldExportDialogProp
         clearInterval(pollInterval);
         setStatus((prev) => {
           if (prev === "generating") {
-            setError("Generation is taking longer than expected. Please check back later.");
+            setError(m.qfield_generation_taking_longer());
             return "idle";
           }
           return prev;
         });
       }, 300000);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "Failed to start generation");
+      setError(err?.response?.data?.detail || m.qfield_generation_start_failed());
       setStatus("idle");
-      toast.error("Failed to generate QField project");
+      toast.error(m.qfield_generation_failed());
     }
   };
 
@@ -91,26 +92,25 @@ function QFieldExportDialog({ show, onClose, projectId }: QFieldExportDialogProp
   }, [qfieldUrl]);
 
   return (
-    <Modal show={show} title="Export for QField" onClose={onClose} zIndex={111111}>
+    <Modal show={show} title={m.qfield_export_title()} onClose={onClose} zIndex={111111}>
       <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-4 naxatw-p-4">
         {status === "checking" && (
           <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-gray-500">
             <span className="material-icons naxatw-animate-spin naxatw-text-[1.25rem]">
               refresh
             </span>
-            Checking for existing project...
+            {m.qfield_checking_existing()}
           </div>
         )}
 
         {status === "idle" && (
           <>
             <p className="naxatw-text-center naxatw-text-sm naxatw-text-gray-600">
-              Generate a QField-ready project with task boundaries and the flightplan plugin for
-              offline field use.
+              {m.qfield_export_description()}
             </p>
             {error && <p className="naxatw-text-center naxatw-text-sm naxatw-text-red">{error}</p>}
             <Button className="naxatw-bg-[#D73F3F] naxatw-text-white" onClick={handleGenerate}>
-              Generate QField Project
+              {m.qfield_generate_project()}
             </Button>
           </>
         )}
@@ -120,15 +120,17 @@ function QFieldExportDialog({ show, onClose, projectId }: QFieldExportDialogProp
             <span className="material-icons naxatw-animate-spin naxatw-text-[2rem] naxatw-text-[#D73F3F]">
               refresh
             </span>
-            <p className="naxatw-text-sm naxatw-text-gray-600">Generating QField project...</p>
-            <p className="naxatw-text-xs naxatw-text-gray-400">This may take a minute</p>
+            <p className="naxatw-text-sm naxatw-text-gray-600">{m.qfield_generating_project()}</p>
+            <p className="naxatw-text-xs naxatw-text-gray-400">
+              {m.qfield_generation_may_take_minute()}
+            </p>
           </div>
         )}
 
         {status === "ready" && qrSvg && (
           <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-4">
             <p className="naxatw-text-center naxatw-text-sm naxatw-text-gray-600">
-              Scan this QR code with your device to open the project in QField.
+              {m.qfield_scan_qr()}
             </p>
             <div
               className="naxatw-h-[200px] naxatw-w-[200px] naxatw-rounded-lg naxatw-border naxatw-p-2"
@@ -145,13 +147,13 @@ function QFieldExportDialog({ show, onClose, projectId }: QFieldExportDialogProp
                   if (downloadUrl) window.open(downloadUrl, "_blank");
                 }}
               >
-                Download ZIP
+                {m.qfield_download_zip()}
               </Button>
               <Button
                 className="naxatw-bg-[#D73F3F] naxatw-text-sm naxatw-text-white"
                 onClick={handleGenerate}
               >
-                Regenerate
+                {m.qfield_regenerate()}
               </Button>
             </div>
           </div>

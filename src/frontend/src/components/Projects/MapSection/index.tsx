@@ -9,6 +9,7 @@ import AsyncPopup from "@Components/common/MapLibreComponents/AsyncPopup";
 import BaseLayerSwitcher from "@Components/common/MapLibreComponents/BaseLayerSwitcher";
 import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { m } from "@/paraglide/messages";
 import VectorLayerWithCluster from "./VectorLayerWithCluster";
 
 const ProjectsMapSection = ({
@@ -113,7 +114,7 @@ const ProjectsMapSection = ({
         fetchPopupData={(properties: Record<string, any>) => {
           setProjectProperties(properties);
         }}
-        buttonText="Go To Project"
+        buttonText={m.projects_map_go_to_project()}
         handleBtnClick={() => navigate(`./${projectProperties?.slug || projectProperties?.id}`)}
         getCoordOnProperties
       />

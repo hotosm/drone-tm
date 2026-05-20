@@ -11,6 +11,7 @@ import { useTypedDispatch } from "@Store/hooks";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useParams, useLocation } from "react-router-dom";
+import { m } from "@/paraglide/messages";
 
 const RegulatorsApprovalPage = () => {
   const { id } = useParams();
@@ -89,7 +90,7 @@ const RegulatorsApprovalPage = () => {
   if (isPending)
     return (
       <BindContentContainer className="main-content naxatw-flex naxatw-items-center naxatw-justify-center">
-        <h1 className="naxatw-text-3xlxl">Verifying...</h1>
+        <h1 className="naxatw-text-3xlxl">{m.regulator_verifying()}</h1>
       </BindContentContainer>
     );
 
@@ -97,7 +98,7 @@ const RegulatorsApprovalPage = () => {
     <BindContentContainer className="naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
       <BreadCrumb
         data={[
-          { name: "Project", navLink: "/projects" },
+          { name: m.regulator_project_breadcrumb(), navLink: "/projects" },
           { name: projectData?.name || "", navLink: "" },
         ]}
       />

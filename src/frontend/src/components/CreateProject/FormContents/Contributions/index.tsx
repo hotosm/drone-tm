@@ -62,7 +62,7 @@ export default function Conditions({ formProps }: { formProps: UseFormPropsType 
         <RadioButton
           required
           topic="Does this project require approval from the local regulatory committee ?"
-          options={regulatorApprovalOptions}
+          options={regulatorApprovalOptions()}
           direction="column"
           onChangeData={(value) => {
             dispatch(
@@ -92,7 +92,7 @@ export default function Conditions({ formProps }: { formProps: UseFormPropsType 
         <RadioButton
           required
           topic="Approval for task lock"
-          options={lockApprovalOptions}
+          options={lockApprovalOptions()}
           direction="column"
           onChangeData={(value) => {
             dispatch(

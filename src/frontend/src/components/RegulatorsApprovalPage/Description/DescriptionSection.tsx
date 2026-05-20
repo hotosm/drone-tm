@@ -3,11 +3,16 @@ import { useMemo } from "react";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { Button } from "@Components/RadixComponents/Button";
-import { descriptionItems, finalOutputLabels } from "@Constants/projectDescription";
+import {
+  descriptionItems,
+  getDescriptionItems,
+  getFinalOutputLabels,
+} from "@Constants/projectDescription";
 import { toggleModal } from "@Store/actions/common";
 import { useGetUserDetailsQuery } from "@Api/projects";
 import Skeleton from "@Components/RadixComponents/Skeleton";
 import { formatString, buildDownloadUrl, gsdToAltitude, altitudeToGsd } from "@Utils/index";
+import { m } from "@/paraglide/messages";
 import ApprovalSection from "./ApprovalSection";
 
 const statusAfterImageUploaded = [
@@ -43,15 +48,16 @@ const formatDate = (value: unknown) => {
 };
 
 const formatDescriptionValue = (value: unknown, dataType: DescriptionDataType) => {
-  if (dataType === "boolean") return value ? "Yes" : "No";
+  if (dataType === "boolean") return value ? m.proj_desc_value_yes() : m.proj_desc_value_no();
   if (dataType === "double") return formatNumber(value, 3);
   if (dataType === "number") return formatNumber(value, 2);
   if (dataType === "array") return Array.isArray(value) ? value.length : String(value);
   if (dataType === "date") return formatDate(value);
   if (dataType === "finalOutput") {
     const outputs = Array.isArray(value) ? value : [value];
+    const labels = getFinalOutputLabels();
     return outputs
-      .map((output) => finalOutputLabels[String(output)] || formatString(String(output)))
+      .map((output) => labels[String(output)] || formatString(String(output)))
       .join(", ");
   }
   return String(value);
@@ -122,9 +128,11 @@ const DescriptionSection = ({
       link.click();
       link.remove();
     } catch (error) {
-      toast.error(`There was an error while downloading the file: ${error}`);
+      toast.error(m.proj_desc_download_error({ error: String(error) }));
     }
   };
+
+  const localizedItems = getDescriptionItems();
 
   if (isProjectDataLoading)
     return (
@@ -137,7 +145,7 @@ const DescriptionSection = ({
     <div className="naxatw-mt-4 naxatw-flex naxatw-flex-col naxatw-gap-3">
       {page === "project-approval" && (
         <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem] naxatw-text-[#D73F3F]">
-          Description
+          {m.proj_desc_description_heading()}
         </p>
       )}
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-text-sm">
@@ -145,12 +153,12 @@ const DescriptionSection = ({
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
           {projectData?.id && (
             <div className="naxatw-flex naxatw-gap-2">
-              <p className="naxatw-w-[146px]">Project ID</p>
+              <p className="naxatw-w-[146px]">{m.proj_desc_project_id()}</p>
               <p>:</p>
               <p className="naxatw-font-semibold">{projectData.id}</p>
             </div>
           )}
-          {descriptionItems.map((descriptionItem) => {
+          {localizedItems.map((descriptionItem) => {
             const dataType = descriptionItem.expectedDataType;
             const value = getDescriptionValue(projectData, descriptionItem.key);
             if (hasDescriptionValue(value, dataType)) {
@@ -172,7 +180,7 @@ const DescriptionSection = ({
             projectData?.oam_upload_status === "FAILED" ||
             projectData?.oam_upload_status === "UPLOADED") && (
             <div className="naxatw-flex naxatw-gap-2">
-              <p className="naxatw-w-[146px]">Uploaded to OAM</p>
+              <p className="naxatw-w-[146px]">{m.proj_desc_uploaded_to_oam()}</p>
               <p>:</p>
               <p className="naxatw-font-semibold">{formatString(projectData?.oam_upload_status)}</p>
             </div>
@@ -183,7 +191,7 @@ const DescriptionSection = ({
       {page === "project-description" && (onOpenUpload || onOpenWorkflow) && (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-mt-2">
           <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
-            Imagery Workflow
+            {m.proj_desc_imagery_workflow_heading()}
           </p>
 
           {/* Step 1: Upload Imagery */}
@@ -196,10 +204,10 @@ const DescriptionSection = ({
             </div>
             <div className="naxatw-flex-1">
               <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">
-                Upload Imagery
+                {m.proj_desc_step_upload_imagery()}
               </p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                Upload drone images to the project
+                {m.proj_desc_step_upload_imagery_desc()}
               </p>
             </div>
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
@@ -222,10 +230,10 @@ const DescriptionSection = ({
             </div>
             <div className="naxatw-flex-1">
               <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">
-                Classify Imagery
+                {m.proj_desc_step_classify_imagery()}
               </p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                Classify quality and assign to tasks
+                {m.proj_desc_step_classify_imagery_desc()}
               </p>
             </div>
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
@@ -248,10 +256,10 @@ const DescriptionSection = ({
             </div>
             <div className="naxatw-flex-1">
               <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">
-                Verify Imagery
+                {m.proj_desc_step_verify_imagery()}
               </p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                Review on map, mark tasks as fully flown
+                {m.proj_desc_step_verify_imagery_desc()}
               </p>
             </div>
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
@@ -273,9 +281,11 @@ const DescriptionSection = ({
               4
             </div>
             <div className="naxatw-flex-1">
-              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">Processing</p>
+              <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">
+                {m.proj_desc_step_processing()}
+              </p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                Start ODM processing and monitor task status
+                {m.proj_desc_step_processing_desc()}
               </p>
             </div>
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
@@ -291,7 +301,7 @@ const DescriptionSection = ({
             {projectData?.image_processing_status === "SUCCESS" && (
               <>
                 <p className="naxatw-w-full naxatw-text-xs naxatw-font-semibold naxatw-uppercase naxatw-tracking-wide naxatw-text-gray-500">
-                  Downloads
+                  {m.proj_desc_downloads()}
                 </p>
                 {projectData?.orthophoto_url && (
                   <Button
@@ -305,7 +315,7 @@ const DescriptionSection = ({
                       )
                     }
                   >
-                    Orthophoto (.tif)
+                    {m.proj_desc_orthophoto_tif()}
                   </Button>
                 )}
                 {projectData?.dem_url && (
@@ -317,7 +327,7 @@ const DescriptionSection = ({
                       handleDownloadFile(projectData.dem_url, `dem_${projectData.id}.tif`)
                     }
                   >
-                    DEM (.tif)
+                    {m.proj_desc_dem_tif()}
                   </Button>
                 )}
                 {projectData?.pointcloud_url && (
@@ -332,7 +342,7 @@ const DescriptionSection = ({
                       )
                     }
                   >
-                    Point Cloud (.laz)
+                    {m.proj_desc_pointcloud_laz()}
                   </Button>
                 )}
                 {String(projectData?.author_id || "") === String(userDetails?.id || "") &&
@@ -347,7 +357,7 @@ const DescriptionSection = ({
                             dispatch(toggleModal("upload-to-oam"));
                           }}
                         >
-                          Upload to OAM
+                          {m.proj_desc_upload_to_oam()}
                         </Button>
                       ) : projectData?.oam_upload_status === "FAILED" ? (
                         <Button
@@ -358,7 +368,7 @@ const DescriptionSection = ({
                             dispatch(toggleModal("upload-to-oam"));
                           }}
                         >
-                          Re-upload to OAM
+                          {m.proj_desc_reupload_to_oam()}
                         </Button>
                       ) : null}
                     </>
@@ -370,10 +380,10 @@ const DescriptionSection = ({
               <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-600">
                   <span className="material-icons naxatw-animate-spin !naxatw-text-base">sync</span>
-                  <span>Imagery processing in progress...</span>
+                  <span>{m.proj_desc_imagery_processing_in_progress()}</span>
                 </div>
                 <p className="naxatw-text-xs naxatw-text-gray-400">
-                  Download and upload options will be available once processing is complete.
+                  {m.proj_desc_download_upload_available_later()}
                 </p>
               </div>
             )}

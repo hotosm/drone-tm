@@ -10,6 +10,7 @@ import arrowSouth from "@Assets/images/LandingPage/arrow_south.svg";
 import { setCommonState } from "@Store/actions/common";
 import useAuth from "@Hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { m } from "@/paraglide/messages";
 // import { getLocalStorageValue } from '@Utils/getLocalStorageValue';
 
 export default function Home() {
@@ -67,14 +68,14 @@ export default function Home() {
               onClick={() => navigate("/projects")}
               className="naxatw-cursor-pointer !naxatw-rounded-[3.125rem] naxatw-border naxatw-px-5 naxatw-py-3 naxatw-text-body-md naxatw-font-normal naxatw-text-landing-white"
             >
-              Dashboard
+              {m.landing_dashboard_button()}
             </Button>
           ) : (
             <Button
               onClick={() => dispatch(setCommonState({ openSignInMenu: true }))}
               className="naxatw-cursor-pointer !naxatw-rounded-[3.125rem] !naxatw-bg-landing-red naxatw-px-5 naxatw-py-3 naxatw-text-body-md naxatw-font-normal naxatw-text-landing-white"
             >
-              Sign In
+              {m.landing_signin_button()}
             </Button>
           )}
         </div>
@@ -98,10 +99,10 @@ export default function Home() {
             "
           >
             <p className="naxatw-animate-fade-up naxatw-text-[3.25rem] naxatw-font-light naxatw-leading-[4rem] md:naxatw-text-[4.375rem] md:naxatw-leading-[5rem]">
-              Drone Tasking Manager
+              {m.landing_brand_name()}
             </p>
             <p className="naxatw-animate-fade-up naxatw-mt-4 naxatw-text-[1.5rem] naxatw-leading-8 md:naxatw-mt-8 md:naxatw-text-2xl">
-              Together, We Map - Open. Accurate. Accessible
+              {m.landing_hero_tagline()}
             </p>
           </motion.div>
         </FlexColumn>

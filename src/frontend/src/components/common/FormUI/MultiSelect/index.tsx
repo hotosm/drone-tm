@@ -4,6 +4,7 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 import { useEffect, useRef, useState } from "react";
 import Icon from "@Components/common/Icon";
+import { m } from "@/paraglide/messages";
 import Input from "../Input";
 
 interface IMultiSelectProps {
@@ -20,11 +21,12 @@ export default function MultiSelect({
   options,
   selectedOptions,
   onChange,
-  placeholder = "Select",
+  placeholder,
   labelKey = "label",
   valueKey = "value",
   className,
 }: IMultiSelectProps) {
+  const resolvedPlaceholder = placeholder ?? m.common_select();
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selected, setSelected] = useState(selectedOptions || []);
@@ -47,7 +49,7 @@ export default function MultiSelect({
     const selectedLength = selected.length;
     let placeholderText = "";
     if (!selectedLength) {
-      placeholderText = placeholder;
+      placeholderText = resolvedPlaceholder;
     } else if (selectedLength === 1) {
       const selectedLabel = options.find((item) => item[valueKey] === selected[0])?.[labelKey];
       placeholderText = selectedLabel || "";
@@ -145,7 +147,7 @@ export default function MultiSelect({
             ))
           ) : (
             <li className="naxatw-cursor-default naxatw-px-1 naxatw-py-1 naxatw-text-sm">
-              No options available
+              {m.common_no_options_available()}
             </li>
           )}
         </ul>

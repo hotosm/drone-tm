@@ -21,6 +21,7 @@ import useWindowDimensions from "@Hooks/useWindowDimensions";
 import { useGetUserDetailsQuery } from "@Api/projects";
 import callApiSimultaneously from "@Utils/callApiSimultaneously";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
 const isHankoAuth = AUTH_PROVIDER === "hanko";
@@ -117,7 +118,7 @@ const CompleteUserProfile = () => {
 
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
       dispatch(setCommonState({ userProfileActiveTab: 1 }));
-      toast.success("UserProfile Updated Successfully");
+      toast.success(m.profile_update_success());
       navigate("/projects");
     },
     onError: (err) => {
@@ -189,7 +190,7 @@ const CompleteUserProfile = () => {
               onClick={onBackBtnClick}
               leftIcon="chevron_left"
             >
-              Back
+              {m.auth_back()}
             </Button>
             <Button
               className="naxatw-bg-red"
@@ -199,7 +200,7 @@ const CompleteUserProfile = () => {
               }}
               withLoader
             >
-              {userProfileActiveTab === lastTab ? "Complete Profile" : "Next"}
+              {userProfileActiveTab === lastTab ? m.profile_complete_profile() : m.profile_next()}
             </Button>
           </div>
         </div>

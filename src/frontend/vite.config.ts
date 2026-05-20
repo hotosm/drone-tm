@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { domToCodePlugin } from "dom-to-code/vite";
 import { defineConfig } from "vite";
 
@@ -6,6 +7,12 @@ export default defineConfig({
   base: "/",
   plugins: [
     react(),
+    paraglideVitePlugin({
+      project: "./project.inlang",
+      outdir: "./src/paraglide",
+      strategy: ["localStorage", "preferredLanguage", "baseLocale"],
+      emitTsDeclarations: true,
+    }),
     process.env.NODE_ENV !== "production"
       ? domToCodePlugin({
           mode: "react",

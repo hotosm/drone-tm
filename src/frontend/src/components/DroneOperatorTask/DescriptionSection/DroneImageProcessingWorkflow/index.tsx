@@ -11,6 +11,7 @@ import {
   useGetProjectStatusQuery,
   useResetStaleClassificationMutation,
 } from "@Api/projects";
+import { m } from "@/paraglide/messages";
 import ImageUpload from "./ImageUpload";
 import ImageReview from "./ImageReview";
 
@@ -37,14 +38,16 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
 
   const ingestMutation = useIngestExistingUploadsMutation({
     onSuccess: () => {
-      toast.success(
-        "Ingestion job started. Images will appear in the Classify dialog as they are processed.",
-      );
+      toast.success(m.imagery_upload_ingestion_started_success());
       setIngestTriggered(true);
       setHasUploaded(true);
     },
     onError: (error: any) => {
-      toast.error(`Ingest failed: ${error?.message || "Unknown error"}`);
+      toast.error(
+        m.imagery_upload_ingest_failed({
+          message: error?.message || m.common_unknown_error(),
+        }),
+      );
     },
   });
 
@@ -90,15 +93,19 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
       setShowAbortConfirmation(true);
       return;
     }
-    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    queryClient.invalidateQueries({
+      queryKey: ["project-task-states", projectId],
+    });
     setBatchIds([]);
     setHasUploaded(false);
     onClose();
   };
 
   const handleKeepAndClose = () => {
-    toast.success("Images uploaded. Open Classify Imagery to process them.");
-    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    toast.success(m.imagery_upload_keep_success());
+    queryClient.invalidateQueries({
+      queryKey: ["project-task-states", projectId],
+    });
     setShowAbortConfirmation(false);
     setBatchIds([]);
     setHasUploaded(false);
@@ -115,13 +122,13 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
       setIsDeletingBatches(true);
       try {
         await Promise.all(batchIds.map((id) => deleteBatch(projectId, id)));
-        toast.success("Uploaded images deleted");
+        toast.success(m.imagery_upload_deleted_success());
         setShowAbortConfirmation(false);
         setBatchIds([]);
         setHasUploaded(false);
         onClose();
       } catch (error: any) {
-        toast.error(error?.message || "Failed to delete some batches");
+        toast.error(error?.message || m.imagery_upload_failed_delete_batches());
       } finally {
         setIsDeletingBatches(false);
       }
@@ -137,8 +144,8 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
       <Modal
         show={isOpen}
         onClose={handleClose}
-        title="Upload Imagery"
-        className="!naxatw-max-w-[88vw] !naxatw-w-[88vw] !naxatw-max-h-[90vh] !naxatw-flex !naxatw-flex-col"
+        title={m.imagery_upload_title()}
+        className="!naxatw-flex !naxatw-max-h-[90vh] !naxatw-w-[88vw] !naxatw-max-w-[88vw] !naxatw-flex-col"
         bodyScrollable={false}
       >
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
@@ -155,7 +162,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
               <span className="material-icons naxatw-text-base naxatw-text-green-600">
                 check_circle
               </span>
-              Upload successful. Click Continue to finalise.
+              {m.imagery_upload_success_continue()}
             </div>
           )}
 
@@ -163,7 +170,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
             {showIngestButton || ingestTriggered ? (
               <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
                 <p className="naxatw-text-xs naxatw-text-gray-500">
-                  Already uploaded imagery directly to S3 that you need to ingest?
+                  {m.imagery_upload_existing_s3_prompt()}
                 </p>
                 <Button
                   variant="outline"
@@ -173,10 +180,10 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
                   leftIcon="cloud_sync"
                 >
                   {ingestTriggered
-                    ? "Ingestion Started"
+                    ? m.imagery_upload_ingestion_started_status()
                     : ingestMutation.isPending
-                      ? "Starting..."
-                      : "Ingest Existing S3 Imagery"}
+                      ? m.common_starting()
+                      : m.imagery_upload_ingest_existing_s3()}
                 </Button>
               </div>
             ) : (
@@ -188,7 +195,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
               onClick={handleClose}
               disabled={isUploading || !hasUploaded}
             >
-              Continue
+              {m.common_continue()}
             </Button>
           </div>
         </div>
@@ -202,20 +209,19 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
                 help_outline
               </span>
               <h3 className="naxatw-text-lg naxatw-font-semibold naxatw-text-gray-900">
-                Keep uploaded images?
+                {m.imagery_upload_keep_images_title()}
               </h3>
             </div>
             <p className="naxatw-mb-6 naxatw-text-gray-600">
-              You have uploaded images in this session. Would you like to keep them for
-              classification later, or delete them?
+              {m.imagery_upload_keep_images_body()}
             </p>
             <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
               {showDeleteConfirmation && (
-                <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-border-red-300 naxatw-bg-red-50 naxatw-p-3 naxatw-text-sm naxatw-text-red-700">
-                  <span className="material-icons naxatw-text-base naxatw-text-red-500">
+                <div className="naxatw-border-red-300 naxatw-bg-red-50 naxatw-text-red-700 naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-p-3 naxatw-text-sm">
+                  <span className="material-icons naxatw-text-red-500 naxatw-text-base">
                     warning
                   </span>
-                  Are you sure? This cannot be undone.
+                  {m.imagery_upload_are_you_sure()}
                 </div>
               )}
               <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
@@ -226,7 +232,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
                       className="naxatw-border-gray-300"
                       onClick={() => setShowDeleteConfirmation(false)}
                     >
-                      Cancel
+                      {m.common_cancel()}
                     </Button>
                     <Button
                       variant="destructive"
@@ -234,7 +240,9 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
                       disabled={isDeletingBatches}
                       leftIcon="delete_forever"
                     >
-                      {isDeletingBatches ? "Deleting..." : "Yes, Delete Images"}
+                      {isDeletingBatches
+                        ? m.common_deleting()
+                        : m.imagery_upload_yes_delete_images()}
                     </Button>
                   </>
                 ) : (
@@ -246,7 +254,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
                       disabled={isDeletingBatches}
                       leftIcon="delete"
                     >
-                      {isDeletingBatches ? "Deleting..." : "Delete Images"}
+                      {isDeletingBatches ? m.common_deleting() : m.imagery_upload_delete_images()}
                     </Button>
                     <Button
                       variant="ghost"
@@ -254,7 +262,7 @@ export const UploadImageryDialog = ({ isOpen, onClose, projectId }: IUploadImage
                       onClick={handleKeepAndClose}
                       leftIcon="check"
                     >
-                      Keep Images
+                      {m.imagery_upload_keep_images()}
                     </Button>
                   </>
                 )}
@@ -302,27 +310,37 @@ export const ClassifyImageryDialog = ({
     onSuccess: () => {
       setHasStarted(true);
       setIsPolling(true);
-      toast.info("Classification started. Processing images...");
+      toast.info(m.classify_imagery_started());
     },
     onError: (error: any) => {
-      toast.error(`Failed to start classification: ${error?.message || "Unknown error"}`);
+      toast.error(
+        m.classify_imagery_start_failed({
+          message: error?.message || m.common_unknown_error(),
+        }),
+      );
     },
   });
 
   const resetStaleMutation = useResetStaleClassificationMutation({
     onSuccess: (data) => {
       if (data.reset_count > 0) {
-        toast.success(`Reset ${data.reset_count} stuck image(s). You can now re-classify.`);
+        toast.success(m.classify_imagery_reset_stuck_success({ count: data.reset_count }));
       } else {
-        toast.info("No stuck images found. Try starting classification again.");
+        toast.info(m.classify_imagery_no_stuck_images());
       }
       setIsPolling(false);
       setHasStarted(false);
       setIsComplete(false);
-      queryClient.invalidateQueries({ queryKey: ["project-imagery-status", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["project-imagery-status", projectId],
+      });
     },
     onError: (error: any) => {
-      toast.error(`Failed to reset: ${error?.message || "Unknown error"}`);
+      toast.error(
+        m.classify_imagery_reset_failed({
+          message: error?.message || m.common_unknown_error(),
+        }),
+      );
     },
   });
 
@@ -331,14 +349,22 @@ export const ClassifyImageryDialog = ({
       const alreadyQueued = data.message.toLowerCase().includes("already");
       toast.info(
         alreadyQueued
-          ? "Scan is already running. New images will appear here once they are ingested."
-          : "Scan started. Any untracked user-upload images will be added for classification.",
+          ? m.classify_imagery_scan_already_running()
+          : m.classify_imagery_scan_started(),
       );
-      queryClient.invalidateQueries({ queryKey: ["project-imagery-status", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["project-imagery-status", projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["project-task-states", projectId],
+      });
     },
     onError: (error: any) => {
-      toast.error(`Failed to scan for images: ${error?.message || "Unknown error"}`);
+      toast.error(
+        m.classify_imagery_scan_failed({
+          message: error?.message || m.common_unknown_error(),
+        }),
+      );
     },
   });
 
@@ -382,7 +408,7 @@ export const ClassifyImageryDialog = ({
       if (total > 0 && classified === total && remaining === 0) {
         setIsPolling(false);
         setIsComplete(true);
-        toast.success("Classification complete! Use the Verify dialog to review results.");
+        toast.success(m.classify_imagery_complete_toast());
       }
     }
   }, [projectStatus, isPolling]);
@@ -399,7 +425,9 @@ export const ClassifyImageryDialog = ({
   }, [projectId, scanUploadsMutation]);
 
   const handleClose = () => {
-    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    queryClient.invalidateQueries({
+      queryKey: ["project-task-states", projectId],
+    });
     onClose();
   };
 
@@ -417,7 +445,15 @@ export const ClassifyImageryDialog = ({
     const duplicates = projectStatus.duplicate ?? 0;
     const totalClassified = complete + issues + duplicates;
     const issuePercentage = totalClassified > 0 ? (issues / totalClassified) * 100 : 0;
-    return { uploaded, processing, complete, issues, duplicates, totalClassified, issuePercentage };
+    return {
+      uploaded,
+      processing,
+      complete,
+      issues,
+      duplicates,
+      totalClassified,
+      issuePercentage,
+    };
   }, [projectStatus]);
 
   const isClassificationComplete =
@@ -452,11 +488,11 @@ export const ClassifyImageryDialog = ({
       <Modal
         show={isOpen}
         onClose={handleClose}
-        title="Classify Imagery"
+        title={m.classify_imagery_title()}
         headerContent={
           <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-gap-4 naxatw-pr-3">
             <div className="naxatw-space-y-1">
-              <h3 className="naxatw-font-bold">Classify Imagery</h3>
+              <h3 className="naxatw-font-bold">{m.classify_imagery_title()}</h3>
             </div>
             <Button
               variant="outline"
@@ -465,22 +501,24 @@ export const ClassifyImageryDialog = ({
               disabled={scanUploadsMutation.isPending}
               leftIcon="cloud_sync"
             >
-              {scanUploadsMutation.isPending ? "Scanning..." : "Scan For Images"}
+              {scanUploadsMutation.isPending
+                ? m.common_scanning()
+                : m.classify_imagery_scan_for_images()}
             </Button>
           </div>
         }
-        className="!naxatw-max-w-[600px] !naxatw-w-[600px] !naxatw-flex !naxatw-flex-col"
+        className="!naxatw-flex !naxatw-w-[600px] !naxatw-max-w-[600px] !naxatw-flex-col"
         bodyScrollable={false}
       >
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-4 naxatw-pb-4">
           {/* Error States */}
           {isErrorStatus && (
-            <div className="naxatw-flex naxatw-flex-shrink-0 naxatw-items-center naxatw-gap-3 naxatw-rounded naxatw-border naxatw-border-red-300 naxatw-bg-red-50 naxatw-p-4 naxatw-text-red-700">
+            <div className="naxatw-border-red-300 naxatw-bg-red-50 naxatw-text-red-700 naxatw-flex naxatw-flex-shrink-0 naxatw-items-center naxatw-gap-3 naxatw-rounded naxatw-border naxatw-p-4">
               <span className="material-icons">error</span>
               <div>
-                <p className="naxatw-font-semibold">Failed to fetch update</p>
+                <p className="naxatw-font-semibold">{m.classify_imagery_failed_fetch_update()}</p>
                 <p className="naxatw-text-sm">
-                  {errorStatus?.message || "An unknown error occurred"}
+                  {errorStatus?.message || m.common_unknown_error_sentence()}
                 </p>
               </div>
             </div>
@@ -493,7 +531,7 @@ export const ClassifyImageryDialog = ({
                 <div className="naxatw-mb-2 naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-amber-600">
                   <span className="material-icons naxatw-text-sm">info</span>
                   <span className="naxatw-text-sm naxatw-font-medium">
-                    This will classify all pending images in the project across all upload sessions.
+                    {m.classify_imagery_pending_help()}
                   </span>
                 </div>
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
@@ -505,27 +543,27 @@ export const ClassifyImageryDialog = ({
                       isPolling ||
                       (projectStatus?.staged ?? 0) + (projectStatus?.uploaded ?? 0) === 0
                     }
-                    className="naxatw-rounded naxatw-bg-red naxatw-px-8 naxatw-py-3 naxatw-text-lg naxatw-font-bold naxatw-text-white hover:naxatw-bg-red-600 disabled:naxatw-bg-gray-400 disabled:naxatw-cursor-not-allowed naxatw-transition-all naxatw-shadow-md active:naxatw-scale-95"
+                    className="hover:naxatw-bg-red-600 naxatw-rounded naxatw-bg-red naxatw-px-8 naxatw-py-3 naxatw-text-lg naxatw-font-bold naxatw-text-white naxatw-shadow-md naxatw-transition-all active:naxatw-scale-95 disabled:naxatw-cursor-not-allowed disabled:naxatw-bg-gray-400"
                   >
                     {startClassificationMutation.isPending ? (
                       <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
                         <div className="naxatw-h-5 naxatw-w-5 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-white naxatw-border-t-transparent"></div>
-                        <span>Starting...</span>
+                        <span>{m.common_starting()}</span>
                       </div>
                     ) : (
-                      "Start Classification"
+                      m.classify_imagery_start_classification()
                     )}
                   </button>
                   {isLoadingStatus && (
                     <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-500">
                       <div className="naxatw-h-4 naxatw-w-4 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-red"></div>
-                      <span>Loading...</span>
+                      <span>{m.common_loading()}</span>
                     </div>
                   )}
                   {(projectStatus?.staged ?? 0) + (projectStatus?.uploaded ?? 0) === 0 &&
                     !isLoadingStatus && (
                       <span className="naxatw-text-sm naxatw-text-gray-500">
-                        No pending images to classify.
+                        {m.classify_imagery_no_pending()}
                       </span>
                     )}
                 </div>
@@ -538,20 +576,20 @@ export const ClassifyImageryDialog = ({
             <div className="naxatw-flex-shrink-0 naxatw-rounded naxatw-bg-gray-50 naxatw-p-4">
               {isClassifying && projectStatus && (projectStatus.total ?? 0) > 0 && (
                 <div className="naxatw-mb-4">
-                  <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-mb-2">
+                  <div className="naxatw-mb-2 naxatw-flex naxatw-items-center naxatw-justify-between">
                     <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
                       <div className="naxatw-h-4 naxatw-w-4 naxatw-animate-spin naxatw-rounded-full naxatw-border-2 naxatw-border-gray-300 naxatw-border-t-blue-600"></div>
                       <span className="naxatw-text-sm naxatw-font-medium naxatw-text-blue-700">
-                        Classifying images...
+                        {m.classify_imagery_classifying()}
                       </span>
                     </div>
                     <span className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
                       {computedStats.totalClassified} / {projectStatus.total ?? 0}
                     </span>
                   </div>
-                  <div className="naxatw-w-full naxatw-bg-gray-200 naxatw-rounded-full naxatw-h-2.5 naxatw-overflow-hidden">
+                  <div className="naxatw-h-2.5 naxatw-w-full naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-gray-200">
                     <div
-                      className="naxatw-bg-blue-600 naxatw-h-2.5 naxatw-rounded-full naxatw-transition-all naxatw-duration-500"
+                      className="naxatw-h-2.5 naxatw-rounded-full naxatw-bg-blue-600 naxatw-transition-all naxatw-duration-500"
                       style={{
                         width: `${Math.round((computedStats.totalClassified / (projectStatus.total ?? 1)) * 100)}%`,
                       }}
@@ -560,17 +598,21 @@ export const ClassifyImageryDialog = ({
                   <div className="naxatw-mt-1 naxatw-flex naxatw-items-center naxatw-justify-between">
                     <p className="naxatw-text-xs naxatw-text-gray-500">
                       {computedStats.processing > 0 &&
-                        `${computedStats.processing} currently processing. `}
-                      Updates every 10 seconds.
+                        m.classify_imagery_currently_processing({
+                          count: computedStats.processing,
+                        })}
+                      {m.classify_imagery_updates_interval()}
                     </p>
                     <button
                       onClick={() => resetStaleMutation.mutate({ projectId })}
                       disabled={resetStaleMutation.isPending}
-                      className="naxatw-flex naxatw-items-center naxatw-gap-1 naxatw-rounded naxatw-border naxatw-border-amber-300 naxatw-bg-amber-50 naxatw-px-2 naxatw-py-1 naxatw-text-xs naxatw-font-medium naxatw-text-amber-700 hover:naxatw-bg-amber-100 disabled:naxatw-opacity-50 disabled:naxatw-cursor-not-allowed naxatw-transition-colors"
-                      title="Reset images stuck in classification for more than 10 minutes"
+                      className="naxatw-flex naxatw-items-center naxatw-gap-1 naxatw-rounded naxatw-border naxatw-border-amber-300 naxatw-bg-amber-50 naxatw-px-2 naxatw-py-1 naxatw-text-xs naxatw-font-medium naxatw-text-amber-700 naxatw-transition-colors hover:naxatw-bg-amber-100 disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-50"
+                      title={m.classify_imagery_reset_stuck_title()}
                     >
                       <span className="material-icons naxatw-text-sm">refresh</span>
-                      {resetStaleMutation.isPending ? "Resetting..." : "Reset Stuck"}
+                      {resetStaleMutation.isPending
+                        ? m.common_resetting()
+                        : m.classify_imagery_reset_stuck()}
                     </button>
                   </div>
                 </div>
@@ -579,23 +621,23 @@ export const ClassifyImageryDialog = ({
               <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-4 sm:naxatw-grid-cols-3 md:naxatw-grid-cols-5">
                 <div className="naxatw-text-center">
                   {renderValue(computedStats.uploaded, isClassifying, "naxatw-text-gray-500")}
-                  <div className="naxatw-text-sm naxatw-text-gray-600">Pending</div>
+                  <div className="naxatw-text-sm naxatw-text-gray-600">{m.common_pending()}</div>
                 </div>
                 <div className="naxatw-text-center">
                   {renderValue(computedStats.processing, isClassifying, "naxatw-text-blue-600")}
-                  <div className="naxatw-text-sm naxatw-text-gray-600">Processing</div>
+                  <div className="naxatw-text-sm naxatw-text-gray-600">{m.common_processing()}</div>
                 </div>
                 <div className="naxatw-text-center">
                   {renderValue(computedStats.complete, isClassifying, "naxatw-text-green-600")}
-                  <div className="naxatw-text-sm naxatw-text-gray-600">No Issues</div>
+                  <div className="naxatw-text-sm naxatw-text-gray-600">{m.common_no_issues()}</div>
                 </div>
                 <div className="naxatw-text-center">
                   {renderValue(computedStats.issues, isClassifying, "naxatw-text-orange-600")}
-                  <div className="naxatw-text-sm naxatw-text-gray-600">Issues</div>
+                  <div className="naxatw-text-sm naxatw-text-gray-600">{m.common_issues()}</div>
                 </div>
                 <div className="naxatw-text-center">
                   {renderValue(computedStats.duplicates, isClassifying, "naxatw-text-gray-600")}
-                  <div className="naxatw-text-sm naxatw-text-gray-600">Duplicates</div>
+                  <div className="naxatw-text-sm naxatw-text-gray-600">{m.common_duplicates()}</div>
                 </div>
               </div>
             </div>
@@ -607,11 +649,14 @@ export const ClassifyImageryDialog = ({
               <span className="material-icons naxatw-text-amber-600">warning</span>
               <div>
                 <p className="naxatw-font-semibold naxatw-text-amber-800">
-                  Dataset Quality Warning
+                  {m.classify_imagery_dataset_quality_warning()}
                 </p>
                 <p className="naxatw-text-sm naxatw-text-amber-700">
-                  {computedStats.issuePercentage.toFixed(0)}% of your images ({computedStats.issues}{" "}
-                  out of {computedStats.totalClassified}) have issues.
+                  {m.classify_imagery_issue_rate_warning({
+                    percentage: computedStats.issuePercentage.toFixed(0),
+                    issues: computedStats.issues,
+                    total: computedStats.totalClassified,
+                  })}
                 </p>
               </div>
             </div>
@@ -623,11 +668,10 @@ export const ClassifyImageryDialog = ({
               <span className="material-icons naxatw-text-green-600">check_circle</span>
               <div>
                 <p className="naxatw-font-semibold naxatw-text-green-800">
-                  Classification Complete
+                  {m.classify_imagery_complete_title()}
                 </p>
                 <p className="naxatw-text-sm naxatw-text-green-700">
-                  Close this dialog and open Verify Imagery to review results and inspect any
-                  issues.
+                  {m.classify_imagery_complete_help()}
                 </p>
               </div>
             </div>
@@ -640,9 +684,11 @@ export const ClassifyImageryDialog = ({
                 <span className="material-icons naxatw-text-4xl naxatw-text-gray-400">
                   image_not_supported
                 </span>
-                <p className="naxatw-mt-2 naxatw-text-gray-500">No new imagery to classify.</p>
+                <p className="naxatw-mt-2 naxatw-text-gray-500">
+                  {m.classify_imagery_no_new_imagery()}
+                </p>
                 <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-400">
-                  Upload images first, then return here to classify them.
+                  {m.classify_imagery_upload_first()}
                 </p>
               </div>
             </div>
@@ -653,7 +699,7 @@ export const ClassifyImageryDialog = ({
               <label
                 htmlFor="disable-flight-tail-toggle"
                 className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2"
-                title="Skip automatic rejection of takeoff/landing transit imagery. Use this if detection is producing false positives on your dataset."
+                title={m.classify_imagery_disable_flight_tail_detection_title()}
               >
                 <Switch
                   id="disable-flight-tail-toggle"
@@ -661,14 +707,14 @@ export const ClassifyImageryDialog = ({
                   onCheckedChange={setDisableFlightTailDetection}
                 />
                 <span className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-700">
-                  Disable flight tail detection
+                  {m.classify_imagery_disable_flight_tail_detection()}
                 </span>
               </label>
             ) : (
               <span />
             )}
             <Button variant="outline" className="naxatw-border-gray-300" onClick={handleClose}>
-              Close
+              {m.common_close()}
             </Button>
           </div>
         </div>
@@ -691,7 +737,9 @@ export const VerifyImageryDialog = ({ isOpen, onClose, projectId }: IVerifyImage
   const queryClient = useQueryClient();
 
   const handleClose = () => {
-    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    queryClient.invalidateQueries({
+      queryKey: ["project-task-states", projectId],
+    });
     onClose();
   };
 
@@ -701,18 +749,18 @@ export const VerifyImageryDialog = ({ isOpen, onClose, projectId }: IVerifyImage
     <Modal
       show={isOpen}
       onClose={handleClose}
-      title="Verify Imagery"
-      className="!naxatw-max-w-[88vw] !naxatw-w-[88vw] !naxatw-max-h-[90vh] !naxatw-h-[90vh] !naxatw-flex !naxatw-flex-col"
+      title={m.verify_imagery_title()}
+      className="!naxatw-flex !naxatw-h-[90vh] !naxatw-max-h-[90vh] !naxatw-w-[88vw] !naxatw-max-w-[88vw] !naxatw-flex-col"
       bodyScrollable={false}
     >
       <div className="naxatw-flex naxatw-h-[calc(90vh-8rem)] naxatw-flex-col naxatw-gap-4">
-        <div className="naxatw-flex-1 naxatw-min-h-0 naxatw-overflow-y-auto naxatw-pb-4">
+        <div className="naxatw-min-h-0 naxatw-flex-1 naxatw-overflow-y-auto naxatw-pb-4">
           <ImageReview projectId={projectId} />
         </div>
 
         <div className="naxatw-flex naxatw-w-full naxatw-flex-shrink-0 naxatw-justify-end naxatw-border-t naxatw-pt-4">
           <Button variant="outline" className="naxatw-border-gray-300" onClick={handleClose}>
-            Close
+            {m.common_close()}
           </Button>
         </div>
       </div>

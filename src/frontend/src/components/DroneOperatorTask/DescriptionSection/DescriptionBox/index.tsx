@@ -13,6 +13,7 @@ import {
 } from "@Store/actions/droneOperatorTask";
 import { useTypedSelector } from "@Store/hooks";
 import useTaskParams from "@Hooks/useTaskParams";
+import { m } from "@/paraglide/messages";
 import DescriptionBoxComponent from "./DescriptionComponent";
 import QuestionBox from "../QuestionBox";
 import UploadsInformation from "../UploadsInformation";
@@ -299,7 +300,7 @@ const DescriptionBox = () => {
                 value: hasAssets ? "Yes" : "No",
               },
               {
-                name: "Image Status",
+                name: m.common_image_status(),
                 value:
                   isLocked && hasImages
                     ? "Image Uploading Failed"

@@ -22,6 +22,7 @@ import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
 import { GeojsonType } from "@Components/common/MapLibreComponents/types";
 import AsyncPopup from "@Components/common/MapLibreComponents/NewAsyncPopup";
 import { droneModelOptions } from "@Constants/taskDescription";
+import { m } from "@/paraglide/messages";
 
 interface FlightGapDetectionModalProps {
   isOpen: boolean;
@@ -190,21 +191,21 @@ const FlightGapDetectionModal = ({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (_properties: Record<string, any>) => {
       if (!popupData) {
-        return <div>Loading...</div>;
+        return <div>{m.common_loading()}</div>;
       }
 
       return (
-        <div className="naxatw-flex naxatw-flex-col naxatw-gap-2 naxatw-max-w-[300px]">
-          <p className="naxatw-text-sm naxatw-font-medium naxatw-truncate">{popupData.filename}</p>
+        <div className="naxatw-flex naxatw-max-w-[300px] naxatw-flex-col naxatw-gap-2">
+          <p className="naxatw-truncate naxatw-text-sm naxatw-font-medium">{popupData.filename}</p>
           {(popupData.thumbnail_url || popupData.url) && (
             <img
               src={popupData.thumbnail_url || popupData.url}
               alt={popupData.filename}
-              className="naxatw-w-full naxatw-h-auto naxatw-rounded"
+              className="naxatw-h-auto naxatw-w-full naxatw-rounded"
             />
           )}
           <p className="naxatw-text-xs naxatw-capitalize">
-            Status: {popupData.status?.replace("_", " ")}
+            {m.common_status_label()} {popupData.status?.replace("_", " ")}
           </p>
         </div>
       );
@@ -224,17 +225,18 @@ const FlightGapDetectionModal = ({
       setManualGapData(data.gap_polygons);
       setSelectedDroneType(data.drone_type ?? selectedDroneType);
 
-      toast.info(data.message || "Gaps updated. No flight plan generated.");
+      toast.info(data.message || m.flight_gap_gaps_updated_no_plan());
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || error.message || "Failed to finalize gaps";
+      const message =
+        error?.response?.data?.detail || error.message || m.flight_gap_finalize_failed();
       toast.error(message);
     },
   });
 
   const handleDownloadPlan = async () => {
     if (!currentGapData || !selectedDroneType) {
-      toast.error("Please select a drone model first.");
+      toast.error(m.flight_gap_select_drone_model_first());
       return;
     }
 
@@ -257,10 +259,10 @@ const FlightGapDetectionModal = ({
       link.remove();
       window.URL.revokeObjectURL(url);
 
-      toast.success("Flight plan downloaded.");
+      toast.success(m.flight_gap_plan_downloaded());
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
-      toast.error(detail || "Failed to generate flight plan.");
+      toast.error(detail || m.flight_gap_generate_failed());
     }
   };
 
@@ -279,10 +281,10 @@ const FlightGapDetectionModal = ({
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-border-b naxatw-px-6 naxatw-py-4">
           <div>
             <h2 className="naxatw-text-xl naxatw-font-semibold naxatw-text-gray-800">
-              Flight Gap Analysis for Task: #{taskIndex}
+              {m.flight_gap_analysis_title({ taskIndex })}
             </h2>
             <p className="naxatw-text-sm naxatw-text-gray-500">
-              Review and finalize gaps before processing a reconstructed flight plan.
+              {m.flight_gap_review_finalize_desc()}
             </p>
           </div>
           <button
@@ -395,22 +397,22 @@ const FlightGapDetectionModal = ({
                 fetchPopupData={(properties: Record<string, any>) => {
                   setPopupData(properties);
                 }}
-                title="Image Preview"
+                title={m.flight_gap_image_preview_title()}
                 hideButton
               />
             </MapContainer>
           </div>
 
           {/* Sidebar - Image List */}
-          <div className="naxatw-w-80 naxatw-border-l naxatw-overflow-y-auto">
+          <div className="naxatw-w-80 naxatw-overflow-y-auto naxatw-border-l">
             <div className="naxatw-p-4">
               <div className="naxatw-mb-4 naxatw-space-y-3">
                 <div>
                   <h4 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
-                    Drone model
+                    {m.flight_gap_drone_model_label()}
                   </h4>
                   <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-                    Select the aircraft to use for reflight plan generation.
+                    {m.flight_gap_drone_model_help()}
                   </p>
                 </div>
                 <Select
@@ -423,12 +425,14 @@ const FlightGapDetectionModal = ({
                     if (manualGapData) finalizeGapMutation.mutate(manualGapData);
                   }}
                   className="naxatw-w-full naxatw-bg-[#F4F7FE]"
-                  placeholder="Select model"
+                  placeholder={m.flight_gap_select_model_placeholder()}
                 />
                 <p className="naxatw-text-xs naxatw-text-gray-500">{currentGapData.message}</p>
               </div>
               <h4 className="naxatw-mb-3 naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
-                Images ({currentGapData?.images?.features?.length || 0})
+                {m.common_images_count({
+                  count: currentGapData?.images?.features?.length || 0,
+                })}
               </h4>
               <div className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-2">
                 {currentGapData?.images.features.map((image, index) => {
@@ -462,7 +466,7 @@ const FlightGapDetectionModal = ({
         {/* Footer */}
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-border-t naxatw-px-6 naxatw-py-4">
           <div className="naxatw-text-sm naxatw-text-gray-500">
-            Review the detected gap area, choose a drone model, then generate a reflight plan.
+            {m.flight_gap_review_detected_gap_desc()}
           </div>
           <FlexRow className="naxatw-gap-3">
             <Button
@@ -470,14 +474,14 @@ const FlightGapDetectionModal = ({
               className="naxatw-border naxatw-border-gray-300"
               onClick={onClose}
             >
-              Cancel
+              {m.common_cancel()}
             </Button>
             <Button
               variant="ghost"
               className="naxatw-border naxatw-border-gray-300"
               onClick={handleDownloadPlan}
             >
-              Download Flight Plan
+              {m.flight_gap_download_flight_plan()}
             </Button>
           </FlexRow>
         </div>

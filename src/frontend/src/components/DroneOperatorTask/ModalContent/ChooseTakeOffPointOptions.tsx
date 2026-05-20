@@ -1,6 +1,6 @@
 import RadioButton from "@Components/common/RadioButton";
 import { Button } from "@Components/RadixComponents/Button";
-import { takeOffPointOptions } from "@Constants/taskDescription";
+import { getTakeOffPointOptions } from "@Constants/taskDescription";
 import { toggleModal } from "@Store/actions/common";
 import {
   setSelectedTakeOffPoint,
@@ -37,7 +37,7 @@ const ChooseTakeOffPointOptions = () => {
       <div className="naxatw-py-1 naxatw-text-gray-700">
         <RadioButton
           className="!naxatw-text-black"
-          options={takeOffPointOptions}
+          options={getTakeOffPointOptions()}
           direction="column"
           onChangeData={(value) => dispatch(setSelectedTakeOffPointOption(value))}
           value={selectedTakeOffPointOption}

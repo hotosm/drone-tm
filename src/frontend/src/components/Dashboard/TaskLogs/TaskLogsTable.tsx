@@ -2,6 +2,7 @@ import NoDataComponent from "@Components/common/DataTable/NoDataFound";
 import { formatString } from "@Utils/index";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { m } from "@/paraglide/messages";
 
 interface ITaskLogsTableProps {
   data: any[];
@@ -17,22 +18,22 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
         <thead className="">
           <tr className="naxatw-bg-red naxatw-text-left naxatw-font-normal naxatw-text-white">
             <td className="naxatw-sticky naxatw-top-0 naxatw-w-20 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
-              ID
+              {m.dashboard_task_table_id()}
             </td>
             <td className="naxatw-min-w-30 naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
-              Project Name
+              {m.dashboard_task_table_project_name()}
             </td>
             <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
-              Total task area in km²
+              {m.dashboard_task_table_total_area()}
             </td>
             {/* <td className="naxatw-border-r-2 naxatw-px-2 naxatw-py-1">
               Est.flight time
             </td> */}
             <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
-              Created Date
+              {m.dashboard_task_table_created_date()}
             </td>
             <td className="naxatw-sticky naxatw-top-0 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1">
-              Status
+              {m.dashboard_task_table_status()}
             </td>
             <td className="naxatw-sticky naxatw-top-0 naxatw-w-12 naxatw-border-r-2 naxatw-bg-red naxatw-px-2 naxatw-py-1" />
           </tr>

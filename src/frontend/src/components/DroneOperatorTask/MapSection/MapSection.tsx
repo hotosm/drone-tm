@@ -16,7 +16,7 @@ import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
 import { GeojsonType } from "@Components/common/MapLibreComponents/types";
 import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
 import {
-  waypointModeOptions,
+  getWaypointModeOptions,
   waypointUpperLimit,
   droneModelOptions,
   gimbalAngleOptions,
@@ -38,6 +38,7 @@ import RotatingCircle from "@Components/common/RotationCue";
 import marker from "@Assets/images/marker.png";
 import right from "@Assets/images/rightArrow.png";
 import areaIcon from "@Assets/images/area-icon.png";
+import { m } from "@/paraglide/messages";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { toggleModal } from "@Store/actions/common";
 import { mapLayerIDs } from "@Constants/droneOperator";
@@ -71,7 +72,7 @@ const MapSection = ({ className }: { className?: string }) => {
   const [showMissingDemModal, setShowMissingDemModal] = useState(false);
   const [initialWaypointData, setInitialWaypointData] = useState<Record<string, any> | null>();
   const [modifiedWaypointModeOptions, setModifiedWaypointModeOptions] =
-    useState(waypointModeOptions);
+    useState(getWaypointModeOptions());
 
   const centroidRef = useRef<[number, number]>(null);
   const takeOffPointRef = useRef<[number, number]>(null);
@@ -663,30 +664,29 @@ const MapSection = ({ className }: { className?: string }) => {
     >
       <Modal
         show={showMissingDemModal}
-        title="No DEM Found"
+        title={m.drone_task_no_dem_found()}
         className="naxatw-w-[92vw] naxatw-max-w-[32rem]"
         onClose={() => {
           setShowMissingDemModal(false);
-          toast.warn("Mission generation canceled because no DEM was found.");
+          toast.warn(m.drone_task_missing_dem_canceled());
         }}
       >
         <div className="naxatw-space-y-4">
           <p className="naxatw-text-sm naxatw-text-[#7A7676]">
-            This task has terrain-follow enabled, but no DEM is available. For safety, mission
-            generation is blocked by default.
+            {m.drone_task_missing_dem_blocked()}
           </p>
           <p className="naxatw-text-sm naxatw-text-[#7A7676]">
-            If you understand the risk, you can still generate the mission without a DEM.
+            {m.drone_task_missing_dem_override()}
           </p>
           <div className="naxatw-flex naxatw-justify-end naxatw-gap-2">
             <Button
               variant="outline"
               onClick={() => {
                 setShowMissingDemModal(false);
-                toast.warn("Mission generation canceled because no DEM was found.");
+                toast.warn(m.drone_task_missing_dem_canceled());
               }}
             >
-              Cancel
+              {m.common_cancel()}
             </Button>
             <Button
               className="naxatw-bg-red"
@@ -695,7 +695,7 @@ const MapSection = ({ className }: { className?: string }) => {
                 setAllowMissingDem(true);
               }}
             >
-              Generate anyway
+              {m.drone_task_generate_anyway()}
             </Button>
           </div>
         </div>

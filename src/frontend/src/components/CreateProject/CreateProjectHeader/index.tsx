@@ -3,6 +3,7 @@ import { FlexRow } from "@Components/common/Layouts";
 import Icon from "@Components/common/Icon";
 import { toggleModal } from "@Store/actions/common";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { m } from "@/paraglide/messages";
 
 const CreateProjectHeader = () => {
   const dispatch = useTypedDispatch();
@@ -18,9 +19,9 @@ const CreateProjectHeader = () => {
           onClick={() => dispatch(toggleModal("quit-create-project"))}
           role="presentation"
         >
-          Project /
+          {m.create_header_project()}
         </h5>
-        <span className="naxatw-text-body-lg">&nbsp;Add Project</span>
+        <span className="naxatw-text-body-lg">&nbsp;{m.create_header_add_project()}</span>
       </FlexRow>
       <Icon
         className="!naxatw-text-xl hover:naxatw-text-red"

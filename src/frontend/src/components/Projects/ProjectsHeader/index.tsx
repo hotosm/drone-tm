@@ -10,6 +10,7 @@ import { setCreateProjectState } from "@Store/actions/createproject";
 import SearchInput from "@Components/common/FormUI/SearchInput";
 import useDebounceListener from "@Hooks/useDebouncedListener";
 import useAuth from "@Hooks/useAuth";
+import { m } from "@/paraglide/messages";
 
 export default function ProjectsHeader() {
   const dispatch = useTypedDispatch();
@@ -33,17 +34,17 @@ export default function ProjectsHeader() {
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-2 naxatw-py-3 md:naxatw-flex-row">
       <FlexRow className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-gap-4 md:naxatw-w-[65%]">
-        <h5 className="naxatw-font-bold">Projects</h5>
+        <h5 className="naxatw-font-bold">{m.projects_heading()}</h5>
         <FlexRow gap={3} className="">
           <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
             <Select
-              placeholder="Select"
+              placeholder={m.projects_select_placeholder()}
               options={[
                 {
-                  label: "All projects",
+                  label: m.projects_filter_all_projects(),
                   value: "no",
                 },
-                { label: "My Projects", value: "yes" },
+                { label: m.projects_filter_my_projects(), value: "yes" },
               ]}
               labelKey="label"
               valueKey="value"
@@ -54,15 +55,15 @@ export default function ProjectsHeader() {
               }
             />
             <Select
-              placeholder="Filter By Project Status"
+              placeholder={m.projects_filter_by_status_placeholder()}
               options={[
-                { label: "All Projects", value: "" },
+                { label: m.projects_status_all_projects(), value: "" },
                 {
-                  label: "Not Started",
+                  label: m.projects_status_not_started(),
                   value: "not-started",
                 },
-                { label: "On Going", value: "ongoing" },
-                { label: "Completed", value: "completed" },
+                { label: m.projects_status_ongoing(), value: "ongoing" },
+                { label: m.projects_status_completed(), value: "completed" },
               ]}
               labelKey="label"
               valueKey="value"
@@ -76,7 +77,7 @@ export default function ProjectsHeader() {
           <div>
             <SearchInput
               inputValue={searchValue}
-              placeholder="Project Name"
+              placeholder={m.projects_search_placeholder()}
               onChange={(e: any) => setSearchValue(e.target.value)}
               onClear={() => setSearchValue("")}
             />
@@ -88,7 +89,7 @@ export default function ProjectsHeader() {
         className="naxatw-w-full naxatw-items-center naxatw-justify-end md:naxatw-w-[210px]"
       >
         <FlexRow className="naxatw-items-center naxatw-gap-[10px]">
-          <p className="naxatw-text-body-md">Show map</p>
+          <p className="naxatw-text-body-md">{m.projects_show_map()}</p>
           <Switch
             checked={showMap}
             onClick={() => {
@@ -103,7 +104,7 @@ export default function ProjectsHeader() {
             className="!naxatw-bg-red naxatw-text-white"
             onClick={() => navigate("/create-project")}
           >
-            Add Project
+            {m.projects_add_project()}
           </Button>
         )}
       </FlexRow>

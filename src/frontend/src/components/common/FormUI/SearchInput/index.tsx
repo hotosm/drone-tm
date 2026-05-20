@@ -1,6 +1,7 @@
 import { ChangeEventHandler } from "react";
 import Icon from "@Components/common/Icon";
 import { FlexRow } from "@Components/common/Layouts";
+import { m } from "@/paraglide/messages";
 import Input from "../Input";
 
 interface ISearchInputProps {
@@ -28,7 +29,7 @@ export default function SearchInput({
       <Input
         type="text"
         className="naxatw-w-full naxatw-border-none"
-        placeholder={placeholder || "Search"}
+        placeholder={placeholder || m.common_search()}
         value={inputValue}
         onChange={onChange}
       />

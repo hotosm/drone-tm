@@ -1,34 +1,40 @@
-export const descriptionData = [
+import { m } from "@/paraglide/messages";
+
+export const getDescriptionData = () => [
   [
     {
-      name: "Total task area",
-      value: "4.75 km2",
+      name: m.op_constants_total_task_area(),
+      value: m.op_constants_total_task_area_value(),
     },
     {
-      name: "Est. flight time",
-      value: "20 minutes",
+      name: m.op_constants_est_flight_time(),
+      value: m.op_constants_est_flight_time_value(),
     },
   ],
   [
     {
-      name: "Altitude",
-      value: "50 meter",
+      name: m.op_constants_altitude(),
+      value: m.op_constants_altitude_value(),
     },
     {
-      name: "Gimble Angle",
-      value: "-90 degree",
+      name: m.op_constants_gimble_angle(),
+      value: m.op_constants_gimble_angle_value(),
     },
     {
-      name: "Image Overlap",
-      value: "70",
+      name: m.op_constants_image_overlap(),
+      value: m.op_constants_image_overlap_value(),
     },
     {
-      name: "Starting Point Altitude",
-      value: "50 meter",
+      name: m.op_constants_starting_point_altitude(),
+      value: m.op_constants_starting_point_altitude_value(),
     },
   ],
 ];
-export const descriptionTitle = ["Task Description", "Flight Parameters"];
+
+export const getDescriptionTitle = () => [
+  m.op_task_description_title(),
+  m.op_flight_parameters_title(),
+];
 
 export const mapLayerIDs = [
   "waypoint-points-layer",

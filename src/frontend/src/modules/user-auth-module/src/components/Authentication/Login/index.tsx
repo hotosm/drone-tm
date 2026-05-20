@@ -18,6 +18,7 @@ import { setUserState } from "@UserModule/store/actions/user";
 import googleIcon from "@Assets/images/google-icon.svg";
 import { isSafeRedirect } from "@Utils/url";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
@@ -51,7 +52,7 @@ export default function Login() {
       dispatch(setUserState({ user: res.data }));
       localStorage.setItem("token", res.data.access_token);
       localStorage.setItem("refresh", res.data.refresh_token);
-      toast.success("Logged In Successfully");
+      toast.success(m.auth_login_success());
       const userDetailsUrl = `${API_URL}/users/my-info/`;
       const response2 = await fetch(userDetailsUrl, {
         credentials: "include",
@@ -107,7 +108,11 @@ export default function Login() {
         className="naxatw-h-screen naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center"
       >
         <Image src={Person} />
-        <h3>{signedInAs === "PROJECT_CREATOR" ? "Project Creator" : "Drone Operator"}</h3>
+        <h3>
+          {signedInAs === "PROJECT_CREATOR"
+            ? m.auth_role_project_creator()
+            : m.auth_role_drone_operator()}
+        </h3>
 
         {/* Conditional auth rendering */}
         {AUTH_PROVIDER === "hanko" ? (
@@ -120,7 +125,7 @@ export default function Login() {
               window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnTo)}`;
             }}
           >
-            <span className="naxatw-text-body-btn">Login with HOTOSM SSO</span>
+            <span className="naxatw-text-body-btn">{m.auth_login_with_hotosm_sso()}</span>
           </div>
         ) : (
           // Google OAuth button
@@ -135,13 +140,13 @@ export default function Login() {
             }}
           >
             <Image src={googleIcon} />
-            <span className="naxatw-text-body-btn">Continue with Google</span>
+            <span className="naxatw-text-body-btn">{m.auth_continue_with_google()}</span>
           </div>
         )}
 
         <FlexRow className="naxatw-w-full naxatw-items-center naxatw-justify-center" gap={3}>
           <hr className="naxatw-w-[26%]" />
-          <span>or</span>
+          <span>{m.auth_or()}</span>
           <hr className="naxatw-w-[26%]" />
         </FlexRow>
 
@@ -151,12 +156,12 @@ export default function Login() {
         >
           <FormControl>
             <Label htmlFor="username" required>
-              Email
+              {m.auth_email_label()}
             </Label>
             <Input
               id="username"
               type="text"
-              placeholder="Username"
+              placeholder={m.auth_username_placeholder()}
               className="naxatw-mt-1 !naxatw-rounded-lg !naxatw-border-grey-400 !naxatw-p-3"
               {...register("username", { required: true })}
             />
@@ -164,11 +169,11 @@ export default function Login() {
 
           <FormControl className="naxatw-relative">
             <Label htmlFor="password" required>
-              Password
+              {m.auth_password_label()}
             </Label>
             <Input
               id="password"
-              placeholder="*******"
+              placeholder={m.auth_password_placeholder()}
               className="naxatw-mt-1 !naxatw-rounded-lg !naxatw-border-grey-400 !naxatw-p-3"
               type={showPassword ? "text" : "password"}
               {...register("password", { required: true })}
@@ -183,7 +188,7 @@ export default function Login() {
           <FlexRow className="naxatw-items-center naxatw-justify-between">
             <FlexRow className="naxatw-items-center naxatw-gap-2 naxatw-pl-3">
               <Input type="checkbox" id="check" />
-              <Label htmlFor="check">Remember Me</Label>
+              <Label htmlFor="check">{m.auth_remember_me()}</Label>
             </FlexRow>
             <Button
               variant="ghost"
@@ -193,7 +198,7 @@ export default function Login() {
               }}
               type="button"
             >
-              Forgot Your Password?
+              {m.auth_forgot_password_question()}
             </Button>
           </FlexRow>
           <Button
@@ -202,7 +207,7 @@ export default function Login() {
             isLoading={isPending}
             withLoader
           >
-            Log In
+            {m.auth_log_in()}
           </Button>
           <Button
             leftIcon="west"
@@ -210,7 +215,7 @@ export default function Login() {
             className="naxatw-py-5 !naxatw-text-red"
             onClick={() => navigate("/")}
           >
-            Back
+            {m.auth_back()}
           </Button>
         </form>
       </Flex>

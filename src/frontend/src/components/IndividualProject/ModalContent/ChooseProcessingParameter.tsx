@@ -1,6 +1,6 @@
 import RadioButton from "@Components/common/RadioButton";
 import { Button } from "@Components/RadixComponents/Button";
-import { startProcessingOptions } from "@Constants/projectDescription";
+import { getStartProcessingOptions } from "@Constants/projectDescription";
 import { processAllImagery } from "@Services/project";
 import { toggleModal } from "@Store/actions/common";
 import { setProjectState } from "@Store/actions/project";
@@ -9,6 +9,7 @@ import axios from "axios";
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const ChooseProcessingParameter = () => {
   const dispatch = useDispatch();
@@ -21,7 +22,7 @@ const ChooseProcessingParameter = () => {
     mutationFn: processAllImagery,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-detail"] });
-      toast.success("Processing started");
+      toast.success(m.proj_choose_param_toast_started());
       dispatch(toggleModal());
     },
     onError: (error) => {
@@ -30,18 +31,18 @@ const ChooseProcessingParameter = () => {
         typeof error.response?.data?.detail === "string" &&
         error.response.data.detail
           ? error.response.data.detail
-          : "Failed to start processing";
+          : m.proj_choose_param_toast_failed();
       toast.error(detail);
     },
   });
 
   return (
     <div>
-      <p className="naxatw-text-sm naxatw-text-[#7A7676]">Choose Processing Parameter</p>
+      <p className="naxatw-text-sm naxatw-text-[#7A7676]">{m.proj_choose_param_title()}</p>
       <div className="naxatw-py-1 naxatw-text-gray-700">
         <RadioButton
           className="!naxatw-text-black"
-          options={startProcessingOptions}
+          options={getStartProcessingOptions()}
           direction="column"
           onChangeData={(selectedValue) => setValue(selectedValue)}
           value={value}
@@ -60,7 +61,7 @@ const ChooseProcessingParameter = () => {
             }
           }}
         >
-          Proceed
+          {m.proj_choose_param_proceed()}
         </Button>
       </div>
     </div>

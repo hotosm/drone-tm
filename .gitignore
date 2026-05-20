@@ -89,6 +89,7 @@ src/backend/frontend_html
 *.json
 !**/package.json
 !**/tsconfig.json
+!src/frontend/messages/**.json
 
 # LLM tools
 .claude

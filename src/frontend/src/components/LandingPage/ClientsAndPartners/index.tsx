@@ -4,6 +4,7 @@ import worldBankLogo from "@Assets/images/LandingPage/WorldbankLogo.png";
 import { fadeUpVariant } from "@Constants/animations";
 import gfdrrLogo from "@Assets/images/GFDRR-logo.png";
 import { FlexRow } from "@Components/common/Layouts";
+import { m } from "@/paraglide/messages";
 
 export default function ClientAndPartners() {
   return (
@@ -18,7 +19,7 @@ export default function ClientAndPartners() {
             viewport={{ once: true }}
             className="naxatw-text-[35px] naxatw-leading-[5rem] naxatw-text-landing-red"
           >
-            Client & Partners
+            {m.landing_clients_partners_heading()}
           </motion.p>
           <motion.div
             variants={fadeUpVariant}
@@ -28,8 +29,8 @@ export default function ClientAndPartners() {
             viewport={{ once: true }}
           >
             <FlexRow className="naxatw-flex naxatw-items-center naxatw-justify-center" gap={10}>
-              <Image src={worldBankLogo} alt="world bank logo" />
-              <Image src={gfdrrLogo} alt="gfdrrLogo" width={260} />
+              <Image src={worldBankLogo} alt={m.landing_clients_world_bank_alt()} />
+              <Image src={gfdrrLogo} alt={m.landing_clients_gfdrr_alt()} width={260} />
             </FlexRow>
           </motion.div>
         </div>

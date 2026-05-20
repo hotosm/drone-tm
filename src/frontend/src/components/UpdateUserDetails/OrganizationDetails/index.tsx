@@ -7,6 +7,7 @@ import { Flex, FlexColumn } from "@Components/common/Layouts";
 import { Button } from "@Components/RadixComponents/Button";
 import { patchUserProfile } from "@Services/common";
 import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import { m } from "@/paraglide/messages";
 
 const OrganizationDetails = () => {
   const userProfile = getLocalStorageValue("userprofile");
@@ -28,12 +29,12 @@ const OrganizationDetails = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
 
-      toast.success("Details Updated successfully");
+      toast.success(m.profile_details_updated_success_lower());
     },
     onError: (err) => {
       // eslint-disable-next-line no-console
       console.log(err);
-      toast.error(err?.response?.data?.detail || "Something went wrong");
+      toast.error(err?.response?.data?.detail || m.profile_something_went_wrong());
     },
   });
 
@@ -44,13 +45,15 @@ const OrganizationDetails = () => {
   return (
     <section className="naxatw-w-full naxatw-px-14">
       <Flex>
-        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">Organization Details</p>
+        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">
+          {m.profile_organization_details()}
+        </p>
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
-          <Label>Organization Name</Label>
+          <Label>{m.profile_organization_name_label()}</Label>
           <Input
-            placeholder="Enter Organization Name"
+            placeholder={m.profile_organization_name_placeholder()}
             className="naxatw-mt-1"
             {...register("organization_name", {
               // required: 'Organization name is Required',
@@ -59,9 +62,9 @@ const OrganizationDetails = () => {
           <ErrorMessage message={formState.errors?.organization_name?.message as string} />
         </FormControl>
         <FormControl>
-          <Label>Organization Address</Label>
+          <Label>{m.profile_organization_address_label()}</Label>
           <Input
-            placeholder="Enter Organization Address"
+            placeholder={m.profile_organization_address_placeholder()}
             className="naxatw-mt-1"
             {...register("organization_address", {
               // required: 'Organization Address is Required',
@@ -70,9 +73,9 @@ const OrganizationDetails = () => {
           <ErrorMessage message={formState.errors?.organization_address?.message as string} />
         </FormControl>
         <FormControl>
-          <Label>Job Title</Label>
+          <Label>{m.profile_job_title_label()}</Label>
           <Input
-            placeholder="Enter Job Title"
+            placeholder={m.profile_job_title_placeholder()}
             className="naxatw-mt-1"
             {...register("job_title", {
               // required: 'Job Title is Required',
@@ -82,9 +85,9 @@ const OrganizationDetails = () => {
         </FormControl>
 
         <FormControl>
-          <Label>OAM Token</Label>
+          <Label>{m.profile_oam_token_label()}</Label>
           <Input
-            placeholder="Add OAM Token"
+            placeholder={m.profile_oam_token_placeholder()}
             className="naxatw-mt-1"
             {...register("oam_api_token", {
               // required: 'Job Title is Required',
@@ -103,7 +106,7 @@ const OrganizationDetails = () => {
           withLoader
           isLoading={isPending}
         >
-          Save
+          {m.profile_save()}
         </Button>
       </div>
     </section>

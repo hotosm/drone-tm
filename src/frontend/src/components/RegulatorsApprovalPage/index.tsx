@@ -1,6 +1,6 @@
 import Tab from "@Components/common/Tabs";
 import DescriptionSection from "@Components/RegulatorsApprovalPage/Description/DescriptionSection";
-import { tabOptions } from "@Constants/approvalPage";
+import { getTabOptions } from "@Constants/approvalPage";
 import { useState } from "react";
 import InstructionSection from "./InstructionSection";
 
@@ -20,7 +20,7 @@ const DetailsTemplate = ({ projectData }: Record<string, any>) => {
         onTabChange={(val: string | number) => {
           setSelectedTab(val);
         }}
-        tabOptions={tabOptions}
+        tabOptions={getTabOptions()}
         activeTab={selectedTab}
         clickable
       />

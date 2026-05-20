@@ -94,6 +94,8 @@ services:
     volumes:
       - ./src/frontend/public:/app/frontend/public
       - ./src/frontend/src:/app/frontend/src
+      - ./src/frontend/messages:/app/frontend/messages
+      - ./src/frontend/project.inlang:/app/frontend/project.inlang
       - ./src/frontend/components.json:/app/frontend/components.json
       - ./src/frontend/index.html:/app/frontend/index.html
       - ./src/frontend/postcss.config.js:/app/frontend/postcss.config.js

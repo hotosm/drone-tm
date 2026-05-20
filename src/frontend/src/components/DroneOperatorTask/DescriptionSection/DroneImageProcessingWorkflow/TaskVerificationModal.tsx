@@ -28,6 +28,7 @@ import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
 import { GeojsonType } from "@Components/common/MapLibreComponents/types";
 import { setProjectState } from "@Store/actions/project";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { m } from "@/paraglide/messages";
 import FlightGapDetectionModal from "./FlightGapDetectionModal";
 
 interface TaskVerificationModalProps {
@@ -224,7 +225,9 @@ const TaskVerificationModal = ({
     };
 
     const handleClick = (e: any) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [layerId],
+      });
       if (!features?.length) return;
 
       const props = features[0].properties;
@@ -407,9 +410,13 @@ const TaskVerificationModal = ({
 
       toast.success(`Task #${taskIndex} marked ready for processing`);
       queryClient.invalidateQueries({ queryKey: ["taskVerification"] });
-      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["project-task-states", projectId],
+      });
       queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["projectMapData", projectId],
+      });
       queryClient.invalidateQueries({ queryKey: ["project-detail"] });
       queryClient.invalidateQueries({
         queryKey: ["projectTaskImagerySummary", projectId],
@@ -489,7 +496,11 @@ const TaskVerificationModal = ({
 
         popupRef.current = newPopup;
 
-        map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 17), duration: 500 });
+        map.flyTo({
+          center: coords,
+          zoom: Math.max(map.getZoom(), 17),
+          duration: 500,
+        });
       }
     }
   };
@@ -508,10 +519,10 @@ const TaskVerificationModal = ({
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-border-b naxatw-px-6 naxatw-py-4">
           <div>
             <h2 className="naxatw-text-xl naxatw-font-semibold naxatw-text-gray-800">
-              Verify Task #{taskIndex}
+              {m.task_verification_title({ taskIndex })}
             </h2>
             <p className="naxatw-text-sm naxatw-text-gray-500">
-              Review images on the map and verify coverage before marking ready for processing
+              {m.task_verification_description()}
             </p>
           </div>
           <button
@@ -528,7 +539,7 @@ const TaskVerificationModal = ({
             <div className="naxatw-flex naxatw-flex-1 naxatw-items-center naxatw-justify-center">
               <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-3">
                 <div className="naxatw-h-8 naxatw-w-8 naxatw-animate-spin naxatw-rounded-full naxatw-border-4 naxatw-border-gray-200 naxatw-border-t-red" />
-                <p className="naxatw-text-gray-500">Loading task data...</p>
+                <p className="naxatw-text-gray-500">{m.task_verification_loading_task_data()}</p>
               </div>
             </div>
           ) : (
@@ -622,17 +633,21 @@ const TaskVerificationModal = ({
                 {/* Stats Overlay */}
                 <div className="naxatw-absolute naxatw-left-4 naxatw-top-4 naxatw-z-10 naxatw-rounded-lg naxatw-bg-white naxatw-p-4 naxatw-shadow-lg">
                   <h4 className="naxatw-mb-2 naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
-                    Task Statistics
+                    {m.common_task_statistics()}
                   </h4>
                   <div className="naxatw-flex naxatw-flex-col naxatw-gap-1 naxatw-text-sm">
                     <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
-                      <span className="naxatw-text-gray-600">Images:</span>
+                      <span className="naxatw-text-gray-600">
+                        {m.task_verification_images_label()}
+                      </span>
                       <span className="naxatw-font-medium">
                         {verificationData?.image_count || 0}
                       </span>
                     </div>
                     <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
-                      <span className="naxatw-text-gray-600">Coverage:</span>
+                      <span className="naxatw-text-gray-600">
+                        {m.task_verification_coverage_label()}
+                      </span>
                       <span
                         className={`naxatw-font-medium ${
                           isLowCoverage ? "naxatw-text-yellow-600" : "naxatw-text-green-600"
@@ -651,11 +666,12 @@ const TaskVerificationModal = ({
                       <span className="material-icons naxatw-text-yellow-600">warning</span>
                       <div>
                         <p className="naxatw-text-sm naxatw-font-medium naxatw-text-yellow-800">
-                          Low Coverage Warning
+                          {m.task_verification_low_coverage_warning()}
                         </p>
                         <p className="naxatw-text-xs naxatw-text-yellow-700">
-                          This task has only {coveragePercentage.toFixed(0)}% coverage. Consider
-                          uploading more images before marking as fully flown.
+                          {m.task_verification_low_coverage_body({
+                            coverage: coveragePercentage.toFixed(0),
+                          })}
                         </p>
                       </div>
                     </div>
@@ -664,10 +680,12 @@ const TaskVerificationModal = ({
               </div>
 
               {/* Sidebar - Virtualized Image List */}
-              <div className="naxatw-w-80 naxatw-border-l naxatw-flex naxatw-flex-col">
+              <div className="naxatw-flex naxatw-w-80 naxatw-flex-col naxatw-border-l">
                 <div className="naxatw-p-4 naxatw-pb-2">
                   <h4 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-700">
-                    Images ({verificationData?.image_count || 0})
+                    {m.common_images_count({
+                      count: verificationData?.image_count || 0,
+                    })}
                   </h4>
                 </div>
                 <div
@@ -724,8 +742,8 @@ const TaskVerificationModal = ({
                                     <span className="material-icons naxatw-text-2xl">
                                       content_copy
                                     </span>
-                                    <span className="naxatw-text-[9px] naxatw-mt-0.5">
-                                      Duplicate
+                                    <span className="naxatw-mt-0.5 naxatw-text-[9px]">
+                                      {m.common_duplicate()}
                                     </span>
                                   </div>
                                 ) : (
@@ -734,12 +752,12 @@ const TaskVerificationModal = ({
                                   </div>
                                 )}
                                 <button
-                                  className="naxatw-absolute naxatw-right-1 naxatw-top-1 naxatw-rounded-full naxatw-bg-red-500 naxatw-p-1 naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity hover:naxatw-bg-red-600 group-hover:naxatw-opacity-100"
+                                  className="naxatw-bg-red-500 hover:naxatw-bg-red-600 naxatw-absolute naxatw-right-1 naxatw-top-1 naxatw-rounded-full naxatw-p-1 naxatw-text-white naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-100"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     deleteMutation.mutate(image.id);
                                   }}
-                                  title="Delete image"
+                                  title={m.task_verification_delete_image_title()}
                                 >
                                   <span className="material-icons naxatw-text-sm">close</span>
                                 </button>
@@ -759,7 +777,7 @@ const TaskVerificationModal = ({
         {/* Footer */}
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-border-t naxatw-px-6 naxatw-py-4">
           <div className="naxatw-text-sm naxatw-text-gray-500">
-            Click on image dots to preview. Click thumbnails to highlight on map.
+            {m.task_verification_footer_help()}
           </div>
           <FlexRow className="naxatw-gap-3">
             <Button
@@ -767,7 +785,7 @@ const TaskVerificationModal = ({
               className="naxatw-border naxatw-border-gray-300"
               onClick={onClose}
             >
-              Cancel
+              {m.common_cancel()}
             </Button>
             <Button
               variant="outline"
@@ -776,7 +794,9 @@ const TaskVerificationModal = ({
               disabled={flightGapAnalysisMutation.isPending || !verificationData?.images.length}
               leftIcon={flightGapAnalysisMutation.isPending ? "sync" : "search"}
             >
-              {flightGapAnalysisMutation.isPending ? "Finding Gaps..." : "Identify Flight Gaps"}
+              {flightGapAnalysisMutation.isPending
+                ? m.task_verification_finding_gaps()
+                : m.task_verification_identify_flight_gaps()}
             </Button>
             <Button
               variant="ghost"
@@ -788,10 +808,10 @@ const TaskVerificationModal = ({
               leftIcon={verifyMutation.isPending ? "sync" : "check_circle"}
             >
               {verifyMutation.isPending
-                ? "Verifying..."
+                ? m.common_verifying()
                 : isAlreadyVerified
-                  ? "Already Fully Flown"
-                  : "Mark Fully Flown"}
+                  ? m.task_verification_already_fully_flown()
+                  : m.task_verification_mark_fully_flown()}
             </Button>
           </FlexRow>
         </div>

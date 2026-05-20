@@ -19,6 +19,7 @@ import {
 import { AnimatePresence } from "framer-motion";
 import MobileAppDownload from "@Components/LandingPage/MobileAppDownload";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 export default function LandingPage() {
   const openSignInMenu = useTypedSelector((state) => state.common.openSignInMenu);
@@ -28,7 +29,7 @@ export default function LandingPage() {
   useEffect(() => {
     if (location.state?.from) {
       dispatch(setCommonState({ openSignInMenu: true }));
-      toast.error("Please sign in to access this page");
+      toast.error(m.landing_signin_required_toast());
     }
   }, [location, dispatch]);
 

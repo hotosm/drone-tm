@@ -2,6 +2,7 @@ import { FlexColumn } from "@Components/common/Layouts";
 import { motion } from "framer-motion";
 import { ourRationaleData } from "@Constants/landingPage";
 import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
+import { m } from "@/paraglide/messages";
 
 export default function OurRationale() {
   return (
@@ -10,7 +11,7 @@ export default function OurRationale() {
         <div className="naxatw-grid naxatw-grid-cols-1 sm:naxatw-grid-cols-2 md:naxatw-grid-cols-3 md:naxatw-gap-20">
           <div className="naxatw-col-span-1">
             <p className="naxatw-text-[2rem] naxatw-leading-[3.75rem] naxatw-text-landing-red md:naxatw-text-[3.75rem]">
-              Our Rationale
+              {m.landing_our_rationale_heading()}
             </p>
           </div>
           <motion.div
@@ -20,7 +21,7 @@ export default function OurRationale() {
             viewport={{ once: true }}
             className="naxatw-col-span-2 naxatw-grid naxatw-grid-cols-1 naxatw-gap-10 md:naxatw-grid-cols-2"
           >
-            {ourRationaleData.map((data) => (
+            {ourRationaleData().map((data) => (
               <motion.div
                 key={data.id}
                 variants={fadeUpVariant}

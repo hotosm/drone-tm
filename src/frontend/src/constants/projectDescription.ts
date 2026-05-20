@@ -1,3 +1,5 @@
+import { m } from "@/paraglide/messages";
+
 // eslint-disable-next-line import/prefer-default-export
 export const getLayerOptionsByStatus = (status: string) => {
   const layerOptions = {
@@ -115,14 +117,14 @@ export const showPrimaryButton = (
   }
 };
 
-export const startProcessingOptions = [
+export const getStartProcessingOptions = () => [
   {
-    label: "Start Processing with GCP",
+    label: m.proj_choose_param_with_gcp(),
     value: "with_gcp",
     name: "start_processing",
   },
   {
-    label: "Start Processing without GCP",
+    label: m.proj_choose_param_without_gcp(),
     value: "without_gcp",
     name: "start_processing",
   },
@@ -145,89 +147,112 @@ type DescriptionItem = {
   unite?: string;
 };
 
-export const finalOutputLabels: Record<string, string> = {
-  ORTHOPHOTO_2D: "Orthophoto",
-  TEXTURED_MODEL_3D: "3D Textured Model",
+export const getFinalOutputLabels = (): Record<string, string> => ({
+  ORTHOPHOTO_2D: m.proj_desc_output_orthophoto(),
+  TEXTURED_MODEL_3D: m.proj_desc_output_3d_textured_model(),
   DIGITAL_TERRAIN_MODEL: "DTM",
   DIGITAL_SURFACE_MODEL: "DSM",
   POINT_CLOUD: "Point Cloud",
-};
+});
 
-export const descriptionItems: DescriptionItem[] = [
+export const getDescriptionItems = (): DescriptionItem[] => [
   {
-    label: "Project Created",
+    label: m.proj_desc_label_project_created(),
     key: "created_at",
     expectedDataType: "date",
   },
   {
-    label: "Total Project Area",
+    label: m.proj_desc_label_total_project_area(),
     key: "project_area",
     expectedDataType: "double",
     unite: "km²",
   },
   {
-    label: "Total Tasks",
+    label: m.proj_desc_label_total_tasks(),
     key: "tasks",
     expectedDataType: "array",
   },
   {
-    label: "Project Created By",
+    label: m.proj_desc_label_project_created_by(),
     key: "author_name",
     expectedDataType: "string",
   },
   {
-    label: "Outputs",
+    label: m.proj_desc_label_outputs(),
     key: "final_output",
     expectedDataType: "finalOutput",
   },
   {
-    label: "GSD",
+    label: m.proj_desc_label_gsd(),
     key: "gsd_cm_px",
     expectedDataType: "number",
     unit: "cm/px",
   },
   {
-    label: "Flight Altitude",
+    label: m.proj_desc_label_flight_altitude(),
     key: "flight_altitude",
     expectedDataType: "number",
     unit: "m",
   },
   {
-    label: "Task Split Size",
+    label: m.proj_desc_label_task_split_size(),
     key: "task_split_dimension",
     expectedDataType: "number",
     unit: "m",
   },
   {
-    label: "Front Overlap",
+    label: m.proj_desc_label_front_overlap(),
     key: "front_overlap",
     expectedDataType: "double",
     unit: "%",
   },
   {
-    label: "Side Overlap",
+    label: m.proj_desc_label_side_overlap(),
     key: "side_overlap",
     expectedDataType: "double",
     unit: "%",
   },
   {
-    label: "Terrain Following",
+    label: m.proj_desc_label_terrain_following(),
     key: "is_terrain_follow",
     expectedDataType: "boolean",
   },
   {
-    label: "Require Approval to Lock Task",
+    label: m.proj_desc_label_require_approval_to_lock(),
     key: "requires_approval_from_manager_for_locking",
     expectedDataType: "boolean",
   },
   {
-    label: "Local Regulator Approval Status",
+    label: m.proj_desc_label_regulator_approval_status(),
     key: "regulator_approval_status",
     expectedDataType: "string",
   },
   {
-    label: "Local Regulator Comment",
+    label: m.proj_desc_label_regulator_comment(),
     key: "regulator_comment",
     expectedDataType: "string",
   },
+];
+
+// Backwards-compatible export for type-extraction (typeof descriptionItems[number])
+// Provides the same shape without the runtime localized labels.
+export const descriptionItems: DescriptionItem[] = [
+  { label: "", key: "created_at", expectedDataType: "date" },
+  { label: "", key: "project_area", expectedDataType: "double", unite: "km²" },
+  { label: "", key: "tasks", expectedDataType: "array" },
+  { label: "", key: "author_name", expectedDataType: "string" },
+  { label: "", key: "final_output", expectedDataType: "finalOutput" },
+  { label: "", key: "gsd_cm_px", expectedDataType: "number", unit: "cm/px" },
+  { label: "", key: "flight_altitude", expectedDataType: "number", unit: "m" },
+  { label: "", key: "task_split_dimension", expectedDataType: "number", unit: "m" },
+  { label: "", key: "front_overlap", expectedDataType: "double", unit: "%" },
+  { label: "", key: "side_overlap", expectedDataType: "double", unit: "%" },
+  { label: "", key: "is_terrain_follow", expectedDataType: "boolean" },
+  {
+    label: "",
+    key: "requires_approval_from_manager_for_locking",
+    expectedDataType: "boolean",
+  },
+  { label: "", key: "regulator_approval_status", expectedDataType: "string" },
+  { label: "", key: "regulator_comment", expectedDataType: "string" },
 ];

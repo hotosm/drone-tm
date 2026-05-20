@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FlexRow } from "@Components/common/Layouts";
 import { Button } from "@Components/RadixComponents/Button";
 import { toggleModal } from "@Store/actions/common";
+import { m } from "@/paraglide/messages";
 
 export default function ExitCreateProjectModal() {
   const dispatch = useTypedDispatch();
@@ -10,9 +11,7 @@ export default function ExitCreateProjectModal() {
 
   return (
     <section>
-      <p className="naxatw-mb-3">
-        This page has some unsaved changes, are you sure you want to leave this page?
-      </p>
+      <p className="naxatw-mb-3">{m.create_exit_unsaved_changes()}</p>
       <FlexRow className="naxatw-w-full" gap={2}>
         <Button
           variant="ghost"
@@ -22,10 +21,10 @@ export default function ExitCreateProjectModal() {
             dispatch(toggleModal(null));
           }}
         >
-          Leave
+          {m.create_exit_leave()}
         </Button>
         <Button className="naxatw-bg-red naxatw-px-5" onClick={() => dispatch(toggleModal(null))}>
-          Stay
+          {m.create_exit_stay()}
         </Button>
       </FlexRow>
     </section>

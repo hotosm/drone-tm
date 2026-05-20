@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@Components/RadixComponents/Button";
 import { ProjectUser, useGetUsersQuery } from "@Api/projects";
 import { createMentionToken } from "@Utils/mentions";
+import { m } from "@/paraglide/messages";
 
 interface ILockTaskDialogProps {
   handleLockTask: (comment: string) => void;
@@ -221,7 +222,7 @@ const LockTaskDialog = ({ handleLockTask, setShowLockDialog }: ILockTaskDialogPr
         )}
       <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
         <Button className="!naxatw-text-red" onClick={() => setShowLockDialog(false)}>
-          Cancel
+          {m.common_cancel()}
         </Button>
         <Button
           className="naxatw-bg-red"
@@ -230,7 +231,7 @@ const LockTaskDialog = ({ handleLockTask, setShowLockDialog }: ILockTaskDialogPr
             setShowLockDialog(false);
           }}
         >
-          Lock Task
+          {m.individual_project_lock_task()}
         </Button>
       </div>
     </div>

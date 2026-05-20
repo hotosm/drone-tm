@@ -1,216 +1,198 @@
 /* eslint-disable import/prefer-default-export */
 import rocketIcon from "@Assets/images/LandingPage/RockerIcon.svg";
 import targetIcon from "@Assets/images/LandingPage/TargetIcon.svg";
+import { m } from "@/paraglide/messages";
 
-export const accordionData = [
+export const accordionData = () => [
   {
     id: 1,
-    title: "Enhanced Crisis Response",
-    description:
-      "The Drone Tasking Manager will enable faster, more precise deployment of drones during emergencies, improving resource allocation and decision-making in critical situations. This will lead to quicker and more effective crisis interventions.",
+    title: m.landing_accordion_crisis_response_title(),
+    description: m.landing_accordion_crisis_response_desc(),
     isOpen: true,
   },
   {
     id: 2,
-    title: "Community Empowerment",
-    description:
-      "The Drone Tasking Manager will empower local communities by providing them with access to real-time aerial data and insights. This tool will enhance their ability to participate in decision-making processes, improve disaster preparedness, and support local initiatives with accurate, timely information.",
+    title: m.landing_accordion_community_empowerment_title(),
+    description: m.landing_accordion_community_empowerment_desc(),
     isOpen: false,
   },
   {
     id: 3,
-    title: "Cost Reduction",
-    description:
-      "The Drone Tasking Manager will lower operational costs by optimizing drone tasking, reducing the need for manual interventions, and minimizing resource wastage. This efficiency will lead to significant savings in both time and money during operations.",
+    title: m.landing_accordion_cost_reduction_title(),
+    description: m.landing_accordion_cost_reduction_desc(),
     isOpen: false,
   },
   {
     id: 4,
-    title: "Data Accessibility",
-    description:
-      "The Drone Tasking Manager will provide users with easy access to drone data, enabling better decision-making and more informed actions. This centralized data access will ensure that critical information is readily available to all stakeholders.",
+    title: m.landing_accordion_data_accessibility_title(),
+    description: m.landing_accordion_data_accessibility_desc(),
     isOpen: false,
   },
 ];
 
-export const userAndRolesData = [
+export const userAndRolesData = () => [
   {
     id: 1,
-    title: "Project Managers",
+    title: m.landing_roles_project_managers_title(),
     listItems: [
       {
         id: 1,
-        text: "Create areas for drone mapping",
+        text: m.landing_roles_project_managers_item_1(),
       },
       {
         id: 2,
-        text: "Plan a flight for the desired imagery characteristics such as flying height, overlaps, angles, Ground Sampling Distance (GSD, essentially resolution), etc.",
+        text: m.landing_roles_project_managers_item_2(),
       },
       {
         id: 3,
-        text: "Publish Tasks for Drone Operators",
+        text: m.landing_roles_project_managers_item_3(),
       },
       {
         id: 4,
-        text: "View the progress and updates",
+        text: m.landing_roles_project_managers_item_4(),
       },
       {
         id: 5,
-        text: "Review the final output",
+        text: m.landing_roles_project_managers_item_5(),
       },
     ],
   },
   {
     id: 2,
-    title: "Drone Operators",
+    title: m.landing_roles_drone_operators_title(),
     listItems: [
       {
         id: 1,
-        text: "Register to participate in imagery acquisition",
+        text: m.landing_roles_drone_operators_item_1(),
       },
       {
         id: 2,
-        text: "Select areas that they are interested in flying from the overall project area",
+        text: m.landing_roles_drone_operators_item_2(),
       },
       {
         id: 3,
-        text: "Download flight plans appropriate to their hardware and capacity",
+        text: m.landing_roles_drone_operators_item_3(),
       },
       {
         id: 4,
-        text: "Operate the drone by pushing a “Fly mission” button, causing the drone to cover the assigned area automatically",
+        text: m.landing_roles_drone_operators_item_4(),
       },
       {
         id: 5,
-        text: "Upload the resulting images to a processing server",
+        text: m.landing_roles_drone_operators_item_5(),
       },
     ],
   },
   {
     id: 3,
-    title: "Data Users",
+    title: m.landing_roles_data_users_title(),
     listItems: [
       {
         id: 1,
-        text: "Task areas for drone mapping",
+        text: m.landing_roles_data_users_item_1(),
       },
       {
         id: 2,
-        text: "Define desired imagery characteristics such as Ground Sampling Distance (GSD, essentially resolution), overlap, angles, etc.",
+        text: m.landing_roles_data_users_item_2(),
       },
     ],
   },
 ];
 
-export const ourRationaleData = [
+export const ourRationaleData = () => [
   {
     id: 1,
-    title: "Limited Access to High Resolution Aerial Datasets",
-    description:
-      "In low-income and disaster-prone areas, access to near real-time satellite datasets is severely limited. High-resolution satellite imagery, when available, is often expensive and out-of-date. Additionally, full-scale aircraft mapping is not a viable option due to high costs and operational complexity.",
+    title: m.landing_rationale_limited_access_title(),
+    description: m.landing_rationale_limited_access_desc(),
   },
   {
     id: 2,
-    title: "Limited Engagement Of Communities",
-    description:
-      "Traditional mapping solutions involve professional consultants with expensive equipment who engage with communities only briefly, which can lead to delays and lack of locally relevant data.",
+    title: m.landing_rationale_limited_engagement_title(),
+    description: m.landing_rationale_limited_engagement_desc(),
   },
   {
     id: 3,
-    title: "Commercial Proprietary Software to Consumer",
-    description:
-      "Many existing drone operation tools are proprietary and not designed for large-scale collaborative efforts, which limits their usefulness for community-driven projects",
+    title: m.landing_rationale_proprietary_title(),
+    description: m.landing_rationale_proprietary_desc(),
   },
   {
     id: 4,
-    title: "Regular Compliance in Conflict Areas",
-    description:
-      "The use of drones, especially in sensitive or conflict-prone areas, raises significant safety and regulatory concerns.",
+    title: m.landing_rationale_compliance_title(),
+    description: m.landing_rationale_compliance_desc(),
   },
 ];
 
-export const featuresData = [
+export const featuresData = () => [
   {
     id: 1,
-    title: "User Management",
-    description:
-      "Simplifies the onboarding process, enhances security with role-based access, and facilitates efficient management of participant activities.",
+    title: m.landing_features_user_management_title(),
+    description: m.landing_features_user_management_desc(),
   },
   {
     id: 2,
-    title: "Survey Project Creation",
-    description:
-      "Streamlines project setup, allows for custom project specifications, and ensures all participants clear guidelines and objectives.",
+    title: m.landing_features_survey_project_title(),
+    description: m.landing_features_survey_project_desc(),
   },
   {
     id: 3,
-    title: "Data/Flight Plan Upload",
-    description:
-      "Ensures consistency and accuracy in flight plans, maximizes area coverage, and minimizes data gaps.",
+    title: m.landing_features_flight_plan_title(),
+    description: m.landing_features_flight_plan_desc(),
   },
   {
     id: 4,
-    title: "Photogrammetric Processing",
-    description:
-      "Provides a seamless workflow from data capture to processing, quickly turning raw images into actionable insights.",
+    title: m.landing_features_photogrammetric_title(),
+    description: m.landing_features_photogrammetric_desc(),
   },
   {
     id: 5,
-    title: "Notifications/Status Management",
-    description:
-      " Keeps all users informed and engaged, ensures timely responses to project needs, and enhances collaborative efforts.",
+    title: m.landing_features_notifications_title(),
+    description: m.landing_features_notifications_desc(),
   },
   {
     id: 6,
-    title: "Data Visualization",
-    description:
-      "Aids in better understanding and interpretation of the data, supports decision-making processes, and enhances presentation of findings.",
+    title: m.landing_features_data_viz_title(),
+    description: m.landing_features_data_viz_desc(),
   },
 ];
 
-export const aboutData = [
+export const aboutData = () => [
   {
     id: 1,
     icon: rocketIcon,
-    title: "Our Motivation",
-    description:
-      "Drones belonging to and operated by communities are more effective because they are in place and can respond immediately, responsibly, and take into account the needs of the community as they see them.",
+    title: m.landing_about_motivation_title(),
+    description: m.landing_about_motivation_desc(),
   },
   {
     id: 2,
     icon: targetIcon,
-    title: "Our Vision",
-    description:
-      " A user-friendly, inclusive application suite enabling anyone with access to a drone, even an inexpensive consumer or DIY drone, to contribute easily and effectively to a global free and open aerial imagery repository.",
+    title: m.landing_about_vision_title(),
+    description: m.landing_about_vision_desc(),
   },
 ];
 
-export const caseStudiesData = [
+export const caseStudiesData = () => [
   {
     id: 1,
-    tag: "Urban Planning & Climate Resilience",
-    location: "Freetown, Sierra Leone",
-    title: "Community-Led Drone Mapping in Freetown City",
-    description:
-      "30 Freetown residents used DroneTM and low-cost drones to map 80km² of the city at 5cm resolution. The imagery now drives urban planning, flood preparedness, infrastructure management, and accessibility assessments across the city.",
+    tag: m.landing_case_freetown_tag(),
+    location: m.landing_case_freetown_location(),
+    title: m.landing_case_freetown_title(),
+    description: m.landing_case_freetown_desc(),
     link: "https://www.hotosm.org/en/projects/kyc-africa-drone-mapping-in-freetown-city/",
   },
   {
     id: 2,
-    tag: "Disaster Resilience",
-    location: "Coulibistrie, Dominica",
-    title: "Drone Imagery for Climate Resilience in Dominica",
-    description:
-      "After repeated hurricane disasters, HOT drone imagery of Coulibistrie supported a community resilience workshop where 30 residents mapped flood risks and shaped local response planning - demonstrating how open aerial data empowers communities to prepare for climate impacts.",
+    tag: m.landing_case_dominica_tag(),
+    location: m.landing_case_dominica_location(),
+    title: m.landing_case_dominica_title(),
+    description: m.landing_case_dominica_desc(),
     link: "https://www.hotosm.org/en/news/boosting-caribbean-resilience-collaborative-efforts-using-drone-imagery-in-coulibistrie-dominica/",
   },
   {
     id: 3,
-    tag: "Environmental Conservation",
-    location: "La Paz, Baja California Sur, Mexico",
-    title: "Mangrove Monitoring with Low-Cost Drones in Mexico",
-    description:
-      "Local community groups used DroneTM to capture high-resolution imagery of threatened mangroves, generating 3D models and openly published orthophotos. This enables ongoing monitoring of mangrove cover, vegetation health, and coastal change at a fraction of traditional costs.",
+    tag: m.landing_case_mexico_tag(),
+    location: m.landing_case_mexico_location(),
+    title: m.landing_case_mexico_title(),
+    description: m.landing_case_mexico_desc(),
     link: "https://www.hotosm.org/en/news/can-low-cost-drones-contribute-to-mangrove-monitoring-and-conservation-testing-drone-tasking-manager-in-la-paz-mexico/",
   },
 ];

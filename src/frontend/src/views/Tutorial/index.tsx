@@ -7,11 +7,13 @@ import { useSpring, animated } from "@react-spring/web";
 import { useState } from "react";
 import VideoPlayer from "@Components/Tutorials/VideoTutorials";
 import { RowVideoCards, ColumnVideoCards } from "@Components/Tutorials/VideoTutorials/VideoCards";
-import { IVideoTutorialItems, videoTutorialData } from "@Constants/tutorials";
+import { IVideoTutorialItems, getVideoTutorialData } from "@Constants/tutorials";
 import { Link } from "react-router-dom";
 import Icon from "@Components/common/Icon";
+import { m } from "@/paraglide/messages";
 
 const Tutorials = () => {
+  const videoTutorialData = getVideoTutorialData();
   const [isVideoBoxVisible, setIsVideoBoxVisible] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<IVideoTutorialItems | null>(null);
 
@@ -112,7 +114,7 @@ const Tutorials = () => {
               />
 
               <p className="naxatw-text-primary-700 naxatw-text-[1.5rem] naxatw-font-medium">
-                Video Tutorial
+                {m.tutorial_video_tutorial_heading()}
               </p>
             </FlexRow>
             <div
@@ -163,7 +165,7 @@ const Tutorials = () => {
                     <Icon name="arrow_back" className="naxatw-items-center hover:naxatw-text-red" />
                   </Link>
                   <p className="naxatw-text-primary-700 naxatw-text-[1.5rem] naxatw-font-medium">
-                    Video Tutorial
+                    {m.tutorial_video_tutorial_heading()}
                   </p>
                 </FlexRow>
 

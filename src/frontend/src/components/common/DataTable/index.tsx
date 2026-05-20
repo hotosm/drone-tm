@@ -27,6 +27,7 @@ import {
 import Icon from "@Components/common/Icon";
 import Skeleton from "@Components/RadixComponents/Skeleton";
 import useDebounceListener from "@Hooks/useDebouncedListener";
+import { m } from "@/paraglide/messages";
 import { FlexColumn, FlexRow } from "../Layouts";
 import Pagination from "./DataTablePagination";
 
@@ -154,13 +155,13 @@ export default function DataTable({
     if (err && err.response && err.response.data && err.response.data.message) {
       return err.response.data.message;
     }
-    return "An unexpected error occurred.";
+    return m.common_unexpected_error();
   }
 
   if (isError) {
     return (
       <div>
-        <span>Error: {getErrorMsg(error)}</span>
+        <span>{m.common_error_label({ message: getErrorMsg(error) })}</span>
       </div>
     );
   }
@@ -233,7 +234,7 @@ export default function DataTable({
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="naxatw-text-center">
-                No Data found.
+                {m.common_no_data_found()}
               </TableCell>
             </TableRow>
           )}

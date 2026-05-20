@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
 import { caseStudiesData } from "@Constants/landingPage";
+import { m } from "@/paraglide/messages";
 
 export default function CaseStudies() {
   return (
@@ -12,7 +13,7 @@ export default function CaseStudies() {
           whileInView="visible"
           className="naxatw-text-[2rem] naxatw-leading-[3.75rem] naxatw-text-landing-red md:naxatw-text-[3.75rem]"
         >
-          Case Studies
+          {m.landing_case_studies_heading()}
         </motion.p>
         <motion.div
           variants={containerAnimationVariant}
@@ -21,7 +22,7 @@ export default function CaseStudies() {
           viewport={{ once: true }}
           className="naxatw-mt-10 naxatw-grid naxatw-grid-cols-1 naxatw-gap-6 md:naxatw-grid-cols-3"
         >
-          {caseStudiesData.map((data) => (
+          {caseStudiesData().map((data) => (
             <motion.div
               key={data.id}
               variants={fadeUpVariant}
@@ -45,7 +46,7 @@ export default function CaseStudies() {
                 rel="noopener noreferrer"
                 className="naxatw-mt-2 naxatw-flex naxatw-w-fit naxatw-items-center naxatw-gap-1 naxatw-text-sm naxatw-font-medium naxatw-text-landing-red hover:naxatw-underline"
               >
-                Read full story
+                {m.landing_case_studies_read_full_story()}
                 <span className="naxatw-text-base naxatw-leading-none">→</span>
               </a>
             </motion.div>

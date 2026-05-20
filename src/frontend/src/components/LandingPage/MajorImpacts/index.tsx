@@ -5,6 +5,7 @@ import Accordion from "@Components/common/Accordion";
 import majorImpactsImage from "@Assets/images/LandingPage/MajorImpactImage.webp";
 import { accordionData } from "@Constants/landingPage";
 import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
+import { m } from "@/paraglide/messages";
 
 export default function MajorImpacts() {
   return (
@@ -30,10 +31,10 @@ export default function MajorImpacts() {
             className="naxatw-col-span-1"
           >
             <p className="naxatw-text-[2rem] naxatw-leading-[2.66rem] naxatw-text-landing-red md:naxatw-text-[3.75rem] md:naxatw-leading-[77px]">
-              Anticipated Major Impacts
+              {m.landing_major_impacts_heading()}
             </p>
             <div>
-              {accordionData.map((data: Record<string, any>) => (
+              {accordionData().map((data: Record<string, any>) => (
                 <motion.div variants={fadeUpVariant} key={data.id}>
                   <Accordion title={data.title} description={data.description} open={data.isOpen} />
                 </motion.div>

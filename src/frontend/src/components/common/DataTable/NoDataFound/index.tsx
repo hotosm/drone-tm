@@ -1,5 +1,6 @@
 import { FlexColumn } from "@Components/common/Layouts";
 import NoDataImage from "@Assets/images/no-data.png";
+import { m } from "@/paraglide/messages";
 
 interface INoDataComponent {
   className?: string;
@@ -25,13 +26,13 @@ export default function NoDataComponent({
       >
         <img
           src={NoDataImage}
-          alt="No Data"
+          alt={m.common_no_data_alt()}
           height={100}
           width={100}
           className={`naxatw-mx-auto naxatw-w-full ${iconClassName}`}
         />
         <h6 className={`naxatw-text-center ${isExport ? "fs-xs-medium" : ""}  ${messageStyles}`}>
-          {message || "No Data Available"}
+          {message || m.common_no_data_available()}
         </h6>
       </FlexColumn>
     </div>

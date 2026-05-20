@@ -135,7 +135,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
           <FormControl className="naxatw-flex naxatw-flex-col naxatw-gap-1">
             <Label>Draw/Upload Area</Label>
             <SwitchTab
-              options={uploadOrDrawAreaOptions}
+              options={uploadOrDrawAreaOptions()}
               valueKey="value"
               selectedValue={selectedTab}
               activeClassName="naxatw-bg-red naxatw-text-white"

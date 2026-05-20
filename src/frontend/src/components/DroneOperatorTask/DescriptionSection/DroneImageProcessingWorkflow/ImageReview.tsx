@@ -33,6 +33,7 @@ import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
 import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
 import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
 import { GeojsonType } from "@Components/common/MapLibreComponents/types";
+import { m } from "@/paraglide/messages";
 import TaskVerificationModal from "./TaskVerificationModal";
 
 interface ImageReviewProps {
@@ -123,7 +124,7 @@ const TaskAccordionContent = ({
               onVerifyTask(group.task_id!, group.project_task_index || 0);
             }}
           >
-            Verify Task on Map
+            {m.image_review_verify_task_on_map()}
           </Button>
         </div>
       ) : (
@@ -137,7 +138,7 @@ const TaskAccordionContent = ({
               onCleanup();
             }}
           >
-            Cleanup Invalid Imagery
+            {m.image_review_cleanup_invalid_imagery()}
           </Button>
         </div>
       )}
@@ -187,7 +188,7 @@ const TaskAccordionContent = ({
                             : image.status === "unmatched"
                               ? "naxatw-border-yellow-300 hover:naxatw-border-yellow-500"
                               : image.status === "duplicate"
-                                ? "naxatw-border-gray-400 hover:naxatw-border-gray-600 naxatw-opacity-60"
+                                ? "naxatw-border-gray-400 naxatw-opacity-60 hover:naxatw-border-gray-600"
                                 : "naxatw-border-gray-200 hover:naxatw-border-blue-500"
                       }`}
                       onClick={() => onImageClick(image, imageUrlMap)}
@@ -204,7 +205,9 @@ const TaskAccordionContent = ({
                       ) : image.status === "duplicate" ? (
                         <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-bg-gray-100 naxatw-text-gray-400">
                           <span className="material-icons naxatw-text-2xl">content_copy</span>
-                          <span className="naxatw-text-[9px] naxatw-mt-0.5">Duplicate</span>
+                          <span className="naxatw-mt-0.5 naxatw-text-[9px]">
+                            {m.common_duplicate()}
+                          </span>
                         </div>
                       ) : (
                         <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-items-center naxatw-justify-center naxatw-bg-gray-100">
@@ -212,18 +215,18 @@ const TaskAccordionContent = ({
                         </div>
                       )}
                       {(image.status === "rejected" || image.status === "invalid_exif") && (
-                        <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-red-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white naxatw-truncate">
-                          {image.rejection_reason || "Rejected"}
+                        <div className="naxatw-bg-red-500 naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-truncate naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
+                          {image.rejection_reason || m.common_rejected()}
                         </div>
                       )}
                       {image.status === "unmatched" && (
                         <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-yellow-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
-                          Unmatched
+                          {m.common_unmatched()}
                         </div>
                       )}
                       {image.status === "duplicate" && (
                         <div className="naxatw-absolute naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-bg-gray-500 naxatw-bg-opacity-75 naxatw-px-1 naxatw-py-0.5 naxatw-text-center naxatw-text-[10px] naxatw-text-white">
-                          Duplicate
+                          {m.common_duplicate()}
                         </div>
                       )}
                       <div className="naxatw-absolute naxatw-inset-0 naxatw-bg-black naxatw-opacity-0 naxatw-transition-opacity group-hover:naxatw-opacity-10" />
@@ -340,7 +343,10 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     id: string;
     filename: string;
   }> | null>(null);
-  const bulkTaskMatchingImagesRef = useRef<Array<{ id: string; filename: string }> | null>(null);
+  const bulkTaskMatchingImagesRef = useRef<Array<{
+    id: string;
+    filename: string;
+  }> | null>(null);
   useEffect(() => {
     bulkTaskMatchingImagesRef.current = bulkTaskMatchingImages;
   }, [bulkTaskMatchingImages]);
@@ -601,7 +607,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
     const handleClick = (e: any) => {
       if (boxSelectModeRef.current) return;
-      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [layerId],
+      });
       if (!features?.length) return;
 
       const props = features[0].properties;
@@ -718,7 +726,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
     const onMouseMove = (e: any) => {
       if (!isPickerActive()) return;
-      const features = map.queryRenderedFeatures(e.point, { layers: [fillLayerId] });
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [fillLayerId],
+      });
       map.getCanvas().style.cursor = features?.length ? "pointer" : "crosshair";
       try {
         if (features?.length) {
@@ -748,7 +758,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
     const onClick = (e: any) => {
       if (!isPickerActive()) return;
-      const features = map.queryRenderedFeatures(e.point, { layers: [fillLayerId] });
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [fillLayerId],
+      });
       if (!features?.length) return;
       const taskProps = features[0].properties;
       const singleMatching = taskMatchingImageRef.current;
@@ -903,15 +915,20 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
       if (data.status === "unmatched") {
         toast.warning(data.message);
       } else {
-        toast.success("Image accepted successfully");
+        toast.success(m.image_review_image_accepted_success());
       }
       queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["projectMapData", projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["project-task-states", projectId],
+      });
       setSelectedImage(null);
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || error.message || "Failed to accept image";
+      const message =
+        error?.response?.data?.detail || error.message || m.image_review_failed_accept_image();
       toast.error(message);
     },
   });
@@ -919,14 +936,19 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
   const rejectMutation = useMutation({
     mutationFn: (imageId: string) => rejectImage(projectId, imageId),
     onSuccess: () => {
-      toast.success("Image rejected successfully");
+      toast.success(m.image_review_image_rejected_success());
       queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["projectMapData", projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["project-task-states", projectId],
+      });
       setSelectedImage(null);
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || error.message || "Failed to reject image";
+      const message =
+        error?.response?.data?.detail || error.message || m.image_review_failed_reject_image();
       toast.error(message);
     },
   });
@@ -935,15 +957,20 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     mutationFn: ({ imageId, taskId }: { imageId: string; taskId: string }) =>
       assignImageToTask(projectId, imageId, taskId),
     onSuccess: () => {
-      toast.success("Image assigned to task successfully");
+      toast.success(m.image_review_image_assigned_success());
       queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["projectMapData", projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["project-task-states", projectId],
+      });
       setConfirmMatch(null);
       setTaskMatchingImage(null);
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || error.message || "Failed to assign image";
+      const message =
+        error?.response?.data?.detail || error.message || m.image_review_failed_assign_image();
       toast.error(message);
     },
   });
@@ -957,17 +984,26 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
         toast.error(data.message);
       } else {
         toast.success(
-          `Deleted ${data.deleted_count} invalid image${data.deleted_count === 1 ? "" : "s"}`,
+          m.image_review_deleted_invalid_images({
+            count: data.deleted_count,
+            suffix: data.deleted_count === 1 ? "" : "s",
+          }),
         );
       }
       queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["projectMapData", projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["project-task-states", projectId],
+      });
       setShowCleanupConfirm(false);
     },
     onError: (error: any) => {
       const message =
-        error?.response?.data?.detail || error.message || "Failed to delete invalid images";
+        error?.response?.data?.detail ||
+        error.message ||
+        m.image_review_failed_delete_invalid_images();
       toast.error(message);
       setShowCleanupConfirm(false);
     },
@@ -1086,7 +1122,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     }
     queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
     queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
-    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    queryClient.invalidateQueries({
+      queryKey: ["project-task-states", projectId],
+    });
     setBoxSelectedImages([]);
   };
 
@@ -1114,7 +1152,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     }
     queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
     queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
-    queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+    queryClient.invalidateQueries({
+      queryKey: ["project-task-states", projectId],
+    });
     setConfirmBulkMatch(null);
     setBulkTaskMatchingImages(null);
     setBoxSelectedImages([]);
@@ -1123,7 +1163,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
   if (isLoading) {
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
-        <p className="naxatw-text-gray-500">Loading review data...</p>
+        <p className="naxatw-text-gray-500">{m.image_review_loading_review_data()}</p>
       </div>
     );
   }
@@ -1132,7 +1172,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
         <p className="naxatw-text-red-500">
-          Error loading review data: {error instanceof Error ? error.message : "Unknown error"}
+          {m.image_review_error_loading_review_data({
+            message: error instanceof Error ? error.message : m.common_unknown_error(),
+          })}
         </p>
       </div>
     );
@@ -1141,7 +1183,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
   if (!reviewData || reviewData.task_groups.length === 0) {
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
-        <p className="naxatw-text-gray-500">No classified images available for review.</p>
+        <p className="naxatw-text-gray-500">{m.image_review_no_classified_images()}</p>
       </div>
     );
   }
@@ -1241,11 +1283,11 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
   const visibleTaskCount = displayedTaskGroups.filter((group: TaskGroup) => group.task_id).length;
 
   return (
-    <FlexColumn className="naxatw-gap-4 naxatw-h-full">
+    <FlexColumn className="naxatw-h-full naxatw-gap-4">
       {/* Map and List Split View */}
-      <div className="naxatw-flex naxatw-flex-1 naxatw-gap-4 naxatw-min-h-0 naxatw-overflow-hidden">
+      <div className="naxatw-flex naxatw-min-h-0 naxatw-flex-1 naxatw-gap-4 naxatw-overflow-hidden">
         {/* Map Section */}
-        <div className="naxatw-w-1/2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-overflow-hidden naxatw-relative naxatw-flex naxatw-flex-col">
+        <div className="naxatw-relative naxatw-flex naxatw-w-1/2 naxatw-flex-col naxatw-overflow-hidden naxatw-rounded naxatw-border naxatw-border-gray-300">
           {/* Map toolbar */}
           <div className="naxatw-flex naxatw-shrink-0 naxatw-items-center naxatw-gap-3 naxatw-border-b naxatw-border-gray-200 naxatw-bg-white naxatw-px-3 naxatw-py-1.5">
             <button
@@ -1253,7 +1295,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 if (boxSelectMode) setBoxSelectedImages([]);
                 setBoxSelectMode(!boxSelectMode);
               }}
-              title={boxSelectMode ? "Exit multi-select (Esc)" : "Select multiple images on map"}
+              title={
+                boxSelectMode ? m.common_cancel_escape() : m.image_review_select_multiple_help()
+              }
               className={`naxatw-flex naxatw-items-center naxatw-gap-1.5 naxatw-rounded naxatw-border naxatw-px-2.5 naxatw-py-1 naxatw-text-xs naxatw-font-medium naxatw-transition-colors ${
                 boxSelectMode
                   ? "naxatw-border-violet-600 naxatw-bg-violet-600 naxatw-text-white"
@@ -1263,19 +1307,23 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
               <span className="material-icons" style={{ fontSize: "14px" }}>
                 select_all
               </span>
-              Select Multiple
+              {m.image_review_select_multiple()}
             </button>
             {boxSelectMode && (
               <span className="naxatw-text-xs naxatw-text-gray-500">
-                Drag a rectangle to select multiple images
+                {m.image_review_select_multiple_help()}
               </span>
             )}
           </div>
 
           {/* Map Container */}
           <div
-            className="naxatw-flex-1 naxatw-relative"
-            style={{ display: "flex", flexDirection: "column", minHeight: "400px" }}
+            className="naxatw-relative naxatw-flex-1"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "400px",
+            }}
           >
             <MapContainer
               ref={mapContainerRefCallback}
@@ -1385,12 +1433,14 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
             {/* Loading Overlay - appears while data is fetching */}
             {isMapDataLoading && (
-              <div className="naxatw-absolute naxatw-inset-0 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-white naxatw-bg-opacity-75 naxatw-rounded">
+              <div className="naxatw-absolute naxatw-inset-0 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-bg-white naxatw-bg-opacity-75">
                 <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2">
                   <div className="naxatw-animate-spin naxatw-text-gray-400">
                     <span className="material-icons">refresh</span>
                   </div>
-                  <p className="naxatw-text-sm naxatw-text-gray-600">Loading map data...</p>
+                  <p className="naxatw-text-sm naxatw-text-gray-600">
+                    {m.image_review_loading_map_data()}
+                  </p>
                 </div>
               </div>
             )}
@@ -1410,17 +1460,20 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
             {/* Bulk action bar */}
             {boxSelectedImages.length > 0 && !bulkTaskMatchingImages && !taskMatchingImage && (
-              <div className="naxatw-absolute naxatw-top-2 naxatw-left-2 naxatw-right-2 naxatw-z-20 naxatw-rounded naxatw-bg-violet-600 naxatw-px-3 naxatw-py-2 naxatw-shadow-lg">
+              <div className="naxatw-absolute naxatw-left-2 naxatw-right-2 naxatw-top-2 naxatw-z-20 naxatw-rounded naxatw-bg-violet-600 naxatw-px-3 naxatw-py-2 naxatw-shadow-lg">
                 <div className="naxatw-mb-2 naxatw-flex naxatw-items-center naxatw-justify-between">
                   <span className="naxatw-text-sm naxatw-font-medium naxatw-text-white">
-                    {boxSelectedImages.length} image
-                    {boxSelectedImages.length > 1 ? "s" : ""} selected
+                    {m.image_review_selected_images({
+                      count: boxSelectedImages.length,
+                      label:
+                        boxSelectedImages.length > 1 ? m.common_images_lower() : m.common_image(),
+                    })}
                   </span>
                   <button
                     onClick={() => setBoxSelectedImages([])}
                     className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
                   >
-                    Clear (Esc)
+                    {m.common_clear_escape()}
                   </button>
                 </div>
                 <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
@@ -1442,7 +1495,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                             <span className="material-icons" style={{ fontSize: "12px" }}>
                               check
                             </span>
-                            Override rejection ({overridable.length})
+                            {m.image_review_override_rejection_count({
+                              count: overridable.length,
+                            })}
                           </button>
                         )}
                         {matchable.length > 0 && (
@@ -1457,7 +1512,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                             <span className="material-icons" style={{ fontSize: "12px" }}>
                               my_location
                             </span>
-                            Assign to task ({matchable.length})
+                            {m.image_review_assign_to_task_count({
+                              count: matchable.length,
+                            })}
                           </button>
                         )}
                       </>
@@ -1469,69 +1526,71 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
             {/* Bulk task picker mode banner */}
             {bulkTaskMatchingImages && (
-              <div className="naxatw-absolute naxatw-top-2 naxatw-left-2 naxatw-right-2 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-between naxatw-rounded naxatw-bg-yellow-500 naxatw-px-4 naxatw-py-2 naxatw-shadow-lg">
+              <div className="naxatw-absolute naxatw-left-2 naxatw-right-2 naxatw-top-2 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-between naxatw-rounded naxatw-bg-yellow-500 naxatw-px-4 naxatw-py-2 naxatw-shadow-lg">
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-font-medium naxatw-text-white">
                   <span className="material-icons naxatw-text-base">my_location</span>
-                  Click a task area to assign{" "}
+                  {m.image_review_click_task_area_assign()}{" "}
                   <span className="naxatw-font-bold">{bulkTaskMatchingImages.length} images</span>
                 </div>
                 <button
                   onClick={() => setBulkTaskMatchingImages(null)}
                   className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-3 naxatw-py-1 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
                 >
-                  Cancel (Esc)
+                  {m.common_cancel_escape()}
                 </button>
               </div>
             )}
 
             {/* Task picker mode banner */}
             {taskMatchingImage && (
-              <div className="naxatw-absolute naxatw-top-2 naxatw-left-2 naxatw-right-2 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-between naxatw-rounded naxatw-bg-yellow-500 naxatw-px-4 naxatw-py-2 naxatw-shadow-lg">
+              <div className="naxatw-absolute naxatw-left-2 naxatw-right-2 naxatw-top-2 naxatw-z-20 naxatw-flex naxatw-items-center naxatw-justify-between naxatw-rounded naxatw-bg-yellow-500 naxatw-px-4 naxatw-py-2 naxatw-shadow-lg">
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-font-medium naxatw-text-white">
                   <span className="material-icons naxatw-text-base">my_location</span>
-                  Click a task area to assign{" "}
+                  {m.image_review_click_task_area_assign()}{" "}
                   <span className="naxatw-font-bold">{taskMatchingImage.filename}</span>
                 </div>
                 <button
                   onClick={() => setTaskMatchingImage(null)}
                   className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-3 naxatw-py-1 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
                 >
-                  Cancel
+                  {m.common_cancel()}
                 </button>
               </div>
             )}
 
             {/* Legend */}
             <div className="naxatw-absolute naxatw-bottom-8 naxatw-left-2 naxatw-z-10 naxatw-rounded naxatw-bg-white naxatw-p-2 naxatw-shadow-md">
-              <p className="naxatw-text-xs naxatw-font-semibold naxatw-mb-1">Image Status</p>
+              <p className="naxatw-mb-1 naxatw-text-xs naxatw-font-semibold">
+                {m.common_image_status()}
+              </p>
               <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
                   <div
-                    className="naxatw-w-3 naxatw-h-3 naxatw-rounded-full"
+                    className="naxatw-h-3 naxatw-w-3 naxatw-rounded-full"
                     style={{ backgroundColor: "#22c55e" }}
                   />
-                  <span className="naxatw-text-xs">Assigned</span>
+                  <span className="naxatw-text-xs">{m.common_assigned()}</span>
                 </div>
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
                   <div
-                    className="naxatw-w-3 naxatw-h-3 naxatw-rounded-full"
+                    className="naxatw-h-3 naxatw-w-3 naxatw-rounded-full"
                     style={{ backgroundColor: "#D73F3F" }}
                   />
-                  <span className="naxatw-text-xs">Rejected</span>
+                  <span className="naxatw-text-xs">{m.common_rejected()}</span>
                 </div>
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
                   <div
-                    className="naxatw-w-3 naxatw-h-3 naxatw-rounded-full"
+                    className="naxatw-h-3 naxatw-w-3 naxatw-rounded-full"
                     style={{ backgroundColor: "#eab308" }}
                   />
-                  <span className="naxatw-text-xs">Unmatched</span>
+                  <span className="naxatw-text-xs">{m.common_unmatched()}</span>
                 </div>
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
                   <div
-                    className="naxatw-w-3 naxatw-h-3 naxatw-rounded-full"
+                    className="naxatw-h-3 naxatw-w-3 naxatw-rounded-full"
                     style={{ backgroundColor: "#f97316" }}
                   />
-                  <span className="naxatw-text-xs">Invalid EXIF</span>
+                  <span className="naxatw-text-xs">{m.common_invalid_exif()}</span>
                 </div>
               </div>
             </div>
@@ -1540,13 +1599,13 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
         {/* List Section */}
         <div className="naxatw-w-1/2 naxatw-overflow-y-auto naxatw-pr-2">
-          <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-mb-3">
+          <FlexRow className="naxatw-mb-3 naxatw-items-center naxatw-justify-between">
             <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
               <p className="naxatw-text-sm naxatw-text-[#484848]">
-                Review the classified images grouped by tasks.
+                {m.image_review_review_grouped_images()}
               </p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                Double-click a thumbnail to inspect the full image and handle issues.
+                {m.image_review_double_click_thumbnail_help()}
               </p>
               <label className="naxatw-flex naxatw-w-fit naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-px-3 naxatw-py-1.5 naxatw-text-sm naxatw-font-medium naxatw-text-gray-700 naxatw-transition-colors hover:naxatw-border-red hover:naxatw-text-gray-900">
                 <span
@@ -1574,27 +1633,29 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                   checked={showOnlyIssueImages}
                   onChange={(event) => setShowOnlyIssueImages(event.target.checked)}
                 />
-                Show only images with issues ({totalIssueImages})
+                {m.image_review_show_only_images_with_issues({
+                  count: totalIssueImages,
+                })}
               </label>
             </div>
-            <FlexRow className="naxatw-gap-3 naxatw-text-xs naxatw-items-start">
+            <FlexRow className="naxatw-items-start naxatw-gap-3 naxatw-text-xs">
               <span className="naxatw-text-gray-600">
                 <span className="naxatw-font-semibold naxatw-text-gray-900">
                   {showOnlyIssueImages ? visibleTaskCount : reviewData.total_tasks}
                 </span>{" "}
-                Tasks
+                {m.common_tasks()}
               </span>
               <span className="naxatw-text-gray-600">
                 <span className="naxatw-font-semibold naxatw-text-gray-900">
                   {filteredLocatedImages.length}
                 </span>{" "}
-                on Map
+                {m.common_on_map()}
               </span>
               <span className="naxatw-text-gray-600">
                 <span className="naxatw-font-semibold naxatw-text-gray-900">
                   {totalIssueImages}
                 </span>{" "}
-                Issues
+                {m.common_issues()}
               </span>
             </FlexRow>
           </FlexRow>
@@ -1622,16 +1683,24 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                   title={
                     <FlexRow className="naxatw-flex-wrap naxatw-items-center naxatw-gap-3">
                       <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
-                        {group.task_id ? `Task #${group.project_task_index}` : "Unassigned Images"}
+                        {group.task_id
+                          ? m.common_task_number({
+                              index: group.project_task_index ?? "",
+                            })
+                          : m.image_review_unassigned_images()}
                       </h4>
                       <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
                         {showOnlyIssueImages
-                          ? `${group.images.length} ${group.images.length === 1 ? "issue" : "issues"}`
-                          : `${group.images.length} ${group.images.length === 1 ? "image" : "images"}`}
+                          ? `${group.images.length} ${
+                              group.images.length === 1 ? m.common_issue() : m.common_issues_lower()
+                            }`
+                          : `${group.images.length} ${
+                              group.images.length === 1 ? m.common_image() : m.common_images_lower()
+                            }`}
                       </span>
                       {group.is_verified && (
                         <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-green-800">
-                          Fully Flown
+                          {m.common_fully_flown()}
                         </span>
                       )}
                     </FlexRow>
@@ -1681,17 +1750,17 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
             <div className="naxatw-absolute naxatw-bottom-4 naxatw-left-4 naxatw-right-4 naxatw-flex naxatw-items-center naxatw-justify-between">
               <div className="naxatw-rounded naxatw-bg-black naxatw-bg-opacity-75 naxatw-px-4 naxatw-py-2 naxatw-text-white">
                 <p>{selectedImage.filename}</p>
-                <p className="naxatw-text-xs naxatw-uppercase naxatw-tracking-wider naxatw-text-gray-300 naxatw-mb-1">
-                  Status: {selectedImage.status.replace("_", " ")}
+                <p className="naxatw-mb-1 naxatw-text-xs naxatw-uppercase naxatw-tracking-wider naxatw-text-gray-300">
+                  {m.common_status_label()} {selectedImage.status.replace("_", " ")}
                 </p>
                 {selectedImage.rejection_reason && (
-                  <p className="naxatw-text-sm naxatw-text-red-300">
-                    Reason: {selectedImage.rejection_reason}
+                  <p className="naxatw-text-red-300 naxatw-text-sm">
+                    {m.common_reason_label()} {selectedImage.rejection_reason}
                   </p>
                 )}
                 {isDuplicateImage && (
                   <p className="naxatw-text-sm naxatw-text-gray-300">
-                    This image is a duplicate of an existing image
+                    {m.image_review_duplicate_description()}
                   </p>
                 )}
               </div>
@@ -1704,7 +1773,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                     disabled={acceptMutation.isPending}
                     leftIcon="check"
                   >
-                    {acceptMutation.isPending ? "Accepting..." : "Override rejection"}
+                    {acceptMutation.isPending
+                      ? m.common_accepting()
+                      : m.image_review_override_rejection()}
                   </Button>
                 )}
                 {canReject && (
@@ -1715,7 +1786,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                     disabled={rejectMutation.isPending}
                     leftIcon="block"
                   >
-                    {rejectMutation.isPending ? "Rejecting..." : "Reject image"}
+                    {rejectMutation.isPending
+                      ? m.common_rejecting()
+                      : m.image_review_reject_image()}
                   </Button>
                 )}
                 {canMatch && (
@@ -1731,7 +1804,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                     }}
                     leftIcon="my_location"
                   >
-                    Match to task
+                    {m.image_review_match_to_task()}
                   </Button>
                 )}
               </div>
@@ -1748,9 +1821,15 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
         taskId={verificationModal.taskId}
         taskIndex={verificationModal.taskIndex}
         onVerified={() => {
-          queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
-          queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
-          queryClient.invalidateQueries({ queryKey: ["project-task-states", projectId] });
+          queryClient.invalidateQueries({
+            queryKey: ["projectReview", projectId],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["projectMapData", projectId],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["project-task-states", projectId],
+          });
         }}
       />
 
@@ -1763,15 +1842,17 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 my_location
               </span>
               <h3 className="naxatw-text-lg naxatw-font-semibold naxatw-text-gray-900">
-                Assign image to task?
+                {m.image_review_assign_image_title()}
               </h3>
             </div>
             <p className="naxatw-mb-2 naxatw-text-gray-600">
-              Match <span className="naxatw-font-semibold">{confirmMatch.imageFilename}</span> to{" "}
-              <span className="naxatw-font-semibold">Task #{confirmMatch.taskIndex}</span>?
+              {m.image_review_match_image_to_task({
+                filename: confirmMatch.imageFilename,
+                taskIndex: confirmMatch.taskIndex,
+              })}
             </p>
             <p className="naxatw-mb-6 naxatw-text-xs naxatw-text-gray-400">
-              This will override the automatic classification result.
+              {m.image_review_classification_override_notice()}
             </p>
             <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
               <Button
@@ -1779,7 +1860,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 className="naxatw-border-gray-300"
                 onClick={() => setConfirmMatch(null)}
               >
-                Cancel
+                {m.common_cancel()}
               </Button>
               <Button
                 variant="ghost"
@@ -1793,7 +1874,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 disabled={assignTaskMutation.isPending}
                 leftIcon="check"
               >
-                {assignTaskMutation.isPending ? "Assigning..." : "Confirm"}
+                {assignTaskMutation.isPending ? m.common_assigning() : m.common_confirm()}
               </Button>
             </div>
           </div>
@@ -1809,18 +1890,19 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 my_location
               </span>
               <h3 className="naxatw-text-lg naxatw-font-semibold naxatw-text-gray-900">
-                Assign {confirmBulkMatch.imageIds.length} images to task?
+                {m.image_review_assign_images_title({
+                  count: confirmBulkMatch.imageIds.length,
+                })}
               </h3>
             </div>
             <p className="naxatw-mb-2 naxatw-text-gray-600">
-              Assign{" "}
-              <span className="naxatw-font-semibold">
-                {confirmBulkMatch.imageIds.length} unmatched images
-              </span>{" "}
-              to <span className="naxatw-font-semibold">Task #{confirmBulkMatch.taskIndex}</span>?
+              {m.image_review_assign_unmatched_images_to_task({
+                count: confirmBulkMatch.imageIds.length,
+                taskIndex: confirmBulkMatch.taskIndex,
+              })}
             </p>
             <p className="naxatw-mb-6 naxatw-text-xs naxatw-text-gray-400">
-              This will override the automatic classification result for each image.
+              {m.image_review_classification_override_each_notice()}
             </p>
             <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
               <Button
@@ -1829,7 +1911,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 onClick={() => setConfirmBulkMatch(null)}
                 disabled={isBulkProcessing}
               >
-                Cancel
+                {m.common_cancel()}
               </Button>
               <Button
                 variant="ghost"
@@ -1838,7 +1920,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 disabled={isBulkProcessing}
                 leftIcon="check"
               >
-                {isBulkProcessing ? "Assigning..." : "Confirm"}
+                {isBulkProcessing ? m.common_assigning() : m.common_confirm()}
               </Button>
             </div>
           </div>
@@ -1850,14 +1932,13 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
         <div className="naxatw-fixed naxatw-inset-0 naxatw-z-[10000] naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-black naxatw-bg-opacity-50">
           <div className="naxatw-w-full naxatw-max-w-md naxatw-rounded-lg naxatw-bg-white naxatw-p-6 naxatw-shadow-xl">
             <div className="naxatw-mb-4 naxatw-flex naxatw-items-center naxatw-gap-3">
-              <span className="material-icons naxatw-text-3xl naxatw-text-red-500">warning</span>
+              <span className="material-icons naxatw-text-red-500 naxatw-text-3xl">warning</span>
               <h3 className="naxatw-text-lg naxatw-font-semibold naxatw-text-gray-900">
-                Cleanup Invalid Imagery
+                {m.image_review_cleanup_invalid_imagery()}
               </h3>
             </div>
             <p className="naxatw-mb-6 naxatw-text-gray-600">
-              This will delete the imagery marked as invalid or unmatched during the uploading
-              process. It is not reversible. Are you sure?
+              {m.image_review_cleanup_confirm_body()}
             </p>
             <div className="naxatw-flex naxatw-justify-end naxatw-gap-3">
               <Button
@@ -1866,7 +1947,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 onClick={() => setShowCleanupConfirm(false)}
                 disabled={cleanupInvalidMutation.isPending}
               >
-                Cancel
+                {m.common_cancel()}
               </Button>
               <Button
                 variant="ghost"
@@ -1875,7 +1956,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 disabled={cleanupInvalidMutation.isPending}
                 leftIcon="delete"
               >
-                {cleanupInvalidMutation.isPending ? "Deleting..." : "Confirm"}
+                {cleanupInvalidMutation.isPending ? m.common_deleting() : m.common_confirm()}
               </Button>
             </div>
           </div>
