@@ -1098,63 +1098,121 @@ async def process_all_drone_images(
         raise
 
 
-def get_project_info_from_s3(project_id: uuid.UUID, task_id: uuid.UUID):
-    """Helper function to get ODM assets and orthophoto URLs for a task.
+async def get_assets_info_bulk(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_ids: list[uuid.UUID],
+) -> list[project_schemas.AssetsInfo]:
+    """Bulk variant of per-task assets info gathering.
 
-    Note: image_count is no longer derived from S3 listings. The caller
-    is responsible for setting it from the database.
+    Performs 2 SQL queries (image counts + latest task states) plus a
+    single project-level orthophoto probe and per-task S3 probes run
+    concurrently via ``asyncio.gather``. This collapses what was
+    previously N x (3 S3 calls + 1 DB query) into ~2 DB queries plus
+    a parallel batch of S3 lookups.
     """
-    try:
-        # Check for ODM assets under the odm/ prefix via a single-object probe.
-        presigned_url = None
-        odm_prefix = f"projects/{project_id}/{task_id}/odm/"
-        try:
-            odm_probe = next(
-                s3_client().list_objects(
-                    settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=False
-                ),
-                None,
-            )
-            if odm_probe is not None:
-                presigned_url = (
-                    f"{settings.API_PREFIX}/projects/odm/export/{project_id}/{task_id}/"
-                )
-        except S3Error as e:
-            log.error(f"An error occurred while accessing assets: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+    if not task_ids:
+        return []
 
-        # Generate a presigned URL for the orthophoto COG.  Prefer the
-        # task-level file, fall back to a project-level ortho if the task
-        # doesn't have its own (e.g. final project-wide processing).
-        orthophoto_url = None
-        try:
-            candidates = [
-                f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif",
-                f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif",
-            ]
-            for path in candidates:
-                try:
-                    get_object_metadata(settings.S3_BUCKET_NAME, path)
-                    orthophoto_url = maybe_presign_s3_key(path, expires_hours=12)
-                    break
-                except S3Error as e:
-                    if e.code != "NoSuchKey":
-                        raise
-        except Exception as e:
-            # Do not fail the whole endpoint if orthophoto is missing; just omit it.
-            log.warning(f"Unable to generate orthophoto_url: {e}")
-            orthophoto_url = None
+    task_id_strs = [str(t) for t in task_ids]
 
-        return project_schemas.AssetsInfo(
-            project_id=str(project_id),
-            task_id=str(task_id),
-            image_count=0,  # Overridden by caller with DB count
-            assets_url=presigned_url,
-            orthophoto_url=orthophoto_url,
+    image_counts: dict[str, int] = {}
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT task_id::text, COUNT(*) AS cnt
+            FROM project_images
+            WHERE project_id = %(pid)s
+              AND task_id = ANY(%(tids)s)
+              AND status = 'assigned'
+            GROUP BY task_id
+            """,
+            {"pid": str(project_id), "tids": task_id_strs},
         )
-    except Exception as e:
-        log.exception(f"An error occurred while retrieving assets info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        for row in await cur.fetchall():
+            image_counts[row[0]] = row[1]
+
+    states: dict[str, str] = {}
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            SELECT DISTINCT ON (task_id)
+                task_id::text AS task_id, state
+            FROM task_events
+            WHERE project_id = %(pid)s
+              AND task_id = ANY(%(tids)s)
+            ORDER BY task_id, created_at DESC
+            """,
+            {"pid": str(project_id), "tids": task_id_strs},
+        )
+        for row in await cur.fetchall():
+            states[row["task_id"]] = row["state"]
+
+    project_ortho_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+
+    def _probe_project_ortho() -> Optional[str]:
+        try:
+            get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_key)
+            return maybe_presign_s3_key(project_ortho_key, expires_hours=12)
+        except S3Error as e:
+            if e.code != "NoSuchKey":
+                log.warning(f"Project ortho lookup failed: {e}")
+            return None
+
+    def _probe_task(task_id: uuid.UUID) -> tuple[uuid.UUID, bool, Optional[str]]:
+        """Return (task_id, has_odm_output, task_level_ortho_url)."""
+        try:
+            odm_prefix = f"projects/{project_id}/{task_id}/odm/"
+            has_odm = (
+                next(
+                    s3_client().list_objects(
+                        settings.S3_BUCKET_NAME, prefix=odm_prefix, recursive=False
+                    ),
+                    None,
+                )
+                is not None
+            )
+        except S3Error as e:
+            log.error(f"ODM probe failed for task {task_id}: {e}")
+            has_odm = False
+
+        task_ortho_key = (
+            f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+        )
+        try:
+            get_object_metadata(settings.S3_BUCKET_NAME, task_ortho_key)
+            task_ortho_url = maybe_presign_s3_key(task_ortho_key, expires_hours=12)
+        except S3Error as e:
+            if e.code != "NoSuchKey":
+                log.warning(f"Task ortho lookup failed for {task_id}: {e}")
+            task_ortho_url = None
+
+        return task_id, has_odm, task_ortho_url
+
+    project_ortho_url, probe_results = await asyncio.gather(
+        run_in_threadpool(_probe_project_ortho),
+        asyncio.gather(*(run_in_threadpool(_probe_task, tid) for tid in task_ids)),
+    )
+
+    results: list[project_schemas.AssetsInfo] = []
+    for tid, has_odm, task_ortho_url in probe_results:
+        tid_str = str(tid)
+        assets_url = (
+            f"{settings.API_PREFIX}/projects/odm/export/{project_id}/{tid}/"
+            if has_odm
+            else None
+        )
+        results.append(
+            project_schemas.AssetsInfo(
+                project_id=str(project_id),
+                task_id=tid_str,
+                image_count=image_counts.get(tid_str, 0),
+                assets_url=assets_url,
+                orthophoto_url=task_ortho_url or project_ortho_url,
+                state=states.get(tid_str),
+            )
+        )
+    return results
 
 
 async def check_regulator_project(db: Connection, project_id: str, email: str):

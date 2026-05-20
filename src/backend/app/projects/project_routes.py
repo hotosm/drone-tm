@@ -682,58 +682,13 @@ async def get_assets_info(
     for a given project and task. If no task_id is provided, returns info
     for all tasks associated with the project.
     """
-    # Get image counts from DB (authoritative source) instead of S3 listing.
-    image_counts: dict[uuid.UUID, int] = {}
-    async with db.cursor() as cur:
-        if task_id is None:
-            await cur.execute(
-                """
-                SELECT task_id, COUNT(*) as cnt
-                FROM project_images
-                WHERE project_id = %(pid)s
-                  AND task_id IS NOT NULL
-                  AND status = 'assigned'
-                GROUP BY task_id
-                """,
-                {"pid": str(project.id)},
-            )
-        else:
-            await cur.execute(
-                """
-                SELECT task_id, COUNT(*) as cnt
-                FROM project_images
-                WHERE project_id = %(pid)s
-                  AND task_id = %(tid)s
-                  AND status = 'assigned'
-                GROUP BY task_id
-                """,
-                {"pid": str(project.id), "tid": str(task_id)},
-            )
-        for row in await cur.fetchall():
-            image_counts[row[0]] = row[1]
-
     if task_id is None:
         tasks = await project_deps.get_tasks_by_project_id(project.id, db)
-        results = []
+        task_ids = [task.get("id") for task in tasks]
+        return await project_logic.get_assets_info_bulk(db, project.id, task_ids)
 
-        for task in tasks:
-            tid = task.get("id")
-            task_info = project_logic.get_project_info_from_s3(project.id, tid)
-            task_info.image_count = image_counts.get(tid, 0)
-            try:
-                current_state = await task_logic.get_task_state(db, project.id, tid)
-                task_info.state = current_state.get("state") if current_state else None
-            except Exception:
-                task_info.state = None
-            results.append(task_info)
-
-        return results
-    else:
-        current_state = await task_logic.get_task_state(db, project.id, task_id)
-        project_info = project_logic.get_project_info_from_s3(project.id, task_id)
-        project_info.image_count = image_counts.get(task_id, 0)
-        project_info.state = current_state.get("state")
-        return project_info
+    results = await project_logic.get_assets_info_bulk(db, project.id, [task_id])
+    return results[0] if results else None
 
 
 @router.post("/{project_id}/upload-to-oam", tags=["OAM"])
