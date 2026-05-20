@@ -6,13 +6,11 @@ import time
 from pathlib import Path
 from typing import Optional, Union
 
+from area_splitter.splitter import split_by_square as _area_split_by_square
 import geojson
 from geojson import Feature, FeatureCollection, GeoJSON
-from pyproj import Transformer
 from shapely.errors import GEOSException
 from shapely.geometry import Polygon, shape
-from shapely.geometry.geo import mapping
-from shapely.ops import transform as shapely_transform
 from shapely.ops import unary_union
 
 try:
@@ -351,6 +349,7 @@ class TaskSplitter:
 
 def split_by_square(
     aoi: Union[str, FeatureCollection],
+    db: Union[str, object],
     meters: int = 100,
 ) -> FeatureCollection:
     """Split an AOI by square, dividing into an even grid.
@@ -368,14 +367,12 @@ def split_by_square(
     parsed_aoi = TaskSplitter.input_to_geojson(aoi)
     aoi_featcol = TaskSplitter.geojson_to_featcol(parsed_aoi)
     if not parsed_aoi:
-        err = "A valid data extract must be provided."
-        log.error(err)
-        raise ValueError(err)
+        raise ValueError("A valid data extract must be provided.")
 
-    splitter = TaskSplitter(aoi_featcol)
-    split_features = splitter.splitBySquare(meters)
+    # Pre-validate: raises GeometryValidationError for non-polygonal input
+    TaskSplitter.geojson_to_shapely_polygon(aoi_featcol)
+
+    split_features = _area_split_by_square(aoi_featcol, db, meters=meters)
     if not split_features:
-        msg = "Failed to generate split features."
-        log.error(msg)
-        raise ValueError(msg)
+        raise ValueError("Failed to generate split features.")
     return split_features

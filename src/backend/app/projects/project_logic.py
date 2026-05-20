@@ -781,24 +781,26 @@ async def create_tasks_from_geojson(
         raise HTTPException(e) from e
 
 
-async def preview_split_by_square(db, boundary, meters: int):
-    aoi_geojson = json.dumps(boundary["geometry"])
-    async with db.cursor() as cur:
-        await cur.execute(
-            """
-            WITH
-              aoi AS (
-                SELECT ST_MakeValid(ST_GeomFromGeoJSON(%(aoi)s)) AS geom
-              ),
-              aoi_web AS (
-                SELECT ST_Transform(geom, 3857) AS geom FROM aoi
-              )
-            SELECT ST_AsGeoJSON(ST_Transform(geom, 4326)) FROM aoi_web
-            """,
-            {"aoi": aoi_geojson, "meters": meters},
+async def preview_split_by_square(boundary: str, meters: int):
+    """Preview split by square for a project boundary.
+
+    Use a lambda function to remove the "z" dimension from each
+    coordinate in the feature's geometry.
+    """
+    boundary = merge_multipolygon(boundary)
+
+    try:
+        return await run_in_threadpool(
+            lambda: split_by_square(
+                boundary,
+                meters=meters,
+            )
         )
-        row = await cur.fetchone()
-        return FeatureCollection([Feature(geometry=json.loads(row[0]))])
+    except (GeometryValidationError, GeometryTopologyError, GEOSException) as e:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid geometry for split preview. Please fix AOI or no-fly zone geometry and retry.",
+        ) from e
 
 
 async def process_drone_images(
