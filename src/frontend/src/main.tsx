@@ -10,9 +10,13 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistGate } from "redux-persist/integration/react";
 import "@Assets/css/index.css";
 import "@Assets/css/tailwind.css";
+import { getLocale } from "@/paraglide/runtime";
 import { store, persistor } from "./store";
 import App from "./App";
 import { getRuntimeConfig } from "./runtimeConfig";
+
+// Reflect Paraglide's resolved locale on <html lang>
+document.documentElement.lang = getLocale();
 
 // Workaround required, as @hotosm/gcp-editor already imports all components
 if (!customElements.get("hot-tracking")) {

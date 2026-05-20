@@ -8,7 +8,7 @@ const CreateProject = () => {
   return (
     <section className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-bg-grey-50 naxatw-px-8 naxatw-pt-5 xl:naxatw-px-16">
       <CreateProjectHeader />
-      <StepSwitcher data={stepSwitcherData} />
+      <StepSwitcher data={stepSwitcherData()} />
       <CreateprojectLayout />
     </section>
   );

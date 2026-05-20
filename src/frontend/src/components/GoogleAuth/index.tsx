@@ -5,6 +5,7 @@ import { Flex } from "@Components/common/Layouts";
 import { toast } from "react-toastify";
 import { UserProfileDetailsType } from "./types";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
@@ -68,10 +69,10 @@ function GoogleAuth() {
         };
         try {
           await completeLogin();
-          toast.success("Logged In Successfully");
+          toast.success(m.auth_login_success());
         } catch (e: any) {
           console.error(e);
-          toast.error(e?.message || "Login failed. Please try again.");
+          toast.error(e?.message || m.auth_login_failed_generic());
           navigate("/", { replace: true });
           return;
         }
@@ -83,7 +84,7 @@ function GoogleAuth() {
 
   return (
     <Flex className="naxatw-h-screen-nav naxatw-w-full naxatw-animate-pulse naxatw-items-center naxatw-justify-center">
-      <h3>Redirecting....</h3>
+      <h3>{m.auth_redirecting()}</h3>
     </Flex>
   );
 }

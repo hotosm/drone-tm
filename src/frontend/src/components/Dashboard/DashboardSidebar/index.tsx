@@ -4,6 +4,7 @@ import { Button } from "@Components/RadixComponents/Button";
 import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import avatarImage from "@Assets/images/avatar-images.svg";
+import { m } from "@/paraglide/messages";
 
 const DashboardSidebar = () => {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ const DashboardSidebar = () => {
       <Flex className="naxatw-h-20 naxatw-w-20 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
         <img
           src={userDetails?.profile_img}
-          alt="profile"
+          alt={m.dashboard_sidebar_profile_alt()}
           className="naxatw-h-full naxatw-w-full"
           onError={(e) => {
             e.currentTarget.onerror = null; // prevents looping
@@ -24,7 +25,9 @@ const DashboardSidebar = () => {
       </Flex>
       <h5 className="mt-2.5">{userDetails?.name}</h5>
       <p className="naxatw-py-1 naxatw-text-body-sm">
-        {role === "PROJECT_CREATOR" ? "Project Creator" : "Drone Operator"}
+        {role === "PROJECT_CREATOR"
+          ? m.dashboard_role_project_creator()
+          : m.dashboard_role_drone_operator()}
       </p>
       <p className="naxatw-text-body-sm">{userDetails?.email_address}</p>
 
@@ -33,21 +36,23 @@ const DashboardSidebar = () => {
         className="naxatw-mt-8 naxatw-border naxatw-border-red !naxatw-text-red"
         onClick={() => navigate("/user-profile")}
       >
-        Edit Profile
+        {m.dashboard_sidebar_edit_profile()}
       </Button>
       <FlexColumn className="naxatw-my-5 naxatw-w-full naxatw-gap-2">
         <FlexRow className="naxatw-justify-center naxatw-gap-1 md:naxatw-justify-normal">
-          <p className="md:naxatw-min-w-[30%]">Name</p>:
+          <p className="md:naxatw-min-w-[30%]">{m.dashboard_sidebar_name_label()}</p>:
           <p className="naxatw-break-words md:naxatw-min-w-[65%]">{userDetails?.name}</p>
         </FlexRow>
         <FlexRow className="naxatw-justify-center naxatw-gap-1 md:naxatw-justify-normal">
-          <p className="md:naxatw-min-w-[30%]">Email</p>:
+          <p className="md:naxatw-min-w-[30%]">{m.dashboard_sidebar_email_label()}</p>:
           <p className="naxatw-break-words md:naxatw-min-w-[65%]">{userDetails?.email_address}</p>
         </FlexRow>
         <FlexRow className="naxatw-justify-center naxatw-gap-1 md:naxatw-justify-normal">
-          <p className="md:naxatw-min-w-[30%]">Role</p>:
+          <p className="md:naxatw-min-w-[30%]">{m.dashboard_sidebar_role_label()}</p>:
           <p className="naxatw-break-words md:naxatw-min-w-[65%]">
-            {role === "PROJECT_CREATOR" ? "Project Creator" : "Drone Operator"}
+            {role === "PROJECT_CREATOR"
+              ? m.dashboard_role_project_creator()
+              : m.dashboard_role_drone_operator()}
           </p>
         </FlexRow>
       </FlexColumn>

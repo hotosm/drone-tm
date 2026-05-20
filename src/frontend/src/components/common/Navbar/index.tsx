@@ -6,10 +6,12 @@ import UserProfile from "../UserProfile";
 import { FlexRow } from "../Layouts";
 import Icon from "../Icon";
 import Drawer from "../Drawer";
+import LanguageSwitcher from "../LanguageSwitcher";
 import "@hotosm/tool-menu";
 import { getRuntimeConfig } from "@/runtimeConfig";
 import { useGetUserDetailsQuery } from "@Api/projects";
 import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
+import { m } from "@/paraglide/messages";
 
 // Import Hanko web component when using SSO
 const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
@@ -82,14 +84,10 @@ export default function Navbar() {
           <a
             className="naxatw-cursor-pointer"
             role="presentation"
-            aria-label="Navigate to home page"
+            aria-label={m.nav_home_aria_label()}
             href="/"
           >
-            <Image
-              src={dtmLogo}
-              alt="Drone Tasking Manager Logo"
-              className="naxatw-h-8 naxatw-w-40"
-            />
+            <Image src={dtmLogo} alt={m.nav_logo_alt()} className="naxatw-h-8 naxatw-w-40" />
           </a>
           {!isApprovalPage && (
             <>
@@ -104,13 +102,14 @@ export default function Navbar() {
                     })
                   }
                 >
-                  Projects
+                  {m.nav_projects()}
                 </NavLink>
                 <NavLink to="/dashboard" className={({ isActive }) => navLinkClass({ isActive })}>
-                  Dashboard
+                  {m.nav_dashboard()}
                 </NavLink>
               </FlexRow>
               <FlexRow className="naxatw-hidden naxatw-items-center md:naxatw-flex" gap={2}>
+                <LanguageSwitcher />
                 {desktopAuth}
                 <hotosm-tool-menu></hotosm-tool-menu>
               </FlexRow>
@@ -120,7 +119,7 @@ export default function Navbar() {
                 type="button"
                 className="naxatw-flex naxatw-align-middle md:naxatw-hidden"
                 onClick={() => setDrawerOpen(true)}
-                aria-label="Open menu"
+                aria-label={m.nav_open_menu_aria_label()}
               >
                 <Icon name="menu" />
               </button>
@@ -133,14 +132,14 @@ export default function Navbar() {
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-4 naxatw-p-4">
           <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
-            <a href="/" aria-label="Navigate to home page">
-              <Image
-                src={dtmLogo}
-                alt="Drone Tasking Manager Logo"
-                className="naxatw-h-8 naxatw-w-40"
-              />
+            <a href="/" aria-label={m.nav_home_aria_label()}>
+              <Image src={dtmLogo} alt={m.nav_logo_alt()} className="naxatw-h-8 naxatw-w-40" />
             </a>
-            <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Close menu">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              aria-label={m.nav_close_menu_aria_label()}
+            >
               <Icon name="close" />
             </button>
           </div>
@@ -156,7 +155,7 @@ export default function Navbar() {
                 }`
               }
             >
-              Projects
+              {m.nav_projects()}
             </NavLink>
             <NavLink
               to="/dashboard"
@@ -167,11 +166,14 @@ export default function Navbar() {
                 }`
               }
             >
-              Dashboard
+              {m.nav_dashboard()}
             </NavLink>
           </div>
           <div className="naxatw-border-t naxatw-border-grey-300 naxatw-pt-4">
             <FlexRow className="naxatw-items-center naxatw-justify-between">{mobileAuth}</FlexRow>
+            <FlexRow className="naxatw-mt-3 naxatw-items-center naxatw-justify-end">
+              <LanguageSwitcher />
+            </FlexRow>
           </div>
         </div>
       </Drawer>

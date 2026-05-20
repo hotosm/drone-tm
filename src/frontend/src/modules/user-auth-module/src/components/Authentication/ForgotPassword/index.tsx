@@ -9,6 +9,7 @@ import { Flex, FlexRow } from "@Components/common/Layouts";
 import ErrorMessage from "@Components/common/ErrorMessage";
 import { forgotPassword } from "@Services/common";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const initialState = {
   email: "",
@@ -20,7 +21,7 @@ export default function ForgotPassword() {
   const { mutate, error } = useMutation<any, any, any, unknown>({
     mutationFn: forgotPassword,
     onSuccess: () => {
-      toast.success("Password reset email sent");
+      toast.success(m.auth_forgot_password_email_sent());
 
       navigate("/login");
     },
@@ -45,10 +46,10 @@ export default function ForgotPassword() {
           className="naxatw-bg-primary-400 naxatw-rounded-[80px] naxatw-px-4 naxatw-py-[15px] naxatw-text-white"
         />
         <h1 className="naxatw-text-2xl naxatw-font-semibold naxatw-leading-10">
-          Forgot Your Password?
+          {m.auth_forgot_password_question()}
         </h1>
         <p className="naxatw-items-center naxatw-justify-center naxatw-text-center naxatw-text-base">
-          Enter the email address and we will send you a link to reset your password.
+          {m.auth_forgot_password_instructions()}
         </p>
       </Flex>
       <form
@@ -56,24 +57,21 @@ export default function ForgotPassword() {
         className="naxatw-flex naxatw-w-[60%] naxatw-flex-col naxatw-gap-5 naxatw-pt-7"
       >
         <FormControl>
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{m.auth_email_label()}</Label>
           <Input
             id="email"
             type="email"
-            placeholder="Email"
+            placeholder={m.auth_email_placeholder()}
             {...register("email", { required: true })}
           />
           <ErrorMessage
-            message={
-              error?.response?.data?.detail?.[0]?.msg ||
-              "Error resetting password. Please try again."
-            }
+            message={error?.response?.data?.detail?.[0]?.msg || m.auth_reset_password_error()}
           />
         </FormControl>
 
         <FlexRow className="naxatw-items-center naxatw-justify-between">
           <Button type="submit" className="naxatw-bg-red">
-            Reset Password
+            {m.auth_reset_password()}
           </Button>
 
           <Button
@@ -85,7 +83,7 @@ export default function ForgotPassword() {
             }}
             type="button"
           >
-            Back to Sign In
+            {m.auth_back_to_sign_in()}
           </Button>
         </FlexRow>
       </form>

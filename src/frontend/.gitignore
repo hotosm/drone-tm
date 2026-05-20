@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Paraglide compiled output
+src/paraglide
+project.inlang/cache
+
 # Editor directories and files
 .vscode/*
 .vite/*

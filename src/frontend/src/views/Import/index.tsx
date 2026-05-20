@@ -5,6 +5,7 @@ import { Button } from "@Components/RadixComponents/Button";
 import { FormControl, Input, Label } from "@Components/common/FormUI";
 import { createProjectFromImageryExif } from "@Services/classification";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { m } from "@/paraglide/messages";
 
 const Import = () => {
   const [endpoint, setEndpoint] = useState("s3.amazonaws.com");
@@ -17,7 +18,7 @@ const Import = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!endpoint || !bucketName || !projectName) {
-      toast.error("Endpoint, bucket name, and project name are required");
+      toast.error(m.import_required_fields_error());
       return;
     }
     setSubmitting(true);
@@ -29,9 +30,9 @@ const Import = () => {
         project_name: projectName,
       });
       setSubmitted(true);
-      toast.success("Project creation job submitted");
+      toast.success(m.import_job_submitted_success());
     } catch (err: any) {
-      const detail = err?.response?.data?.detail || err?.message || "Request failed";
+      const detail = err?.response?.data?.detail || err?.message || m.import_request_failed();
       toast.error(detail);
     } finally {
       setSubmitting(false);
@@ -41,18 +42,16 @@ const Import = () => {
   return (
     <section className="naxatw-flex naxatw-min-h-screen-nav naxatw-flex-col naxatw-items-center naxatw-px-4 naxatw-py-8 md:naxatw-px-16">
       <div className="naxatw-w-full naxatw-max-w-2xl naxatw-rounded-md naxatw-bg-white naxatw-p-6 naxatw-shadow-md">
-        <h4 className="naxatw-mb-2 naxatw-font-bold">Import imagery from S3</h4>
+        <h4 className="naxatw-mb-2 naxatw-font-bold">{m.import_heading()}</h4>
         <p className="naxatw-mb-6 naxatw-text-body-md naxatw-text-grey-600">
-          Point at a public S3-compatible bucket. We&apos;ll scan EXIF GPS from each JPEG
-          (subdirectories up to 3 levels deep), build a buffered AOI, and create a drone-tm project.
-          Imagery transfer and ingestion are run separately afterwards.
+          {m.import_description()}
         </p>
 
         <form onSubmit={handleSubmit} className="naxatw-flex naxatw-flex-col naxatw-gap-4">
           <FormControl>
-            <Label>Project name</Label>
+            <Label>{m.import_project_name_label()}</Label>
             <Input
-              placeholder="My drone survey"
+              placeholder={m.import_project_name_placeholder()}
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               disabled={submitting}
@@ -61,9 +60,9 @@ const Import = () => {
           </FormControl>
 
           <FormControl>
-            <Label>S3 endpoint</Label>
+            <Label>{m.import_s3_endpoint_label()}</Label>
             <Input
-              placeholder="s3.amazonaws.com"
+              placeholder={m.import_s3_endpoint_placeholder()}
               value={endpoint}
               onChange={(e) => setEndpoint(e.target.value)}
               disabled={submitting}
@@ -72,9 +71,9 @@ const Import = () => {
           </FormControl>
 
           <FormControl>
-            <Label>Bucket name</Label>
+            <Label>{m.import_bucket_name_label()}</Label>
             <Input
-              placeholder="my-bucket"
+              placeholder={m.import_bucket_name_placeholder()}
               value={bucketName}
               onChange={(e) => setBucketName(e.target.value)}
               disabled={submitting}
@@ -83,9 +82,9 @@ const Import = () => {
           </FormControl>
 
           <FormControl>
-            <Label>Path / prefix (optional)</Label>
+            <Label>{m.import_path_label()}</Label>
             <Input
-              placeholder="surveys/2025-01/site-a"
+              placeholder={m.import_path_placeholder()}
               value={path}
               onChange={(e) => setPath(e.target.value)}
               disabled={submitting}
@@ -99,15 +98,13 @@ const Import = () => {
             withLoader
             isLoading={submitting}
           >
-            Create project
+            {m.import_create_project()}
           </Button>
         </form>
 
         {submitted && (
           <div className="naxatw-mt-6 naxatw-rounded-md naxatw-border naxatw-border-grey-200 naxatw-bg-grey-50 naxatw-p-4 naxatw-text-body-md">
-            Please be patient while the project is created in the background. For many images, this
-            may take several hours. The new project will appear on your projects list once it has
-            been created.
+            {m.import_submitted_message()}
           </div>
         )}
       </div>

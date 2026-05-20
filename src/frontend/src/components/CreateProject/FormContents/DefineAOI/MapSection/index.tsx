@@ -14,6 +14,7 @@ import { setCreateProjectState } from "@Store/actions/createproject";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
 import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
+import { m } from "@/paraglide/messages";
 
 const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: any }) => {
   const dispatch = useTypedDispatch();
@@ -150,7 +151,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
               onClick={() => {
                 setDrawMode("draw_polygon");
               }}
-              title="Draw"
+              title={m.create_aoi_map_draw_title()}
             >
               draw
             </i>
@@ -162,7 +163,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
                   setDrawMode("static");
                   resetDraw();
                 }}
-                title="reset"
+                title={m.create_aoi_map_reset_title()}
               >
                 replay
               </i>
@@ -181,7 +182,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
               onClick={() => {
                 setDrawMode("simple_select");
               }}
-              title="Edit"
+              title={m.create_aoi_map_edit_title()}
             >
               edit
             </i>
@@ -198,7 +199,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
                     handleEditSave();
                   }}
                 >
-                  Save
+                  {m.common_save()}
                 </div>
                 <div
                   className="naxatw-w-[50px] naxatw-cursor-pointer hover:naxatw-underline"
@@ -210,7 +211,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
                     handleEditCancel();
                   }}
                 >
-                  Cancel
+                  {m.common_cancel()}
                 </div>
               </div>
             )}
@@ -223,7 +224,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
             onClick={() => {
               handleDelete();
             }}
-            title="Delete"
+            title={m.create_aoi_map_delete_title()}
           >
             delete
           </i>

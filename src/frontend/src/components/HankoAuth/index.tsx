@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Flex } from "@Components/common/Layouts";
 import { toast } from "react-toastify";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 const BASE_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
@@ -59,7 +60,7 @@ function HankoAuth() {
         });
 
         if (!userDetailsResponse.ok) {
-          throw new Error("Failed to authenticate. Please try logging in again.");
+          throw new Error(m.auth_hanko_failed());
         }
 
         const userDetails = await userDetailsResponse.json();
@@ -82,13 +83,11 @@ function HankoAuth() {
 
         // Only show toast on fresh login, not when returning from Portal profile
         if (!wasAlreadyLoggedIn) {
-          toast.success("Logged In Successfully");
+          toast.success(m.auth_login_success());
         }
       } catch (error) {
         console.error("[HankoAuth] Authentication error:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Authentication failed. Please try again.",
-        );
+        toast.error(error instanceof Error ? error.message : m.auth_hanko_failed_generic());
         navigate("/login");
       }
     };
@@ -98,7 +97,7 @@ function HankoAuth() {
 
   return (
     <Flex className="naxatw-h-screen-nav naxatw-w-full naxatw-animate-pulse naxatw-items-center naxatw-justify-center">
-      <h3>Completing authentication...</h3>
+      <h3>{m.auth_completing_authentication()}</h3>
     </Flex>
   );
 }

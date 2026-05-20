@@ -8,6 +8,7 @@ import { Button } from "@Components/RadixComponents/Button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { patchUserProfile } from "@Services/common";
 import { countries } from "countries-list";
+import { m } from "@/paraglide/messages";
 
 const BasicDetails = () => {
   const userProfile = getLocalStorageValue("userprofile");
@@ -27,12 +28,12 @@ const BasicDetails = () => {
     mutationFn: (payloadDataObject) => patchUserProfile(payloadDataObject),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-      toast.success("Details Updated Successfully");
+      toast.success(m.profile_details_updated_success());
     },
     onError: (err) => {
       // eslint-disable-next-line no-console
       console.log(err);
-      toast.error(err?.response?.data?.detail || "Something went wrong");
+      toast.error(err?.response?.data?.detail || m.profile_something_went_wrong());
     },
   });
 
@@ -49,26 +50,26 @@ const BasicDetails = () => {
   return (
     <section className="naxatw-w-full naxatw-px-14">
       <Flex>
-        <p className="naxatw-text-lg naxatw-font-bold">Basic Details</p>
+        <p className="naxatw-text-lg naxatw-font-bold">{m.profile_basic_details()}</p>
       </Flex>
       <FlexColumn gap={5} className="naxatw-mt-5">
         <Flex className="naxatw-h-14 naxatw-w-14 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
-          <img src={userProfile?.profile_img} alt="profile-pic" />
+          <img src={userProfile?.profile_img} alt={m.profile_profile_pic_alt_hyphen()} />
         </Flex>
         <FormControl>
-          <Label>Name</Label>
+          <Label>{m.profile_name_label()}</Label>
           <Input
-            placeholder="Enter Name"
+            placeholder={m.profile_name_placeholder()}
             className="naxatw-mt-1"
             {...register("name", {
-              required: "Name is Required",
+              required: m.profile_name_required(),
             })}
             readOnly
           />
           <ErrorMessage message={formState?.errors?.name?.message as string} />
         </FormControl>
         <FormControl>
-          <Label>Country</Label>
+          <Label>{m.profile_country_label()}</Label>
           <Controller
             control={control}
             name="country"
@@ -76,7 +77,7 @@ const BasicDetails = () => {
             render={({ field: { value, onChange } }) => (
               <Select
                 withSearch
-                placeholder="Choose a Country"
+                placeholder={m.profile_country_placeholder()}
                 options={countryList}
                 labelKey="name"
                 valueKey="name"
@@ -88,9 +89,9 @@ const BasicDetails = () => {
           <ErrorMessage message={formState?.errors?.country?.message as string} />
         </FormControl>
         <FormControl>
-          <Label>City</Label>
+          <Label>{m.profile_city_label()}</Label>
           <Input
-            placeholder="Enter City"
+            placeholder={m.profile_city_placeholder()}
             className="naxatw-mt-1"
             {...register("city", {
               setValueAs: (value: string) => value?.trim(),
@@ -99,7 +100,7 @@ const BasicDetails = () => {
           <ErrorMessage message={formState.errors?.city?.message as string} />
         </FormControl>
         <FormControl>
-          <Label>Phone number</Label>
+          <Label>{m.profile_phone_number_label()}</Label>
           <div className="naxatw-flex naxatw-space-x-1">
             {/* <Input
           placeholder="+977"
@@ -109,13 +110,13 @@ const BasicDetails = () => {
           })}
         /> */}
             <Input
-              placeholder="Enter Phone number"
+              placeholder={m.profile_phone_number_placeholder()}
               className="naxatw-mt-1 naxatw-w-full"
               type="number"
               {...register("phone_number", {
                 minLength: {
                   value: 5,
-                  message: "Invalid Phone Number",
+                  message: m.profile_phone_number_invalid(),
                 },
               })}
             />
@@ -133,7 +134,7 @@ const BasicDetails = () => {
           withLoader
           isLoading={isPending}
         >
-          Save
+          {m.profile_save()}
         </Button>
       </div>
     </section>

@@ -1,6 +1,7 @@
 /* eslint-disable no-nested-ternary */
 import StatusChip from "@Components/common/Chip/StatusChip";
 import { useNavigate } from "react-router-dom";
+import { m } from "@/paraglide/messages";
 
 interface IProjectCardProps {
   id: number;
@@ -38,7 +39,7 @@ export default function ProjectCard({
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt="project-boundary"
+            alt={m.projects_project_boundary_alt()}
             className="naxatw-h-full naxatw-w-full naxatw-object-cover"
           />
         ) : (
@@ -64,7 +65,7 @@ export default function ProjectCard({
       <div className="naxatw-absolute naxatw-bottom-2 naxatw-left-0 naxatw-w-full naxatw-px-3 naxatw-py-1">
         <div className="naxatw-flex naxatw-items-end naxatw-justify-start naxatw-px-1">
           <p className="naxatw-font-semibold naxatw-text-red">{completedTask}</p> <p>/</p>
-          <p>{totalTasks}</p> <p className="naxatw-pl-2">Tasks Completed</p>
+          <p>{totalTasks}</p> <p className="naxatw-pl-2">{m.projects_tasks_completed_label()}</p>
         </div>
         <div className="naxatw-h-1 naxatw-w-full naxatw-overflow-hidden naxatw-rounded-xl naxatw-bg-gray-200">
           <div

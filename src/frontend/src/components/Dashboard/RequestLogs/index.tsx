@@ -11,6 +11,7 @@ import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { getFileExtension } from "@Utils/index";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const RequestLogs = () => {
   const dispatch = useDispatch();
@@ -25,7 +26,7 @@ const RequestLogs = () => {
   const { mutate: respondToRequest } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      toast.success("Responded to the request");
+      toast.success(m.dashboard_responded_to_request_toast());
       queryClient.invalidateQueries({ queryKey: ["task-list"] });
       queryClient.invalidateQueries({ queryKey: ["task-statistics"] });
     },
@@ -58,7 +59,7 @@ const RequestLogs = () => {
   return (
     <div className="naxatw-mt-8 naxatw-flex-col">
       <h4 className="naxatw-py-2 naxatw-text-base naxatw-font-bold naxatw-text-gray-800">
-        Request Logs
+        {m.dashboard_request_logs_title()}
       </h4>
       <FlexColumn className="naxatw-max-h-[24.4rem] naxatw-gap-2 naxatw-overflow-y-auto">
         {requestedTasks?.length ? (
@@ -69,10 +70,14 @@ const RequestLogs = () => {
                 className="naxatw-flex naxatw-h-fit naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-rounded-xl naxatw-border naxatw-border-gray-300 naxatw-px-3 naxatw-py-2"
               >
                 <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
-                  <div>
-                    The <strong>Task# {task.project_task_index}</strong> from{" "}
-                    <strong>{task?.project_name}</strong> project is requested for flight.
-                  </div>
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: m.dashboard_request_log_message({
+                        taskIndex: task.project_task_index,
+                        projectName: task?.project_name,
+                      }),
+                    }}
+                  />
                   <div className="naxatw-flex naxatw-gap-1">
                     {task?.certificate_url && (
                       <div
@@ -93,7 +98,7 @@ const RequestLogs = () => {
                       >
                         <i className="material-icons-outlined naxatw-text-red">description</i>
                         <p className="naxatw-text-sm group-hover:naxatw-underline">
-                          Drone Operator Certificate
+                          {m.dashboard_drone_operator_certificate()}
                         </p>
                       </div>
                     )}
@@ -116,7 +121,7 @@ const RequestLogs = () => {
                       >
                         <i className="material-icons-outlined naxatw-text-red">description</i>
                         <p className="naxatw-text-sm group-hover:naxatw-underline">
-                          Drone Registration Certificate
+                          {m.dashboard_drone_registration_certificate()}
                         </p>
                       </div>
                     )}
@@ -129,14 +134,14 @@ const RequestLogs = () => {
                     onClick={() => handleReject(task.task_id, task.project_id)}
                     leftIcon="close"
                   >
-                    Reject
+                    {m.dashboard_reject_button()}
                   </Button>
                   <Button
                     className="!naxatw-bg-red naxatw-text-white"
                     onClick={() => handleApprove(task.task_id, task.project_id)}
                     leftIcon="check"
                   >
-                    Approve
+                    {m.dashboard_approve_button()}
                   </Button>
                 </div>
               </div>

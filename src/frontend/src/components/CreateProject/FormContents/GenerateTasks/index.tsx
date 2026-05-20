@@ -10,6 +10,7 @@ import { setCreateProjectState } from "@Store/actions/createproject";
 import { convertGeojsonToFile } from "@Utils/convertLayerUtils";
 import prepareFormData from "@Utils/prepareFormData";
 import { getProjectWayPoints, postPreviewSplitBySquare } from "@Services/createproject";
+import { m } from "@/paraglide/messages";
 import MapSection from "./MapSection";
 
 export default function GenerateTasks({ formProps }: { formProps: any }) {
@@ -63,7 +64,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
     mutationFn: postPreviewSplitBySquare,
     onSuccess: (res: any) => {
       dispatch(setCreateProjectState({ splitGeojson: res.data }));
-      toast.success("Task Generated Successfully");
+      toast.success(m.create_generate_task_success());
     },
     onError: (err) => {
       toast.error(err.message);
@@ -76,22 +77,22 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
     <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-3 naxatw-gap-5">
       <div className="naxatw-col-span-3 md:naxatw-col-span-1">
         <FormControl>
-          <Label required>Dimension of Square (m)</Label>
+          <Label required>{m.create_generate_dimension_label()}</Label>
           <Input
-            placeholder="Enter Dimension (in m)"
+            placeholder={m.create_generate_dimension_placeholder()}
             type="number"
             className="naxatw-mt-1"
             value={dimension ?? ""}
             min={50}
             max={1000}
             {...register("task_split_dimension", {
-              required: "Required",
+              required: m.common_required(),
               valueAsNumber: true,
             })}
             onFocus={() => setError("")}
           />
           {error && <ErrorMessage message={error} />}
-          <p className="naxatw-text-[#68707F]">Recommended : 50-1000</p>
+          <p className="naxatw-text-[#68707F]">{m.create_generate_dimension_range()}</p>
         </FormControl>
         <Button
           withLoader
@@ -102,7 +103,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
           onClick={() => {
             if (!projectArea) return () => {};
             if (dimension < 50 || dimension > 1000)
-              return setError("Dimension must in between 50-1000");
+              return setError(m.create_generate_dimension_invalid());
             dispatch(
               setCreateProjectState({
                 splitGeojson: null,

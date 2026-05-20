@@ -98,7 +98,7 @@ update_changelog_on_bump = true
 ignored_tag_formats = ["drone-flightplan-$version"]
 
 [tool.codespell]
-skip = "*pnpm-lock.yaml,*CHANGELOG.md,src/frontend/src/assets/*"
+skip = "*pnpm-lock.yaml,*CHANGELOG.md,src/frontend/src/assets/*,src/frontend/messages/*"
 ignore-words-list = "ProjectIn,dateA,te,ALOS,algoritmos"
 write-changes = true
 

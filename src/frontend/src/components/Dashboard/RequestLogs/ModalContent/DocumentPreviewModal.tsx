@@ -4,6 +4,7 @@ import { useTypedSelector } from "@Store/hooks";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const DocumentPreviewModal = () => {
   const dispatch = useDispatch();
@@ -35,10 +36,7 @@ const DocumentPreviewModal = () => {
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch((error) =>
-        toast.error(`There was an error while downloading file
-        ${error}`),
-      );
+      .catch((error) => toast.error(m.dashboard_document_download_error({ error })));
   };
 
   return (
@@ -53,7 +51,7 @@ const DocumentPreviewModal = () => {
             tabIndex={0}
             onKeyDown={() => {}}
             role="button"
-            title="download"
+            title={m.dashboard_document_download_title()}
           >
             cloud_download
           </div>

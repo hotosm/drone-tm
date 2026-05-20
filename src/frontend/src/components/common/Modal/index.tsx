@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { MouseEventHandler, ReactNode, useRef } from "react";
 import { CSSTransition } from "react-transition-group";
+import { m } from "@/paraglide/messages";
 
 interface IModalProps {
   title: string;
@@ -78,7 +79,7 @@ export default function Modal({
                       onClick={onClose}
                     >
                       <i className="material-icons">close</i>
-                      <span className="naxatw-sr-only">Close modal</span>
+                      <span className="naxatw-sr-only">{m.common_close_modal()}</span>
                     </button>
                   )}
                 </div>

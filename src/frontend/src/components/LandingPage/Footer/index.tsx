@@ -8,6 +8,7 @@ import hotLogo from "@Assets/images/LandingPage/HOT-logo.png";
 import { Button } from "@Components/RadixComponents/Button";
 import { motion } from "framer-motion";
 import { fadeUpVariant } from "@Constants/animations";
+import { m } from "@/paraglide/messages";
 
 export default function Footer() {
   return (
@@ -45,7 +46,7 @@ export default function Footer() {
           className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-8 naxatw-border-b naxatw-border-t naxatw-border-landing-white naxatw-px-5 naxatw-py-8 naxatw-text-landing-grey md:naxatw-flex-row md:naxatw-px-9 lg:naxatw-px-32"
         >
           <div className="naxatw-text-center md:naxatw-text-start">
-            <span className="naxatw-font-medium">Developed & Designed by</span>
+            <span className="naxatw-font-medium">{m.landing_footer_developed_designed_by()}</span>
             <FlexRow className="naxatw-mt-3 naxatw-items-center" gap={10}>
               <Image src={hotLogo} />
               <Image src={naxaLogo} />
@@ -60,13 +61,17 @@ export default function Footer() {
           </div> */}
           <div className="naxatw-flex naxatw-w-[200px] naxatw-flex-col naxatw-items-start">
             <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">
-              Official Training Partner
+              {m.landing_footer_training_partner()}
             </p>
-            <Image src={JamaicaFlyingLabsLogo} alt="Jamaica-Flying-Labs-Logo" width={200} />
+            <Image
+              src={JamaicaFlyingLabsLogo}
+              alt={m.landing_footer_training_partner_alt()}
+              width={200}
+            />
           </div>
         </motion.div>
         <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">
-          © Drone Arial Tasking Manager. All Rights Reserved 2024
+          {m.landing_footer_copyright()}
         </p>
       </div>
     </footer>

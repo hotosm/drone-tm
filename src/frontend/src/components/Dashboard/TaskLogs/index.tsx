@@ -6,25 +6,26 @@ import TaskLogsTable from "./TaskLogsTable";
 
 interface TaskLogsProps {
   title: string;
+  activeTab?: string;
 }
 
-const getStatusListByTitle = (title: string): string[] => {
-  if (title === "Ongoing Tasks") return taskStatusObj.ongoing;
-  if (title === "Request Logs") return taskStatusObj.request_logs;
-  if (title === "Unflyable Tasks") return taskStatusObj.unflyable;
-  if (title === "Completed Tasks") return taskStatusObj.completed;
+const getStatusListByActiveTab = (activeTab?: string): string[] => {
+  if (activeTab === "ongoing_tasks") return taskStatusObj.ongoing;
+  if (activeTab === "request_logs") return taskStatusObj.request_logs;
+  if (activeTab === "unflyable_tasks") return taskStatusObj.unflyable;
+  if (activeTab === "completed_tasks") return taskStatusObj.completed;
   return [];
 };
 
-const TaskLogs = ({ title }: TaskLogsProps) => {
+const TaskLogs = ({ title, activeTab }: TaskLogsProps) => {
   const { data: taskList }: any = useGetTaskListQuery();
 
   const filteredData = useMemo(
     () =>
       taskList?.filter((task: Record<string, any>) =>
-        getStatusListByTitle(title)?.includes(task?.state),
+        getStatusListByActiveTab(activeTab)?.includes(task?.state),
       ),
-    [title, taskList],
+    [activeTab, taskList],
   );
 
   return (

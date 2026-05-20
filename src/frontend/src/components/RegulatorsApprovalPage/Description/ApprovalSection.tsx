@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const ApprovalSection = () => {
   const { id } = useParams();
@@ -14,7 +15,7 @@ const ApprovalSection = () => {
     mutationFn: regulatorComment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-detail"] });
-      toast.success("Approval status saved with comment successfully");
+      toast.success(m.regulator_approval_saved_success());
       setComment("");
     },
     onError: (err: any) => {
@@ -35,12 +36,12 @@ const ApprovalSection = () => {
       {" "}
       <div className="naxatw-mt-6 naxatw-flex naxatw-flex-col naxatw-gap-1">
         <p className="naxatw-text-[0.875rem] naxatw-font-semibold naxatw-leading-normal naxatw-tracking-[0.0175rem]">
-          Comment
+          {m.regulator_comment()}
         </p>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="Comment"
+          placeholder={m.regulator_comment_placeholder()}
           name=""
           id=""
           cols={4}
@@ -55,7 +56,7 @@ const ApprovalSection = () => {
           isLoading={isPending}
           disabled={isPending}
         >
-          Reject
+          {m.regulator_reject()}
         </Button>
         <Button
           variant="ghost"
@@ -64,7 +65,7 @@ const ApprovalSection = () => {
           isLoading={isPending}
           disabled={isPending}
         >
-          Accept
+          {m.regulator_accept()}
         </Button>
       </div>{" "}
     </>

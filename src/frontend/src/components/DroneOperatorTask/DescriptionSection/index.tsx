@@ -11,6 +11,7 @@ import MapSection from "../MapSection/MapSection";
 import DescriptionBox from "./DescriptionBox";
 import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from "@Utils/adb";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
@@ -138,7 +139,11 @@ const DroneOperatorDescriptionBox = () => {
   const downloadTaskAreaKml = () => {
     fetch(
       `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=kml`,
-      { method: "GET", headers: { "Access-token": Token || "" }, credentials: "include" },
+      {
+        method: "GET",
+        headers: { "Access-token": Token || "" },
+        credentials: "include",
+      },
     )
       .then((response) => {
         if (!response.ok) {
@@ -165,7 +170,11 @@ const DroneOperatorDescriptionBox = () => {
   const downloadTaskAreaGeojson = () => {
     fetch(
       `${API_URL}/projects/${projectId}/download-boundaries?&task_id=${taskId}&split_area=true&export_type=geojson`,
-      { method: "GET", headers: { "Access-token": Token || "" }, credentials: "include" },
+      {
+        method: "GET",
+        headers: { "Access-token": Token || "" },
+        credentials: "include",
+      },
     )
       .then((response) => {
         if (!response.ok) {
@@ -193,7 +202,7 @@ const DroneOperatorDescriptionBox = () => {
     <>
       <Modal
         show={showMissingDemModal}
-        title="No DEM Found"
+        title={m.drone_task_no_dem_found()}
         className="naxatw-w-[92vw] naxatw-max-w-[32rem]"
         onClose={() => {
           setShowMissingDemModal(false);
@@ -203,11 +212,10 @@ const DroneOperatorDescriptionBox = () => {
       >
         <div className="naxatw-space-y-4">
           <p className="naxatw-text-sm naxatw-text-[#7A7676]">
-            This task has terrain-follow enabled, but no DEM is available. For safety, mission
-            generation is blocked by default.
+            {m.drone_task_missing_dem_blocked()}
           </p>
           <p className="naxatw-text-sm naxatw-text-[#7A7676]">
-            If you understand the risk, you can still generate the mission without a DEM.
+            {m.drone_task_missing_dem_override()}
           </p>
           <div className="naxatw-flex naxatw-justify-end naxatw-gap-2">
             <Button
@@ -218,7 +226,7 @@ const DroneOperatorDescriptionBox = () => {
                 missingDemResolveRef.current = null;
               }}
             >
-              Cancel
+              {m.common_cancel()}
             </Button>
             <Button
               className="naxatw-bg-red"
@@ -228,7 +236,7 @@ const DroneOperatorDescriptionBox = () => {
                 missingDemResolveRef.current = null;
               }}
             >
-              Generate anyway
+              {m.drone_task_generate_anyway()}
             </Button>
           </div>
         </div>

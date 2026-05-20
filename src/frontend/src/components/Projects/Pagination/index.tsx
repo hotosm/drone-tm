@@ -5,6 +5,7 @@ import { Input, Select } from "@Components/common/FormUI";
 import usePagination, { DOTS } from "@Hooks/usePagination";
 import { useMemo } from "react";
 import { rowsPerPageOptions } from "@Constants/index";
+import { m } from "@/paraglide/messages";
 
 interface IPaginationProps {
   totalCount: number;
@@ -41,7 +42,7 @@ export default function Pagination({
     <FlexRow className="naxatw-fixed naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-4 naxatw-bg-white naxatw-px-3 naxatw-py-2.5 md:naxatw-absolute md:naxatw-flex md:naxatw-flex-row md:naxatw-gap-0 lg:naxatw-px-16">
       <FlexRow className="naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-gap-2 md:naxatw-w-[78%]">
         <FlexRow gap={4} className="naxatw-items-center">
-          <p className="naxatw-text-sm naxatw-font-bold">Row per page</p>
+          <p className="naxatw-text-sm naxatw-font-bold">{m.projects_pagination_row_per_page()}</p>
           <Select
             options={rowsPerPageOptions}
             onChange={(value) =>
@@ -53,14 +54,14 @@ export default function Pagination({
             selectedOption={pageSize}
             labelKey="label"
             valueKey="value"
-            placeholder="Select"
+            placeholder={m.projects_select_placeholder()}
             direction="top"
             className="naxatw-h-9 !naxatw-w-[64px] naxatw-rounded-lg naxatw-border md:!naxatw-w-16"
           />
         </FlexRow>
         <FlexRow gap={2}>
           <FlexRow className="naxatw-items-center naxatw-gap-4">
-            <p className="naxatw-text-sm naxatw-font-bold">Go to page</p>
+            <p className="naxatw-text-sm naxatw-font-bold">{m.projects_pagination_go_to_page()}</p>
             <Input
               type="number"
               defaultValue={currentPage}

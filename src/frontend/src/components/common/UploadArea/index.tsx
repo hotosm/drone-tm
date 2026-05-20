@@ -5,6 +5,7 @@ import useCustomUpload from "@Hooks/useCustomUpload";
 import { FlexColumn, FlexRow } from "@Components/common/Layouts";
 import Icon from "@Components/common/Icon";
 import Image from "@Components/RadixComponents/Image";
+import { m } from "@/paraglide/messages";
 import { UseFormPropsType } from "../FormUI/types";
 import { Input } from "../FormUI";
 
@@ -130,7 +131,7 @@ export default function FileUpload({
       >
         <Icon name="backup" className="naxatw-text-3xl naxatw-text-red" />
         <p className="naxatw-mt-1 naxatw-text-center naxatw-text-xs naxatw-leading-4 naxatw-text-grey-600">
-          {placeholder || "Please upload picture (jpeg, png file format)"}
+          {placeholder || m.common_default_file_upload_placeholder()}
         </p>
         <Input
           ref={inputRef}
@@ -157,7 +158,9 @@ export default function FileUpload({
                   <h5 className="naxatw-text-sm">{file?.name}</h5>
                   {file && file?.lastModified && (
                     <p className="naxatw-text-xs naxatw-text-grey-600">
-                      Uploaded on {format(new Date(file.lastModified), "MMM dd yyyy")}
+                      {m.common_uploaded_on_with_date({
+                        date: format(new Date(file.lastModified), "MMM dd yyyy"),
+                      })}
                     </p>
                   )}
                 </FlexColumn>

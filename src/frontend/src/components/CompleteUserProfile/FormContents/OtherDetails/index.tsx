@@ -7,6 +7,7 @@ import FileUpload from "@Components/common/UploadArea";
 import ErrorMessage from "@Components/common/FormUI/ErrorMessage";
 import { setCommonState } from "@Store/actions/common";
 import { Controller } from "react-hook-form";
+import { m } from "@/paraglide/messages";
 
 export default function OtherDetails({ formProps }: { formProps: any }) {
   const dispatch = useTypedDispatch();
@@ -16,17 +17,17 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
   return (
     <section className="naxatw-px-14">
       <Flex>
-        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">Other Details</p>
+        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">{m.profile_other_details()}</p>
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
-          <Label required>Notify for projects within Distance (in km)</Label>
+          <Label required>{m.profile_notify_distance_label()}</Label>
           <Input
-            placeholder="Enter"
+            placeholder={m.profile_notify_distance_placeholder()}
             className="naxatw-mt-1"
             type="number"
             {...register("notify_for_projects_within_km", {
-              required: "Required",
+              required: m.profile_required(),
               valueAsNumber: true,
             })}
           />
@@ -35,32 +36,32 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
           />
         </FormControl>
         <FormControl>
-          <Label required>Experience </Label>
+          <Label required>{m.profile_experience_label()}</Label>
           <Input
-            placeholder="Enter years of experience"
+            placeholder={m.profile_experience_placeholder()}
             className="naxatw-mt-1"
             type="number"
             {...register("experience_years", {
-              required: "Required",
+              required: m.profile_required(),
               valueAsNumber: true,
             })}
           />
           <ErrorMessage message={formProps.formState.errors?.experience_years?.message} />
         </FormControl>
         <FormControl>
-          <Label required>Drone you own</Label>
+          <Label required>{m.profile_drone_you_own_label()}</Label>
           <Input
-            placeholder="Enter the type of drone you own"
+            placeholder={m.profile_drone_you_own_placeholder()}
             className="naxatw-mt-1"
             {...register("drone_you_own", {
-              required: "Required",
+              required: m.profile_required(),
             })}
           />
           <ErrorMessage message={formProps.formState.errors?.drone_you_own?.message} />
         </FormControl>
         <FormControl>
           <RadioButton
-            topic="Certified Drone Operator?"
+            topic={m.profile_certified_drone_operator()}
             options={droneOperatorOptions}
             direction="column"
             onChangeData={(val) => {
@@ -75,7 +76,7 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
               control={control}
               name="certificate_file"
               rules={{
-                required: "Certificate file is required",
+                required: m.profile_certificate_file_required(),
               }}
               render={({ field: { value }, fieldState: { error } }) => {
                 return (
@@ -89,7 +90,7 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
                       data={value}
                       onChange={() => {}}
                       fileAccept=".pdf, .jpeg, .png"
-                      placeholder="The supported file formats are pdf, .jpeg, .png"
+                      placeholder={m.profile_file_formats_placeholder()}
                     />
                     <ErrorMessage message={error?.message as string} />
                   </>
@@ -99,7 +100,7 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
           )}
         </FormControl>
         <FormControl className="naxatw-flex-col naxatw-gap-1">
-          <Label>Drone Registration Certificate</Label>
+          <Label>{m.profile_drone_registration_certificate()}</Label>
           <Controller
             control={control}
             name="registration_file"
@@ -114,7 +115,7 @@ export default function OtherDetails({ formProps }: { formProps: any }) {
                   data={value}
                   onChange={() => {}}
                   fileAccept=".pdf, .jpeg, .png"
-                  placeholder="The supported file formats are pdf, .jpeg, .png"
+                  placeholder={m.profile_file_formats_placeholder()}
                 />
               );
             }}

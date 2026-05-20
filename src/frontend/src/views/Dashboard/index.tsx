@@ -9,10 +9,11 @@ import {
 } from "@Constants/dashboard";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { useState } from "react";
+import { m } from "@/paraglide/messages";
 
 const getContent = (activeTab: string, title: string) => {
   if (activeTab === "request_logs") return <RequestLogs />;
-  return <TaskLogs title={title} />;
+  return <TaskLogs title={title} activeTab={activeTab} />;
 };
 
 const Dashboard = () => {
@@ -21,17 +22,17 @@ const Dashboard = () => {
     signedInAs === "PROJECT_CREATOR"
       ? {
           value: "request_logs",
-          title: "Request Logs",
+          title: m.dashboard_request_logs_title(),
         }
       : {
           value: "ongoing_tasks",
-          title: "Ongoing Tasks",
+          title: m.dashboard_ongoing_tasks_title(),
         },
   );
   const dashboardCards =
     signedInAs === "PROJECT_CREATOR"
-      ? dashboardCardsForProjectCreator
-      : dashboardCardsForDroneOperator;
+      ? dashboardCardsForProjectCreator()
+      : dashboardCardsForDroneOperator();
 
   const { data: taskStatistics, isLoading }: Record<string, any> = useGetDashboardTaskStaticsQuery({
     select: (data: any) => {
@@ -45,7 +46,7 @@ const Dashboard = () => {
 
   return (
     <section className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-px-3 md:naxatw-px-16">
-      <h5 className="naxatw-py-4 naxatw-font-bold">Profile</h5>
+      <h5 className="naxatw-py-4 naxatw-font-bold">{m.dashboard_profile_heading()}</h5>
       <div className="naxatw-grid naxatw-h-full naxatw-w-full naxatw-grid-cols-10 naxatw-gap-5">
         <div className="naxatw-col-span-10 naxatw-py-4 md:naxatw-col-span-3">
           <DashboardSidebar />

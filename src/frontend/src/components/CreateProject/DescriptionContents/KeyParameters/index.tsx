@@ -8,7 +8,7 @@ export default function KeyParameters() {
   return (
     <div className="">
       {keyParamOption === "basic" ? (
-        keyParametersInfo?.map((info) => (
+        keyParametersInfo().map((info) => (
           <div className="naxatw-animate-fade-up naxatw-py-2" key={info.key}>
             <p className="naxatw-text-body-btn">{info.key}</p>
             <p className="naxatw-py-1 naxatw-text-body-md">{info.description}</p>
@@ -16,7 +16,7 @@ export default function KeyParameters() {
         ))
       ) : (
         <FlexColumn gap={2} className="naxatw-animate-fade-up">
-          {keyParamsDescriptions.map((desc) => (
+          {keyParamsDescriptions().map((desc) => (
             <FlexRow key={desc.id} className="naxatw-items-center">
               <img src={desc.icon} alt={desc.title} />
               <FlexColumn gap={1}>

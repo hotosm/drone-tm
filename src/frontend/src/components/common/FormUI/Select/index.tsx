@@ -4,6 +4,7 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 import { useEffect, useRef, useState } from "react";
 import Icon from "@Components/common/Icon";
+import { m } from "@/paraglide/messages";
 import Input from "../Input";
 
 interface ISelectProps {
@@ -34,7 +35,7 @@ export default function Select({
   options,
   selectedOption,
   onChange,
-  placeholder = "Select",
+  placeholder,
   labelKey = "label",
   valueKey = "value",
   direction = "bottom",
@@ -42,6 +43,7 @@ export default function Select({
   withSearch = false,
   inputTagClassname,
 }: ISelectProps) {
+  const resolvedPlaceholder = placeholder ?? m.common_select();
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState(selectedOption);
   const [position, setPosition] = useState(direction);
@@ -89,9 +91,9 @@ export default function Select({
 
   const getPlaceholderText = () => {
     if (selected) {
-      return selectedLabel || placeholder;
+      return selectedLabel || resolvedPlaceholder;
     }
-    return placeholder;
+    return resolvedPlaceholder;
   };
 
   const filterOptions = options?.filter((opt) =>
@@ -167,7 +169,7 @@ export default function Select({
             ))
           ) : (
             <li className="naxatw-cursor-default naxatw-px-4 naxatw-py-2.5 naxatw-text-sm">
-              No options available
+              {m.common_no_options_available()}
             </li>
           )}
         </ul>

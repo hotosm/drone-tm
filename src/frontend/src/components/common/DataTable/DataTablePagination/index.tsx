@@ -1,12 +1,13 @@
 import { Input } from "@Components/common/FormUI";
 import { FlexRow } from "@Components/common/Layouts";
 import { Button } from "@Components/RadixComponents/Button";
+import { m } from "@/paraglide/messages";
 
 export default function DataTablePagination({ table }: any) {
   return (
     <FlexRow className="naxatw-justify-between naxatw-py-2">
       <FlexRow className="naxatw-items-center naxatw-gap-2">
-        Row per page
+        {m.common_pagination_row_per_page()}
         <select
           value={table.getState().pagination.pageSize}
           onChange={(e) => {
@@ -28,7 +29,7 @@ export default function DataTablePagination({ table }: any) {
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
         >
-          Prev
+          {m.common_pagination_prev()}
         </Button>
         <Button
           size="sm"
@@ -52,18 +53,20 @@ export default function DataTablePagination({ table }: any) {
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
         >
-          Next
+          {m.common_pagination_next()}
         </Button>
 
         <FlexRow className="naxatw-items-center naxatw-gap-1">
-          <div>Page</div>
+          <div>{m.common_pagination_page()}</div>
           <strong>
-            {table.getState().pagination.pageIndex + 1} of &nbsp;
-            {table.getPageCount()}
+            {m.common_pagination_page_of({
+              current: table.getState().pagination.pageIndex + 1,
+              total: table.getPageCount(),
+            })}
           </strong>
         </FlexRow>
         <FlexRow className="naxatw-items-center naxatw-gap-1">
-          | Go to page:
+          {m.common_pagination_go_to_page()}
           <Input
             type="number"
             defaultValue={table.getState().pagination.pageIndex + 1}

@@ -10,6 +10,7 @@ import { useState, KeyboardEvent } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const UploadToOAM = () => {
   const dispatch = useDispatch();
@@ -22,8 +23,9 @@ const UploadToOAM = () => {
   const [tagList, setTagList] = useState<string[]>(["dronetm", "hotosm", "naxa"]);
 
   const addInputTagOnList = () => {
-    if (!inputTag) return setError("Required");
-    if (tagList?.find((tag) => tag === inputTag)) return setError("Tag already exists on list");
+    if (!inputTag) return setError(m.common_required());
+    if (tagList?.find((tag) => tag === inputTag))
+      return setError(m.individual_project_oam_tag_exists());
     setInputTag("");
     setTagList((prev) => [...prev, inputTag]);
     return () => {};
@@ -53,13 +55,13 @@ const UploadToOAM = () => {
       if (data?.data?.detail) {
         toast.success(data?.data?.detail);
       } else {
-        toast.success("Started Uploading to OAM");
+        toast.success(m.individual_project_oam_upload_started());
       }
     },
   });
 
   const handleUpload = () => {
-    if (!tagList?.length) return setError("Required");
+    if (!tagList?.length) return setError(m.common_required());
     return mutate({ projectId, tags: tagList });
   };
 
@@ -67,7 +69,7 @@ const UploadToOAM = () => {
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
       <FormControl className="naxatw-relative">
         <Input
-          placeholder="Enter tag and press enter or click  '+'  icon to add"
+          placeholder={m.individual_project_oam_tag_placeholder()}
           onChange={(e) => {
             setInputTag(e.currentTarget.value?.trim());
             setError("");

@@ -24,6 +24,7 @@ import { getFrontOverlap, getSideOverlap, gsdToAltitude } from "@Utils/index";
 import { useEffect, useState } from "react";
 import { getCountry } from "@Services/common";
 import { setCommonState } from "@Store/actions/common";
+import { m } from "@/paraglide/messages";
 
 /**
  * This function looks up the provided map of components to find and return
@@ -140,7 +141,7 @@ const CreateprojectLayout = () => {
   const { mutate: uploadTaskBoundary, isPending } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskBoundary,
     onSuccess: () => {
-      toast.success("Project Created Successfully");
+      toast.success(m.create_project_created_success());
       reset();
       dispatch(
         setCreateProjectState({
@@ -214,18 +215,18 @@ const CreateprojectLayout = () => {
   const onSubmit = (data: any) => {
     if (activeStep === 2) {
       if (!data?.outline || (Array.isArray(data?.outline) && data?.outline?.length === 0)) {
-        toast.error("Please upload or draw and save project area");
+        toast.error(m.create_aoi_upload_or_draw_save_project());
         return;
       }
       if (totalProjectArea > 100000000) {
-        toast.error("Project area should not exceed 100km²");
+        toast.error(m.create_aoi_project_area_exceed());
         return;
       }
       if (
         isNoflyzonePresent === "yes" &&
         (!data?.no_fly_zones || data?.no_fly_zones?.length === 0)
       ) {
-        toast.error("Please upload or draw and save No Fly zone area");
+        toast.error(m.create_aoi_upload_or_draw_save_nfz());
         return;
       }
       const newCentroid = centroid(data.outline)?.geometry?.coordinates;
@@ -235,7 +236,7 @@ const CreateprojectLayout = () => {
     if (activeStep === 3) {
       const finalOutput = data?.final_output?.filter((output: string | boolean) => output);
       if (!finalOutput?.length) {
-        toast.error("Please select the final output");
+        toast.error(m.create_params_select_final_output());
         return;
       }
       setValue("final_output", finalOutput);
@@ -249,7 +250,7 @@ const CreateprojectLayout = () => {
           setValue("requires_approval_from_regulator", true);
           setValue("regulator_emails", regulatorEmails);
         } else {
-          toast.error("Please provide regulator's email");
+          toast.error(m.create_contributions_regulator_email_required());
           return;
         }
       }
@@ -267,13 +268,13 @@ const CreateprojectLayout = () => {
       !finalOutput?.length ||
       isBlank(data?.task_split_dimension)
     ) {
-      toast.error("Please complete the project setup steps before creating the project.");
+      toast.error(m.create_project_setup_incomplete());
       dispatch(setCreateProjectState({ activeStep: 1 }));
       return;
     }
 
     if (measurementType === "gsd" && isBlank(data?.gsd_cm_px)) {
-      toast.error("Please enter the project GSD before creating the project.");
+      toast.error(m.create_project_enter_gsd());
       dispatch(setCreateProjectState({ activeStep: 3 }));
       return;
     }

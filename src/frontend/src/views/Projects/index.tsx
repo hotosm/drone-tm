@@ -9,6 +9,7 @@ import { setCreateProjectState } from "@Store/actions/createproject";
 import Pagination from "@Components/Projects/Pagination";
 import Skeleton from "@Components/RadixComponents/Skeleton";
 import { setCommonState } from "@Store/actions/common";
+import { m } from "@/paraglide/messages";
 
 const Projects = () => {
   const dispatch = useDispatch();
@@ -84,7 +85,7 @@ const Projects = () => {
             </>
           ) : (
             <>
-              {!projectListData?.results?.length && <div>No projects available</div>}
+              {!projectListData?.results?.length && <div>{m.projects_no_projects_available()}</div>}
               {(projectListData?.results as Record<string, any>[])?.map(
                 (project: Record<string, any>) => (
                   <ProjectCard

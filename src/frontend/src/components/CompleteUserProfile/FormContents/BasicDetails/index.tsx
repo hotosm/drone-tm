@@ -4,6 +4,7 @@ import ErrorMessage from "@Components/common/ErrorMessage";
 import { Controller } from "react-hook-form";
 import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
 import { countries } from "countries-list";
+import { m } from "@/paraglide/messages";
 
 export default function BasicDetails({ formProps }: { formProps: any }) {
   const { register, formState, control } = formProps;
@@ -19,26 +20,26 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
   return (
     <section className="naxatw-px-14">
       <Flex>
-        <p className="naxatw-text-lg naxatw-font-bold">Basic Details</p>
+        <p className="naxatw-text-lg naxatw-font-bold">{m.profile_basic_details()}</p>
       </Flex>
       <FlexColumn gap={5} className="naxatw-mt-5">
         <Flex className="naxatw-h-14 naxatw-w-14 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
-          <img src={userProfile.profile_img} alt="profilepic" />
+          <img src={userProfile.profile_img} alt={m.profile_profile_pic_alt()} />
         </Flex>
         <FormControl>
-          <Label>Name</Label>
+          <Label>{m.profile_name_label()}</Label>
           <Input
-            placeholder="Enter Name"
+            placeholder={m.profile_name_placeholder()}
             className="naxatw-mt-1"
             {...register("name", {
-              required: "Name is Required",
+              required: m.profile_name_required(),
             })}
             readOnly
           />
           <ErrorMessage message={formState.errors?.name?.message} />
         </FormControl>
         <FormControl>
-          <Label>Country</Label>
+          <Label>{m.profile_country_label()}</Label>
           <Controller
             control={control}
             name="country"
@@ -46,7 +47,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
             render={({ field: { value, onChange } }) => (
               <Select
                 withSearch
-                placeholder="Choose a Country"
+                placeholder={m.profile_country_placeholder()}
                 options={countryList}
                 labelKey="name"
                 valueKey="name"
@@ -58,9 +59,9 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
           <ErrorMessage message={formState.errors?.country?.message} />
         </FormControl>
         <FormControl>
-          <Label>City</Label>
+          <Label>{m.profile_city_label()}</Label>
           <Input
-            placeholder="Enter City"
+            placeholder={m.profile_city_placeholder()}
             className="naxatw-mt-1"
             {...register("city", {
               setValueAs: (value: string) => value?.trim(),
@@ -69,7 +70,7 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
           <ErrorMessage message={formState.errors?.city?.message} />
         </FormControl>
         <FormControl>
-          <Label>Phone number</Label>
+          <Label>{m.profile_phone_number_label()}</Label>
           <div className="naxatw-flex naxatw-space-x-1">
             {/* <Input
               placeholder="+977"
@@ -79,13 +80,13 @@ export default function BasicDetails({ formProps }: { formProps: any }) {
               })}
             /> */}
             <Input
-              placeholder="Enter Phone number"
+              placeholder={m.profile_phone_number_placeholder()}
               className="naxatw-mt-1 naxatw-w-full"
               type="number"
               {...register("phone_number", {
                 minLength: {
                   value: 5,
-                  message: "Invalid Phone Number",
+                  message: m.profile_phone_number_invalid(),
                 },
               })}
             />

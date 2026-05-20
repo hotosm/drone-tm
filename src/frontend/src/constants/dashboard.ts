@@ -1,40 +1,42 @@
-export const dashboardCardsForProjectCreator = [
+import { m } from "@/paraglide/messages";
+
+export const dashboardCardsForProjectCreator = () => [
   {
     id: 1,
-    title: "Request Logs",
+    title: m.dashboard_request_logs_title(),
     value: "request_logs",
   },
   {
     id: 2,
-    title: "Ongoing Tasks",
+    title: m.dashboard_ongoing_tasks_title(),
     value: "ongoing_tasks",
   },
   {
     id: 3,
-    title: "Unflyable Tasks",
+    title: m.dashboard_unflyable_tasks_title(),
     value: "unflyable_tasks",
   },
   {
     id: 4,
-    title: "Completed Tasks",
+    title: m.dashboard_completed_tasks_title(),
     value: "completed_tasks",
   },
 ];
 
-export const dashboardCardsForDroneOperator = [
+export const dashboardCardsForDroneOperator = () => [
   {
     id: 1,
-    title: "Ongoing Tasks",
+    title: m.dashboard_ongoing_tasks_title(),
     value: "ongoing_tasks",
   },
   {
     id: 2,
-    title: "Unflyable Tasks",
+    title: m.dashboard_unflyable_tasks_title(),
     value: "unflyable_tasks",
   },
   {
     id: 3,
-    title: "Completed Tasks",
+    title: m.dashboard_completed_tasks_title(),
     value: "completed_tasks",
   },
 ];

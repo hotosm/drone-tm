@@ -3,6 +3,7 @@ import { FlexRow } from "@Components/common/Layouts";
 import { motion } from "framer-motion";
 import { userAndRolesData } from "@Constants/landingPage";
 import { containerAnimationVariant, fadeUpVariant } from "@Constants/animations";
+import { m } from "@/paraglide/messages";
 
 export default function UserAndRoles() {
   return (
@@ -14,7 +15,7 @@ export default function UserAndRoles() {
           whileInView="visible"
           className="naxatw-text-center naxatw-text-[2rem] naxatw-leading-[2.66rem] naxatw-text-landing-red md:naxatw-text-[4.375rem]"
         >
-          DroneTM: Users & Roles
+          {m.landing_users_and_roles_heading()}
         </motion.p>
         <FlexRow gap={5} className="naxatw-mt-20 naxatw-items-center naxatw-justify-between">
           <motion.div
@@ -24,7 +25,7 @@ export default function UserAndRoles() {
             viewport={{ once: true }}
             className="naxatw-mx-auto naxatw-grid naxatw-w-[90%] naxatw-grid-cols-1 naxatw-gap-5 md:naxatw-grid-cols-2 lg:naxatw-grid-cols-3"
           >
-            {userAndRolesData.map((singleItem) => (
+            {userAndRolesData().map((singleItem) => (
               <motion.div
                 key={singleItem.id}
                 variants={fadeUpVariant}

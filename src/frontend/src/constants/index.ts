@@ -1,4 +1,6 @@
 /* eslint-disable import/prefer-default-export */
+import { m } from "@/paraglide/messages";
+
 export const navLinks = [
   {
     id: 1,
@@ -56,14 +58,14 @@ export const projectOptions = [
 
 export const droneOperatorOptions = [
   {
-    name: "Yes",
+    name: m.common_yes(),
     value: "yes",
-    label: "Yes",
+    label: m.common_yes(),
   },
   {
-    name: "No",
+    name: m.common_no(),
     value: "no",
-    label: "No",
+    label: m.common_no(),
   },
 ];
 

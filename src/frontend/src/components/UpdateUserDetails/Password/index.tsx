@@ -8,6 +8,7 @@ import { patchUserProfile } from "@Services/common";
 import { useMutation } from "@tanstack/react-query";
 import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
 import { useNavigate } from "react-router-dom";
+import { m } from "@/paraglide/messages";
 
 const Password = () => {
   const navigate = useNavigate();
@@ -26,13 +27,13 @@ const Password = () => {
   const { mutate: updatePassword, isPending } = useMutation<any, any, any, unknown>({
     mutationFn: (payloadDataObject) => patchUserProfile(payloadDataObject),
     onSuccess: () => {
-      toast.success("Password Updated Successfully");
+      toast.success(m.profile_password_updated_success());
       navigate("/dashboard");
     },
     onError: (err) => {
       // eslint-disable-next-line no-console
       console.log(err);
-      toast.error(err?.response?.data?.detail || "Something went wrong");
+      toast.error(err?.response?.data?.detail || m.profile_something_went_wrong());
     },
   });
 
@@ -43,49 +44,49 @@ const Password = () => {
   return (
     <section className="naxatw-w-full naxatw-px-14">
       <Flex>
-        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">Change Password</p>
+        <p className="naxatw-mb-2 naxatw-text-lg naxatw-font-bold">{m.profile_change_password()}</p>
       </Flex>
       <FlexColumn gap={5}>
         <FormControl>
-          <Label required>Old password</Label>
+          <Label required>{m.profile_old_password_label()}</Label>
           <Input
             type="password"
             className="naxatw-mt-1"
-            placeholder="Enter old password"
+            placeholder={m.profile_old_password_placeholder()}
             {...register("old_password", {
-              required: "Old Password is Required",
+              required: m.profile_old_password_required(),
             })}
           />
           <ErrorMessage message={formState.errors?.old_password?.message} />
         </FormControl>
         <FormControl>
-          <Label required>Password</Label>
+          <Label required>{m.profile_password_label()}</Label>
           <Input
             type="password"
             className="naxatw-mt-1"
-            placeholder="Enter new password"
+            placeholder={m.profile_new_password_placeholder()}
             {...register("password", {
-              required: "Password is Required",
+              required: m.profile_password_required(),
               minLength: {
                 value: 8,
-                message: "Password must have at least 8 characters",
+                message: m.profile_password_min_length(),
               },
             })}
           />
           <ErrorMessage message={formState.errors?.password?.message} />
         </FormControl>
         <FormControl>
-          <Label required>Confirm Password</Label>
+          <Label required>{m.profile_confirm_password_label()}</Label>
           <Input
             type="password"
             className="naxatw-mt-1"
-            placeholder="Enter confirm password"
+            placeholder={m.profile_confirm_password_placeholder_lower()}
             {...register("confirm_password", {
               validate: {
                 matchPassword: (value: string) =>
-                  value === password || "The passwords do not match",
+                  value === password || m.profile_password_mismatch(),
               },
-              required: "Confirm Password is Required",
+              required: m.profile_confirm_password_required(),
             })}
           />
           <ErrorMessage message={formState.errors?.confirm_password?.message} />
@@ -102,7 +103,7 @@ const Password = () => {
           withLoader
           isLoading={isPending}
         >
-          Save
+          {m.profile_save()}
         </Button>
       </div>
     </section>
