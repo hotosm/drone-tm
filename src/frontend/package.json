@@ -5,6 +5,7 @@
   "license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "type": "module",
   "scripts": {
+    "prebuild": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --emit-ts-declarations",
     "build": "tsc && vite build",
     "dev": "vite",
     "lint": "eslint ./src/ --ext .ts,.tsx --fix",
