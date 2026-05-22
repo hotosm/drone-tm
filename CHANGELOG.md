@@ -1,3 +1,18 @@
+## 2026.5.14 (2026-05-22)
+
+### Feat
+
+- **frontend**: add bahasa indonesia to translations
+
+### Fix
+
+- **backend**: improve the task asset probe to be bulk / efficient for large task num
+
+### Refactor
+
+- **frontend**: add additional annotated string placeholders + en/es translations
+- consolidate scripts dirs for backend helpers
+
 ## 2026.5.13 (2026-05-13)
 
 ### Feat
