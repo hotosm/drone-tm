@@ -172,12 +172,14 @@ const LockTaskDialog = ({ handleLockTask, setShowLockDialog }: ILockTaskDialogPr
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
       <p className="naxatw-text-body-md naxatw-text-grey-800">
-        Add an optional comment. Use <strong>@</strong> to tag a user.
+        {m.lock_dialog_comment_prompt_before()}
+        <strong>@</strong>
+        {m.lock_dialog_comment_prompt_after()}
       </p>
       <textarea
         ref={textareaRef}
         className="naxatw-flex naxatw-h-[80px] naxatw-w-full naxatw-resize-none naxatw-rounded-[4px] naxatw-border naxatw-border-[#555555] naxatw-bg-transparent naxatw-p-2 naxatw-text-body-md hover:naxatw-border-red focus:naxatw-border-red focus:naxatw-bg-transparent focus:naxatw-outline-none"
-        placeholder="e.g. Locked for @Joe - Team ZimZam"
+        placeholder={m.lock_dialog_comment_placeholder()}
         value={comment}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}

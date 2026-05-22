@@ -31,6 +31,7 @@ import {
   VerifyImageryDialog,
 } from "@Components/DroneOperatorTask/DescriptionSection/DroneImageProcessingWorkflow";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 // eslint-disable-next-line camelcase
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
@@ -123,7 +124,7 @@ const IndividualProject = () => {
     mutationFn: (projectId: string) => deleteProject(projectId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects-list"] });
-      toast.error("Project Deleted Successfully");
+      toast.error(m.individual_project_project_deleted_success());
       navigate("/projects");
     },
   });
@@ -182,10 +183,7 @@ const IndividualProject = () => {
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch((error) =>
-        toast.error(`There was an error while downloading file
-        ${error}`),
-      );
+      .catch((error) => toast.error(m.individual_project_download_error({ error: String(error) })));
   };
 
   const downloadEntireOdmProject = async () => {
@@ -198,11 +196,11 @@ const IndividualProject = () => {
     try {
       const response = await fetch(downloadUrl, { method: "HEAD" });
       if (response.status === 404) {
-        toast.warning("No ODM project export found for this project.");
+        toast.warning(m.individual_project_no_odm_export_found());
         return;
       }
       if (!response.ok) {
-        toast.error("Failed to check ODM project export availability.");
+        toast.error(m.individual_project_failed_check_odm_export());
         return;
       }
 
@@ -213,7 +211,7 @@ const IndividualProject = () => {
       link.click();
       link.remove();
     } catch (error) {
-      toast.error(`There was an error while downloading file: ${error}`);
+      toast.error(m.individual_project_download_error({ error: String(error) }));
     }
   };
 
@@ -223,7 +221,7 @@ const IndividualProject = () => {
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-3">
           <BreadCrumb
             data={[
-              { name: "Project", navLink: "/projects" },
+              { name: m.individual_project_breadcrumb_project(), navLink: "/projects" },
               { name: projectData?.name || "--", navLink: "" },
             ]}
           />
@@ -235,7 +233,7 @@ const IndividualProject = () => {
               iconClassname="naxatw-text-[1.125rem]"
               onClick={() => dispatch(setProjectState({ showGcpEditor: true }))}
             >
-              GCP Editor
+              {m.individual_project_button_gcp_editor()}
             </Button>
             <div className="naxatw-relative">
               <Button
@@ -245,7 +243,7 @@ const IndividualProject = () => {
                 iconClassname="naxatw-text-[1.125rem]"
                 onClick={() => setShowDownloadOptions((prev) => !prev)}
               >
-                Export
+                {m.individual_project_button_export()}
               </Button>
               {showDownloadOptions && (
                 <div className="naxatw-absolute naxatw-right-0 naxatw-top-10 naxatw-z-20 naxatw-w-[200px] naxatw-rounded-sm naxatw-border naxatw-bg-white naxatw-shadow-2xl">
@@ -259,7 +257,7 @@ const IndividualProject = () => {
                       setShowDownloadOptions(false);
                     }}
                   >
-                    📋 Task areas
+                    {m.individual_project_export_task_areas()}
                   </div>
                   <div
                     className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -278,7 +276,7 @@ const IndividualProject = () => {
                       setShowDownloadOptions(false);
                     }}
                   >
-                    🖨️ Project printout
+                    {m.individual_project_export_project_printout()}
                   </div>
                   <div
                     className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -291,7 +289,7 @@ const IndividualProject = () => {
                     }}
                   >
                     <QFieldLogo />
-                    Export for QField
+                    {m.individual_project_export_qfield()}
                   </div>
                   {projectData?.image_processing_status === "SUCCESS" && (
                     <div
@@ -305,7 +303,7 @@ const IndividualProject = () => {
                       }}
                     >
                       <span className="material-icons naxatw-text-base">folder_zip</span>
-                      Entire ODM Project
+                      {m.individual_project_export_entire_odm_project()}
                     </div>
                   )}
                 </div>
@@ -325,7 +323,7 @@ const IndividualProject = () => {
               close
             </button>
             <GcpEditor
-              finalButtonText="Save GCP"
+              finalButtonText={m.individual_project_button_save_gcp()}
               // eslint-disable-next-line camelcase
               rawImageUrl={`${API_URL}/gcp/find-project-images/?project_id=${projectData?.id || id}`}
             />
@@ -365,14 +363,14 @@ const IndividualProject = () => {
                     leftIcon="delete"
                     size="default"
                     className="naxatw-border naxatw-bg-gray-500 naxatw-px-2"
-                    title="Delete Project"
+                    title={m.individual_project_button_delete()}
                     withLoader
                     isLoading={exportingContent}
                     onClick={() => {
                       setShowProjectDeletePrompt(true);
                     }}
                   >
-                    Delete Project
+                    {m.individual_project_button_delete()}
                   </Button>
                 )}
               </div>
@@ -399,7 +397,7 @@ const IndividualProject = () => {
       </div>
 
       <ProjectPromptDialog
-        title="Delete Project"
+        title={m.individual_project_button_delete()}
         show={showProjectDeletePrompt}
         onClose={() => setShowProjectDeletePrompt(false)}
       >

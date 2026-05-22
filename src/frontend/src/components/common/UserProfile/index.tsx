@@ -8,6 +8,7 @@ import UserAvatar from "@Components/common/UserAvatar";
 import { toast } from "react-toastify";
 import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
 import { useGetUserDetailsQuery } from "@Api/projects";
+import { m } from "@/paraglide/messages";
 
 export default function UserProfile() {
   const [toggle, setToggle] = useState(false);
@@ -33,7 +34,7 @@ export default function UserProfile() {
   const settingOptions = [
     {
       id: 1,
-      name: "Edit Profile",
+      name: m.user_profile_menu_edit_profile(),
       icon: "person",
       onClick: () => {
         navigate("/user-profile");
@@ -43,12 +44,12 @@ export default function UserProfile() {
     },
     {
       id: 2,
-      name: "Sign Out",
+      name: m.user_profile_menu_sign_out(),
       icon: "logout",
       onClick: () => {
         localStorage.clear();
         navigate("/", { replace: true, state: null });
-        toast.success("Logged Out Successfully");
+        toast.success(m.user_profile_logout_success());
       },
       isRed: true,
     },

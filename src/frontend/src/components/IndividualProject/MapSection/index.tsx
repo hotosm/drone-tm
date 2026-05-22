@@ -30,6 +30,7 @@ import ProjectPromptDialog from "../ModalContent";
 import UnlockTaskPromptDialog from "../ModalContent/UnlockTaskPromptDialog";
 import LockTaskDialog from "../ModalContent/LockTaskDialog";
 import Icon from "@Components/common/Icon";
+import { m } from "@/paraglide/messages";
 
 const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const { id: urlId } = useParams();
@@ -111,9 +112,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       // Close the popup so it reopens with fresh data on next click
       document.getElementById("close-popup")?.click();
       if (newState === "AWAITING_APPROVAL") {
-        toast.success("Lock Approval Requested");
+        toast.success(m.map_lock_approval_requested());
       } else {
-        toast.success("Task Locked for Flight");
+        toast.success(m.map_task_locked_for_flight());
         setLockedUser({ name: userDetails?.name, id: userDetails?.id });
       }
     },
@@ -158,7 +159,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       }
       // Close the popup so it reopens with fresh data on next click
       document.getElementById("close-popup")?.click();
-      toast.success("Task Unlocked Successfully");
+      toast.success(m.map_task_unlocked_success());
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.detail || err?.message || "");
@@ -225,34 +226,38 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     (properties: Record<string, any>) => {
       const status = taskStatusObj?.[properties?.id];
       const lockerName =
-        userDetails?.id === properties?.locked_user_id ? "you" : properties?.locked_user_name;
-      const byLocker = properties.locked_user_name ? ` by ${lockerName}` : "";
+        userDetails?.id === properties?.locked_user_id
+          ? m.map_popup_locker_you()
+          : properties?.locked_user_name;
+      const byLocker = properties.locked_user_name
+        ? ` ${m.map_popup_by_locker({ locker: lockerName })}`
+        : "";
       const lockComment = properties?.lock_comment;
 
       const statusLabel = (taskStatus: string) => {
         switch (taskStatus) {
           case "UNLOCKED":
-            return "Available";
+            return m.legend_available();
           case "AWAITING_APPROVAL":
-            return "Awaiting Approval";
+            return m.legend_awaiting_approval();
           case "LOCKED":
-            return "In Progress";
+            return m.legend_in_progress();
           case "FULLY_FLOWN":
-            return "Fully Flown";
+            return m.legend_fully_flown();
           case "HAS_IMAGERY":
-            return "In Progress";
+            return m.legend_in_progress();
           case "HAS_ISSUES":
-            return "Has Issues";
+            return m.legend_has_issues();
           case "READY_FOR_PROCESSING":
-            return "Ready for Processing";
+            return m.legend_ready_for_processing();
           case "IMAGE_PROCESSING_STARTED":
-            return "Processing";
+            return m.legend_processing();
           case "IMAGE_PROCESSING_FINISHED":
-            return "Completed";
+            return m.legend_completed();
           case "IMAGE_PROCESSING_FAILED":
-            return "Has Issues";
+            return m.legend_has_issues();
           default:
-            return "Unknown";
+            return m.map_popup_status_unknown();
         }
       };
 
@@ -285,30 +290,30 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
 
       const popupDescription = (taskStatus: string) => {
         if (projectData?.regulator_approval_status === "PENDING")
-          return `Unable to proceed, local regulator's approval is pending.`;
+          return m.map_popup_regulator_pending();
         if (projectData?.regulator_approval_status === "REJECTED")
-          return "Unable to proceed, local regulators rejected the project";
+          return m.map_popup_regulator_rejected();
         switch (taskStatus) {
           case "UNLOCKED":
-            return "This task is available for flying.";
+            return m.map_popup_desc_unlocked();
           case "AWAITING_APPROVAL":
-            return `Awaiting lock approval${byLocker}.`;
+            return m.map_popup_desc_awaiting_approval({ byLocker });
           case "LOCKED":
-            return `Locked for flying${byLocker}.`;
+            return m.map_popup_desc_locked({ byLocker });
           case "FULLY_FLOWN":
-            return `Flown in the field${byLocker}, imagery not yet uploaded.`;
+            return m.map_popup_desc_fully_flown({ byLocker });
           case "HAS_IMAGERY":
-            return `Images matched to this task area${byLocker}.`;
+            return m.map_popup_desc_has_imagery({ byLocker });
           case "HAS_ISSUES":
-            return "This task has been flagged as not flyable.";
+            return m.map_popup_desc_has_issues();
           case "READY_FOR_PROCESSING":
-            return `Images verified and ready for processing${byLocker}.`;
+            return m.map_popup_desc_ready_for_processing({ byLocker });
           case "IMAGE_PROCESSING_STARTED":
-            return `Image processing in progress${byLocker}.`;
+            return m.map_popup_desc_image_processing_started({ byLocker });
           case "IMAGE_PROCESSING_FINISHED":
-            return `Processing complete${byLocker}.`;
+            return m.map_popup_desc_image_processing_finished({ byLocker });
           case "IMAGE_PROCESSING_FAILED":
-            return `Image processing failed${byLocker}.`;
+            return m.map_popup_desc_image_processing_failed({ byLocker });
           default:
             return "";
         }
@@ -513,13 +518,13 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
               variant="ghost"
               className={`naxatw-flex naxatw-h-[1.85rem] naxatw-w-[] naxatw-items-center naxatw-justify-center naxatw-border !naxatw-p-[0.315rem] ${showTaskArea ? "naxatw-border-red naxatw-bg-[#ffe0e0]" : "naxatw-border-gray-400 naxatw-bg-[#F5F5F5]"}`}
               onClick={() => handleToggleTaskArea()}
-              title="Task area"
+              title={m.map_button_task_area()}
             >
               <div className="naxatw-h-4 naxatw-w-4">
                 <img src={areaIcon} alt="area-icon" />
               </div>
             </Button>
-            <ToolTip message="Zoom to project area" className="naxatw-mt-[-4px]">
+            <ToolTip message={m.map_button_zoom_to_project_area()} className="naxatw-mt-[-4px]">
               <button
                 className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-p-[0.315rem]"
                 onClick={() => handleZoomToExtent()}
@@ -538,7 +543,9 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           map={map as Map}
           popupUI={getPopupUI}
           title={
-            selectedTaskIndex !== null ? `Task #${selectedTaskIndex}` : `Task #${selectedTaskId}`
+            selectedTaskIndex !== null
+              ? m.map_popup_task_title({ index: selectedTaskIndex })
+              : m.map_popup_task_title({ index: selectedTaskId })
           }
           showPopup={(feature: Record<string, any>) => {
             if (!userDetails) return false;
@@ -572,8 +579,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           }
           buttonText={
             taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
-              ? "Lock Task"
-              : "Go To Task"
+              ? m.individual_project_lock_task()
+              : m.map_popup_go_to_task()
           }
           handleBtnClick={() =>
             taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
@@ -588,8 +595,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           }
           secondaryButtonText={
             taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
-              ? "Lock With Comment"
-              : "Unlock Task"
+              ? m.map_popup_lock_with_comment()
+              : m.map_popup_unlock_task()
           }
           handleSecondaryBtnClick={() =>
             taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
@@ -615,7 +622,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       </MapContainer>
 
       <ProjectPromptDialog
-        title="Lock Task"
+        title={m.individual_project_lock_task()}
         show={showLockDialog}
         onClose={() => setShowLockDialog(false)}
       >
@@ -626,7 +633,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       </ProjectPromptDialog>
 
       <ProjectPromptDialog
-        title="Task Unlock"
+        title={m.map_dialog_task_unlock_title()}
         show={showUnlockDialog}
         onClose={() => setShowUnlockDialog(false)}
       >

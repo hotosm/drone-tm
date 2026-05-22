@@ -5,29 +5,29 @@ export const navLinks = [
   {
     id: 1,
     link: "/projects",
-    linkName: "Projects",
+    linkName: m.nav_projects(),
   },
   {
     id: 2,
     link: "/dashboard",
-    linkName: "Dashboard",
+    linkName: m.nav_dashboard(),
   },
 ];
 
 export const tabOptions = [
   {
     id: 1,
-    label: "Basic Details",
+    label: m.user_profile_tab_basic_details(),
     value: 1,
   },
   {
     id: 2,
-    label: "Other Details",
+    label: m.user_profile_tab_other_details(),
     value: 2,
   },
   {
     id: 3,
-    label: "Password",
+    label: m.user_profile_tab_password(),
     value: 3,
     hideForHanko: true,
   },
@@ -36,22 +36,22 @@ export const tabOptions = [
 export const projectOptions = [
   {
     id: 0,
-    label: "ABOUT",
+    label: m.individual_project_tab_about(),
     value: "about",
   },
   {
     id: 1,
-    label: "AVAILABLE TASKS",
+    label: m.individual_project_tab_tasks(),
     value: "tasks",
   },
   {
     id: 2,
-    label: "INSTRUCTIONS",
+    label: m.individual_project_tab_instructions(),
     value: "instructions",
   },
   {
     id: 3,
-    label: "CONTRIBUTIONS",
+    label: m.individual_project_tab_contributions(),
     value: "contributions",
   },
 ];

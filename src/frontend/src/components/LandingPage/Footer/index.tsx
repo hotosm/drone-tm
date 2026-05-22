@@ -63,11 +63,7 @@ export default function Footer() {
             <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">
               {m.landing_footer_training_partner()}
             </p>
-            <Image
-              src={JamaicaFlyingLabsLogo}
-              alt={m.landing_footer_training_partner_alt()}
-              width={200}
-            />
+            <Image src={JamaicaFlyingLabsLogo} alt="Jamaica Flying Labs logo" width={200} />
           </div>
         </motion.div>
         <p className="naxatw-mt-2 naxatw-text-center naxatw-text-base naxatw-text-landing-grey">

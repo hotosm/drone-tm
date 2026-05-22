@@ -19,6 +19,7 @@ import { Button } from "@Components/RadixComponents/Button";
 import Icon from "@Components/common/Icon";
 import { toggleModal } from "@Store/actions/common";
 import { setProjectState } from "@Store/actions/project";
+import { m } from "@/paraglide/messages";
 
 const stateColors: Record<string, string> = {
   READY_FOR_PROCESSING: "#9ec7ff",
@@ -177,7 +178,7 @@ const ProcessingStatusDialog = () => {
       queryClient.invalidateQueries({
         queryKey: ["projectTaskImagerySummary", projectId],
       });
-      toast.success("Final processing started - this may take a long time.");
+      toast.success(m.processing_dialog_final_started_success());
     },
     onError: (error) => {
       const detail =
@@ -185,7 +186,7 @@ const ProcessingStatusDialog = () => {
         typeof error.response?.data?.detail === "string" &&
         error.response.data.detail
           ? error.response.data.detail
-          : "Failed to start final processing";
+          : m.processing_dialog_final_start_failed();
       toast.error(detail);
     },
   });
@@ -214,10 +215,10 @@ const ProcessingStatusDialog = () => {
       else failCount++;
     });
     if (successCount > 0) {
-      toast.success(`Processing started for ${successCount} task(s)`);
+      toast.success(m.processing_dialog_started_count_success({ count: successCount }));
     }
     if (failCount > 0) {
-      toast.error(`Failed to start processing for ${failCount} task(s)`);
+      toast.error(m.processing_dialog_start_failed_count({ count: failCount }));
     }
     const failedTaskIds = taskIds.filter((_taskId, index) => results[index].status === "rejected");
     if (failedTaskIds.length > 0) {
@@ -240,7 +241,7 @@ const ProcessingStatusDialog = () => {
       setProcessingTasks((prev) => new Set(prev).add(taskId));
       try {
         await processTask({ taskId, odmUrl });
-        toast.success(`Task processing started`);
+        toast.success(m.processing_dialog_task_processing_started());
         queryClient.invalidateQueries({
           queryKey: ["all-task-assets-info", projectId],
         });
@@ -253,7 +254,7 @@ const ProcessingStatusDialog = () => {
           typeof error.response?.data?.detail === "string" &&
           error.response.data.detail
             ? error.response.data.detail
-            : "Failed to start processing";
+            : m.processing_dialog_processing_start_failed();
         toast.error(detail);
         setProcessingTasks((prev) => {
           const next = new Set(prev);
@@ -274,7 +275,7 @@ const ProcessingStatusDialog = () => {
       link.click();
       link.remove();
     } catch (error) {
-      toast.error(`Download failed: ${error}`);
+      toast.error(m.processing_dialog_download_failed({ error: String(error) }));
     }
   }, []);
 
@@ -288,7 +289,7 @@ const ProcessingStatusDialog = () => {
       link.click();
       link.remove();
     } catch (error) {
-      toast.error(`Download failed: ${error}`);
+      toast.error(m.processing_dialog_download_failed({ error: String(error) }));
     }
   }, []);
 
@@ -301,18 +302,18 @@ const ProcessingStatusDialog = () => {
       link.click();
       link.remove();
     } catch (error) {
-      toast.error(`Download failed: ${error}`);
+      toast.error(m.processing_dialog_download_failed({ error: String(error) }));
     }
   }, []);
 
   const getProcessButtonLabel = useCallback((task: ProcessingDialogTask) => {
     if (task.state === "IMAGE_PROCESSING_FAILED") {
-      return "Retry";
+      return m.processing_dialog_button_retry();
     }
     if (task.state === "IMAGE_PROCESSING_FINISHED") {
-      return "Re-run";
+      return m.processing_dialog_button_rerun();
     }
-    return "Process";
+    return m.processing_dialog_button_process();
   }, []);
 
   const handleStartFinalProcessing = useCallback(
@@ -333,10 +334,10 @@ const ProcessingStatusDialog = () => {
     mutationFn: saveGcpFile,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-detail"] });
-      toast.success("GCP file uploaded");
+      toast.success(m.processing_dialog_gcp_uploaded());
     },
     onError: () => {
-      toast.error("Failed to upload GCP file");
+      toast.error(m.processing_dialog_gcp_upload_failed());
     },
   });
 
@@ -501,13 +502,13 @@ const ProcessingStatusDialog = () => {
 
   const finalProcessingDisabledReason = useMemo(() => {
     if (isFinalProcessingRunning) {
-      return "Final processing is already in progress.";
+      return m.processing_dialog_already_in_progress();
     }
     if (!totalTaskCount) {
-      return "No project tasks are available yet.";
+      return m.processing_dialog_no_tasks_available();
     }
     if (totalProcessable === 0) {
-      return "No tasks have imagery available for processing. Upload imagery first.";
+      return m.processing_dialog_no_imagery_available();
     }
     return "";
   }, [isFinalProcessingRunning, totalTaskCount, totalProcessable]);
@@ -522,10 +523,10 @@ const ProcessingStatusDialog = () => {
         <div className="naxatw-flex naxatw-items-start naxatw-justify-between naxatw-gap-3">
           <div>
             <h3 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
-              Task Processing (Quick Orthophoto)
+              {m.processing_dialog_task_processing_title()}
             </h3>
             <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-              Processes images for each task individually to produce a quick preview orthophoto.
+              {m.processing_dialog_task_processing_desc()}
             </p>
           </div>
           <Button
@@ -535,7 +536,7 @@ const ProcessingStatusDialog = () => {
             iconClassname="!naxatw-text-sm"
             onClick={() => setShowQueueInfo(true)}
           >
-            View Queue
+            {m.processing_dialog_view_queue()}
           </Button>
         </div>
 
@@ -556,16 +557,16 @@ const ProcessingStatusDialog = () => {
                   />
                 </th>
                 <th className="naxatw-px-3 naxatw-py-2 naxatw-text-left naxatw-font-medium naxatw-text-gray-600">
-                  Task
+                  {m.processing_dialog_table_task()}
                 </th>
                 <th className="naxatw-px-3 naxatw-py-2 naxatw-text-left naxatw-font-medium naxatw-text-gray-600">
-                  Images
+                  {m.processing_dialog_table_images()}
                 </th>
                 <th className="naxatw-px-3 naxatw-py-2 naxatw-text-left naxatw-font-medium naxatw-text-gray-600">
-                  Status
+                  {m.processing_dialog_table_status()}
                 </th>
                 <th className="naxatw-px-3 naxatw-py-2 naxatw-text-right naxatw-font-medium naxatw-text-gray-600">
-                  Action
+                  {m.processing_dialog_table_action()}
                 </th>
               </tr>
             </thead>
@@ -595,10 +596,12 @@ const ProcessingStatusDialog = () => {
                       />
                     </td>
                     <td className="naxatw-px-3 naxatw-py-2 naxatw-font-medium">
-                      Task {task.task_index ?? index + 1}
+                      {m.processing_dialog_task_row_label({
+                        index: task.task_index ?? index + 1,
+                      })}
                     </td>
                     <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-600">
-                      {task.image_count} images
+                      {m.processing_dialog_images_count({ count: task.image_count })}
                     </td>
                     <td className="naxatw-px-3 naxatw-py-2">
                       <div className="naxatw-flex naxatw-flex-col naxatw-items-start naxatw-gap-1">
@@ -618,7 +621,7 @@ const ProcessingStatusDialog = () => {
                             <Icon name="sync" className="naxatw-animate-spin !naxatw-text-sm" />
                           )}
                           {displayState === "IMAGE_PROCESSING_FINISHED" && "✓ "}
-                          {formatString(displayState) || "No images"}
+                          {formatString(displayState) || m.processing_dialog_no_images_state()}
                         </span>
                         {task.state === "IMAGE_PROCESSING_FAILED" && task.failure_reason && (
                           <p className="naxatw-max-w-[320px] naxatw-text-xs naxatw-text-red-700">
@@ -641,7 +644,7 @@ const ProcessingStatusDialog = () => {
                             <>
                               <button
                                 type="button"
-                                title="Download orthophoto (.tif)"
+                                title={m.processing_dialog_download_orthophoto_title()}
                                 className="naxatw-flex naxatw-h-7 naxatw-w-7 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-text-blue-600 hover:naxatw-bg-blue-50"
                                 onClick={() => {
                                   if (task.assets_url) {
@@ -653,7 +656,7 @@ const ProcessingStatusDialog = () => {
                               </button>
                               <button
                                 type="button"
-                                title="Download all ODM assets (.zip)"
+                                title={m.processing_dialog_download_assets_title()}
                                 className="naxatw-flex naxatw-h-7 naxatw-w-7 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-text-gray-400 hover:naxatw-bg-gray-100"
                                 onClick={() => {
                                   if (task.assets_url) {
@@ -682,15 +685,13 @@ const ProcessingStatusDialog = () => {
                                   task.state === "IMAGE_PROCESSING_FAILED";
                                 if (
                                   isReprocess &&
-                                  !window.confirm(
-                                    "Are you sure? This will re-process the entire task.",
-                                  )
+                                  !window.confirm(m.processing_dialog_reprocess_confirm())
                                 ) {
                                   return;
                                 }
                                 if (e.ctrlKey || e.metaKey) {
                                   const odmUrl = window.prompt(
-                                    "Enter a ScaleODM server URL for processing\n(e.g. https://scaleodm.example.com/)",
+                                    m.processing_dialog_scaleodm_prompt(),
                                   );
                                   if (odmUrl !== null) {
                                     handleProcessSingle(task.task_id, odmUrl || undefined);
@@ -723,7 +724,7 @@ const ProcessingStatusDialog = () => {
               onClick={() => {
                 if (
                   !window.confirm(
-                    `Are you sure you want to process ${selectedTasks.size} task(s)? Any previously processed tasks will be re-processed.`,
+                    m.processing_dialog_process_selected_confirm({ count: selectedTasks.size }),
                   )
                 ) {
                   return;
@@ -732,7 +733,7 @@ const ProcessingStatusDialog = () => {
               }}
               disabled={selectedTasks.size === 0}
             >
-              Process Selected ({selectedTasks.size})
+              {m.processing_dialog_process_selected({ count: selectedTasks.size })}
             </Button>
           </div>
         )}
@@ -740,10 +741,15 @@ const ProcessingStatusDialog = () => {
         {/* Status summary */}
         <div className="naxatw-flex naxatw-items-center naxatw-justify-center naxatw-gap-2">
           <p className="naxatw-text-center naxatw-text-xs naxatw-text-gray-500">
-            {processedCount}/{taskList.length} tasks processed
+            {m.processing_dialog_tasks_processed({
+              processed: processedCount,
+              total: taskList.length,
+            })}
             {taskList.length < totalTaskCount && (
               <span className="naxatw-ml-1">
-                ({totalTaskCount - taskList.length} tasks awaiting imagery)
+                {m.processing_dialog_tasks_awaiting_imagery({
+                  count: totalTaskCount - taskList.length,
+                })}
               </span>
             )}
           </p>
@@ -757,7 +763,7 @@ const ProcessingStatusDialog = () => {
               isTaskSummaryFetching || isCoverageFetching || isQueueFetching || isAllTasksFetching
             }
           >
-            Refresh
+            {m.common_refresh()}
           </Button>
         </div>
 
@@ -766,10 +772,8 @@ const ProcessingStatusDialog = () => {
             <span className="material-icons naxatw-text-4xl naxatw-text-gray-300">
               image_search
             </span>
-            <p className="naxatw-text-sm">No tasks are ready for processing yet.</p>
-            <p className="naxatw-text-xs">
-              Upload imagery and mark tasks ready for processing in the Verify Imagery step first.
-            </p>
+            <p className="naxatw-text-sm">{m.processing_dialog_no_tasks_ready_title()}</p>
+            <p className="naxatw-text-xs">{m.processing_dialog_no_tasks_ready_help()}</p>
           </div>
         )}
 
@@ -779,11 +783,10 @@ const ProcessingStatusDialog = () => {
         {/* Final Processing section */}
         <div>
           <h3 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
-            Final Project Processing
+            {m.processing_dialog_final_processing_title()}
           </h3>
           <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-            Stitches all task images together into a single high-quality orthophoto and 3D model.
-            This takes longer.
+            {m.processing_dialog_final_processing_desc()}
           </p>
         </div>
 
@@ -802,12 +805,14 @@ const ProcessingStatusDialog = () => {
               </span>
               <div>
                 <p className="naxatw-font-medium">
-                  {hasSavedGcp ? "GCP file saved for this project." : "No GCP file yet (optional)."}
+                  {hasSavedGcp
+                    ? m.processing_dialog_gcp_saved()
+                    : m.processing_dialog_gcp_not_yet()}
                 </p>
                 <p className="naxatw-mt-1 naxatw-text-xs naxatw-opacity-80">
                   {hasSavedGcp
-                    ? "The saved gcp.txt will be included in final processing."
-                    : "Mark points on images with the GCP Editor, or upload an existing gcp.txt."}
+                    ? m.processing_dialog_gcp_saved_help()
+                    : m.processing_dialog_gcp_not_yet_help()}
                 </p>
               </div>
             </div>
@@ -822,7 +827,7 @@ const ProcessingStatusDialog = () => {
                   dispatch(toggleModal());
                 }}
               >
-                {hasSavedGcp ? "Edit GCP" : "GCP Editor"}
+                {hasSavedGcp ? m.processing_dialog_edit_gcp() : m.processing_dialog_gcp_editor()}
               </Button>
               <Button
                 variant="outline"
@@ -833,10 +838,10 @@ const ProcessingStatusDialog = () => {
                 disabled={isUploadingGcp}
               >
                 {isUploadingGcp
-                  ? "Uploading..."
+                  ? m.common_uploading()
                   : hasSavedGcp
-                    ? "Replace gcp.txt"
-                    : "Upload gcp.txt"}
+                    ? m.processing_dialog_replace_gcp_txt()
+                    : m.processing_dialog_upload_gcp_txt()}
               </Button>
               <input
                 ref={gcpFileInputRef}
@@ -865,16 +870,19 @@ const ProcessingStatusDialog = () => {
               }`}
             >
               <p className="naxatw-font-semibold">
-                {coveragePercentage}% imagery coverage
-                {isCoverageFetching && " (calculating...)"}
+                {m.processing_dialog_coverage_percentage({
+                  percentage: coveragePercentage,
+                })}
+                {isCoverageFetching && ` ${m.processing_dialog_coverage_calculating()}`}
               </p>
               <p className="naxatw-mt-0.5">
-                {tasksReady} of {totalTaskCount} tasks ready for processing
+                {m.processing_dialog_tasks_ready_for_processing({
+                  ready: tasksReady,
+                  total: totalTaskCount,
+                })}
               </p>
               {coveragePercentage < 90 && (
-                <p className="naxatw-mt-1">
-                  Coverage is below 90%. You can still process, but the results may be affected.
-                </p>
+                <p className="naxatw-mt-1">{m.processing_dialog_coverage_below_warning()}</p>
               )}
             </div>
           )}
@@ -883,8 +891,8 @@ const ProcessingStatusDialog = () => {
               <Icon name="sync" className="naxatw-animate-spin !naxatw-text-base" />
               <span>
                 {isProcessingAll
-                  ? "Final processing is being submitted..."
-                  : "Final processing is in progress. Check the queue for details."}
+                  ? m.processing_dialog_final_submitting()
+                  : m.processing_dialog_final_in_progress()}
               </span>
             </div>
           )}
@@ -895,31 +903,28 @@ const ProcessingStatusDialog = () => {
             iconClassname={isFinalProcessingRunning ? "naxatw-animate-spin" : ""}
             onClick={(e) => {
               const onDemand = e.ctrlKey || e.metaKey;
-              let confirmMessage =
-                `This will process ${totalProcessable} of ${totalTaskCount} tasks ` +
-                "into a single orthophoto and 3D model. This may take a long time.\n\n";
+              let confirmMessage: string = m.processing_dialog_final_confirm_intro({
+                processable: totalProcessable,
+                total: totalTaskCount,
+              });
 
               if (tasksWithImagery > 0) {
-                confirmMessage +=
-                  `NOTE: ${tasksWithImagery} task(s) have imagery but were not individually ` +
-                  "verified/marked as ready. They will be included in processing.\n\n";
+                confirmMessage += m.processing_dialog_final_confirm_unverified({
+                  count: tasksWithImagery,
+                });
               }
 
               if (!allTasksProcessed && coveragePercentage < 90) {
-                confirmMessage +=
-                  `WARNING: Only ${coveragePercentage}% of the project area has imagery coverage.\n\n` +
-                  "With incomplete coverage:\n" +
-                  "- Gaps may appear in the final orthophoto where no imagery exists\n" +
-                  "- Alignment may suffer near uncovered areas, causing slight distortion\n" +
-                  "- Edge areas near gaps may have reduced accuracy due to fewer tie points\n\n";
+                confirmMessage += m.processing_dialog_final_confirm_coverage_warning({
+                  percentage: coveragePercentage,
+                });
               }
 
               if (onDemand) {
-                confirmMessage +=
-                  "ON-DEMAND MODE: Processing will run on a dedicated on-demand node and will not be interrupted.\n\n";
+                confirmMessage += m.processing_dialog_final_confirm_ondemand();
               }
 
-              confirmMessage += "Are you sure you want to proceed?";
+              confirmMessage += m.processing_dialog_final_confirm_proceed();
 
               if (!window.confirm(confirmMessage)) return;
               handleStartFinalProcessing(false, onDemand ? "on-demand" : undefined);
@@ -932,10 +937,10 @@ const ProcessingStatusDialog = () => {
             }
           >
             {isFinalProcessingRunning
-              ? "Processing..."
+              ? m.common_processing_ellipsis()
               : isTaskSummaryFetching || isCoverageFetching
-                ? "Refreshing..."
-                : "Start Final Processing"}
+                ? m.common_refreshing()
+                : m.processing_dialog_start_final_processing()}
           </Button>
         </div>
 
@@ -945,10 +950,10 @@ const ProcessingStatusDialog = () => {
             <hr className="naxatw-border-gray-200" />
             <div>
               <h3 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
-                Final Processing Results
+                {m.processing_dialog_final_results_title()}
               </h3>
               <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-                Download the outputs from the completed final processing run.
+                {m.processing_dialog_final_results_desc()}
               </p>
             </div>
             <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
@@ -965,7 +970,7 @@ const ProcessingStatusDialog = () => {
                     )
                   }
                 >
-                  Orthophoto (.tif)
+                  {m.processing_dialog_orthophoto_tif()}
                 </Button>
               )}
               {projectDetail.dem_url && (
@@ -978,7 +983,7 @@ const ProcessingStatusDialog = () => {
                     handleDownloadProjectFile(projectDetail.dem_url!, `dem_${projectId}.tif`)
                   }
                 >
-                  DEM (.tif)
+                  {m.processing_dialog_dem_tif()}
                 </Button>
               )}
               {projectDetail.pointcloud_url && (
@@ -994,7 +999,7 @@ const ProcessingStatusDialog = () => {
                     )
                   }
                 >
-                  Point Cloud (.laz)
+                  {m.processing_dialog_pointcloud_laz()}
                 </Button>
               )}
             </div>
@@ -1006,7 +1011,7 @@ const ProcessingStatusDialog = () => {
         <>
           <button
             type="button"
-            aria-label="Close queue panel"
+            aria-label={m.processing_dialog_queue_close_label()}
             className="naxatw-fixed naxatw-inset-0 naxatw-z-[11111] naxatw-bg-black/20"
             onClick={() => setShowQueueInfo(false)}
           />
@@ -1015,12 +1020,10 @@ const ProcessingStatusDialog = () => {
               <div className="naxatw-flex naxatw-items-start naxatw-justify-between naxatw-border-b naxatw-border-gray-200 naxatw-px-5 naxatw-py-4">
                 <div>
                   <h3 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
-                    ODM Processing Queue
+                    {m.processing_dialog_queue_title()}
                   </h3>
                   <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-                    Monitor active processing and refresh to see queue movement. Note: newly
-                    submitted tasks may take a few minutes to appear here while images are being
-                    prepared and uploaded.
+                    {m.processing_dialog_queue_desc()}
                   </p>
                 </div>
                 <button
@@ -1036,27 +1039,27 @@ const ProcessingStatusDialog = () => {
                 <div className="naxatw-flex naxatw-flex-wrap naxatw-items-center naxatw-gap-2 naxatw-text-xs">
                   {(queueInfo?.total_running ?? 0) > 0 && (
                     <span className="naxatw-rounded-full naxatw-bg-purple-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-purple-800">
-                      {queueInfo?.total_running} running
+                      {m.processing_dialog_queue_running({ count: queueInfo?.total_running ?? 0 })}
                     </span>
                   )}
                   {(queueInfo?.total_queued ?? 0) > 0 && (
                     <span className="naxatw-rounded-full naxatw-bg-yellow-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-yellow-800">
-                      {queueInfo?.total_queued} queued
+                      {m.processing_dialog_queue_queued({ count: queueInfo?.total_queued ?? 0 })}
                     </span>
                   )}
                   {(queueInfo?.total_failed ?? 0) > 0 && (
                     <span className="naxatw-rounded-full naxatw-bg-red-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-red-800">
-                      {queueInfo?.total_failed} failed
+                      {m.processing_dialog_queue_failed({ count: queueInfo?.total_failed ?? 0 })}
                     </span>
                   )}
                   <span className="naxatw-rounded-full naxatw-bg-gray-200 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-gray-700">
-                    {queueInfo?.total_tasks ?? 0} total
+                    {m.processing_dialog_queue_total({ count: queueInfo?.total_tasks ?? 0 })}
                   </span>
                 </div>
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
                   {queueLastUpdated && (
                     <span className="naxatw-text-xs naxatw-text-gray-500">
-                      Updated {queueLastUpdated}
+                      {m.processing_dialog_queue_updated({ time: queueLastUpdated })}
                     </span>
                   )}
                   <Button
@@ -1069,24 +1072,26 @@ const ProcessingStatusDialog = () => {
                     onClick={handleRefreshProcessingStatus}
                     disabled={isQueueFetching}
                   >
-                    Refresh
+                    {m.common_refresh()}
                   </Button>
                 </div>
               </div>
 
               <div className="naxatw-flex-1 naxatw-overflow-y-auto naxatw-px-5 naxatw-py-4">
                 {!queueInfo && isQueueFetching ? (
-                  <p className="naxatw-text-sm naxatw-text-gray-500">Loading queue info...</p>
+                  <p className="naxatw-text-sm naxatw-text-gray-500">
+                    {m.processing_dialog_loading_queue()}
+                  </p>
                 ) : !queueInfo || queueInfo.groups.length === 0 ? (
                   <div className="naxatw-flex naxatw-h-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-text-center">
                     <span className="material-icons naxatw-text-4xl naxatw-text-gray-300">
                       queue
                     </span>
                     <p className="naxatw-text-sm naxatw-text-gray-700">
-                      No tasks on the processing server.
+                      {m.processing_dialog_no_queue_tasks()}
                     </p>
                     <p className="naxatw-text-xs naxatw-text-gray-500">
-                      Refresh this panel to check for queue changes.
+                      {m.processing_dialog_no_queue_tasks_desc()}
                     </p>
                   </div>
                 ) : (
@@ -1163,13 +1168,13 @@ const ProcessingStatusDialog = () => {
                                   #
                                 </th>
                                 <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
-                                  Name
+                                  {m.common_name_label()}
                                 </th>
                                 <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
-                                  Images
+                                  {m.processing_dialog_table_images()}
                                 </th>
                                 <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-right naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
-                                  {group.status_code === 20 ? "Progress" : "Time"}
+                                  {group.status_code === 20 ? m.common_progress() : m.common_time()}
                                 </th>
                               </tr>
                             </thead>
@@ -1184,7 +1189,9 @@ const ProcessingStatusDialog = () => {
                                   </td>
                                   <td className="naxatw-max-w-[220px] naxatw-truncate naxatw-px-3 naxatw-py-2 naxatw-font-medium naxatw-text-gray-900">
                                     {task.task_index != null
-                                      ? `Task ${task.task_index}`
+                                      ? m.processing_dialog_task_row_label({
+                                          index: task.task_index,
+                                        })
                                       : task.name || task.uuid.slice(0, 8)}
                                   </td>
                                   <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-600">
@@ -1211,11 +1218,13 @@ const ProcessingStatusDialog = () => {
               <div className="naxatw-border-t naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-px-5 naxatw-py-3">
                 {queueInfo?.queue_position != null ? (
                   <p className="naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
-                    Your project is approximately #{queueInfo.queue_position} in the queue.
+                    {m.processing_dialog_queue_position({
+                      position: queueInfo.queue_position,
+                    })}
                   </p>
                 ) : (
                   <p className="naxatw-text-sm naxatw-text-gray-500">
-                    Queue position will appear here when this project has an active ODM job.
+                    {m.processing_dialog_queue_position_empty()}
                   </p>
                 )}
               </div>

@@ -1,6 +1,5 @@
 import { Flex } from "@Components/common/Layouts";
 import BannerImage from "@Assets/images/login-banner.png";
-import { m } from "@/paraglide/messages";
 
 export default function SignInBanner() {
   return (
@@ -8,7 +7,7 @@ export default function SignInBanner() {
       <img
         src={BannerImage}
         className="naxatw-h-full naxatw-w-full naxatw-object-cover"
-        alt={m.auth_sidebar_banner_alt()}
+        alt="Sign-in banner"
       />
     </Flex>
   );

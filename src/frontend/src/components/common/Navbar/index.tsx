@@ -87,7 +87,11 @@ export default function Navbar() {
             aria-label={m.nav_home_aria_label()}
             href="/"
           >
-            <Image src={dtmLogo} alt={m.nav_logo_alt()} className="naxatw-h-8 naxatw-w-40" />
+            <Image
+              src={dtmLogo}
+              alt="Drone Tasking Manager logo"
+              className="naxatw-h-8 naxatw-w-40"
+            />
           </a>
           {!isApprovalPage && (
             <>
@@ -133,7 +137,11 @@ export default function Navbar() {
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-4 naxatw-p-4">
           <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
             <a href="/" aria-label={m.nav_home_aria_label()}>
-              <Image src={dtmLogo} alt={m.nav_logo_alt()} className="naxatw-h-8 naxatw-w-40" />
+              <Image
+                src={dtmLogo}
+                alt="Drone Tasking Manager logo"
+                className="naxatw-h-8 naxatw-w-40"
+              />
             </a>
             <button
               type="button"

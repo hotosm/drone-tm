@@ -121,19 +121,19 @@ const UploadToOAM = () => {
             onClick={() => handleUpload()}
             disabled={!userProfile?.has_oam_token}
           >
-            Upload
+            {m.individual_project_oam_upload_button()}
           </Button>
         </div>
         {!userProfile?.has_oam_token && (
           <p className="naxatw-text-yellow-600">
-            Note: You need to have an OAM token to upload, please update it on your
+            {m.individual_project_oam_token_required_prefix()}
             <Link
               to="/user-profile"
               className="naxatw-px-1 naxatw-text-lg naxatw-text-blue-700 hover:naxatw-underline"
               onClick={() => dispatch(toggleModal())}
-              title="Go to edit profile"
+              title={m.individual_project_oam_token_link_title()}
             >
-              profile.
+              {m.individual_project_oam_token_required_link()}
             </Link>
           </p>
         )}

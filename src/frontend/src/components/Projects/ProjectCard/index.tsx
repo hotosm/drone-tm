@@ -39,7 +39,7 @@ export default function ProjectCard({
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt={m.projects_project_boundary_alt()}
+            alt="Project boundary"
             className="naxatw-h-full naxatw-w-full naxatw-object-cover"
           />
         ) : (

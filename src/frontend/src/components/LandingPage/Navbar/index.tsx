@@ -2,6 +2,7 @@ import { FlexRow } from "@Components/common/Layouts";
 import { Link } from "react-router-dom";
 import LanguageSwitcher from "@Components/common/LanguageSwitcher";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 // Auth configuration for SSO session verification
 const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
@@ -46,18 +47,22 @@ export default function Navbar() {
             className="naxatw-whitespace-nowrap naxatw-border-r naxatw-pr-3 hover:naxatw-underline"
             to="/tutorials"
           >
-            Tutorials
+            {m.landing_navbar_tutorials()}
           </Link>
 
           <a href="https://docs.drone.hotosm.org " className="naxatw-whitespace-nowrap">
-            <p className="naxatw-border-r naxatw-pr-3 hover:naxatw-underline">Documentation</p>
+            <p className="naxatw-border-r naxatw-pr-3 hover:naxatw-underline">
+              {m.landing_navbar_documentation()}
+            </p>
           </a>
 
           <a
             href="https://github.com/hotosm/Drone-TM/#drone-support"
             className="naxatw-whitespace-nowrap"
           >
-            <p className="naxatw-pr-3 hover:naxatw-underline">Supported Drones</p>
+            <p className="naxatw-pr-3 hover:naxatw-underline">
+              {m.landing_navbar_supported_drones()}
+            </p>
           </a>
           <LanguageSwitcher />
         </FlexRow>

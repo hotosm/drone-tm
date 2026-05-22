@@ -7,24 +7,25 @@ import { useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const contributionsDataColumns = [
   {
-    header: "User",
+    header: m.contributions_table_user(),
     accessorKey: "user",
   },
   {
-    header: "Task Mapped",
+    header: m.contributions_table_task_mapped(),
     accessorKey: "task_mapped",
   },
   {
-    header: "Task Status",
+    header: m.contributions_table_task_status(),
     accessorKey: "task_state",
   },
-  { header: "Image count", accessorKey: "image_count" },
+  { header: m.contributions_table_image_count(), accessorKey: "image_count" },
 
   {
-    header: "Orthophoto",
+    header: m.contributions_table_orthophoto(),
     accessorKey: "assets_url",
     cell: function CellComponent({ row }: any) {
       const { original: rowData } = row;
@@ -44,7 +45,7 @@ const contributionsDataColumns = [
           link.click();
           link.remove();
         } catch (error) {
-          toast.error(`There was an error while downloading file ${error}`);
+          toast.error(m.individual_project_download_error({ error: String(error) }));
         }
       };
 
@@ -59,7 +60,7 @@ const contributionsDataColumns = [
           link.click();
           link.remove();
         } catch (error) {
-          toast.error(`There was an error while downloading file ${error}`);
+          toast.error(m.individual_project_download_error({ error: String(error) }));
         }
       };
 
@@ -111,7 +112,7 @@ const contributionsDataColumns = [
           </div>
           <div
             className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1 naxatw-text-center naxatw-text-xs naxatw-font-semibold naxatw-text-blue-600"
-            title="Download orthophoto only"
+            title={m.contributions_table_download_orthophoto_only()}
             tabIndex={0}
             role="button"
             onKeyDown={() => {}}
@@ -124,7 +125,7 @@ const contributionsDataColumns = [
           </div>
           <div
             className="naxatw-group naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-1 naxatw-text-center naxatw-text-xs naxatw-font-semibold naxatw-text-gray-500"
-            title="Download all ODM assets"
+            title={m.contributions_table_download_all_odm_assets()}
             tabIndex={0}
             role="button"
             onKeyDown={() => {}}

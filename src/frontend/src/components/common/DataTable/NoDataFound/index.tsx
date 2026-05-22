@@ -26,7 +26,7 @@ export default function NoDataComponent({
       >
         <img
           src={NoDataImage}
-          alt={m.common_no_data_alt()}
+          alt="No data"
           height={100}
           width={100}
           className={`naxatw-mx-auto naxatw-w-full ${iconClassName}`}

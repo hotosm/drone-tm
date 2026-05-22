@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveGcpFile } from "@Services/project";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { m } from "@/paraglide/messages";
 
 const CUSTOM_EVENT = "save-gcp-click";
 
@@ -19,10 +20,10 @@ const GcpEditor = ({ cogUrl, finalButtonText, rawImageUrl }: any) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-detail"] });
       dispatch(setProjectState({ showGcpEditor: false }));
-      toast.success("GCP file saved for this project");
+      toast.success(m.gcp_editor_save_success());
     },
     onError: () => {
-      toast.error("Failed to save GCP file");
+      toast.error(m.gcp_editor_save_failed());
     },
   });
 

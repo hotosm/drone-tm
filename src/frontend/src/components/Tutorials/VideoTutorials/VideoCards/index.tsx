@@ -2,7 +2,6 @@
 import Icon from "@Components/common/Icon";
 import { FlexColumn, FlexRow } from "@Components/common/Layouts";
 import { useState } from "react";
-import { m } from "@/paraglide/messages";
 
 export interface IVideoCardProps {
   title: string;
@@ -25,7 +24,7 @@ export const RowVideoCards = ({ title, onClick, thumbnail }: IVideoCardProps) =>
           <div className="naxatw-relative naxatw-h-full">
             <img
               src={thumbnail}
-              alt={m.tutorial_thumbnail_alt()}
+              alt="Thumbnail"
               className="naxatw-min-h-[7rem] naxatw-w-full naxatw-rounded-lg naxatw-border-2 naxatw-bg-[#2625253b] naxatw-object-cover naxatw-shadow-sm"
             />
             <Icon
@@ -61,7 +60,7 @@ export const ColumnVideoCards = ({ title, onClick, thumbnail }: IVideoCardProps)
         <div className="naxatw-relative naxatw-h-[14rem] naxatw-w-full sm:naxatw-h-[12rem]">
           <img
             src={thumbnail}
-            alt={m.tutorial_thumbnail_alt()}
+            alt="Thumbnail"
             className="naxatw-h-[14rem] naxatw-w-full naxatw-self-stretch naxatw-rounded-lg naxatw-border-2 naxatw-bg-[#2625253b] naxatw-object-cover naxatw-shadow-sm group-hover:naxatw-grayscale-[0.6] sm:naxatw-h-[12rem]"
           />
           <Icon

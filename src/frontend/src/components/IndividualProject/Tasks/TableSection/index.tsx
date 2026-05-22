@@ -1,22 +1,23 @@
 import { useMemo } from "react";
 import DataTable from "@Components/common/DataTable";
 import { useTypedSelector } from "@Store/hooks";
+import { m } from "@/paraglide/messages";
 
 const tasksDataColumns = [
   {
-    header: "ID",
+    header: m.tasks_table_id(),
     accessorKey: "id",
   },
   {
-    header: "Task Area in km²",
+    header: m.tasks_table_task_area_km2(),
     accessorKey: "task_area",
   },
   {
-    header: "Flight Time in Minutes",
+    header: m.tasks_table_flight_time_minutes(),
     accessorKey: "flight_time_minutes",
   },
   {
-    header: "Flight Distance in km",
+    header: m.tasks_table_flight_distance_km(),
     accessorKey: "flight_distance_km",
   },
 ];
