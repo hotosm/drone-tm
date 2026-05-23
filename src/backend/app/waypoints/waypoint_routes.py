@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 import uuid
 import logging
 from typing import Annotated
@@ -11,10 +12,10 @@ from psycopg import Connection
 from shapely.geometry import shape
 
 from drone_flightplan import (
-    calculate_parameters,
+    build_placemarks,
     create_flightplan,
-    create_placemarks,
     create_waypoint,
+    write_flightplan_file,
 )
 from drone_flightplan.drone_type import DroneType
 from drone_flightplan.enums import GimbalAngle, FlightMode
@@ -139,7 +140,8 @@ async def get_task_flightplan(
                 project_id,
             )
         else:
-            dem_path = f"/tmp/{uuid.uuid4()}.tif"
+            fd, dem_path = tempfile.mkstemp(suffix=".tif", prefix="dem_")
+            os.close(fd)
             dem_downloaded = get_file_from_bucket(
                 settings.S3_BUCKET_NAME,
                 dem_object_key,
@@ -160,11 +162,10 @@ async def get_task_flightplan(
                     ),
                 )
 
-    # Generate flighplan
-    outfile = f"/tmp/{uuid.uuid4()}"
-
+    # Generate placemarks once; both the download and preview branches share
+    # this output so terrain following is applied consistently.
     try:
-        outpath = create_flightplan(
+        placemarks, waypoint_data = build_placemarks(
             aoi=task_geojson,
             forward_overlap=forward_overlap,
             side_overlap=side_overlap,
@@ -172,7 +173,6 @@ async def get_task_flightplan(
             gsd=gsd,
             image_interval=2,
             dem=dem_path,
-            outfile=outfile,
             flight_mode=mode,
             rotation_angle=rotation_angle,
             take_off_point=take_off_point,
@@ -185,40 +185,16 @@ async def get_task_flightplan(
 
     # If the user needs a download, wrap in correct response
     if download:
+        # Output writers each treat `outfile` differently (some as a file path,
+        # some as a base dir for a subdirectory tree). They all expect a unique
+        # non-existent path under a writable tmpdir.
+        outfile = os.path.join(tempfile.gettempdir(), f"flightplan-{uuid.uuid4()}")
+        outpath = write_flightplan_file(placemarks, drone_type, outfile, mode)
         return build_flightplan_download_response(
             outpath,
             drone_type=drone_type,
             filename_stem=f"task-{project_task_index}-{mode.name}-project-{project_id}",
         )
-
-    # If not downloading, re-create placemarks for metadata calcs,
-    # as create_flightplan handles placemarks internally
-    waypoint_data = create_waypoint(
-        project_area=task_geojson,
-        agl=altitude,
-        gsd=gsd,
-        forward_overlap=forward_overlap,
-        side_overlap=side_overlap,
-        rotation_angle=360 - rotation_angle,
-        generate_3d=False,
-        take_off_point=take_off_point,
-        drone_type=drone_type,
-        mode=mode,
-        gimbal_angle=gimbal_angle,
-    )
-
-    points = waypoint_data["geojson"]
-    placemarks = create_placemarks(
-        geojson.loads(points),
-        calculate_parameters(
-            forward_overlap,
-            side_overlap,
-            altitude,
-            gsd,
-            2,
-            drone_type,
-        ),
-    )
 
     flight_data = calculate_flight_time_from_placemarks(placemarks)
 

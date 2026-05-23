@@ -98,7 +98,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     const [isPopupOpen, setIsPopupOpen] = useState(false);
 
     useEffect(() => {
-      if (!map) return;
+      if (!map) return undefined;
       function displayPopup(e: MapMouseEvent): void {
         if (!map) return;
         const features = map.queryRenderedFeatures(e.point);
@@ -172,7 +172,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     }, [map, openPopupFor, popupCoordinate]);
 
     useEffect(() => {
-      if (!isPopupOpen) return;
+      if (!isPopupOpen) return undefined;
 
       const popupElement = popup.getElement();
       const closeBtn = popupElement?.querySelector("#popup-close-button");

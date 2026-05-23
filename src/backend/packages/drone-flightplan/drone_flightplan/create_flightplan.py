@@ -1,5 +1,7 @@
 import argparse
 import logging
+import os
+import tempfile
 from typing import Union
 
 import geojson
@@ -18,8 +20,113 @@ from drone_flightplan.output.potensic_v2 import create_potensic_json
 from drone_flightplan.output.mavlink import create_mavlink_plan
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
 from drone_flightplan.output.litchi import create_litchi_csv
+from drone_flightplan.terrain_following_waylines import waypoints2waylines
 
 log = logging.getLogger(__name__)
+
+
+def build_placemarks(
+    aoi: Union[str, FeatureCollection, dict],
+    forward_overlap: float,
+    side_overlap: float,
+    agl: float,
+    gsd: float = None,
+    image_interval: int = 2,
+    dem: str = None,
+    flight_mode: FlightMode = FlightMode.WAYLINES,
+    rotation_angle: float = 0.0,
+    take_off_point: list[float] = None,
+    drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
+    gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
+):
+    """Generate placemarks for a flight plan, applying terrain following when
+    a DEM is provided.
+
+    Returns:
+        (placemarks, waypoint_data) tuple. `placemarks` is a GeoJSON dict ready
+        for either output-file writing or direct return to the frontend.
+        `waypoint_data` retains battery/flight-time metadata from
+        `create_waypoint` for callers that surface it to the UI.
+    """
+    # If the user says 30o clockwise rotation, we actually rotate 330o anticlockwise
+    rotation_angle = 360 - rotation_angle
+    generate_3d = False  # TODO: For 3d imagery support, drone_flightplan package needs to be updated
+
+    parameters = calculate_parameters(
+        forward_overlap,
+        side_overlap,
+        agl,
+        gsd,
+        image_interval,
+        drone_type,
+    )
+
+    waypoint_data = create_waypoint(
+        project_area=aoi,
+        agl=agl,
+        gsd=gsd,
+        forward_overlap=forward_overlap,
+        side_overlap=side_overlap,
+        rotation_angle=rotation_angle,
+        generate_3d=generate_3d,
+        take_off_point=take_off_point,
+        drone_type=drone_type,
+        mode=flight_mode,
+        gimbal_angle=gimbal_angle,
+    )
+    points_geojson = waypoint_data["geojson"]
+
+    # ---- Terrain follow support ----
+    if dem:
+        # Per-call temp file so concurrent generations don't clobber each other.
+        # GDAL's GeoJSON driver needs a path it can write to, so a managed
+        # NamedTemporaryFile + remove-after-read is the cleanest fit.
+        fd, elevation_path = tempfile.mkstemp(suffix=".geojson", prefix="elevation_")
+        os.close(fd)
+        # GDAL won't write to an existing file with the GeoJSON driver
+        os.remove(elevation_path)
+        try:
+            add_elevation_from_dem(dem, points_geojson, elevation_path)
+            with open(elevation_path) as f:
+                points_geojson = f.read()
+        finally:
+            if os.path.exists(elevation_path):
+                os.remove(elevation_path)
+
+    placemarks = create_placemarks(geojson.loads(points_geojson), parameters)
+
+    if dem and flight_mode == FlightMode.WAYLINES:
+        placemarks = waypoints2waylines(placemarks, 5)
+
+    return placemarks, waypoint_data
+
+
+def write_flightplan_file(
+    placemarks: dict,
+    drone_type: DroneType,
+    outfile: str,
+    flight_mode: FlightMode = FlightMode.WAYLINES,
+) -> str:
+    """Serialize placemarks to the drone-specific output format on disk."""
+    output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
+
+    if output_format == "DJI_WMPL":
+        outpath = create_wpml(placemarks, outfile)
+    elif output_format == "POTENSIC_SQLITE":
+        outpath = create_potensic_sqlite(placemarks, outfile)
+    elif output_format == "POTENSIC_JSON":
+        outpath = create_potensic_json(placemarks, outfile)
+    elif output_format == "MAVLINK_PLAN":
+        outpath = create_mavlink_plan(placemarks, outfile)
+    elif output_format == "QGROUNDCONTROL":
+        outpath = create_qgroundcontrol_plan(placemarks, outfile)
+    elif output_format == "LITCHI":
+        outpath = create_litchi_csv(placemarks, outfile, flight_mode=flight_mode)
+    else:
+        raise ValueError(f"Unsupported output format: {output_format}")
+
+    log.info(f"Flight plan generated: {outpath}")
+    return outpath
 
 
 def create_flightplan(
@@ -47,78 +154,23 @@ def create_flightplan(
         rotation_angle: The rotation angle for the flight grid in degrees.
 
     Returns:
-        Drone Flightplan in kmz format
+        Path to the generated drone flightplan file (e.g. kmz).
     """
-    # If the user says 30o clockwise rotation, we actually rotate 330o anticlockwise
-    rotation_angle = 360 - rotation_angle
-    generate_3d = False  # TODO: For 3d imagery support, drone_flightplan package needs to be updated
-
-    parameters = calculate_parameters(
-        forward_overlap,
-        side_overlap,
-        agl,
-        gsd,
-        image_interval,
-        drone_type,
-    )
-
-    waypoint_params = dict(
-        project_area=aoi,
-        agl=agl,
-        gsd=gsd,
+    placemarks, _ = build_placemarks(
+        aoi=aoi,
         forward_overlap=forward_overlap,
         side_overlap=side_overlap,
+        agl=agl,
+        gsd=gsd,
+        image_interval=image_interval,
+        dem=dem,
+        flight_mode=flight_mode,
         rotation_angle=rotation_angle,
-        generate_3d=generate_3d,
         take_off_point=take_off_point,
         drone_type=drone_type,
-        mode=flight_mode,
         gimbal_angle=gimbal_angle,
     )
-    waypoint_data = create_waypoint(**waypoint_params)
-    points_geojson = waypoint_data["geojson"]
-
-    # ---- Terrain follow support ----
-    if dem:
-        outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
-        add_elevation_from_dem(dem, points_geojson, outfile_with_elevation)
-
-        with open(outfile_with_elevation) as f:
-            points_geojson = f.read()
-
-        # If user asked for WAYLINES, convert after terrain-following
-        if flight_mode == FlightMode.WAYLINES:
-            placemarks = create_placemarks(geojson.loads(points_geojson), parameters)
-            from drone_flightplan.terrain_following_waylines import waypoints2waylines
-
-            placemarks = waypoints2waylines(placemarks, 5)
-        else:
-            placemarks = create_placemarks(geojson.loads(points_geojson), parameters)
-    else:
-        placemarks = create_placemarks(geojson.loads(points_geojson), parameters)
-
-    # ---- Create flightplans / output formats ----
-
-    # create flightplan files
-    output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
-
-    if output_format == "DJI_WMPL":
-        outpath = create_wpml(placemarks, outfile)
-    elif output_format == "POTENSIC_SQLITE":
-        outpath = create_potensic_sqlite(placemarks, outfile)
-    elif output_format == "POTENSIC_JSON":
-        outpath = create_potensic_json(placemarks, outfile)
-    elif output_format == "MAVLINK_PLAN":
-        outpath = create_mavlink_plan(placemarks, outfile)
-    elif output_format == "QGROUNDCONTROL":
-        outpath = create_qgroundcontrol_plan(placemarks, outfile)
-    elif output_format == "LITCHI":
-        outpath = create_litchi_csv(placemarks, outfile, flight_mode=flight_mode)
-    else:
-        raise ValueError(f"Unsupported output format: {output_format}")
-
-    log.info(f"Flight plan generated: {outpath}")
-    return outpath
+    return write_flightplan_file(placemarks, drone_type, outfile, flight_mode)
 
 
 def validate_coordinates(value):

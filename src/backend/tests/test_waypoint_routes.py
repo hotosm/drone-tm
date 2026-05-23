@@ -67,13 +67,25 @@ async def test_terrain_follow_missing_dem_can_override(
 
     monkeypatch.setattr(waypoint_routes, "check_file_exists", lambda *args: False)
 
-    def fake_create_flightplan(**kwargs):
-        output_path = f"{kwargs['outfile']}.kmz"
+    captured = {}
+
+    def fake_build_placemarks(**kwargs):
+        captured["dem"] = kwargs.get("dem")
+        return {"type": "FeatureCollection", "features": []}, {
+            "battery_warning": False,
+            "estimated_flight_time_minutes": 0,
+        }
+
+    def fake_write_flightplan_file(_placemarks, _drone_type, outfile, _mode):
+        output_path = f"{outfile}.kmz"
         with open(output_path, "wb") as output_file:
             output_file.write(b"dummy-kmz")
         return output_path
 
-    monkeypatch.setattr(waypoint_routes, "create_flightplan", fake_create_flightplan)
+    monkeypatch.setattr(waypoint_routes, "build_placemarks", fake_build_placemarks)
+    monkeypatch.setattr(
+        waypoint_routes, "write_flightplan_file", fake_write_flightplan_file
+    )
 
     response = await client.post(
         f"/api/waypoint/task/{task_id}/?project_id={project_id}&download=true&allow_missing_dem=true"
@@ -81,6 +93,8 @@ async def test_terrain_follow_missing_dem_can_override(
 
     assert response.status_code == 200
     assert response.content == b"dummy-kmz"
+    # Override path skips the DEM, so build_placemarks must receive dem=None
+    assert captured["dem"] is None
 
 
 @pytest.mark.asyncio
@@ -103,14 +117,23 @@ async def test_terrain_follow_dem_present_in_s3_downloads_before_generation(
 
     captured = {}
 
-    def fake_create_flightplan(**kwargs):
+    def fake_build_placemarks(**kwargs):
         captured["dem"] = kwargs["dem"]
-        output_path = f"{kwargs['outfile']}.kmz"
+        return {"type": "FeatureCollection", "features": []}, {
+            "battery_warning": False,
+            "estimated_flight_time_minutes": 0,
+        }
+
+    def fake_write_flightplan_file(_placemarks, _drone_type, outfile, _mode):
+        output_path = f"{outfile}.kmz"
         with open(output_path, "wb") as output_file:
             output_file.write(b"dummy-kmz")
         return output_path
 
-    monkeypatch.setattr(waypoint_routes, "create_flightplan", fake_create_flightplan)
+    monkeypatch.setattr(waypoint_routes, "build_placemarks", fake_build_placemarks)
+    monkeypatch.setattr(
+        waypoint_routes, "write_flightplan_file", fake_write_flightplan_file
+    )
 
     response = await client.post(
         f"/api/waypoint/task/{task_id}/?project_id={project_id}&download=true"
@@ -119,3 +142,46 @@ async def test_terrain_follow_dem_present_in_s3_downloads_before_generation(
     assert response.status_code == 200
     assert response.content == b"dummy-kmz"
     assert captured["dem"]
+
+
+@pytest.mark.asyncio
+async def test_terrain_follow_preview_passes_dem_to_placemarks(
+    client, db, create_test_project, monkeypatch
+):
+    """The preview (download=false) path must apply terrain following too.
+
+    Regression for the bug where the JSON preview returned constant-AGL
+    waypoints because the DEM was downloaded but never passed to placemark
+    generation.
+    """
+    project_id = create_test_project
+    task_id = await _setup_terrain_follow_task(db, project_id)
+
+    monkeypatch.setattr(waypoint_routes, "check_file_exists", lambda *args: True)
+
+    def fake_get_file_from_bucket(_bucket, _key, file_path):
+        with open(file_path, "wb") as dem_file:
+            dem_file.write(b"dem-bytes")
+        return None
+
+    monkeypatch.setattr(
+        waypoint_routes, "get_file_from_bucket", fake_get_file_from_bucket
+    )
+
+    captured = {}
+
+    def fake_build_placemarks(**kwargs):
+        captured["dem"] = kwargs["dem"]
+        return {"type": "FeatureCollection", "features": []}, {
+            "battery_warning": False,
+            "estimated_flight_time_minutes": 0,
+        }
+
+    monkeypatch.setattr(waypoint_routes, "build_placemarks", fake_build_placemarks)
+
+    response = await client.post(
+        f"/api/waypoint/task/{task_id}/?project_id={project_id}&download=false"
+    )
+
+    assert response.status_code == 200
+    assert captured["dem"], "preview path must receive the DEM file path"
