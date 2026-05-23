@@ -10,8 +10,9 @@ from area_splitter.splitter import split_by_square as _area_split_by_square
 import geojson
 from geojson import Feature, FeatureCollection, GeoJSON
 from shapely.errors import GEOSException
-from shapely.geometry import Polygon, shape
-from shapely.ops import unary_union
+from shapely.geometry import mapping, Polygon, shape
+from shapely.ops import transform as shapely_transform, unary_union
+from pyproj import Transformer
 
 try:
     from shapely.validation import make_valid
