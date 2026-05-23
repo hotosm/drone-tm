@@ -217,6 +217,52 @@ async def download_boundaries(
         raise HTTPException(status_code=500, detail="Internal server error.")
 
 
+@router.get("/{project_id}/terrain-dem", tags=["Projects"])
+async def download_terrain_dem(
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """Stream the terrain-follow DEM GeoTIFF used for flight planning.
+
+    This is the input DEM (e.g. from JAXA) stored at
+    ``projects/{project_id}/dem.tif`` - not the DEM produced by ODM.
+    """
+    if not project.is_terrain_follow:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Terrain-follow is not enabled for this project.",
+        )
+
+    dem_key = f"projects/{project.id}/dem.tif"
+    if not check_file_exists(settings.S3_BUCKET_NAME, dem_key):
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="No terrain DEM found for this project.",
+        )
+
+    filename = f"terrain_dem_{project.id}.tif"
+
+    def generate():
+        response = s3_client().get_object(settings.S3_BUCKET_NAME, dem_key)
+        try:
+            while True:
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
+
+    return StreamingResponse(
+        generate(),
+        media_type="image/tiff",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.delete("/{project_id}", tags=["Projects"])
 async def delete_project_by_id(
     db: Annotated[Connection, Depends(database.get_db)],

@@ -52,20 +52,28 @@ export default function FileUpload({
   const [inputRef, onFileUpload] = useCustomUpload();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFilesType>([]);
 
-  // for edit
+  // Sync local state from the form value. Handles edit mode (array of URL
+  // strings) and unmount/remount with shouldUnregister:false (array of
+  // {id, previewURL, file} objects already in form state).
   useEffect(() => {
-    // @ts-ignore
-    if (!data || !multiple || (data && typeof data?.[0] !== "string")) return;
-    const uploaded = data.map((url: string) => {
-      const urlArray = url?.split("/");
-      return {
-        id: uuidv4(),
-        previewURL: url,
-        file: { name: urlArray?.[urlArray.length - 1] || null },
-      };
-    });
-    //   @ts-ignore
-    setUploadedFiles(uploaded);
+    if (!data || !Array.isArray(data) || data.length === 0) return;
+    // @ts-ignore - `data` prop is loosely typed as `[]` in this component
+    if (typeof data[0] === "string") {
+      if (!multiple) return;
+      const uploaded = data.map((url: string) => {
+        const urlArray = url?.split("/");
+        return {
+          id: uuidv4(),
+          previewURL: url,
+          file: { name: urlArray?.[urlArray.length - 1] || null },
+        };
+      });
+      // @ts-ignore
+      setUploadedFiles(uploaded);
+      return;
+    }
+    // Already shaped - restore as-is.
+    setUploadedFiles(data as unknown as UploadedFilesType);
   }, [data, multiple]);
 
   // register form element to useForm

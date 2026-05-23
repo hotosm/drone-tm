@@ -420,7 +420,9 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 control={control}
                 name="dem"
                 rules={{
-                  required: m.create_params_dem_required(),
+                  validate: (value: any) =>
+                    (Array.isArray(value) && value.length > 0 && !!value[0]?.file) ||
+                    m.create_params_dem_required(),
                 }}
                 render={({ field: { value } }) => {
                   return (

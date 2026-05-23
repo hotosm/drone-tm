@@ -712,6 +712,8 @@
   "individual_project_export_project_printout": "🖨️ Impresión del proyecto",
   "individual_project_export_qfield": "Exportar para QField",
   "individual_project_export_entire_odm_project": "Proyecto ODM completo",
+  "individual_project_export_terrain_dem": "DEM del terreno (GeoTIFF)",
+  "individual_project_no_terrain_dem_found": "No hay DEM del terreno disponible para este proyecto.",
   "individual_project_project_deleted_success": "Proyecto eliminado correctamente",
   "individual_project_no_odm_export_found": "No se encontró una exportación de proyecto ODM para este proyecto.",
   "individual_project_failed_check_odm_export": "No se pudo comprobar la disponibilidad de la exportación del proyecto ODM.",

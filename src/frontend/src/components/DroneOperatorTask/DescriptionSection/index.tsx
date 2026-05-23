@@ -120,9 +120,9 @@ const DroneOperatorDescriptionBox = () => {
   };
 
   const downloadFlightPlanGeojson = () => {
-    if (!rotatedFlightPlanData?.geojsonListOfPoint) return;
+    if (!rotatedFlightPlanData?.geojsonListOfPoints) return;
 
-    const waypointGeojson = rotatedFlightPlanData?.geojsonListOfPoint;
+    const waypointGeojson = rotatedFlightPlanData?.geojsonListOfPoints;
     const fileBlob = new Blob([JSON.stringify(waypointGeojson)], {
       type: "application/json",
     });

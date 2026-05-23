@@ -712,6 +712,8 @@
   "individual_project_export_project_printout": "🖨️ Cetakan proyek",
   "individual_project_export_qfield": "Ekspor untuk QField",
   "individual_project_export_entire_odm_project": "Seluruh Proyek ODM",
+  "individual_project_export_terrain_dem": "DEM Medan (GeoTIFF)",
+  "individual_project_no_terrain_dem_found": "Tidak ada DEM medan yang tersedia untuk proyek ini.",
   "individual_project_project_deleted_success": "Proyek Berhasil Dihapus",
   "individual_project_no_odm_export_found": "Tidak ditemukan ekspor proyek ODM untuk proyek ini.",
   "individual_project_failed_check_odm_export": "Gagal memeriksa ketersediaan ekspor proyek ODM.",

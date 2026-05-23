@@ -186,6 +186,36 @@ const IndividualProject = () => {
       .catch((error) => toast.error(m.individual_project_download_error({ error: String(error) })));
   };
 
+  const downloadTerrainDem = () => {
+    const projectId = projectData?.id || id;
+    if (!projectId) return;
+    fetch(`${API_URL}/projects/${projectId}/terrain-dem`, {
+      method: "GET",
+      headers: { "Access-token": Token || "" },
+      credentials: "include",
+    })
+      .then((response) => {
+        if (response.status === 404) {
+          throw new Error(m.individual_project_no_terrain_dem_found());
+        }
+        if (!response.ok) {
+          throw new Error(`Network response was ${response.statusText}`);
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `terrain_dem-${projectData?.name || projectId}.tif`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch((error) => toast.error(m.individual_project_download_error({ error: String(error) })));
+  };
+
   const downloadEntireOdmProject = async () => {
     const projectId = projectData?.id || id;
     if (!projectId) return;
@@ -291,6 +321,21 @@ const IndividualProject = () => {
                     <QFieldLogo />
                     {m.individual_project_export_qfield()}
                   </div>
+                  {projectData?.is_terrain_follow && (
+                    <div
+                      className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                      onClick={() => {
+                        setShowDownloadOptions(false);
+                        downloadTerrainDem();
+                      }}
+                    >
+                      <span className="material-icons naxatw-text-base">terrain</span>
+                      {m.individual_project_export_terrain_dem()}
+                    </div>
+                  )}
                   {projectData?.image_processing_status === "SUCCESS" && (
                     <div
                       className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
