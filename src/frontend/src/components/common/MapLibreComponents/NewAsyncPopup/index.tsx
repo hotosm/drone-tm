@@ -125,6 +125,10 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
         // popup.setLngLat(e.lngLat);
       }
       map.on("click", displayPopup);
+
+      return () => {
+        map.off("click", displayPopup);
+      };
     }, [map, getCoordOnProperties, showPopup]);
 
     useEffect(() => {
@@ -168,17 +172,24 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
     }, [map, openPopupFor, popupCoordinate]);
 
     useEffect(() => {
-      const closeBtn = document.getElementById("popup-close-button");
-      const popupBtn = document.getElementById("popup-button");
+      if (!isPopupOpen) return;
 
-      const handleCloseBtnClick = () => {
+      const popupElement = popup.getElement();
+      const closeBtn = popupElement?.querySelector("#popup-close-button");
+      const popupBtn = popupElement?.querySelector("#popup-button");
+
+      const handleCloseBtnClick = (event?: Event) => {
+        event?.preventDefault();
+        event?.stopPropagation();
         popup.remove();
         onClose?.();
         setProperties(null);
         setIsPopupOpen(false);
       };
 
-      const handlePopupBtnClick = () => {
+      const handlePopupBtnClick = (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
         if (!properties) return;
         handleBtnClick?.(properties);
         if (closePopupOnButtonClick) handleCloseBtnClick();
