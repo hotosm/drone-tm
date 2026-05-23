@@ -1,3 +1,14 @@
+## 2026.5.15 (2026-05-23)
+
+### Fix
+
+- **frontend**: closing the waypoint popup on task map
+- geojson flightplan download, add DEM download option, upload dem option
+
+### Refactor
+
+- **backend**: fix download=false waypoint generation to use DEM, make code DRY
+
 ## 2026.5.14 (2026-05-22)
 
 ### Feat
