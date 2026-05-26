@@ -5,7 +5,7 @@ import useTaskParams from "@Hooks/useTaskParams";
 import { FeatureCollection } from "geojson";
 import { toast } from "react-toastify";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { GeoJSONSource, LngLatBoundsLike, Map, RasterSourceSpecification } from "maplibre-gl";
+import { GeoJSONSource, LngLatBoundsLike, Map } from "maplibre-gl";
 import getBbox from "@turf/bbox";
 import { point } from "@turf/helpers";
 import { coordAll } from "@turf/meta";
@@ -51,7 +51,6 @@ import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
 import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
 import Modal from "@Components/common/Modal";
 import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
-import COGOrthophotoViewer from "@Components/common/MapLibreComponents/COGOrthophotoViewer";
 import GetCoordinatesOnClick from "./GetCoordinatesOnClick";
 import ShowInfo from "./ShowInfo";
 import Icon from "@Components/common/Icon";
@@ -63,7 +62,6 @@ const MapSection = ({ className }: { className?: string }) => {
   const [popupData, setPopupData] = useState<Record<string, any>>({});
   const [showFlightPlan, setShowFlightPlan] = useState(true);
   const [showTaskArea, setShowTaskArea] = useState(true);
-  const [showOrthophoto, setShowOrthophoto] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [isRotationEnabled, setIsRotationEnabled] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
@@ -103,15 +101,6 @@ const MapSection = ({ className }: { className?: string }) => {
     data: taskAssetsInformation,
     // isFetching: taskAssetsInfoLoading,
   }: Record<string, any> = useGetTaskAssetsInfo(projectId as string, taskId as string);
-
-  const orthophotoSource: RasterSourceSpecification | null = useMemo(() => {
-    const signed = taskAssetsInformation?.orthophoto_url;
-    if (signed) {
-      return { type: "raster", url: `cog://${signed}`, tileSize: 256 };
-    }
-
-    return null;
-  }, [taskAssetsInformation?.orthophoto_url]);
 
   // Don't regenerate the flightplan once processing has started - the
   // flight is done and the backend call is a waste of resources.
@@ -595,20 +584,6 @@ const MapSection = ({ className }: { className?: string }) => {
     }
   };
 
-  const handleToggleOrthophoto = () => {
-    if (!map) return;
-    const layer = map.getLayer("task-orthophoto");
-    if (!layer) return;
-
-    map.setLayoutProperty("task-orthophoto", "visibility", showOrthophoto ? "none" : "visible");
-    setShowOrthophoto(!showOrthophoto);
-    if (!showOrthophoto) {
-      const source = map.getSource(layer.source) as any;
-      if (source?.bounds) {
-        map.fitBounds(source.bounds);
-      }
-    }
-  };
   // end toggle layers
 
   const zoomToExtent = () => {
@@ -904,17 +879,6 @@ const MapSection = ({ className }: { className?: string }) => {
         )}
         {/* Update take off end */}
 
-        {/* Ortho-photo visualization */}
-        {taskAssetsInformation?.orthophoto_url && orthophotoSource && (
-          <COGOrthophotoViewer
-            id="task-orthophoto"
-            source={orthophotoSource}
-            visibleOnMap
-            zoomToLayer
-          />
-        )}
-        {/* Ortho-photo visualization end */}
-
         {/* rotating tool */}
         {isRotationEnabled && (
           <div className="naxatw-absolute naxatw-bottom-10 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 lg:naxatw-right-2 lg:naxatw-top-10">
@@ -1044,21 +1008,6 @@ const MapSection = ({ className }: { className?: string }) => {
               />
             </Button>
           </ToolTip>
-
-          {taskAssetsInformation?.assets_url && (
-            <ToolTip message="Show Orthophoto" className="naxatw-mt-[-4px]">
-              <Button
-                className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${showOrthophoto ? "naxatw-border-red naxatw-bg-[#ffe0e0]" : "naxatw-border-gray-400 naxatw-bg-[#F5F5F5]"}`}
-                onClick={() => handleToggleOrthophoto()}
-              >
-                <Icon
-                  name="visibility"
-                  iconSymbolType="material-icons"
-                  className="!naxatw-text-xl !naxatw-text-black"
-                />
-              </Button>
-            </ToolTip>
-          )}
         </div>
       </MapContainer>
     </div>
