@@ -89,3 +89,8 @@ src/backend/frontend_html
 *.json
 !**/package.json
 !**/tsconfig.json
+
+# The Python "lib/" packaging ignore above also swallows the Flutter transfer
+# util's Dart sources. Re-include them (anchored so it only affects this app).
+!/src/transfer-util/lib/
+!/src/transfer-util/lib/**
