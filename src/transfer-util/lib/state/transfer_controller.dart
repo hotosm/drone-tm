@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/drone_model.dart';
 import '../models/kmz_file.dart';
 import '../models/mission.dart';
 import '../platform/mtp_channel.dart';
@@ -14,6 +15,10 @@ import '../services/transfer_strategy.dart';
 /// The distinct steps the user moves through. The UI renders one "step" widget
 /// per phase, which keeps navigation flat and the flow obvious.
 enum TransferPhase {
+  /// The selected drone model can't be transferred to from this app
+  /// (Potensic): show guidance to use the web method instead.
+  unsupportedModel,
+
   /// No KMZ chosen yet.
   awaitingFile,
 
@@ -57,6 +62,9 @@ class TransferController extends ChangeNotifier {
 
   TransferPhase _phase = TransferPhase.awaitingFile;
   TransferPhase get phase => _phase;
+
+  DroneModel _model = DroneModels.fallback;
+  DroneModel get model => _model;
 
   KmzFile? _file;
   KmzFile? get file => _file;
@@ -162,6 +170,30 @@ class TransferController extends ChangeNotifier {
     }
   }
 
+  // ---- Drone model ------------------------------------------------------
+
+  /// Changes the target drone model. Potensic can't be transferred to from
+  /// this app, so it drops into the [TransferPhase.unsupportedModel] guidance
+  /// step; DJI resumes the normal flow.
+  Future<void> selectModel(DroneModel next) async {
+    if (next.id == _model.id) return;
+    _model = next;
+    _error = null;
+
+    if (!next.onDeviceTransfer) {
+      await _strategy.dispose();
+      _setPhase(TransferPhase.unsupportedModel);
+      return;
+    }
+
+    // DJI: continue where it makes sense.
+    if (_file != null) {
+      await connectAndList();
+    } else {
+      _setPhase(TransferPhase.awaitingFile);
+    }
+  }
+
   // ---- File intake ------------------------------------------------------
 
   /// Opens the system file picker for the user to choose a `.kmz`.
@@ -225,6 +257,10 @@ class TransferController extends ChangeNotifier {
   /// Prepares the active strategy and loads the controller's mission slots.
   Future<void> connectAndList() async {
     if (_file == null) return;
+    if (!_model.onDeviceTransfer) {
+      _setPhase(TransferPhase.unsupportedModel);
+      return;
+    }
     _error = null;
     _setPhase(TransferPhase.connecting);
     _status = isUsb ? 'Opening controller over USB…' : 'Checking folder access…';
