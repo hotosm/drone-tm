@@ -61,6 +61,15 @@ def build_placemarks(
         drone_type,
     )
 
+    # For terrain-follow waylines, generate the full waypoint set so
+    # waypoints2waylines below can adaptively choose intermediate keepers
+    # based on DEM-derived altitudes. WAYLINES mode in create_waypoint
+    # pre-trims each line to start+end, which would leave nothing for
+    # the DEM-aware trimmer to work with.
+    waypoint_mode = flight_mode
+    if dem and flight_mode == FlightMode.WAYLINES:
+        waypoint_mode = FlightMode.WAYPOINTS
+
     waypoint_data = create_waypoint(
         project_area=aoi,
         agl=agl,
@@ -71,7 +80,7 @@ def build_placemarks(
         generate_3d=generate_3d,
         take_off_point=take_off_point,
         drone_type=drone_type,
-        mode=flight_mode,
+        mode=waypoint_mode,
         gimbal_angle=gimbal_angle,
     )
     points_geojson = waypoint_data["geojson"]
