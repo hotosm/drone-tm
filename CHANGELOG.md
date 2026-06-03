@@ -1,3 +1,12 @@
+## 2026.5.16 (2026-06-03)
+
+### Fix
+
+- **frontend**: better clarify status of DEM to avoid user confusion
+- **backend**: wayline mode was broken after recent logic merge, fixes #818
+- **frontend**: missing translation key for tutorials page preventing render
+- **frontend**: remove showing the task orthophoto until converted to mercator
+
 ## 2026.5.15 (2026-05-23)
 
 ### Fix
