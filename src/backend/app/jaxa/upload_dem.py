@@ -8,6 +8,7 @@ bridging that CrawlerRunner required.
 import io
 import asyncio
 import os
+import tempfile
 from pathlib import Path
 
 from loguru import logger as log
@@ -188,7 +189,7 @@ async def download_and_upload_dem(
     )
 
     # Use project-specific directory to avoid conflicts in k8s
-    project_dir = Path(f"/tmp/tif_processing/{project_id}")
+    project_dir = Path(tempfile.gettempdir()) / "tif_processing" / str(project_id)
     project_dir.mkdir(parents=True, exist_ok=True)
     tif_file_path = str(project_dir / "merged.tif")
 
