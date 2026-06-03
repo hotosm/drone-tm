@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/transfer_strategy.dart';
 import '../state/transfer_controller.dart';
+import '../widgets/drone_model_bar.dart';
 import '../widgets/mission_selector.dart';
 
 /// The single screen the whole app lives on. It renders one "step" per
@@ -27,14 +28,29 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: SingleChildScrollView(
-            key: ValueKey(controller.phase),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: _PhaseView(controller: controller),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: DroneModelBar(
+                    selected: controller.model,
+                    onSelected: controller.selectModel,
+                  ),
+                ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: SingleChildScrollView(
+                      key: ValueKey(controller.phase),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                      child: _PhaseView(controller: controller),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -60,6 +76,8 @@ class _PhaseView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (controller.phase) {
+      TransferPhase.unsupportedModel =>
+        _UnsupportedModelStep(controller: controller),
       TransferPhase.awaitingFile => _AwaitingFileStep(controller: controller),
       TransferPhase.connecting => _BusyStep(
           label: controller.status.isEmpty ? 'Connecting…' : controller.status,
@@ -135,6 +153,73 @@ class _AwaitingFileStep extends StatelessWidget {
           text:
               'Tip: you can also Share a .kmz from QField or your browser to '
               '"DroneTM Transfer" and it will open here automatically.',
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Unsupported model (Potensic): guide to the web transfer
+// ---------------------------------------------------------------------------
+
+class _UnsupportedModelStep extends StatelessWidget {
+  const _UnsupportedModelStep({required this.controller});
+
+  final TransferController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 20),
+        Center(
+          child: Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: scheme.secondaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.public,
+                size: 40, color: scheme.onSecondaryContainer),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          '${controller.model.name} uses the web transfer',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Potensic stores missions in its app\'s private database, which can '
+          'only be written over ADB. This app\'s direct USB transfer can\'t '
+          'reach private app storage, so use the DroneTM web app instead.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium
+              ?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          icon: Icons.usb,
+          title: 'Send via the DroneTM web app',
+          child: const _OrderedSteps(steps: [
+            'Open the DroneTM web app in desktop Chrome or Edge.',
+            'Connect the Potensic controller to the computer with a USB cable.',
+            'Use its USB transfer option to send the mission.',
+          ]),
+        ),
+        const SizedBox(height: 16),
+        _HintRow(
+          icon: Icons.flight,
+          text: 'Flying a DJI Mini 4/5 Pro instead? Pick it in the drone '
+              'selector above to transfer right here.',
         ),
       ],
     );
