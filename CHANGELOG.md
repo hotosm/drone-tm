@@ -1,3 +1,10 @@
+## 2026.5.17 (2026-06-04)
+
+### Fix
+
+- show Mark Fully Flown button in more scenarios, fix dup task details state
+- fix the ui to allow for better task lock/unlock status changes
+
 ## 2026.5.16 (2026-06-03)
 
 ### Fix
