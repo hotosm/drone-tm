@@ -173,6 +173,14 @@ class DbProject(Base):
         Column(Enum(OAMUploadStatus), default=OAMUploadStatus.NOT_STARTED),
     )  # status of oam upload
 
+    # Cloud-native derivative readiness (set by post-processing arq jobs).
+    cog_ready = cast(
+        bool, Column(Boolean, default=False, nullable=False, server_default="false")
+    )
+    tiles_ready = cast(
+        bool, Column(Boolean, default=False, nullable=False, server_default="false")
+    )
+
     # Project-level ODM processing metadata (for reconciliation/recovery)
     odm_task_uuid = cast(str, Column(String, nullable=True))
     odm_endpoint_used = cast(str, Column(String, nullable=True))

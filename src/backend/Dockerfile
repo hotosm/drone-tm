@@ -2,6 +2,9 @@
 # ARG for the base image
 ARG PYTHON_IMG_TAG=3.11
 
+# Static Obj2Tiles binary, copied into the runtime stage for OBJ -> 3D tiles conversion
+FROM ghcr.io/spwoodcock/obj2tiles:v1.4.0 AS obj2tiles
+
 # Base build stage with dependencies required to build Python wheels
 FROM python:$PYTHON_IMG_TAG-slim-trixie AS build
 
@@ -107,6 +110,9 @@ RUN set -ex \
 
 # Retrieve global Python packages and dependencies from the build stage
 COPY --from=build /opt/python /opt/python
+
+# Static Obj2Tiles binary for OBJ -> 3D tiles conversion (used by arq workers)
+COPY --from=obj2tiles /app/Obj2Tiles /usr/local/bin/Obj2Tiles
 
 # Set working directory
 WORKDIR /project/src/backend

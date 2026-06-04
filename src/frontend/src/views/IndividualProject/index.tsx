@@ -216,6 +216,20 @@ const IndividualProject = () => {
       .catch((error) => toast.error(m.individual_project_download_error({ error: String(error) })));
   };
 
+  const downloadOutputFile = (url: string | null | undefined, filename: string) => {
+    if (!url) return;
+    try {
+      const link = document.createElement("a");
+      link.href = buildDownloadUrl(url);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(m.individual_project_download_error({ error: String(error) }));
+    }
+  };
+
   const downloadEntireOdmProject = async () => {
     const projectId = projectData?.id || id;
     if (!projectId) return;
@@ -265,7 +279,18 @@ const IndividualProject = () => {
             >
               {m.individual_project_button_gcp_editor()}
             </Button>
-            {projectData?.image_processing_status === "SUCCESS" && (
+            {projectData?.cog_ready && (
+              <Button
+                variant="ghost"
+                className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                leftIcon="image"
+                iconClassname="naxatw-text-[1.125rem]"
+                onClick={() => navigate(`/projects/${projectData?.id || id}/orthophoto`)}
+              >
+                View Orthophoto
+              </Button>
+            )}
+            {projectData?.tiles_ready && (
               <Button
                 variant="ghost"
                 className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
@@ -345,6 +370,57 @@ const IndividualProject = () => {
                     >
                       <span className="material-icons naxatw-text-base">terrain</span>
                       {m.individual_project_export_terrain_dem()}
+                    </div>
+                  )}
+                  {projectData?.orthophoto_url && (
+                    <div
+                      className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                      onClick={() => {
+                        setShowDownloadOptions(false);
+                        downloadOutputFile(
+                          projectData.orthophoto_url,
+                          `orthophoto_${projectData.id}.tif`,
+                        );
+                      }}
+                    >
+                      <span className="material-icons naxatw-text-base">image</span>
+                      Orthophoto
+                    </div>
+                  )}
+                  {projectData?.dem_url && (
+                    <div
+                      className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                      onClick={() => {
+                        setShowDownloadOptions(false);
+                        downloadOutputFile(projectData.dem_url, `dem_${projectData.id}.tif`);
+                      }}
+                    >
+                      <span className="material-icons naxatw-text-base">landscape</span>
+                      DEM
+                    </div>
+                  )}
+                  {projectData?.pointcloud_url && (
+                    <div
+                      className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                      onClick={() => {
+                        setShowDownloadOptions(false);
+                        downloadOutputFile(
+                          projectData.pointcloud_url,
+                          `pointcloud_${projectData.id}.laz`,
+                        );
+                      }}
+                    >
+                      <span className="material-icons naxatw-text-base">scatter_plot</span>
+                      Pointcloud
                     </div>
                   )}
                   {projectData?.image_processing_status === "SUCCESS" && (

@@ -6,6 +6,9 @@ export const getProjectsList = (params: Record<string, any>) =>
 
 export const getProjectDetail = (id: string) => authenticated(api).get(`/projects/${id}`);
 
+export const getOrthophotoCogPresignedUrl = (id: string) =>
+  authenticated(api).get(`/projects/${id}/cog/presigned-url`);
+
 export const postCreateProject = (data: any) =>
   authenticated(api).post("/projects/", data, {
     // headers: { 'Content-Type': 'application/json' },

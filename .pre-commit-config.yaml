@@ -16,6 +16,7 @@ repos:
         entry: end-of-file-fixer
         language: python
         types: [text]
+        exclude: ^cla\.json$
         stages: [pre-commit, pre-push, manual]
 
       - id: detect-aws-credentials

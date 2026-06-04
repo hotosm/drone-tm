@@ -48,12 +48,17 @@ from app.images.image_processing import remove_scaleodm_task
 from app.projects import project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
+from app.projects.s3_paths import (
+    cloudnative_3d_tile_key,
+    cloudnative_orthophoto_cog_key,
+)
 from app.s3 import (
     abort_multipart_upload,
     build_browser_object_url,
     check_file_exists,
     complete_multipart_upload,
     delete_objects_by_prefix,
+    generate_presigned_get_url,
     generate_presigned_multipart_upload_url,
     initiate_multipart_upload,
     list_parts,
@@ -1925,7 +1930,7 @@ async def head_odm_assets(
 # URLs in tileset.json), so we stream them through the backend instead.  All
 # authentication and access control happens here; S3 stays private.
 #
-# Layout in S3:  ``projects/{project_id}/3d-tiles/...``
+# Layout in S3:  ``projects/{project_id}/cloudnative/3d-tiles/...``
 # ---------------------------------------------------------------------------
 
 # Cache lifetime for proxied tiles.  Tiles are content-addressed (they don't
@@ -2004,7 +2009,7 @@ def _build_tile_response_headers(stat) -> dict[str, str]:
 
 async def _stat_3d_tile(project_id: uuid.UUID, file_path: str):
     """Stat a 3D-tile object.  404 on miss, propagates other errors as 502."""
-    object_key = f"projects/{project_id}/3d-tiles/{file_path}"
+    object_key = cloudnative_3d_tile_key(project_id, file_path)
     try:
         return await run_in_threadpool(
             s3_client().stat_object, settings.S3_BUCKET_NAME, object_key
@@ -2034,6 +2039,11 @@ async def head_3d_tile(
     Used by the frontend before initialising TilesRenderer so the placeholder
     can be shown immediately when tiles haven't been generated yet.
     """
+    if not getattr(project, "tiles_ready", False):
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="3D tiles have not been generated for this project yet.",
+        )
     file_path = _validate_tile_path(file_path)
     stat, _ = await _stat_3d_tile(project_id, file_path)
     return Response(
@@ -2061,6 +2071,11 @@ async def stream_3d_tile(
     object's S3 ETag so the browser can cache aggressively and revalidate
     cheaply via ``If-None-Match`` on cache expiry.
     """
+    if not getattr(project, "tiles_ready", False):
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="3D tiles have not been generated for this project yet.",
+        )
     file_path = _validate_tile_path(file_path)
     stat, object_key = await _stat_3d_tile(project_id, file_path)
 
@@ -2093,6 +2108,47 @@ async def stream_3d_tile(
         media_type=_tile_content_type(file_path),
         headers=response_headers,
     )
+
+
+# ---------------------------------------------------------------------------
+# Orthophoto COG presigned URL
+#
+# Unlike 3D tiles (many small files), the orthophoto COG is a single large
+# file that the client reads via HTTP range requests. Proxying every range
+# request through the backend would tie up workers for what is fundamentally
+# a byte-range passthrough, so we hand the client a short-lived presigned URL
+# pointing straight at S3 instead.
+# ---------------------------------------------------------------------------
+
+_COG_URL_EXPIRES_HOURS = 2
+
+
+@router.get("/{project_id}/cog/presigned-url", tags=["Orthophoto"])
+async def get_orthophoto_cog_presigned_url(
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Return a short-lived presigned URL to the web-mercator orthophoto COG.
+
+    Returns ``{ url, expires_at }``. The frontend orthophoto viewer should
+    refresh the URL shortly before ``expires_at`` so an in-flight range
+    request never sees a 403.
+    """
+    if not getattr(project, "cog_ready", False):
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Orthophoto COG has not been generated for this project yet.",
+        )
+    cog_key = cloudnative_orthophoto_cog_key(project.id)
+    url = await run_in_threadpool(
+        generate_presigned_get_url,
+        settings.S3_BUCKET_NAME,
+        cog_key,
+        _COG_URL_EXPIRES_HOURS,
+    )
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=_COG_URL_EXPIRES_HOURS)
+    return {"url": url, "expires_at": expires_at.isoformat()}
 
 
 # Endpoint not used in production but useful to keep around just for testing the

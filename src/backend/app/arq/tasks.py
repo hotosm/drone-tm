@@ -58,6 +58,7 @@ from app.images.image_processing import (
     remove_scaleodm_task,
     reproject_orthophoto_in_place,
 )
+from app.arq.cloudnative import generate_3d_tiles, generate_orthophoto_cog
 from app.models.enums import ImageProcessingStatus, State
 from app.tasks import task_logic
 from app.utils import timestamp
@@ -1029,25 +1030,36 @@ async def generate_qfield_project(
                 if not project:
                     raise RuntimeError(f"Project {project_id} not found")
 
-                # Fetch tasks as GeoJSON FeatureCollection
+                # Fetch tasks as GeoJSON FeatureCollection, including the
+                # latest task state so QField can render task colours that
+                # match the web UI snapshot at export time.  Tasks with no
+                # event rows fall back to UNLOCKED, matching Task.all().
                 await cur.execute(
                     """
+                    WITH latest_event AS (
+                        SELECT DISTINCT ON (task_id) task_id, state
+                        FROM task_events
+                        WHERE project_id = %s
+                        ORDER BY task_id, created_at DESC
+                    )
                     SELECT json_build_object(
                         'type', 'FeatureCollection',
                         'features', COALESCE(json_agg(
                             json_build_object(
                                 'type', 'Feature',
-                                'geometry', ST_AsGeoJSON(outline)::json,
+                                'geometry', ST_AsGeoJSON(t.outline)::json,
                                 'properties', json_build_object(
-                                    'project_task_id', project_task_index
+                                    'project_task_id', t.project_task_index,
+                                    'status', COALESCE(le.state::text, 'UNLOCKED')
                                 )
                             )
                         ), '[]'::json)
                     ) AS geojson
-                    FROM tasks
-                    WHERE project_id = %s
+                    FROM tasks t
+                    LEFT JOIN latest_event le ON le.task_id = t.id
+                    WHERE t.project_id = %s
                     """,
-                    (project_id,),
+                    (project_id, project_id),
                 )
                 row = await cur.fetchone()
                 tasks_geojson = row["geojson"]
@@ -1462,6 +1474,7 @@ async def finalize_scaleodm_task(
             task_segment = f"{task_uuid}/" if task_uuid else ""
             assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
 
+            project_finalized = False
             if db_pool:
                 async with db_pool.connection() as conn:
                     if task_uuid and state:
@@ -1497,7 +1510,35 @@ async def finalize_scaleodm_task(
                             {"url": odm_assets_url, "pid": project_uuid},
                         )
                         log.info(f"Project {project_uuid} status updated to SUCCESS.")
+                        project_finalized = True
                     await conn.commit()
+
+            # Project-level finalization succeeded - kick off the cloudnative
+            # derivative jobs (COG + 3D tiles). Best-effort: a Redis hiccup
+            # shouldn't roll back the finalization that already committed.
+            # The backfill script can fill in the gaps later.
+            if project_finalized and redis:
+                try:
+                    await redis.enqueue_job(
+                        "generate_orthophoto_cog",
+                        project_id=dtm_project_id,
+                        _queue_name="default_queue",
+                    )
+                    await redis.enqueue_job(
+                        "generate_3d_tiles",
+                        project_id=dtm_project_id,
+                        _queue_name="default_queue",
+                    )
+                    log.info(
+                        "Enqueued cloudnative derivative jobs for project {}",
+                        dtm_project_id,
+                    )
+                except Exception as e:
+                    log.warning(
+                        "Failed to enqueue cloudnative jobs for project {}: {}",
+                        dtm_project_id,
+                        e,
+                    )
 
             # drone-tm DB is now committed - safe to remove the ScaleODM record
             # when we know its UUID. The call is best-effort; a 404 is ignored.
@@ -1952,6 +1993,8 @@ class WorkerSettings:
         process_imported_odm_assets,
         finalize_scaleodm_task,
         create_project_from_imagery_exif,
+        generate_orthophoto_cog,
+        generate_3d_tiles,
     ]
 
     queue_name = "default_queue"
