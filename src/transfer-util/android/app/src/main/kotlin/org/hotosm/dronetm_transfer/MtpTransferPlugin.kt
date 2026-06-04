@@ -86,7 +86,10 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            activity.registerReceiver(usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            // EXPORTED: on Android 14+ the USB permission result can be
+            // delivered as an external broadcast, so a NOT_EXPORTED receiver
+            // may never fire and the permission step would hang.
+            activity.registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             activity.registerReceiver(usbReceiver, filter)
         }
