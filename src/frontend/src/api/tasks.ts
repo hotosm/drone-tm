@@ -79,7 +79,7 @@ export const useGetTaskAssetsInfo = (
   queryOptions?: Partial<UseQueryOptions>,
 ) => {
   return useQuery({
-    queryKey: ["task-assets-info"],
+    queryKey: ["task-assets-info", projectId, taskId],
     enabled: !!taskId,
     queryFn: () => getTaskAssetsInfo(projectId, taskId),
     select: (res: any) => res.data,

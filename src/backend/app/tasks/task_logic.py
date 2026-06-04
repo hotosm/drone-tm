@@ -677,27 +677,54 @@ async def handle_event(
                 detail.updated_at,
             )
         case EventType.MARK_FLOWN:
+            # Accept the mark from either LOCKED (flown but no imagery yet) or
+            # HAS_IMAGERY (imagery uploaded and classified). Either is a valid
+            # precursor to FULLY_FLOWN under the new pipeline.
+            current_task_state = await get_task_state(db, project_id, task_id)
+            current_state_name = (
+                current_task_state.get("state") if current_task_state else None
+            )
+            if current_state_name not in (State.LOCKED.name, State.HAS_IMAGERY.name):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Task must be LOCKED or HAS_IMAGERY to mark as fully flown."
+                    ),
+                )
             return await update_task_state(
                 db,
                 project_id,
                 task_id,
                 user_id,
                 "Task marked as fully flown",
-                State.LOCKED,
+                State[current_state_name],
                 State.FULLY_FLOWN,
                 detail.updated_at,
             )
 
         case EventType.UNMARK_FLOWN:
-            return await update_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                "Task reverted from fully flown back to locked",
-                State.FULLY_FLOWN,
-                State.LOCKED,
-                detail.updated_at,
+            # Revert to whatever the prior state was in the event history
+            # (LOCKED or HAS_IMAGERY), so the unmark is symmetric to the mark.
+            # revert_task_state walks task_events newest-first, skipping prior
+            # revert entries, to find the most recent distinct prior state.
+            current_task_state = await get_task_state(db, project_id, task_id)
+            current_state_name = (
+                current_task_state.get("state") if current_task_state else None
+            )
+            if current_state_name != State.FULLY_FLOWN.name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Task is not in FULLY_FLOWN state.",
+                )
+            latest_event_user_id = current_task_state.get("user_id")
+            return await revert_task_state(
+                db=db,
+                project_id=project_id,
+                task_id=task_id,
+                current_state=current_state_name,
+                current_user_id=latest_event_user_id,
+                actor_name=user_data.name,
+                updated_at=detail.updated_at,
             )
 
         case EventType.MARK_ISSUE:

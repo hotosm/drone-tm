@@ -289,10 +289,13 @@ def test_resolve_revert_target_does_not_treat_manual_override_as_revert():
     )
 
 
-def test_resolve_revert_target_does_not_treat_unmark_flown_as_revert():
-    """UNMARK_FLOWN writes a comment that starts with 'Task reverted from
-    fully flown ...' (lowercase prose, not the machine-formatted revert
-    comment). It must be treated as a normal transition, not a revert."""
+def test_resolve_revert_target_treats_legacy_unmark_flown_comment_as_transition():
+    """Historical UNMARK_FLOWN events wrote a prose comment ('Task reverted
+    from fully flown back to locked') that does not match the machine-
+    formatted revert regex. They must continue to be treated as normal
+    transitions so prior step-back chains over old data still resolve
+    sensibly. Newer UNMARK_FLOWN events use revert_task_state and write the
+    machine-formatted comment, which IS treated as a revert."""
     events = [
         _evt(
             State.LOCKED,

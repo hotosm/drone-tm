@@ -56,6 +56,14 @@ const DescriptionBox = () => {
   const taskQueryData = useMemo(() => {
     const resolvedTaskData = taskData as any;
 
+    const state = taskAssetsInformation?.state;
+    const hasImageryUploaded = (taskAssetsInformation?.image_count ?? 0) > 0;
+    const statusValue = state
+      ? state === "LOCKED" && hasImageryUploaded
+        ? m.drone_task_image_uploading_failed()
+        : getTaskStateLabel(state)
+      : null;
+
     const taskDescription = [
       {
         id: 1,
@@ -63,9 +71,7 @@ const DescriptionBox = () => {
         data: [
           {
             name: m.drone_task_status_label(),
-            value: taskAssetsInformation?.state
-              ? getTaskStateLabel(taskAssetsInformation.state)
-              : null,
+            value: statusValue,
           },
           {
             name: m.drone_task_id_label(),
@@ -156,7 +162,13 @@ const DescriptionBox = () => {
     ];
 
     return { taskDescription, taskData: resolvedTaskData };
-  }, [taskData, taskId, taskWayPoints, taskAssetsInformation?.state]);
+  }, [
+    taskData,
+    taskId,
+    taskWayPoints,
+    taskAssetsInformation?.state,
+    taskAssetsInformation?.image_count,
+  ]);
 
   const taskDescription = taskQueryData?.taskDescription;
 
@@ -188,6 +200,7 @@ const DescriptionBox = () => {
 
   const hasImages = taskAssetsInformation?.image_count > 0;
   const isLocked = taskAssetsInformation?.state === "LOCKED";
+  const isHasImagery = taskAssetsInformation?.state === "HAS_IMAGERY";
   const isFullyFlown = taskAssetsInformation?.state === "FULLY_FLOWN";
   const hasAssets = !!taskAssetsInformation?.assets_url;
 
@@ -246,7 +259,7 @@ const DescriptionBox = () => {
         </p>
       </div>
 
-      {isLocked && (
+      {(isLocked || isHasImagery) && (
         <Button
           variant="ghost"
           className="naxatw-mt-5 naxatw-w-full naxatw-bg-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-white hover:naxatw-opacity-90 disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-60"
@@ -300,13 +313,6 @@ const DescriptionBox = () => {
               {
                 name: m.drone_task_orthophoto_available_label(),
                 value: hasAssets ? m.common_yes() : m.common_no(),
-              },
-              {
-                name: m.common_image_status(),
-                value:
-                  isLocked && hasImages
-                    ? m.drone_task_image_uploading_failed()
-                    : getTaskStateLabel(taskAssetsInformation?.state),
               },
             ]}
           />
