@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import shutil
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from io import BytesIO
@@ -675,7 +676,7 @@ async def process_task_metrics(db, tasks_data, project):
         }
 
         if project.is_terrain_follow:
-            dem_path = f"/tmp/{uuid.uuid4()}/dem.tif"
+            dem_path = os.path.join(tempfile.gettempdir(), str(uuid.uuid4()), "dem.tif")
             points = create_waypoint(**waypoint_params)
             try:
                 get_file_from_bucket(
@@ -683,7 +684,9 @@ async def process_task_metrics(db, tasks_data, project):
                     f"projects/{project.id}/dem.tif",
                     dem_path,
                 )
-                outfile_with_elevation = "/tmp/output_file_with_elevation.geojson"
+                outfile_with_elevation = os.path.join(
+                    tempfile.gettempdir(), "output_file_with_elevation.geojson"
+                )
                 add_elevation_from_dem(dem_path, points, outfile_with_elevation)
                 with open(outfile_with_elevation) as inpointsfile:
                     points_with_elevation = inpointsfile.read()
@@ -1451,11 +1454,10 @@ async def process_waypoints_and_waylines(
     count_data = {"waypoints": 0, "waylines": 0}
 
     if is_terrain_follow and dem:
-        temp_dir = f"/tmp/{uuid.uuid4()}"
+        temp_dir = tempfile.mkdtemp()
         dem_path = os.path.join(temp_dir, "dem.tif")
 
         try:
-            os.makedirs(temp_dir, exist_ok=True)
             # Read DEM content into memory and write to the file
             file_content = await dem.read()
             with open(dem_path, "wb") as file:
