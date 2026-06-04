@@ -4,7 +4,6 @@ import Dashboard from "@uppy/react/dashboard";
 import { UppyContext } from "@uppy/react";
 import { toast } from "react-toastify";
 import { authenticated, api } from "@Services/index";
-import { deleteBatch } from "@Services/classification";
 
 import "@uppy/core/css/style.min.css";
 import "@uppy/dashboard/css/style.min.css";
@@ -199,22 +198,24 @@ const UppyFileUploader = ({
       },
     });
 
-    // No cleanup here - cancelAll is handled in a separate unmount-only effect
-    // to avoid cancelling in-progress uploads when deps change.
+    // No unmount cleanup — uppy is app-level so in-flight uploads survive.
   }, [uppy, projectId, taskId, allowedFileTypes, staging]);
-
-  // Cancel uploads only on true component unmount
-  useEffect(() => {
-    return () => {
-      uppy.cancelAll();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     // Reset batch ID when component mounts to ensure fresh state
     batchIdRef.current = null;
     notificationShownRef.current = false;
+
+    // Purge files that finalised while no listener was attached (e.g. modal
+    // closed mid-upload); uppy keeps completed files in state for the session.
+    const purgeCompletedFiles = () => {
+      uppy.getFiles().forEach((file: any) => {
+        if (file.progress?.uploadComplete && uppy.getFile(file.id)) {
+          uppy.removeFile(file.id);
+        }
+      });
+    };
+    purgeCompletedFiles();
 
     // Generate batch ID when upload starts (for staging uploads only)
     const handleUpload = () => {
@@ -253,21 +254,19 @@ const UppyFileUploader = ({
       if (failedUploads > 0) {
         toast.error(`${failedUploads} file(s) failed to upload`);
       }
+
+      purgeCompletedFiles();
     };
 
-    // Handle cancel-all event to clean up batch when user cancels upload
-    const handleCancelAll = async () => {
+    // Skip deleteBatch on cancel — finalised files are recoverable via the
+    // classify / scan-for-images flow.
+    const handleCancelAll = () => {
       if (staging && batchIdRef.current) {
-        try {
-          await deleteBatch(projectId, batchIdRef.current, { waitForCleanup: true });
-          toast.warning("Upload cancelled. Staging images cleared.");
-        } catch (error: any) {
-          console.error("Failed to cleanup batch after cancel:", error);
-          toast.error("Warning: Failed to cleanup staging images");
-        } finally {
-          batchIdRef.current = null;
-          notificationShownRef.current = false;
-        }
+        toast.warning(
+          "Upload cancelled. Already-uploaded images remain staged and can be recovered.",
+        );
+        batchIdRef.current = null;
+        notificationShownRef.current = false;
       }
     };
 
