@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { useGetTaskAssetsInfo, useGetTaskWaypointQuery } from "@Api/tasks";
 import { postTaskStatus } from "@Services/project";
-import { formatString, buildDownloadUrl } from "@Utils/index";
+import { buildDownloadUrl } from "@Utils/index";
+import getTaskStateLabel from "@Utils/taskStateLabel";
 import { Button } from "@Components/RadixComponents/Button";
 import {
   resetFilesExifData,
@@ -18,10 +18,10 @@ import DescriptionBoxComponent from "./DescriptionComponent";
 import QuestionBox from "../QuestionBox";
 import UploadsInformation from "../UploadsInformation";
 import ProgressBar from "./ProgressBar";
+import ManualOverrideSection from "./ManualOverrideSection";
 
 const DescriptionBox = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [flyable, setFlyable] = useState("yes");
   const { taskId, projectId, projectSlug, taskData } = useTaskParams();
@@ -59,67 +59,94 @@ const DescriptionBox = () => {
     const taskDescription = [
       {
         id: 1,
-        title: "Task Description",
+        title: m.drone_task_description_heading(),
         data: [
           {
-            name: "Task ID",
+            name: m.drone_task_status_label(),
+            value: taskAssetsInformation?.state
+              ? getTaskStateLabel(taskAssetsInformation.state)
+              : null,
+          },
+          {
+            name: m.drone_task_id_label(),
             value: resolvedTaskData?.id || taskId || null,
           },
           {
-            name: "Created date",
+            name: m.drone_task_created_date_label(),
             value: resolvedTaskData?.created_at
               ? resolvedTaskData?.created_at?.slice(0, 10) || "-"
               : null,
           },
           {
-            name: "Task locked date",
+            name: m.drone_task_locked_date_label(),
             value: resolvedTaskData?.updated_at
               ? resolvedTaskData?.updated_at?.slice(0, 10) || "-"
               : null,
           },
           {
-            name: "Total task area",
+            name: m.drone_task_total_area_label(),
             value: resolvedTaskData?.total_area_sqkm
-              ? `${Number(resolvedTaskData?.total_area_sqkm)?.toFixed(3)} km²`
+              ? m.drone_task_area_sqkm({
+                  area: Number(resolvedTaskData?.total_area_sqkm)?.toFixed(3),
+                })
               : null,
           },
           {
-            name: "Total waypoints count",
+            name: m.drone_task_total_waypoints_count_label(),
             value: taskWayPoints?.length,
           },
           {
-            name: "Est. flight time*",
+            name: m.drone_task_est_flight_time_label(),
             value: resolvedTaskData?.flight_time_minutes
-              ? `${Number(resolvedTaskData?.flight_time_minutes)?.toFixed(3)} minutes`
+              ? m.drone_task_minutes_value({
+                  minutes: Number(resolvedTaskData?.flight_time_minutes)?.toFixed(3),
+                })
               : null,
           },
         ],
       },
       {
         id: 2,
-        title: "Flight Parameters",
+        title: m.drone_task_flight_parameters_heading(),
         data: [
-          { name: "Altitude", value: resolvedTaskData?.altitude || null },
           {
-            name: "Gimble Angle",
+            name: m.drone_task_altitude_label(),
+            value: resolvedTaskData?.altitude || null,
+          },
+          {
+            name: m.drone_task_gimbal_angle_label(),
             value: resolvedTaskData?.gimble_angles_degrees
-              ? `${resolvedTaskData?.gimble_angles_degrees} degree`
+              ? m.drone_task_degrees_value({
+                  degrees: resolvedTaskData?.gimble_angles_degrees,
+                })
               : null,
           },
           {
-            name: "Front Overlap",
-            value: resolvedTaskData?.front_overlap ? `${resolvedTaskData?.front_overlap}%` : null,
+            name: m.drone_task_front_overlap_label(),
+            value: resolvedTaskData?.front_overlap
+              ? m.drone_task_percent_value({
+                  value: resolvedTaskData?.front_overlap,
+                })
+              : null,
           },
           {
-            name: "Side Overlap",
-            value: resolvedTaskData?.side_overlap ? `${resolvedTaskData?.side_overlap}%` : null,
+            name: m.drone_task_side_overlap_label(),
+            value: resolvedTaskData?.side_overlap
+              ? m.drone_task_percent_value({
+                  value: resolvedTaskData?.side_overlap,
+                })
+              : null,
           },
           {
-            name: "GSD",
-            value: resolvedTaskData?.gsd_cm_px ? `${resolvedTaskData?.gsd_cm_px} cm` : null,
+            name: m.drone_task_gsd_label(),
+            value: resolvedTaskData?.gsd_cm_px
+              ? m.drone_task_centimeters_value({
+                  value: resolvedTaskData?.gsd_cm_px,
+                })
+              : null,
           },
           {
-            name: "Starting Point Altitude",
+            name: m.drone_task_starting_point_altitude_label(),
             value: resolvedTaskData?.starting_point_altitude
               ? `${resolvedTaskData?.starting_point_altitude}`
               : null,
@@ -129,7 +156,7 @@ const DescriptionBox = () => {
     ];
 
     return { taskDescription, taskData: resolvedTaskData };
-  }, [taskData, taskId, taskWayPoints]);
+  }, [taskData, taskId, taskWayPoints, taskAssetsInformation?.state]);
 
   const taskDescription = taskQueryData?.taskDescription;
 
@@ -153,7 +180,7 @@ const DescriptionBox = () => {
       link.click();
       link.remove();
     } catch (error) {
-      toast.error(`There was an error while downloading file ${error}`);
+      toast.error(m.drone_task_download_error({ error: `${error}` }));
     }
   };
 
@@ -167,12 +194,12 @@ const DescriptionBox = () => {
   const { mutate: markFlown, isPending: isMarkingFlown } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      toast.success("Task marked as fully flown");
+      toast.success(m.drone_task_marked_fully_flown_success());
       queryClient.invalidateQueries({ queryKey: ["task-assets-info"] });
     },
     onError: (err: any) => {
       toast.error(
-        err?.response?.data?.detail || err?.message || "Failed to mark task as fully flown",
+        err?.response?.data?.detail || err?.message || m.drone_task_mark_fully_flown_error(),
       );
     },
   });
@@ -180,11 +207,11 @@ const DescriptionBox = () => {
   const { mutate: unmarkFlown, isPending: isUnmarkingFlown } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: () => {
-      toast.success("Task reverted to locked");
+      toast.success(m.drone_task_reverted_to_locked_success());
       queryClient.invalidateQueries({ queryKey: ["task-assets-info"] });
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail || err?.message || "Failed to revert task");
+      toast.error(err?.response?.data?.detail || err?.message || m.drone_task_revert_task_error());
     },
   });
 
@@ -215,66 +242,41 @@ const DescriptionBox = () => {
           />
         ))}
         <p className="naxatw-text-[0.75rem] naxatw-text-[#212121]">
-          *This flight time was calculated using an average ground speed of 11.5 m/s.
+          {m.drone_task_flight_time_note()}
         </p>
       </div>
 
       {isLocked && (
         <Button
           variant="ghost"
-          className="naxatw-mr-3 naxatw-mt-5 naxatw-w-[calc(100%-0.75rem)] naxatw-bg-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-white hover:naxatw-opacity-90 disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-60"
+          className="naxatw-mt-5 naxatw-w-full naxatw-bg-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-white hover:naxatw-opacity-90 disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-60"
           leftIcon="flight_land"
           iconClassname="naxatw-text-[1.375rem]"
           onClick={handleMarkFlown}
           disabled={isMarkingFlown}
         >
-          {isMarkingFlown ? "Marking..." : "Mark as Fully Flown"}
+          {isMarkingFlown ? m.drone_task_marking() : m.drone_task_mark_as_fully_flown()}
         </Button>
       )}
 
       {isFullyFlown && (
         <Button
           variant="outline"
-          className="naxatw-mr-3 naxatw-mt-5 naxatw-w-[calc(100%-0.75rem)] naxatw-border-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-red hover:naxatw-bg-red hover:naxatw-text-white disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-60"
+          className="naxatw-mt-5 naxatw-w-full naxatw-border-red naxatw-py-3 naxatw-text-base naxatw-font-semibold naxatw-text-red hover:naxatw-bg-red hover:naxatw-text-white disabled:naxatw-cursor-not-allowed disabled:naxatw-opacity-60"
           leftIcon="undo"
           iconClassname="naxatw-text-[1.375rem]"
           onClick={handleUnmarkFlown}
           disabled={isUnmarkingFlown}
         >
-          {isUnmarkingFlown ? "Reverting..." : "Not Fully Flown"}
+          {isUnmarkingFlown ? m.drone_task_reverting() : m.drone_task_not_fully_flown()}
         </Button>
-      )}
-
-      {(isLocked || isFullyFlown || hasImages) && (
-        <div className="naxatw-mt-4 naxatw-rounded-lg naxatw-border naxatw-border-amber-200 naxatw-bg-amber-50 naxatw-p-4">
-          <div className="naxatw-flex naxatw-items-start naxatw-gap-3">
-            <span className="material-icons naxatw-text-[1.25rem] naxatw-text-amber-600">info</span>
-            <div className="naxatw-flex-1">
-              <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-amber-900">
-                Imagery processing moved to the project page
-              </p>
-              <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-amber-800">
-                Upload imagery, verify coverage, and start processing from the main project page
-                instead of the individual task page.
-              </p>
-              <Button
-                variant="outline"
-                className="naxatw-mt-3 naxatw-border-amber-300 naxatw-bg-white naxatw-text-amber-900"
-                rightIcon="open_in_new"
-                onClick={() => navigate(`/projects/${projectSlug}`)}
-              >
-                Open Project Page
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Upload progress bar */}
       {taskAssetsInformation?.image_count === 0 &&
         (progressDetails?.totalFiles ? (
           <ProgressBar
-            heading="Uploading Images"
+            heading={m.drone_task_uploading_images()}
             successCount={progressDetails?.uploadedFiles}
             totalCount={progressDetails.totalFiles}
           />
@@ -292,19 +294,19 @@ const DescriptionBox = () => {
           <UploadsInformation
             data={[
               {
-                name: "Image count",
+                name: m.drone_task_image_count_label(),
                 value: taskAssetsInformation?.image_count,
               },
               {
-                name: "Orthophoto available",
-                value: hasAssets ? "Yes" : "No",
+                name: m.drone_task_orthophoto_available_label(),
+                value: hasAssets ? m.common_yes() : m.common_no(),
               },
               {
                 name: m.common_image_status(),
                 value:
                   isLocked && hasImages
-                    ? "Image Uploading Failed"
-                    : formatString(taskAssetsInformation?.state),
+                    ? m.drone_task_image_uploading_failed()
+                    : getTaskStateLabel(taskAssetsInformation?.state),
               },
             ]}
           />
@@ -318,20 +320,27 @@ const DescriptionBox = () => {
                 iconClassname="naxatw-text-[1.125rem]"
                 onClick={() => handleDownloadResult()}
               >
-                Download Result
+                {m.drone_task_download_result()}
               </Button>
             </div>
           )}
 
           {progressDetails?.totalFiles && (
             <ProgressBar
-              heading="Uploading Images"
+              heading={m.drone_task_uploading_images()}
               successCount={progressDetails?.uploadedFiles}
               totalCount={progressDetails.totalFiles}
             />
           )}
         </div>
       )}
+
+      <ManualOverrideSection
+        projectSlug={projectSlug || ""}
+        projectId={projectId || ""}
+        taskId={taskId || ""}
+        currentState={taskAssetsInformation?.state}
+      />
     </>
   );
 };

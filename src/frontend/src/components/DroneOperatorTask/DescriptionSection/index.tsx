@@ -1,17 +1,17 @@
 /* eslint-disable no-nested-ternary */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Dispatch } from "react";
 import { useTypedSelector } from "@Store/hooks";
 import { toast } from "react-toastify";
 import { Button } from "@Components/RadixComponents/Button";
 import Modal from "@Components/common/Modal";
 import useWindowDimensions from "@Hooks/useWindowDimensions";
+import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from "@Utils/adb";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import useTaskParams from "@Hooks/useTaskParams";
-import MapSection from "../MapSection/MapSection";
-import DescriptionBox from "./DescriptionBox";
-import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from "@Utils/adb";
 import { getRuntimeConfig } from "@/runtimeConfig";
 import { m } from "@/paraglide/messages";
+import MapSection from "../MapSection/MapSection";
+import DescriptionBox from "./DescriptionBox";
 
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
@@ -19,7 +19,7 @@ const DroneOperatorDescriptionBox = () => {
   const { projectId, taskId, projectSlug, taskIndex, taskData: taskDescription } = useTaskParams();
   const [showDownloadOptions, setShowDownloadOptions] = useState<boolean>(false);
   const [showMissingDemModal, setShowMissingDemModal] = useState<boolean>(false);
-  const missingDemResolveRef = useRef<((proceed: boolean) => void) | null>(null);
+  const missingDemResolveRef = useRef<Dispatch<boolean> | null>(null);
   const { width } = useWindowDimensions();
   const Token = localStorage.getItem("token");
   const waypointMode = useTypedSelector((state) => state.droneOperatorTask.waypointMode);
@@ -66,14 +66,19 @@ const DroneOperatorDescriptionBox = () => {
       if (payload?.detail?.code === "MISSING_TERRAIN_DEM") {
         const shouldProceed = await askMissingDemOverride();
         if (!shouldProceed) {
-          throw new Error("Mission generation canceled because no DEM was found.");
+          throw new Error(m.drone_task_missing_dem_canceled());
         }
         return fetchFlightPlanFile(true);
       }
     }
 
     if (!response.ok) {
-      throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        m.drone_task_request_failed({
+          status: response.status,
+          statusText: response.statusText,
+        }),
+      );
     }
 
     const disposition = response.headers.get("content-disposition");
@@ -112,10 +117,9 @@ const DroneOperatorDescriptionBox = () => {
         await sendDjiGoFileViaAdb(blob);
       }
 
-      toast.success(`Flight plan sent to device!`);
+      toast.success(m.drone_task_flight_plan_sent());
     } catch (error) {
-      console.error(error);
-      toast.error(`There was an error while sending file: ${error}`);
+      toast.error(m.drone_task_send_file_error({ error: `${error}` }));
     }
   };
 
@@ -147,7 +151,11 @@ const DroneOperatorDescriptionBox = () => {
     )
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Network response was ${response.statusText}`);
+          throw new Error(
+            m.drone_task_network_response_error({
+              statusText: response.statusText,
+            }),
+          );
         }
         return response.blob();
       })
@@ -161,10 +169,7 @@ const DroneOperatorDescriptionBox = () => {
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch((error) =>
-        toast.error(`There was an error while downloading file
-        ${error}`),
-      );
+      .catch((error) => toast.error(m.drone_task_download_error({ error: `${error}` })));
   };
 
   const downloadTaskAreaGeojson = () => {
@@ -178,7 +183,11 @@ const DroneOperatorDescriptionBox = () => {
     )
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Network response was ${response.statusText}`);
+          throw new Error(
+            m.drone_task_network_response_error({
+              statusText: response.statusText,
+            }),
+          );
         }
         return response.blob();
       })
@@ -192,10 +201,7 @@ const DroneOperatorDescriptionBox = () => {
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch((error) =>
-        toast.error(`There was an error while downloading file
-        ${error}`),
-      );
+      .catch((error) => toast.error(m.drone_task_download_error({ error: `${error}` })));
   };
 
   return (
@@ -245,7 +251,9 @@ const DroneOperatorDescriptionBox = () => {
       <div className="naxatw-flex naxatw-w-full naxatw-flex-col naxatw-items-start naxatw-gap-3 lg:naxatw-gap-5">
         <div className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-self-stretch">
           <p className="naxatw-text-[0.875rem] naxatw-font-normal naxatw-leading-normal naxatw-text-[#484848]">
-            Task #{(taskDescription as any)?.project_task_index}
+            {m.common_task_number({
+              index: (taskDescription as any)?.project_task_index,
+            })}
           </p>
 
           <div className="naxatw-relative">
@@ -256,7 +264,7 @@ const DroneOperatorDescriptionBox = () => {
               iconClassname="naxatw-text-[1.125rem]"
               onClick={() => setShowDownloadOptions((prev) => !prev)}
             >
-              Download
+              {m.drone_task_download()}
             </Button>
             {showDownloadOptions && (
               <div className="naxatw-absolute naxatw-right-0 naxatw-top-10 naxatw-z-20 naxatw-w-[200px] naxatw-rounded-sm naxatw-border naxatw-bg-white naxatw-shadow-2xl">
@@ -270,7 +278,8 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  💾 Flightplan for copy to controller
+                  {"💾 "}
+                  {m.drone_task_download_flightplan_controller()}
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -282,9 +291,10 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  📨 Send flightplan to controller
+                  {"📨 "}
+                  {m.drone_task_send_flightplan_controller()}
                 </div>
-                <hr></hr>
+                <hr />
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                   role="button"
@@ -295,7 +305,8 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  🔎 Inspect flightplan GeoJSON
+                  {"🔎 "}
+                  {m.drone_task_inspect_flightplan_geojson()}
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -307,7 +318,8 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  📍 Task area as KML
+                  {"📍 "}
+                  {m.drone_task_area_kml()}
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
@@ -319,14 +331,15 @@ const DroneOperatorDescriptionBox = () => {
                     setShowDownloadOptions(false);
                   }}
                 >
-                  📍 Task area as GeoJSON
+                  {"📍 "}
+                  {m.drone_task_area_geojson()}
                 </div>
               </div>
             )}
           </div>
         </div>
         {width < 640 && <MapSection />}
-        <div className="scrollbar naxatw-flex naxatw-max-h-[calc(100vh-15rem)] naxatw-w-full naxatw-flex-col naxatw-gap-3 naxatw-overflow-y-auto">
+        <div className="scrollbar naxatw-flex naxatw-max-h-[calc(100vh-15rem)] naxatw-w-full naxatw-flex-col naxatw-gap-3 naxatw-overflow-y-auto naxatw-pr-3">
           <DescriptionBox />
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { m } from "@/paraglide/messages";
+
 interface IProgressBarProps {
   heading?: string;
   successCount?: number;
@@ -5,7 +7,7 @@ interface IProgressBarProps {
 }
 
 const ProgressBar = ({
-  heading = "Uploading",
+  heading = m.drone_task_uploading(),
   successCount = 0,
   totalCount = 100,
 }: IProgressBarProps) => {
@@ -22,7 +24,7 @@ const ProgressBar = ({
           {totalCount === successCount && totalCount !== 0 ? (
             <></>
           ) : (
-            `${successCount} / ${totalCount} Completed`
+            m.drone_task_progress_completed({ successCount, totalCount })
           )}
         </p>
         <div className="naxatw-h-[0.75rem] naxatw-w-full naxatw-rounded-3xl naxatw-bg-gray-300">

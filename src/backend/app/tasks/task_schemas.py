@@ -37,6 +37,31 @@ class NewEvent(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+class ManualOverrideRequest(BaseModel):
+    """Admin failsafe payload - force a task into an arbitrary State.
+
+    Intentionally separate from NewEvent / EventType because this is an
+    out-of-band override, not a workflow event. The route handler enforces
+    project-author authorization and writes the chosen state directly to
+    task_events with a distinctive comment.
+    """
+
+    state: State
+    updated_at: Optional[datetime] = None
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def coerce_state_name(cls, value):
+        # State is an IntEnum, but the frontend sends the enum name string
+        # (e.g. "UNLOCKED"). Look the name up so pydantic can finish coercion.
+        if isinstance(value, str):
+            try:
+                return State[value.strip()].value
+            except KeyError as e:
+                raise ValueError(f"Unknown task state: {value!r}") from e
+        return value
+
+
 class Task(BaseModel):
     task_id: Optional[uuid.UUID] = None
     state: Optional[str] = None

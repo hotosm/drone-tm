@@ -17,7 +17,7 @@ import { GeojsonType } from "@Components/common/MapLibreComponents/types";
 import { postTaskStatus } from "@Services/project";
 import { setProjectState } from "@Store/actions/project";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import getBbox from "@turf/bbox";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { commentMentionsUserId, renderCommentMentions } from "@Utils/mentions";
@@ -36,6 +36,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const { id: urlId } = useParams();
   const navigate = useNavigate();
   const dispatch = useTypedDispatch();
+  const queryClient = useQueryClient();
   // Use UUID from project data for API calls, URL param (slug) for navigation
   const projectUuid = projectData?.id || urlId;
   const [taskStatusObj, setTaskStatusObj] = useState<Record<string, any> | null>(null);
@@ -126,40 +127,18 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
   const { mutate: unLockTask } = useMutation<any, any, any, unknown>({
     mutationFn: postTaskStatus,
     onSuccess: (res: any) => {
-      const taskId = res.data.task_id;
-      setTaskStatusObj({
-        ...taskStatusObj,
-        [taskId]: "UNLOCKED",
-      });
-      // Clear lock info from tasksData in Redux
-      if (tasksData) {
-        dispatch(
-          setProjectState({
-            tasksData: tasksData.map((task: Record<string, any>) =>
-              task.id === taskId
-                ? {
-                    ...task,
-                    user_id: undefined,
-                    name: undefined,
-                    comment: undefined,
-                    outline: {
-                      ...task.outline,
-                      properties: {
-                        ...task.outline.properties,
-                        locked_user_id: undefined,
-                        locked_user_name: undefined,
-                        lock_comment: undefined,
-                      },
-                    },
-                  }
-                : task,
-            ),
-          }),
-        );
-      }
-      // Close the popup so it reopens with fresh data on next click
+      // The backend returns the resolved state - UNLOCKED for a pilot
+      // releasing their LOCKED task, or the prior distinct state for an
+      // admin revert (which preserves the original pilot as locker). We
+      // can't compute the prior pilot client-side, so refetch instead of
+      // patching state inline.
+      const newState = res.data.state || "UNLOCKED";
+      queryClient.invalidateQueries({ queryKey: ["project-task-states", projectUuid] });
+      queryClient.invalidateQueries({ queryKey: ["project-detail", projectUuid] });
       document.getElementById("close-popup")?.click();
-      toast.success(m.map_task_unlocked_success());
+      toast.success(
+        newState === "UNLOCKED" ? m.map_task_unlocked_success() : m.map_task_reverted_success(),
+      );
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.detail || err?.message || "");
@@ -219,6 +198,24 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     const task = tasksData.find((t: Record<string, any>) => t.id === selectedTaskId);
     setSelectedTaskIndex(task?.project_task_index || null);
   }, [selectedTaskId, tasksData]);
+
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId || !tasksData) return null;
+    return tasksData.find((task: Record<string, any>) => task.id === selectedTaskId) || null;
+  }, [selectedTaskId, tasksData]);
+
+  const selectedTaskStatus = taskStatusObj?.[selectedTaskId];
+  const selectedTaskLatestUserId = selectedTask?.user_id || lockedUser?.id;
+  // From LOCKED the action is a plain "unlock" (-> UNLOCKED). From any
+  // later state the admin is stepping the task back one event in history,
+  // which is a "revert" semantically.
+  const isRevertAction =
+    !!selectedTaskStatus && selectedTaskStatus !== "UNLOCKED" && selectedTaskStatus !== "LOCKED";
+  const canUnlockSelectedTask =
+    !!selectedTaskStatus &&
+    selectedTaskStatus !== "UNLOCKED" &&
+    (projectData?.author_id === userDetails?.id ||
+      (selectedTaskStatus === "LOCKED" && selectedTaskLatestUserId === userDetails?.id));
 
   // end zoom to layer
 
@@ -569,8 +566,8 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             dispatch(setProjectState({ selectedTaskId: properties.id }));
             setSelectedTaskIndex(properties?.project_task_index || null);
             setLockedUser({
-              id: properties?.locked_user_id || userDetails?.id || "",
-              name: properties?.locked_user_name || userDetails?.name || "",
+              id: properties?.locked_user_id || "",
+              name: properties?.locked_user_name || "",
             });
           }}
           hideButton={
@@ -578,28 +575,27 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             projectData?.regulator_approval_status === "PENDING"
           }
           buttonText={
-            taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
+            selectedTaskStatus === "UNLOCKED" || !selectedTaskStatus
               ? m.individual_project_lock_task()
               : m.map_popup_go_to_task()
           }
           handleBtnClick={() =>
-            taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
+            selectedTaskStatus === "UNLOCKED" || !selectedTaskStatus
               ? handleTaskLockClick()
               : navigate(`/projects/${projectData?.slug || urlId}/tasks/${selectedTaskIndex}`)
           }
           hasSecondaryButton={
-            taskStatusObj?.[selectedTaskId] === "UNLOCKED" ||
-            !taskStatusObj?.[selectedTaskId] ||
-            (taskStatusObj?.[selectedTaskId] === "LOCKED" &&
-              (lockedUser?.id === userDetails?.id || projectData?.author_id === userDetails?.id))
+            selectedTaskStatus === "UNLOCKED" || !selectedTaskStatus || canUnlockSelectedTask
           }
           secondaryButtonText={
-            taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
+            selectedTaskStatus === "UNLOCKED" || !selectedTaskStatus
               ? m.map_popup_lock_with_comment()
-              : m.map_popup_unlock_task()
+              : isRevertAction
+                ? m.map_popup_revert_task()
+                : m.map_popup_unlock_task()
           }
           handleSecondaryBtnClick={() =>
-            taskStatusObj?.[selectedTaskId] === "UNLOCKED" || !taskStatusObj?.[selectedTaskId]
+            selectedTaskStatus === "UNLOCKED" || !selectedTaskStatus
               ? handleTaskLockWithCommentClick()
               : setShowUnlockDialog(true)
           }
@@ -633,13 +629,14 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
       </ProjectPromptDialog>
 
       <ProjectPromptDialog
-        title={m.map_dialog_task_unlock_title()}
+        title={isRevertAction ? m.map_dialog_task_revert_title() : m.map_dialog_task_unlock_title()}
         show={showUnlockDialog}
         onClose={() => setShowUnlockDialog(false)}
       >
         <UnlockTaskPromptDialog
           handleUnlockTask={handleTaskUnLockClick}
           setShowUnlockDialog={setShowUnlockDialog}
+          isRevert={isRevertAction}
         />
       </ProjectPromptDialog>
     </>

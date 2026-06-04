@@ -5,6 +5,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from psycopg import Connection
 from psycopg.rows import dict_row
 
+from datetime import datetime, timezone
+
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.projects import project_deps, project_schemas
@@ -118,4 +120,40 @@ async def new_event(
         detail,
         user_data,
         background_tasks,
+    )
+
+
+@router.post("/manual-override/{project_id}/{task_id}")
+async def manual_override_task_state(
+    db: Annotated[Connection, Depends(database.get_db)],
+    project_id: str,
+    task_id: uuid.UUID,
+    payload: task_schemas.ManualOverrideRequest,
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Admin failsafe: force a task into an arbitrary state.
+
+    Reserved for the project author to recover stuck tasks when the normal
+    state-machine flows (request / fly / unlock / revert) can't get them
+    back to a usable state. Inserts a task_events row with a clearly-marked
+    "manually overridden" comment so the action is auditable.
+    """
+    if project.author_id != user_data.id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Only the project author can manually override a task state.",
+        )
+
+    resolved_project_id = await _resolve_project_id(db, project_id)
+    return await task_logic.manual_override_task_state(
+        db=db,
+        project_id=resolved_project_id,
+        task_id=task_id,
+        target_state=payload.state,
+        actor_user_id=user_data.id,
+        actor_name=user_data.name,
+        updated_at=payload.updated_at or datetime.now(timezone.utc),
     )

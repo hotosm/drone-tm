@@ -10,6 +10,20 @@ export const postTaskStatus = (payload: Record<string, any>) => {
     headers: { "Content-Type": "application/json" },
   });
 };
+
+export const manualOverrideTaskState = (payload: {
+  projectId: string;
+  taskId: string;
+  state: string;
+}) => {
+  const { projectId, taskId, state } = payload;
+  return authenticated(api).post(
+    `/tasks/manual-override/${projectId}/${taskId}`,
+    { state, updated_at: new Date().toISOString() },
+    { headers: { "Content-Type": "application/json" } },
+  );
+};
+
 export const getRequestedTasks = () => authenticated(api).get("/tasks/requested_tasks/pending");
 
 export const processAllImagery = (data: Record<string, any>) => {

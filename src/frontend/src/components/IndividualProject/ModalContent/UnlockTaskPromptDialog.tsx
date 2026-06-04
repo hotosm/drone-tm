@@ -4,15 +4,21 @@ import { m } from "@/paraglide/messages";
 interface IUnlockTaskPromptDialogProps {
   handleUnlockTask: () => void;
   setShowUnlockDialog: React.Dispatch<React.SetStateAction<boolean>>;
+  isRevert?: boolean;
 }
 
 const UnlockTaskPromptDialog = ({
   handleUnlockTask,
   setShowUnlockDialog,
+  isRevert = false,
 }: IUnlockTaskPromptDialogProps) => {
   return (
     <div className="naxatw-flex naxatw-flex-col">
-      <div className="naxatw-text-lg">{m.individual_project_unlock_task_confirm()}</div>
+      <div className="naxatw-text-lg">
+        {isRevert
+          ? m.individual_project_revert_task_confirm()
+          : m.individual_project_unlock_task_confirm()}
+      </div>
       <div className="naxatw-flex naxatw-justify-end naxatw-gap-3 naxatw-py-3">
         <Button className="!naxatw-text-red" onClick={() => setShowUnlockDialog(false)}>
           {m.common_cancel()}
@@ -24,7 +30,7 @@ const UnlockTaskPromptDialog = ({
             setShowUnlockDialog(false);
           }}
         >
-          {m.individual_project_unlock()}
+          {isRevert ? m.individual_project_revert() : m.individual_project_unlock()}
         </Button>
       </div>
     </div>

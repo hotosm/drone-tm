@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import uuid
 from datetime import datetime
 
@@ -178,7 +179,7 @@ async def update_task_state(
             INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
             SELECT gen_random_uuid(), project_id, task_id, %(user_id)s, %(final_state)s, %(comment)s, %(updated_at)s, now()
             FROM can_modify
-            RETURNING project_id, task_id, comment;
+            RETURNING project_id, task_id, state, comment;
             """,
             {
                 "project_id": str(project_id),
@@ -197,6 +198,177 @@ async def update_task_state(
                 f"or you might not have permission to modify it."
             )
         return result
+
+
+# Matches the comment we write for revert events. State tokens are always
+# upper-case enum names, which keeps this from matching prose like
+# "Task reverted from fully flown back to locked" produced by UNMARK_FLOWN.
+_REVERT_COMMENT_RE = re.compile(r"^Task reverted from [A-Z_]+ to [A-Z_]+ by .+\.$")
+
+
+def _is_revert_comment(comment: str | None) -> bool:
+    if not comment:
+        return False
+    return bool(_REVERT_COMMENT_RE.match(comment))
+
+
+def _resolve_revert_target(
+    events: list[dict], current_state: str
+) -> tuple[str, str] | None:
+    """Find the (state, user_id) the next revert should land on.
+
+    `events` must be ordered most-recent-first. Returns None when no prior
+    distinct state exists, so the caller falls back to UNLOCKED.
+
+    A prior revert "shadows" the non-revert event it reverted away from, so
+    we keep a skip counter: each revert seen while walking back consumes one
+    upcoming non-revert event with a different state. Without this, a second
+    revert lands on the state we just reverted out of, undoing the undo.
+    """
+    skip = 0
+    for event in events:
+        if _is_revert_comment(event.get("comment")):
+            skip += 1
+            continue
+        if event["state"] == current_state:
+            continue
+        if skip > 0:
+            skip -= 1
+            continue
+        return event["state"], event["user_id"]
+    return None
+
+
+async def revert_task_state(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    current_state: str,
+    current_user_id: str,
+    actor_name: str,
+    updated_at: datetime,
+):
+    """Step a task back one event in its history.
+
+    The new event preserves the user_id of the prior state so the task
+    remains shown as held by the original pilot; the actor performing the
+    revert is recorded in the comment for audit. LOCKED always reverts to
+    UNLOCKED regardless of what came before (e.g. AWAITING_APPROVAL) so a
+    plain "unlock" matches user expectation. If there is no prior distinct
+    state in history, the task reverts to UNLOCKED.
+
+    Successive reverts walk further back through the original event history
+    rather than ping-ponging between two adjacent states - see
+    ``_resolve_revert_target``.
+
+    Caller is responsible for verifying the task isn't already UNLOCKED
+    and that the actor is authorized to revert.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        if current_state == State.LOCKED.name:
+            target_state = State.UNLOCKED.name
+            target_user_id = current_user_id
+        else:
+            await cur.execute(
+                """
+                SELECT state::text AS state, user_id, comment
+                FROM task_events
+                WHERE project_id = %(project_id)s
+                  AND task_id = %(task_id)s
+                ORDER BY created_at DESC
+                """,
+                {
+                    "project_id": str(project_id),
+                    "task_id": str(task_id),
+                },
+            )
+            events = await cur.fetchall()
+            resolved = _resolve_revert_target(events, current_state)
+            if resolved is not None:
+                target_state, target_user_id = resolved
+            else:
+                target_state = State.UNLOCKED.name
+                target_user_id = current_user_id
+
+        await cur.execute(
+            """
+            INSERT INTO task_events (event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+            VALUES (gen_random_uuid(), %(project_id)s, %(task_id)s, %(user_id)s, %(state)s, %(comment)s, %(updated_at)s, now())
+            RETURNING project_id, task_id, state, comment;
+            """,
+            {
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+                "user_id": str(target_user_id),
+                "state": target_state,
+                "comment": f"Task reverted from {current_state} to {target_state} by {actor_name}.",
+                "updated_at": updated_at,
+            },
+        )
+        return await cur.fetchone()
+
+
+async def manual_override_task_state(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    target_state: State,
+    actor_user_id: str,
+    actor_name: str,
+    updated_at: datetime,
+):
+    """Force a task into ``target_state`` as an admin failsafe.
+
+    Sidesteps the state-machine transition checks in ``update_task_state``
+    so the project author can unstick tasks that no scripted workflow can
+    recover. The new event preserves the most recent task user_id (so a
+    task that was held by a pilot stays attributed to them on the map);
+    if there is no prior event, it falls back to the actor.
+
+    The comment uses a distinct prefix from ``revert_task_state`` so the
+    successive-revert walk-back does not mistake an override for a revert.
+    Caller is responsible for authorizing the actor.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            SELECT state::text AS state, user_id
+            FROM task_events
+            WHERE project_id = %(project_id)s AND task_id = %(task_id)s
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            {"project_id": str(project_id), "task_id": str(task_id)},
+        )
+        latest = await cur.fetchone()
+        prev_state = latest["state"] if latest else State.UNLOCKED.name
+        target_user_id = latest["user_id"] if latest else actor_user_id
+
+        if prev_state == target_state.name:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"Task is already in state {target_state.name}.",
+            )
+
+        await cur.execute(
+            """
+            INSERT INTO task_events (event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
+            VALUES (gen_random_uuid(), %(project_id)s, %(task_id)s, %(user_id)s, %(state)s, %(comment)s, %(updated_at)s, now())
+            RETURNING project_id, task_id, state, comment;
+            """,
+            {
+                "project_id": str(project_id),
+                "task_id": str(task_id),
+                "user_id": str(target_user_id),
+                "state": target_state.name,
+                "comment": (
+                    f"Task state manually overridden from {prev_state} to "
+                    f"{target_state.name} by {actor_name}."
+                ),
+                "updated_at": updated_at,
+            },
+        )
+        return await cur.fetchone()
 
 
 async def update_task_state_system(
@@ -605,35 +777,52 @@ async def handle_event(
                 return await cur.fetchone()
 
         case EventType.UNLOCK:
-            # Fetch the task state
+            # Drone pilots may release their own LOCKED task (-> UNLOCKED).
+            # The project admin may step the task back one state at a time
+            # through the event history, which is useful for recovering tasks
+            # that have progressed past LOCKED (e.g. stuck at HAS_IMAGERY or
+            # in a failed processing run) without wiping all prior progress
+            # in one click.
             current_task_state = await get_task_state(db, project_id, task_id)
-
-            state = current_task_state.get("state")
-            locked_user_id = current_task_state.get("user_id")
-            is_author = project["author_id"] == user_id
-
-            # Determine error conditions
-            if state != State.LOCKED.name:
+            if (
+                not current_task_state
+                or current_task_state.get("state") == State.UNLOCKED.name
+            ):
                 raise HTTPException(
                     status_code=400,
-                    detail="Task state does not match expected state for unlock operation.",
-                )
-            if not is_author and user_id != locked_user_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="You cannot unlock this task as it is locked by another user.",
+                    detail="Task is already unlocked.",
                 )
 
-            # Proceed with unlocking the task
-            return await update_task_state(
-                db,
-                project_id,
-                task_id,
-                user_id,
-                f"Task has been unlock by user {user_data.name}.",
-                State.LOCKED,
-                State.UNLOCKED,
-                detail.updated_at,
+            state = current_task_state.get("state")
+            latest_event_user_id = current_task_state.get("user_id")
+            is_author = project["author_id"] == user_id
+
+            if not is_author:
+                if state != State.LOCKED.name:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            "Only the project creator can revert this task "
+                            "in its current state."
+                        ),
+                    )
+                if user_id != latest_event_user_id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            "You cannot unlock this task as it is locked by "
+                            "another user."
+                        ),
+                    )
+
+            return await revert_task_state(
+                db=db,
+                project_id=project_id,
+                task_id=task_id,
+                current_state=state,
+                current_user_id=latest_event_user_id,
+                actor_name=user_data.name,
+                updated_at=detail.updated_at,
             )
 
         case EventType.IMAGE_PROCESSING_START:
