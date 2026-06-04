@@ -1,4 +1,5 @@
 import os
+import tempfile
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 from uuid import UUID
@@ -931,7 +932,10 @@ async def download_reflight_plan(
         )
 
     flightplan_config = get_flightplan_output_config(flight_drone_type)
-    file_path = f"/tmp/reflight_{task_id}{flightplan_config['suffix']}"
+    file_path = os.path.join(
+        tempfile.gettempdir(),
+        f"reflight_{task_id}{flightplan_config['suffix']}",
+    )
 
     with open(file_path, "wb") as f:
         f.write(result["kmz_bytes"])

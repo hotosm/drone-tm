@@ -276,7 +276,8 @@ async def generate_wmpl_kmz(
                 detail="DEM file should be in GeoTIFF format",
             )
 
-        dem_path = f"/tmp/{dem.filename}"
+        fd, dem_path = tempfile.mkstemp(suffix=".tif", prefix="dem_")
+        os.close(fd)
         with open(dem_path, "wb") as buffer:
             shutil.copyfileobj(dem.file, buffer)
 
@@ -312,7 +313,7 @@ async def generate_wmpl_kmz(
             gsd=gsd,
             flight_mode=flight_mode,
             dem=dem_path if dem else None,
-            outfile=f"/tmp/{uuid.uuid4()}",
+            outfile=os.path.join(tempfile.gettempdir(), str(uuid.uuid4())),
             take_off_point=take_off_point,
             drone_type=drone_type,
         )
@@ -329,7 +330,7 @@ async def generate_kmz_with_placemarks(
     task_id: uuid.UUID, data: waypoint_schemas.PlacemarksFeature
 ):
     try:
-        outfile = f"/tmp/{task_id}_flight_plan.kmz"
+        outfile = os.path.join(tempfile.gettempdir(), f"{task_id}_flight_plan.kmz")
 
         kmz_file = create_wpml(data.model_dump(), outfile)
         if not os.path.exists(kmz_file):
