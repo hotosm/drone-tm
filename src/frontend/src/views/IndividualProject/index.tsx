@@ -279,7 +279,7 @@ const IndividualProject = () => {
             >
               {m.individual_project_button_gcp_editor()}
             </Button>
-            {projectData?.cog_ready && (
+            {projectData?.cloud_ortho_ready && (
               <Button
                 variant="ghost"
                 className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
@@ -290,7 +290,7 @@ const IndividualProject = () => {
                 View Orthophoto
               </Button>
             )}
-            {projectData?.tiles_ready && (
+            {projectData?.cloud_mesh_ready && (
               <Button
                 variant="ghost"
                 className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"

@@ -255,8 +255,8 @@ class DbProject(BaseModel):
     regulator_approval_status: Optional[str] = None
     image_processing_status: Optional[str] = None
     oam_upload_status: Optional[str] = None
-    cog_ready: bool = False
-    tiles_ready: bool = False
+    cloud_ortho_ready: bool = False
+    cloud_mesh_ready: bool = False
     odm_task_uuid: Optional[str] = None
     odm_endpoint_used: Optional[str] = None
     assets_url: Optional[str] = None
@@ -738,8 +738,8 @@ class ProjectInfo(BaseModel):
     regulator_approval_status: Optional[str] = None
     image_processing_status: Optional[str] = None
     oam_upload_status: Optional[str] = None
-    cog_ready: bool = False
-    tiles_ready: bool = False
+    cloud_ortho_ready: bool = False
+    cloud_mesh_ready: bool = False
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
     dem_url: Optional[str] = None

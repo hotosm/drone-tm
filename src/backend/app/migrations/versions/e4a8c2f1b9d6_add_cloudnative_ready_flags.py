@@ -1,4 +1,4 @@
-"""Add cog_ready and tiles_ready flags to projects
+"""Add cloud_ortho_ready and cloud_mesh_ready flags to projects
 
 Revision ID: e4a8c2f1b9d6
 Revises: 7f3a8b9c2d1e
@@ -22,7 +22,7 @@ def upgrade() -> None:
     op.add_column(
         "projects",
         sa.Column(
-            "cog_ready",
+            "cloud_ortho_ready",
             sa.Boolean(),
             nullable=False,
             server_default=sa.false(),
@@ -31,7 +31,7 @@ def upgrade() -> None:
     op.add_column(
         "projects",
         sa.Column(
-            "tiles_ready",
+            "cloud_mesh_ready",
             sa.Boolean(),
             nullable=False,
             server_default=sa.false(),
@@ -40,5 +40,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column("projects", "tiles_ready")
-    op.drop_column("projects", "cog_ready")
+    op.drop_column("projects", "cloud_mesh_ready")
+    op.drop_column("projects", "cloud_ortho_ready")

@@ -12,9 +12,9 @@ Two jobs run per project once final processing succeeds:
   bundled ``Obj2Tiles`` binary, georeferencing it with the lat/lon/alt
   recorded in ``opensfm/reference_lla.json``.
 
-Both jobs are idempotent — the ``cog_ready`` / ``tiles_ready`` flags on the
-project act as a "done" marker. Re-running with ``force=True`` overwrites the
-S3 outputs (used by the admin backfill script).
+Both jobs are idempotent — the ``cloud_ortho_ready`` / ``cloud_mesh_ready``
+flags on the project act as a "done" marker. Re-running with ``force=True``
+overwrites the S3 outputs (used by the admin backfill script).
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ _OBJ_FILE_NAME = "odm_textured_model_geo.obj"
 
 # Columns we toggle on completion. Hardcoded list (not user input) so the
 # string-formatted UPDATE below is not an injection risk.
-_READY_COLUMNS = {"cog_ready", "tiles_ready"}
+_READY_COLUMNS = {"cloud_ortho_ready", "cloud_mesh_ready"}
 
 
 async def _get_ready_flag(db_pool: Any, project_id: uuid.UUID, column: str) -> bool:
@@ -181,7 +181,7 @@ async def generate_orthophoto_cog(
     if not db_pool:
         raise RuntimeError("db_pool missing from arq ctx")
 
-    if not force and await _get_ready_flag(db_pool, pid, "cog_ready"):
+    if not force and await _get_ready_flag(db_pool, pid, "cloud_ortho_ready"):
         log.info("COG already ready for project {}; skipping", pid)
         return {"status": "skipped", "reason": "already_ready"}
 
@@ -217,7 +217,7 @@ async def generate_orthophoto_cog(
             add_file_to_bucket, settings.S3_BUCKET_NAME, str(dst_path), dst_key
         )
 
-    await _set_ready_flag(db_pool, pid, "cog_ready", True)
+    await _set_ready_flag(db_pool, pid, "cloud_ortho_ready", True)
     log.info("COG ready for project {}", pid)
     return {"status": "completed", "project_id": project_id, "cog_key": dst_key}
 
@@ -235,7 +235,7 @@ async def generate_3d_tiles(
     if not db_pool:
         raise RuntimeError("db_pool missing from arq ctx")
 
-    if not force and await _get_ready_flag(db_pool, pid, "tiles_ready"):
+    if not force and await _get_ready_flag(db_pool, pid, "cloud_mesh_ready"):
         log.info("3D tiles already ready for project {}; skipping", pid)
         return {"status": "skipped", "reason": "already_ready"}
 
@@ -316,7 +316,7 @@ async def generate_3d_tiles(
         )
         log.info("Uploaded {} 3D tile files for project {}", uploaded, pid)
 
-    await _set_ready_flag(db_pool, pid, "tiles_ready", True)
+    await _set_ready_flag(db_pool, pid, "cloud_mesh_ready", True)
     log.info("3D tiles ready for project {}", pid)
     return {
         "status": "completed",

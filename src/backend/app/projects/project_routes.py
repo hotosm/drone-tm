@@ -2039,7 +2039,7 @@ async def head_3d_tile(
     Used by the frontend before initialising TilesRenderer so the placeholder
     can be shown immediately when tiles haven't been generated yet.
     """
-    if not getattr(project, "tiles_ready", False):
+    if not getattr(project, "cloud_mesh_ready", False):
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="3D tiles have not been generated for this project yet.",
@@ -2071,7 +2071,7 @@ async def stream_3d_tile(
     object's S3 ETag so the browser can cache aggressively and revalidate
     cheaply via ``If-None-Match`` on cache expiry.
     """
-    if not getattr(project, "tiles_ready", False):
+    if not getattr(project, "cloud_mesh_ready", False):
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="3D tiles have not been generated for this project yet.",
@@ -2135,7 +2135,7 @@ async def get_orthophoto_cog_presigned_url(
     refresh the URL shortly before ``expires_at`` so an in-flight range
     request never sees a 403.
     """
-    if not getattr(project, "cog_ready", False):
+    if not getattr(project, "cloud_ortho_ready", False):
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="Orthophoto COG has not been generated for this project yet.",

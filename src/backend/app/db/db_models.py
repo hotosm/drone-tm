@@ -174,10 +174,10 @@ class DbProject(Base):
     )  # status of oam upload
 
     # Cloud-native derivative readiness (set by post-processing arq jobs).
-    cog_ready = cast(
+    cloud_ortho_ready = cast(
         bool, Column(Boolean, default=False, nullable=False, server_default="false")
     )
-    tiles_ready = cast(
+    cloud_mesh_ready = cast(
         bool, Column(Boolean, default=False, nullable=False, server_default="false")
     )
 
