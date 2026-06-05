@@ -46,6 +46,10 @@ from app.images.image_processing import remove_scaleodm_task
 from app.projects import project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
+from app.projects.s3_paths import (
+    cloudnative_project_root_prefix,
+    public_qfield_zip_key,
+)
 from app.s3 import (
     abort_multipart_upload,
     build_browser_object_url,
@@ -278,16 +282,32 @@ async def delete_project_by_id(
 ):
     project_id = await project_schemas.DbProject.delete(db, project.id)
 
-    # After DB rows are gone, purge all S3 assets under the project prefix.
-    # We do this best-effort: if S3 cleanup fails the DB delete still stands,
-    # and the script in scripts/ can sweep orphaned prefixes later.
-    try:
-        deleted = delete_objects_by_prefix(
-            settings.S3_BUCKET_NAME, f"projects/{project_id}/"
-        )
-        log.info(f"Deleted {deleted} S3 objects for project {project_id}")
-    except Exception as e:
-        log.error(f"S3 cleanup failed for project {project_id}: {e}")
+    # After DB rows are gone, purge every S3 prefix that belongs to this
+    # project. Each is best-effort: an S3 hiccup must not roll back the DB
+    # delete that already committed, and the sweeper script under scripts/
+    # can pick up anything left behind.
+    #
+    # The three roots we own per project:
+    #   projects/{id}/                          - raw ODM input + output (private)
+    #   publicuploads/cloudnative/{id}/         - 3D tiles + COG (public)
+    #   publicuploads/qfield/{id}.zip           - QField export (public)
+    for prefix in (
+        f"projects/{project_id}/",
+        f"{cloudnative_project_root_prefix(project_id)}/",
+        public_qfield_zip_key(project_id),
+    ):
+        try:
+            deleted = delete_objects_by_prefix(settings.S3_BUCKET_NAME, prefix)
+            log.info(
+                "Deleted {} S3 objects under {} for project {}",
+                deleted,
+                prefix,
+                project_id,
+            )
+        except Exception as e:
+            log.error(
+                "S3 cleanup failed at {} for project {}: {}", prefix, project_id, e
+            )
 
     return {"message": f"Project successfully deleted {project_id}"}
 
@@ -590,10 +610,22 @@ async def process_all_imagery(
             ),
         )
 
+    # Flip to PROCESSING and reset the cloudnative flags atomically. The
+    # ARQ worker (process_all_drone_images) re-runs this kind of reset
+    # later, but that's after worker latency - between the two updates the
+    # project would otherwise have status=PROCESSING coexisting with
+    # cloud_*_ready=true (from a prior run), causing the API to keep
+    # emitting the old viewer URL and the UI to keep showing "View" while
+    # ODM is actually reprocessing.
     await db.execute(
         """
         UPDATE projects
-        SET image_processing_status = %(status)s, last_updated = NOW()
+        SET image_processing_status = %(status)s,
+            cloud_ortho_ready = false,
+            cloud_mesh_ready = false,
+            cloud_ortho_generating = false,
+            cloud_mesh_generating = false,
+            last_updated = NOW()
         WHERE id = %(project_id)s;
         """,
         {
@@ -815,7 +847,7 @@ async def qfield_project_status(
 
     Returns the public download URL if the zip is available.
     """
-    s3_key = f"publicuploads/qfield/{project_id}.zip"
+    s3_key = public_qfield_zip_key(project_id)
     exists = check_file_exists(settings.S3_BUCKET_NAME, s3_key)
 
     if not exists:
@@ -1703,41 +1735,25 @@ async def export_odm_orthophoto(
     )
 
 
-@router.get(
-    "/odm/export/{project_id}/dem/",
-    tags=["Image Processing"],
-)
-async def export_odm_dem(
-    request: Request,
-    project_id: uuid.UUID,
-    project: Annotated[
-        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
-    ],
-):
-    """Stream the DEM GeoTIFF for the project-level ODM output.
+def _stream_s3_object_response(
+    s3_key: str,
+    *,
+    not_found_detail: str,
+    download_filename: str,
+    media_type: str,
+) -> StreamingResponse:
+    """Common streamer for the per-product export endpoints below.
 
-    Checks for dsm.tif first, then dtm.tif under odm_dem/.
+    Keeps the per-route bodies thin so adding a new export (e.g. mesh OBJ)
+    later is just a one-line wrapper rather than another copy-pasted block.
     """
-    dem_key = None
-    for filename in ("dsm.tif", "dtm.tif"):
-        candidate = f"projects/{project.id}/odm/odm_dem/{filename}"
-        try:
-            s3_client().stat_object(settings.S3_BUCKET_NAME, candidate)
-            dem_key = candidate
-            break
-        except Exception:
-            continue
-
-    if dem_key is None:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="No DEM found for this project.",
-        )
-
-    filename = f"dem_{project_id}.tif"
+    try:
+        s3_client().stat_object(settings.S3_BUCKET_NAME, s3_key)
+    except Exception:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=not_found_detail)
 
     def generate():
-        response = s3_client().get_object(settings.S3_BUCKET_NAME, dem_key)
+        response = s3_client().get_object(settings.S3_BUCKET_NAME, s3_key)
         try:
             while True:
                 chunk = response.read(65536)
@@ -1750,8 +1766,46 @@ async def export_odm_dem(
 
     return StreamingResponse(
         generate(),
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={download_filename}"},
+    )
+
+
+@router.get(
+    "/odm/export/{project_id}/dsm/",
+    tags=["Image Processing"],
+)
+async def export_odm_dsm(
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Stream the DSM (Digital Surface Model, top-of-canopy) GeoTIFF."""
+    return _stream_s3_object_response(
+        f"projects/{project.id}/odm/odm_dem/dsm.tif",
+        not_found_detail="No DSM found for this project.",
+        download_filename=f"dsm_{project_id}.tif",
         media_type="image/tiff",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get(
+    "/odm/export/{project_id}/dtm/",
+    tags=["Image Processing"],
+)
+async def export_odm_dtm(
+    project_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+):
+    """Stream the DTM (Digital Terrain Model, bare-ground) GeoTIFF."""
+    return _stream_s3_object_response(
+        f"projects/{project.id}/odm/odm_dem/dtm.tif",
+        not_found_detail="No DTM found for this project.",
+        download_filename=f"dtm_{project_id}.tif",
+        media_type="image/tiff",
     )
 
 
@@ -1760,44 +1814,17 @@ async def export_odm_dem(
     tags=["Image Processing"],
 )
 async def export_odm_pointcloud(
-    request: Request,
     project_id: uuid.UUID,
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
 ):
-    """Stream the point cloud LAZ file for the project-level ODM output.
-
-    Looks for the file at ``projects/{pid}/odm/odm_pointcloud/odm_pointcloud.laz``.
-    """
-    laz_key = f"projects/{project.id}/odm/odm_pointcloud/odm_pointcloud.laz"
-
-    try:
-        s3_client().stat_object(settings.S3_BUCKET_NAME, laz_key)
-    except Exception:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="No point cloud found for this project.",
-        )
-
-    filename = f"pointcloud_{project_id}.laz"
-
-    def generate():
-        response = s3_client().get_object(settings.S3_BUCKET_NAME, laz_key)
-        try:
-            while True:
-                chunk = response.read(65536)
-                if not chunk:
-                    break
-                yield chunk
-        finally:
-            response.close()
-            response.release_conn()
-
-    return StreamingResponse(
-        generate(),
+    """Stream the point cloud LAZ file for the project-level ODM output."""
+    return _stream_s3_object_response(
+        f"projects/{project.id}/odm/odm_georeferencing/odm_georeferenced_model.laz",
+        not_found_detail="No point cloud found for this project.",
+        download_filename=f"pointcloud_{project_id}.laz",
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
@@ -1911,6 +1938,170 @@ async def head_odm_assets(
     return Response(
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cloudnative outputs (3D tiles + orthophoto COG)
+#
+# Both live under ``publicuploads/cloudnative/{project_id}/...`` so the
+# browser streams them directly from S3/CDN. No proxy route exists by
+# design - the previous proxy did a full project DB load per tile request
+# (via the get_project_by_id dependency), which dominated tile-fetch
+# latency on low-end clients.
+#
+# Generation is user-triggered via the two endpoints below: the project UI
+# shows "Convert 2D / 3D to View" buttons that POST here, then polls until
+# the ``cloud_*_ready`` flag flips and the URL appears in the response.
+# Skipping auto-generation means projects whose users never open the viewer
+# don't burn worker compute.
+#
+# The frontend reads ``cloud_mesh_tileset_url`` / ``cloud_ortho_cog_url``
+# off the project response (see ProjectInfo.set_cloudnative_urls).
+# ---------------------------------------------------------------------------
+
+
+_GENERATING_COLUMNS = {"cloud_ortho_generating", "cloud_mesh_generating"}
+
+
+async def _set_generating_flag(
+    db: Connection, project_id: uuid.UUID, column: str
+) -> None:
+    assert column in _GENERATING_COLUMNS  # hardcoded; not user input
+    await db.execute(
+        f"UPDATE projects SET {column} = true WHERE id = %(pid)s",
+        {"pid": project_id},
+    )
+    await db.commit()
+
+
+async def _clear_generating_flag(
+    db: Connection, project_id: uuid.UUID, column: str
+) -> None:
+    assert column in _GENERATING_COLUMNS
+    await db.execute(
+        f"UPDATE projects SET {column} = false WHERE id = %(pid)s",
+        {"pid": project_id},
+    )
+    await db.commit()
+
+
+async def _trigger_cloudnative_job(
+    db: Connection,
+    project_id: uuid.UUID,
+    redis_pool: ArqRedis,
+    *,
+    function: str,
+    job_id: str,
+    generating_column: str,
+) -> dict:
+    """Set the generating flag, then enqueue. Roll back on failure.
+
+    Ordering matters: the worker's ``finally`` clears the same flag, so a
+    fast-exiting worker (e.g. ``source_missing`` skip) might fire its
+    clear *before* we get a chance to set the flag, leaving the UI stuck
+    on "Converting". Setting the flag first means there's nothing for the
+    worker to clear prematurely - the flag is always true throughout the
+    worker's lifetime, then cleared in its finally.
+
+    Rollback: if the enqueue raises or ARQ refuses (None - deterministic
+    job id is already queued / has a cached result), we clear the flag
+    so the UI doesn't poll forever for a worker that isn't running.
+    """
+    await _set_generating_flag(db, project_id, generating_column)
+    try:
+        job = await redis_pool.enqueue_job(
+            function,
+            project_id=str(project_id),
+            _job_id=job_id,
+            _queue_name="default_queue",
+        )
+    except Exception:
+        await _clear_generating_flag(db, project_id, generating_column)
+        raise
+
+    if job is None:
+        await _clear_generating_flag(db, project_id, generating_column)
+        return {"status": "already_generating"}
+    return {"status": "enqueued"}
+
+
+@router.post(
+    "/{project_id}/cloudnative/orthophoto",
+    tags=["Cloudnative"],
+    status_code=HTTPStatus.ACCEPTED,
+)
+async def trigger_orthophoto_conversion(
+    db: Annotated[Connection, Depends(database.get_db)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    redis_pool: ArqRedis = Depends(get_redis_pool),
+):
+    """Kick off COG generation for this project's orthophoto.
+
+    Deterministic ``_job_id`` collapses double-clicks to one ARQ job. The
+    worker's finally clears ``cloud_ortho_generating``; re-conversion
+    overwrites the prior COG in place.
+    """
+    if project.image_processing_status != "SUCCESS":
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="ODM processing must complete before converting outputs.",
+        )
+    if project.cloud_ortho_ready:
+        return {"status": "already_ready"}
+    if project.cloud_ortho_generating:
+        # Worker is already running for this project; UI will catch the
+        # flip via its polling refetchInterval.
+        return {"status": "already_generating"}
+
+    return await _trigger_cloudnative_job(
+        db,
+        project.id,
+        redis_pool,
+        function="generate_orthophoto_cog",
+        job_id=f"cog:{project.id}",
+        generating_column="cloud_ortho_generating",
+    )
+
+
+@router.post(
+    "/{project_id}/cloudnative/mesh",
+    tags=["Cloudnative"],
+    status_code=HTTPStatus.ACCEPTED,
+)
+async def trigger_mesh_conversion(
+    db: Annotated[Connection, Depends(database.get_db)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    redis_pool: ArqRedis = Depends(get_redis_pool),
+):
+    """Kick off 3D Tiles generation for this project's textured mesh.
+
+    Same shape as ``trigger_orthophoto_conversion``. No ``final_output``
+    gate - ODM always produces the textured mesh - and no source probe
+    here either (the worker skips cleanly with ``source_missing`` and
+    the UI already gates the button on ``mesh_source_available``).
+    """
+    if project.image_processing_status != "SUCCESS":
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="ODM processing must complete before converting outputs.",
+        )
+    if project.cloud_mesh_ready:
+        return {"status": "already_ready"}
+    if project.cloud_mesh_generating:
+        return {"status": "already_generating"}
+
+    return await _trigger_cloudnative_job(
+        db,
+        project.id,
+        redis_pool,
+        function="generate_3d_tiles",
+        job_id=f"3dtiles:{project.id}",
+        generating_column="cloud_mesh_generating",
     )
 
 

@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { domToCodePlugin } from "dom-to-code/vite";
 import { defineConfig } from "vite";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
 export default defineConfig({
   base: "/",
@@ -18,6 +19,20 @@ export default defineConfig({
           mode: "react",
         })
       : undefined,
+    // Self-host the DRACO and KTX2 decoders shipped with three.js so the 3D
+    // model viewer doesn't depend on an external CDN at runtime.
+    viteStaticCopy({
+      targets: [
+        {
+          src: "node_modules/three/examples/jsm/libs/draco/*",
+          dest: "three-libs/draco",
+        },
+        {
+          src: "node_modules/three/examples/jsm/libs/basis/*",
+          dest: "three-libs/basis",
+        },
+      ],
+    }),
   ],
   optimizeDeps: {
     esbuildOptions: {

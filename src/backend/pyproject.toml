@@ -26,6 +26,7 @@ dependencies = [
   "itsdangerous==2.2.0",
   "Jinja2==3.1.4",
   "gdal==3.10.3",
+  "rio-cogeo==5.4.1",
   "aiohttp==3.11.11",
   "aiosmtplib==3.0.1",
   "python-slugify==8.0.4",

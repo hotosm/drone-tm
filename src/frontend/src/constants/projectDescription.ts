@@ -149,7 +149,6 @@ type DescriptionItem = {
 
 export const getFinalOutputLabels = (): Record<string, string> => ({
   ORTHOPHOTO_2D: m.proj_desc_output_orthophoto(),
-  TEXTURED_MODEL_3D: m.proj_desc_output_3d_textured_model(),
   DIGITAL_TERRAIN_MODEL: "DTM",
   DIGITAL_SURFACE_MODEL: "DSM",
   POINT_CLOUD: "Point Cloud",
