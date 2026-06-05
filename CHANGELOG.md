@@ -1,3 +1,14 @@
+## 2026.6.0 (2026-06-05)
+
+### Feat
+
+- implement a 2D Ortho & 3D mesh viewer (#811)
+
+### Fix
+
+- **qfield**: add qfield .qml style for dtm-tasks layer
+- **frontend**: avoid deleting all uploads on accidental uppy unmount
+
 ## 2026.5.17 (2026-06-04)
 
 ### Fix
