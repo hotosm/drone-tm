@@ -173,6 +173,23 @@ class DbProject(Base):
         Column(Enum(OAMUploadStatus), default=OAMUploadStatus.NOT_STARTED),
     )  # status of oam upload
 
+    # Cloud-native derivative readiness (set by post-processing arq jobs).
+    cloud_ortho_ready = cast(
+        bool, Column(Boolean, default=False, nullable=False, server_default="false")
+    )
+    cloud_mesh_ready = cast(
+        bool, Column(Boolean, default=False, nullable=False, server_default="false")
+    )
+    # User-triggered "convert" flag: set true when the user enqueues a
+    # cloudnative job, cleared by the job in its finally-block. Drives the
+    # tri-state Convert / Converting / View button in the project UI.
+    cloud_ortho_generating = cast(
+        bool, Column(Boolean, default=False, nullable=False, server_default="false")
+    )
+    cloud_mesh_generating = cast(
+        bool, Column(Boolean, default=False, nullable=False, server_default="false")
+    )
+
     # Project-level ODM processing metadata (for reconciliation/recovery)
     odm_task_uuid = cast(str, Column(String, nullable=True))
     odm_endpoint_used = cast(str, Column(String, nullable=True))

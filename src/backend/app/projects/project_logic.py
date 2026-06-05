@@ -213,14 +213,23 @@ async def project_level_odm_output_exists(project_id: uuid.UUID) -> bool | None:
 
 
 async def mark_project_level_odm_success_from_refresh(
-    db: Connection, project_id: uuid.UUID, *, reason: str
+    db: Connection,
+    project_id: uuid.UUID,
+    redis_pool: ArqRedis,
+    *,
+    reason: str,
 ) -> dict:
     """Mark a completed project-level ODM run successful during manual refresh.
 
     Project-level finalization does not need the task-level reprojection step,
     so the user-triggered reconciliation path can safely update the project
     status directly once the final output is known to be complete.
+
+    Cloudnative derivatives are *not* enqueued here. They're now user-triggered
+    via the Convert buttons in the project UI, so successful reconciliation
+    just sets the status and leaves the derivative decision to the user.
     """
+    del redis_pool  # No longer needed; kept in signature for caller compat.
     await update_processing_status(db, project_id, ImageProcessingStatus.SUCCESS)
     odm_assets_url = f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
     await db.execute(
@@ -333,7 +342,10 @@ async def reconcile_project_level_odm(
         if project_status == "PROCESSING":
             if s3_result is True:
                 return await mark_project_level_odm_success_from_refresh(
-                    db, project.id, reason="output found in S3 without ODM UUID"
+                    db,
+                    project.id,
+                    redis_pool,
+                    reason="output found in S3 without ODM UUID",
                 )
             if s3_result is None:
                 return _running("Running (S3 check pending)")
@@ -387,7 +399,10 @@ async def reconcile_project_level_odm(
 
         if status_code == 40:
             return await mark_project_level_odm_success_from_refresh(
-                db, project.id, reason="ScaleODM reported completed"
+                db,
+                project.id,
+                redis_pool,
+                reason="ScaleODM reported completed",
             )
 
         if status_code in (30, 50):
@@ -495,7 +510,10 @@ async def reconcile_project_level_odm(
         # Output is in S3 - no reprojection needed for project-level runs.
         # Commit success directly; enqueued finalize handles ScaleODM cleanup.
         return await mark_project_level_odm_success_from_refresh(
-            db, project.id, reason="output found in S3 after ScaleODM 404"
+            db,
+            project.id,
+            redis_pool,
+            reason="output found in S3 after ScaleODM 404",
         )
 
     if recovered is None:
@@ -1058,12 +1076,20 @@ async def process_all_drone_images(
 
             # Persist ODM metadata for reconciliation/recovery, then mark PROCESSING.
             # Overwrite on every new run so retries never reconcile against stale metadata.
+            # Reset cloudnative state (both ready + generating) so the new
+            # run starts from a clean slate: the UI shows "Convert" again,
+            # and any stale generating flag from a crashed prior worker
+            # doesn't lock the user out of triggering a fresh conversion.
             await conn.execute(
                 """
                 UPDATE projects
                 SET odm_task_uuid = %(odm_uuid)s,
                     odm_endpoint_used = %(odm_endpoint)s,
                     image_processing_status = %(status)s,
+                    cloud_ortho_ready = false,
+                    cloud_mesh_ready = false,
+                    cloud_ortho_generating = false,
+                    cloud_mesh_generating = false,
                     last_updated = NOW()
                 WHERE id = %(project_id)s;
                 """,

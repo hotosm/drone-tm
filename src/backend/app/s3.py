@@ -244,16 +244,78 @@ def s3_object_exists(bucket_name: str, object_name: str) -> bool:
         raise
 
 
-def add_file_to_bucket(bucket_name: str, file_path: str, s3_path: str):
+# Content types for cloudnative outputs (3D tiles tree + COG). The browser
+# refuses or mishandles some payloads (e.g. tileset.json) without the right
+# Content-Type, and MinIO's default of application/octet-stream isn't enough
+# for the COG protocol either. Keep this list focused on what we actually
+# upload; unknown extensions fall back to the SDK default.
+_CONTENT_TYPE_BY_EXTENSION: dict[str, str] = {
+    ".json": "application/json",
+    ".b3dm": "application/octet-stream",
+    ".i3dm": "application/octet-stream",
+    ".cmpt": "application/octet-stream",
+    ".pnts": "application/octet-stream",
+    ".glb": "model/gltf-binary",
+    ".gltf": "model/gltf+json",
+    ".bin": "application/octet-stream",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".ktx2": "image/ktx2",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+}
+
+
+def infer_content_type(file_path: str) -> str | None:
+    """Guess the MIME type for an upload from its extension.
+
+    Returns None when the extension isn't in our explicit list, leaving the
+    SDK to pick its default (typically application/octet-stream).
+    """
+    suffix = file_path.lower().rsplit(".", 1)
+    if len(suffix) != 2:
+        return None
+    return _CONTENT_TYPE_BY_EXTENSION.get(f".{suffix[1]}")
+
+
+def add_file_to_bucket(
+    bucket_name: str,
+    file_path: str,
+    s3_path: str,
+    *,
+    content_type: str | None = None,
+    cache_control: str | None = None,
+):
     """Upload a file from the filesystem to an S3 bucket.
 
     Args:
         bucket_name: The name of the S3 bucket
         file_path: The path to the file on the local filesystem
         s3_path: The path in the S3 bucket where the file will be stored
+        content_type: Optional Content-Type override. When omitted, inferred
+            from the file extension; falls back to SDK default if unknown.
+        cache_control: Optional Cache-Control header to store with the object,
+            served back to browsers by S3/CDN on every GET. Use
+            "public, max-age=31536000, immutable" for content under a
+            versioned prefix.
     """
     client = s3_client()
-    client.fput_object(bucket_name, s3_path, file_path)
+    resolved_content_type = content_type or infer_content_type(file_path)
+    metadata: dict[str, str] = {}
+    if cache_control:
+        metadata["Cache-Control"] = cache_control
+    # minio-py treats metadata keys as user metadata by default; Cache-Control
+    # is a standard HTTP header and the SDK forwards it as such when the key
+    # is recognized (it normalises case internally).
+    client.fput_object(
+        bucket_name,
+        s3_path,
+        file_path,
+        content_type=resolved_content_type or "application/octet-stream",
+        metadata=metadata or None,
+    )
 
 
 def add_obj_to_bucket(
@@ -443,39 +505,58 @@ def get_orthophoto_url_for_project(project_id: str):
     return None
 
 
-def get_dem_url_for_project(project_id: str):
-    """Generate browser URL for the project-level ODM DEM output.
+def get_dsm_url_for_project(project_id: str):
+    """Generate browser URL for the project-level DSM (Digital Surface Model).
 
-    Args:
-        project_id: The unique identifier for the project
-
-    Returns:
-        str | None: Presigned URL to download the DEM, or None if not found
+    DSM is the canopy/buildings top surface - includes vegetation, structures.
+    Only present if the project requested DIGITAL_SURFACE_MODEL at create time
+    (or ODM was otherwise asked to generate it).
     """
-    for filename in ("dsm.tif", "dtm.tif"):
-        dem_path = f"projects/{project_id}/odm/odm_dem/{filename}"
-        if check_file_exists(settings.S3_BUCKET_NAME, dem_path):
-            return maybe_presign_s3_key(dem_path, expires_hours=12)
+    dsm_path = f"projects/{project_id}/odm/odm_dem/dsm.tif"
+    if check_file_exists(settings.S3_BUCKET_NAME, dsm_path):
+        return maybe_presign_s3_key(dsm_path, expires_hours=12)
+    return None
 
-    log.warning("DEM not found in S3 bucket")
+
+def get_dtm_url_for_project(project_id: str):
+    """Generate browser URL for the project-level DTM (Digital Terrain Model).
+
+    DTM is the bare-ground surface - vegetation and buildings filtered out.
+    Only present if the project requested DIGITAL_TERRAIN_MODEL at create time.
+    """
+    dtm_path = f"projects/{project_id}/odm/odm_dem/dtm.tif"
+    if check_file_exists(settings.S3_BUCKET_NAME, dtm_path):
+        return maybe_presign_s3_key(dtm_path, expires_hours=12)
     return None
 
 
 def get_pointcloud_url_for_project(project_id: str):
-    """Generate browser URL for the project-level ODM point cloud output.
+    """Generate browser URL for the project-level ODM point cloud (LAZ).
 
-    Args:
-        project_id: The unique identifier for the project
-
-    Returns:
-        str | None: Presigned URL to download the point cloud, or None if not found
+    Modern ODM writes the georeferenced point cloud into the
+    ``odm_georeferencing/`` directory; older layouts placed it under
+    ``odm_pointcloud/`` but that path was never produced by the versions of
+    ODM we run, so it's not checked.
     """
-    laz_path = f"projects/{project_id}/odm/odm_pointcloud/odm_pointcloud.laz"
+    laz_path = (
+        f"projects/{project_id}/odm/odm_georeferencing/odm_georeferenced_model.laz"
+    )
     if check_file_exists(settings.S3_BUCKET_NAME, laz_path):
         return maybe_presign_s3_key(laz_path, expires_hours=12)
-
-    log.warning("Point cloud not found in S3 bucket")
     return None
+
+
+def mesh_source_available_for_project(project_id: str) -> bool:
+    """Return True if the textured-mesh source OBJ exists in S3.
+
+    The 3D viewer renders the textured mesh from ``odm_texturing/``, which
+    ODM produces on every successful run unless ``--skip-3dmodel`` was set.
+    This probe is the gate for the UI's 3D Convert button - presence of the
+    file is the only thing that matters; ``final_output`` selections don't
+    affect whether ODM produces the mesh.
+    """
+    obj_path = f"projects/{project_id}/odm/odm_texturing/odm_textured_model_geo.obj"
+    return check_file_exists(settings.S3_BUCKET_NAME, obj_path)
 
 
 def move_file_within_bucket(

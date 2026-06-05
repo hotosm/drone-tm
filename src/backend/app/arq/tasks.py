@@ -35,6 +35,7 @@ from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
 from app.models.enums import HTTPStatus, ImageStatus
 from app.projects import project_schemas
+from app.projects.s3_paths import public_qfield_zip_key
 from app.projects.project_logic import (
     process_all_drone_images,
     process_drone_images,
@@ -57,6 +58,10 @@ from app.images.image_processing import (
     fetch_scaleodm_task_info,
     remove_scaleodm_task,
     reproject_orthophoto_in_place,
+)
+from app.arq.cloudnative import (
+    generate_3d_tiles,
+    generate_orthophoto_cog,
 )
 from app.models.enums import ImageProcessingStatus, State
 from app.tasks import task_logic
@@ -1029,25 +1034,36 @@ async def generate_qfield_project(
                 if not project:
                     raise RuntimeError(f"Project {project_id} not found")
 
-                # Fetch tasks as GeoJSON FeatureCollection
+                # Fetch tasks as GeoJSON FeatureCollection, including the
+                # latest task state so QField can render task colours that
+                # match the web UI snapshot at export time.  Tasks with no
+                # event rows fall back to UNLOCKED, matching Task.all().
                 await cur.execute(
                     """
+                    WITH latest_event AS (
+                        SELECT DISTINCT ON (task_id) task_id, state
+                        FROM task_events
+                        WHERE project_id = %s
+                        ORDER BY task_id, created_at DESC
+                    )
                     SELECT json_build_object(
                         'type', 'FeatureCollection',
                         'features', COALESCE(json_agg(
                             json_build_object(
                                 'type', 'Feature',
-                                'geometry', ST_AsGeoJSON(outline)::json,
+                                'geometry', ST_AsGeoJSON(t.outline)::json,
                                 'properties', json_build_object(
-                                    'project_task_id', project_task_index
+                                    'project_task_id', t.project_task_index,
+                                    'status', COALESCE(le.state::text, 'UNLOCKED')
                                 )
                             )
                         ), '[]'::json)
                     ) AS geojson
-                    FROM tasks
-                    WHERE project_id = %s
+                    FROM tasks t
+                    LEFT JOIN latest_event le ON le.task_id = t.id
+                    WHERE t.project_id = %s
                     """,
-                    (project_id,),
+                    (project_id, project_id),
                 )
                 row = await cur.fetchone()
                 tasks_geojson = row["geojson"]
@@ -1126,7 +1142,7 @@ async def generate_qfield_project(
         log.info(f"Received {len(zip_bytes)} bytes from QGIS container")
 
         # Upload to S3
-        s3_key = f"publicuploads/qfield/{project_id}.zip"
+        s3_key = public_qfield_zip_key(project_id)
         add_obj_to_bucket(
             settings.S3_BUCKET_NAME,
             io.BytesIO(zip_bytes),
@@ -1498,6 +1514,13 @@ async def finalize_scaleodm_task(
                         )
                         log.info(f"Project {project_uuid} status updated to SUCCESS.")
                     await conn.commit()
+
+            # Cloudnative derivatives are user-triggered now: the project UI
+            # exposes "Convert 2D / 3D to View" buttons that hit the trigger
+            # endpoints in project_routes.py. We deliberately do NOT enqueue
+            # here - many projects never need the web-optimized assets, and
+            # running the jobs for every successful project wasted compute
+            # for users on slow workers.
 
             # drone-tm DB is now committed - safe to remove the ScaleODM record
             # when we know its UUID. The call is best-effort; a 404 is ignored.
@@ -1952,6 +1975,8 @@ class WorkerSettings:
         process_imported_odm_assets,
         finalize_scaleodm_task,
         create_project_from_imagery_exif,
+        generate_orthophoto_cog,
+        generate_3d_tiles,
     ]
 
     queue_name = "default_queue"

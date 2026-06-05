@@ -1,6 +1,5 @@
 /* eslint-disable no-nested-ternary */
 import { useMemo } from "react";
-import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { Button } from "@Components/RadixComponents/Button";
 import {
@@ -11,7 +10,7 @@ import {
 import { toggleModal } from "@Store/actions/common";
 import { useGetUserDetailsQuery } from "@Api/projects";
 import Skeleton from "@Components/RadixComponents/Skeleton";
-import { formatString, buildDownloadUrl, gsdToAltitude, altitudeToGsd } from "@Utils/index";
+import { formatString, gsdToAltitude, altitudeToGsd } from "@Utils/index";
 import { m } from "@/paraglide/messages";
 import ApprovalSection from "./ApprovalSection";
 
@@ -118,19 +117,6 @@ const DescriptionSection = ({
       ),
     [projectData?.tasks],
   );
-
-  const handleDownloadFile = (url: string, filename: string) => {
-    try {
-      const link = document.createElement("a");
-      link.href = buildDownloadUrl(url);
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      toast.error(m.proj_desc_download_error({ error: String(error) }));
-    }
-  };
 
   const localizedItems = getDescriptionItems();
 
@@ -298,83 +284,35 @@ const DescriptionSection = ({
           projectData?.regulator_approval_status === "APPROVED") &&
         isAbleToStartProcessing && (
           <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
-            {projectData?.image_processing_status === "SUCCESS" && (
-              <>
-                <p className="naxatw-w-full naxatw-text-xs naxatw-font-semibold naxatw-uppercase naxatw-tracking-wide naxatw-text-gray-500">
-                  {m.proj_desc_downloads()}
-                </p>
-                {projectData?.orthophoto_url && (
-                  <Button
-                    variant="outline"
-                    className="naxatw-border-red naxatw-text-red"
-                    leftIcon="download"
-                    onClick={() =>
-                      handleDownloadFile(
-                        projectData.orthophoto_url,
-                        `orthophoto_${projectData.id}.tif`,
-                      )
-                    }
-                  >
-                    {m.proj_desc_orthophoto_tif()}
-                  </Button>
-                )}
-                {projectData?.dem_url && (
-                  <Button
-                    variant="outline"
-                    className="naxatw-border-red naxatw-text-red"
-                    leftIcon="download"
-                    onClick={() =>
-                      handleDownloadFile(projectData.dem_url, `dem_${projectData.id}.tif`)
-                    }
-                  >
-                    {m.proj_desc_dem_tif()}
-                  </Button>
-                )}
-                {projectData?.pointcloud_url && (
-                  <Button
-                    variant="outline"
-                    className="naxatw-border-red naxatw-text-red"
-                    leftIcon="download"
-                    onClick={() =>
-                      handleDownloadFile(
-                        projectData.pointcloud_url,
-                        `pointcloud_${projectData.id}.laz`,
-                      )
-                    }
-                  >
-                    {m.proj_desc_pointcloud_laz()}
-                  </Button>
-                )}
-                {String(projectData?.author_id || "") === String(userDetails?.id || "") &&
-                  projectData?.orthophoto_url && (
-                    <>
-                      {projectData?.oam_upload_status === "NOT_STARTED" ? (
-                        <Button
-                          className="naxatw-bg-red"
-                          withLoader
-                          leftIcon="upload"
-                          onClick={() => {
-                            dispatch(toggleModal("upload-to-oam"));
-                          }}
-                        >
-                          {m.proj_desc_upload_to_oam()}
-                        </Button>
-                      ) : projectData?.oam_upload_status === "FAILED" ? (
-                        <Button
-                          className="naxatw-bg-red"
-                          withLoader
-                          leftIcon="upload"
-                          onClick={() => {
-                            dispatch(toggleModal("upload-to-oam"));
-                          }}
-                        >
-                          {m.proj_desc_reupload_to_oam()}
-                        </Button>
-                      ) : null}
-                    </>
-                  )}
-              </>
-            )}
+            {projectData?.image_processing_status === "SUCCESS" &&
+              String(projectData?.author_id || "") === String(userDetails?.id || "") &&
+              projectData?.orthophoto_url && (
+                <>
+                  {projectData?.oam_upload_status === "NOT_STARTED" ? (
+                    <Button
+                      className="naxatw-bg-red"
+                      withLoader
+                      leftIcon="upload"
+                      onClick={() => {
+                        dispatch(toggleModal("upload-to-oam"));
+                      }}
+                    >
+                      {m.proj_desc_upload_to_oam()}
+                    </Button>
+                  ) : projectData?.oam_upload_status === "FAILED" ? (
+                    <Button
+                      className="naxatw-bg-red"
+                      withLoader
+                      leftIcon="upload"
+                      onClick={() => {
+                        dispatch(toggleModal("upload-to-oam"));
+                      }}
+                    >
+                      {m.proj_desc_reupload_to_oam()}
+                    </Button>
+                  ) : null}
+                </>
+              )}
 
             {projectData?.image_processing_status === "PROCESSING" && (
               <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
