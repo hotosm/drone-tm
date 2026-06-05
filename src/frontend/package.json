@@ -15,7 +15,7 @@
   "dependencies": {
     "3d-tiles-renderer": "^0.4.24",
     "@cyntler/react-doc-viewer": "^1.17.0",
-    "@geomatico/maplibre-cog-protocol": "^0.3.1",
+    "@geomatico/maplibre-cog-protocol": "^0.9.0",
     "@hotosm/gcp-editor": "workspace:*",
     "@hotosm/hanko-auth": "^0.5.2",
     "@hotosm/tool-menu": "^0.2.6",

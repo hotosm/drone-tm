@@ -18,6 +18,7 @@ import Skeleton from "@Components/RadixComponents/Skeleton";
 import DescriptionSection from "@Components/RegulatorsApprovalPage/Description/DescriptionSection";
 import { projectOptions } from "@Constants/index";
 import { deleteProject } from "@Services/project";
+import { triggerMeshConversion, triggerOrthophotoConversion } from "@Services/createproject";
 import { setProjectState } from "@Store/actions/project";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -127,6 +128,25 @@ const IndividualProject = () => {
       toast.error(m.individual_project_project_deleted_success());
       navigate("/projects");
     },
+  });
+
+  // Conversion triggers: enqueue + invalidate the project query so the UI
+  // flips to "Converting" immediately. We don't poll for completion - the
+  // user refreshes manually once the conversion finishes (repaint churn
+  // from polling was worse UX than asking for a refresh).
+  const { mutate: convertOrthophoto, isPending: isOrthophotoTriggering } = useMutation({
+    mutationFn: (projectId: string) => triggerOrthophotoConversion(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-detail", id] });
+    },
+    onError: () => toast.error(m.individual_project_convert_failed()),
+  });
+  const { mutate: convertMesh, isPending: isMeshTriggering } = useMutation({
+    mutationFn: (projectId: string) => triggerMeshConversion(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-detail", id] });
+    },
+    onError: () => toast.error(m.individual_project_convert_failed()),
   });
 
   const handleTableRowClick = (taskData: any) => {
@@ -279,28 +299,77 @@ const IndividualProject = () => {
             >
               {m.individual_project_button_gcp_editor()}
             </Button>
-            {projectData?.cloud_ortho_ready && (
-              <Button
-                variant="ghost"
-                className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
-                leftIcon="image"
-                iconClassname="naxatw-text-[1.125rem]"
-                onClick={() => navigate(`/projects/${projectData?.id || id}/orthophoto`)}
-              >
-                View Orthophoto
-              </Button>
-            )}
-            {projectData?.cloud_mesh_ready && (
-              <Button
-                variant="ghost"
-                className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
-                leftIcon="view_in_ar"
-                iconClassname="naxatw-text-[1.125rem]"
-                onClick={() => navigate(`/projects/${projectData?.id || id}/3d-model`)}
-              >
-                View 3D Model
-              </Button>
-            )}
+            {/* 2D orthophoto: Convert → Converting → View. Hidden entirely
+                until ODM completes. */}
+            {projectData?.image_processing_status === "SUCCESS" &&
+              (projectData?.cloud_ortho_ready ? (
+                <Button
+                  variant="ghost"
+                  className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                  leftIcon="image"
+                  iconClassname="naxatw-text-[1.125rem]"
+                  onClick={() => navigate(`/projects/${projectData?.id || id}/orthophoto`)}
+                >
+                  {m.individual_project_button_view_orthophoto()}
+                </Button>
+              ) : projectData?.cloud_ortho_generating || isOrthophotoTriggering ? (
+                <Button
+                  variant="ghost"
+                  disabled
+                  className="naxatw-border naxatw-border-[#D73F3F]/40 naxatw-text-[0.875rem] naxatw-text-[#D73F3F]/60"
+                  leftIcon="hourglass_empty"
+                  iconClassname="naxatw-text-[1.125rem]"
+                >
+                  {m.individual_project_button_converting_orthophoto()}
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                  leftIcon="image"
+                  iconClassname="naxatw-text-[1.125rem]"
+                  onClick={() => convertOrthophoto(projectData?.id || (id as string))}
+                >
+                  {m.individual_project_button_convert_orthophoto()}
+                </Button>
+              ))}
+            {/* 3D mesh: same tri-state. Backend probes S3 for the textured
+                OBJ and surfaces mesh_source_available - we gate on that
+                rather than final_output, since ODM produces the mesh on
+                every run regardless of what the user picked at create time. */}
+            {projectData?.image_processing_status === "SUCCESS" &&
+              projectData?.mesh_source_available &&
+              (projectData?.cloud_mesh_ready ? (
+                <Button
+                  variant="ghost"
+                  className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                  leftIcon="view_in_ar"
+                  iconClassname="naxatw-text-[1.125rem]"
+                  onClick={() => navigate(`/projects/${projectData?.id || id}/3d-model`)}
+                >
+                  {m.individual_project_button_view_3d()}
+                </Button>
+              ) : projectData?.cloud_mesh_generating || isMeshTriggering ? (
+                <Button
+                  variant="ghost"
+                  disabled
+                  className="naxatw-border naxatw-border-[#D73F3F]/40 naxatw-text-[0.875rem] naxatw-text-[#D73F3F]/60"
+                  leftIcon="hourglass_empty"
+                  iconClassname="naxatw-text-[1.125rem]"
+                >
+                  {m.individual_project_button_converting_3d()}
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                  leftIcon="view_in_ar"
+                  iconClassname="naxatw-text-[1.125rem]"
+                  onClick={() => convertMesh(projectData?.id || (id as string))}
+                >
+                  {m.individual_project_button_convert_3d()}
+                </Button>
+              ))}
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
@@ -390,7 +459,7 @@ const IndividualProject = () => {
                       Orthophoto
                     </div>
                   )}
-                  {projectData?.dem_url && (
+                  {projectData?.dsm_url && (
                     <div
                       className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                       role="button"
@@ -398,11 +467,26 @@ const IndividualProject = () => {
                       onKeyDown={() => {}}
                       onClick={() => {
                         setShowDownloadOptions(false);
-                        downloadOutputFile(projectData.dem_url, `dem_${projectData.id}.tif`);
+                        downloadOutputFile(projectData.dsm_url, `dsm_${projectData.id}.tif`);
                       }}
                     >
                       <span className="material-icons naxatw-text-base">landscape</span>
-                      DEM
+                      {m.individual_project_export_dsm()}
+                    </div>
+                  )}
+                  {projectData?.dtm_url && (
+                    <div
+                      className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={() => {}}
+                      onClick={() => {
+                        setShowDownloadOptions(false);
+                        downloadOutputFile(projectData.dtm_url, `dtm_${projectData.id}.tif`);
+                      }}
+                    >
+                      <span className="material-icons naxatw-text-base">terrain</span>
+                      {m.individual_project_export_dtm()}
                     </div>
                   )}
                   {projectData?.pointcloud_url && (
@@ -420,7 +504,7 @@ const IndividualProject = () => {
                       }}
                     >
                       <span className="material-icons naxatw-text-base">scatter_plot</span>
-                      Pointcloud
+                      {m.individual_project_export_pointcloud()}
                     </div>
                   )}
                   {projectData?.image_processing_status === "SUCCESS" && (

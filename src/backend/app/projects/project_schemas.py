@@ -32,12 +32,18 @@ from app.models.enums import (
     RegulatorApprovalStatus,
 )
 from app.config import settings
+from app.projects.s3_paths import (
+    cloudnative_3d_tileset_browser_url,
+    cloudnative_orthophoto_cog_browser_url,
+)
 from app.s3 import (
     check_file_exists,
-    get_dem_url_for_project,
+    get_dsm_url_for_project,
+    get_dtm_url_for_project,
     get_orthophoto_url_for_project,
     get_pointcloud_url_for_project,
     maybe_presign_s3_key,
+    mesh_source_available_for_project,
     s3_client,
 )
 from app.utils import (
@@ -161,7 +167,6 @@ class ProjectIn(BaseModel):
         ...,
         json_schema_extra=[
             "ORTHOPHOTO_2D",
-            "TEXTURED_MODEL_3D",
             "DIGITAL_TERRAIN_MODEL",
             "DIGITAL_SURFACE_MODEL",
             "POINT_CLOUD",
@@ -257,14 +262,30 @@ class DbProject(BaseModel):
     oam_upload_status: Optional[str] = None
     cloud_ortho_ready: bool = False
     cloud_mesh_ready: bool = False
+    cloud_ortho_generating: bool = False
+    cloud_mesh_generating: bool = False
+    # Direct browser URLs to the cloudnative outputs under publicuploads/.
+    # Populated by validators only when the corresponding *_ready flag is true,
+    # so the frontend can pick the right viewer without an extra round-trip
+    # to find out whether the data exists.
+    cloud_ortho_cog_url: Optional[str] = None
+    cloud_mesh_tileset_url: Optional[str] = None
+    # True when the textured-mesh source (odm_texturing/...obj) is present
+    # in S3, regardless of the final_output project selection. Drives the 3D
+    # Convert button so a project that *does* have a mesh shows the option
+    # even if TEXTURED_MODEL_3D wasn't ticked at create time (it's redundant
+    # anyway - ODM always generates the mesh).
+    mesh_source_available: bool = False
     odm_task_uuid: Optional[str] = None
     odm_endpoint_used: Optional[str] = None
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
-    dem_url: Optional[str] = None
+    # DEM is split: DSM = top-of-canopy surface, DTM = bare ground. Different
+    # files, different products. Single "dem_url" lumped them confusingly.
+    dsm_url: Optional[str] = None
+    dtm_url: Optional[str] = None
     pointcloud_url: Optional[str] = None
     output_orthophoto_url: Optional[str] = None
-    output_dem_url: Optional[str] = None
     output_pointcloud_url: Optional[str] = None
     output_odm_assets_url: Optional[str] = None
     regulator_comment: Optional[str] = None
@@ -740,12 +761,20 @@ class ProjectInfo(BaseModel):
     oam_upload_status: Optional[str] = None
     cloud_ortho_ready: bool = False
     cloud_mesh_ready: bool = False
+    cloud_ortho_generating: bool = False
+    cloud_mesh_generating: bool = False
+    cloud_ortho_cog_url: Optional[str] = None
+    cloud_mesh_tileset_url: Optional[str] = None
+    mesh_source_available: bool = False
+    odm_task_uuid: Optional[str] = None
     assets_url: Optional[str] = None
     orthophoto_url: Optional[str] = None
-    dem_url: Optional[str] = None
+    # Split from the old single dem_url - DSM and DTM are distinct ODM
+    # products and shouldn't be lumped under one button.
+    dsm_url: Optional[str] = None
+    dtm_url: Optional[str] = None
     pointcloud_url: Optional[str] = None
     output_orthophoto_url: Optional[str] = None
-    output_dem_url: Optional[str] = None
     output_pointcloud_url: Optional[str] = None
     output_odm_assets_url: Optional[str] = None
     has_gcp: bool = False
@@ -835,21 +864,41 @@ class ProjectInfo(BaseModel):
         return values
 
     @model_validator(mode="after")
-    def set_dem_url(cls, values):
+    def set_dsm_url(cls, values):
+        """DSM (Digital Surface Model) probe - top-of-canopy raster."""
         project_id = values.id
         if not project_id or values.image_processing_status != "SUCCESS":
-            values.dem_url = None
+            values.dsm_url = None
             return values
-
-        if values.output_dem_url:
-            values.dem_url = values.output_dem_url
-            return values
-
-        values.dem_url = safe_url(
-            lambda: get_dem_url_for_project(project_id),
-            label="dem_url",
+        values.dsm_url = safe_url(
+            lambda: get_dsm_url_for_project(project_id), label="dsm_url"
         )
+        return values
 
+    @model_validator(mode="after")
+    def set_dtm_url(cls, values):
+        """DTM (Digital Terrain Model) probe - bare-ground raster."""
+        project_id = values.id
+        if not project_id or values.image_processing_status != "SUCCESS":
+            values.dtm_url = None
+            return values
+        values.dtm_url = safe_url(
+            lambda: get_dtm_url_for_project(project_id), label="dtm_url"
+        )
+        return values
+
+    @model_validator(mode="after")
+    def set_mesh_source_available(cls, values):
+        """Probe S3 for the textured-mesh OBJ; drives the 3D Convert button."""
+        project_id = values.id
+        if not project_id or values.image_processing_status != "SUCCESS":
+            values.mesh_source_available = False
+            return values
+        try:
+            values.mesh_source_available = mesh_source_available_for_project(project_id)
+        except Exception as e:
+            log.warning("Failed to probe mesh source for project {}: {}", project_id, e)
+            values.mesh_source_available = False
         return values
 
     @model_validator(mode="after")
@@ -868,6 +917,38 @@ class ProjectInfo(BaseModel):
             label="pointcloud_url",
         )
 
+        return values
+
+    @model_validator(mode="after")
+    def set_cloudnative_urls(cls, values):
+        """Expose direct-S3 URLs for the cloudnative outputs.
+
+        Both objects live under ``publicuploads/cloudnative/{project_id}/...``
+        so the URL works without presigning. URLs are emitted only when the
+        matching *_ready flag is true.
+        """
+        project_id = values.id
+        if not project_id:
+            values.cloud_ortho_cog_url = None
+            values.cloud_mesh_tileset_url = None
+            return values
+
+        values.cloud_ortho_cog_url = (
+            safe_url(
+                lambda: cloudnative_orthophoto_cog_browser_url(project_id),
+                label="cloud_ortho_cog_url",
+            )
+            if values.cloud_ortho_ready
+            else None
+        )
+        values.cloud_mesh_tileset_url = (
+            safe_url(
+                lambda: cloudnative_3d_tileset_browser_url(project_id),
+                label="cloud_mesh_tileset_url",
+            )
+            if values.cloud_mesh_ready
+            else None
+        )
         return values
 
     @model_validator(mode="after")

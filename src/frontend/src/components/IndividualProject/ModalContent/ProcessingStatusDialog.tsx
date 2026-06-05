@@ -44,7 +44,8 @@ type ProcessingDialogProjectDetail = {
   has_gcp?: boolean;
   image_processing_status?: string;
   orthophoto_url?: string | null;
-  dem_url?: string | null;
+  dsm_url?: string | null;
+  dtm_url?: string | null;
   pointcloud_url?: string | null;
   assets_url?: string | null;
 };
@@ -973,17 +974,30 @@ const ProcessingStatusDialog = () => {
                   {m.processing_dialog_orthophoto_tif()}
                 </Button>
               )}
-              {projectDetail.dem_url && (
+              {projectDetail.dsm_url && (
                 <Button
                   variant="outline"
                   className="naxatw-h-8 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
                   leftIcon="download"
                   iconClassname="!naxatw-text-sm"
                   onClick={() =>
-                    handleDownloadProjectFile(projectDetail.dem_url!, `dem_${projectId}.tif`)
+                    handleDownloadProjectFile(projectDetail.dsm_url!, `dsm_${projectId}.tif`)
                   }
                 >
-                  {m.processing_dialog_dem_tif()}
+                  {m.processing_dialog_dsm_tif()}
+                </Button>
+              )}
+              {projectDetail.dtm_url && (
+                <Button
+                  variant="outline"
+                  className="naxatw-h-8 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
+                  leftIcon="download"
+                  iconClassname="!naxatw-text-sm"
+                  onClick={() =>
+                    handleDownloadProjectFile(projectDetail.dtm_url!, `dtm_${projectId}.tif`)
+                  }
+                >
+                  {m.processing_dialog_dtm_tif()}
                 </Button>
               )}
               {projectDetail.pointcloud_url && (

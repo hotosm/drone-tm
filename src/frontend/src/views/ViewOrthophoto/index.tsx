@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import maplibregl, { LngLatBounds } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+import { cogProtocol, getCogMetadata } from "@geomatico/maplibre-cog-protocol";
 import bbox from "@turf/bbox";
 import { useGetProjectsDetailQuery } from "@Api/projects";
-import { getOrthophotoCogPresignedUrl } from "@Services/createproject";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 
 // Register the cog:// protocol exactly once per page load. addProtocol on
@@ -17,15 +16,10 @@ function ensureCogProtocol() {
   cogProtocolRegistered = true;
 }
 
-// Refresh the presigned URL with margin to spare so an in-flight range
-// request never sees a 403 just after expiry.
-const REFRESH_MARGIN_MS = 10 * 60 * 1000;
 const COG_SOURCE_ID = "ortho-cog-source";
 const COG_LAYER_ID = "ortho-cog-layer";
 
 type ViewState = "idle" | "loading" | "loaded" | "error" | "unavailable";
-
-type CogUrlResponse = { url: string; expires_at: string };
 
 function addOrUpdateCogLayer(map: maplibregl.Map, url: string) {
   const cogUrl = `cog://${url}`;
@@ -49,10 +43,17 @@ const ViewOrthophoto = () => {
   const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const refreshTimerRef = useRef<number | null>(null);
+  // Cached on initial load so the "zoom to extent" button can re-fit
+  // without having to recompute from the project outline each click.
+  const layerBoundsRef = useRef<LngLatBounds | null>(null);
   const [viewState, setViewState] = useState<ViewState>("idle");
 
   const { data: projectData, isFetching } = useGetProjectsDetailQuery(id as string);
+
+  const handleZoomToExtent = useCallback(() => {
+    if (!mapRef.current || !layerBoundsRef.current) return;
+    mapRef.current.fitBounds(layerBoundsRef.current, { padding: 40, animate: true });
+  }, []);
 
   useEffect(() => {
     ensureCogProtocol();
@@ -62,7 +63,20 @@ const ViewOrthophoto = () => {
     if (!mapContainerRef.current || isFetching || !projectData) return;
     if (mapRef.current) return;
 
-    const projectId = (projectData as Record<string, any>).id as string;
+    // Backend exposes the COG via a direct publicuploads/ URL that never
+    // expires, so the previous "fetch presigned URL + schedule refresh"
+    // dance is gone. Absence of the URL means the cloudnative job hasn't
+    // produced a COG for this project yet.
+    const rawCogUrl = (projectData as Record<string, any>).cloud_ortho_cog_url as
+      | string
+      | null
+      | undefined;
+    if (!rawCogUrl) {
+      setViewState("unavailable");
+      return;
+    }
+    const cogUrl: string = rawCogUrl;
+
     const outline = (projectData as Record<string, any>).outline as
       | GeoJSON.Feature
       | GeoJSON.FeatureCollection
@@ -72,6 +86,8 @@ const ViewOrthophoto = () => {
 
     // Initial centre: prefer the project outline bounds so the user lands on
     // the area of interest immediately; otherwise default to a neutral view.
+    // The COG covers exactly the project AOI by construction, so the outline
+    // bbox doubles as the "zoom to layer extent" target.
     let initialCenter: [number, number] = [0, 0];
     let initialBounds: LngLatBounds | null = null;
     if (outline) {
@@ -83,6 +99,7 @@ const ViewOrthophoto = () => {
         // ignore
       }
     }
+    layerBoundsRef.current = initialBounds;
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
@@ -92,47 +109,39 @@ const ViewOrthophoto = () => {
     });
     mapRef.current = map;
 
-    function scheduleRefresh(expiresAt: number) {
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-      }
-      const refreshInput = Math.max(60_000, expiresAt - Date.now() - REFRESH_MARGIN_MS);
-      refreshTimerRef.current = window.setTimeout(async () => {
-        try {
-          const res = await getOrthophotoCogPresignedUrl(projectId);
-          const { url, expires_at } = res.data as CogUrlResponse;
-          if (cancelled || !mapRef.current) return;
-          addOrUpdateCogLayer(mapRef.current, url);
-          scheduleRefresh(new Date(expires_at).getTime());
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn("Failed to refresh orthophoto COG URL", err);
-        }
-      }, refreshInput);
-    }
-
-    async function loadCog() {
+    function loadCog() {
+      if (cancelled || !mapRef.current) return;
       setViewState("loading");
       try {
-        const res = await getOrthophotoCogPresignedUrl(projectId);
-        const { url, expires_at } = res.data as CogUrlResponse;
-        if (cancelled || !mapRef.current) return;
-        addOrUpdateCogLayer(mapRef.current, url);
+        addOrUpdateCogLayer(mapRef.current, cogUrl);
+        // Initial fit uses the project outline — it's already in hand, so
+        // the map paints immediately. The actual COG extent is fetched
+        // below; it'll be slightly different (ODM clips/buffers around the
+        // AOI) and the button uses whichever is most recently known.
         if (initialBounds) {
           mapRef.current.fitBounds(initialBounds, { padding: 40, animate: false });
         }
         setViewState("loaded");
-        scheduleRefresh(new Date(expires_at).getTime());
-      } catch (err: any) {
+      } catch (err) {
         if (cancelled) return;
-        if (err?.response?.status === 404) {
-          setViewState("unavailable");
-        } else {
-          // eslint-disable-next-line no-console
-          console.error("Failed to load orthophoto COG", err);
-          setViewState("error");
-        }
+        // eslint-disable-next-line no-console
+        console.error("Failed to load orthophoto COG", err);
+        setViewState("error");
       }
+
+      // Upgrade the cached extent from outline-approximation to the actual
+      // COG bbox once metadata is back (range request to COG header, no
+      // tile fetch). Fire-and-forget — initial paint already happened.
+      getCogMetadata(cogUrl)
+        .then((metadata) => {
+          if (cancelled || !metadata?.bbox) return;
+          const [west, south, east, north] = metadata.bbox;
+          layerBoundsRef.current = new LngLatBounds([west, south], [east, north]);
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.warn("Failed to read COG metadata; zoom-to-extent will use project outline", err);
+        });
     }
 
     if (map.loaded()) {
@@ -143,12 +152,9 @@ const ViewOrthophoto = () => {
 
     return () => {
       cancelled = true;
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
       map.remove();
       mapRef.current = null;
+      layerBoundsRef.current = null;
     };
   }, [projectData, isFetching]);
 
@@ -172,6 +178,18 @@ const ViewOrthophoto = () => {
 
       <div className="naxatw-relative naxatw-flex-1">
         <div ref={mapContainerRef} className="naxatw-h-full naxatw-w-full" />
+
+        {viewState === "loaded" && (
+          <button
+            type="button"
+            aria-label="Zoom to layer extent"
+            title="Zoom to layer extent"
+            className="naxatw-absolute naxatw-right-4 naxatw-top-4 naxatw-z-10 naxatw-flex naxatw-h-10 naxatw-w-10 naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-white naxatw-shadow-lg hover:naxatw-bg-gray-50"
+            onClick={handleZoomToExtent}
+          >
+            <span className="material-icons naxatw-text-[#D73F3F]">center_focus_strong</span>
+          </button>
+        )}
 
         {isFetching && (
           <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-white/70">

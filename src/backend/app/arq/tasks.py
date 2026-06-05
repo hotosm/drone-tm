@@ -35,6 +35,7 @@ from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
 from app.models.enums import HTTPStatus, ImageStatus
 from app.projects import project_schemas
+from app.projects.s3_paths import public_qfield_zip_key
 from app.projects.project_logic import (
     process_all_drone_images,
     process_drone_images,
@@ -58,7 +59,10 @@ from app.images.image_processing import (
     remove_scaleodm_task,
     reproject_orthophoto_in_place,
 )
-from app.arq.cloudnative import generate_3d_tiles, generate_orthophoto_cog
+from app.arq.cloudnative import (
+    generate_3d_tiles,
+    generate_orthophoto_cog,
+)
 from app.models.enums import ImageProcessingStatus, State
 from app.tasks import task_logic
 from app.utils import timestamp
@@ -1138,7 +1142,7 @@ async def generate_qfield_project(
         log.info(f"Received {len(zip_bytes)} bytes from QGIS container")
 
         # Upload to S3
-        s3_key = f"publicuploads/qfield/{project_id}.zip"
+        s3_key = public_qfield_zip_key(project_id)
         add_obj_to_bucket(
             settings.S3_BUCKET_NAME,
             io.BytesIO(zip_bytes),
@@ -1474,7 +1478,6 @@ async def finalize_scaleodm_task(
             task_segment = f"{task_uuid}/" if task_uuid else ""
             assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
 
-            project_finalized = False
             if db_pool:
                 async with db_pool.connection() as conn:
                     if task_uuid and state:
@@ -1510,35 +1513,14 @@ async def finalize_scaleodm_task(
                             {"url": odm_assets_url, "pid": project_uuid},
                         )
                         log.info(f"Project {project_uuid} status updated to SUCCESS.")
-                        project_finalized = True
                     await conn.commit()
 
-            # Project-level finalization succeeded - kick off the cloudnative
-            # derivative jobs (COG + 3D tiles). Best-effort: a Redis hiccup
-            # shouldn't roll back the finalization that already committed.
-            # The backfill script can fill in the gaps later.
-            if project_finalized and redis:
-                try:
-                    await redis.enqueue_job(
-                        "generate_orthophoto_cog",
-                        project_id=dtm_project_id,
-                        _queue_name="default_queue",
-                    )
-                    await redis.enqueue_job(
-                        "generate_3d_tiles",
-                        project_id=dtm_project_id,
-                        _queue_name="default_queue",
-                    )
-                    log.info(
-                        "Enqueued cloudnative derivative jobs for project {}",
-                        dtm_project_id,
-                    )
-                except Exception as e:
-                    log.warning(
-                        "Failed to enqueue cloudnative jobs for project {}: {}",
-                        dtm_project_id,
-                        e,
-                    )
+            # Cloudnative derivatives are user-triggered now: the project UI
+            # exposes "Convert 2D / 3D to View" buttons that hit the trigger
+            # endpoints in project_routes.py. We deliberately do NOT enqueue
+            # here - many projects never need the web-optimized assets, and
+            # running the jobs for every successful project wasted compute
+            # for users on slow workers.
 
             # drone-tm DB is now committed - safe to remove the ScaleODM record
             # when we know its UUID. The call is best-effort; a 404 is ignored.

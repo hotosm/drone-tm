@@ -198,7 +198,7 @@ const UppyFileUploader = ({
       },
     });
 
-    // No unmount cleanup — uppy is app-level so in-flight uploads survive.
+    // No unmount cleanup - uppy is app-level so in-flight uploads survive.
   }, [uppy, projectId, taskId, allowedFileTypes, staging]);
 
   useEffect(() => {
@@ -258,7 +258,7 @@ const UppyFileUploader = ({
       purgeCompletedFiles();
     };
 
-    // Skip deleteBatch on cancel — finalised files are recoverable via the
+    // Skip deleteBatch on cancel - finalised files are recoverable via the
     // classify / scan-for-images flow.
     const handleCancelAll = () => {
       if (staging && batchIdRef.current) {

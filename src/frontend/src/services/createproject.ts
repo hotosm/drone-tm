@@ -6,8 +6,11 @@ export const getProjectsList = (params: Record<string, any>) =>
 
 export const getProjectDetail = (id: string) => authenticated(api).get(`/projects/${id}`);
 
-export const getOrthophotoCogPresignedUrl = (id: string) =>
-  authenticated(api).get(`/projects/${id}/cog/presigned-url`);
+export const triggerOrthophotoConversion = (id: string) =>
+  authenticated(api).post(`/projects/${id}/cloudnative/orthophoto`);
+
+export const triggerMeshConversion = (id: string) =>
+  authenticated(api).post(`/projects/${id}/cloudnative/mesh`);
 
 export const postCreateProject = (data: any) =>
   authenticated(api).post("/projects/", data, {

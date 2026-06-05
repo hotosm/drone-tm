@@ -7,12 +7,10 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { TilesRenderer } from "3d-tiles-renderer";
+import { LoadRegionPlugin, SphereRegion, TilesFadePlugin } from "3d-tiles-renderer/three/plugins";
 import centroid from "@turf/centroid";
 import { useGetProjectsDetailQuery } from "@Api/projects";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
-import { getRuntimeConfig } from "@/runtimeConfig";
-
-const API_URL = getRuntimeConfig("VITE_API_URL", "/api").replace(/\/+$/, "");
 
 // DRACO/KTX2 decoder assets are copied from three/examples/jsm/libs into
 // public/three-libs/ at build time by vite-plugin-static-copy.  Self-hosted
@@ -22,16 +20,39 @@ const KTX2_TRANSCODER_PATH = "/three-libs/basis/";
 
 // Threshold for fatal "render aborted" - TilesRenderer fires load-error per
 // tile, and transient single-tile failures shouldn't blank the whole view.
-const MAX_TILE_ERRORS_BEFORE_FAIL = 5;
+const MAX_TILE_ERRORS_BEFORE_FAIL = 25;
 const MODEL_DIAGNOSTIC_TILE_LIMIT = 3;
-const TILE_CACHE_MAX_BYTES = 1024 * 1024 * 1024;
-const TILE_CACHE_MIN_BYTES = 768 * 1024 * 1024;
-const TILE_MAX_TILES_PROCESSED = 1000;
-const TILE_ERROR_TARGET = 8;
-const EMPTY_PARENT_GEOMETRIC_ERROR = 1_000_000_000;
-const DEFAULT_MODEL_ALTITUDE_OFFSET_METERS = 0;
-const PREFETCH_ALL_RENDERABLE_TILES = true;
-const MAX_PREFETCH_RENDERABLE_TILES = 3000;
+// errorTarget is the per-pixel screen-space error the renderer is willing to
+// tolerate before refining. Lower = more tiles, higher quality, more load
+// pressure. 10 favors visual completeness while avoiding the request flood
+// we saw with single-digit values on large textured photogrammetry.
+const TILE_ERROR_TARGET = 10;
+// Bound how many tiles the renderer is allowed to mutate per update tick.
+// Keeps a single frame from spawning hundreds of decode jobs.
+const TILE_MAX_TILES_PROCESSED = 350;
+// Geometric-error target applied to the LoadRegionPlugin region that covers
+// the whole tileset. Plugin computes effective error as
+//   tile.geometricError - region.errorTarget + renderer.errorTarget
+// and the renderer refines while effective error > renderer.errorTarget,
+// so tiles only refine down until their geometricError drops below this
+// number. A higher value = coarser L-O-D over the whole-model halo.
+// 24 means tiles with geometricError <= ~24m render as leaves of the halo;
+// the camera frustum still drives full-resolution refinement near the user.
+const TILE_REGION_ERROR_TARGET = 24;
+const TILE_REGION_RADIUS_MULTIPLIER = 1.35;
+// LRU cache sizing. Defaults (min 600 / max 800) target small Cesium-style
+// tilesets; multi-GB photogrammetry trees evict useful tiles immediately on
+// pan. With LoadRegionPlugin covering the whole tileset we need headroom
+// for both the coarse halo and the fine-detail set near the camera.
+const TILE_LRU_MIN_SIZE = 3500;
+const TILE_LRU_MAX_SIZE = 6000;
+const TILE_LRU_MIN_BYTES = 512 * 1024 * 1024;
+const TILE_LRU_MAX_BYTES = 1024 * 1024 * 1024;
+const TILE_DOWNLOAD_CONCURRENCY = 32;
+const TILE_PARSE_CONCURRENCY = 8;
+const TILE_FADE_DURATION_MS = 180;
+const TILE_FADE_OUT_LIMIT = 250;
+const EMPTY_PARENT_MIN_GEOMETRIC_ERROR = TILE_REGION_ERROR_TARGET + 1;
 
 type ModelState = "idle" | "loading" | "loaded" | "error" | "unavailable";
 
@@ -47,14 +68,6 @@ function numericStat(stats: Record<string, unknown> | undefined, key: string): n
 
 function matrixFromArray(matrix: Iterable<number>): THREE.Matrix4 {
   return new THREE.Matrix4().fromArray(Array.from(matrix));
-}
-
-function getConfiguredModelAltitudeOffsetMeters() {
-  if (typeof window === "undefined") return DEFAULT_MODEL_ALTITUDE_OFFSET_METERS;
-  const rawValue = new URLSearchParams(window.location.search).get("modelAltOffset");
-  if (rawValue === null) return DEFAULT_MODEL_ALTITUDE_OFFSET_METERS;
-  const value = Number(rawValue);
-  return Number.isFinite(value) ? value : DEFAULT_MODEL_ALTITUDE_OFFSET_METERS;
 }
 
 function vectorToArray(vector: THREE.Vector3) {
@@ -107,13 +120,13 @@ function expandBoxByTransformedCorners(
   source: THREE.Box3,
   matrix: THREE.Matrix4,
 ) {
-  for (const x of [source.min.x, source.max.x]) {
-    for (const y of [source.min.y, source.max.y]) {
-      for (const z of [source.min.z, source.max.z]) {
+  [source.min.x, source.max.x].forEach((x) => {
+    [source.min.y, source.max.y].forEach((y) => {
+      [source.min.z, source.max.z].forEach((z) => {
         target.expandByPoint(new THREE.Vector3(x, y, z).applyMatrix4(matrix));
-      }
-    }
-  }
+      });
+    });
+  });
 }
 
 function getTilesetSiteBounds(tiles: TilesRenderer, ecefToSiteTransform: THREE.Matrix4) {
@@ -164,86 +177,39 @@ function getUpCorrectionMatrix(gltfUpAxis: unknown) {
 }
 
 function forceRendererContentZUp(tiles: TilesRenderer) {
-  const internalTiles = tiles as unknown as { _upRotationMatrix?: THREE.Matrix4 };
-  internalTiles._upRotationMatrix?.identity();
+  const upRotationMatrixKey = "_upRotationMatrix";
+  const internalTiles = tiles as unknown as {
+    [upRotationMatrixKey]?: THREE.Matrix4;
+  };
+  internalTiles[upRotationMatrixKey]?.identity();
 }
 
 function configureTilesRendererForPhotogrammetry(tiles: TilesRenderer) {
-  const internalTiles = tiles as unknown as {
-    errorTarget?: number;
-    maxTilesProcessed?: number;
-    optimizedLoadStrategy?: boolean;
-    loadSiblings?: boolean;
-    displayActiveTiles?: boolean;
-    lruCache?: {
-      minBytesSize?: number;
-      maxBytesSize?: number;
-    };
-  };
-
-  internalTiles.errorTarget = TILE_ERROR_TARGET;
-  internalTiles.maxTilesProcessed = TILE_MAX_TILES_PROCESSED;
-  internalTiles.optimizedLoadStrategy = true;
-  internalTiles.loadSiblings = true;
-  internalTiles.displayActiveTiles = true;
-  if (internalTiles.lruCache) {
-    internalTiles.lruCache.minBytesSize = TILE_CACHE_MIN_BYTES;
-    internalTiles.lruCache.maxBytesSize = TILE_CACHE_MAX_BYTES;
-  }
+  const rendererTiles = tiles;
+  // Defaults target small Cesium-style tilesets, not multi-GB textured
+  // photogrammetry. Without these overrides, tiles cull aggressively at the
+  // screen edges and the LRU evicts them immediately, so panning causes the
+  // visible "squares" to pop in and out.
+  rendererTiles.errorTarget = TILE_ERROR_TARGET;
+  rendererTiles.maxTilesProcessed = TILE_MAX_TILES_PROCESSED;
+  rendererTiles.optimizedLoadStrategy = true;
+  rendererTiles.loadSiblings = true;
+  // Render tiles that have been loaded into the active set even when they
+  // fall outside the render camera's frustum. Combined with LoadRegionPlugin
+  // this keeps a halo of already-loaded tiles visible while panning.
+  rendererTiles.displayActiveTiles = true;
+  rendererTiles.lruCache.minSize = TILE_LRU_MIN_SIZE;
+  rendererTiles.lruCache.maxSize = TILE_LRU_MAX_SIZE;
+  rendererTiles.lruCache.minBytesSize = TILE_LRU_MIN_BYTES;
+  rendererTiles.lruCache.maxBytesSize = TILE_LRU_MAX_BYTES;
+  rendererTiles.downloadQueue.maxJobs = TILE_DOWNLOAD_CONCURRENCY;
+  rendererTiles.parseQueue.maxJobs = TILE_PARSE_CONCURRENCY;
 }
 
-function prefetchRenderableTiles(tiles: TilesRenderer) {
-  if (!PREFETCH_ALL_RENDERABLE_TILES) {
-    return { enabled: false };
-  }
-
-  let renderableTiles = 0;
-  let requestedTiles = 0;
-  let alreadyLoadingOrLoaded = 0;
-  let skippedByLimit = 0;
-
-  const internalTiles = tiles as unknown as {
-    requestTileContents?: (tile: unknown) => unknown;
-    lruCache?: { markUsed?: (tile: unknown) => void };
-  };
-
-  tiles.traverse((tile: unknown) => {
-    const record = tile as Record<string, any> | null;
-    if (!record?.internal?.hasRenderableContent) return false;
-
-    renderableTiles += 1;
-    if (record.internal.loadingState !== 0) {
-      alreadyLoadingOrLoaded += 1;
-      return false;
-    }
-
-    if (requestedTiles >= MAX_PREFETCH_RENDERABLE_TILES) {
-      skippedByLimit += 1;
-      return false;
-    }
-
-    internalTiles.lruCache?.markUsed?.(record);
-    const request = internalTiles.requestTileContents?.(record);
-    if (request) {
-      requestedTiles += 1;
-    }
-
-    return false;
-  }, null);
-
-  return {
-    enabled: true,
-    renderableTiles,
-    requestedTiles,
-    alreadyLoadingOrLoaded,
-    skippedByLimit,
-    maxPrefetchRenderableTiles: MAX_PREFETCH_RENDERABLE_TILES,
-  };
-}
-
-function normalizeTilesetGeometricErrors(root: unknown) {
+function repairTilesetGeometricErrors(root: unknown) {
+  let adjustedEmptyParents = 0;
   let adjustedRenderableParents = 0;
-  let forcedEmptyParents = 0;
+  let initializedRenderableTiles = 0;
   const samples: Array<{
     reason: string;
     original: number | null;
@@ -251,65 +217,87 @@ function normalizeTilesetGeometricErrors(root: unknown) {
     maxRenderableChild?: number;
   }> = [];
 
+  function sample(
+    reason: string,
+    original: number | null,
+    adjusted: number,
+    maxRenderableChild?: number,
+  ) {
+    if (samples.length >= 5) return;
+    samples.push({ reason, original, adjusted, maxRenderableChild });
+  }
+
   function visit(tile: unknown): number | null {
     const record = tile as Record<string, any> | null;
     if (!record) return null;
 
     const children = Array.isArray(record.children) ? record.children : [];
-    const hasChildren = children.length > 0;
     const hasRenderableContent = !!record.content || !!record.contents;
-    const childRenderableErrors = hasChildren
-      ? children.map(visit).filter((value: number | null): value is number => value !== null)
-      : [];
+    const childRenderableErrors = children
+      .map(visit)
+      .filter((value: number | null): value is number => value !== null);
     const maxRenderableChild = childRenderableErrors.length
       ? Math.max(...childRenderableErrors)
       : null;
     const original = typeof record.geometricError === "number" ? record.geometricError : null;
 
-    if (
-      !hasRenderableContent &&
-      hasChildren &&
-      (original === null || original < EMPTY_PARENT_GEOMETRIC_ERROR)
-    ) {
-      record.geometricError = EMPTY_PARENT_GEOMETRIC_ERROR;
-      forcedEmptyParents += 1;
-      if (samples.length < 5) {
-        samples.push({
-          reason: "empty-parent-forced-refine",
-          original,
-          adjusted: record.geometricError,
-        });
+    if (!hasRenderableContent) {
+      if (maxRenderableChild === null) return null;
+      const adjusted = Math.max(maxRenderableChild * 1.01, EMPTY_PARENT_MIN_GEOMETRIC_ERROR);
+      if (original === null || original < adjusted) {
+        record.geometricError = Number(adjusted.toFixed(6));
+        adjustedEmptyParents += 1;
+        sample("empty-parent-forced-refine", original, record.geometricError, maxRenderableChild);
       }
-      return maxRenderableChild;
+      return record.geometricError as number;
     }
 
-    if (
-      hasRenderableContent &&
-      original !== null &&
-      maxRenderableChild !== null &&
-      original < maxRenderableChild
-    ) {
+    if (original === null) {
+      const adjusted = maxRenderableChild === null ? 0 : maxRenderableChild * 1.01;
+      record.geometricError = Number(adjusted.toFixed(6));
+      initializedRenderableTiles += 1;
+      sample("renderable-missing-error", original, record.geometricError, maxRenderableChild ?? 0);
+      return record.geometricError as number;
+    }
+
+    if (maxRenderableChild !== null && original < maxRenderableChild) {
       record.geometricError = Number((maxRenderableChild * 1.01).toFixed(6));
       adjustedRenderableParents += 1;
-      if (samples.length < 5) {
-        samples.push({
-          reason: "renderable-parent-child-error-order",
-          original,
-          adjusted: record.geometricError,
-          maxRenderableChild,
-        });
-      }
+      sample(
+        "renderable-parent-child-error-order",
+        original,
+        record.geometricError,
+        maxRenderableChild,
+      );
     }
 
-    if (hasRenderableContent) {
-      return typeof record.geometricError === "number" ? record.geometricError : maxRenderableChild;
-    }
-
-    return maxRenderableChild;
+    return record.geometricError as number;
   }
 
   visit(root);
-  return { adjustedRenderableParents, forcedEmptyParents, samples };
+  return {
+    adjustedEmptyParents,
+    adjustedRenderableParents,
+    initializedRenderableTiles,
+    samples,
+  };
+}
+
+// 3D Tiles store geometry in ECEF (Earth-Centred Earth-Fixed). This converts
+// the tileset bounding-sphere centre to geographic coordinates so we can place
+// the Mercator transform and jump the map camera to the right location.
+function ecefToLngLatAlt(x: number, y: number, z: number) {
+  const a = 6378137.0;
+  const e2 = 6.69437999014e-3;
+  const b = a * Math.sqrt(1 - e2);
+  const ep2 = (a * a - b * b) / (b * b);
+  const p = Math.sqrt(x * x + y * y);
+  const th = Math.atan2(a * z, b * p);
+  const lon = Math.atan2(y, x);
+  const lat = Math.atan2(z + ep2 * b * Math.sin(th) ** 3, p - e2 * a * Math.cos(th) ** 3);
+  const n = a / Math.sqrt(1 - e2 * Math.sin(lat) * Math.sin(lat));
+  const alt = p / Math.cos(lat) - n;
+  return { lng: (lon * 180) / Math.PI, lat: (lat * 180) / Math.PI, alt };
 }
 
 function summarizeRootTransform(
@@ -405,7 +393,12 @@ function summarizeTilesetContent(root: unknown) {
   }
 
   visit(root, 0);
-  return { nodes, contentNodes, maxDepth, contentExtensions: Array.from(extensions).sort() };
+  return {
+    nodes,
+    contentNodes,
+    maxDepth,
+    contentExtensions: Array.from(extensions).sort(),
+  };
 }
 
 function summarizeTileStreaming(tiles: TilesRenderer | null) {
@@ -414,7 +407,7 @@ function summarizeTileStreaming(tiles: TilesRenderer | null) {
     queuedTiles?: unknown[];
     stats?: Record<string, unknown>;
   };
-  const stats = tileInternals.stats;
+  const { stats } = tileInternals;
   return {
     stats: {
       queued: numericStat(stats, "queued"),
@@ -431,26 +424,6 @@ function summarizeTileStreaming(tiles: TilesRenderer | null) {
     },
     queuedTiles: tileInternals.queuedTiles?.length,
   };
-}
-
-// 3D Tiles store geometry in ECEF (Earth-Centred Earth-Fixed). This converts
-// the tileset bounding-sphere centre to geographic coordinates so we can place
-// the Mercator transform and jump the map camera to the right location.
-function ecefToLngLatAlt(x: number, y: number, z: number) {
-  const a = 6378137.0;
-  const e2 = 6.69437999014e-3;
-  const b = a * Math.sqrt(1 - e2);
-  const ep2 = (a * a - b * b) / (b * b);
-  const p = Math.sqrt(x * x + y * y);
-  const th = Math.atan2(a * z, b * p);
-  const lon = Math.atan2(y, x);
-  const lat = Math.atan2(
-    z + ep2 * b * Math.pow(Math.sin(th), 3),
-    p - e2 * a * Math.pow(Math.cos(th), 3),
-  );
-  const n = a / Math.sqrt(1 - e2 * Math.sin(lat) * Math.sin(lat));
-  const alt = p / Math.cos(lat) - n;
-  return { lng: (lon * 180) / Math.PI, lat: (lat * 180) / Math.PI, alt };
 }
 
 function summarizeLoadedModelScene(
@@ -517,15 +490,21 @@ const View3DModel = () => {
   const { data: projectData, isFetching } = useGetProjectsDetailQuery(id as string);
 
   useEffect(() => {
-    if (!mapContainerRef.current || isFetching || !projectData) return;
-    if (mapRef.current) return;
+    if (!mapContainerRef.current || isFetching || !projectData) return undefined;
+    if (mapRef.current) return undefined;
 
-    // Use the project UUID from the API response - route param may be a slug.
-    const projectId = (projectData as Record<string, any>).id as string;
-    const tilesetUrl = `${API_URL}/projects/${projectId}/3d-tiles/tileset.json`;
-    const token = localStorage.getItem("token");
-    const authHeaders: Record<string, string> = {};
-    if (token) authHeaders["Access-token"] = token;
+    // tileset.json (and every .b3dm referenced by relative URL inside it) is
+    // served directly from S3/CDN under publicuploads/, so no auth, no proxy,
+    // no per-tile DB lookups. Absence of the URL means the cloudnative job
+    // hasn't produced tiles for this project yet.
+    const tilesetUrl = (projectData as Record<string, any>).cloud_mesh_tileset_url as
+      | string
+      | null
+      | undefined;
+    if (!tilesetUrl) {
+      setModelState("unavailable");
+      return undefined;
+    }
 
     const projectCentroid = (projectData as Record<string, any>).outline
       ? centroid((projectData as Record<string, any>).outline).geometry.coordinates
@@ -550,14 +529,38 @@ const View3DModel = () => {
     let renderer: THREE.WebGLRenderer | null = null;
     let tilesCamera: THREE.PerspectiveCamera | null = null;
     let tiles: TilesRenderer | null = null;
+    let regionPlugin: LoadRegionPlugin | null = null;
+    let fadePlugin: TilesFadePlugin | null = null;
     let dracoLoader: DRACOLoader | null = null;
     let ktx2Loader: KTX2Loader | null = null;
     let localTransform: THREE.Matrix4 | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let resizeFrame: number | null = null;
     let cancelled = false;
     let tileErrorCount = 0;
     let modelDiagnosticCount = 0;
     let tilesLoadEndLogged = false;
-    const headAbort = new AbortController();
+
+    function triggerRepaint() {
+      if (!cancelled) map.triggerRepaint();
+    }
+
+    function updateTileResolution() {
+      if (tiles && tilesCamera && renderer) {
+        tiles.setResolutionFromRenderer(tilesCamera, renderer);
+      }
+    }
+
+    function scheduleMapResize() {
+      if (resizeFrame !== null) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = null;
+        if (cancelled) return;
+        map.resize();
+        updateTileResolution();
+        triggerRepaint();
+      });
+    }
 
     function buildLocalTransform(lng: number, lat: number, alt: number): THREE.Matrix4 {
       const mc = maplibregl.MercatorCoordinate.fromLngLat([lng, lat], alt);
@@ -568,6 +571,18 @@ const View3DModel = () => {
         .scale(new THREE.Vector3(scale, -scale, scale))
         .multiply(rotX);
     }
+
+    const handleMapResize = () => {
+      updateTileResolution();
+      triggerRepaint();
+    };
+    map.on("load", scheduleMapResize);
+    map.on("resize", handleMapResize);
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(scheduleMapResize);
+      resizeObserver.observe(mapContainerRef.current);
+    }
+    scheduleMapResize();
 
     function initTiles(
       url: string,
@@ -589,8 +604,19 @@ const View3DModel = () => {
       tiles = new TilesRenderer(url);
       tiles.group.name = "tiles";
       configureTilesRendererForPhotogrammetry(tiles);
-      // Forward the JWT so the backend proxy can enforce auth when enabled.
-      if (token) tiles.fetchOptions = { headers: { ...authHeaders } };
+      fadePlugin = new TilesFadePlugin({
+        fadeDuration: TILE_FADE_DURATION_MS,
+        fadeRootTiles: false,
+        maximumFadeOutTiles: TILE_FADE_OUT_LIMIT,
+      });
+      tiles.registerPlugin(fadePlugin);
+      // LoadRegionPlugin lets us force a coarse halo of tiles to stay loaded
+      // over the entire model regardless of camera frustum - so when the
+      // user zooms out, the whole thing is visible instead of just whatever
+      // happens to be inside the view frustum. The actual region is added
+      // in load-tileset once we know the bounding sphere.
+      regionPlugin = new LoadRegionPlugin();
+      tiles.registerPlugin(regionPlugin);
       sceneInst.add(tiles.group);
       tiles.setCamera(cameraInst);
       tiles.setResolutionFromRenderer(cameraInst, rendererInst);
@@ -606,15 +632,38 @@ const View3DModel = () => {
         tiles.getBoundingSphere(sphere);
         const centre = sphere.center.clone();
         const { lng, lat, alt } = ecefToLngLatAlt(centre.x, centre.y, centre.z);
-        const root = tiles.root;
+        const { root } = tiles;
         const rootBox = (root?.boundingVolume as Record<string, unknown> | undefined)?.box;
-        const geometricErrorNormalization = normalizeTilesetGeometricErrors(root);
-        const configuredAltitudeOffsetMeters = getConfiguredModelAltitudeOffsetMeters();
+        const tilesetRepairs = repairTilesetGeometricErrors(root);
 
         if (cancelled) return;
+
+        // Force the whole tileset to load at a coarse L-O-D by registering a
+        // SphereRegion that covers it. The plugin marks every tile inside
+        // the sphere as in-view (with the region's geometric-error budget),
+        // composed via max() with the camera's own per-tile error - so the
+        // user sees the entire model when zoomed out, while camera-frustum
+        // selection still drives full-resolution refinement nearby. Sphere
+        // is in the tileset's native (ECEF) space, matching tile bounding
+        // volumes. Pad the radius slightly so border tiles whose AABBs
+        // poke outside the loose bounding sphere still intersect.
+        if (regionPlugin) {
+          const haloSphere = sphere.clone();
+          haloSphere.radius *= TILE_REGION_RADIUS_MULTIPLIER;
+          regionPlugin.clearRegions();
+          regionPlugin.addRegion(
+            new SphereRegion({
+              sphere: haloSphere,
+              errorTarget: TILE_REGION_ERROR_TARGET,
+            }),
+          );
+        }
         modelLocationRef.current = { lng, lat };
         map.jumpTo({ center: [lng, lat], zoom: 18, pitch: 60 });
-        localTransform = buildLocalTransform(lng, lat, alt + configuredAltitudeOffsetMeters);
+        // Any vertical offset between tileset altitude and the map surface is
+        // a data issue (georeferencing in Obj2Tiles input) and must be fixed
+        // upstream, not patched here.
+        localTransform = buildLocalTransform(lng, lat, alt);
 
         let m: number[] = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
         if (root && (root as Record<string, any>).transform) {
@@ -667,7 +716,6 @@ const View3DModel = () => {
         const sourceToMapWithActiveCorrection = forceZUpContent
           ? sourceToMapNoCorrection.clone()
           : sourceToMapWithDefaultCorrection;
-        const tilePrefetch = prefetchRenderableTiles(tiles);
 
         log3dTilesDiagnostic("alignment", {
           tilesetUrl: url,
@@ -689,31 +737,36 @@ const View3DModel = () => {
           sphereRadiusMeters: Number(sphere.radius.toFixed(3)),
           rootBoundingBox: summarizeBoundingBox(rootBox),
           surfacePlacement: {
-            configuredAltitudeOffsetMeters,
             siteBoundsMeters: siteBounds ? summarizeBox3(siteBounds) : null,
             lowestPointAltitudeMeters:
-              siteBounds === null
-                ? null
-                : Number((alt + configuredAltitudeOffsetMeters + siteBounds.min.z).toFixed(3)),
+              siteBounds === null ? null : Number((alt + siteBounds.min.z).toFixed(3)),
             highestPointAltitudeMeters:
-              siteBounds === null
-                ? null
-                : Number((alt + configuredAltitudeOffsetMeters + siteBounds.max.z).toFixed(3)),
+              siteBounds === null ? null : Number((alt + siteBounds.max.z).toFixed(3)),
             offsetToPutLowestBoundOnMapSurfaceMeters:
               siteBounds === null ? null : Number((-alt - siteBounds.min.z).toFixed(3)),
           },
           rootTransform: rootTransformSummary,
           content: summarizeTilesetContent(root),
-          geometricErrorNormalization,
           rendererTileOptions: {
             errorTarget: TILE_ERROR_TARGET,
             maxTilesProcessed: TILE_MAX_TILES_PROCESSED,
             optimizedLoadStrategy: true,
             loadSiblings: true,
-            cacheMinBytes: TILE_CACHE_MIN_BYTES,
-            cacheMaxBytes: TILE_CACHE_MAX_BYTES,
+            displayActiveTiles: true,
+            wholeModelRegionErrorTarget: TILE_REGION_ERROR_TARGET,
+            wholeModelRegionRadiusMultiplier: TILE_REGION_RADIUS_MULTIPLIER,
+            maxDownloadJobs: TILE_DOWNLOAD_CONCURRENCY,
+            maxParseJobs: TILE_PARSE_CONCURRENCY,
+            fadeDurationMs: TILE_FADE_DURATION_MS,
+            maxFadeOutTiles: TILE_FADE_OUT_LIMIT,
+            lruCache: {
+              minSize: TILE_LRU_MIN_SIZE,
+              maxSize: TILE_LRU_MAX_SIZE,
+              minBytesSize: TILE_LRU_MIN_BYTES,
+              maxBytesSize: TILE_LRU_MAX_BYTES,
+            },
           },
-          tilePrefetch,
+          tilesetRepairs,
           sourceAxisDirectionsIfContentIsAlreadyZUp: axisDirections(sourceToMapNoCorrection),
           sourceAxisDirectionsWithDefaultRendererCorrection: axisDirections(
             sourceToMapWithDefaultCorrection,
@@ -721,13 +774,25 @@ const View3DModel = () => {
           activeSourceAxisDirections: axisDirections(sourceToMapWithActiveCorrection),
         });
 
-        setModelState("loaded");
+        // Don't flip to "loaded" here. tileset.json parsing finishing only
+        // means metadata is available; no mesh is visible yet. Wait for the
+        // first load-model event so the loading overlay stays up until the
+        // user actually sees something.
       };
       tiles.addEventListener("load-tileset", onLoadTileset);
-      tiles.addEventListener("needs-update", () => {
-        map.triggerRepaint();
-      });
+      tiles.addEventListener("needs-update", triggerRepaint);
+      tiles.addEventListener("needs-render", triggerRepaint);
+      tiles.addEventListener("fade-change", triggerRepaint);
+      tiles.addEventListener("fade-start", triggerRepaint);
+      tiles.addEventListener("fade-end", triggerRepaint);
+      tiles.addEventListener("tiles-load-start", triggerRepaint);
+      tiles.addEventListener("tiles-load-end", triggerRepaint);
+      let firstModelLoaded = false;
       tiles.addEventListener("load-model", (event: any) => {
+        if (!firstModelLoaded && !cancelled) {
+          firstModelLoaded = true;
+          setModelState("loaded");
+        }
         if (modelDiagnosticCount >= MODEL_DIAGNOSTIC_TILE_LIMIT || !tiles || !localTransform)
           return;
         modelDiagnosticCount += 1;
@@ -751,10 +816,10 @@ const View3DModel = () => {
       // fatal; sporadic tile failures aren't (TilesRenderer retries cheaply
       // on the next update).  Only flip to 'error' once a threshold is hit.
       tiles.addEventListener("load-error", (event: any) => {
-        const url: string | undefined = event?.url;
-        const isTileset = !!url && url.endsWith("tileset.json");
+        const failedUrl: string | undefined = event?.url;
+        const isTileset = !!failedUrl && failedUrl.endsWith("tileset.json");
         log3dTilesDiagnostic("load-error", {
-          url,
+          url: failedUrl,
           isTileset,
           error: event?.error,
           stats: summarizeTileStreaming(tiles),
@@ -766,7 +831,7 @@ const View3DModel = () => {
           return;
         }
         tileErrorCount += 1;
-        if (tileErrorCount >= MAX_TILE_ERRORS_BEFORE_FAIL && !cancelled) {
+        if (tileErrorCount >= MAX_TILE_ERRORS_BEFORE_FAIL && !firstModelLoaded && !cancelled) {
           // eslint-disable-next-line no-console
           console.error(`Aborting after ${tileErrorCount} tile load errors`);
           setModelState("error");
@@ -791,6 +856,13 @@ const View3DModel = () => {
         renderer.autoClear = false;
 
         tilesCamera = new THREE.PerspectiveCamera();
+        // Critical: stop Three.js from recomputing matrixWorld from the
+        // (identity) position/quaternion/scale on every frame, which would
+        // wipe out the matrixWorld we copy in from MapLibre and make
+        // 3d-tiles-renderer cull/select tiles from the wrong viewpoint.
+        // That's the most likely cause of holes/disappearing chunks while
+        // panning and zooming.
+        tilesCamera.matrixAutoUpdate = false;
         initTiles(tilesetUrl, scene, tilesCamera, renderer);
       },
       // maplibre-gl v4: render(gl, matrix, options). The second argument is
@@ -808,58 +880,59 @@ const View3DModel = () => {
         const V = new THREE.Matrix4().multiplyMatrices(P.clone().invert(), camera.projectionMatrix);
 
         tilesCamera.projectionMatrix.copy(P);
+        // Keep projectionMatrixInverse coherent with projectionMatrix.
+        // 3d-tiles-renderer uses both when computing screen-space error;
+        // a stale inverse causes the wrong tiles to be picked.
+        tilesCamera.projectionMatrixInverse.copy(P).invert();
         tilesCamera.matrixWorldInverse.copy(V);
         tilesCamera.matrixWorld.copy(V).invert();
+        updateTileResolution();
 
+        // Update tile selection/loading state before drawing the frame so
+        // the renderer renders against the most recent visible set rather
+        // than always lagging one frame behind camera motion.
+        tiles?.update();
         renderer.resetState();
         renderer.render(scene, camera);
-        tiles?.update();
-        map.triggerRepaint();
+        // No unconditional triggerRepaint here. MapLibre repaints on its
+        // own during user interaction, and the tiles "needs-update" handler
+        // schedules a repaint when async loads / tile-set changes happen.
+        // Forcing 60fps repaint here just pins the GPU and main thread
+        // during streaming.
       },
     };
 
-    // HEAD check first: show placeholder immediately if tiles haven't been
-    // generated yet, without waiting for TilesRenderer to attempt a full load.
-    fetch(tilesetUrl, {
-      method: "HEAD",
-      headers: authHeaders,
-      signal: headAbort.signal,
-    })
-      .then((res) => {
-        if (cancelled) return;
-        if (res.status === 404) {
-          setModelState("unavailable");
-          return;
-        }
-        if (!res.ok) {
-          log3dTilesDiagnostic("HEAD failed", { status: res.status, statusText: res.statusText });
-          setModelState("error");
-          return;
-        }
-        setModelState("loading");
-        // style.load may have already fired by the time the HEAD resolves
-        if (map.isStyleLoaded()) {
-          if (!cancelled) map.addLayer(customLayer);
-        } else {
-          map.once("style.load", () => {
-            if (!cancelled) map.addLayer(customLayer);
-          });
-        }
-      })
-      .catch((err) => {
-        if (cancelled || err.name === "AbortError") return;
-        // eslint-disable-next-line no-console
-        console.error("3D tile HEAD probe failed", err);
-        setModelState("error");
+    // Backend already confirmed tile availability via cloud_mesh_tileset_url
+    // being populated, so we go straight to adding the layer. TilesRenderer's
+    // own load-error handler covers the residual case where the object was
+    // deleted out-of-band after the flag was set.
+    setModelState("loading");
+    if (map.isStyleLoaded()) {
+      map.addLayer(customLayer);
+    } else {
+      map.once("style.load", () => {
+        if (!cancelled) map.addLayer(customLayer);
       });
+    }
 
     return () => {
       cancelled = true;
-      headAbort.abort();
+      map.off("load", scheduleMapResize);
+      map.off("resize", handleMapResize);
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      if (resizeFrame !== null) {
+        window.cancelAnimationFrame(resizeFrame);
+        resizeFrame = null;
+      }
       // Tiles owns its WebGL geometries/textures and disposes them via the
-      // tile-manager when the renderer is removed from the scene.
+      // tile-manager when the renderer is removed from the scene. The
+      // TilesRenderer's own dispose() iterates registered plugins and
+      // calls their dispose() too, so the region plugin is torn down here.
       tiles?.dispose();
       tiles = null;
+      regionPlugin = null;
+      fadePlugin = null;
       // KTX2/DRACO loaders own worker pools that must be torn down.
       ktx2Loader?.dispose();
       dracoLoader?.dispose();
@@ -943,7 +1016,7 @@ const View3DModel = () => {
         {!isFetching && modelState === "error" && (
           <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center">
             <div className="naxatw-rounded-lg naxatw-bg-white naxatw-p-8 naxatw-text-center naxatw-shadow-xl">
-              <span className="material-icons naxatw-mb-3 naxatw-block naxatw-text-4xl naxatw-text-red-500">
+              <span className="material-icons naxatw-text-red-500 naxatw-mb-3 naxatw-block naxatw-text-4xl">
                 error_outline
               </span>
               <p className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-700">

@@ -1,10 +1,17 @@
-"""Backfill cloudnative derivatives (COG + 3D tiles) for existing projects.
+"""Admin: enqueue cloudnative derivative jobs for an existing project.
 
-Useful for projects that finished processing before the cloudnative pipeline
-existed, or to re-run a conversion after an upstream fix. The script enqueues
-the same arq jobs that fire automatically when a new project finalizes, so it
-inherits the worker's timeout, retry, and observability behaviour. A running
-arq worker is required to actually do the work.
+Production triggers come from the UI ``Convert 2D/3D`` buttons (see
+``POST /projects/{id}/cloudnative/orthophoto`` and ``.../mesh``). This script
+exists for backfill scenarios where the user can't / shouldn't click in the
+UI - bulk one-off conversion, populating dev environments from copied prod
+data, recovery after a stuck job.
+
+Differences from the UI path:
+
+* No ``cloud_*_generating`` DB flag is set. The UI will not show a
+  "Converting…" badge while this script's job runs.
+* ``--force`` bypasses the worker's ``cloud_*_ready`` short-circuit so the
+  conversion runs even if the project already has a published output.
 
 Usage:
     python -m app.scripts.generate_cloudnative --project-id <uuid>
@@ -32,17 +39,31 @@ async def _enqueue(project_id: str, *, cog: bool, tiles: bool, force: bool) -> N
                 "generate_orthophoto_cog",
                 project_id=project_id,
                 force=force,
+                _job_id=f"cog:{project_id}",
                 _queue_name="default_queue",
             )
-            print(f"Enqueued generate_orthophoto_cog: job_id={job.job_id}")
+            if job is None:
+                print(
+                    f"Could not enqueue generate_orthophoto_cog for {project_id}: "
+                    "a job with this id is already in progress or recently completed."
+                )
+            else:
+                print(f"Enqueued generate_orthophoto_cog: job_id={job.job_id}")
         if tiles:
             job = await redis.enqueue_job(
                 "generate_3d_tiles",
                 project_id=project_id,
                 force=force,
+                _job_id=f"3dtiles:{project_id}",
                 _queue_name="default_queue",
             )
-            print(f"Enqueued generate_3d_tiles: job_id={job.job_id}")
+            if job is None:
+                print(
+                    f"Could not enqueue generate_3d_tiles for {project_id}: "
+                    "a job with this id is already in progress or recently completed."
+                )
+            else:
+                print(f"Enqueued generate_3d_tiles: job_id={job.job_id}")
     finally:
         await redis.close()
 
