@@ -23,6 +23,11 @@ Item {
   property string lastKmzPath: ""
   property var lastKmzData: null
 
+  // Last generated flightpath LineString geojson (workspace/flightpaths/...).
+  // Stashed here so _loadFlightplanLayer can add it as a second layer without
+  // needing extra arguments through _outputDji / _outputPotensicV2.
+  property string lastPathGeojsonPath: ""
+
   // Potensic Atom 2 output state
   property string lastPotensicZipPath: ""
   property var lastPotensicZipData: null
@@ -458,8 +463,15 @@ Item {
     lastDroneType = droneType
     flightplanDialog.lastDroneType = droneType
 
-    var geojsonDir = qgisProject.homePath + '/flightplans'
-    platformUtilities.createDir(qgisProject.homePath, 'flightplans')
+    // GeoJSONs live under workspace/ so operators only see the
+    // drone-specific output dirs (flightplans_dji, flightplans_potensic2)
+    // when browsing the project folder. platformUtilities.createDir is
+    // non-recursive (QDir::mkdir), so create the parent first.
+    var geojsonDir = qgisProject.homePath + '/workspace/flightplans'
+    var pathDir = qgisProject.homePath + '/workspace/flightpaths'
+    platformUtilities.createDir(qgisProject.homePath, 'workspace')
+    platformUtilities.createDir(qgisProject.homePath + '/workspace', 'flightplans')
+    platformUtilities.createDir(qgisProject.homePath + '/workspace', 'flightpaths')
 
     var timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
     var filename = 'task_' + taskId + '_' + timestamp
@@ -467,6 +479,23 @@ Item {
     var geojsonStr = JSON.stringify(placemarks, null, 2)
     var geojsonPath = geojsonDir + '/' + filename + '.geojson'
     var geojsonOk = saveTextFile(geojsonPath, geojsonStr)
+    // Sidecar style: QgsVectorLayer ctor defaults to loadDefaultStyle=true,
+    // which auto-applies a same-basename .qml next to the data file. This is
+    // the only path to runtime styling - QGIS loadNamedStyle() is not
+    // Q_INVOKABLE and no QField helper re-exposes it.
+    _writeStyleSidecar('point-markers', geojsonPath)
+
+    // Build + save the flight-path LineString visualisation. linestring.qml
+    // places its "takeoff" SVG marker at the first vertex, so vertex 0 must
+    // be the takeoff point when one is set.
+    var pathFc = _buildFlightpathGeojson(placemarks, config.takeoffPoint)
+    var pathGeojsonPath = pathDir + '/' + filename + '.geojson'
+    if (saveTextFile(pathGeojsonPath, JSON.stringify(pathFc, null, 2))) {
+      _writeStyleSidecar('linestring', pathGeojsonPath)
+      lastPathGeojsonPath = pathGeojsonPath
+    } else {
+      lastPathGeojsonPath = ""
+    }
 
     if (droneType === "POTENSIC_ATOM_2") {
       var potensicDir = qgisProject.homePath + '/flightplans_potensic2'
@@ -606,36 +635,98 @@ Item {
   }
 
   function _loadFlightplanLayer(geojsonPath, taskId) {
+    // QgsProject::layerTreeRoot() is not Q_INVOKABLE / Q_PROPERTY in QGIS and QField
+    // does not re-expose it, so layer tree grouping is not possible from a plugin.
+    // The layer lands at the project root via ProjectUtils.addMapLayer.
     try {
-      var vectorLayer = LayerUtils.loadVectorLayer(geojsonPath, 'flightplan_' + taskId)
+      var vectorLayer = LayerUtils.loadVectorLayer(geojsonPath, 'waypoints_' + taskId)
       if (vectorLayer) {
         ProjectUtils.addMapLayer(qgisProject, vectorLayer)
-        // qgisProject.layerTreeRoot is not exposed in all QField builds; if absent,
-        // the layer still gets added at the project root level
-        try {
-          var root = qgisProject.layerTreeRoot
-          if (root && root.findGroup) {
-            var group = root.findGroup("Flightplans")
-            if (!group) {
-              group = root.addGroup("Flightplans")
-              log("Created 'Flightplans' layer group")
-            }
-            var layerNode = root.findLayer(vectorLayer.id)
-            if (layerNode) {
-              group.addLayer(vectorLayer)
-              root.removeChildNode(layerNode)
-            }
-          } else {
-            log("layerTreeRoot not available - layer added at project root")
-          }
-        } catch (ge) {
-          log("Could not move layer to group: " + ge)
-        }
-        log("Flightplan layer added")
+        log("Waypoints layer added")
       }
     } catch (e) {
-      log("Could not add flightplan layer: " + e)
+      log("Could not add waypoints layer: " + e)
     }
+
+    if (lastPathGeojsonPath) {
+      try {
+        var pathLayer = LayerUtils.loadVectorLayer(lastPathGeojsonPath, 'flightpath_' + taskId)
+        if (pathLayer) {
+          ProjectUtils.addMapLayer(qgisProject, pathLayer)
+          log("Flightpath layer added")
+        }
+      } catch (e) {
+        log("Could not add flightpath layer: " + e)
+      }
+    }
+  }
+
+  // Build a single-feature FeatureCollection containing a LineString of
+  // the waypoint sequence. When a takeoff point is set it becomes vertex 0
+  // so linestring.qml's FirstVertex marker line places its SVG there.
+  // Altitudes are dropped (2D path is what the visualisation needs).
+  function _buildFlightpathGeojson(placemarks, takeoffPoint) {
+    var coords = []
+    if (takeoffPoint && takeoffPoint.lon !== undefined && takeoffPoint.lat !== undefined) {
+      coords.push([takeoffPoint.lon, takeoffPoint.lat])
+    }
+    for (var i = 0; i < placemarks.features.length; i++) {
+      var c = placemarks.features[i].geometry.coordinates
+      coords.push([c[0], c[1]])
+    }
+    return {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: { kind: "flightpath" },
+        geometry: { type: "LineString", coordinates: coords }
+      }]
+    }
+  }
+
+  // Copy a project-bundled style (.qml) so it sits next to the geojson with
+  // a matching basename. QgsVectorLayer's ctor picks this up automatically
+  // via styleURI() -> {basename}.qml in the same directory.
+  function _writeStyleSidecar(styleName, geojsonPath) {
+    var srcPath = qgisProject.homePath + '/styles/' + styleName + '.qml'
+    var content = _readTextFile(srcPath)
+    if (!content) {
+      log("Style sidecar skipped - could not read " + srcPath)
+      return false
+    }
+    var dstPath = geojsonPath.replace(/\.geojson$/, '.qml')
+    return saveTextFile(dstPath, content)
+  }
+
+  // Best-effort text read. XHR file:// works on Android/iOS in sync mode;
+  // FileUtils is the QField-native fallback, restricted to paths inside the
+  // project directory (which /styles/ always satisfies).
+  function _readTextFile(filepath) {
+    try {
+      var xhr = new XMLHttpRequest()
+      xhr.open("GET", "file://" + filepath, false)
+      xhr.send()
+      if ((xhr.status === 200 || xhr.status === 0) && xhr.responseText) {
+        return xhr.responseText
+      }
+    } catch (e) {
+      log("XHR text read failed for " + filepath + ": " + e)
+    }
+    try {
+      if (typeof FileUtils !== 'undefined' && FileUtils.readFileContent) {
+        var buf = FileUtils.readFileContent(filepath)
+        if (typeof buf === 'string' && buf.length > 0) return buf
+        if (buf && buf.byteLength > 0) {
+          var view = new Uint8Array(buf)
+          var s = ''
+          for (var i = 0; i < view.length; i++) s += String.fromCharCode(view[i])
+          return s
+        }
+      }
+    } catch (e) {
+      log("FileUtils text read failed: " + e)
+    }
+    return null
   }
 
   function saveTextFile(filepath, content) {
@@ -740,33 +831,70 @@ Item {
     return false
   }
 
-  // Read back the first bytes of a written file and verify ZIP magic (PK\x03\x04).
+  // Verify a written ZIP/KMZ file by checking size and magic bytes (PK\x03\x04).
   // Returns true (verified good), false (positively bad), or null (inconclusive -
-  // read-back not supported on this device). Callers should treat null as "trust the
-  // write" since XHR GET on file:// with arraybuffer is unreliable on Android.
+  // read-back not supported for this path). Callers should treat null as "trust
+  // the write" since paths outside the QGIS project directory cannot be
+  // introspected by QField's native FileUtils, and sync XMLHttpRequest cannot use
+  // responseType="arraybuffer" (throws InvalidStateError per the W3C spec).
   function _verifyZipFile(filepath, expectedByteLength) {
+    // Path 1: FileUtils - reliable, but isWithinProjectDirectory-gated. Returns
+    // info.exists=false (with a warning) for paths outside the project dir.
+    try {
+      if (typeof FileUtils !== 'undefined' && FileUtils.getFileInfo) {
+        var info = FileUtils.getFileInfo(filepath)
+        if (info && info.exists === true) {
+          if (info.fileSize !== undefined && info.fileSize !== expectedByteLength) {
+            log("ZIP size mismatch via FileUtils: got " + info.fileSize +
+                ", expected " + expectedByteLength)
+            return false
+          }
+          if (FileUtils.readFileContent) {
+            var buf = FileUtils.readFileContent(filepath)
+            if (buf && buf.byteLength >= 4) {
+              var view = new Uint8Array(buf)
+              var valid = view[0] === 0x50 && view[1] === 0x4B &&
+                          view[2] === 0x03 && view[3] === 0x04
+              if (!valid) {
+                log("ZIP magic bytes invalid via FileUtils: " + view[0] + " " +
+                    view[1] + " " + view[2] + " " + view[3])
+                return false
+              }
+              return true
+            }
+          }
+          // Size matched but content not readable; size alone is enough signal.
+          return true
+        }
+      }
+    } catch (e) {
+      log("ZIP verify via FileUtils failed: " + e)
+    }
+
+    // Path 2: sync XHR in text mode. Cannot use responseType="arraybuffer" on a
+    // sync request (per spec, throws InvalidStateError). The ZIP magic
+    // PK\x03\x04 = 0x50 0x4B 0x03 0x04 is entirely ASCII-safe so charCodeAt of
+    // the response text is a faithful read of the first four bytes. Size check
+    // is skipped because text decoding of binary content mangles the length.
     try {
       var xhr = new XMLHttpRequest()
       xhr.open("GET", "file://" + filepath, false)
-      xhr.responseType = "arraybuffer"
       xhr.send()
       if (xhr.status !== 200 && xhr.status !== 0) {
         log("ZIP verify inconclusive: HTTP status " + xhr.status)
         return null
       }
-      var buf = xhr.response
-      if (!buf || buf.byteLength < 4) {
-        log("ZIP verify inconclusive: no response body")
+      var text = xhr.responseText
+      if (!text || text.length < 4) {
+        log("ZIP verify inconclusive: empty read-back")
         return null
       }
-      if (buf.byteLength !== expectedByteLength) {
-        log("ZIP size mismatch: got " + buf.byteLength + ", expected " + expectedByteLength)
-        return false
-      }
-      var view = new Uint8Array(buf)
-      var valid = view[0] === 0x50 && view[1] === 0x4B && view[2] === 0x03 && view[3] === 0x04
-      if (!valid) {
-        log("ZIP magic bytes invalid: " + view[0] + " " + view[1] + " " + view[2] + " " + view[3])
+      var ok = text.charCodeAt(0) === 0x50 && text.charCodeAt(1) === 0x4B &&
+               text.charCodeAt(2) === 0x03 && text.charCodeAt(3) === 0x04
+      if (!ok) {
+        log("ZIP magic bytes invalid via XHR: " + text.charCodeAt(0) + " " +
+            text.charCodeAt(1) + " " + text.charCodeAt(2) + " " +
+            text.charCodeAt(3))
         return false
       }
       return true
