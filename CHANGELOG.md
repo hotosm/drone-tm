@@ -1,3 +1,9 @@
+## 2026.6.2 (2026-06-06)
+
+### Fix
+
+- **qfield**: styling on generated flightplans, allow download / controller copy
+
 ## 2026.6.1 (2026-06-06)
 
 ### Fix
