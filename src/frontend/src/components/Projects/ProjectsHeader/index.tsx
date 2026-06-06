@@ -33,9 +33,12 @@ export default function ProjectsHeader() {
 
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-2 naxatw-py-3 md:naxatw-flex-row">
-      <FlexRow className="naxatw-flex naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-gap-4 md:naxatw-w-[65%]">
+      <FlexRow className="naxatw-flex naxatw-w-full naxatw-flex-wrap naxatw-items-center naxatw-justify-between naxatw-gap-3 md:naxatw-w-[65%] md:naxatw-flex-nowrap md:naxatw-gap-4">
         <h5 className="naxatw-font-bold">{m.projects_heading()}</h5>
-        <FlexRow gap={3} className="">
+        <FlexRow
+          gap={3}
+          className="naxatw-w-full naxatw-flex-wrap naxatw-items-center naxatw-justify-end md:naxatw-w-auto md:naxatw-flex-nowrap"
+        >
           <div className="naxatw-flex naxatw-items-center naxatw-gap-2">
             <Select
               placeholder={m.projects_select_placeholder()}
@@ -74,7 +77,7 @@ export default function ProjectsHeader() {
               }
             />
           </div>
-          <div>
+          <div className="naxatw-min-w-[180px] naxatw-flex-1 md:naxatw-flex-none">
             <SearchInput
               inputValue={searchValue}
               placeholder={m.projects_search_placeholder()}
