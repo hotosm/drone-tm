@@ -38,15 +38,6 @@ apps can't write directly into other apps' `Android/data/<pkg>/` dirs
 without going through SAF, so a plain file copy from QField to the DJI
 app's waypoint directory is blocked on a single device too.
 
-The direct-copy code only ever worked in two narrow cases:
-
-1. Pre-Android-11 phones where QField ran on the controller itself.
-2. The controller attached as USB mass storage, which DJI and Potensic
-   controllers don't offer.
-
-For everyone else, the button silently failed with "Could not find DJI
-controller storage", which was both wrong and misleading.
-
 ## What we settled on
 
 Save via the SAF picker, with the plugin doing as much of the fiddly

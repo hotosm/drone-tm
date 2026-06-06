@@ -415,7 +415,7 @@ QfDialog {
               "1. In the picker, browse to your controller (connect by USB if not visible)\n" +
               "2. Open Android/data/dji.go.v5/files/waypoint/\n" +
               "3. Open the folder named:\n   %1\n" +
-              "4. Save the file (the name is already set — do not rename it)\n\n" +
+              "4. Save the file (the name is already set - do not rename it)\n\n" +
               "The mission ID has been copied to your clipboard so you can paste it into the picker's search if needed. If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.").arg(djiMissionId || "<your mission folder>")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
