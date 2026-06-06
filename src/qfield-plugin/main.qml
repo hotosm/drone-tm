@@ -4,12 +4,11 @@ import org.qfield
 import org.qgis
 import Theme
 
-import "plugin"
-import "plugin/flightplan/core.js" as Flightplan
-import "plugin/flightplan/drone_specs.js" as Specs
-import "plugin/output/dji.js" as DjiOutput
-import "plugin/output/kmz.js" as Kmz
-import "plugin/output/potensic_v2.js" as PotensicV2Output
+import "generate/core.js" as Flightplan
+import "generate/drone_specs.js" as Specs
+import "output/dji.js" as DjiOutput
+import "output/kmz.js" as Kmz
+import "output/potensic_v2.js" as PotensicV2Output
 
 Item {
   id: plugin
@@ -39,6 +38,17 @@ Item {
   // Last generated drone type (persists until next generation, used by export logic)
   property string lastDroneType: ""
 
+  // Holds the QField ResourceSource returned by platformUtilities.getFile while
+  // the user is picking a controller-side file to extract the DJI mission UUID.
+  property var djiPickerResourceSource: null
+
+  Connections {
+    target: plugin.djiPickerResourceSource
+    function onResourceReceived(path) {
+      handleDjiFilePicked(path)
+    }
+  }
+
   // Takeoff point state
   property var takeoffPoint: null  // {lon, lat} or null
   property bool placingTakeoff: false
@@ -47,7 +57,7 @@ Item {
   // --- Toolbar Button ---
   QfToolButton {
     id: dronetmButton
-    iconSource: 'plugin/dronetm.svg'
+    iconSource: 'dronetm.svg'
     iconColor: '#C53639'
     bgcolor: '#FFFFFF'
     round: true
@@ -89,6 +99,10 @@ Item {
 
     onExportToDjiMissionRequested: function(missionId) {
       exportDjiMissionToDevice(missionId)
+    }
+
+    onSelectDjiMissionFileRequested: {
+      selectDjiMissionFile()
     }
 
     onUseGpsTakeoff: {
@@ -903,6 +917,66 @@ Item {
     mainWindow.displayToast(qsTr('File picker not available on this device'))
   }
 
+  // Open a file picker so the user can point at a file in the DJI controller's
+  // waypoint folder.  The folder is named with a UUID and contains a file of the
+  // same name - that UUID is what we need to write the KMZ as.  QField's
+  // getFile() copies the picked file into a project subdir; we extract the UUID
+  // from its name and then drop the copy.
+  function selectDjiMissionFile() {
+    try {
+      platformUtilities.createDir(qgisProject.homePath, '.dtm_picker_cache')
+    } catch (e) {
+      log("createDir for picker cache failed: " + e)
+    }
+    try {
+      djiPickerResourceSource = platformUtilities.getFile(
+        qgisProject.homePath + '/',
+        '.dtm_picker_cache/{filename}',
+        '*/*',
+        plugin
+      )
+      if (!djiPickerResourceSource) {
+        mainWindow.displayToast(qsTr('File picker not available on this device'))
+      }
+    } catch (e) {
+      log("getFile failed: " + e)
+      mainWindow.displayToast(qsTr('File picker not available on this device'))
+    }
+  }
+
+  function handleDjiFilePicked(relPath) {
+    if (!relPath) {
+      log("DJI file pick cancelled or returned empty path")
+      return
+    }
+    log("DJI file picked: " + relPath)
+
+    var clean = String(relPath).replace(/\\/g, '/')
+    var slashIdx = clean.lastIndexOf('/')
+    var basename = (slashIdx >= 0) ? clean.substring(slashIdx + 1) : clean
+
+    var dotIdx = basename.lastIndexOf('.')
+    var stem = (dotIdx > 0) ? basename.substring(0, dotIdx) : basename
+    stem = stem.trim()
+
+    if (!/^[A-Za-z0-9_-]+$/.test(stem)) {
+      mainWindow.displayToast(qsTr('Cannot extract mission ID from "%1"').arg(basename))
+      log("Invalid UUID from picked filename: " + basename)
+    } else {
+      flightplanDialog.djiMissionId = stem
+      flightplanDialog.persistDjiMissionId(stem)
+      mainWindow.displayToast(qsTr('Mission ID: %1').arg(stem))
+    }
+
+    // Drop the copy QField made to satisfy getFile's semantics - we only ever
+    // wanted the filename.
+    try {
+      platformUtilities.rmFile(qgisProject.homePath + '/' + clean)
+    } catch (e) {
+      log("Failed to remove picker cache file: " + e)
+    }
+  }
+
   function exportDjiMissionToDevice(missionId) {
     if (!lastKmzData) {
       mainWindow.displayToast(qsTr('No flightplan generated yet'))
@@ -911,7 +985,7 @@ Item {
 
     var normalizedMissionId = _normalizeDjiMissionId(missionId)
     if (!normalizedMissionId) {
-      mainWindow.displayToast(qsTr('Paste the DJI waypoint folder name first'))
+      mainWindow.displayToast(qsTr('Pick a controller file first to capture the mission ID'))
       return
     }
 

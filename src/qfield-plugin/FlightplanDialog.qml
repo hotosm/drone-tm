@@ -30,6 +30,7 @@ QfDialog {
   signal generateRequested(var config)
   signal exportToDeviceRequested()
   signal exportToDjiMissionRequested(string missionId)
+  signal selectDjiMissionFileRequested()
   signal useGpsTakeoff()
   signal placeMapTakeoff()
   signal clearTakeoff()
@@ -411,52 +412,85 @@ QfDialog {
               "2. Navigate to: Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
               "3. Save the global.json and timestamped .json into that folder, overwriting any existing files\n\n" +
               "Tip: Create one test mission in Potensic Eve first so the Waypoint directory exists.")
-          : qsTr("A file picker was opened to save the KMZ. To load it on your DJI controller:\n\n" +
-              "1. In the picker, browse to your controller (connect by USB if not visible)\n" +
-              "2. Open Android/data/dji.go.v5/files/waypoint/\n" +
-              "3. Open the folder named:\n   %1\n" +
-              "4. Save the file (the name is already set - do not rename it)\n\n" +
-              "The mission ID has been copied to your clipboard so you can paste it into the picker's search if needed. If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.").arg(djiMissionId || "<your mission folder>")
+          : qsTr("A file picker is open. To replace the mission on your DJI controller:\n\n" +
+              "1. Navigate back to the waypoint folder you picked from:\n   Android/data/dji.go.v5/files/waypoint/%1/\n" +
+              "2. Save the file - it will overwrite the existing %1.kmz\n" +
+              "3. The filename is already set - do not rename it\n\n" +
+              "The mission ID has been copied to your clipboard in case the picker's search needs it.").arg(djiMissionId || "<mission>")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
       }
 
-      // --- DJI mission filename helper ---
+      // --- DJI mission section ---
       Label {
         visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2"
-        text: qsTr("DJI Mission ID")
+        text: qsTr("DJI Mission")
         font: Theme.defaultFont
         color: Theme.mainTextColor
         Layout.fillWidth: true
       }
 
-      TextField {
-        id: djiMissionIdField
+      // Pick the existing controller file to extract its mission UUID
+      QfButton {
         Layout.fillWidth: true
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2"
-        placeholderText: qsTr("Paste waypoint folder or KMZ name")
-        text: flightplanDialog.djiMissionId
-        selectByMouse: true
-        onTextChanged: flightplanDialog.djiMissionId = text
-        onEditingFinished: persistDjiMissionId(text)
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length === 0
+        text: qsTr("Select File to Replace")
+        onClicked: selectDjiMissionFileRequested()
       }
 
       Label {
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2"
-        text: qsTr("This is the pregenerated random mission name from your DJI controller's waypoints directory. Paste it here once and it will be saved for next time.")
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length === 0
+        text: qsTr("Opens a file picker. Navigate to the DJI controller's waypoint folder (Android/data/dji.go.v5/files/waypoint/<mission>/) and pick any file inside - the filename is the mission ID. Stored after first pick.")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         color: Theme.secondaryTextColor
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
       }
 
-      // --- Save to Device Button ---
+      // Display the captured mission UUID + a way to change it
+      RowLayout {
+        Layout.fillWidth: true
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0
+        spacing: 8
+
+        Label {
+          Layout.fillWidth: true
+          text: flightplanDialog.djiMissionId
+          font: Theme.defaultFont
+          color: Theme.mainTextColor
+          elide: Text.ElideMiddle
+        }
+
+        Label {
+          text: qsTr("Change")
+          font.pixelSize: Theme.defaultFont.pixelSize * 0.85
+          font.underline: true
+          color: "#C53639"
+
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: selectDjiMissionFileRequested()
+          }
+        }
+      }
+
+      Label {
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0
+        text: qsTr("Mission ID captured from the controller file. Tap 'Change' to re-pick.")
+        font.pixelSize: Theme.defaultFont.pixelSize * 0.8
+        color: Theme.secondaryTextColor
+        wrapMode: Text.WordWrap
+        Layout.fillWidth: true
+      }
+
+      // --- Copy to Controller / Save to Device Button ---
       QfButton {
         Layout.fillWidth: true
         visible: kmzAvailable && (generationState === "done" || generationState === "manual_transfer")
         text: (lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0)
-          ? qsTr("Save as DJI Mission")
+          ? qsTr("Copy Flightplan to Controller")
           : qsTr("Save to Device")
 
         onClicked: {
@@ -466,6 +500,15 @@ QfDialog {
             exportToDeviceRequested();
           }
         }
+      }
+
+      Label {
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0 && generationState === "done"
+        text: qsTr("Opens a file picker. Navigate back to the waypoint folder you picked from and save - it will replace the existing %1.kmz.").arg(djiMissionId)
+        font.pixelSize: Theme.defaultFont.pixelSize * 0.8
+        color: Theme.secondaryTextColor
+        wrapMode: Text.WordWrap
+        Layout.fillWidth: true
       }
 
       // --- Close Button (shown after generation) ---

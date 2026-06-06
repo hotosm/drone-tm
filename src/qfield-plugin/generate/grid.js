@@ -45,7 +45,7 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
     if (sideOverlap === undefined) sideOverlap = 70;
 
     var overlapThreshold = ySpacing * (1 - sideOverlap / 100);
-    var bufferedPoly = Geo.bufferPolygon(polyCoords3857, xSpacing * 0.5);
+    var bufferedPoly = Geo.bufferPolygon(polyCoords3857, Math.max(xSpacing, ySpacing) * 0.5);
     var centroid = Geo.polygonCentroid(polyCoords3857);
 
     // Rotate polygon to align with flight direction
@@ -71,9 +71,13 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
             var x = minx + xi * xSpacing;
             var y = miny + yi * ySpacing;
 
-            // Rotate point back to original coordinate system
-            // NOTE: Uses rotationAngle (not negated) to match Python Shapely rotate() convention
-            var rotated = Geo.rotatePoint(x, y, centroid.x, centroid.y, rotationAngle);
+            // Rotate point back to original coordinate system.
+            // The polygon was rotated by +rotationAngle to align its longest edge
+            // with the x-axis, so the inverse rotation (-rotationAngle) maps grid
+            // points back into the original frame. Using +rotationAngle produces
+            // a mirror-image grid and can miss corners on angular AOIs.
+            // See https://github.com/hotosm/drone-tm/issues/712
+            var rotated = Geo.rotatePoint(x, y, centroid.x, centroid.y, -rotationAngle);
 
             // Alternate flight direction between waylines
             var angle = (currentAxis === "x") ? -90 : 90;
@@ -122,7 +126,8 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
 
             for (var cxi = 0; cxi < xpoints; cxi++) {
                 var cx = minx + cxi * xSpacing;
-                var rotPt = Geo.rotatePoint(cx, newY, centroid.x, centroid.y, rotationAngle);
+                // Inverse-rotate to map grid point back into the original frame
+                var rotPt = Geo.rotatePoint(cx, newY, centroid.x, centroid.y, -rotationAngle);
 
                 if (Geo.pointInPolygon(rotPt.x, rotPt.y, bufferedPoly)) {
                     // Check for duplicates
@@ -229,7 +234,10 @@ function createPath(points, forwardSpacing, rotationAngle, polygon3857, gimbalAn
         if (segAngle === -90) startX += forwardSpacing;
         else if (segAngle === 90) startX -= forwardSpacing;
 
-        var rotStart = Geo.rotatePoint(startX, startY, firstPt.x, firstPt.y, rotationAngle);
+        // Rotate the offset so it points along the flight-line direction in the
+        // original frame. Flight lines are parallel to the rotated-frame x-axis,
+        // which in the original frame is at angle -rotationAngle.
+        var rotStart = Geo.rotatePoint(startX, startY, firstPt.x, firstPt.y, -rotationAngle);
         newData.push({
             x: rotStart.x, y: rotStart.y,
             angle: segAngle, take_photo: false, gimbal_angle: gimbalAngle
@@ -250,7 +258,7 @@ function createPath(points, forwardSpacing, rotationAngle, polygon3857, gimbalAn
         if (segAngle === -90) endX -= forwardSpacing;
         else if (segAngle === 90) endX += forwardSpacing;
 
-        var rotEnd = Geo.rotatePoint(endX, endY, lastPt.x, lastPt.y, rotationAngle);
+        var rotEnd = Geo.rotatePoint(endX, endY, lastPt.x, lastPt.y, -rotationAngle);
         newData.push({
             x: rotEnd.x, y: rotEnd.y,
             angle: segAngle, take_photo: false, gimbal_angle: gimbalAngle

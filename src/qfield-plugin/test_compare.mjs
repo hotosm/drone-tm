@@ -50,11 +50,11 @@ function loadQmlJs(relPath) {
 // We'll build a single combined module string, then eval it in a function scope
 // that provides the inter-module references (Geo, Specs, Params, Grid, Terrain).
 
-const geoSrc = loadQmlJs('flightplan/geometry.js');
-const specsSrc = loadQmlJs('flightplan/drone_specs.js');
-const paramsSrc = loadQmlJs('flightplan/parameters.js');
-const gridSrc = loadQmlJs('flightplan/grid.js');
-const coreSrc = loadQmlJs('flightplan/core.js');
+const geoSrc = loadQmlJs('generate/geometry.js');
+const specsSrc = loadQmlJs('generate/drone_specs.js');
+const paramsSrc = loadQmlJs('generate/parameters.js');
+const gridSrc = loadQmlJs('generate/grid.js');
+const coreSrc = loadQmlJs('generate/core.js');
 
 // Build each module as an object via Function constructor
 function buildModule(src, deps = {}) {

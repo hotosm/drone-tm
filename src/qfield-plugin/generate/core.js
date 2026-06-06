@@ -61,6 +61,30 @@ function generate(polygonCoords, config) {
     var sideSpacing = parameters.side_spacing;
     var forwardSpacing = parameters.forward_spacing;
 
+    // https://github.com/hotosm/drone-tm/issues/751
+    // In waylines mode photos are triggered on a fixed 2s timer, so the actual
+    // E-W photo gap is ground_speed * image_interval. When ground_speed is
+    // clamped (e.g. 11.5 m/s on DJI drones), the real gap shrinks below
+    // forward_spacing and effective E-W overlap creeps above the requested
+    // value. N-S spacing is purely geometric and unaffected, so we get
+    // asymmetric coverage. Tighten side_spacing to match if needed.
+    // Waypoints mode is untouched (no timer; photos land at the waypoints).
+    if (flightMode === Specs.FlightMode.WAYLINES) {
+        var groundSpeedParam = parameters.ground_speed;
+        var forwardPhotoHeight = parameters.forward_photo_height;
+        var sidePhotoWidth = parameters.side_photo_width;
+        var actualForwardSpacing = groundSpeedParam * imageInterval;
+        if (forwardPhotoHeight > 0 && sidePhotoWidth > 0 &&
+            actualForwardSpacing < forwardSpacing) {
+            var matchedSideSpacing =
+                sidePhotoWidth * actualForwardSpacing / forwardPhotoHeight;
+            if (matchedSideSpacing < sideSpacing) {
+                sideSpacing = matchedSideSpacing;
+            }
+            forwardSpacing = actualForwardSpacing;
+        }
+    }
+
     // Project polygon to EPSG:3857 for meter-based calculations
     var poly3857 = [];
     for (var i = 0; i < polygonCoords.length; i++) {
