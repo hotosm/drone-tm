@@ -1141,13 +1141,16 @@ async def generate_qfield_project(
 
         log.info(f"Received {len(zip_bytes)} bytes from QGIS container")
 
-        # Upload to S3
+        # Upload to S3. The S3 key is deterministic per project, so regenerates
+        # overwrite in place - CloudFront must revalidate instead of serving a
+        # stale edge copy when the user re-exports.
         s3_key = public_qfield_zip_key(project_id)
         add_obj_to_bucket(
             settings.S3_BUCKET_NAME,
             io.BytesIO(zip_bytes),
             s3_key,
             content_type="application/zip",
+            metadata={"Cache-Control": "no-cache"},
         )
         log.info(f"Uploaded QField project to s3://{settings.S3_BUCKET_NAME}/{s3_key}")
 

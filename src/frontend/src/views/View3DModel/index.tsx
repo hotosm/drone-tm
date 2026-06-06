@@ -386,7 +386,7 @@ const View3DModel = () => {
           forceRendererContentZUp(tiles);
         }
 
-        // Don't flip to "loaded" here — tileset.json parsing finishing only
+        // Don't flip to "loaded" here - tileset.json parsing finishing only
         // means metadata is available. Wait for the first load-model so the
         // loading overlay stays up until a mesh is actually visible.
       };
@@ -468,7 +468,7 @@ const View3DModel = () => {
         const V = new THREE.Matrix4().multiplyMatrices(P.clone().invert(), camera.projectionMatrix);
 
         tilesCamera.projectionMatrix.copy(P);
-        // Keep projectionMatrixInverse coherent with projectionMatrix —
+        // Keep projectionMatrixInverse coherent with projectionMatrix -
         // 3d-tiles-renderer uses both for screen-space error.
         tilesCamera.projectionMatrixInverse.copy(P).invert();
         tilesCamera.matrixWorldInverse.copy(V);
@@ -480,7 +480,7 @@ const View3DModel = () => {
         tiles?.update();
         renderer.resetState();
         renderer.render(scene, camera);
-        // No unconditional triggerRepaint here — MapLibre repaints on user
+        // No unconditional triggerRepaint here - MapLibre repaints on user
         // interaction and the tiles needs-update/fade handlers schedule
         // repaints for async load completion. Forcing 60fps pins the GPU.
       },

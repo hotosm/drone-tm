@@ -114,7 +114,7 @@ const ViewOrthophoto = () => {
       setViewState("loading");
       try {
         addOrUpdateCogLayer(mapRef.current, cogUrl);
-        // Initial fit uses the project outline — it's already in hand, so
+        // Initial fit uses the project outline - it's already in hand, so
         // the map paints immediately. The actual COG extent is fetched
         // below; it'll be slightly different (ODM clips/buffers around the
         // AOI) and the button uses whichever is most recently known.
@@ -131,7 +131,7 @@ const ViewOrthophoto = () => {
 
       // Upgrade the cached extent from outline-approximation to the actual
       // COG bbox once metadata is back (range request to COG header, no
-      // tile fetch). Fire-and-forget — initial paint already happened.
+      // tile fetch). Fire-and-forget - initial paint already happened.
       getCogMetadata(cogUrl)
         .then((metadata) => {
           if (cancelled || !metadata?.bbox) return;
