@@ -4,11 +4,12 @@ import org.qfield
 import org.qgis
 import Theme
 
-import "flightplan/core.js" as Flightplan
-import "flightplan/drone_specs.js" as Specs
-import "output/dji.js" as DjiOutput
-import "output/kmz.js" as Kmz
-import "output/potensic_v2.js" as PotensicV2Output
+import "plugin"
+import "plugin/flightplan/core.js" as Flightplan
+import "plugin/flightplan/drone_specs.js" as Specs
+import "plugin/output/dji.js" as DjiOutput
+import "plugin/output/kmz.js" as Kmz
+import "plugin/output/potensic_v2.js" as PotensicV2Output
 
 Item {
   id: plugin
@@ -46,7 +47,7 @@ Item {
   // --- Toolbar Button ---
   QfToolButton {
     id: dronetmButton
-    iconSource: 'dronetm.svg'
+    iconSource: 'plugin/dronetm.svg'
     iconColor: '#C53639'
     bgcolor: '#FFFFFF'
     round: true
@@ -66,7 +67,7 @@ Item {
   // --- Canvas action button (shown on feature long-press menu) ---
   QfToolButton {
     id: canvasActionButton
-    iconSource: 'dronetm.svg'
+    iconSource: 'plugin/dronetm.svg'
     iconColor: '#C53639'
     bgcolor: '#FFFFFF'
     round: true
@@ -493,18 +494,21 @@ Item {
 
     var wpmlOk = saveTextFile(wpmlPath, wpmlXml)
 
-    var kmzOk = false
     try {
       var kmzData = Kmz.createKmz(wpmlXml)
-      kmzOk = saveBinaryFile(kmzPath, kmzData)
-      if (kmzOk) {
-        kmzOk = _verifyZipFile(kmzPath, kmzData.byteLength)
-        if (!kmzOk) log("KMZ failed read-back sanity check - treating as failed write")
-      }
-      if (kmzOk) {
+      // Cache bytes in memory immediately - controller copy uses these directly,
+      // so a flaky local write/verify must not hide the copy button
+      lastKmzData = kmzData
+
+      var writeOk = saveBinaryFile(kmzPath, kmzData)
+      if (writeOk) {
+        var verifyResult = _verifyZipFile(kmzPath, kmzData.byteLength)
+        if (verifyResult === false) {
+          log("KMZ on disk failed verify - file may be corrupt, in-memory copy still usable")
+        }
         lastKmzPath = kmzPath
-        lastKmzData = kmzData
-        log("KMZ saved: " + kmzPath + " (" + kmzData.byteLength + " bytes)")
+        log("KMZ saved: " + kmzPath + " (" + kmzData.byteLength + " bytes)" +
+            (verifyResult === null ? " (verify inconclusive)" : ""))
       }
     } catch (e) {
       log("KMZ creation error: " + e)
@@ -515,7 +519,7 @@ Item {
       mainWindow.displayToast(msg)
       flightplanDialog.generationState = "done"
       flightplanDialog.resultMessage = msg
-      flightplanDialog.kmzAvailable = kmzOk
+      flightplanDialog.kmzAvailable = (lastKmzData !== null)
       flightplanDialog.scrollToBottom()
       _loadFlightplanLayer(geojsonPath, taskId)
     } else {
@@ -568,8 +572,12 @@ Item {
     var zipPath = outputDir + '/' + filename + '.zip'
     var zipOk = saveBinaryFile(zipPath, potensic.zipData)
     if (zipOk) {
-      zipOk = _verifyZipFile(zipPath, potensic.zipData.byteLength)
-      if (!zipOk) log("Potensic zip failed read-back sanity check - treating as failed write")
+      var zipVerify = _verifyZipFile(zipPath, potensic.zipData.byteLength)
+      // null = inconclusive read-back, trust the write; false = positively bad
+      if (zipVerify === false) {
+        log("Potensic zip failed read-back sanity check - treating as failed write")
+        zipOk = false
+      }
     }
     if (!zipOk) log("Potensic zip write failed (expected on Windows desktop) - JSON files used instead")
 
@@ -602,17 +610,23 @@ Item {
       var vectorLayer = LayerUtils.loadVectorLayer(geojsonPath, 'flightplan_' + taskId)
       if (vectorLayer) {
         ProjectUtils.addMapLayer(qgisProject, vectorLayer)
+        // qgisProject.layerTreeRoot is not exposed in all QField builds; if absent,
+        // the layer still gets added at the project root level
         try {
           var root = qgisProject.layerTreeRoot
-          var group = root.findGroup("Flightplans")
-          if (!group) {
-            group = root.addGroup("Flightplans")
-            log("Created 'Flightplans' layer group")
-          }
-          var layerNode = root.findLayer(vectorLayer.id)
-          if (layerNode) {
-            group.addLayer(vectorLayer)
-            root.removeChildNode(layerNode)
+          if (root && root.findGroup) {
+            var group = root.findGroup("Flightplans")
+            if (!group) {
+              group = root.addGroup("Flightplans")
+              log("Created 'Flightplans' layer group")
+            }
+            var layerNode = root.findLayer(vectorLayer.id)
+            if (layerNode) {
+              group.addLayer(vectorLayer)
+              root.removeChildNode(layerNode)
+            }
+          } else {
+            log("layerTreeRoot not available - layer added at project root")
           }
         } catch (ge) {
           log("Could not move layer to group: " + ge)
@@ -727,27 +741,38 @@ Item {
   }
 
   // Read back the first bytes of a written file and verify ZIP magic (PK\x03\x04).
-  // Returns false if the read fails or bytes don't match - signals a corrupt write.
+  // Returns true (verified good), false (positively bad), or null (inconclusive -
+  // read-back not supported on this device). Callers should treat null as "trust the
+  // write" since XHR GET on file:// with arraybuffer is unreliable on Android.
   function _verifyZipFile(filepath, expectedByteLength) {
     try {
       var xhr = new XMLHttpRequest()
       xhr.open("GET", "file://" + filepath, false)
       xhr.responseType = "arraybuffer"
       xhr.send()
-      if (xhr.status !== 200 && xhr.status !== 0) return false
+      if (xhr.status !== 200 && xhr.status !== 0) {
+        log("ZIP verify inconclusive: HTTP status " + xhr.status)
+        return null
+      }
       var buf = xhr.response
-      if (!buf || buf.byteLength < 4) return false
+      if (!buf || buf.byteLength < 4) {
+        log("ZIP verify inconclusive: no response body")
+        return null
+      }
       if (buf.byteLength !== expectedByteLength) {
         log("ZIP size mismatch: got " + buf.byteLength + ", expected " + expectedByteLength)
         return false
       }
       var view = new Uint8Array(buf)
       var valid = view[0] === 0x50 && view[1] === 0x4B && view[2] === 0x03 && view[3] === 0x04
-      if (!valid) log("ZIP magic bytes invalid: " + view[0] + " " + view[1] + " " + view[2] + " " + view[3])
-      return valid
+      if (!valid) {
+        log("ZIP magic bytes invalid: " + view[0] + " " + view[1] + " " + view[2] + " " + view[3])
+        return false
+      }
+      return true
     } catch (e) {
-      log("ZIP verify read-back failed: " + e)
-      return false
+      log("ZIP verify inconclusive: " + e)
+      return null
     }
   }
 
@@ -864,14 +889,16 @@ Item {
         var uuid = uuids[0]
         var targetPath = basePath + "/" + uuid + "/" + uuid + ".kmz"
         log("Found DJI waypoint dir: " + basePath + ", UUID: " + uuid)
-        if (saveBinaryFile(targetPath, lastKmzData) &&
-            _verifyZipFile(targetPath, lastKmzData.byteLength)) {
-          mainWindow.displayToast(qsTr('Copied to flight controller'))
-          flightplanDialog.resultMessage = qsTr('Copied to flight controller')
-          log("KMZ copied to: " + targetPath)
-          return true
+        if (saveBinaryFile(targetPath, lastKmzData)) {
+          // null verify = inconclusive read-back; only false means positively bad
+          if (_verifyZipFile(targetPath, lastKmzData.byteLength) !== false) {
+            mainWindow.displayToast(qsTr('Copied to flight controller'))
+            flightplanDialog.resultMessage = qsTr('Copied to flight controller')
+            log("KMZ copied to: " + targetPath)
+            return true
+          }
+          log("KMZ write to " + targetPath + " failed verification - trying next path")
         }
-        log("KMZ write to " + targetPath + " failed verification - trying next path")
       }
     }
 
@@ -885,14 +912,15 @@ Item {
         var volUuid = volUuids[0]
         var volTarget = volWaypointPath + "/" + volUuid + "/" + volUuid + ".kmz"
         log("Found DJI waypoint on USB volume: " + vol + ", UUID: " + volUuid)
-        if (saveBinaryFile(volTarget, lastKmzData) &&
-            _verifyZipFile(volTarget, lastKmzData.byteLength)) {
-          mainWindow.displayToast(qsTr('Copied to flight controller'))
-          flightplanDialog.resultMessage = qsTr('Copied to flight controller')
-          log("KMZ copied to: " + volTarget)
-          return true
+        if (saveBinaryFile(volTarget, lastKmzData)) {
+          if (_verifyZipFile(volTarget, lastKmzData.byteLength) !== false) {
+            mainWindow.displayToast(qsTr('Copied to flight controller'))
+            flightplanDialog.resultMessage = qsTr('Copied to flight controller')
+            log("KMZ copied to: " + volTarget)
+            return true
+          }
+          log("KMZ write to " + volTarget + " failed verification - trying next path")
         }
-        log("KMZ write to " + volTarget + " failed verification - trying next path")
       }
     }
 
