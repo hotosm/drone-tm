@@ -1,3 +1,13 @@
+## 2026.6.1 (2026-06-06)
+
+### Fix
+
+- **frontend**: improve the 3d viewer rendering and simplify the logic
+
+### Refactor
+
+- restructure qfield plugin for clarity, fix the flightplan copy button
+
 ## 2026.6.0 (2026-06-05)
 
 ### Feat
