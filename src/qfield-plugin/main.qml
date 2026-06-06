@@ -69,29 +69,8 @@ Item {
     }
   }
 
-  // --- Canvas action button (shown on feature long-press menu) ---
-  QfToolButton {
-    id: canvasActionButton
-    iconSource: 'plugin/dronetm.svg'
-    iconColor: '#C53639'
-    bgcolor: '#FFFFFF'
-    round: true
-
-    onClicked: {
-      log("Canvas action button clicked")
-      findTaskLayer()
-      if (!taskLayer) {
-        mainWindow.displayToast(qsTr('No "dtm-tasks" layer found in project'))
-        return
-      }
-      flightplanDialog.populateTaskList()
-      flightplanDialog.open()
-    }
-  }
-
   Component.onCompleted: {
     iface.addItemToPluginsToolbar(dronetmButton)
-    iface.addItemToCanvasActionsToolbar(canvasActionButton)
     findTaskLayer()
     log("DroneTM plugin loaded. taskLayer=" + (taskLayer ? taskLayer.name : "null"))
 
