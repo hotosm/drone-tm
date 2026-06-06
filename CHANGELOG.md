@@ -1,3 +1,11 @@
+## 2026.6.3 (2026-06-06)
+
+### Fix
+
+- **qfield**: update plugin to enter dji mission id, and save as pre-named file
+- remove redundant 'canvasAction' button on qfield plugin
+- **backend**: ensure the s3 uploaded qfield project does not have caching
+
 ## 2026.6.2 (2026-06-06)
 
 ### Fix
