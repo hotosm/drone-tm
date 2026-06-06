@@ -13,3 +13,4 @@ from the projects inception.
 - [0002 - Flightplan Upload Options](./0002-flightplan-upload.md)
 - [0003 - Storage And Processing Options](./0003-aws-storage-processing.md)
 - [0004 - QField Mobile Plugin For Flightplans](./0004-mobile-qfield-plugin.md)
+- [0005 - Simple Mobile Flightplan Copy](./0005-flightplan-copy.md)

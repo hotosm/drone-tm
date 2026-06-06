@@ -36,13 +36,8 @@ Item {
   property string lastPotensicMissionDirName: ""
   property string lastPotensicTsSubDir: ""
 
-  // Last generated drone type (persists until next generation, used by copy logic)
+  // Last generated drone type (persists until next generation, used by export logic)
   property string lastDroneType: ""
-
-  property var potensicWaypointPaths: [
-    "/storage/emulated/0/Android/data/com.ipotensic.atom/files/Waypoint",
-    "/sdcard/Android/data/com.ipotensic.atom/files/Waypoint"
-  ]
 
   // Takeoff point state
   property var takeoffPoint: null  // {lon, lat} or null
@@ -88,12 +83,12 @@ Item {
       generateFlightplan(config)
     }
 
-    onCopyToControllerRequested: {
-      copyToFlightController()
-    }
-
     onExportToDeviceRequested: {
       exportFlightplanToDevice()
+    }
+
+    onExportToDjiMissionRequested: function(missionId) {
+      exportDjiMissionToDevice(missionId)
     }
 
     onUseGpsTakeoff: {
@@ -883,23 +878,6 @@ Item {
     }
   }
 
-  // DJI flight controller waypoint paths to scan
-  readonly property var djiWaypointPaths: [
-    // QField running on the DJI RC itself
-    "/sdcard/Android/data/dji.go.v5/files/waypoint",
-    // Common USB OTG mount points on Android
-    "/storage/usbotg/Android/data/dji.go.v5/files/waypoint",
-    "/mnt/media_rw/usbotg/Android/data/dji.go.v5/files/waypoint"
-  ]
-
-  function copyToFlightController() {
-    if (lastDroneType === "POTENSIC_ATOM_2") {
-      _copyToPotensicController()
-    } else {
-      _copyToDjiController()
-    }
-  }
-
   function exportFlightplanToDevice() {
     if (lastDroneType === "POTENSIC_ATOM_2") {
       _exportPotensicToDevice()
@@ -923,6 +901,85 @@ Item {
       log("exportDatasetTo failed: " + e)
     }
     mainWindow.displayToast(qsTr('File picker not available on this device'))
+  }
+
+  function exportDjiMissionToDevice(missionId) {
+    if (!lastKmzData) {
+      mainWindow.displayToast(qsTr('No flightplan generated yet'))
+      return
+    }
+
+    var normalizedMissionId = _normalizeDjiMissionId(missionId)
+    if (!normalizedMissionId) {
+      mainWindow.displayToast(qsTr('Paste the DJI waypoint folder name first'))
+      return
+    }
+
+    var outputDir = qgisProject.homePath + '/flightplans_dji'
+    platformUtilities.createDir(qgisProject.homePath, 'flightplans_dji')
+    var missionKmzPath = outputDir + '/' + normalizedMissionId + '.kmz'
+
+    if (missionKmzPath !== lastKmzPath) {
+      if (!saveBinaryFile(missionKmzPath, lastKmzData)) {
+        mainWindow.displayToast(qsTr('Could not create DJI-named KMZ'))
+        return
+      }
+      if (_verifyZipFile(missionKmzPath, lastKmzData.byteLength) === false) {
+        mainWindow.displayToast(qsTr('DJI-named KMZ failed verification'))
+        return
+      }
+      log("Prepared DJI mission KMZ: " + missionKmzPath)
+    }
+
+    // Stash UUID on clipboard so the user can paste it into the picker's
+    // search/filename box - the SAF picker doesn't preserve filename hints
+    // across folder navigation on every Android version.
+    try {
+      platformUtilities.copyTextToClipboard(normalizedMissionId)
+    } catch (e) {
+      log("Clipboard copy of mission id failed: " + e)
+    }
+
+    // Set the post-picker help text BEFORE opening the picker - exportDatasetTo
+    // returns synchronously but the picker may steal focus immediately, so any
+    // state we set after the call may not paint until the user returns.
+    flightplanDialog.generationState = "manual_transfer"
+    flightplanDialog.resultMessage = qsTr(
+      'Mission ID copied to clipboard: %1 - save into the matching waypoint folder.'
+    ).arg(normalizedMissionId)
+
+    try {
+      if (typeof platformUtilities !== 'undefined' && platformUtilities.exportDatasetTo) {
+        platformUtilities.exportDatasetTo(missionKmzPath)
+        mainWindow.displayToast(qsTr('Save into the waypoint folder named %1').arg(normalizedMissionId))
+        return
+      }
+    } catch (e) {
+      log("exportDatasetTo (DJI mission) failed: " + e)
+    }
+
+    mainWindow.displayToast(qsTr('File picker not available on this device'))
+  }
+
+  function _normalizeDjiMissionId(missionId) {
+    var value = String(missionId || "").trim()
+    if (!value) return ""
+
+    value = value.replace(/\\/g, "/")
+    var slashIdx = value.lastIndexOf("/")
+    if (slashIdx >= 0) value = value.substring(slashIdx + 1)
+
+    if (value.length > 4 && value.toLowerCase().lastIndexOf(".kmz") === value.length - 4) {
+      value = value.substring(0, value.length - 4)
+    }
+    value = value.trim()
+
+    if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+      log("Invalid DJI mission id: " + missionId)
+      return ""
+    }
+
+    return value
   }
 
   function _exportPotensicToDevice() {
@@ -968,156 +1025,4 @@ Item {
     flightplanDialog.resultMessage = qsTr('Find mission files in flightplans_potensic2/%1/ in the project folder').arg(lastPotensicMissionDirName)
   }
 
-  function _copyToDjiController() {
-    if (!lastKmzPath) {
-      mainWindow.displayToast(qsTr('No flightplan generated yet'))
-      return
-    }
-
-    log("Attempting to export KMZ to DJI flight controller...")
-
-    if (lastKmzData && _tryDirectCopyToDjiController()) {
-      return
-    }
-
-    log("Could not find DJI controller storage")
-    mainWindow.displayToast(qsTr('DJI controller not found - see transfer options below'))
-    flightplanDialog.generationState = "transfer_failed"
-    flightplanDialog.resultMessage = qsTr(
-      'Could not find DJI controller storage. The KMZ is saved in the project flightplans_dji/ folder.'
-    )
-  }
-
-  function _tryDirectCopyToDjiController() {
-    for (var p = 0; p < djiWaypointPaths.length; p++) {
-      var basePath = djiWaypointPaths[p]
-      var uuids = listDirectory(basePath)
-      if (uuids.length > 0) {
-        var uuid = uuids[0]
-        var targetPath = basePath + "/" + uuid + "/" + uuid + ".kmz"
-        log("Found DJI waypoint dir: " + basePath + ", UUID: " + uuid)
-        if (saveBinaryFile(targetPath, lastKmzData)) {
-          // null verify = inconclusive read-back; only false means positively bad
-          if (_verifyZipFile(targetPath, lastKmzData.byteLength) !== false) {
-            mainWindow.displayToast(qsTr('Copied to flight controller'))
-            flightplanDialog.resultMessage = qsTr('Copied to flight controller')
-            log("KMZ copied to: " + targetPath)
-            return true
-          }
-          log("KMZ write to " + targetPath + " failed verification - trying next path")
-        }
-      }
-    }
-
-    var storageVolumes = listDirectory("/storage")
-    for (var v = 0; v < storageVolumes.length; v++) {
-      var vol = storageVolumes[v]
-      if (vol === "emulated" || vol === "self") continue
-      var volWaypointPath = "/storage/" + vol + "/Android/data/dji.go.v5/files/waypoint"
-      var volUuids = listDirectory(volWaypointPath)
-      if (volUuids.length > 0) {
-        var volUuid = volUuids[0]
-        var volTarget = volWaypointPath + "/" + volUuid + "/" + volUuid + ".kmz"
-        log("Found DJI waypoint on USB volume: " + vol + ", UUID: " + volUuid)
-        if (saveBinaryFile(volTarget, lastKmzData)) {
-          if (_verifyZipFile(volTarget, lastKmzData.byteLength) !== false) {
-            mainWindow.displayToast(qsTr('Copied to flight controller'))
-            flightplanDialog.resultMessage = qsTr('Copied to flight controller')
-            log("KMZ copied to: " + volTarget)
-            return true
-          }
-          log("KMZ write to " + volTarget + " failed verification - trying next path")
-        }
-      }
-    }
-
-    return false
-  }
-
-  function _copyToPotensicController() {
-    if (!lastPotensicGlobalJson) {
-      mainWindow.displayToast(qsTr('No flightplan generated yet'))
-      return
-    }
-
-    log("Attempting to copy mission JSON to Potensic controller...")
-
-    if (_tryDirectCopyToPotensicController()) {
-      return
-    }
-
-    log("Could not find Potensic waypoint directory")
-    mainWindow.displayToast(qsTr('Potensic controller not found - see transfer options below'))
-    flightplanDialog.generationState = "transfer_failed"
-    flightplanDialog.resultMessage = qsTr(
-      'Could not find Potensic waypoint directory. JSON files are saved in flightplans_potensic2/{timestamp}/ in the project folder.'
-    )
-  }
-
-  function _tryDirectCopyToPotensicController() {
-    // Scan for an existing Potensic mission directory and overwrite its JSON files.
-    // The user must have created one test mission first via the Potensic Eve app.
-    var searchPaths = potensicWaypointPaths.slice()
-
-    var storageVolumes = listDirectory("/storage")
-    for (var v = 0; v < storageVolumes.length; v++) {
-      var vol = storageVolumes[v]
-      if (vol !== "emulated" && vol !== "self") {
-        searchPaths.push("/storage/" + vol + "/Android/data/com.ipotensic.atom/files/Waypoint")
-      }
-    }
-
-    for (var p = 0; p < searchPaths.length; p++) {
-      var basePath = searchPaths[p]
-      var missionDirs = listDirectory(basePath)
-      if (missionDirs.length === 0) continue
-
-      var missionDirName = missionDirs[0]
-      var missionPath = basePath + "/" + missionDirName
-      log("Found Potensic mission dir: " + missionPath)
-
-      var globalOk  = saveTextFile(missionPath + "/global.json", lastPotensicGlobalJson)
-      // Rename the mission JSON to match the existing directory name so Eve can load it
-      var missionOk = saveTextFile(missionPath + "/" + missionDirName + ".json", lastPotensicMissionJson)
-
-      if (globalOk && missionOk) {
-        mainWindow.displayToast(qsTr('Copied to Potensic controller'))
-        flightplanDialog.resultMessage = qsTr('Copied to Potensic controller')
-        log("Potensic mission copied to: " + missionPath)
-        return true
-      }
-
-      log("Write failed in: " + missionPath)
-    }
-
-    return false
-  }
-
-  function listDirectory(path) {
-    // Try to list directory contents using XHR GET on file:// URL
-    // Returns array of entry names, or empty array on failure
-    var entries = []
-    try {
-      var xhr = new XMLHttpRequest()
-      xhr.open("GET", "file://" + path, false)
-      xhr.send()
-      if (xhr.status === 200 || xhr.status === 0) {
-        var text = xhr.responseText
-        if (text) {
-          // Directory listing format varies - try to parse entries
-          // On Android file:// GET may return raw content or fail
-          var lines = text.split('\n')
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim()
-            if (line.length > 0 && line !== "." && line !== "..") {
-              entries.push(line)
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Silently fail - directory may not exist
-    }
-    return entries
-  }
 }

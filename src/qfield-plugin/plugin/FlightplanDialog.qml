@@ -28,17 +28,18 @@ QfDialog {
   property var takeoffPoint: null
 
   signal generateRequested(var config)
-  signal copyToControllerRequested()
   signal exportToDeviceRequested()
+  signal exportToDjiMissionRequested(string missionId)
   signal useGpsTakeoff()
   signal placeMapTakeoff()
   signal clearTakeoff()
 
   // Post-generation state
-  property string generationState: "idle"  // "idle", "done", "error", "manual_transfer", "transfer_failed"
+  property string generationState: "idle"  // "idle", "done", "error", "manual_transfer"
   property string resultMessage: ""
   property bool kmzAvailable: false
   property string lastDroneType: ""
+  property string djiMissionId: ""
 
   parent: iface.mainWindow().contentItem
   width: Math.min(parent.width * 0.9, 400)
@@ -379,7 +380,7 @@ QfDialog {
         visible: generationState !== "idle"
         text: resultMessage
         font.pixelSize: Theme.defaultFont.pixelSize * 0.9
-        color: (generationState === "error" || generationState === "transfer_failed") ? "#C53639" : Theme.mainTextColor
+        color: generationState === "error" ? "#C53639" : Theme.mainTextColor
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
       }
@@ -405,78 +406,65 @@ QfDialog {
       Label {
         visible: generationState === "manual_transfer"
         text: lastDroneType === "POTENSIC_ATOM_2"
-          ? qsTr("A file picker was opened to export the mission. To load it on your Potensic controller:\n\n" +
-              "If a folder was exported (global.json + timestamped .json):\n" +
-              "1. Save the folder to a location you can find (e.g. Downloads)\n" +
-              "2. Connect your phone via USB and navigate to:\n" +
-              "   Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
-              "3. Copy global.json and the timestamped .json into that folder\n\n" +
-              "If a .zip was exported instead, extract it first, then follow steps 2-3 above.\n\n" +
+          ? qsTr("A file picker was opened. To load the mission on your Potensic controller:\n\n" +
+              "1. In the picker, browse to your controller (connect by USB if not visible)\n" +
+              "2. Navigate to: Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
+              "3. Save the global.json and timestamped .json into that folder, overwriting any existing files\n\n" +
               "Tip: Create one test mission in Potensic Eve first so the Waypoint directory exists.")
           : qsTr("A file picker was opened to save the KMZ. To load it on your DJI controller:\n\n" +
-              "1. Save the file to a location you can find (e.g. Downloads)\n" +
-              "2. Connect the controller via USB or use a file manager app\n" +
-              "3. Copy the .kmz to:\n" +
-              "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n\n" +
-              "Tip: The controller must have at least one prior waypoint mission for the waypoint directory to exist.")
+              "1. In the picker, browse to your controller (connect by USB if not visible)\n" +
+              "2. Open Android/data/dji.go.v5/files/waypoint/\n" +
+              "3. Open the folder named:\n   %1\n" +
+              "4. Save the file (the name is already set — do not rename it)\n\n" +
+              "The mission ID has been copied to your clipboard so you can paste it into the picker's search if needed. If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.").arg(djiMissionId || "<your mission folder>")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
       }
 
-      // --- Controller transfer failure help ---
+      // --- DJI mission filename helper ---
       Label {
-        visible: generationState === "transfer_failed"
-        text: lastDroneType === "POTENSIC_ATOM_2"
-          ? qsTr("Could not find the Potensic waypoint directory. To transfer manually:\n\n" +
-              "1. Create one test mission in Potensic Eve and save it\n" +
-              "2. Connect your phone via USB and navigate to:\n" +
-              "   Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
-              "3. Replace global.json and rename the mission .json to match the existing filename\n" +
-              "4. Or copy global.json and the mission .json from flightplans_potensic2/{timestamp}/ in the project folder")
-          : qsTr("To transfer the flightplan to your DJI controller:\n\n" +
-              "1. Ensure the controller is connected via USB and has at least one prior waypoint mission\n" +
-              "2. Use a file manager app to copy the .kmz from this project's flightplans_dji/ folder to:\n" +
-              "   Android/data/dji.go.v5/files/waypoint/<mission-id>/\n" +
-              "3. Or transfer later via the DroneTM web app (requires internet) using ADB Web transfer\n\n" +
-              "Tip: If this is a new controller, fly one test waypoint mission first so DJI creates the waypoint directory.")
-        font.pixelSize: Theme.defaultFont.pixelSize * 0.8
-        wrapMode: Text.WordWrap
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2"
+        text: qsTr("DJI Mission ID")
+        font: Theme.defaultFont
+        color: Theme.mainTextColor
         Layout.fillWidth: true
       }
 
-      // --- Copy to Flight Controller Button ---
-      QfButton {
-        id: copyButton
+      TextField {
+        id: djiMissionIdField
         Layout.fillWidth: true
-        visible: generationState === "done" && kmzAvailable
-        text: qsTr("Copy to Flight Controller")
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2"
+        placeholderText: qsTr("Paste waypoint folder or KMZ name")
+        text: flightplanDialog.djiMissionId
+        selectByMouse: true
+        onTextChanged: flightplanDialog.djiMissionId = text
+        onEditingFinished: persistDjiMissionId(text)
+      }
 
-        onClicked: {
-          copyToControllerRequested();
-        }
+      Label {
+        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2"
+        text: qsTr("This is the pregenerated random mission name from your DJI controller's waypoints directory. Paste it here once and it will be saved for next time.")
+        font.pixelSize: Theme.defaultFont.pixelSize * 0.8
+        color: Theme.secondaryTextColor
+        wrapMode: Text.WordWrap
+        Layout.fillWidth: true
       }
 
       // --- Save to Device Button ---
       QfButton {
         Layout.fillWidth: true
-        visible: kmzAvailable && (generationState === "done" || generationState === "transfer_failed" || generationState === "manual_transfer")
-        text: qsTr("Save to Device")
+        visible: kmzAvailable && (generationState === "done" || generationState === "manual_transfer")
+        text: (lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0)
+          ? qsTr("Save as DJI Mission")
+          : qsTr("Save to Device")
 
         onClicked: {
-          exportToDeviceRequested();
-        }
-      }
-
-      // --- Retry Copy Button (shown after transfer failure or manual transfer) ---
-      QfButton {
-        Layout.fillWidth: true
-        visible: generationState === "transfer_failed" || generationState === "manual_transfer"
-        text: qsTr("Retry Copy to Controller")
-
-        onClicked: {
-          generationState = "done";
-          copyToControllerRequested();
+          if (lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0) {
+            exportToDjiMissionRequested(djiMissionId);
+          } else {
+            exportToDeviceRequested();
+          }
         }
       }
 
@@ -568,6 +556,16 @@ QfDialog {
     }
   }
 
+  // Persist the DJI mission id immediately when the user finishes editing,
+  // so they don't have to re-run Generate just to save the value.
+  function persistDjiMissionId(value) {
+    djiMissionId = value;
+    var projectInfo = iface.findItemByObjectName("projectInfo");
+    if (projectInfo) {
+      projectInfo.saveVariable("dtm_dji_mission_id", value);
+    }
+  }
+
   // Save user-selectable settings (drone, gimbal, flight mode) via project variables
   function saveSettings() {
     var projectInfo = iface.findItemByObjectName("projectInfo");
@@ -581,6 +579,7 @@ QfDialog {
 
       projectInfo.saveVariable("dtm_auto_rotation", autoRotation ? 1 : 0);
       projectInfo.saveVariable("dtm_rotation_angle", rotationAngle);
+      projectInfo.saveVariable("dtm_dji_mission_id", djiMissionId);
 
       if (takeoffPoint) {
         projectInfo.saveVariable("dtm_takeoff_lon", takeoffPoint.lon);
@@ -606,6 +605,8 @@ QfDialog {
         autoRotation = parseInt(variables["dtm_auto_rotation"]) !== 0;
     if (variables["dtm_rotation_angle"] !== undefined)
         rotationAngle = parseInt(variables["dtm_rotation_angle"]) || 0;
+    if (variables["dtm_dji_mission_id"] !== undefined)
+        djiMissionId = String(variables["dtm_dji_mission_id"]);
 
     // Manager-injected flight parameters
     if (variables["dtm_forward_overlap"] !== undefined) forwardOverlap = parseFloat(variables["dtm_forward_overlap"]) || 75;
