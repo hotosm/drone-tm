@@ -1,3 +1,11 @@
+## 2026.6.4 (2026-06-06)
+
+### Fix
+
+- **qfield**: final fixes for qfield plugin, file picked / dji mission selector
+- **frontend**: fix layout of projects page, allow search bar to flex
+- **qfield**: update labelling set for dtm-tasks layer
+
 ## 2026.6.3 (2026-06-06)
 
 ### Fix
