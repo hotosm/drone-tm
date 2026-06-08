@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
@@ -466,9 +467,13 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_reconcile_project_level_odm_marks_success_on_scaleodm_completed(
+async def test_reconcile_project_level_odm_marks_success_when_scaleodm_completed_and_s3_confirms(
     monkeypatch,
 ):
+    """ScaleODM 40 alone is not enough at project level — S3 must confirm the
+    ortho exists before marking SUCCESS, otherwise the download URL would 404.
+    Simulates eventual consistency: S3 HEAD misses first then catches up.
+    """
     project_id = uuid.uuid4()
     conn = _FakeConn()
     status_calls = []
@@ -496,10 +501,18 @@ async def test_reconcile_project_level_odm_marks_success_on_scaleodm_completed(
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
+    # First HEAD misses (pre-ScaleODM fetch), second one catches up (post-40 recheck).
+    s3_call_count = {"n": 0}
+
+    def fake_s3_object_exists(*_args):
+        s3_call_count["n"] += 1
+        return s3_call_count["n"] >= 2
+
     monkeypatch.setattr(
         project_logic, "update_processing_status", fake_update_processing_status
     )
     monkeypatch.setattr(project_logic.aiohttp, "ClientSession", FakeSession)
+    monkeypatch.setattr(project_logic, "s3_object_exists", fake_s3_object_exists)
 
     result = await project_logic.reconcile_project_level_odm(
         conn,
@@ -525,9 +538,53 @@ async def test_reconcile_project_level_odm_marks_success_on_scaleodm_completed(
 
 
 @pytest.mark.asyncio
-async def test_reconcile_project_level_odm_recovers_failed_project_with_completed_uuid(
+async def test_reconcile_project_level_odm_recovers_failed_project_when_s3_has_output(
     monkeypatch,
 ):
+    """A project stuck in FAILED but with output present in S3 should be
+    auto-recovered to SUCCESS on refresh.
+    """
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+    status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        status_calls.append({"project_id": pid, "status": status})
+
+    monkeypatch.setattr(
+        project_logic, "update_processing_status", fake_update_processing_status
+    )
+    monkeypatch.setattr(project_logic, "s3_object_exists", lambda *_args: True)
+
+    result = await project_logic.reconcile_project_level_odm(
+        conn,
+        SimpleNamespace(
+            id=project_id,
+            odm_task_uuid="project-odm-uuid",
+            odm_endpoint_used="http://scaleodm",
+            image_processing_status="FAILED",
+        ),
+        "http://scaleodm",
+        urlparse("http://scaleodm"),
+        "",
+        SimpleNamespace(),
+        1800,
+    )
+
+    assert result["completed"] == 1
+    assert status_calls == [
+        {"project_id": project_id, "status": ImageProcessingStatus.SUCCESS}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_reconcile_project_level_odm_finalizing_when_scaleodm_40_but_s3_missing(
+    monkeypatch,
+):
+    """ScaleODM 40 with no S3 ortho (even on recheck) must show as Finalizing
+    and NOT mark SUCCESS — project-level finalization has no separate download
+    step, so without S3 the asset URL would 404.
+    """
     project_id = uuid.uuid4()
     conn = _FakeConn()
     status_calls = []
@@ -554,6 +611,7 @@ async def test_reconcile_project_level_odm_recovers_failed_project_with_complete
         project_logic, "update_processing_status", fake_update_processing_status
     )
     monkeypatch.setattr(project_logic.aiohttp, "ClientSession", FakeSession)
+    monkeypatch.setattr(project_logic, "s3_object_exists", lambda *_args: False)
 
     result = await project_logic.reconcile_project_level_odm(
         conn,
@@ -561,7 +619,7 @@ async def test_reconcile_project_level_odm_recovers_failed_project_with_complete
             id=project_id,
             odm_task_uuid="project-odm-uuid",
             odm_endpoint_used="http://scaleodm",
-            image_processing_status="FAILED",
+            image_processing_status="PROCESSING",
         ),
         "http://scaleodm",
         urlparse("http://scaleodm"),
@@ -570,10 +628,10 @@ async def test_reconcile_project_level_odm_recovers_failed_project_with_complete
         1800,
     )
 
-    assert result["completed"] == 1
-    assert status_calls == [
-        {"project_id": project_id, "status": ImageProcessingStatus.SUCCESS}
-    ]
+    assert result["completed"] == 0
+    assert result["running"] == 1
+    assert status_calls == []
+    assert result["groups"][0].tasks[0].status_label == "Finalizing"
 
 
 @pytest.mark.asyncio
@@ -611,6 +669,82 @@ async def test_reconcile_project_level_odm_recovers_success_from_s3_without_uuid
     assert status_calls == [
         {"project_id": project_id, "status": ImageProcessingStatus.SUCCESS}
     ]
+
+
+@pytest.mark.asyncio
+async def test_reconcile_project_level_odm_no_uuid_does_not_fail_on_s3_timeout(
+    monkeypatch,
+):
+    """No-UUID stuck-recovery must require S3 to *definitively* say absent.
+    An S3 timeout (returns None) must not trigger the auto-FAIL path —
+    otherwise a flaky S3 could nuke an otherwise-healthy in-flight project.
+    """
+    project_id = uuid.uuid4()
+    very_old = datetime.now(timezone.utc) - timedelta(hours=24)
+    conn = _FakeConn(cursor_fetchone={"last_updated": very_old})
+    status_calls = []
+
+    async def fake_update_processing_status(db, pid, status):
+        status_calls.append({"project_id": pid, "status": status})
+
+    async def fake_s3_check(_project_id):
+        return None  # timeout / unknown
+
+    monkeypatch.setattr(
+        project_logic, "update_processing_status", fake_update_processing_status
+    )
+    monkeypatch.setattr(project_logic, "project_level_odm_output_exists", fake_s3_check)
+
+    result = await project_logic.reconcile_project_level_odm(
+        conn,
+        SimpleNamespace(
+            id=project_id,
+            odm_task_uuid=None,
+            odm_endpoint_used="http://scaleodm",
+            image_processing_status="PROCESSING",
+        ),
+        "http://scaleodm",
+        urlparse("http://scaleodm"),
+        "",
+        SimpleNamespace(),
+        1800,
+    )
+
+    assert result["running"] == 1
+    assert result["failed"] == 0
+    assert status_calls == []
+
+
+@pytest.mark.asyncio
+async def test_reconcile_project_level_odm_failed_project_does_not_show_running(
+    monkeypatch,
+):
+    """A project already in FAILED with no UUID and no S3 output must NOT be
+    rendered as 'Running (no ScaleODM UUID)' — that would mask its true state.
+    """
+    project_id = uuid.uuid4()
+    conn = _FakeConn()
+
+    monkeypatch.setattr(project_logic, "s3_object_exists", lambda *_args: False)
+
+    result = await project_logic.reconcile_project_level_odm(
+        conn,
+        SimpleNamespace(
+            id=project_id,
+            odm_task_uuid=None,
+            odm_endpoint_used="http://scaleodm",
+            image_processing_status="FAILED",
+        ),
+        "http://scaleodm",
+        urlparse("http://scaleodm"),
+        "",
+        SimpleNamespace(),
+        1800,
+    )
+
+    assert result["running"] == 0
+    assert result["failed"] == 1
+    assert result["groups"][0].status_code == 30
 
 
 # ── finalize_scaleodm_task ────────────────────────────────────────────────────
