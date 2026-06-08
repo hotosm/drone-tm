@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { matchPath, useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -21,6 +21,10 @@ import { toggleModal } from "@Store/actions/common";
 import { setProjectState } from "@Store/actions/project";
 import { m } from "@/paraglide/messages";
 
+// Lazy-loaded so the ~150KB OpenLayers chunk only ships when a user
+// actually clicks View on a finished task.
+const TaskOrthoCogViewer = lazy(() => import("./TaskOrthoCogViewer"));
+
 const stateColors: Record<string, string> = {
   READY_FOR_PROCESSING: "#9ec7ff",
   IMAGE_PROCESSING_STARTED: "#9C77B2",
@@ -37,6 +41,7 @@ type ProcessingDialogTask = {
   state: string;
   failure_reason?: string | null;
   assets_url?: string | null;
+  orthophoto_url?: string | null;
 };
 
 type ProcessingDialogProjectDetail = {
@@ -93,6 +98,13 @@ const ProcessingStatusDialog = () => {
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [processingTasks, setProcessingTasks] = useState<Set<string>>(new Set());
   const [showQueueInfo, setShowQueueInfo] = useState(false);
+  // When non-null, render the OL COG viewer overlay for this task's
+  // signed orthophoto URL. Cleared by clicking the close button, the
+  // backdrop, or pressing Escape (handled inside the viewer).
+  const [viewerTask, setViewerTask] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
 
   // allTaskAssets: S3-based data (assets_url, image_count from disk, state)
   const { data: projectDetail } = useGetProjectsDetailQuery(projectRouteId) as {
@@ -412,6 +424,7 @@ const ProcessingStatusDialog = () => {
             state: task.task_state,
             failure_reason: task.failure_reason,
             assets_url: assetInfo?.assets_url,
+            orthophoto_url: assetInfo?.orthophoto_url,
           };
         })
         .sort((a, b) => a.task_index - b.task_index);
@@ -435,6 +448,7 @@ const ProcessingStatusDialog = () => {
         state: task.state,
         failure_reason: task.failure_reason,
         assets_url: task.assets_url,
+        orthophoto_url: task.orthophoto_url,
       }))
       .sort((a, b) => {
         const aIdx = a.task_id?.localeCompare?.(b.task_id) || 0;
@@ -643,6 +657,21 @@ const ProcessingStatusDialog = () => {
                         <div className="naxatw-flex naxatw-justify-end naxatw-gap-2">
                           {task.state === "IMAGE_PROCESSING_FINISHED" && task.assets_url ? (
                             <>
+                              {task.orthophoto_url ? (
+                                <button
+                                  type="button"
+                                  title={m.processing_dialog_view_orthophoto_title()}
+                                  className="naxatw-flex naxatw-h-7 naxatw-w-7 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-text-emerald-600 hover:naxatw-bg-emerald-50"
+                                  onClick={() => {
+                                    setViewerTask({
+                                      url: task.orthophoto_url!,
+                                      title: `Task ${task.task_index} orthophoto`,
+                                    });
+                                  }}
+                                >
+                                  <Icon name="visibility" className="!naxatw-text-base" />
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 title={m.processing_dialog_download_orthophoto_title()}
@@ -1246,6 +1275,15 @@ const ProcessingStatusDialog = () => {
           </div>
         </>
       )}
+      {viewerTask ? (
+        <Suspense fallback={null}>
+          <TaskOrthoCogViewer
+            signedUrl={viewerTask.url}
+            title={viewerTask.title}
+            onClose={() => setViewerTask(null)}
+          />
+        </Suspense>
+      ) : null}
     </>
   );
 };

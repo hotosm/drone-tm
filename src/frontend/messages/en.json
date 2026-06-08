@@ -856,6 +856,7 @@
   "processing_dialog_button_process": "Process",
   "processing_dialog_download_orthophoto_title": "Download orthophoto (.tif)",
   "processing_dialog_download_assets_title": "Download all ODM assets (.zip)",
+  "processing_dialog_view_orthophoto_title": "View orthophoto",
   "processing_dialog_reprocess_confirm": "Are you sure? This will re-process the entire task.",
   "processing_dialog_scaleodm_prompt": "Enter a ScaleODM server URL for processing\n(e.g. https://scaleodm.example.com/)",
   "processing_dialog_process_selected": "Process Selected ({count})",

@@ -856,6 +856,7 @@
   "processing_dialog_button_process": "Proses",
   "processing_dialog_download_orthophoto_title": "Unduh ortofoto (.tif)",
   "processing_dialog_download_assets_title": "Unduh semua aset ODM (.zip)",
+  "processing_dialog_view_orthophoto_title": "Lihat ortofoto",
   "processing_dialog_reprocess_confirm": "Apakah Anda yakin? Ini akan memproses ulang seluruh tugas.",
   "processing_dialog_scaleodm_prompt": "Masukkan URL server ScaleODM untuk diproses\n(misalnya https://scaleodm.example.com/)",
   "processing_dialog_process_selected": "Proses yang dipilih ({count})",

@@ -64,6 +64,7 @@
     "html2canvas": "^1.4.1",
     "mapbox-gl-draw-cut-line-mode": "^1.2.0",
     "maplibre-gl": "^4.7.1",
+    "ol": "^10.9.0",
     "qrcode-generator": "^2.0.4",
     "react": "^19.0.0",
     "react-datepicker": "^8.0.0",

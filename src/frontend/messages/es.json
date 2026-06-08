@@ -856,6 +856,7 @@
   "processing_dialog_button_process": "Procesar",
   "processing_dialog_download_orthophoto_title": "Descargar ortofoto (.tif)",
   "processing_dialog_download_assets_title": "Descargar todos los recursos ODM (.zip)",
+  "processing_dialog_view_orthophoto_title": "Ver ortofoto",
   "processing_dialog_reprocess_confirm": "¿Estás seguro? Esto reprocesará toda la tarea.",
   "processing_dialog_scaleodm_prompt": "Introduce la URL del servidor ScaleODM para el procesamiento\n(p. ej. https://scaleodm.example.com/)",
   "processing_dialog_process_selected": "Procesar seleccionadas ({count})",
