@@ -1,16 +1,26 @@
 @font-face {
-  font-family: "Barlow Condensed";
+  font-family: "Archivo";
   font-style: normal;
-  font-weight: normal;
+  font-weight: 100 900;
   font-display: swap;
-  src: url("../fonts/BarlowCondensed-Regular.ttf") format("truetype");
+  src: url("../fonts/Archivo-VariableFont.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Archivo";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fonts/Archivo-Italic-VariableFont.ttf") format("truetype");
 }
 
 html,
 body {
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: "Archivo", sans-serif;
   box-sizing: border-box;
-  --hot-font-sans: "Barlow Condensed", sans-serif;
+  --hot-font-sans: "Archivo", sans-serif;
+  --hot-font-sans-variant: "Archivo";
+  --hot-font-sans-variant-condensed: "Archivo";
 }
 
 .landing-page p {
