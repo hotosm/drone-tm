@@ -44,13 +44,42 @@ const hasIssueStatus = (status?: string) => status !== "assigned";
 const canManuallyMatchImage = (status?: string) => status === "unmatched";
 const canOverrideImageRejection = (status?: string) =>
   status === "rejected" || status === "invalid_exif";
+const canRejectImage = (status?: string) => status === "assigned";
+
+// Run async `worker` over `items` with at most `limit` in-flight at a time.
+// Each worker rejection is counted, never thrown — caller gets success/fail tallies.
+const BULK_CONCURRENCY = 8;
+const runWithConcurrency = async <T,>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+): Promise<{ successCount: number; failCount: number }> => {
+  let successCount = 0;
+  let failCount = 0;
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      try {
+        await worker(items[idx]);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+  });
+  await Promise.all(runners);
+  return { successCount, failCount };
+};
 
 // Accordion content that lazy-loads presigned thumbnail URLs when opened
 const TaskAccordionContent = ({
   group,
+  groupKey,
   projectId,
   isOpen,
   highlightedImageId,
+  selectedImageIds,
   imageRefs,
   onVerifyTask,
   onCleanup,
@@ -58,13 +87,21 @@ const TaskAccordionContent = ({
   onImageDoubleClick,
 }: {
   group: TaskGroup;
+  groupKey: string;
   projectId: string;
   isOpen: boolean;
   highlightedImageId: string | null;
+  selectedImageIds: Set<string>;
   imageRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   onVerifyTask: (taskId: string, taskIndex: number) => void;
   onCleanup: () => void;
-  onImageClick: (image: TaskGroupImage, imageUrls?: Record<string, ImageUrls>) => void;
+  onImageClick: (
+    image: TaskGroupImage,
+    event: React.MouseEvent,
+    groupImages: TaskGroupImage[],
+    groupKey: string,
+    imageUrls?: Record<string, ImageUrls>,
+  ) => void;
   onImageDoubleClick: (image: TaskGroupImage, imageUrls?: Record<string, ImageUrls>) => void;
 }) => {
   const COLS = 6;
@@ -174,6 +211,7 @@ const TaskAccordionContent = ({
                 {rowImages.map((image) => {
                   const urls = imageUrlMap[image.id];
                   const thumbSrc = urls?.thumbnail_url || urls?.url;
+                  const isSelected = selectedImageIds.has(image.id);
                   return (
                     <div
                       key={image.id}
@@ -181,19 +219,21 @@ const TaskAccordionContent = ({
                         imageRefs.current[image.id] = el;
                       }}
                       className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
-                        highlightedImageId === image.id
-                          ? "naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300"
-                          : image.status === "rejected" || image.status === "invalid_exif"
-                            ? "naxatw-border-red-300 hover:naxatw-border-red-500"
-                            : image.status === "unmatched"
-                              ? "naxatw-border-yellow-300 hover:naxatw-border-yellow-500"
-                              : image.status === "duplicate"
-                                ? "naxatw-border-gray-400 naxatw-opacity-60 hover:naxatw-border-gray-600"
-                                : "naxatw-border-gray-200 hover:naxatw-border-blue-500"
+                        isSelected
+                          ? "naxatw-border-violet-600 naxatw-ring-2 naxatw-ring-violet-300"
+                          : highlightedImageId === image.id
+                            ? "naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300"
+                            : image.status === "rejected" || image.status === "invalid_exif"
+                              ? "naxatw-border-red-300 hover:naxatw-border-red-500"
+                              : image.status === "unmatched"
+                                ? "naxatw-border-yellow-300 hover:naxatw-border-yellow-500"
+                                : image.status === "duplicate"
+                                  ? "naxatw-border-gray-400 naxatw-opacity-60 hover:naxatw-border-gray-600"
+                                  : "naxatw-border-gray-200 hover:naxatw-border-blue-500"
                       }`}
-                      onClick={() => onImageClick(image, imageUrlMap)}
+                      onClick={(e) => onImageClick(image, e, group.images, groupKey, imageUrlMap)}
                       onDoubleClick={() => onImageDoubleClick(image, imageUrlMap)}
-                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ""} (double-click to view)`}
+                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ""} (Shift+click to select range, double-click to view)`}
                     >
                       {thumbSrc ? (
                         <img
@@ -339,6 +379,15 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
   useEffect(() => {
     boxSelectedImagesRef.current = boxSelectedImages;
   }, [boxSelectedImages]);
+  const selectedImageIds = useMemo(
+    () => new Set(boxSelectedImages.map((i) => i.id)),
+    [boxSelectedImages],
+  );
+  // Anchor for Shift+click range selection in the sidebar grid
+  const [selectionAnchor, setSelectionAnchor] = useState<{
+    imageId: string;
+    groupKey: string;
+  } | null>(null);
   const [bulkTaskMatchingImages, setBulkTaskMatchingImages] = useState<Array<{
     id: string;
     filename: string;
@@ -901,6 +950,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
         setBulkTaskMatchingImages(null);
       } else if (boxSelectedImagesRef.current.length > 0) {
         setBoxSelectedImages([]);
+        setSelectionAnchor(null);
       } else if (boxSelectModeRef.current) {
         setBoxSelectMode(false);
       }
@@ -1035,11 +1085,52 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     }
   };
 
-  // Handle sidebar thumbnail click: highlight on map and fly to it
+  // Handle sidebar thumbnail click:
+  //   - Shift+click within the same task group selects a range by filename
+  //     (e.g. for picking flight 'tail' images that are sequentially named)
+  //   - Ctrl/Cmd+click toggles a single image in/out of the bulk selection
+  //   - Plain click sets the anchor, highlights the image, and flies to it
   const handleSidebarImageClick = (
     image: TaskGroupImage,
+    event: React.MouseEvent,
+    groupImages: TaskGroupImage[],
+    groupKey: string,
     _imageUrls?: Record<string, ImageUrls>,
   ) => {
+    if (event.shiftKey && selectionAnchor && selectionAnchor.groupKey === groupKey) {
+      const sorted = [...groupImages].sort((a, b) =>
+        a.filename.localeCompare(b.filename, undefined, { numeric: true }),
+      );
+      const anchorIdx = sorted.findIndex((i) => i.id === selectionAnchor.imageId);
+      const clickIdx = sorted.findIndex((i) => i.id === image.id);
+      if (anchorIdx !== -1 && clickIdx !== -1) {
+        const [lo, hi] = anchorIdx <= clickIdx ? [anchorIdx, clickIdx] : [clickIdx, anchorIdx];
+        const range = sorted.slice(lo, hi + 1).map((i) => ({
+          id: i.id,
+          filename: i.filename,
+          status: i.status,
+        }));
+        setBoxSelectedImages((prev) => {
+          const merged = new Map(prev.map((p) => [p.id, p]));
+          for (const item of range) merged.set(item.id, item);
+          return Array.from(merged.values());
+        });
+        return;
+      }
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      setSelectionAnchor({ imageId: image.id, groupKey });
+      setBoxSelectedImages((prev) => {
+        if (prev.some((p) => p.id === image.id)) {
+          return prev.filter((p) => p.id !== image.id);
+        }
+        return [...prev, { id: image.id, filename: image.filename, status: image.status }];
+      });
+      return;
+    }
+
+    setSelectionAnchor({ imageId: image.id, groupKey });
     setHighlightedImageId(image.id);
 
     // Find the image's coordinates on the map and fly to it
@@ -1104,16 +1195,11 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     const toOverride = boxSelectedImages.filter((i) => canOverrideImageRejection(i.status));
     if (!toOverride.length) return;
     setIsBulkProcessing(true);
-    let successCount = 0;
-    let failCount = 0;
-    for (const img of toOverride) {
-      try {
-        await acceptImage(projectId, img.id);
-        successCount++;
-      } catch {
-        failCount++;
-      }
-    }
+    const { successCount, failCount } = await runWithConcurrency(
+      toOverride,
+      BULK_CONCURRENCY,
+      (img) => acceptImage(projectId, img.id).then(() => undefined),
+    );
     setIsBulkProcessing(false);
     if (failCount > 0) {
       toast.error(`Accepted ${successCount}, failed to accept ${failCount} images.`);
@@ -1128,20 +1214,38 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     setBoxSelectedImages([]);
   };
 
+  const handleBulkRejectImages = async () => {
+    const toReject = boxSelectedImages.filter((i) => canRejectImage(i.status));
+    if (!toReject.length) return;
+    setIsBulkProcessing(true);
+    const { successCount, failCount } = await runWithConcurrency(
+      toReject,
+      BULK_CONCURRENCY,
+      (img) => rejectImage(projectId, img.id).then(() => undefined),
+    );
+    setIsBulkProcessing(false);
+    if (failCount > 0) {
+      toast.error(`Rejected ${successCount}, failed to reject ${failCount} images.`);
+    } else {
+      toast.success(`${successCount} image${successCount > 1 ? "s" : ""} rejected`);
+    }
+    queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["projectMapData", projectId] });
+    queryClient.invalidateQueries({
+      queryKey: ["project-task-states", projectId],
+    });
+    setBoxSelectedImages([]);
+  };
+
   const handleBulkAssignConfirm = async () => {
     if (!confirmBulkMatch) return;
     const { imageIds, taskId, taskIndex } = confirmBulkMatch;
     setIsBulkProcessing(true);
-    let successCount = 0;
-    let failCount = 0;
-    for (const imageId of imageIds) {
-      try {
-        await assignImageToTask(projectId, imageId, taskId);
-        successCount++;
-      } catch {
-        failCount++;
-      }
-    }
+    const { successCount, failCount } = await runWithConcurrency(
+      imageIds,
+      BULK_CONCURRENCY,
+      (imageId) => assignImageToTask(projectId, imageId, taskId).then(() => undefined),
+    );
     setIsBulkProcessing(false);
     if (failCount > 0) {
       toast.error(`Assigned ${successCount}, failed to assign ${failCount} images.`);
@@ -1470,7 +1574,10 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                     })}
                   </span>
                   <button
-                    onClick={() => setBoxSelectedImages([])}
+                    onClick={() => {
+                      setBoxSelectedImages([]);
+                      setSelectionAnchor(null);
+                    }}
                     className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
                   >
                     {m.common_clear_escape()}
@@ -1484,6 +1591,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                     const matchable = boxSelectedImages.filter((i) =>
                       canManuallyMatchImage(i.status),
                     );
+                    const rejectable = boxSelectedImages.filter((i) => canRejectImage(i.status));
                     return (
                       <>
                         {overridable.length > 0 && (
@@ -1497,6 +1605,20 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                             </span>
                             {m.image_review_override_rejection_count({
                               count: overridable.length,
+                            })}
+                          </button>
+                        )}
+                        {rejectable.length > 0 && (
+                          <button
+                            onClick={handleBulkRejectImages}
+                            disabled={isBulkProcessing}
+                            className="naxatw-flex naxatw-items-center naxatw-gap-1 naxatw-rounded naxatw-bg-red naxatw-px-3 naxatw-py-1 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-red-600 disabled:naxatw-opacity-50"
+                          >
+                            <span className="material-icons" style={{ fontSize: "12px" }}>
+                              block
+                            </span>
+                            {m.image_review_reject_count({
+                              count: rejectable.length,
                             })}
                           </button>
                         )}
@@ -1607,6 +1729,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
               <p className="naxatw-text-xs naxatw-text-gray-500">
                 {m.image_review_double_click_thumbnail_help()}
               </p>
+              <p className="naxatw-text-xs naxatw-text-gray-500">
+                {m.image_review_shift_click_range_help()}
+              </p>
               <label className="naxatw-flex naxatw-w-fit naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-px-3 naxatw-py-1.5 naxatw-text-sm naxatw-font-medium naxatw-text-gray-700 naxatw-transition-colors hover:naxatw-border-red hover:naxatw-text-gray-900">
                 <span
                   className={`naxatw-flex naxatw-h-4 naxatw-w-4 naxatw-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-text-white naxatw-transition-colors ${
@@ -1708,9 +1833,11 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 >
                   <TaskAccordionContent
                     group={group}
+                    groupKey={accordionKey}
                     projectId={projectId}
                     isOpen={isAccordionOpen}
                     highlightedImageId={highlightedImageId}
+                    selectedImageIds={selectedImageIds}
                     imageRefs={imageRefs}
                     onVerifyTask={(taskId, taskIndex) =>
                       setVerificationModal({ isOpen: true, taskId, taskIndex })
