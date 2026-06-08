@@ -1,3 +1,9 @@
+## 2026.6.5 (2026-06-08)
+
+### Fix
+
+- **backend**: processing reconilisation using s3 ortho path instead of api
+
 ## 2026.6.4 (2026-06-06)
 
 ### Fix
