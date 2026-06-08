@@ -1,3 +1,16 @@
+## 2026.6.6 (2026-06-08)
+
+### Feat
+
+- **frontend**: additional funcs for verify imagery dialog: multi-reject, shift click
+- **frontend**: allow viewing of task fast ortho in its original projection
+
+### Fix
+
+- **backend**: additional fixes for task reconciliation logic
+- **frontend**: remove fast ortho task viewer until replaced with OL
+- **backend**: simplify processing reconcile to update db + delete scaleodm, before long job
+
 ## 2026.6.5 (2026-06-08)
 
 ### Fix
