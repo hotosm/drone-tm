@@ -7,7 +7,6 @@ export const {
   setSelectedTakeOffPointOption,
   setSelectedTakeOffPoint,
   setUploadedImagesType,
-  setSelectedTaskDetailToViewOrthophoto,
   setFilesExifData,
   setUploadProgress,
   resetFilesExifData,

@@ -1,7 +1,6 @@
 import ExitCreateProjectModal from "@Components/CreateProject/ExitCreateProjectModal";
 import DocumentPreviewModal from "@Components/Dashboard/RequestLogs/ModalContent/DocumentPreviewModal";
 import ChooseTakeOffPointOptions from "@Components/DroneOperatorTask/ModalContent/ChooseTakeOffPointOptions";
-import TaskOrthophotoPreview from "@Components/DroneOperatorTask/ModalContent/TaskOrthophotoPreview";
 import ChooseProcessingParameter from "@Components/IndividualProject/ModalContent/ChooseProcessingParameter";
 import ProcessingStatusDialog from "@Components/IndividualProject/ModalContent/ProcessingStatusDialog";
 import UploadToOAM from "@Components/IndividualProject/ModalContent/UploadToOAM";
@@ -11,7 +10,6 @@ export type ModalContentsType =
   | "sign-up-success"
   | "quit-create-project"
   | "update-flight-take-off-point"
-  | "task-ortho-photo-preview"
   | "document-preview"
   | "choose-processing-parameter"
   | "processing-status"
@@ -51,12 +49,6 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
         content: <ProcessingStatusDialog />,
       };
 
-    case "task-ortho-photo-preview":
-      return {
-        className: "!naxatw-w-[95vw] md:!naxatw-w-[60vw]",
-        title: "Orhtophoto Preview",
-        content: <TaskOrthophotoPreview />,
-      };
     case "update-flight-take-off-point":
       return {
         className: "naxatw-w-[92vw] naxatw-max-w-[25rem]",

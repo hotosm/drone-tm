@@ -7,10 +7,7 @@ import { postTaskStatus } from "@Services/project";
 import { buildDownloadUrl } from "@Utils/index";
 import getTaskStateLabel from "@Utils/taskStateLabel";
 import { Button } from "@Components/RadixComponents/Button";
-import {
-  resetFilesExifData,
-  setSelectedTaskDetailToViewOrthophoto,
-} from "@Store/actions/droneOperatorTask";
+import { resetFilesExifData } from "@Store/actions/droneOperatorTask";
 import { useTypedSelector } from "@Store/hooks";
 import useTaskParams from "@Hooks/useTaskParams";
 import { m } from "@/paraglide/messages";
@@ -171,16 +168,6 @@ const DescriptionBox = () => {
   ]);
 
   const taskDescription = taskQueryData?.taskDescription;
-
-  useEffect(() => {
-    if (taskQueryData?.taskData) {
-      dispatch(
-        setSelectedTaskDetailToViewOrthophoto({
-          outline: taskQueryData.taskData.outline,
-        }),
-      );
-    }
-  }, [dispatch, taskQueryData]);
 
   const handleDownloadResult = () => {
     if (!taskAssetsInformation?.assets_url) return;

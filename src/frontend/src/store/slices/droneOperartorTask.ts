@@ -13,7 +13,6 @@ export interface IDroneOperatorTaskState {
   selectedTakeOffPointOption: string;
   selectedTakeOffPoint: any[] | string | null;
   uploadedImagesType: "add" | "replace";
-  selectedTaskDetailToViewOrthophoto: any;
   filesExifData: IFilesExifData[];
   uploadProgress: Record<string, any>;
   waypointMode: "waylines" | "waypoints";
@@ -39,7 +38,6 @@ const initialState: IDroneOperatorTaskState = {
   selectedTakeOffPointOption: "current_location",
   selectedTakeOffPoint: null,
   uploadedImagesType: "add",
-  selectedTaskDetailToViewOrthophoto: null,
   filesExifData: [],
   uploadProgress: {},
   waypointMode: "waylines",
@@ -82,9 +80,6 @@ export const droneOperatorTaskSlice = createSlice({
       state.uploadedImagesType = action.payload;
     },
 
-    setSelectedTaskDetailToViewOrthophoto: (state, action) => {
-      state.selectedTaskDetailToViewOrthophoto = action.payload;
-    },
     setFilesExifData: (state, action) => {
       state.filesExifData = action.payload;
     },
