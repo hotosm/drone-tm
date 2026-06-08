@@ -470,7 +470,7 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
 async def test_reconcile_project_level_odm_marks_success_when_scaleodm_completed_and_s3_confirms(
     monkeypatch,
 ):
-    """ScaleODM 40 alone is not enough at project level — S3 must confirm the
+    """ScaleODM 40 alone is not enough at project level - S3 must confirm the
     ortho exists before marking SUCCESS, otherwise the download URL would 404.
     Simulates eventual consistency: S3 HEAD misses first then catches up.
     """
@@ -582,7 +582,7 @@ async def test_reconcile_project_level_odm_finalizing_when_scaleodm_40_but_s3_mi
     monkeypatch,
 ):
     """ScaleODM 40 with no S3 ortho (even on recheck) must show as Finalizing
-    and NOT mark SUCCESS — project-level finalization has no separate download
+    and NOT mark SUCCESS - project-level finalization has no separate download
     step, so without S3 the asset URL would 404.
     """
     project_id = uuid.uuid4()
@@ -676,7 +676,7 @@ async def test_reconcile_project_level_odm_no_uuid_does_not_fail_on_s3_timeout(
     monkeypatch,
 ):
     """No-UUID stuck-recovery must require S3 to *definitively* say absent.
-    An S3 timeout (returns None) must not trigger the auto-FAIL path —
+    An S3 timeout (returns None) must not trigger the auto-FAIL path -
     otherwise a flaky S3 could nuke an otherwise-healthy in-flight project.
     """
     project_id = uuid.uuid4()
@@ -720,7 +720,7 @@ async def test_reconcile_project_level_odm_failed_project_does_not_show_running(
     monkeypatch,
 ):
     """A project already in FAILED with no UUID and no S3 output must NOT be
-    rendered as 'Running (no ScaleODM UUID)' — that would mask its true state.
+    rendered as 'Running (no ScaleODM UUID)' - that would mask its true state.
     """
     project_id = uuid.uuid4()
     conn = _FakeConn()
@@ -755,11 +755,10 @@ async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeyp
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
-    ctx = {"job_id": "fin-1", "job_try": 1, "db_pool": _FakePool(conn), "redis": None}
+    ctx = {"job_id": "fin-1", "db_pool": _FakePool(conn), "redis": None}
     state_calls = []
     field_calls = []
     remove_calls = []
-    reproject_calls = []
 
     async def fake_update_task_state_system(**kwargs):
         state_calls.append(kwargs)
@@ -771,16 +770,9 @@ async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeyp
     async def fake_get_task_state(db, pid, tid):
         return {"state": State.IMAGE_PROCESSING_STARTED.name}
 
-    def fake_reproject(pid, tid):
-        # just verify it's invoked with the right ids
-        assert pid == project_id
-        assert tid == task_id
-        reproject_calls.append({"project_id": pid, "task_id": tid})
-
     async def fake_remove(*, scaleodm_url, odm_task_uuid):
         remove_calls.append({"url": scaleodm_url, "uuid": odm_task_uuid})
 
-    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
     monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
     monkeypatch.setattr(
         arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
@@ -806,7 +798,6 @@ async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeyp
     assert field_calls == [
         {"column": "assets_url", "value": f"projects/{project_id}/{task_id}/odm/"}
     ]
-    assert reproject_calls == [{"project_id": project_id, "task_id": task_id}]
     assert remove_calls == [{"url": "http://scaleodm", "uuid": "odm-uuid-1"}]
 
 
@@ -817,7 +808,6 @@ async def test_finalize_scaleodm_task_skips_remove_when_odm_uuid_unknown(monkeyp
     conn = _FakeConn()
     ctx = {
         "job_id": "fin-orphan",
-        "job_try": 1,
         "db_pool": _FakePool(conn),
         "redis": None,
     }
@@ -834,14 +824,9 @@ async def test_finalize_scaleodm_task_skips_remove_when_odm_uuid_unknown(monkeyp
     async def fake_get_task_state(db, pid, tid):
         return {"state": State.IMAGE_PROCESSING_STARTED.name}
 
-    def fake_reproject(pid, tid):
-        assert pid == project_id
-        assert tid == task_id
-
     async def fake_remove(*args, **kwargs):
         raise AssertionError("remove_scaleodm_task should not be called")
 
-    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
     monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
     monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
     monkeypatch.setattr(
@@ -874,18 +859,21 @@ async def test_finalize_scaleodm_task_skips_when_state_already_changed(monkeypat
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     conn = _FakeConn()
-    ctx = {"job_id": "fin-2", "job_try": 1, "db_pool": _FakePool(conn), "redis": None}
-    reproject_calls = []
+    ctx = {"job_id": "fin-2", "db_pool": _FakePool(conn), "redis": None}
+    state_calls = []
 
     async def fake_get_task_state(db, pid, tid):
         # Different from expected: someone else already finalized.
         return {"state": State.IMAGE_PROCESSING_FINISHED.name}
 
-    def fake_reproject(*args, **kwargs):
-        reproject_calls.append(args)
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
 
-    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
     monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
+    monkeypatch.setattr(
+        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
+    )
 
     result = await arq_tasks.finalize_scaleodm_task(
         ctx,
@@ -899,7 +887,7 @@ async def test_finalize_scaleodm_task_skips_when_state_already_changed(monkeypat
     )
 
     assert result["status"] == "skipped"
-    assert reproject_calls == []
+    assert state_calls == []
 
 
 @pytest.mark.asyncio
@@ -950,78 +938,22 @@ async def test_finalize_scaleodm_task_pulls_error_message_on_status_30(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_finalize_scaleodm_task_marks_failed_on_final_transient_try(monkeypatch):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "fin-retry",
-        "job_try": arq_tasks.WorkerSettings.max_tries,
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-    state_calls = []
-
-    async def fake_get_task_state(db, pid, tid):
-        return {"state": State.IMAGE_PROCESSING_STARTED.name}
-
-    async def fake_update_task_state_system(**kwargs):
-        state_calls.append(kwargs)
-        return {"ok": True}
-
-    def fake_reproject(*args, **kwargs):
-        raise image_processing.OrthophotoPostProcessingError("network error")
-
-    async def fake_remove(*args, **kwargs):
-        return None
-
-    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
-    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
-    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
-    monkeypatch.setattr(
-        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
-    )
-
-    with pytest.raises(image_processing.OrthophotoPostProcessingError):
-        await arq_tasks.finalize_scaleodm_task(
-            ctx,
-            scaleodm_url="http://scaleodm",
-            dtm_project_id=str(project_id),
-            odm_task_uuid="odm-uuid-final",
-            odm_status_code=40,
-            state_name=State.IMAGE_PROCESSING_STARTED.name,
-            message="Task completed.",
-            dtm_task_id=str(task_id),
-        )
-
-    assert state_calls
-    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
-    assert "network error" in state_calls[0]["comment"]
-
-
-@pytest.mark.asyncio
 async def test_finalize_scaleodm_task_project_level_completion(monkeypatch):
     project_id = uuid.uuid4()
     conn = _FakeConn()
     ctx = {
         "job_id": "fin-proj",
-        "job_try": 1,
         "db_pool": _FakePool(conn),
         "redis": None,
     }
     processing_status_calls = []
-    reproject_calls = []
 
     async def fake_update_processing_status(db, pid, status):
         processing_status_calls.append({"project_id": pid, "status": status})
 
-    def fake_reproject(*args, **kwargs):
-        reproject_calls.append({"args": args, "kwargs": kwargs})
-
     async def fake_remove(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(arq_tasks, "reproject_orthophoto_in_place", fake_reproject)
     monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
     monkeypatch.setattr(
         arq_tasks.project_logic,
@@ -1044,7 +976,6 @@ async def test_finalize_scaleodm_task_project_level_completion(monkeypatch):
     assert processing_status_calls
     assert processing_status_calls[0]["status"] == ImageProcessingStatus.SUCCESS
     assert processing_status_calls[0]["project_id"] == project_id
-    assert reproject_calls == []
 
 
 @pytest.mark.asyncio

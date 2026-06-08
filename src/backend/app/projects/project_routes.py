@@ -1150,15 +1150,15 @@ async def get_odm_queue_info(
 
     This endpoint also reconciles stuck IMAGE_PROCESSING_STARTED tasks. It is
     intentionally user-triggered via the Refresh button on the processing
-    dialog — no cron or background poller calls it.
+    dialog - no cron or background poller calls it.
 
     Reconciliation order for each STARTED task:
-      1. HEAD-check S3 for the per-task ortho. If present, the fast-ortho run
-         is done — enqueue finalize_scaleodm_task with status 40. S3 is the
-         ground truth, regardless of what ScaleODM reports.
-      2. Otherwise, query ScaleODM for live progress. If ScaleODM also
-         reports 40, enqueue finalize as a secondary trigger. Codes 30/50
-         drive the task to FAILED. Codes 10/20 are surfaced for display.
+      1. HEAD-check S3 for the per-task fast-ortho COG. If present, mark the
+         task FINISHED inline (state transition + assets_url + commit) and
+         fire-and-forget the ScaleODM record cleanup. S3 is the ground truth,
+         regardless of what ScaleODM reports.
+      2. Otherwise, query ScaleODM for live progress. Codes 30/50 drive the
+         task to FAILED. Codes 10/20 are surfaced for display.
     """
     # Prefer the ODM endpoint persisted when processing started (ensures
     # reconciliation targets the correct server even if config changes).
@@ -1179,7 +1179,7 @@ async def get_odm_queue_info(
         return urlunparse((parsed.scheme, parsed.netloc, path, "", odm_query, ""))
 
     # Safety-net age threshold for the project-level "no ScaleODM UUID and no
-    # S3 output" stuck case — only used by reconcile_project_level_odm to
+    # S3 output" stuck case - only used by reconcile_project_level_odm to
     # auto-FAIL after this duration so the user can retry via the Process
     # button (which 409s when status is PROCESSING). Task-level reconciliation
     # never auto-FAILs based on age.
@@ -1217,21 +1217,23 @@ async def get_odm_queue_info(
     reconciled: list[str] = []
     groups_map: dict[int, list[project_schemas.OdmQueueTask]] = defaultdict(list)
 
-    # Ground truth: S3 HEAD-check the per-task ortho key. If present, the
-    # fast-ortho run completed regardless of what ScaleODM thinks. This is
-    # the only path that drives STARTED → FINISHED transitions.
-    async def _probe_and_enqueue(db_task):
-        recovered = await project_logic.check_s3_for_odm_orthophoto_and_enqueue(
-            redis_pool,
-            odm_url,
-            project.id,
-            db_task["odm_task_uuid"],
+    # Ground truth: HEAD the per-task ortho key. If present, mark the task
+    # FINISHED inline (state + assets_url + commit) and fire-and-forget the
+    # ScaleODM record cleanup. No arq indirection - the DB update happens
+    # in the request handler, so the user sees the result immediately on
+    # the next Refresh tick.
+    async def _probe_and_reconcile(db_task):
+        recovered = await project_logic.reconcile_task_from_s3(
+            db=db,
+            scaleodm_url=odm_url,
+            project_id=project.id,
             task_id=db_task["id"],
+            odm_task_uuid=db_task["odm_task_uuid"],
         )
         return db_task, recovered
 
     s3_results = await asyncio.gather(
-        *[_probe_and_enqueue(t) for t in all_started_tasks]
+        *[_probe_and_reconcile(t) for t in all_started_tasks]
     )
 
     finalized_dtm_task_ids: set = set()
@@ -1242,18 +1244,11 @@ async def get_odm_queue_info(
         task_index = db_task["project_task_index"]
         odm_uuid = db_task["odm_task_uuid"]
         finalized_dtm_task_ids.add(dtm_task_id)
-        groups_map[20].append(
-            project_schemas.OdmQueueTask(
-                uuid=odm_uuid or str(dtm_task_id),
-                name=f"Task {task_index}",
-                status_code=20,
-                status_label="Finalizing",
-                dtm_task_id=str(dtm_task_id),
-                task_index=task_index,
-            )
-        )
+        # Task is already FINISHED in the DB; we don't add it to the running
+        # groups_map. The frontend's task-state query will pick up the new
+        # state on the next render cycle and the dialog row will disappear.
         reconciled.append(
-            f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (S3 ground truth)"
+            f"Task {task_index} ({dtm_task_id}): STARTED -> FINISHED (S3 ground truth)"
         )
         log.warning(
             "Reconciled S3-complete task: project={} dtm_task={} odm_uuid={}",
@@ -1374,7 +1369,7 @@ async def get_odm_queue_info(
         odm_info = raw_odm_info if isinstance(raw_odm_info, dict) else None
 
         if not odm_info:
-            # ScaleODM unknown / unreachable — keep visible as running.
+            # ScaleODM unknown / unreachable - keep visible as running.
             groups_map[20].append(
                 project_schemas.OdmQueueTask(
                     uuid=odm_uuid,
@@ -1391,7 +1386,7 @@ async def get_odm_queue_info(
         name = odm_info.get("name") or f"Task {task_index}"
 
         if status_code in (30, 50):
-            # Explicit ScaleODM failure — mark FAILED and remove the record.
+            # Explicit ScaleODM failure - mark FAILED and remove the record.
             error_detail = str(
                 odm_info.get("errorMessage")
                 or odm_info.get("error")
@@ -1436,23 +1431,12 @@ async def get_odm_queue_info(
             continue
 
         if status_code == 40:
-            # ScaleODM also says completed; enqueue finalize even though the S3
-            # check above missed (eventual consistency or stale HEAD). The
-            # finalize task will retry if the ortho isn't yet readable.
-            await redis_pool.enqueue_job(
-                "finalize_scaleodm_task",
-                scaleodm_url=odm_url,
-                dtm_project_id=str(project.id),
-                odm_task_uuid=odm_uuid,
-                state_name=State.IMAGE_PROCESSING_STARTED.name,
-                message="Reconciled: processing completed on ScaleODM.",
-                dtm_task_id=str(dtm_task_id),
-                odm_status_code=40,
-                _job_id=f"odm-assets:task:{dtm_task_id}",
-                _queue_name="default_queue",
-            )
+            # ScaleODM says completed but the initial S3 HEAD above missed -
+            # almost always a transient eventual-consistency window. Surface
+            # the task as "Finalizing" without enqueueing anything; the next
+            # Refresh tick will re-HEAD and reconcile inline.
             reconciled.append(
-                f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (ScaleODM 40)"
+                f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (ScaleODM 40, awaiting S3)"
             )
             groups_map[20].append(
                 project_schemas.OdmQueueTask(

@@ -1,6 +1,5 @@
 import json
 import os
-import tempfile
 import uuid
 import zipfile
 from typing import Any, Literal, Optional
@@ -13,7 +12,6 @@ from app.config import settings
 from app.s3 import (
     add_file_to_bucket,
     delete_objects_by_prefix,
-    get_file_from_bucket,
 )
 
 
@@ -29,10 +27,6 @@ class ScaleOdmSubmitError(RuntimeError):
     def __init__(self, message: str, *, status: Optional[int] = None) -> None:
         super().__init__(message)
         self.status = status
-
-
-class OrthophotoPostProcessingError(RuntimeError):
-    """Raised when the in-place orthophoto reprojection fails."""
 
 
 async def submit_scaleodm_task(
@@ -196,100 +190,6 @@ def reproject_to_web_mercator(input_file, output_file):
                 os.remove(warped_path)
             except Exception:
                 pass
-
-
-def _orthophoto_s3_key(project_id: uuid.UUID, task_id: Optional[uuid.UUID]) -> str:
-    task_segment = f"{task_id}/" if task_id else ""
-    return f"projects/{project_id}/{task_segment}odm/odm_orthophoto/odm_orthophoto.tif"
-
-
-def reproject_orthophoto_in_place(
-    project_id: uuid.UUID,
-    task_id: Optional[uuid.UUID],
-) -> None:
-    """Pull odm_orthophoto.tif from S3, reproject to EPSG:3857 COG, overwrite the same key.
-
-    Used for task-level preview orthophotos that are display artifacts. Do not
-    use this for project-level final ODM orthophotos, which must remain in
-    their native processing CRS for download and publication.
-    """
-    if task_id is None:
-        raise OrthophotoPostProcessingError(
-            "Project-level final orthophotos must not be reprojected in place"
-        )
-
-    s3_key = _orthophoto_s3_key(project_id, task_id)
-
-    temp_dir = tempfile.mkdtemp()
-    src_path = os.path.join(temp_dir, "odm_orthophoto.tif")
-    out_path = os.path.join(temp_dir, "odm_orthophoto_3857.tif")
-
-    try:
-        ok = get_file_from_bucket(settings.S3_BUCKET_NAME, s3_key, src_path)
-        if ok is False or not os.path.exists(src_path):
-            raise OrthophotoPostProcessingError(
-                f"Could not download orthophoto from s3://{settings.S3_BUCKET_NAME}/{s3_key}"
-            )
-
-        try:
-            src_ds = gdal.Open(src_path)
-            if src_ds is not None:
-                log.info(
-                    "Source ScaleODM orthophoto: size={}x{}, bands={}, "
-                    "filesize={} bytes, geotransform={}, projection={}",
-                    src_ds.RasterXSize,
-                    src_ds.RasterYSize,
-                    src_ds.RasterCount,
-                    os.path.getsize(src_path),
-                    src_ds.GetGeoTransform(),
-                    (src_ds.GetProjection() or "(none)")[:200],
-                )
-                src_ds = None
-            else:
-                log.warning(f"GDAL could not open source ortho at {src_path}")
-        except Exception as inspect_err:
-            log.warning(f"Failed to inspect source ortho: {inspect_err}")
-
-        try:
-            reproject_to_web_mercator(src_path, out_path)
-        except Exception as e:
-            raise OrthophotoPostProcessingError(
-                f"Reprojection failed for {s3_key}: {e}"
-            ) from e
-
-        try:
-            out_ds = gdal.Open(out_path)
-            if out_ds is not None:
-                log.info(
-                    "Reprojected COG orthophoto: size={}x{}, filesize={} bytes",
-                    out_ds.RasterXSize,
-                    out_ds.RasterYSize,
-                    os.path.getsize(out_path),
-                )
-                out_ds = None
-        except Exception:
-            pass
-
-        try:
-            add_file_to_bucket(settings.S3_BUCKET_NAME, out_path, s3_key)
-        except Exception as e:
-            raise OrthophotoPostProcessingError(
-                f"Upload of reprojected ortho failed for {s3_key}: {e}"
-            ) from e
-
-        log.info(f"Uploaded reprojected COG orthophoto to {s3_key}")
-
-    finally:
-        for path in (src_path, out_path, out_path + ".warped.tif"):
-            if os.path.exists(path):
-                try:
-                    os.remove(path)
-                except Exception:
-                    pass
-        try:
-            os.rmdir(temp_dir)
-        except Exception:
-            pass
 
 
 def extract_and_upload_odm_assets(

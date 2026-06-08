@@ -53,11 +53,9 @@ from app.s3 import (
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
 from app.images.image_processing import (
-    OrthophotoPostProcessingError,
     extract_and_upload_odm_assets,
     fetch_scaleodm_task_info,
     remove_scaleodm_task,
-    reproject_orthophoto_in_place,
 )
 from app.arq.cloudnative import (
     generate_3d_tiles,
@@ -1420,8 +1418,6 @@ async def finalize_scaleodm_task(
     task_uuid = UUID(dtm_task_id) if dtm_task_id else None
     state = State[state_name] if state_name else None
     db_pool = ctx.get("db_pool")
-    job_try = int(ctx.get("job_try") or 1)
-    max_tries = int(getattr(WorkerSettings, "max_tries", 3) or 3)
 
     try:
         # Pre-flight: skip if the task is no longer in the expected state
@@ -1449,35 +1445,10 @@ async def finalize_scaleodm_task(
                 )
 
         if int(odm_status_code) == 40:
-            # NOTE we don't do web mercator reprojection of the throwaway task fast orthos
-            # NOTE if in future we decide on a 'stitching' based final project processing,
-            # to stitch all the final orthos, we could remove this entirely
-            if task_uuid:
-                try:
-                    await asyncio.to_thread(
-                        reproject_orthophoto_in_place, project_uuid, task_uuid
-                    )
-                except OrthophotoPostProcessingError as e:
-                    if job_try < max_tries:
-                        log.warning(
-                            "Transient task orthophoto post-processing failure "
-                            "(try {}/{}), retrying: {}",
-                            job_try,
-                            max_tries,
-                            e,
-                        )
-                        raise
-                    log.error(
-                        "Task orthophoto post-processing exhausted retries ({}/{}): {}",
-                        job_try,
-                        max_tries,
-                        e,
-                    )
-                    await _persist_odm_failure(
-                        ctx, project_uuid, task_uuid, state, str(e)
-                    )
-                    raise
-
+            # ScaleODM is submitted with the ``cog`` option so the task
+            # orthophoto is already a Cloud-Optimized GeoTIFF with internal
+            # overviews. No backend reproject step is needed - the in-app
+            # viewer reads the file directly via HTTP range requests.
             task_segment = f"{task_uuid}/" if task_uuid else ""
             assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
 

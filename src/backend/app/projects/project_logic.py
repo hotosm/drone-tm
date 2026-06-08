@@ -39,6 +39,7 @@ from app.models.enums import FinalOutput, ImageProcessingStatus, OAMUploadStatus
 from app.projects import project_schemas
 from app.images.image_processing import (
     ScaleOdmSubmitError,
+    remove_scaleodm_task,
     submit_scaleodm_task,
 )
 from app.s3 import (
@@ -121,37 +122,35 @@ async def get_project_odm_endpoint(db: Connection, project_id: uuid.UUID) -> str
     return settings.ODM_ENDPOINT
 
 
-async def check_s3_for_odm_orthophoto_and_enqueue(
-    redis_pool: ArqRedis,
+async def reconcile_task_from_s3(
+    db: Connection,
     scaleodm_url: str,
     project_id: uuid.UUID,
+    task_id: uuid.UUID,
     odm_task_uuid: Optional[str],
-    *,
-    task_id=None,
 ) -> bool | None:
-    """Check S3 for a completed ODM orthophoto and enqueue finalization if found.
+    """HEAD-check the per-task fast-ortho COG; if present, mark the task FINISHED inline.
+
+    Two-step reconciliation, decoupled by design:
+
+    1. Mark task ready: state transition IMAGE_PROCESSING_STARTED →
+       IMAGE_PROCESSING_FINISHED, persist ``assets_url``, commit.
+    2. Best-effort fire-and-forget ``POST /task/remove`` to ScaleODM. A
+       failure here never blocks or rolls back step 1 - the drone-tm DB is
+       the source of truth.
 
     Returns:
-      True  - orthophoto found in S3; finalize job enqueued.
-      False - orthophoto definitively absent; caller should mark task FAILED.
-      None  - S3 check timed out or errored; caller should keep task STARTED
-              and retry on the next reconciliation poll.
+      True  - orthophoto found and DB updated (or no-op transition because
+              another caller already finalised this task).
+      False - orthophoto definitively absent.
+      None  - S3 HEAD timed out / errored, OR the DB update failed. Caller
+              keeps the task as STARTED for the next Refresh.
 
-    Pass task_id for per-task ODM runs; omit it for project-level runs.
+    Since ScaleODM is submitted with the ``cog`` option, the file at
+    ``odm_orthophoto.tif`` is already a Cloud-Optimized GeoTIFF with internal
+    overviews - no backend reproject step is required for the in-app viewer.
     """
-    if task_id is not None:
-        s3_key = (
-            f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
-        )
-        job_id = f"odm-assets:task:{task_id}"
-        extra_kwargs: dict = {
-            "state_name": State.IMAGE_PROCESSING_STARTED.name,
-            "dtm_task_id": str(task_id),
-        }
-    else:
-        s3_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
-        job_id = f"odm-assets:project:{project_id}"
-        extra_kwargs = {}
+    s3_key = f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
 
     try:
         found = await asyncio.wait_for(
@@ -160,14 +159,14 @@ async def check_s3_for_odm_orthophoto_and_enqueue(
         )
     except asyncio.TimeoutError:
         log.warning(
-            "S3 orthophoto check timed out (project={} task={}): will retry next poll",
+            "S3 orthophoto HEAD timed out (project={} task={}): will retry next Refresh",
             project_id,
             task_id,
         )
         return None
     except Exception as err:
         log.warning(
-            "S3 orthophoto check failed (project={} task={}): {}: will retry next poll",
+            "S3 orthophoto HEAD failed (project={} task={}): {}",
             project_id,
             task_id,
             err,
@@ -177,17 +176,39 @@ async def check_s3_for_odm_orthophoto_and_enqueue(
     if not found:
         return False
 
-    await redis_pool.enqueue_job(
-        "finalize_scaleodm_task",
-        scaleodm_url=scaleodm_url,
-        dtm_project_id=str(project_id),
-        odm_task_uuid=odm_task_uuid,
-        odm_status_code=40,
-        message="Reconciled: orthophoto found in S3 after ScaleODM record lost",
-        **extra_kwargs,
-        _job_id=job_id,
-        _queue_name="default_queue",
-    )
+    assets_prefix = f"projects/{project_id}/{task_id}/odm/"
+
+    try:
+        transition = await task_logic.update_task_state_system(
+            db=db,
+            project_id=project_id,
+            task_id=task_id,
+            comment="Reconciled: orthophoto found in S3.",
+            initial_state=State.IMAGE_PROCESSING_STARTED,
+            final_state=State.IMAGE_PROCESSING_FINISHED,
+            updated_at=timestamp(),
+        )
+        if transition:
+            await update_task_field(
+                db, project_id, task_id, "assets_url", assets_prefix
+            )
+        await db.commit()
+    except Exception:
+        log.exception(
+            "Inline state transition failed (project={} task={})",
+            project_id,
+            task_id,
+        )
+        return None
+
+    if odm_task_uuid:
+        # Fire-and-forget: decoupled from the DB state transition by design.
+        # ScaleODM deletion failures never roll back drone-tm state, and a
+        # late 404 here (already removed) is silently ignored downstream.
+        asyncio.create_task(
+            remove_scaleodm_task(scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid)
+        )
+
     return True
 
 
@@ -269,7 +290,7 @@ async def reconcile_project_level_odm(
     confirmation) success acknowledgement.
 
     ``not_found_age_sec`` is still used as a safety net to FAIL projects that
-    are stuck in PROCESSING with neither a ScaleODM UUID nor an S3 output —
+    are stuck in PROCESSING with neither a ScaleODM UUID nor an S3 output -
     otherwise the user can't retry via the standard "Process" button (which
     rejects PROCESSING projects with a 409).
     """
@@ -319,7 +340,7 @@ async def reconcile_project_level_odm(
         }
 
     # A project already in FAILED with no S3 output stays failed. ScaleODM
-    # polling is only useful for projects we believe are still running — there's
+    # polling is only useful for projects we believe are still running - there's
     # no point harassing ScaleODM for a known-failed project, and surfacing
     # "Running" for a FAILED record would be actively misleading.
     if project_status == "FAILED":
@@ -366,7 +387,7 @@ async def reconcile_project_level_odm(
         # commits. Only auto-FAIL if BOTH (a) S3 definitively says the output
         # is absent (not just a transient timeout/error) AND (b) the project
         # has been stuck long enough. A timeout (s3_result is None) means we
-        # don't know — keep showing as running and let the next Refresh retry.
+        # don't know - keep showing as running and let the next Refresh retry.
         age = _age_sec()
         if s3_result is False and age is not None and age >= not_found_age_sec:
             try:
@@ -459,7 +480,7 @@ async def reconcile_project_level_odm(
         }
 
     if status_code == 40:
-        # ScaleODM says completed. The first S3 HEAD missed — recheck once in
+        # ScaleODM says completed. The first S3 HEAD missed - recheck once in
         # case of eventual consistency before marking SUCCESS. Project-level
         # finalization has no separate download step, so we must not declare
         # success without an actual ortho in S3 (or the download URL would 404).
@@ -471,7 +492,7 @@ async def reconcile_project_level_odm(
                 redis_pool,
                 reason="ScaleODM reported completed and S3 confirmed",
             )
-        # ScaleODM 40 but S3 still missing — surface as Finalizing and let the
+        # ScaleODM 40 but S3 still missing - surface as Finalizing and let the
         # next Refresh recheck. Don't mark SUCCESS without S3 confirmation.
         return _running("Finalizing")
 
@@ -887,6 +908,9 @@ async def process_drone_images(
                 # reducing disk space requirements
                 # {"name": "optimize-disk-space", "value": True},
                 {"name": "orthophoto-resolution", "value": gsd},
+                # COG with internal overviews so the in-app viewer can render
+                # via HTTP range requests without a separate reproject step.
+                {"name": "cog", "value": True},
             ]
 
             read_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/images/"
@@ -1017,7 +1041,12 @@ async def process_all_drone_images(
             requested_outputs = row["final_output"] or [] if row else []
             gsd = row["gsd_cm_px"] if row and row["gsd_cm_px"] else 5
 
-            options = [{"name": "orthophoto-resolution", "value": gsd}]
+            options = [
+                {"name": "orthophoto-resolution", "value": gsd},
+                # COG with internal overviews so the in-app viewer can render
+                # via HTTP range requests without a separate reproject step.
+                {"name": "cog", "value": True},
+            ]
             if FinalOutput.DIGITAL_SURFACE_MODEL in requested_outputs:
                 options.append({"name": "dsm", "value": True})
             if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
