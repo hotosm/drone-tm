@@ -1141,6 +1141,7 @@ async def get_odm_queue_info(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
     redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
+    background_tasks: BackgroundTasks,
     task_id: Optional[uuid.UUID] = Query(
         default=None,
         description="DTM task ID to find its approximate queue position.",
@@ -1217,44 +1218,57 @@ async def get_odm_queue_info(
     reconciled: list[str] = []
     groups_map: dict[int, list[project_schemas.OdmQueueTask]] = defaultdict(list)
 
-    # Ground truth: HEAD the per-task ortho key. If present, mark the task
-    # FINISHED inline (state + assets_url + commit) and fire-and-forget the
-    # ScaleODM record cleanup. No arq indirection - the DB update happens
-    # in the request handler, so the user sees the result immediately on
-    # the next Refresh tick.
-    async def _probe_and_reconcile(db_task):
-        recovered = await project_logic.reconcile_task_from_s3(
-            db=db,
-            scaleodm_url=odm_url,
-            project_id=project.id,
-            task_id=db_task["id"],
-            odm_task_uuid=db_task["odm_task_uuid"],
-        )
-        return db_task, recovered
-
-    s3_results = await asyncio.gather(
-        *[_probe_and_reconcile(t) for t in all_started_tasks]
+    # Ground truth: HEAD the per-task ortho key in parallel, then transition
+    # FINISHED inline serially on the request's DB connection. psycopg async
+    # connections are not coroutine-safe, so DB writes can't share the gather.
+    # ScaleODM record cleanup runs in FastAPI BackgroundTasks after the
+    # response so a slow ScaleODM doesn't delay Refresh.
+    s3_hits = await asyncio.gather(
+        *[
+            project_logic.check_task_ortho_in_s3(project.id, t["id"])
+            for t in all_started_tasks
+        ]
     )
 
     finalized_dtm_task_ids: set = set()
-    for db_task, recovered in s3_results:
-        if recovered is not True:
+    for db_task, hit in zip(all_started_tasks, s3_hits):
+        if hit is not True:
             continue
         dtm_task_id = db_task["id"]
         task_index = db_task["project_task_index"]
         odm_uuid = db_task["odm_task_uuid"]
+        outcome = await project_logic.finalise_task_in_db(db, project.id, dtm_task_id)
+        if outcome == "failed":
+            # DB write failed (connection has been rolled back). Don't hide
+            # the task - leave it in remaining_tasks so it still appears in
+            # the queue and the next Refresh can retry the transition.
+            log.warning(
+                "S3 hit but DB transition failed; keeping task visible: "
+                "project={} dtm_task={} odm_uuid={}",
+                project.id,
+                dtm_task_id,
+                odm_uuid,
+            )
+            continue
         finalized_dtm_task_ids.add(dtm_task_id)
-        # Task is already FINISHED in the DB; we don't add it to the running
-        # groups_map. The frontend's task-state query will pick up the new
-        # state on the next render cycle and the dialog row will disappear.
+        # Only schedule ScaleODM cleanup when *we* made the transition.
+        # "already_final" means another path handled it (and presumably its
+        # own cleanup); double-removing would race or 404.
+        if outcome == "transitioned" and odm_uuid:
+            background_tasks.add_task(
+                remove_scaleodm_task,
+                scaleodm_url=odm_url,
+                odm_task_uuid=odm_uuid,
+            )
         reconciled.append(
-            f"Task {task_index} ({dtm_task_id}): STARTED -> FINISHED (S3 ground truth)"
+            f"Task {task_index} ({dtm_task_id}): STARTED -> FINISHED (S3 ground truth, outcome={outcome})"
         )
         log.warning(
-            "Reconciled S3-complete task: project={} dtm_task={} odm_uuid={}",
+            "Reconciled S3-complete task: project={} dtm_task={} odm_uuid={} outcome={}",
             project.id,
             dtm_task_id,
             odm_uuid,
+            outcome,
         )
 
     remaining_tasks = [
@@ -1320,8 +1334,9 @@ async def get_odm_queue_info(
         )
 
     # Per-task ScaleODM fetch for live progress + explicit-failure detection
-    # (codes 30/50). Completion (code 40) also re-enqueues finalize as a
-    # secondary trigger when the S3 HEAD missed (eventual consistency).
+    # (codes 30/50). Completion (code 40) is surfaced as "Finalizing" until
+    # the next Refresh tick's S3 HEAD picks up the file - finalize is no
+    # longer enqueued here.
     _FETCH_ERROR = object()
     odm_info_by_uuid: dict[str, dict | object] = {}
 

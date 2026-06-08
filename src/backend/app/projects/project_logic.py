@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 from urllib.parse import urlunparse
 
 import aiohttp
@@ -39,7 +39,6 @@ from app.models.enums import FinalOutput, ImageProcessingStatus, OAMUploadStatus
 from app.projects import project_schemas
 from app.images.image_processing import (
     ScaleOdmSubmitError,
-    remove_scaleodm_task,
     submit_scaleodm_task,
 )
 from app.s3 import (
@@ -122,38 +121,20 @@ async def get_project_odm_endpoint(db: Connection, project_id: uuid.UUID) -> str
     return settings.ODM_ENDPOINT
 
 
-async def reconcile_task_from_s3(
-    db: Connection,
-    scaleodm_url: str,
+async def check_task_ortho_in_s3(
     project_id: uuid.UUID,
     task_id: uuid.UUID,
-    odm_task_uuid: Optional[str],
 ) -> bool | None:
-    """HEAD-check the per-task fast-ortho COG; if present, mark the task FINISHED inline.
-
-    Two-step reconciliation, decoupled by design:
-
-    1. Mark task ready: state transition IMAGE_PROCESSING_STARTED →
-       IMAGE_PROCESSING_FINISHED, persist ``assets_url``, commit.
-    2. Best-effort fire-and-forget ``POST /task/remove`` to ScaleODM. A
-       failure here never blocks or rolls back step 1 - the drone-tm DB is
-       the source of truth.
+    """HEAD the per-task fast-ortho COG. Safe to run concurrently across tasks.
 
     Returns:
-      True  - orthophoto found and DB updated (or no-op transition because
-              another caller already finalised this task).
-      False - orthophoto definitively absent.
-      None  - S3 HEAD timed out / errored, OR the DB update failed. Caller
-              keeps the task as STARTED for the next Refresh.
-
-    Since ScaleODM is submitted with the ``cog`` option, the file at
-    ``odm_orthophoto.tif`` is already a Cloud-Optimized GeoTIFF with internal
-    overviews - no backend reproject step is required for the in-app viewer.
+      True  - the orthophoto exists in S3.
+      False - definitively absent.
+      None  - HEAD timed out or errored; caller retries on next Refresh.
     """
     s3_key = f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
-
     try:
-        found = await asyncio.wait_for(
+        return await asyncio.wait_for(
             asyncio.to_thread(s3_object_exists, settings.S3_BUCKET_NAME, s3_key),
             timeout=5.0,
         )
@@ -173,11 +154,40 @@ async def reconcile_task_from_s3(
         )
         return None
 
-    if not found:
-        return False
 
+FinaliseResult = Literal["transitioned", "already_final", "failed"]
+
+
+_FINAL_TASK_STATES = {
+    State.IMAGE_PROCESSING_FINISHED.name,
+    State.IMAGE_PROCESSING_FAILED.name,
+}
+
+
+async def finalise_task_in_db(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+) -> FinaliseResult:
+    """Transition a task STARTED → FINISHED inline. MUST be called serially per connection.
+
+    Tri-state result so the caller can distinguish "no-op because someone
+    else finalised" from "DB failure that should keep the task visible":
+
+      * ``"transitioned"`` - this call did the STARTED → FINISHED transition.
+      * ``"already_final"`` - the row was no longer in
+        IMAGE_PROCESSING_STARTED. We re-query to confirm it's actually in a
+        terminal state (FINISHED or FAILED) before returning this. If
+        ``update_task_state_system`` returned None for some other reason
+        (transient race, unexpected state), we treat it as ``"failed"``
+        instead so the caller keeps the task visible.
+      * ``"failed"`` - DB error or unexpected current state. The connection
+        has been rolled back so subsequent queries on the same connection
+        stay usable.
+
+    The function never raises.
+    """
     assets_prefix = f"projects/{project_id}/{task_id}/odm/"
-
     try:
         transition = await task_logic.update_task_state_system(
             db=db,
@@ -192,24 +202,39 @@ async def reconcile_task_from_s3(
             await update_task_field(
                 db, project_id, task_id, "assets_url", assets_prefix
             )
-        await db.commit()
+            await db.commit()
+            return "transitioned"
+
+        # Transition returned None: row wasn't in IMAGE_PROCESSING_STARTED.
+        # Confirm by re-querying - only treat genuinely-terminal states as
+        # "already final"; anything else (LOCKED, unexpected race) bubbles
+        # up as failed so the task stays visible in the queue.
+        current = await task_logic.get_task_state(db, project_id, task_id)
+        current_state = current.get("state") if current else None
+        if current_state in _FINAL_TASK_STATES:
+            return "already_final"
+        log.warning(
+            "Task transition skipped but state is unexpected "
+            "(project={} task={} state={}); keeping task visible",
+            project_id,
+            task_id,
+            current_state,
+        )
+        return "failed"
     except Exception:
+        # psycopg async leaves the connection in an aborted transaction
+        # after any failed statement - subsequent queries on the same
+        # connection will raise InFailedSqlTransaction until we rollback.
         log.exception(
             "Inline state transition failed (project={} task={})",
             project_id,
             task_id,
         )
-        return None
-
-    if odm_task_uuid:
-        # Fire-and-forget: decoupled from the DB state transition by design.
-        # ScaleODM deletion failures never roll back drone-tm state, and a
-        # late 404 here (already removed) is silently ignored downstream.
-        asyncio.create_task(
-            remove_scaleodm_task(scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid)
-        )
-
-    return True
+        try:
+            await db.rollback()
+        except Exception:
+            log.exception("Rollback after failed transition also failed")
+        return "failed"
 
 
 async def project_level_odm_output_exists(project_id: uuid.UUID) -> bool | None:
@@ -908,8 +933,10 @@ async def process_drone_images(
                 # reducing disk space requirements
                 # {"name": "optimize-disk-space", "value": True},
                 {"name": "orthophoto-resolution", "value": gsd},
-                # COG with internal overviews so the in-app viewer can render
-                # via HTTP range requests without a separate reproject step.
+                # Ask ODM for a proper COG with internal overviews. Sensible
+                # default for any downstream consumer of the file; doesn't
+                # affect the project-level reproject job that the in-app
+                # viewer relies on.
                 {"name": "cog", "value": True},
             ]
 
@@ -1043,8 +1070,10 @@ async def process_all_drone_images(
 
             options = [
                 {"name": "orthophoto-resolution", "value": gsd},
-                # COG with internal overviews so the in-app viewer can render
-                # via HTTP range requests without a separate reproject step.
+                # Ask ODM for a proper COG with internal overviews. Sensible
+                # default for any downstream consumer of the file; doesn't
+                # affect the project-level reproject job that the in-app
+                # viewer relies on.
                 {"name": "cog", "value": True},
             ]
             if FinalOutput.DIGITAL_SURFACE_MODEL in requested_outputs:

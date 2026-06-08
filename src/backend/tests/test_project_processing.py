@@ -463,6 +463,144 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
     assert submitted["name"] == f"DTM-Project-{project_id}"
 
 
+# ── finalise_task_in_db ───────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_finalise_task_in_db_transitioned_on_success(monkeypatch):
+    """Happy path: state moves STARTED → FINISHED, assets_url is set, commit fires."""
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+    field_calls = []
+
+    async def fake_update_task_state_system(**_kwargs):
+        return {"ok": True}
+
+    async def fake_update_task_field(_db, _pid, _tid, column, value):
+        field_calls.append((column, value))
+
+    monkeypatch.setattr(
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+    monkeypatch.setattr(project_logic, "update_task_field", fake_update_task_field)
+
+    result = await project_logic.finalise_task_in_db(conn, project_id, task_id)
+
+    assert result == "transitioned"
+    assert field_calls == [("assets_url", f"projects/{project_id}/{task_id}/odm/")]
+    assert conn.commit_calls == 1
+    assert conn.rollback_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_finalise_task_in_db_already_final_when_state_is_terminal(monkeypatch):
+    """No-op transition + re-query says FINISHED ⇒ another caller did the work."""
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+
+    async def fake_update_task_state_system(**_kwargs):
+        return None  # row no longer in IMAGE_PROCESSING_STARTED
+
+    async def fake_get_task_state(_db, _pid, _tid):
+        return {"state": State.IMAGE_PROCESSING_FINISHED.name}
+
+    monkeypatch.setattr(
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+    monkeypatch.setattr(project_logic.task_logic, "get_task_state", fake_get_task_state)
+
+    result = await project_logic.finalise_task_in_db(conn, project_id, task_id)
+
+    assert result == "already_final"
+    assert conn.commit_calls == 0
+    assert conn.rollback_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_finalise_task_in_db_failed_when_state_is_unexpected(monkeypatch):
+    """No-op transition + re-query says some non-terminal state ⇒ keep task visible."""
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+
+    async def fake_update_task_state_system(**_kwargs):
+        return None
+
+    async def fake_get_task_state(_db, _pid, _tid):
+        return {"state": State.LOCKED.name}
+
+    monkeypatch.setattr(
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+    monkeypatch.setattr(project_logic.task_logic, "get_task_state", fake_get_task_state)
+
+    result = await project_logic.finalise_task_in_db(conn, project_id, task_id)
+
+    assert result == "failed"
+    assert conn.commit_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_finalise_task_in_db_failed_rolls_back_on_exception(monkeypatch):
+    """A DB error during the transition must call rollback() before returning 'failed'."""
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+
+    async def fake_update_task_state_system(**_kwargs):
+        raise RuntimeError("simulated DB failure")
+
+    monkeypatch.setattr(
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    result = await project_logic.finalise_task_in_db(conn, project_id, task_id)
+
+    assert result == "failed"
+    assert conn.commit_calls == 0
+    assert conn.rollback_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_finalise_task_in_db_returns_failed_if_rollback_also_raises(monkeypatch):
+    """Defence in depth: a rollback failure is logged, not raised."""
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn()
+
+    original_rollback = conn.rollback
+
+    async def boom_rollback():
+        await original_rollback()
+        raise RuntimeError("rollback failed too")
+
+    conn.rollback = boom_rollback  # type: ignore[assignment]
+
+    async def fake_update_task_state_system(**_kwargs):
+        raise RuntimeError("simulated DB failure")
+
+    monkeypatch.setattr(
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    result = await project_logic.finalise_task_in_db(conn, project_id, task_id)
+
+    assert result == "failed"
+    assert conn.rollback_calls == 1
+
+
 # ── reconcile_project_level_odm ───────────────────────────────────────────────
 
 
