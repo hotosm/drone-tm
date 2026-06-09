@@ -11,6 +11,7 @@ class MainActivity : FlutterActivity() {
 
     private lateinit var mtpPlugin: MtpTransferPlugin
     private lateinit var safPlugin: SafTransferPlugin
+    private lateinit var diagPlugin: DiagnosticsPlugin
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -18,6 +19,8 @@ class MainActivity : FlutterActivity() {
         mtpPlugin.register(this, flutterEngine)
         safPlugin = SafTransferPlugin()
         safPlugin.register(this, flutterEngine)
+        diagPlugin = DiagnosticsPlugin()
+        diagPlugin.register(this, flutterEngine)
     }
 
     override fun onNewIntent(intent: Intent) {

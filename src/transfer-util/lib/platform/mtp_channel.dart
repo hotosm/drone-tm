@@ -169,4 +169,53 @@ class MtpChannel {
     final incoming = IncomingFile.fromMap(map);
     return incoming.isValid ? incoming : null;
   }
+
+  // ---- Diagnostics capture ----------------------------------------------
+
+  /// Phone + app facts (make/model, Android SDK, USB-host feature, app version).
+  Future<Map<String, dynamic>> getEnvironment() async {
+    final map = await _method.invokeMapMethod<dynamic, dynamic>('getEnvironment');
+    return coerceMap(map);
+  }
+
+  /// Every USB device the phone enumerates, UNFILTERED, with interface detail.
+  Future<List<Map<String, dynamic>>> dumpUsbDevices() async {
+    final raw = await _method.invokeListMethod<dynamic>('dumpUsbDevices');
+    if (raw == null) return const [];
+    return raw
+        .whereType<Map<dynamic, dynamic>>()
+        .map(coerceMap)
+        .toList(growable: false);
+  }
+
+  /// Inspect the open MTP responder: identity, storage, DJI-path traversal, and
+  /// a bounded object-tree sample. Requires [openDevice] to have succeeded.
+  Future<Map<String, dynamic>> dumpMtpTree({
+    int maxDepth = 2,
+    int maxChildren = 40,
+  }) async {
+    final map = await _method.invokeMapMethod<dynamic, dynamic>(
+      'dumpMtpTree',
+      {'maxDepth': maxDepth, 'maxChildren': maxChildren},
+    );
+    return coerceMap(map);
+  }
+}
+
+/// Platform channels hand back `Map<Object?, Object?>` / `List<Object?>` whose
+/// keys are Strings at runtime but not statically. Deep-convert so the result
+/// is a clean `Map<String, dynamic>` that `jsonEncode` and typed access accept.
+Map<String, dynamic> coerceMap(Map<dynamic, dynamic>? map) {
+  if (map == null) return <String, dynamic>{};
+  return map.map((key, value) => MapEntry('$key', _coerceValue(value)));
+}
+
+dynamic _coerceValue(dynamic value) {
+  if (value is Map) {
+    return value.map((k, v) => MapEntry('$k', _coerceValue(v)));
+  }
+  if (value is List) {
+    return value.map(_coerceValue).toList();
+  }
+  return value;
 }

@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.mtp.MtpConstants
@@ -15,6 +16,8 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -31,6 +34,9 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
         // DJI vendor ID
         private const val DJI_VENDOR_ID = 11427
 
+        // MTP "no parent" / storage-root handle (0xFFFFFFFF as a signed Int).
+        private const val MTP_ROOT_HANDLE = -1
+
         // DJI waypoint path segments
         private val DJI_PATH_SEGMENTS = listOf("Android", "data", "dji.go.v5", "files", "waypoint")
     }
@@ -40,6 +46,10 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
     private lateinit var eventChannel: EventChannel
     private var eventSink: EventChannel.EventSink? = null
     private var currentMtpDevice: MtpDevice? = null
+
+    // Serializes the heavy diagnostic tree walk off the platform thread so it
+    // can never block the UI / trigger an ANR.
+    private val mtpExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -117,6 +127,9 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
                 result.success(true)
             }
             "getDeviceStatus" -> getDeviceStatus(result)
+            "getEnvironment" -> getEnvironment(result)
+            "dumpUsbDevices" -> dumpUsbDevices(result)
+            "dumpMtpTree" -> dumpMtpTree(call, result)
             "readContentUri" -> {
                 val uri = call.argument<String>("uri") ?: return result.error("INVALID_ARGS", "uri required", null)
                 readContentUri(uri, result)
@@ -262,7 +275,12 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
         try {
             val waypointHandle = navigateToWaypointDir(device)
             if (waypointHandle == null) {
-                result.error("DIR_NOT_FOUND", "DJI waypoint directory not found on device", null)
+                val ctx = describeDjiPath(device)
+                result.error(
+                    "DIR_NOT_FOUND",
+                    "DJI waypoint directory not found (missing: ${ctx["missingSegment"]})",
+                    ctx,
+                )
                 return
             }
 
@@ -335,6 +353,263 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
         result.success(mapOf(
             "isConnected" to (currentMtpDevice != null)
         ))
+    }
+
+    // ---- Diagnostics capture ---------------------------------------------
+    // Read-only inspection of the phone, the USB bus, and the connected MTP
+    // responder. These exist so a field failure produces an actionable report
+    // (which step broke and why) instead of a generic error code.
+
+    /** Phone + app facts that frame every report. */
+    private fun getEnvironment(result: MethodChannel.Result) {
+        val pm = activity.packageManager
+        val hasUsbHost = pm.hasSystemFeature(PackageManager.FEATURE_USB_HOST)
+        val pkg = try {
+            pm.getPackageInfo(activity.packageName, 0)
+        } catch (e: Exception) {
+            null
+        }
+        val build = if (pkg == null) {
+            -1L
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            pkg.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            pkg.versionCode.toLong()
+        }
+        result.success(mapOf(
+            "manufacturer" to Build.MANUFACTURER,
+            "brand" to Build.BRAND,
+            "model" to Build.MODEL,
+            "device" to Build.DEVICE,
+            "androidSdk" to Build.VERSION.SDK_INT,
+            "androidRelease" to Build.VERSION.RELEASE,
+            "hasUsbHostFeature" to hasUsbHost,
+            "appVersion" to (pkg?.versionName ?: "unknown"),
+            "appBuild" to build,
+            "abi" to (Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"),
+        ))
+    }
+
+    /**
+     * Every USB device the phone currently enumerates, UNFILTERED, with full
+     * interface detail. This is the highest-value diagnostic: if the RC2 shows
+     * up with an unexpected product id or behind a non-class-6 interface, the
+     * normal device filter silently drops it and "no controller detected"
+     * becomes indistinguishable from "nothing plugged in".
+     */
+    private fun dumpUsbDevices(result: MethodChannel.Result) {
+        val usbManager = activity.getSystemService(Context.USB_SERVICE) as UsbManager
+        val devices = usbManager.deviceList.values.map { device ->
+            val interfaces = (0 until device.interfaceCount).map { i ->
+                val iface = device.getInterface(i)
+                mapOf(
+                    "id" to iface.id,
+                    "interfaceClass" to iface.interfaceClass,
+                    "subclass" to iface.interfaceSubclass,
+                    "protocol" to iface.interfaceProtocol,
+                    "endpointCount" to iface.endpointCount,
+                )
+            }
+            val serial = try {
+                device.serialNumber
+            } catch (e: SecurityException) {
+                null
+            }
+            mapOf(
+                "deviceName" to device.deviceName,
+                "vendorId" to device.vendorId,
+                "productId" to device.productId,
+                "deviceClass" to device.deviceClass,
+                "deviceSubclass" to device.deviceSubclass,
+                "deviceProtocol" to device.deviceProtocol,
+                "manufacturerName" to (device.manufacturerName ?: ""),
+                "productName" to (device.productName ?: ""),
+                "serialNumber" to (serial ?: ""),
+                "interfaceCount" to device.interfaceCount,
+                "hasPermission" to usbManager.hasPermission(device),
+                "isDji" to (device.vendorId == DJI_VENDOR_ID),
+                "looksMtp" to isMtpDevice(device),
+                "interfaces" to interfaces,
+            )
+        }
+        result.success(devices)
+    }
+
+    /**
+     * Inspect the connected MTP responder: its identity, storage volumes, the
+     * exact DJI-path traversal result, and a shallow object-tree sample. Needs
+     * an already-opened device (call openDevice first).
+     */
+    private fun dumpMtpTree(call: MethodCall, result: MethodChannel.Result) {
+        val device = currentMtpDevice
+        if (device == null) {
+            result.error("NOT_CONNECTED", "No MTP device connected", null)
+            return
+        }
+        val maxDepth = call.argument<Int>("maxDepth") ?: 2
+        val maxChildren = call.argument<Int>("maxChildren") ?: 40
+        // The tree walk is up to a few hundred synchronous USB round-trips; run
+        // it on the dedicated worker so it never blocks the platform thread, then
+        // post the channel reply back on the main thread (results must be
+        // delivered there).
+        mtpExecutor.execute {
+            try {
+                val payload = buildMtpTree(device, maxDepth, maxChildren)
+                activity.runOnUiThread { result.success(payload) }
+            } catch (e: Exception) {
+                Log.e(TAG, "dumpMtpTree failed", e)
+                activity.runOnUiThread {
+                    result.error("MTP_ERROR", "Tree dump failed: ${e.message}", null)
+                }
+            }
+        }
+    }
+
+    private fun buildMtpTree(device: MtpDevice, maxDepth: Int, maxChildren: Int): Map<String, Any?> {
+        val storageIds = device.storageIds?.toList() ?: emptyList()
+        val storages = storageIds.map { sid ->
+            val info = device.getStorageInfo(sid)
+            mapOf(
+                "id" to sid,
+                "description" to (info?.description ?: ""),
+                "volumeIdentifier" to (info?.volumeIdentifier ?: ""),
+                "freeSpaceBytes" to (info?.freeSpace ?: -1L),
+                "maxCapacityBytes" to (info?.maxCapacity ?: -1L),
+            )
+        }
+        val di = device.deviceInfo
+        val deviceInfo = mapOf(
+            "manufacturer" to (di?.manufacturer ?: ""),
+            "model" to (di?.model ?: ""),
+            "serialNumber" to (di?.serialNumber ?: ""),
+            "version" to (di?.version ?: ""),
+        )
+        val djiPath = describeDjiPath(device)
+        val firstStorage = storageIds.firstOrNull()
+        val tree = if (firstStorage != null) {
+            val budget = intArrayOf(400)
+            walkTree(device, firstStorage, MTP_ROOT_HANDLE, maxDepth, maxChildren, "(root)", budget)
+        } else {
+            null
+        }
+        return mapOf(
+            "storageCount" to storageIds.size,
+            "storages" to storages,
+            "deviceInfo" to deviceInfo,
+            "djiPath" to djiPath,
+            "tree" to tree,
+        )
+    }
+
+    /**
+     * Walk the DJI waypoint path segment by segment and report exactly how far
+     * it got: the deepest segment that resolved, the first missing one, and the
+     * sibling names present where it stopped. When the full path resolves, the
+     * existing UUID slots are returned instead.
+     */
+    private fun describeDjiPath(device: MtpDevice): Map<String, Any?> {
+        val storageId = device.storageIds?.firstOrNull()
+            ?: return mapOf(
+                "reachedDepth" to 0,
+                "deepestSegment" to null,
+                "missingSegment" to DJI_PATH_SEGMENTS.first(),
+                "childrenAtFailure" to emptyList<String>(),
+                "note" to "no storage exposed",
+            )
+        var currentParent = MTP_ROOT_HANDLE
+        var depth = 0
+        var deepest: String? = null
+        for (segment in DJI_PATH_SEGMENTS) {
+            val handle = findChildByName(device, storageId, currentParent, segment)
+            if (handle == null) {
+                return mapOf(
+                    "reachedDepth" to depth,
+                    "deepestSegment" to deepest,
+                    "missingSegment" to segment,
+                    "childrenAtFailure" to childNames(device, storageId, currentParent),
+                )
+            }
+            currentParent = handle
+            deepest = segment
+            depth++
+        }
+        return mapOf(
+            "reachedDepth" to depth,
+            "deepestSegment" to deepest,
+            "missingSegment" to null,
+            "childrenAtFailure" to emptyList<String>(),
+            "waypointSlots" to childNames(device, storageId, currentParent),
+        )
+    }
+
+    /** Names of the immediate children of [parent]. */
+    private fun childNames(device: MtpDevice, storageId: Int, parent: Int): List<String> {
+        val handles = device.getObjectHandles(storageId, 0, parent) ?: return emptyList()
+        val names = mutableListOf<String>()
+        for (handle in handles) {
+            val name = device.getObjectInfo(handle)?.name
+            if (name != null) names.add(name)
+        }
+        return names
+    }
+
+    /**
+     * Bounded recursive sample of the object tree. Depth- and width-limited and
+     * capped by a shared node [budget] so a controller full of media never turns
+     * a diagnostic scan into thousands of slow USB round-trips.
+     */
+    private fun walkTree(
+        device: MtpDevice,
+        storageId: Int,
+        parent: Int,
+        depthRemaining: Int,
+        maxChildren: Int,
+        name: String,
+        budget: IntArray,
+    ): Map<String, Any?> {
+        val node = linkedMapOf<String, Any?>("name" to name, "isDir" to true)
+        if (depthRemaining <= 0) {
+            node["truncated"] = true
+            return node
+        }
+        val handles = device.getObjectHandles(storageId, 0, parent)
+        if (handles == null || handles.isEmpty()) {
+            node["children"] = emptyList<Map<String, Any?>>()
+            return node
+        }
+        val children = mutableListOf<Map<String, Any?>>()
+        var count = 0
+        for (handle in handles) {
+            if (count >= maxChildren) {
+                node["childrenTruncated"] = handles.size - count
+                break
+            }
+            if (budget[0] <= 0) {
+                node["budgetExhausted"] = true
+                break
+            }
+            budget[0]--
+            val info = device.getObjectInfo(handle) ?: continue
+            val childName = info.name ?: "?"
+            if (info.format == MtpConstants.FORMAT_ASSOCIATION) {
+                children.add(
+                    walkTree(device, storageId, handle, depthRemaining - 1, maxChildren, childName, budget),
+                )
+            } else {
+                children.add(mapOf(
+                    "name" to childName,
+                    // 64-bit accessor (API 24+, matches minSdk): getCompressedSize()
+                    // is a 32-bit int that wraps for files >= 2 GiB — exactly the
+                    // large DJI media we want an honest size for.
+                    "sizeBytes" to info.compressedSizeLong,
+                    "format" to info.format,
+                ))
+            }
+            count++
+        }
+        node["children"] = children
+        return node
     }
 
     /**
@@ -426,7 +701,7 @@ class MtpTransferPlugin : MethodChannel.MethodCallHandler {
      */
     private fun navigateToWaypointDir(device: MtpDevice): Int? {
         val storageId = device.storageIds?.firstOrNull() ?: return null
-        var currentParent = 0xFFFFFFFF.toInt() // MTP root handle
+        var currentParent = MTP_ROOT_HANDLE // MTP root handle
 
         for (segment in DJI_PATH_SEGMENTS) {
             val handle = findChildByName(device, storageId, currentParent, segment)

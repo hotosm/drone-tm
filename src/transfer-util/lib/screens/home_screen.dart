@@ -5,6 +5,7 @@ import '../services/transfer_strategy.dart';
 import '../state/transfer_controller.dart';
 import '../widgets/drone_model_bar.dart';
 import '../widgets/mission_selector.dart';
+import 'diagnostics_screen.dart';
 
 /// The single screen the whole app lives on. It renders one "step" per
 /// [TransferPhase], keeping the flow flat and obvious rather than spread across
@@ -20,6 +21,15 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('DroneTM Transfer'),
         actions: [
+          IconButton(
+            tooltip: 'Diagnostics',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const DiagnosticsScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.troubleshoot),
+          ),
           IconButton(
             tooltip: 'How it works',
             onPressed: () => _showHelp(context),
