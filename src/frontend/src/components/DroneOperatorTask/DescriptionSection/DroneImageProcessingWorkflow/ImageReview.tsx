@@ -22,6 +22,7 @@ import {
   ProjectReviewData,
   ProjectMapData,
   TaskGroup,
+  TaskGroupSummary,
   TaskGroupImage,
   ImageUrls,
 } from "@Services/classification";
@@ -297,6 +298,151 @@ const useTaskImageUrls = (projectId: string, taskId: string | null, enabled: boo
   });
 };
 
+// Virtualized list of task accordions. Previously every task accordion (header
+// + collapsed body) was mounted into the DOM up-front, which for projects with
+// hundreds of tasks added significant first-paint cost. The virtualizer keeps
+// only visible rows mounted; open state is tracked by the parent via
+// `openAccordions`, so a row scrolling out and back in restores correctly.
+const VirtualizedAccordionList = ({
+  groups,
+  openAccordions,
+  setOpenAccordions,
+  showOnlyIssueImages,
+  projectId,
+  highlightedImageId,
+  selectedImageIds,
+  sequenceSelectMode,
+  sequenceAnchor,
+  imageRefs,
+  onVerifyTask,
+  onCleanup,
+  onImageClick,
+  onImageDoubleClick,
+}: {
+  groups: TaskGroup[];
+  openAccordions: Set<string>;
+  setOpenAccordions: React.Dispatch<React.SetStateAction<Set<string>>>;
+  showOnlyIssueImages: boolean;
+  projectId: string;
+  highlightedImageId: string | null;
+  selectedImageIds: Set<string>;
+  sequenceSelectMode: boolean;
+  sequenceAnchor: { imageId: string; groupKey: string } | null;
+  imageRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  onVerifyTask: (taskId: string, taskIndex: number) => void;
+  onCleanup: () => void;
+  onImageClick: (
+    image: TaskGroupImage,
+    event: React.MouseEvent,
+    groupImages: TaskGroupImage[],
+    groupKey: string,
+    imageUrls?: Record<string, ImageUrls>,
+  ) => void;
+  onImageDoubleClick: (image: TaskGroupImage, imageUrls?: Record<string, ImageUrls>) => void;
+}) => {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  // Approximate collapsed-row height; open rows are measured dynamically.
+  const ESTIMATED_ROW_H = 72;
+  const virtualizer = useVirtualizer({
+    count: groups.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ESTIMATED_ROW_H,
+    overscan: 4,
+    getItemKey: (i) => groups[i].task_id || `unassigned-${i}`,
+  });
+
+  return (
+    <div ref={parentRef} className="naxatw-h-full naxatw-overflow-auto">
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const group = groups[virtualRow.index];
+          const accordionKey = group.task_id || `unassigned-${virtualRow.index}`;
+          const isAccordionOpen = openAccordions.has(accordionKey);
+          return (
+            <div
+              key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <Accordion
+                open={isAccordionOpen}
+                className="!naxatw-border-b !naxatw-border-gray-300 !naxatw-py-4"
+                headerClassName="!naxatw-items-start"
+                contentClassName="naxatw-mt-4"
+                onToggle={(open: boolean) => {
+                  setOpenAccordions((prev) => {
+                    const next = new Set(prev);
+                    if (open) next.add(accordionKey);
+                    else next.delete(accordionKey);
+                    return next;
+                  });
+                }}
+                title={
+                  <FlexRow className="naxatw-flex-wrap naxatw-items-center naxatw-gap-3">
+                    <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
+                      {group.task_id
+                        ? m.common_task_number({
+                            index: group.project_task_index ?? "",
+                          })
+                        : m.image_review_unassigned_images()}
+                    </h4>
+                    <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
+                      {showOnlyIssueImages
+                        ? `${group.images.length} ${
+                            group.images.length === 1 ? m.common_issue() : m.common_issues_lower()
+                          }`
+                        : `${group.images.length} ${
+                            group.images.length === 1 ? m.common_image() : m.common_images_lower()
+                          }`}
+                    </span>
+                    {group.is_verified && (
+                      <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-green-800">
+                        {m.common_fully_flown()}
+                      </span>
+                    )}
+                  </FlexRow>
+                }
+              >
+                <TaskAccordionContent
+                  group={group}
+                  groupKey={accordionKey}
+                  projectId={projectId}
+                  isOpen={isAccordionOpen}
+                  highlightedImageId={highlightedImageId}
+                  selectedImageIds={selectedImageIds}
+                  anchorImageId={
+                    sequenceSelectMode && sequenceAnchor?.groupKey === accordionKey
+                      ? sequenceAnchor.imageId
+                      : null
+                  }
+                  imageRefs={imageRefs}
+                  onVerifyTask={onVerifyTask}
+                  onCleanup={onCleanup}
+                  onImageClick={onImageClick}
+                  onImageDoubleClick={onImageDoubleClick}
+                />
+              </Accordion>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const ImageReview = ({ projectId }: ImageReviewProps) => {
   const queryClient = useQueryClient();
   const hasFitBoundsRef = useRef(false);
@@ -326,12 +472,41 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     enabled: !!projectId,
   });
 
+  // Build a map of task_id -> images[] from mapData. The mapData payload
+  // already carries every image's id/filename/status/rejection_reason plus its
+  // task_id, so we reconstruct per-task image arrays client-side instead of
+  // re-fetching them via /imagery/review/ - the per-image rows there used to
+  // duplicate ~50% of the map-data payload at 30k+ images per project.
+  const imagesByTaskId = useMemo(() => {
+    const result = new Map<string | null, TaskGroupImage[]>();
+    const features = mapData?.images?.features;
+    if (!features) return result;
+    for (const feature of features) {
+      const props: any = feature.properties || {};
+      const taskId: string | null = props.task_id ?? null;
+      const img: TaskGroupImage = {
+        id: props.id,
+        filename: props.filename || "Unknown",
+        status: props.status,
+        rejection_reason: props.rejection_reason,
+        uploaded_at: "",
+      };
+      const existing = result.get(taskId);
+      if (existing) existing.push(img);
+      else result.set(taskId, [img]);
+    }
+    for (const arr of result.values()) {
+      arr.sort((a, b) => a.filename.localeCompare(b.filename, undefined, { numeric: true }));
+    }
+    return result;
+  }, [mapData]);
+
   // Refs that mirror render-time values so map-layer click handlers
   // (bound once in a useEffect) can read the latest data without re-binding.
-  const reviewDataRef = useRef<ProjectReviewData | undefined>(reviewData);
+  const imagesByTaskIdRef = useRef(imagesByTaskId);
   useEffect(() => {
-    reviewDataRef.current = reviewData;
-  }, [reviewData]);
+    imagesByTaskIdRef.current = imagesByTaskId;
+  }, [imagesByTaskId]);
   const seqClickHandlerRef = useRef<
     (
       image: { id: string; filename: string; status: string },
@@ -340,7 +515,9 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     ) => boolean
   >(() => false);
 
-  const isLoading = isMapDataLoading || isReviewLoading;
+  // Gate the spinner on map data only - the sidebar paints in a second pass
+  // once the review summary arrives, so users see the map immediately.
+  const isLoading = isMapDataLoading;
   const error = isMapDataError ? mapDataError : isReviewError ? reviewError : null;
 
   // Reset fit bounds when data source changes
@@ -694,19 +871,9 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
       // by filename and add to the bulk selection. Suppress the popup so
       // the user can chain clicks without manually dismissing it.
       if (sequenceSelectModeRef.current) {
-        const review = reviewDataRef.current;
         const taskId: string | null = props.task_id ?? null;
         const groupKey = taskId ?? `unassigned-map`;
-        const groupImages = review?.task_groups
-          ? (() => {
-              if (taskId) {
-                const g = review.task_groups.find((tg: TaskGroup) => tg.task_id === taskId);
-                return g ? g.images : [];
-              }
-              const ug = review.task_groups.find((tg: TaskGroup) => tg.task_id === null);
-              return ug ? ug.images : [];
-            })()
-          : [];
+        const groupImages = imagesByTaskIdRef.current.get(taskId) || [];
         seqClickHandlerRef.current(
           {
             id: props.id,
@@ -1148,7 +1315,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     }
   };
 
-  // Shared sequence-select handler — used by sidebar thumbnail clicks AND
+  // Shared sequence-select handler - used by sidebar thumbnail clicks AND
   // map-point clicks. First click in a group sets the anchor and adds the
   // image to the selection. A second click in the same group commits the
   // filename-sorted range between them and resets the anchor to the
@@ -1358,6 +1525,67 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     setBoxSelectedImages([]);
   };
 
+  // ─── Memoized derivations ────────────────────────────────────────────────
+  // Hoisted above any early returns so hook order stays stable. Each was
+  // previously recomputed on every render (selections, hover, etc.) which is
+  // expensive at 30k+ images.
+
+  const locatedImages = useMemo(
+    () =>
+      mapData?.images?.features?.filter(
+        (feature: GeoJSON.Feature<any>) => feature.geometry !== null,
+      ) || [],
+    [mapData],
+  );
+
+  const filteredLocatedImages = useMemo(
+    () =>
+      showOnlyIssueImages
+        ? locatedImages.filter((feature: GeoJSON.Feature<any>) =>
+            hasIssueStatus(feature.properties?.status),
+          )
+        : locatedImages,
+    [locatedImages, showOnlyIssueImages],
+  );
+
+  const locatedImagesGeojson = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: "FeatureCollection",
+      features: filteredLocatedImages as GeoJSON.Feature<any>[],
+    }),
+    [filteredLocatedImages],
+  );
+
+  // Join the summary (review data) with the per-task image arrays we built
+  // from mapData. The summary is authoritative for ordering & is_verified;
+  // images come from mapData (which is loaded first and already contains
+  // every image's id/filename/status/rejection_reason regardless of GPS).
+  const displayedTaskGroups = useMemo<TaskGroup[]>(() => {
+    if (!reviewData) return [];
+    return reviewData.task_groups
+      .map((summary: TaskGroupSummary) => {
+        const images = imagesByTaskId.get(summary.task_id) || [];
+        const filteredImages = showOnlyIssueImages
+          ? images.filter((image) => hasIssueStatus(image.status))
+          : images;
+        return { ...summary, images: filteredImages };
+      })
+      .filter((group) => !showOnlyIssueImages || group.images.length > 0);
+  }, [reviewData, imagesByTaskId, showOnlyIssueImages]);
+
+  const totalIssueImages = useMemo(() => {
+    if (!reviewData) return 0;
+    return reviewData.task_groups.reduce((count: number, group: TaskGroupSummary) => {
+      const c = group.status_counts;
+      return count + c.rejected + c.invalid_exif + c.duplicate + c.unmatched;
+    }, 0);
+  }, [reviewData]);
+
+  const visibleTaskCount = useMemo(
+    () => displayedTaskGroups.filter((g) => g.task_id).length,
+    [displayedTaskGroups],
+  );
+
   if (isLoading) {
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
@@ -1378,7 +1606,8 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     );
   }
 
-  if (!reviewData || reviewData.task_groups.length === 0) {
+  // Empty state only once both queries have resolved with zero classified images.
+  if (reviewData && reviewData.task_groups.length === 0) {
     return (
       <div className="naxatw-flex naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center">
         <p className="naxatw-text-gray-500">{m.image_review_no_classified_images()}</p>
@@ -1393,92 +1622,6 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
   const canOverride = isRejectedImage && !isDuplicateImage;
   const canReject = isAssignedImage;
   const canMatch = isUnmatchedImage;
-
-  const locatedImages =
-    mapData?.images?.features?.filter(
-      (feature: GeoJSON.Feature<any>) => feature.geometry !== null,
-    ) || [];
-
-  // Collect unlocated images with their thumbnail data from map API
-  const unlocatedImages =
-    mapData?.images?.features?.filter(
-      (feature: GeoJSON.Feature<any>) => feature.geometry === null,
-    ) || [];
-
-  const filteredLocatedImages = showOnlyIssueImages
-    ? locatedImages.filter((feature: GeoJSON.Feature<any>) =>
-        hasIssueStatus(feature.properties?.status),
-      )
-    : locatedImages;
-
-  const filteredUnlocatedImages = showOnlyIssueImages
-    ? unlocatedImages.filter((feature: GeoJSON.Feature<any>) =>
-        hasIssueStatus(feature.properties?.status),
-      )
-    : unlocatedImages;
-
-  const locatedImagesGeojson: GeoJSON.FeatureCollection = {
-    type: "FeatureCollection",
-    features: filteredLocatedImages as GeoJSON.Feature<any>[],
-  };
-
-  const displayedTaskGroups = reviewData.task_groups
-    .map((group: TaskGroup) => {
-      const filteredImages = showOnlyIssueImages
-        ? group.images.filter((image) => hasIssueStatus(image.status))
-        : group.images;
-
-      if (group.task_id) {
-        return {
-          ...group,
-          images: filteredImages,
-        };
-      }
-
-      const mergedUnlocatedImages = filteredUnlocatedImages
-        .filter(
-          (feature: GeoJSON.Feature<any>) =>
-            !group.images.some((img) => img.id === feature.properties?.id),
-        )
-        .map((feature: GeoJSON.Feature<any>) => {
-          const props = feature.properties || {};
-          return {
-            id: props.id,
-            filename: props.filename || "Unknown",
-            status: props.status || "unmatched",
-            rejection_reason: props.rejection_reason || "No GPS",
-            uploaded_at: props.uploaded_at || "",
-          };
-        });
-
-      return {
-        ...group,
-        images: [...filteredImages, ...mergedUnlocatedImages],
-      };
-    })
-    .filter((group: TaskGroup) => !showOnlyIssueImages || group.images.length > 0);
-
-  const totalIssueImages = (() => {
-    const groupedIssueCount = reviewData.task_groups.reduce(
-      (count: number, group: TaskGroup) =>
-        count + group.images.filter((image) => hasIssueStatus(image.status)).length,
-      0,
-    );
-    const rejectedGroup = reviewData.task_groups.find((group: TaskGroup) => group.task_id === null);
-    const extraUnlocatedIssueCount = unlocatedImages.filter((feature: GeoJSON.Feature<any>) => {
-      if (!hasIssueStatus(feature.properties?.status)) {
-        return false;
-      }
-      if (!rejectedGroup) {
-        return true;
-      }
-      return !rejectedGroup.images.some((image) => image.id === feature.properties?.id);
-    }).length;
-
-    return groupedIssueCount + extraUnlocatedIssueCount;
-  })();
-
-  const visibleTaskCount = displayedTaskGroups.filter((group: TaskGroup) => group.task_id).length;
 
   return (
     <FlexColumn className="naxatw-h-full naxatw-gap-4">
@@ -1848,9 +1991,10 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
           </div>
         </div>
 
-        {/* List Section */}
-        <div className="naxatw-w-1/2 naxatw-overflow-y-auto naxatw-pr-2">
-          <FlexRow className="naxatw-mb-3 naxatw-items-center naxatw-justify-between">
+        {/* List Section - outer is a flex column with non-scrolling header and
+            the virtualized accordion list owning its own scroll container. */}
+        <div className="naxatw-flex naxatw-w-1/2 naxatw-min-h-0 naxatw-flex-col naxatw-pr-2">
+          <FlexRow className="naxatw-mb-3 naxatw-shrink-0 naxatw-items-center naxatw-justify-between">
             <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
               <p className="naxatw-text-sm naxatw-text-[#484848]">
                 {m.image_review_review_grouped_images()}
@@ -1895,7 +2039,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
             <FlexRow className="naxatw-items-start naxatw-gap-3 naxatw-text-xs">
               <span className="naxatw-text-gray-600">
                 <span className="naxatw-font-semibold naxatw-text-gray-900">
-                  {showOnlyIssueImages ? visibleTaskCount : reviewData.total_tasks}
+                  {showOnlyIssueImages ? visibleTaskCount : (reviewData?.total_tasks ?? "-")}
                 </span>{" "}
                 {m.common_tasks()}
               </span>
@@ -1914,75 +2058,35 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
             </FlexRow>
           </FlexRow>
 
-          {/* Task Accordions */}
-          <div className="naxatw-flex naxatw-flex-col">
-            {displayedTaskGroups.map((group: TaskGroup, index: number) => {
-              const accordionKey = group.task_id || `unassigned-${index}`;
-              const isAccordionOpen = openAccordions.has(accordionKey);
-              return (
-                <Accordion
-                  key={accordionKey}
-                  open={false}
-                  className="!naxatw-border-b !naxatw-border-gray-300 !naxatw-py-4"
-                  headerClassName="!naxatw-items-start"
-                  contentClassName="naxatw-mt-4"
-                  onToggle={(open: boolean) => {
-                    setOpenAccordions((prev) => {
-                      const next = new Set(prev);
-                      if (open) next.add(accordionKey);
-                      else next.delete(accordionKey);
-                      return next;
-                    });
-                  }}
-                  title={
-                    <FlexRow className="naxatw-flex-wrap naxatw-items-center naxatw-gap-3">
-                      <h4 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
-                        {group.task_id
-                          ? m.common_task_number({
-                              index: group.project_task_index ?? "",
-                            })
-                          : m.image_review_unassigned_images()}
-                      </h4>
-                      <span className="naxatw-rounded-full naxatw-bg-blue-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
-                        {showOnlyIssueImages
-                          ? `${group.images.length} ${
-                              group.images.length === 1 ? m.common_issue() : m.common_issues_lower()
-                            }`
-                          : `${group.images.length} ${
-                              group.images.length === 1 ? m.common_image() : m.common_images_lower()
-                            }`}
-                      </span>
-                      {group.is_verified && (
-                        <span className="naxatw-rounded-full naxatw-bg-green-100 naxatw-px-3 naxatw-py-1 naxatw-text-sm naxatw-font-medium naxatw-text-green-800">
-                          {m.common_fully_flown()}
-                        </span>
-                      )}
-                    </FlexRow>
-                  }
-                >
-                  <TaskAccordionContent
-                    group={group}
-                    groupKey={accordionKey}
-                    projectId={projectId}
-                    isOpen={isAccordionOpen}
-                    highlightedImageId={highlightedImageId}
-                    selectedImageIds={selectedImageIds}
-                    anchorImageId={
-                      sequenceSelectMode && sequenceAnchor?.groupKey === accordionKey
-                        ? sequenceAnchor.imageId
-                        : null
-                    }
-                    imageRefs={imageRefs}
-                    onVerifyTask={(taskId, taskIndex) =>
-                      setVerificationModal({ isOpen: true, taskId, taskIndex })
-                    }
-                    onCleanup={() => setShowCleanupConfirm(true)}
-                    onImageClick={handleSidebarImageClick}
-                    onImageDoubleClick={handleImageClick}
-                  />
-                </Accordion>
-              );
-            })}
+          {/* Task Accordions - flex-1 + min-h-0 lets the virtualized list
+              own a scroll container of the remaining height. */}
+          <div className="naxatw-min-h-0 naxatw-flex-1">
+            {reviewData ? (
+              <VirtualizedAccordionList
+                groups={displayedTaskGroups}
+                openAccordions={openAccordions}
+                setOpenAccordions={setOpenAccordions}
+                showOnlyIssueImages={showOnlyIssueImages}
+                projectId={projectId}
+                highlightedImageId={highlightedImageId}
+                selectedImageIds={selectedImageIds}
+                sequenceSelectMode={sequenceSelectMode}
+                sequenceAnchor={sequenceAnchor}
+                imageRefs={imageRefs}
+                onVerifyTask={(taskId, taskIndex) =>
+                  setVerificationModal({ isOpen: true, taskId, taskIndex })
+                }
+                onCleanup={() => setShowCleanupConfirm(true)}
+                onImageClick={handleSidebarImageClick}
+                onImageDoubleClick={handleImageClick}
+              />
+            ) : (
+              <div className="naxatw-flex naxatw-h-full naxatw-min-h-[200px] naxatw-items-center naxatw-justify-center">
+                <p className="naxatw-text-sm naxatw-text-gray-500">
+                  {m.image_review_loading_review_data()}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

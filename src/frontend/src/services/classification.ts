@@ -23,12 +23,23 @@ export interface TaskGroupImage {
   uploaded_at: string;
 }
 
-export interface TaskGroup {
+export type ImageStatus = "assigned" | "rejected" | "invalid_exif" | "duplicate" | "unmatched";
+
+export type StatusCounts = Record<ImageStatus, number>;
+
+// Server response for /imagery/review/ — summary only, no per-image list.
+// The per-image data is reconstructed client-side from /imagery/map-data/.
+export interface TaskGroupSummary {
   task_id: string | null;
   project_task_index: number | null;
   image_count: number;
-  images: TaskGroupImage[];
+  status_counts: StatusCounts;
   is_verified?: boolean;
+}
+
+// Client-side type built by joining TaskGroupSummary with mapData image features.
+export interface TaskGroup extends TaskGroupSummary {
+  images: TaskGroupImage[];
 }
 
 /**
@@ -207,7 +218,7 @@ export interface TaskImagerySummary {
 
 export interface ProjectReviewData {
   project_id: string;
-  task_groups: TaskGroup[];
+  task_groups: TaskGroupSummary[];
   total_tasks: number;
   total_images: number;
 }

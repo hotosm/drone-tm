@@ -2231,11 +2231,12 @@ class ImageClassifier:
         db: Connection,
         project_id: uuid.UUID,
     ) -> dict:
-        """Project-level review: images grouped by task across ALL batches.
+        """Per-task summary across ALL batches: counts + verified flag, no per-image list.
 
-        TODO: At ~30k+ images for a project this aggregates every image into
-        one response. Add cursor-based pagination (per-task or global) if
-        payload size becomes a bottleneck. See also get_project_map_data().
+        The frontend joins this summary with /imagery/map-data/ (which already
+        carries every image's id, filename, status and rejection_reason) to
+        render the sidebar. Shipping per-image rows here too would duplicate
+        ~50% of the map-data payload at 30k+ images per project.
         """
         query = """
             WITH latest_task_state AS (
@@ -2249,17 +2250,13 @@ class ImageClassifier:
             SELECT
                 pi.task_id,
                 t.project_task_index,
-                COUNT(*) as image_count,
-                COALESCE(lts.state::text IN ('READY_FOR_PROCESSING', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) as is_verified,
-                json_agg(
-                    json_build_object(
-                        'id', pi.id,
-                        'filename', pi.filename,
-                        'status', pi.status,
-                        'rejection_reason', pi.rejection_reason,
-                        'uploaded_at', pi.uploaded_at
-                    ) ORDER BY pi.uploaded_at
-                ) as images
+                COUNT(*) AS image_count,
+                COUNT(*) FILTER (WHERE pi.status = 'assigned') AS assigned_count,
+                COUNT(*) FILTER (WHERE pi.status = 'rejected') AS rejected_count,
+                COUNT(*) FILTER (WHERE pi.status = 'invalid_exif') AS invalid_exif_count,
+                COUNT(*) FILTER (WHERE pi.status = 'duplicate') AS duplicate_count,
+                COUNT(*) FILTER (WHERE pi.status = 'unmatched') AS unmatched_count,
+                COALESCE(lts.state::text IN ('READY_FOR_PROCESSING', 'IMAGE_PROCESSING_STARTED', 'IMAGE_PROCESSING_FINISHED', 'IMAGE_PROCESSING_FAILED'), false) AS is_verified
             FROM project_images pi
             LEFT JOIN tasks t ON pi.task_id = t.id
             LEFT JOIN latest_task_state lts ON pi.task_id = lts.task_id
@@ -2271,7 +2268,24 @@ class ImageClassifier:
 
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(query, {"project_id": str(project_id)})
-            task_groups = await cur.fetchall()
+            rows = await cur.fetchall()
+
+        task_groups = [
+            {
+                "task_id": str(row["task_id"]) if row["task_id"] else None,
+                "project_task_index": row["project_task_index"],
+                "image_count": row["image_count"],
+                "is_verified": row["is_verified"],
+                "status_counts": {
+                    "assigned": row["assigned_count"],
+                    "rejected": row["rejected_count"],
+                    "invalid_exif": row["invalid_exif_count"],
+                    "duplicate": row["duplicate_count"],
+                    "unmatched": row["unmatched_count"],
+                },
+            }
+            for row in rows
+        ]
 
         return {
             "project_id": str(project_id),

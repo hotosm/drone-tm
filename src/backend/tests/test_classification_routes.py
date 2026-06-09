@@ -545,10 +545,10 @@ async def test_review_includes_unmatched_images(
     assert resp.status_code == 200
     body = resp.json()
     assert body["total_images"] == 1
-    statuses = [
-        img["status"] for group in body["task_groups"] for img in group["images"]
-    ]
-    assert "unmatched" in statuses
+    unmatched_total = sum(
+        group["status_counts"]["unmatched"] for group in body["task_groups"]
+    )
+    assert unmatched_total == 1
 
 
 @pytest.mark.asyncio

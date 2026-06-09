@@ -73,7 +73,7 @@ const TaskOrthoCogViewer = ({ signedUrl, title, onClose }: TaskOrthoCogViewerPro
 
       // Pick an initial resolution that fits the full extent into the
       // current modal viewport, with a bit of padding. Use window dims as
-      // a stand-in for the not-yet-laid-out container — the post-mount
+      // a stand-in for the not-yet-laid-out container - the post-mount
       // view.fit() call below refines this once map.getSize() is known.
       const extent: [number, number, number, number] | undefined = viewConfig.extent;
       const approxW = window.innerWidth * 0.8;

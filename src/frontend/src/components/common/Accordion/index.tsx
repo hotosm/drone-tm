@@ -23,12 +23,20 @@ export default function Accordion({
   contentClassName = "",
   onToggle,
 }: IAccordionProps) {
-  const [isOpen, setIsOpen] = useState(open);
+  // Controlled when onToggle is provided - `open` is the source of truth.
+  // This lets parents virtualize a list of accordions without losing open state
+  // across unmount/remount.
+  const isControlled = onToggle !== undefined;
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(open);
+  const isOpen = isControlled ? open : uncontrolledOpen;
 
   const handleToggle = () => {
-    const newState = !isOpen;
-    setIsOpen(newState);
-    onToggle?.(newState);
+    const next = !isOpen;
+    if (isControlled) {
+      onToggle(next);
+    } else {
+      setUncontrolledOpen(next);
+    }
   };
 
   return (
