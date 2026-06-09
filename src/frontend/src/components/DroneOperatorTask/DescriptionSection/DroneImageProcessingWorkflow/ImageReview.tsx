@@ -80,6 +80,7 @@ const TaskAccordionContent = ({
   isOpen,
   highlightedImageId,
   selectedImageIds,
+  anchorImageId,
   imageRefs,
   onVerifyTask,
   onCleanup,
@@ -92,6 +93,7 @@ const TaskAccordionContent = ({
   isOpen: boolean;
   highlightedImageId: string | null;
   selectedImageIds: Set<string>;
+  anchorImageId: string | null;
   imageRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   onVerifyTask: (taskId: string, taskIndex: number) => void;
   onCleanup: () => void;
@@ -212,6 +214,7 @@ const TaskAccordionContent = ({
                   const urls = imageUrlMap[image.id];
                   const thumbSrc = urls?.thumbnail_url || urls?.url;
                   const isSelected = selectedImageIds.has(image.id);
+                  const isAnchor = anchorImageId === image.id;
                   return (
                     <div
                       key={image.id}
@@ -219,21 +222,23 @@ const TaskAccordionContent = ({
                         imageRefs.current[image.id] = el;
                       }}
                       className={`naxatw-group naxatw-relative naxatw-aspect-square naxatw-cursor-pointer naxatw-overflow-hidden naxatw-rounded naxatw-border-2 naxatw-transition-all hover:naxatw-shadow-md ${
-                        isSelected
-                          ? "naxatw-border-violet-600 naxatw-ring-2 naxatw-ring-violet-300"
-                          : highlightedImageId === image.id
-                            ? "naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300"
-                            : image.status === "rejected" || image.status === "invalid_exif"
-                              ? "naxatw-border-red-300 hover:naxatw-border-red-500"
-                              : image.status === "unmatched"
-                                ? "naxatw-border-yellow-300 hover:naxatw-border-yellow-500"
-                                : image.status === "duplicate"
-                                  ? "naxatw-border-gray-400 naxatw-opacity-60 hover:naxatw-border-gray-600"
-                                  : "naxatw-border-gray-200 hover:naxatw-border-blue-500"
+                        isAnchor
+                          ? "naxatw-border-amber-600 naxatw-ring-2 naxatw-ring-amber-400"
+                          : isSelected
+                            ? "naxatw-border-violet-600 naxatw-ring-2 naxatw-ring-violet-300"
+                            : highlightedImageId === image.id
+                              ? "naxatw-border-blue-500 naxatw-ring-2 naxatw-ring-blue-300"
+                              : image.status === "rejected" || image.status === "invalid_exif"
+                                ? "naxatw-border-red-300 hover:naxatw-border-red-500"
+                                : image.status === "unmatched"
+                                  ? "naxatw-border-yellow-300 hover:naxatw-border-yellow-500"
+                                  : image.status === "duplicate"
+                                    ? "naxatw-border-gray-400 naxatw-opacity-60 hover:naxatw-border-gray-600"
+                                    : "naxatw-border-gray-200 hover:naxatw-border-blue-500"
                       }`}
                       onClick={(e) => onImageClick(image, e, group.images, groupKey, imageUrlMap)}
                       onDoubleClick={() => onImageDoubleClick(image, imageUrlMap)}
-                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ""} (Shift+click to select range, double-click to view)`}
+                      title={`${image.filename}${image.rejection_reason ? ` - ${image.rejection_reason}` : ""}`}
                     >
                       {thumbSrc ? (
                         <img
@@ -321,6 +326,20 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     enabled: !!projectId,
   });
 
+  // Refs that mirror render-time values so map-layer click handlers
+  // (bound once in a useEffect) can read the latest data without re-binding.
+  const reviewDataRef = useRef<ProjectReviewData | undefined>(reviewData);
+  useEffect(() => {
+    reviewDataRef.current = reviewData;
+  }, [reviewData]);
+  const seqClickHandlerRef = useRef<
+    (
+      image: { id: string; filename: string; status: string },
+      groupImages: Array<{ id: string; filename: string; status: string }>,
+      groupKey: string,
+    ) => boolean
+  >(() => false);
+
   const isLoading = isMapDataLoading || isReviewLoading;
   const error = isMapDataError ? mapDataError : isReviewError ? reviewError : null;
 
@@ -383,8 +402,15 @@ const ImageReview = ({ projectId }: ImageReviewProps) => {
     () => new Set(boxSelectedImages.map((i) => i.id)),
     [boxSelectedImages],
   );
-  // Anchor for Shift+click range selection in the sidebar grid
-  const [selectionAnchor, setSelectionAnchor] = useState<{
+  // Sequence-select mode: user clicks two thumbnails to select everything
+  // in between by filename. The first click sets sequenceAnchor; the second
+  // click in the same group commits the range. Esc cancels.
+  const [sequenceSelectMode, setSequenceSelectMode] = useState(false);
+  const sequenceSelectModeRef = useRef(false);
+  useEffect(() => {
+    sequenceSelectModeRef.current = sequenceSelectMode;
+  }, [sequenceSelectMode]);
+  const [sequenceAnchor, setSequenceAnchor] = useState<{
     imageId: string;
     groupKey: string;
   } | null>(null);
@@ -664,6 +690,40 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
       const props = features[0].properties;
       const coords = (features[0].geometry as any).coordinates.slice();
 
+      // Sequence-select intercepts the map click: build a same-task range
+      // by filename and add to the bulk selection. Suppress the popup so
+      // the user can chain clicks without manually dismissing it.
+      if (sequenceSelectModeRef.current) {
+        const review = reviewDataRef.current;
+        const taskId: string | null = props.task_id ?? null;
+        const groupKey = taskId ?? `unassigned-map`;
+        const groupImages = review?.task_groups
+          ? (() => {
+              if (taskId) {
+                const g = review.task_groups.find((tg: TaskGroup) => tg.task_id === taskId);
+                return g ? g.images : [];
+              }
+              const ug = review.task_groups.find((tg: TaskGroup) => tg.task_id === null);
+              return ug ? ug.images : [];
+            })()
+          : [];
+        seqClickHandlerRef.current(
+          {
+            id: props.id,
+            filename: props.filename,
+            status: props.status,
+          },
+          groupImages,
+          groupKey,
+        );
+        if (popupRef.current) {
+          popupRef.current.remove();
+          popupRef.current = null;
+        }
+        setHighlightedImageId(props.id);
+        return;
+      }
+
       // Close existing popup
       if (popupRef.current) {
         popupRef.current.remove();
@@ -942,7 +1002,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     };
   }, [map, isMapLoaded, boxSelectMode]);
 
-  // Escape: cancel bulk picker → clear selection → exit box-select mode
+  // Escape: cancel bulk picker → clear selection → exit selection modes
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -950,7 +1010,10 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
         setBulkTaskMatchingImages(null);
       } else if (boxSelectedImagesRef.current.length > 0) {
         setBoxSelectedImages([]);
-        setSelectionAnchor(null);
+        setSequenceAnchor(null);
+      } else if (sequenceSelectModeRef.current) {
+        setSequenceSelectMode(false);
+        setSequenceAnchor(null);
       } else if (boxSelectModeRef.current) {
         setBoxSelectMode(false);
       }
@@ -1085,11 +1148,62 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     }
   };
 
+  // Shared sequence-select handler — used by sidebar thumbnail clicks AND
+  // map-point clicks. First click in a group sets the anchor and adds the
+  // image to the selection. A second click in the same group commits the
+  // filename-sorted range between them and resets the anchor to the
+  // just-clicked image (so chained sequences work without leaving the mode).
+  // Returns true if it consumed the click.
+  const handleSequenceSelectClick = (
+    image: { id: string; filename: string; status: string },
+    groupImages: Array<{ id: string; filename: string; status: string }>,
+    groupKey: string,
+  ): boolean => {
+    if (!sequenceSelectMode) return false;
+    const sameGroupAnchor =
+      sequenceAnchor && sequenceAnchor.groupKey === groupKey ? sequenceAnchor : null;
+    const sorted = [...groupImages].sort((a, b) =>
+      a.filename.localeCompare(b.filename, undefined, { numeric: true }),
+    );
+    const anchorIdx = sameGroupAnchor
+      ? sorted.findIndex((i) => i.id === sameGroupAnchor.imageId)
+      : -1;
+    const clickIdx = sorted.findIndex((i) => i.id === image.id);
+
+    if (anchorIdx !== -1 && clickIdx !== -1 && anchorIdx !== clickIdx) {
+      const [lo, hi] = anchorIdx <= clickIdx ? [anchorIdx, clickIdx] : [clickIdx, anchorIdx];
+      const range = sorted.slice(lo, hi + 1).map((i) => ({
+        id: i.id,
+        filename: i.filename,
+        status: i.status,
+      }));
+      setBoxSelectedImages((prev) => {
+        const merged = new Map(prev.map((p) => [p.id, p]));
+        for (const item of range) merged.set(item.id, item);
+        return Array.from(merged.values());
+      });
+      setSequenceAnchor({ imageId: image.id, groupKey });
+      return true;
+    }
+
+    if (clickIdx !== -1) {
+      setSequenceAnchor({ imageId: image.id, groupKey });
+      setBoxSelectedImages((prev) =>
+        prev.some((p) => p.id === image.id)
+          ? prev
+          : [...prev, { id: image.id, filename: image.filename, status: image.status }],
+      );
+    }
+    return true;
+  };
+  // Keep the map click handler (bound once in a useEffect) pointing at the
+  // latest handler closure on every render.
+  seqClickHandlerRef.current = handleSequenceSelectClick;
+
   // Handle sidebar thumbnail click:
-  //   - Shift+click within the same task group selects a range by filename
-  //     (e.g. for picking flight 'tail' images that are sequentially named)
-  //   - Ctrl/Cmd+click toggles a single image in/out of the bulk selection
-  //   - Plain click sets the anchor, highlights the image, and flies to it
+  //   - Sequence-select mode consumes the click via handleSequenceSelectClick.
+  //   - Ctrl/Cmd+click toggles a single image in/out of the bulk selection.
+  //   - Plain click highlights the image and flies to it on the map.
   const handleSidebarImageClick = (
     image: TaskGroupImage,
     event: React.MouseEvent,
@@ -1097,30 +1211,11 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
     groupKey: string,
     _imageUrls?: Record<string, ImageUrls>,
   ) => {
-    if (event.shiftKey && selectionAnchor && selectionAnchor.groupKey === groupKey) {
-      const sorted = [...groupImages].sort((a, b) =>
-        a.filename.localeCompare(b.filename, undefined, { numeric: true }),
-      );
-      const anchorIdx = sorted.findIndex((i) => i.id === selectionAnchor.imageId);
-      const clickIdx = sorted.findIndex((i) => i.id === image.id);
-      if (anchorIdx !== -1 && clickIdx !== -1) {
-        const [lo, hi] = anchorIdx <= clickIdx ? [anchorIdx, clickIdx] : [clickIdx, anchorIdx];
-        const range = sorted.slice(lo, hi + 1).map((i) => ({
-          id: i.id,
-          filename: i.filename,
-          status: i.status,
-        }));
-        setBoxSelectedImages((prev) => {
-          const merged = new Map(prev.map((p) => [p.id, p]));
-          for (const item of range) merged.set(item.id, item);
-          return Array.from(merged.values());
-        });
-        return;
-      }
+    if (handleSequenceSelectClick(image, groupImages, groupKey)) {
+      return;
     }
 
     if (event.ctrlKey || event.metaKey) {
-      setSelectionAnchor({ imageId: image.id, groupKey });
       setBoxSelectedImages((prev) => {
         if (prev.some((p) => p.id === image.id)) {
           return prev.filter((p) => p.id !== image.id);
@@ -1130,7 +1225,6 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
       return;
     }
 
-    setSelectionAnchor({ imageId: image.id, groupKey });
     setHighlightedImageId(image.id);
 
     // Find the image's coordinates on the map and fly to it
@@ -1397,7 +1491,12 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
             <button
               onClick={() => {
                 if (boxSelectMode) setBoxSelectedImages([]);
-                setBoxSelectMode(!boxSelectMode);
+                const next = !boxSelectMode;
+                setBoxSelectMode(next);
+                if (next && sequenceSelectMode) {
+                  setSequenceSelectMode(false);
+                  setSequenceAnchor(null);
+                }
               }}
               title={
                 boxSelectMode ? m.common_cancel_escape() : m.image_review_select_multiple_help()
@@ -1413,9 +1512,39 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
               </span>
               {m.image_review_select_multiple()}
             </button>
+            <button
+              onClick={() => {
+                const next = !sequenceSelectMode;
+                setSequenceSelectMode(next);
+                setSequenceAnchor(null);
+                if (next && boxSelectMode) {
+                  setBoxSelectMode(false);
+                }
+              }}
+              title={
+                sequenceSelectMode
+                  ? m.common_cancel_escape()
+                  : m.image_review_select_sequence_help()
+              }
+              className={`naxatw-flex naxatw-items-center naxatw-gap-1.5 naxatw-rounded naxatw-border naxatw-px-2.5 naxatw-py-1 naxatw-text-xs naxatw-font-medium naxatw-transition-colors ${
+                sequenceSelectMode
+                  ? "naxatw-border-amber-600 naxatw-bg-amber-600 naxatw-text-white"
+                  : "naxatw-border-gray-300 naxatw-bg-white naxatw-text-gray-700 hover:naxatw-border-amber-500 hover:naxatw-text-amber-700"
+              }`}
+            >
+              <span className="material-icons" style={{ fontSize: "14px" }}>
+                linear_scale
+              </span>
+              {m.image_review_select_sequence()}
+            </button>
             {boxSelectMode && (
               <span className="naxatw-text-xs naxatw-text-gray-500">
                 {m.image_review_select_multiple_help()}
+              </span>
+            )}
+            {sequenceSelectMode && (
+              <span className="naxatw-text-xs naxatw-text-gray-500">
+                {m.image_review_select_sequence_help()}
               </span>
             )}
           </div>
@@ -1576,7 +1705,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                   <button
                     onClick={() => {
                       setBoxSelectedImages([]);
-                      setSelectionAnchor(null);
+                      setSequenceAnchor(null);
                     }}
                     className="naxatw-rounded naxatw-bg-white naxatw-bg-opacity-20 naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-semibold naxatw-text-white hover:naxatw-bg-opacity-30"
                   >
@@ -1730,7 +1859,7 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                 {m.image_review_double_click_thumbnail_help()}
               </p>
               <p className="naxatw-text-xs naxatw-text-gray-500">
-                {m.image_review_shift_click_range_help()}
+                {m.image_review_select_sequence_help()}
               </p>
               <label className="naxatw-flex naxatw-w-fit naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-rounded naxatw-border naxatw-border-gray-300 naxatw-px-3 naxatw-py-1.5 naxatw-text-sm naxatw-font-medium naxatw-text-gray-700 naxatw-transition-colors hover:naxatw-border-red hover:naxatw-text-gray-900">
                 <span
@@ -1838,6 +1967,11 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
                     isOpen={isAccordionOpen}
                     highlightedImageId={highlightedImageId}
                     selectedImageIds={selectedImageIds}
+                    anchorImageId={
+                      sequenceSelectMode && sequenceAnchor?.groupKey === accordionKey
+                        ? sequenceAnchor.imageId
+                        : null
+                    }
                     imageRefs={imageRefs}
                     onVerifyTask={(taskId, taskIndex) =>
                       setVerificationModal({ isOpen: true, taskId, taskIndex })

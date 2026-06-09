@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGetProjectsDetailQuery } from "@Api/projects";
-import { useGetAllTaskAssetsInfo, useGetOdmQueueInfo } from "@Api/tasks";
+import { useGetAllTaskAssetsInfo } from "@Api/tasks";
 import { postProcessImagery } from "@Services/tasks";
 import { processAllImagery, saveGcpFile } from "@Services/project";
 import {
@@ -55,36 +55,6 @@ type ProcessingDialogProjectDetail = {
   assets_url?: string | null;
 };
 
-type OdmQueueTask = {
-  uuid: string;
-  name?: string;
-  images_count?: number;
-  status_label: string;
-  status_code: number;
-  progress?: number;
-  processing_time?: number;
-  dtm_task_id?: string;
-  task_index?: number;
-};
-
-type OdmStatusGroup = {
-  status_code: number;
-  status_label: string;
-  count: number;
-  tasks: OdmQueueTask[];
-};
-
-type OdmQueueInfo = {
-  total_queued: number;
-  total_running: number;
-  total_failed: number;
-  total_completed: number;
-  total_canceled: number;
-  total_tasks: number;
-  queue_position?: number;
-  groups: OdmStatusGroup[];
-};
-
 const ProcessingStatusDialog = () => {
   const { pathname } = useLocation();
   const projectRouteId = useMemo(() => {
@@ -97,7 +67,6 @@ const ProcessingStatusDialog = () => {
 
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [processingTasks, setProcessingTasks] = useState<Set<string>>(new Set());
-  const [showQueueInfo, setShowQueueInfo] = useState(false);
   // When non-null, render the OL COG viewer overlay for this task's
   // signed orthophoto URL. Cleared by clicking the close button, the
   // backdrop, or pressing Escape (handled inside the viewer).
@@ -139,30 +108,6 @@ const ProcessingStatusDialog = () => {
     queryFn: () => getProjectCoverage(projectId),
     enabled: !!projectId,
   });
-
-  const {
-    data: queueInfo,
-    refetch: refetchQueueInfo,
-    isFetching: isQueueFetching,
-    dataUpdatedAt: queueUpdatedAt,
-  } = useGetOdmQueueInfo(projectId, showQueueInfo, {
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    retry: false,
-  }) as {
-    data?: OdmQueueInfo;
-    refetch: () => Promise<any>;
-    isFetching: boolean;
-    dataUpdatedAt: number;
-  };
-
-  // Reconciliation runs during the queue-info fetch; invalidate project-detail
-  // so the project status reflects the updated DB state immediately.
-  useEffect(() => {
-    if (queueInfo) {
-      queryClient.invalidateQueries({ queryKey: ["project-detail"] });
-    }
-  }, [queueInfo, queryClient]);
 
   // Build a lookup from task_id → has_ready_imagery so the backend is the
   // single source of truth for readiness decisions.
@@ -382,24 +327,13 @@ const ProcessingStatusDialog = () => {
   const handleRefreshProcessingStatus = useCallback(async () => {
     if (!projectId) return;
 
-    // Queue-info is also the backend reconciliation check for both task-level
-    // and project-level ScaleODM jobs. Keep it user-triggered via Refresh.
-    await refetchQueueInfo().catch(() => undefined);
-
     await Promise.allSettled([
       refetchTaskSummary(),
       refetchCoverage(),
       refetchAllTaskAssets(),
       queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] }),
     ]);
-  }, [
-    projectId,
-    queryClient,
-    refetchAllTaskAssets,
-    refetchCoverage,
-    refetchQueueInfo,
-    refetchTaskSummary,
-  ]);
+  }, [projectId, queryClient, refetchAllTaskAssets, refetchCoverage, refetchTaskSummary]);
 
   const totalTaskCount = useMemo(() => {
     if (typeof projectDetail?.total_task_count === "number") {
@@ -543,7 +477,6 @@ const ProcessingStatusDialog = () => {
   }, [isFinalProcessingRunning, totalTaskCount, totalProcessable]);
 
   const hasSavedGcp = Boolean(projectDetail?.has_gcp);
-  const queueLastUpdated = queueUpdatedAt ? new Date(queueUpdatedAt).toLocaleTimeString() : null;
 
   return (
     <>
@@ -558,15 +491,14 @@ const ProcessingStatusDialog = () => {
               {m.processing_dialog_task_processing_desc()}
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="naxatw-h-8 naxatw-shrink-0 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
-            leftIcon="queue"
-            iconClassname="!naxatw-text-sm"
-            onClick={() => setShowQueueInfo(true)}
+          <a
+            href="https://processing.drone.hotosm.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="naxatw-shrink-0 naxatw-text-xs naxatw-font-semibold naxatw-text-blue-700 naxatw-underline-offset-2 hover:naxatw-underline"
           >
             {m.processing_dialog_view_queue()}
-          </Button>
+          </a>
         </div>
 
         {/* Task table */}
@@ -803,11 +735,9 @@ const ProcessingStatusDialog = () => {
             variant="outline"
             className="naxatw-h-8 naxatw-shrink-0 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
             leftIcon="refresh"
-            iconClassname={`!naxatw-text-sm ${isTaskSummaryFetching || isCoverageFetching || isQueueFetching || isAllTasksFetching ? "naxatw-animate-spin" : ""}`}
+            iconClassname={`!naxatw-text-sm ${isTaskSummaryFetching || isCoverageFetching || isAllTasksFetching ? "naxatw-animate-spin" : ""}`}
             onClick={handleRefreshProcessingStatus}
-            disabled={
-              isTaskSummaryFetching || isCoverageFetching || isQueueFetching || isAllTasksFetching
-            }
+            disabled={isTaskSummaryFetching || isCoverageFetching || isAllTasksFetching}
           >
             {m.common_refresh()}
           </Button>
@@ -1066,231 +996,6 @@ const ProcessingStatusDialog = () => {
         )}
       </div>
 
-      {showQueueInfo && (
-        <>
-          <button
-            type="button"
-            aria-label={m.processing_dialog_queue_close_label()}
-            className="naxatw-fixed naxatw-inset-0 naxatw-z-[11111] naxatw-bg-black/20"
-            onClick={() => setShowQueueInfo(false)}
-          />
-          <div className="naxatw-fixed naxatw-inset-y-0 naxatw-right-0 naxatw-z-[11112] naxatw-flex naxatw-w-full naxatw-justify-end">
-            <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-max-w-xl naxatw-flex-col naxatw-border-l naxatw-border-gray-200 naxatw-bg-white naxatw-shadow-2xl">
-              <div className="naxatw-flex naxatw-items-start naxatw-justify-between naxatw-border-b naxatw-border-gray-200 naxatw-px-5 naxatw-py-4">
-                <div>
-                  <h3 className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-900">
-                    {m.processing_dialog_queue_title()}
-                  </h3>
-                  <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
-                    {m.processing_dialog_queue_desc()}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="naxatw-rounded-full naxatw-p-2 naxatw-text-gray-500 hover:naxatw-bg-gray-100"
-                  onClick={() => setShowQueueInfo(false)}
-                >
-                  <span className="material-icons">close</span>
-                </button>
-              </div>
-
-              <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-gap-3 naxatw-border-b naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-px-5 naxatw-py-3">
-                <div className="naxatw-flex naxatw-flex-wrap naxatw-items-center naxatw-gap-2 naxatw-text-xs">
-                  {(queueInfo?.total_running ?? 0) > 0 && (
-                    <span className="naxatw-rounded-full naxatw-bg-purple-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-purple-800">
-                      {m.processing_dialog_queue_running({ count: queueInfo?.total_running ?? 0 })}
-                    </span>
-                  )}
-                  {(queueInfo?.total_queued ?? 0) > 0 && (
-                    <span className="naxatw-rounded-full naxatw-bg-yellow-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-yellow-800">
-                      {m.processing_dialog_queue_queued({ count: queueInfo?.total_queued ?? 0 })}
-                    </span>
-                  )}
-                  {(queueInfo?.total_failed ?? 0) > 0 && (
-                    <span className="naxatw-rounded-full naxatw-bg-red-100 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-red-800">
-                      {m.processing_dialog_queue_failed({ count: queueInfo?.total_failed ?? 0 })}
-                    </span>
-                  )}
-                  <span className="naxatw-rounded-full naxatw-bg-gray-200 naxatw-px-2.5 naxatw-py-1 naxatw-font-medium naxatw-text-gray-700">
-                    {m.processing_dialog_queue_total({ count: queueInfo?.total_tasks ?? 0 })}
-                  </span>
-                </div>
-                <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
-                  {queueLastUpdated && (
-                    <span className="naxatw-text-xs naxatw-text-gray-500">
-                      {m.processing_dialog_queue_updated({ time: queueLastUpdated })}
-                    </span>
-                  )}
-                  <Button
-                    variant="outline"
-                    className="naxatw-h-8 naxatw-border-blue-300 naxatw-px-3 naxatw-text-xs naxatw-text-blue-700"
-                    leftIcon={isQueueFetching ? "sync" : "refresh"}
-                    iconClassname={
-                      isQueueFetching ? "naxatw-animate-spin !naxatw-text-sm" : "!naxatw-text-sm"
-                    }
-                    onClick={handleRefreshProcessingStatus}
-                    disabled={isQueueFetching}
-                  >
-                    {m.common_refresh()}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="naxatw-flex-1 naxatw-overflow-y-auto naxatw-px-5 naxatw-py-4">
-                {!queueInfo && isQueueFetching ? (
-                  <p className="naxatw-text-sm naxatw-text-gray-500">
-                    {m.processing_dialog_loading_queue()}
-                  </p>
-                ) : !queueInfo || queueInfo.groups.length === 0 ? (
-                  <div className="naxatw-flex naxatw-h-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-gap-2 naxatw-text-center">
-                    <span className="material-icons naxatw-text-4xl naxatw-text-gray-300">
-                      queue
-                    </span>
-                    <p className="naxatw-text-sm naxatw-text-gray-700">
-                      {m.processing_dialog_no_queue_tasks()}
-                    </p>
-                    <p className="naxatw-text-xs naxatw-text-gray-500">
-                      {m.processing_dialog_no_queue_tasks_desc()}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
-                    {queueInfo.groups.map((group: OdmStatusGroup) => {
-                      const groupStyles: Record<
-                        number,
-                        { bg: string; text: string; headerBg: string; icon?: string }
-                      > = {
-                        20: {
-                          bg: "naxatw-bg-purple-50",
-                          text: "naxatw-text-purple-800",
-                          headerBg: "naxatw-bg-purple-100",
-                          icon: "sync",
-                        },
-                        10: {
-                          bg: "naxatw-bg-yellow-50",
-                          text: "naxatw-text-yellow-800",
-                          headerBg: "naxatw-bg-yellow-100",
-                          icon: "schedule",
-                        },
-                        30: {
-                          bg: "naxatw-bg-red-50",
-                          text: "naxatw-text-red-800",
-                          headerBg: "naxatw-bg-red-100",
-                          icon: "error_outline",
-                        },
-                        40: {
-                          bg: "naxatw-bg-green-50",
-                          text: "naxatw-text-green-800",
-                          headerBg: "naxatw-bg-green-100",
-                          icon: "check_circle",
-                        },
-                        50: {
-                          bg: "naxatw-bg-gray-50",
-                          text: "naxatw-text-gray-600",
-                          headerBg: "naxatw-bg-gray-100",
-                          icon: "cancel",
-                        },
-                      };
-                      const style = groupStyles[group.status_code] || {
-                        bg: "naxatw-bg-gray-50",
-                        text: "naxatw-text-gray-700",
-                        headerBg: "naxatw-bg-gray-100",
-                      };
-
-                      return (
-                        <div
-                          key={group.status_code}
-                          className={`naxatw-overflow-hidden naxatw-rounded-lg naxatw-border naxatw-border-gray-200 ${style.bg}`}
-                        >
-                          <div
-                            className={`naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 ${style.headerBg}`}
-                          >
-                            {style.icon && (
-                              <Icon
-                                name={style.icon}
-                                className={`!naxatw-text-base ${style.text} ${group.status_code === 20 ? "naxatw-animate-spin" : ""}`}
-                              />
-                            )}
-                            <span className={`naxatw-text-sm naxatw-font-semibold ${style.text}`}>
-                              {group.status_label}
-                            </span>
-                            <span
-                              className={`naxatw-rounded-full naxatw-px-2 naxatw-py-0.5 naxatw-text-xs naxatw-font-medium ${style.headerBg} ${style.text}`}
-                            >
-                              {group.count}
-                            </span>
-                          </div>
-                          <table className="naxatw-w-full naxatw-text-sm">
-                            <thead>
-                              <tr className="naxatw-border-b naxatw-border-gray-200">
-                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
-                                  #
-                                </th>
-                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
-                                  {m.common_name_label()}
-                                </th>
-                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-left naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
-                                  {m.processing_dialog_table_images()}
-                                </th>
-                                <th className="naxatw-px-3 naxatw-py-1.5 naxatw-text-right naxatw-text-xs naxatw-font-medium naxatw-text-gray-500">
-                                  {group.status_code === 20 ? m.common_progress() : m.common_time()}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {group.tasks.map((task: OdmQueueTask, index: number) => (
-                                <tr
-                                  key={task.uuid}
-                                  className="naxatw-border-b naxatw-border-gray-100 last:naxatw-border-0"
-                                >
-                                  <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-500">
-                                    {index + 1}
-                                  </td>
-                                  <td className="naxatw-max-w-[220px] naxatw-truncate naxatw-px-3 naxatw-py-2 naxatw-font-medium naxatw-text-gray-900">
-                                    {task.task_index != null
-                                      ? m.processing_dialog_task_row_label({
-                                          index: task.task_index,
-                                        })
-                                      : task.name || task.uuid.slice(0, 8)}
-                                  </td>
-                                  <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-600">
-                                    {task.images_count ?? "-"}
-                                  </td>
-                                  <td className="naxatw-px-3 naxatw-py-2 naxatw-text-right naxatw-text-gray-600">
-                                    {group.status_code === 20 && task.progress != null
-                                      ? `${Math.round(task.progress)}%`
-                                      : task.processing_time != null
-                                        ? `${Math.round(task.processing_time / 1000)}s`
-                                        : "-"}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="naxatw-border-t naxatw-border-gray-200 naxatw-bg-gray-50 naxatw-px-5 naxatw-py-3">
-                {queueInfo?.queue_position != null ? (
-                  <p className="naxatw-text-sm naxatw-font-medium naxatw-text-blue-800">
-                    {m.processing_dialog_queue_position({
-                      position: queueInfo.queue_position,
-                    })}
-                  </p>
-                ) : (
-                  <p className="naxatw-text-sm naxatw-text-gray-500">
-                    {m.processing_dialog_queue_position_empty()}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
       {viewerTask ? (
         <Suspense fallback={null}>
           <TaskOrthoCogViewer
