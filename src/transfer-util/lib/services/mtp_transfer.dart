@@ -21,8 +21,9 @@ class MtpTransferStrategy implements TransferStrategy {
 
   bool _opened = false;
 
-  /// How long to wait for the user to respond to the USB permission dialog.
-  static const _permissionTimeout = Duration(seconds: 90);
+  /// How long to wait for the user to respond to the USB permission dialog
+  /// before giving up so they can retry rather than stare at a spinner.
+  static const _permissionTimeout = Duration(seconds: 45);
 
   @override
   TransferMethod get method => TransferMethod.mtp;
@@ -49,9 +50,11 @@ class MtpTransferStrategy implements TransferStrategy {
       throw const TransferException(
         code: 'NO_DEVICE',
         message:
-            'No controller detected. Connect the DJI RC to your phone with a '
-            'USB cable and make sure the cable supports data (not just '
-            'charging).',
+            'No controller detected over USB. This transfers to a controller '
+            'that has its own screen (e.g. DJI RC 2) — connect it with a data '
+            'USB cable (charge-only cables won\'t work).\n\n'
+            'Using an RC-N2 that holds this phone? Then DJI Fly already runs on '
+            'this phone, so the mission is here — no transfer needed.',
         canFallbackToSaf: true,
       );
     }
