@@ -1,7 +1,9 @@
 import 'package:flutter/services.dart';
 
+import '../models/diagnostic_report.dart';
 import '../models/mission.dart';
 import '../platform/saf_channel.dart';
+import 'diagnostics_service.dart';
 import 'transfer_strategy.dart';
 
 /// Fallback strategy: Storage Access Framework (SAF).
@@ -42,9 +44,15 @@ class SafTransferStrategy implements TransferStrategy {
 
   @override
   Future<void> prepare() async {
-    if (await _channel.hasPersistedUri()) return;
+    if (await _channel.hasPersistedUri()) {
+      DiagnosticLog.instance
+          .mark('Folder access', DiagStatus.ok, detail: 'already granted');
+      return;
+    }
     final granted = await requestAccess();
     if (!granted) {
+      DiagnosticLog.instance.mark('Folder access', DiagStatus.fail,
+          code: 'NO_DIR', detail: 'folder picker cancelled');
       throw const TransferException(
         code: 'NO_DIR',
         message:
@@ -53,13 +61,22 @@ class SafTransferStrategy implements TransferStrategy {
             '(Android > data > dji.go.v5 > files > waypoint).',
       );
     }
+    DiagnosticLog.instance
+        .mark('Folder access', DiagStatus.ok, detail: 'granted via picker');
   }
 
   @override
   Future<List<Mission>> listMissions() async {
+    final sw = Stopwatch()..start();
     try {
-      return await _channel.listMissions();
+      final missions = await _channel.listMissions();
+      DiagnosticLog.instance.mark('List mission slots (SAF)', DiagStatus.ok,
+          durationMs: sw.elapsedMilliseconds,
+          detail: '${missions.length} slot(s)');
+      return missions;
     } on PlatformException catch (e) {
+      DiagnosticLog.instance.mark('List mission slots (SAF)', DiagStatus.fail,
+          code: e.code, detail: e.message, durationMs: sw.elapsedMilliseconds);
       throw _mapError(e);
     }
   }
@@ -69,15 +86,25 @@ class SafTransferStrategy implements TransferStrategy {
     required String uuid,
     required Uint8List kmzData,
   }) async {
+    final sw = Stopwatch()..start();
     try {
       final ok = await _channel.transferKmz(uuid: uuid, kmzData: kmzData);
       if (!ok) {
+        DiagnosticLog.instance.mark('Write KMZ to folder', DiagStatus.fail,
+            code: 'WRITE_FAILED',
+            detail: 'channel returned false',
+            durationMs: sw.elapsedMilliseconds);
         throw const TransferException(
           code: 'WRITE_FAILED',
           message: 'Could not write the file to the controller. Try again.',
         );
       }
+      DiagnosticLog.instance.mark('Write KMZ to folder', DiagStatus.ok,
+          durationMs: sw.elapsedMilliseconds,
+          detail: '${kmzData.length} bytes → $uuid');
     } on PlatformException catch (e) {
+      DiagnosticLog.instance.mark('Write KMZ to folder', DiagStatus.fail,
+          code: e.code, detail: e.message, durationMs: sw.elapsedMilliseconds);
       throw _mapError(e);
     }
   }

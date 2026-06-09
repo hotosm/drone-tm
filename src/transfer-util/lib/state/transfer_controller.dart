@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/diagnostic_report.dart';
 import '../models/drone_model.dart';
 import '../models/kmz_file.dart';
 import '../models/mission.dart';
 import '../platform/mtp_channel.dart';
 import '../platform/saf_channel.dart';
+import '../services/diagnostics_service.dart';
 import '../services/mtp_transfer.dart';
 import '../services/saf_transfer.dart';
 import '../services/transfer_strategy.dart';
@@ -264,6 +266,11 @@ class TransferController extends ChangeNotifier {
     _error = null;
     _setPhase(TransferPhase.connecting);
     _status = isUsb ? 'Opening controller over USB…' : 'Checking folder access…';
+    DiagnosticLog.instance.mark(
+      '— ${isUsb ? 'USB/MTP' : 'SAF'} attempt —',
+      DiagStatus.info,
+      detail: 'model=${_model.id} file=${_file?.name}',
+    );
     notifyListeners();
 
     try {

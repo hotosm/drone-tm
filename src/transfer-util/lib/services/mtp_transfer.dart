@@ -2,9 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../models/diagnostic_report.dart';
 import '../models/mission.dart';
 import '../platform/mtp_channel.dart';
+import 'diagnostics_service.dart';
 import 'transfer_strategy.dart';
+
+/// How the USB permission handshake resolved. `timeout` is distinct from
+/// `denied` because on Android 14 a timeout can mean the permission broadcast
+/// never arrived rather than the user saying no — a different bug to chase.
+enum _PermOutcome { granted, denied, timeout }
+
+/// Combine a [PlatformException]'s message with any structured `details`
+/// (e.g. the DJI-path traversal context attached to `DIR_NOT_FOUND`).
+String? _detailOf(PlatformException e) {
+  if (e.details == null) return e.message;
+  return '${e.message ?? ''} ${e.details}'.trim();
+}
 
 /// Primary strategy: talk to the controller directly with Android's
 /// `android.mtp.MtpDevice` API (wrapped by `MtpTransferPlugin.kt`).
@@ -47,6 +61,9 @@ class MtpTransferStrategy implements TransferStrategy {
   Future<void> prepare() async {
     final devices = await _channel.getConnectedDevices();
     if (devices.isEmpty) {
+      DiagnosticLog.instance.mark('Find controller on USB', DiagStatus.fail,
+          code: 'NO_DEVICE',
+          detail: 'no DJI/MTP device on the USB bus (OTG/cable/USB-mode?)');
       throw const TransferException(
         code: 'NO_DEVICE',
         message:
@@ -64,13 +81,27 @@ class MtpTransferStrategy implements TransferStrategy {
       (d) => d.isDji,
       orElse: () => devices.first,
     );
+    DiagnosticLog.instance.mark('Find controller on USB', DiagStatus.ok,
+        detail:
+            '${device.name} (vid=${device.vendorId} pid=${device.productId})');
 
     if (!device.hasPermission) {
       final alreadyGranted =
           await _channel.requestPermission(deviceName: device.name);
       if (!alreadyGranted) {
-        final granted = await _awaitPermissionDecision();
-        if (!granted) {
+        final outcome = await _awaitPermissionDecision();
+        if (outcome != _PermOutcome.granted) {
+          DiagnosticLog.instance.mark(
+            'USB permission',
+            outcome == _PermOutcome.timeout
+                ? DiagStatus.timeout
+                : DiagStatus.fail,
+            code: 'NO_PERMISSION',
+            detail: outcome == _PermOutcome.timeout
+                ? 'no grant within 45s — denied, or the permission broadcast '
+                    'never arrived (Android 14 RECEIVER_EXPORTED class)'
+                : 'permission denied',
+          );
           throw const TransferException(
             code: 'NO_PERMISSION',
             message:
@@ -81,21 +112,42 @@ class MtpTransferStrategy implements TransferStrategy {
           );
         }
       }
+      DiagnosticLog.instance.mark('USB permission', DiagStatus.ok);
+    } else {
+      DiagnosticLog.instance
+          .mark('USB permission', DiagStatus.ok, detail: 'already granted');
     }
 
+    final sw = Stopwatch()..start();
     try {
-      await _channel.openDevice(deviceName: device.name);
+      final info = await _channel.openDevice(deviceName: device.name);
       _opened = true;
+      final di = coerceMap(info);
+      DiagnosticLog.instance.mark('Open MTP session', DiagStatus.ok,
+          durationMs: sw.elapsedMilliseconds,
+          detail:
+              'mfr=${di['manufacturer']} model=${di['model']} serial=${di['serialNumber']}');
     } on PlatformException catch (e) {
+      DiagnosticLog.instance.mark('Open MTP session', DiagStatus.fail,
+          code: e.code, detail: e.message, durationMs: sw.elapsedMilliseconds);
       throw _mapError(e);
     }
   }
 
   @override
   Future<List<Mission>> listMissions() async {
+    final sw = Stopwatch()..start();
     try {
-      return await _channel.listMissions();
+      final missions = await _channel.listMissions();
+      DiagnosticLog.instance.mark('List mission slots', DiagStatus.ok,
+          durationMs: sw.elapsedMilliseconds,
+          detail: '${missions.length} slot(s)');
+      return missions;
     } on PlatformException catch (e) {
+      DiagnosticLog.instance.mark('List mission slots', DiagStatus.fail,
+          code: e.code,
+          detail: _detailOf(e),
+          durationMs: sw.elapsedMilliseconds);
       throw _mapError(e);
     }
   }
@@ -105,9 +157,14 @@ class MtpTransferStrategy implements TransferStrategy {
     required String uuid,
     required Uint8List kmzData,
   }) async {
+    final sw = Stopwatch()..start();
     try {
       final ok = await _channel.transferKmz(uuid: uuid, kmzData: kmzData);
       if (!ok) {
+        DiagnosticLog.instance.mark('Transfer KMZ', DiagStatus.fail,
+            code: 'SEND_FAILED',
+            detail: 'controller returned false',
+            durationMs: sw.elapsedMilliseconds);
         throw const TransferException(
           code: 'SEND_FAILED',
           message:
@@ -116,7 +173,14 @@ class MtpTransferStrategy implements TransferStrategy {
           canFallbackToSaf: true,
         );
       }
+      DiagnosticLog.instance.mark('Transfer KMZ', DiagStatus.ok,
+          durationMs: sw.elapsedMilliseconds,
+          detail: '${kmzData.length} bytes → $uuid');
     } on PlatformException catch (e) {
+      DiagnosticLog.instance.mark('Transfer KMZ', DiagStatus.fail,
+          code: e.code,
+          detail: _detailOf(e),
+          durationMs: sw.elapsedMilliseconds);
       throw _mapError(e);
     }
   }
@@ -133,37 +197,37 @@ class MtpTransferStrategy implements TransferStrategy {
   }
 
   /// Waits for the `usb_permission_granted` / `usb_permission_denied` event
-  /// that follows a permission dialog. Resolves `true` on grant, `false` on
-  /// denial or timeout.
-  Future<bool> _awaitPermissionDecision() {
-    final completer = Completer<bool>();
+  /// that follows a permission dialog, distinguishing grant, denial, and a
+  /// timeout (which may mean the broadcast never arrived).
+  Future<_PermOutcome> _awaitPermissionDecision() {
+    final completer = Completer<_PermOutcome>();
     late final StreamSubscription<MtpEvent> sub;
 
-    void finish(bool granted) {
+    void finish(_PermOutcome outcome) {
       if (completer.isCompleted) return;
       sub.cancel();
-      completer.complete(granted);
+      completer.complete(outcome);
     }
 
     sub = _channel.events.listen(
       (event) {
         switch (event.type) {
           case MtpEventType.usbPermissionGranted:
-            finish(true);
+            finish(_PermOutcome.granted);
           case MtpEventType.usbPermissionDenied:
-            finish(false);
+            finish(_PermOutcome.denied);
           default:
             break;
         }
       },
-      onError: (_) => finish(false),
+      onError: (_) => finish(_PermOutcome.denied),
     );
 
     return completer.future.timeout(
       _permissionTimeout,
       onTimeout: () {
-        finish(false);
-        return false;
+        finish(_PermOutcome.timeout);
+        return _PermOutcome.timeout;
       },
     );
   }
