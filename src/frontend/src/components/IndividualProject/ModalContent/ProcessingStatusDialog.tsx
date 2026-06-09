@@ -176,6 +176,20 @@ const ProcessingStatusDialog = () => {
     return map;
   }, [taskSummary]);
 
+  // Pending-transfer lookup - used to gate re-runs of FINISHED/FAILED tasks.
+  // For re-processing, the imagery is already in the task folder; only an
+  // in-flight staging→task move should block, matching the backend check at
+  // POST /process_imagery/{project_id}/{task_id}/.
+  const pendingTransferMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (taskSummary) {
+      for (const t of taskSummary) {
+        map.set(t.task_id, t.imagery_transfer_pending === true);
+      }
+    }
+    return map;
+  }, [taskSummary]);
+
   const { mutateAsync: processTask } = useMutation({
     mutationFn: ({ taskId, odmUrl }: { taskId: string; odmUrl?: string }) =>
       postProcessImagery(projectId, taskId, odmUrl),
@@ -587,8 +601,13 @@ const ProcessingStatusDialog = () => {
             </thead>
             <tbody>
               {taskList.map((task, index: number) => {
+                const isReprocess =
+                  task.state === "IMAGE_PROCESSING_FINISHED" ||
+                  task.state === "IMAGE_PROCESSING_FAILED";
                 const canProcess =
-                  readinessMap.get(task.task_id) === true &&
+                  (isReprocess
+                    ? pendingTransferMap.get(task.task_id) !== true
+                    : readinessMap.get(task.task_id) === true) &&
                   !processingTasks.has(task.task_id) &&
                   task.state !== "IMAGE_PROCESSING_STARTED";
                 const isTaskProcessing =
@@ -710,9 +729,6 @@ const ProcessingStatusDialog = () => {
                               }
                               iconClassname="!naxatw-text-sm"
                               onClick={(e) => {
-                                const isReprocess =
-                                  task.state === "IMAGE_PROCESSING_FINISHED" ||
-                                  task.state === "IMAGE_PROCESSING_FAILED";
                                 if (
                                   isReprocess &&
                                   !window.confirm(m.processing_dialog_reprocess_confirm())
