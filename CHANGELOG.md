@@ -1,3 +1,16 @@
+## 2026.6.7 (2026-06-09)
+
+### Fix
+
+- **backend**: remove the shadow identification imagery verifiy step, too flakey / not needed
+- **frontend**: improve performance of Verify Imagery dialog
+- **frontend**: viewing the fast task orthos in modal, sequential verify image selection
+- **frontend**: sometimes can't re-run processing on a finished task
+
+### Refactor
+
+- remove the Processing Queue dialog, moved to ScaleODM instead
+
 ## 2026.6.6 (2026-06-08)
 
 ### Feat
