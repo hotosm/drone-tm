@@ -47,7 +47,7 @@ const canOverrideImageRejection = (status?: string) =>
 const canRejectImage = (status?: string) => status === "assigned";
 
 // Run async `worker` over `items` with at most `limit` in-flight at a time.
-// Each worker rejection is counted, never thrown — caller gets success/fail tallies.
+// Each worker rejection is counted, never thrown - caller gets success/fail tallies.
 const BULK_CONCURRENCY = 8;
 const runWithConcurrency = async <T,>(
   items: T[],

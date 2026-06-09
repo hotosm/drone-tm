@@ -51,9 +51,6 @@ export const postProcessImagery = (projectId: string, taskId: string, odmUrl?: s
     `/projects/process_imagery/${projectId}/${taskId}/${odmUrl ? `?odm_url=${encodeURIComponent(odmUrl)}` : ""}`,
   );
 
-export const getOdmQueueInfo = (projectId: string) =>
-  authenticated(api).get(`/projects/odm/queue-info/${projectId}/`);
-
 export const postRotatedTaskWayPoint = (payload: Record<string, any>) => {
   const { taskId, data } = payload;
   return authenticated(api).post(`/waypoint/${taskId}/generate-kmz/`, data, {

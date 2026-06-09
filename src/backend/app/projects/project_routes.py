@@ -1,13 +1,9 @@
-import asyncio
 import json
 import uuid
-from collections import defaultdict
-from urllib.parse import urlparse, urlunparse
 from datetime import timedelta
 from typing import Annotated, Dict, List, Optional
 from uuid import UUID
 
-import aiohttp
 import geojson
 from arq import ArqRedis
 from fastapi import (
@@ -28,7 +24,6 @@ from fastapi.responses import StreamingResponse
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
 from psycopg import Connection
-from psycopg.rows import dict_row
 from stream_zip import NO_COMPRESSION_64, stream_zip
 from app.arq.tasks import get_redis_pool
 from app.config import settings
@@ -39,10 +34,8 @@ from app.models.enums import (
     ImageProcessingStatus,
     OAMUploadStatus,
     ProjectCompletionStatus,
-    State,
 )
 from app.images.image_classification import ImageClassifier
-from app.images.image_processing import remove_scaleodm_task
 from app.projects import project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
@@ -61,7 +54,7 @@ from app.s3 import (
     list_parts,
     s3_client,
 )
-from app.tasks import task_logic, task_schemas
+from app.tasks import task_schemas
 from app.users.permissions import (
     IsProjectCreator,
     IsSuperUser,
@@ -72,24 +65,12 @@ from app.users.user_schemas import AuthUser
 from app.utils import (
     geojson_to_kml,
     send_project_approval_email_to_regulator,
-    timestamp,
 )
 
 router = APIRouter(
     prefix="/projects",
     responses={404: {"description": "Not found"}},
 )
-
-
-ODM_STATUS_LABELS = project_logic.ODM_STATUS_LABELS
-
-ODM_QUEUE_DISPLAY_CODES = {10, 20, 30}
-
-
-# Re-export from project_logic for local use in this module.
-_parse_odm_status = project_logic.parse_odm_status
-_extract_valid_odm_task_info = project_logic.extract_valid_odm_task_info
-_get_project_odm_endpoint = project_logic.get_project_odm_endpoint
 
 
 def _odm_assets_prefix(project_id: uuid.UUID, task_id: Optional[uuid.UUID]) -> str:
@@ -1127,437 +1108,6 @@ async def get_uploaded_parts(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to list parts: {e}",
         )
-
-
-@router.get(
-    "/odm/queue-info/{project_id}/",
-    tags=["Image Processing"],
-    response_model=project_schemas.OdmQueueInfo,
-)
-async def get_odm_queue_info(
-    project: Annotated[
-        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
-    ],
-    db: Annotated[Connection, Depends(database.get_db)],
-    user_data: Annotated[AuthUser, Depends(login_required)],
-    redis_pool: Annotated[ArqRedis, Depends(get_redis_pool)],
-    background_tasks: BackgroundTasks,
-    task_id: Optional[uuid.UUID] = Query(
-        default=None,
-        description="DTM task ID to find its approximate queue position.",
-    ),
-):
-    """Get the ODM processing queue info for this project.
-
-    This endpoint also reconciles stuck IMAGE_PROCESSING_STARTED tasks. It is
-    intentionally user-triggered via the Refresh button on the processing
-    dialog - no cron or background poller calls it.
-
-    Reconciliation order for each STARTED task:
-      1. HEAD-check S3 for the per-task fast-ortho COG. If present, mark the
-         task FINISHED inline (state transition + assets_url + commit) and
-         fire-and-forget the ScaleODM record cleanup. S3 is the ground truth,
-         regardless of what ScaleODM reports.
-      2. Otherwise, query ScaleODM for live progress. Codes 30/50 drive the
-         task to FAILED. Codes 10/20 are surfaced for display.
-    """
-    # Prefer the ODM endpoint persisted when processing started (ensures
-    # reconciliation targets the correct server even if config changes).
-    # Fall back to the current config if no persisted endpoint exists.
-    odm_url = getattr(project, "odm_endpoint_used", None) or settings.ODM_ENDPOINT
-    if not odm_url:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="ODM endpoint is not configured.",
-        )
-
-    # Parse ODM_ENDPOINT which may contain ?token=xxx and/or trailing slash
-    parsed = urlparse(odm_url)
-    odm_query = parsed.query  # e.g. "token=xxx"
-
-    def odm_task_url(odm_uuid: str) -> str:
-        path = f"{parsed.path.rstrip('/')}/task/{odm_uuid}/info"
-        return urlunparse((parsed.scheme, parsed.netloc, path, "", odm_query, ""))
-
-    # Safety-net age threshold for the project-level "no ScaleODM UUID and no
-    # S3 output" stuck case - only used by reconcile_project_level_odm to
-    # auto-FAIL after this duration so the user can retry via the Process
-    # button (which 409s when status is PROCESSING). Task-level reconciliation
-    # never auto-FAILs based on age.
-    NOT_FOUND_AGE_THRESHOLD_SEC = 1800  # 30 minutes
-
-    # Only fetch tasks still in the active processing state. Completed and
-    # failed tasks are excluded so we don't make unnecessary ScaleODM requests
-    # for historical records (ScaleODM records are now kept after finalization).
-    async with db.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            """
-            WITH latest_state AS (
-                SELECT DISTINCT ON (te.task_id)
-                    te.task_id,
-                    te.state
-                FROM task_events te
-                ORDER BY te.task_id, te.created_at DESC
-            )
-            SELECT
-                t.id,
-                t.project_task_index,
-                t.odm_task_uuid,
-                ls.state
-            FROM tasks t
-            JOIN latest_state ls ON ls.task_id = t.id
-            WHERE
-                t.project_id = %(project_id)s
-                AND ls.state = 'IMAGE_PROCESSING_STARTED'
-            ORDER BY t.project_task_index;
-            """,
-            {"project_id": project.id},
-        )
-        all_started_tasks = await cur.fetchall()
-
-    reconciled: list[str] = []
-    groups_map: dict[int, list[project_schemas.OdmQueueTask]] = defaultdict(list)
-
-    # Ground truth: HEAD the per-task ortho key in parallel, then transition
-    # FINISHED inline serially on the request's DB connection. psycopg async
-    # connections are not coroutine-safe, so DB writes can't share the gather.
-    # ScaleODM record cleanup runs in FastAPI BackgroundTasks after the
-    # response so a slow ScaleODM doesn't delay Refresh.
-    s3_hits = await asyncio.gather(
-        *[
-            project_logic.check_task_ortho_in_s3(project.id, t["id"])
-            for t in all_started_tasks
-        ]
-    )
-
-    finalized_dtm_task_ids: set = set()
-    for db_task, hit in zip(all_started_tasks, s3_hits):
-        if hit is not True:
-            continue
-        dtm_task_id = db_task["id"]
-        task_index = db_task["project_task_index"]
-        odm_uuid = db_task["odm_task_uuid"]
-        outcome = await project_logic.finalise_task_in_db(db, project.id, dtm_task_id)
-        if outcome == "failed":
-            # DB write failed (connection has been rolled back). Don't hide
-            # the task - leave it in remaining_tasks so it still appears in
-            # the queue and the next Refresh can retry the transition.
-            log.warning(
-                "S3 hit but DB transition failed; keeping task visible: "
-                "project={} dtm_task={} odm_uuid={}",
-                project.id,
-                dtm_task_id,
-                odm_uuid,
-            )
-            continue
-        finalized_dtm_task_ids.add(dtm_task_id)
-        # Only schedule ScaleODM cleanup when *we* made the transition.
-        # "already_final" means another path handled it (and presumably its
-        # own cleanup); double-removing would race or 404.
-        if outcome == "transitioned" and odm_uuid:
-            background_tasks.add_task(
-                remove_scaleodm_task,
-                scaleodm_url=odm_url,
-                odm_task_uuid=odm_uuid,
-            )
-        reconciled.append(
-            f"Task {task_index} ({dtm_task_id}): STARTED -> FINISHED (S3 ground truth, outcome={outcome})"
-        )
-        log.warning(
-            "Reconciled S3-complete task: project={} dtm_task={} odm_uuid={} outcome={}",
-            project.id,
-            dtm_task_id,
-            odm_uuid,
-            outcome,
-        )
-
-    remaining_tasks = [
-        t for t in all_started_tasks if t["id"] not in finalized_dtm_task_ids
-    ]
-    all_odm_tasks = [t for t in remaining_tasks if t["odm_task_uuid"] is not None]
-    orphaned_tasks = [t for t in remaining_tasks if t["odm_task_uuid"] is None]
-
-    # Two independent ODM modes can leave traces on a project: a project-level
-    # (whole-project) run and per-task runs. Pick which one drives the queue
-    # display:
-    #
-    # * Active project-level run (odm_task_uuid IS NOT NULL): dominates.
-    #   Per-task STARTED rows in this mode are stale legacy data.
-    # * Stale-or-stuck project-level status (no UUID, but image_processing_
-    #   _status set to PROCESSING/FAILED) AND no active per-task tasks:
-    #   reconcile project-level so the user can recover.
-    # * Otherwise: the per-task queue is the source of truth. We skip the
-    #   project-level reconciler so a stale FAILED/PROCESSING status from a
-    #   prior project-level run can't hide a live per-task queue.
-    #   process_imagery (per-task) does not clear image_processing_status, so
-    #   that staleness is reachable through normal UI flow.
-    project_status = getattr(project, "image_processing_status", None)
-    project_has_active_uuid = bool(getattr(project, "odm_task_uuid", None))
-    project_has_stale_status = not project_has_active_uuid and project_status in {
-        "PROCESSING",
-        "FAILED",
-    }
-
-    if project_has_active_uuid or (project_has_stale_status and not all_started_tasks):
-        project_odm_info = await project_logic.reconcile_project_level_odm(
-            db,
-            project,
-            odm_url,
-            parsed,
-            odm_query,
-            redis_pool,
-            NOT_FOUND_AGE_THRESHOLD_SEC,
-        )
-        return project_schemas.OdmQueueInfo(
-            total_queued=project_odm_info.get("queued", 0),
-            total_running=project_odm_info.get("running", 0),
-            total_failed=project_odm_info.get("failed", 0),
-            total_completed=project_odm_info.get("completed", 0),
-            total_canceled=0,
-            total_tasks=project_odm_info.get("total", 0),
-            queue_position=None,
-            groups=project_odm_info.get("groups", []),
-        )
-
-    # Orphaned (no ScaleODM UUID) tasks where S3 hadn't yet caught a finished
-    # ortho stay visible as running. Operator can re-trigger processing.
-    for o_task in orphaned_tasks:
-        groups_map[20].append(
-            project_schemas.OdmQueueTask(
-                uuid=str(o_task["id"]),
-                name=f"Task {o_task['project_task_index']}",
-                status_code=20,
-                status_label="Running (no ScaleODM UUID)",
-                dtm_task_id=str(o_task["id"]),
-                task_index=o_task["project_task_index"],
-            )
-        )
-
-    # Per-task ScaleODM fetch for live progress + explicit-failure detection
-    # (codes 30/50). Completion (code 40) is surfaced as "Finalizing" until
-    # the next Refresh tick's S3 HEAD picks up the file - finalize is no
-    # longer enqueued here.
-    _FETCH_ERROR = object()
-    odm_info_by_uuid: dict[str, dict | object] = {}
-
-    try:
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=15)
-        ) as session:
-
-            async def fetch_task_info(
-                odm_uuid: str,
-            ) -> tuple[str, dict | object | None]:
-                try:
-                    async with session.get(odm_task_url(odm_uuid)) as resp:
-                        if resp.status == 200:
-                            return odm_uuid, _extract_valid_odm_task_info(
-                                await resp.json()
-                            )
-                        if resp.status == 404:
-                            return odm_uuid, None
-                        return odm_uuid, _FETCH_ERROR
-                except Exception as e:
-                    log.warning(
-                        "Failed to fetch ScaleODM task info for {}: {}", odm_uuid, e
-                    )
-                    return odm_uuid, _FETCH_ERROR
-
-            results = await asyncio.gather(
-                *[fetch_task_info(t["odm_task_uuid"]) for t in all_odm_tasks]
-            )
-            for odm_uuid, info in results:
-                if info is not None:
-                    odm_info_by_uuid[odm_uuid] = info
-    except aiohttp.ClientError as e:
-        log.warning("Failed to reach ScaleODM at {}: {}", odm_url, e)
-        raise HTTPException(
-            status_code=503,
-            detail="Unable to connect to the processing server.",
-        )
-
-    for db_task in all_odm_tasks:
-        odm_uuid = db_task["odm_task_uuid"]
-        dtm_task_id = db_task["id"]
-        task_index = db_task["project_task_index"]
-        raw_odm_info = odm_info_by_uuid.get(odm_uuid)
-        odm_info = raw_odm_info if isinstance(raw_odm_info, dict) else None
-
-        if not odm_info:
-            # ScaleODM unknown / unreachable - keep visible as running.
-            groups_map[20].append(
-                project_schemas.OdmQueueTask(
-                    uuid=odm_uuid,
-                    name=f"Task {task_index}",
-                    status_code=20,
-                    status_label="Running (status pending)",
-                    dtm_task_id=str(dtm_task_id),
-                    task_index=task_index,
-                )
-            )
-            continue
-
-        status_code, status_label = _parse_odm_status(odm_info.get("status"))
-        name = odm_info.get("name") or f"Task {task_index}"
-
-        if status_code in (30, 50):
-            # Explicit ScaleODM failure - mark FAILED and remove the record.
-            error_detail = str(
-                odm_info.get("errorMessage")
-                or odm_info.get("error")
-                or f"ScaleODM reports {status_label}"
-            )
-            state_transitioned = False
-            cleanup_allowed = False
-            try:
-                transition = await task_logic.update_task_state_system(
-                    db,
-                    project.id,
-                    dtm_task_id,
-                    f"Reconciled: {error_detail}",
-                    State.IMAGE_PROCESSING_STARTED,
-                    State.IMAGE_PROCESSING_FAILED,
-                    timestamp(),
-                )
-                await db.commit()
-                state_transitioned = bool(transition)
-                cleanup_allowed = True
-            except Exception as e:
-                log.error("Failed to mark task FAILED on ODM {}: {}", status_label, e)
-            if cleanup_allowed:
-                await remove_scaleodm_task(scaleodm_url=odm_url, odm_task_uuid=odm_uuid)
-            if state_transitioned:
-                reconciled.append(
-                    f"Task {task_index} ({dtm_task_id}): STARTED -> FAILED ({status_label})"
-                )
-            display_label = "Failed (canceled)" if status_code == 50 else status_label
-            groups_map[30].append(
-                project_schemas.OdmQueueTask(
-                    uuid=odm_uuid,
-                    name=name,
-                    status_code=30,
-                    status_label=display_label,
-                    images_count=odm_info.get("imagesCount"),
-                    processing_time=odm_info.get("processingTime"),
-                    dtm_task_id=str(dtm_task_id),
-                    task_index=task_index,
-                )
-            )
-            continue
-
-        if status_code == 40:
-            # ScaleODM says completed but the initial S3 HEAD above missed -
-            # almost always a transient eventual-consistency window. Surface
-            # the task as "Finalizing" without enqueueing anything; the next
-            # Refresh tick will re-HEAD and reconcile inline.
-            reconciled.append(
-                f"Task {task_index} ({dtm_task_id}): STARTED -> finalizing (ScaleODM 40, awaiting S3)"
-            )
-            groups_map[20].append(
-                project_schemas.OdmQueueTask(
-                    uuid=odm_uuid,
-                    name=name,
-                    status_code=20,
-                    status_label="Finalizing",
-                    images_count=odm_info.get("imagesCount"),
-                    processing_time=odm_info.get("processingTime"),
-                    dtm_task_id=str(dtm_task_id),
-                    task_index=task_index,
-                )
-            )
-            continue
-
-        # Codes 10/20: queued/running with progress info.
-        bucket_code = status_code if status_code in (10, 20) else 20
-        groups_map[bucket_code].append(
-            project_schemas.OdmQueueTask(
-                uuid=odm_uuid,
-                name=name,
-                status_code=bucket_code,
-                status_label=status_label,
-                images_count=odm_info.get("imagesCount"),
-                progress=odm_info.get("progress"),
-                date_created=odm_info.get("dateCreated"),
-                processing_time=odm_info.get("processingTime"),
-                dtm_task_id=str(dtm_task_id),
-                task_index=task_index,
-            )
-        )
-
-    # Sort each group by task_index
-    for code in groups_map:
-        groups_map[code].sort(key=lambda t: t.task_index or 0)
-
-    # Build ordered groups: Running, Queued, Failed
-    display_order = [20, 10, 30]
-    groups = []
-    for code in display_order:
-        if code in groups_map:
-            groups.append(
-                project_schemas.OdmStatusGroup(
-                    status_code=code,
-                    status_label=ODM_STATUS_LABELS.get(code, f"Unknown ({code})"),
-                    count=len(groups_map[code]),
-                    tasks=groups_map[code],
-                )
-            )
-    # Include any unexpected status codes at the end
-    for code in sorted(groups_map.keys()):
-        if code not in display_order:
-            groups.append(
-                project_schemas.OdmStatusGroup(
-                    status_code=code,
-                    status_label=ODM_STATUS_LABELS.get(code, f"Unknown ({code})"),
-                    count=len(groups_map[code]),
-                    tasks=groups_map[code],
-                )
-            )
-
-    queued_count = len(groups_map.get(10, []))
-    running_count = len(groups_map.get(20, []))
-    failed_count = len(groups_map.get(30, []))
-    completed_count = 0
-    canceled_count = 0
-
-    # Queue position for a specific task
-    queue_position = None
-    if task_id:
-        queued_tasks = groups_map.get(10, [])
-        for i, t in enumerate(queued_tasks):
-            if t.dtm_task_id == str(task_id):
-                queue_position = i + 1
-                break
-
-    if reconciled:
-        log.info(
-            "Reconciled {} stuck task(s) for project {}: {}",
-            len(reconciled),
-            project.id,
-            reconciled,
-        )
-
-    log.info(
-        "ODM queue info for project_id={}: running={} queued={} failed={} completed={} canceled={} total={} reconciled={}",
-        project.id,
-        running_count,
-        queued_count,
-        failed_count,
-        completed_count,
-        canceled_count,
-        queued_count + running_count + failed_count,
-        len(reconciled),
-    )
-
-    return project_schemas.OdmQueueInfo(
-        total_queued=queued_count,
-        total_running=running_count,
-        total_failed=failed_count,
-        total_completed=completed_count,
-        total_canceled=canceled_count,
-        total_tasks=queued_count + running_count + failed_count,
-        queue_position=queue_position,
-        groups=groups,
-    )
 
 
 @router.get(

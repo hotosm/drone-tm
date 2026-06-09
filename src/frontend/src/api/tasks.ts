@@ -2,7 +2,6 @@
 import {
   getAllTaskAssetsInfo,
   getIndividualTask,
-  getOdmQueueInfo,
   getTaskAssetsInfo,
   getTaskByProjectAndIndex,
   getTaskWaypoint,
@@ -83,21 +82,6 @@ export const useGetTaskAssetsInfo = (
     enabled: !!taskId,
     queryFn: () => getTaskAssetsInfo(projectId, taskId),
     select: (res: any) => res.data,
-    ...queryOptions,
-  });
-};
-
-export const useGetOdmQueueInfo = (
-  projectId: string,
-  enabled: boolean,
-  queryOptions?: Partial<UseQueryOptions>,
-) => {
-  return useQuery({
-    queryKey: ["odm-queue-info", projectId],
-    enabled: enabled && !!projectId,
-    queryFn: () => getOdmQueueInfo(projectId),
-    select: (res: any) => res.data,
-    staleTime: 10_000,
     ...queryOptions,
   });
 };
