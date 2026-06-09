@@ -47,6 +47,14 @@
       "created_at": "2026-06-03T23:22:45Z",
       "repoId": 806944470,
       "pullRequestNo": 824
+    },
+    {
+      "name": "andrea-chirillano",
+      "id": 77647749,
+      "comment_id": 4663230698,
+      "created_at": "2026-06-09T19:20:46Z",
+      "repoId": 806944470,
+      "pullRequestNo": 830
     }
   ]
 }
