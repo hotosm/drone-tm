@@ -105,4 +105,5 @@ body {
 }
 hotosm-auth {
   --font-family: var(--hot-font-sans);
+  --login-btn-text-size: var(--hot-font-size-x-small);
 }
