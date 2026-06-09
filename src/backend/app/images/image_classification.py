@@ -120,15 +120,6 @@ class QualityThresholds:
     very_dark_mean_threshold: float = 40.0
     very_bright_mean_threshold: float = 215.0
 
-    # Significant-shadow detection (per-cell luma on a 4x4 grid).  Catches
-    # low-sun-angle / cloud-shadow scenes that the global exposure check
-    # misses: the frame as a whole is well-exposed, but one region is
-    # markedly darker than the rest, which degrades feature matching.
-    shadow_spread_threshold: float = 90.0  # max_cell_mean - min_cell_mean
-    shadow_dark_cell_max: float = 60.0  # a "dark" cell has mean <= this
-    shadow_bright_cell_min: float = 130.0  # a "bright" cell has mean >= this
-    shadow_min_dark_cells: int = 2  # require at least this many dark cells
-
     # Low-sun-angle rejection.  Requires (a) valid lat/lon and (b) an
     # unambiguous UTC capture time derivable from EXIF; if either is
     # missing the check is skipped, never speculated.
@@ -460,55 +451,6 @@ class ImageClassifier:
         return issues, metrics
 
     @staticmethod
-    def _shadow_issues(gray: np.ndarray) -> tuple[list[str], dict[str, float]]:
-        """Detect significant localised shadows (low-sun-angle or cloud cover).
-
-        Splits the image into a 4x4 grid and inspects the per-cell mean luma.
-        The global exposure check already rejects uniformly dark/bright frames;
-        this complements it by flagging bimodal frames where one region is
-        well-lit and another is markedly darker - the pattern that hurts
-        feature matching during stitching.
-        """
-        grid = ImageClassifier.GRID_SIZE
-        h, w = gray.shape
-        cell_h, cell_w = h // grid, w // grid
-
-        cell_means: list[float] = []
-        for row in range(grid):
-            for col in range(grid):
-                y0 = row * cell_h
-                x0 = col * cell_w
-                y1 = h if row == grid - 1 else y0 + cell_h
-                x1 = w if col == grid - 1 else x0 + cell_w
-                cell_means.append(float(np.mean(gray[y0:y1, x0:x1])))
-
-        max_cell = max(cell_means)
-        min_cell = min(cell_means)
-        spread = max_cell - min_cell
-        dark_cell_count = sum(1 for m in cell_means if m <= Q.shadow_dark_cell_max)
-        has_bright_anchor = any(m >= Q.shadow_bright_cell_min for m in cell_means)
-
-        issues: list[str] = []
-        if (
-            spread >= Q.shadow_spread_threshold
-            and dark_cell_count >= Q.shadow_min_dark_cells
-            and has_bright_anchor
-        ):
-            issues.append(
-                f"Significant shadow detected (low sun angle or cloud shadow): "
-                f"brightest_cell={max_cell:.0f}, darkest_cell={min_cell:.0f}, "
-                f"spread={spread:.0f}, dark_cells={dark_cell_count}/{len(cell_means)}"
-            )
-
-        metrics = {
-            "shadow_spread": spread,
-            "shadow_min_cell": min_cell,
-            "shadow_max_cell": max_cell,
-            "shadow_dark_cells": float(dark_cell_count),
-        }
-        return issues, metrics
-
-    @staticmethod
     async def find_matching_task(
         db: Connection, project_id: uuid.UUID, latitude: float, longitude: float
     ) -> Optional[uuid.UUID]:
@@ -829,26 +771,6 @@ class ImageClassifier:
                     log.debug(
                         f"Exposure check FAILED: image_id={image_id} issue={issue}"
                     )
-
-                # Shadow check: only meaningful when the frame as a whole is
-                # well-exposed.  If the exposure check already flagged the
-                # image as fully black / blown-out, skip to avoid duplicate
-                # rejection reasons for the same underlying problem.
-                if not exposure_issues:
-                    shadow_issues, shadow_metrics = ImageClassifier._shadow_issues(gray)
-                    log.debug(
-                        "Shadow metrics | "
-                        f"id={image_id} "
-                        f"spread={shadow_metrics['shadow_spread']:.0f} "
-                        f"min_cell={shadow_metrics['shadow_min_cell']:.0f} "
-                        f"max_cell={shadow_metrics['shadow_max_cell']:.0f} "
-                        f"dark_cells={shadow_metrics['shadow_dark_cells']:.0f}"
-                    )
-                    for issue in shadow_issues:
-                        issues.append(issue)
-                        log.debug(
-                            f"Shadow check FAILED: image_id={image_id} issue={issue}"
-                        )
             except Exception as e:
                 log.warning(f"Could not calculate quality metrics: {e}")
                 issues.append(f"Quality analysis failed: {str(e)[:100]}")
