@@ -69,7 +69,7 @@ export default function Navbar() {
         redirect-after-login={hankoReturnUrl}
         redirect-after-logout={FRONTEND_URL}
         button-variant="filled"
-        button-color="danger"
+        button-color="primary"
       />
     ) : (
       <UserProfile />
