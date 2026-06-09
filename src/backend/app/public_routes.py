@@ -49,9 +49,7 @@ async def flight_preview(body: FlightPreviewRequest) -> FlightPreviewResponse:
     computes, enriched with A1-style IDs and ellipsoidal area_m2 per cell.
     """
     polygon = body.polygon
-    geometry = (
-        polygon.get("geometry") if polygon.get("type") == "Feature" else polygon
-    )
+    geometry = polygon.get("geometry") if polygon.get("type") == "Feature" else polygon
     if not geometry:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,

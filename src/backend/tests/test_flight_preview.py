@@ -7,7 +7,6 @@ in any environment where the Python dependencies are installed.
 
 import re
 
-import pytest
 
 from app.projects.flight_preview import FlightPreviewResponse, assign_grid_ids
 from app.tasks.task_splitter import split_by_square
@@ -95,7 +94,9 @@ def test_assign_grid_ids_2x2_grid():
 def test_assign_grid_ids_ids_are_unique_and_valid():
     """All IDs match [A-Z]+[0-9]+ and are unique across a larger synthetic grid."""
     features = [
-        _make_feature(-69.50 + j * 0.01, 18.62 - i * 0.01, -69.49 + j * 0.01, 18.63 - i * 0.01)
+        _make_feature(
+            -69.50 + j * 0.01, 18.62 - i * 0.01, -69.49 + j * 0.01, 18.63 - i * 0.01
+        )
         for i in range(5)
         for j in range(6)
     ]
@@ -103,7 +104,9 @@ def test_assign_grid_ids_ids_are_unique_and_valid():
     ids = [t.id for t in tasks]
     assert len(ids) == len(set(ids)), "IDs must be unique"
     for tid in ids:
-        assert _ID_RE.match(tid), f"ID '{tid}' does not match expected pattern [A-Z]+[0-9]+"
+        assert _ID_RE.match(tid), (
+            f"ID '{tid}' does not match expected pattern [A-Z]+[0-9]+"
+        )
 
 
 def test_assign_grid_ids_area_m2_positive():
