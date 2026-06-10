@@ -257,6 +257,7 @@ services:
 
   qgis-packager:
     image: "ghcr.io/hotosm/qfield-project-packager:26.3"
+    platform: linux/amd64
     environment:
       LOG_LEVEL: DEBUG
     network_mode: service:backend
