@@ -1,4 +1,7 @@
 const measureColor = "#fbb64b";
+export const brandRed = "#D73F3F";
+export const taskFillColor = "#4a90e2";
+export const taskOutlineColor = "#2c5f9e";
 
 export const buildingStyles = {
   type: "fill",
