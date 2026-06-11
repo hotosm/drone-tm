@@ -1,6 +1,6 @@
 import { Polygon } from "geojson";
 import { getRuntimeConfig } from "../runtimeConfig";
-import { api } from ".";
+import { polygonCentroid } from "../utils/geometry";
 
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
@@ -27,21 +27,25 @@ export async function postFlightPreview(
   return res.json();
 }
 
-export const postWaypointKmz = (
+export function postWaypointKmz(
   geometry: Polygon,
   altitude: number,
   droneModel: string,
-) => {
+): Promise<Blob> {
   const formData = new FormData();
   const blob = new Blob(
     [JSON.stringify({ type: "Feature", geometry, properties: {} })],
     { type: "application/json" },
   );
+  const [lng, lat] = polygonCentroid(geometry);
   formData.append("project_geojson", blob, "polygon.geojson");
   formData.append("altitude", String(altitude));
   formData.append("drone_type", droneModel);
   formData.append("download", "true");
-  return api.post<Blob>("/waypoint/", formData, {
-    responseType: "blob",
-  });
-};
+  formData.append("take_off_point", JSON.stringify({ longitude: lng, latitude: lat }));
+  return fetch(`${API_URL}/waypoint/`, { method: "POST", body: formData })
+    .then(res => {
+      if (!res.ok) throw new Error(`Waypoint request failed (${res.status})`);
+      return res.blob();
+    });
+}
