@@ -1,4 +1,4 @@
-import { Polygon } from "geojson";
+import { FeatureCollection, Polygon } from "geojson";
 import { getRuntimeConfig } from "../runtimeConfig";
 import { polygonCentroid } from "../utils/geometry";
 
@@ -8,6 +8,26 @@ export interface FlightPreviewTask {
   id: string;
   geometry: Polygon;
   area_m2: number;
+}
+
+export async function postFlightPlan(
+  geometry: Polygon,
+  altitude: number,
+  droneModel: string,
+): Promise<FeatureCollection> {
+  const res = await fetch(`${API_URL}/public/flight-plan/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      polygon: { type: "Feature", geometry },
+      altitude,
+      drone_type: droneModel,
+      mode: "waylines",
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Flight plan failed (${res.status})`);
+  return res.json();
 }
 
 export async function postFlightPreview(
@@ -33,19 +53,17 @@ export function postWaypointKmz(
   droneModel: string,
 ): Promise<Blob> {
   const formData = new FormData();
-  const blob = new Blob(
-    [JSON.stringify({ type: "Feature", geometry, properties: {} })],
-    { type: "application/json" },
-  );
+  const blob = new Blob([JSON.stringify({ type: "Feature", geometry, properties: {} })], {
+    type: "application/json",
+  });
   const [lng, lat] = polygonCentroid(geometry);
   formData.append("project_geojson", blob, "polygon.geojson");
   formData.append("altitude", String(altitude));
   formData.append("drone_type", droneModel);
   formData.append("download", "true");
   formData.append("take_off_point", JSON.stringify({ longitude: lng, latitude: lat }));
-  return fetch(`${API_URL}/waypoint/`, { method: "POST", body: formData })
-    .then(res => {
-      if (!res.ok) throw new Error(`Waypoint request failed (${res.status})`);
-      return res.blob();
-    });
+  return fetch(`${API_URL}/waypoint/`, { method: "POST", body: formData }).then((res) => {
+    if (!res.ok) throw new Error(`Waypoint request failed (${res.status})`);
+    return res.blob();
+  });
 }

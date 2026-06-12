@@ -51,6 +51,7 @@ import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
 import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
 import Modal from "@Components/common/Modal";
 import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
+import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
 import GetCoordinatesOnClick from "./GetCoordinatesOnClick";
 import ShowInfo from "./ShowInfo";
 import Icon from "@Components/common/Icon";
@@ -705,70 +706,13 @@ const MapSection = ({ className }: { className?: string }) => {
         />
 
         {/* task waypoints/way lines plot */}
-        {/* render line, points and image (only if index is 0)  */}
-        {taskWayPointsData &&
-          !taskWayPointsLoading && [
-            <VectorLayer
-              key="waypoint-line"
-              id="waypoint-line"
-              geojson={taskWayPointsData?.geojsonAsLineString as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
-              layerOptions={{
-                type: "line",
-                paint: {
-                  "line-color": "#000000",
-                  "line-width": 1,
-                  "line-dasharray": [6, 3],
-                },
-              }}
-              hasImage
-              image={right}
-              symbolPlacement="line"
-              iconAnchor="center"
-            />,
-            <VectorLayer
-              key="waypoint-points"
-              id="waypoint-points"
-              geojson={taskWayPointsData?.geojsonListOfPoints as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
-              interactions={["feature"]}
-              layerOptions={{
-                type: "circle",
-                paint: {
-                  "circle-color": "#176149",
-                  "circle-stroke-width": 2,
-                  "circle-stroke-color": "red",
-                  "circle-stroke-opacity": 1,
-                  "circle-opacity": [
-                    "match",
-                    ["get", "index"],
-                    0,
-                    0,
-                    Number(
-                      // @ts-ignore
-                      // eslint-disable-next-line no-unsafe-optional-chaining
-                      taskWayPointsData?.geojsonListOfPoints?.features?.length - 1,
-                    ),
-                    0,
-                    1,
-                  ],
-                },
-              }}
-            />,
-            <VectorLayer
-              key="waypoint-points-image"
-              id="waypoint-points-image"
-              geojson={taskWayPointsData?.geojsonListOfPoints as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
-              layerOptions={{}}
-              hasImage
-              image={marker}
-              iconAnchor="bottom"
-              imageLayerOptions={{
-                filter: ["==", "index", 0],
-              }}
-            />,
-          ]}
+        {taskWayPointsData && !taskWayPointsLoading && (
+          <FlightPlanLayers
+            geojsonListOfPoints={taskWayPointsData.geojsonListOfPoints}
+            geojsonAsLineString={taskWayPointsData.geojsonAsLineString}
+            pointsInteractive
+          />
+        )}
 
         {/* end of waypoint/way line plot */}
 

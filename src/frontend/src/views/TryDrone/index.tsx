@@ -1,24 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import useAuth from '@Hooks/useAuth';
-import { Map, LngLatBoundsLike } from 'maplibre-gl';
-import { Polygon } from 'geojson';
-import getBbox from '@turf/bbox';
-import BaseLayerSwitcherUI from '@Components/common/BaseLayerSwitcher';
-import { useMapLibreGLMap } from '@Components/common/MapLibreComponents';
-import VectorLayer from '@Components/common/MapLibreComponents/Layers/VectorLayer';
-import LocateUser from '@Components/common/MapLibreComponents/LocateUser';
-import MapContainer from '@Components/common/MapLibreComponents/MapContainer';
-import hasErrorBoundary from '@Utils/hasErrorBoundary';
-import { buildSquareKm2 } from '@Utils/geometry';
-import Step1Panel from '@Components/TryDrone/Step1Panel';
-import Step2Panel from '@Components/TryDrone/Step2Panel';
-import TryDroneSidePanel from '@Components/TryDrone/SidePanel';
-import { DraggablePolygon } from '@Components/TryDrone/DraggablePolygon';
-import { useFlightPreviewMutation } from '@Api/tryDrone';
-import { FlightPreviewTask } from '@Services/tryDrone';
-import SectionHeader from '@/components/common/SectionHeader';
-import { brandRed, taskFillColor, taskOutlineColor } from '@Constants/map';
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import useAuth from "@Hooks/useAuth";
+import { Map, LngLatBoundsLike } from "maplibre-gl";
+import { FeatureCollection, Polygon } from "geojson";
+import getBbox from "@turf/bbox";
+import { coordAll } from "@turf/meta";
+import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
+import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
+import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
+import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
+import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
+import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { buildSquareKm2 } from "@Utils/geometry";
+import Step1Panel from "@Components/TryDrone/Step1Panel";
+import Step2Panel from "@Components/TryDrone/Step2Panel";
+import TryDroneSidePanel from "@Components/TryDrone/SidePanel";
+import { DraggablePolygon } from "@Components/TryDrone/DraggablePolygon";
+import { useFlightPreviewMutation, useFlightPlanMutation } from "@Api/tryDrone";
+import { FlightPreviewTask } from "@Services/tryDrone";
+import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
+import SectionHeader from "@/components/common/SectionHeader";
+import { brandRed, taskFillColor, taskOutlineColor } from "@Constants/map";
+
+interface FlightPlanData {
+  geojsonListOfPoints: FeatureCollection;
+  geojsonAsLineString: FeatureCollection;
+}
 
 const INITIAL_MAP_CENTER: [number, number] = [-13.2317, 8.4657];
 const INITIAL_MAP_ZOOM = 13;
@@ -29,16 +36,14 @@ const FlyMyDronePage = () => {
   const [step, setStep] = useState<1 | 2>(1);
   const [altitude, setAltitude] = useState(70);
   const [areaKm2, setAreaKm2] = useState(0.2);
-  const [mapCenter, setMapCenter] =
-    useState<[number, number]>(INITIAL_MAP_CENTER);
-  const [polygon, setPolygon] = useState<Polygon>(() =>
-    buildSquareKm2(INITIAL_MAP_CENTER, 0.2),
-  );
+  const [mapCenter, setMapCenter] = useState<[number, number]>(INITIAL_MAP_CENTER);
+  const [polygon, setPolygon] = useState<Polygon>(() => buildSquareKm2(INITIAL_MAP_CENTER, 0.2));
   const [grid, setGrid] = useState<FlightPreviewTask[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [droneModel, setDroneModel] = useState('DJI_MINI_4_PRO');
-  const { mutate: fetchFlightPreview, isPending: loading } =
-    useFlightPreviewMutation();
+  const [droneModel, setDroneModel] = useState("DJI_MINI_4_PRO");
+  const [flightPlan, setFlightPlan] = useState<FlightPlanData | null>(null);
+  const { mutate: fetchFlightPreview, isPending: loading } = useFlightPreviewMutation();
+  const { mutate: fetchFlightPlan, isPending: flightPlanLoading } = useFlightPlanMutation();
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -66,9 +71,9 @@ const FlyMyDronePage = () => {
   useEffect(() => {
     if (step !== 2 || !map || !grid.length) return;
     const fc = {
-      type: 'FeatureCollection' as const,
-      features: grid.map(t => ({
-        type: 'Feature' as const,
+      type: "FeatureCollection" as const,
+      features: grid.map((t) => ({
+        type: "Feature" as const,
         geometry: t.geometry,
         properties: {},
       })),
@@ -79,20 +84,57 @@ const FlyMyDronePage = () => {
     });
   }, [step, map, grid]);
 
+  // Zoom to the flight line once a flight plan is generated
+  useEffect(() => {
+    if (!map || !flightPlan) return;
+    map.fitBounds(getBbox(flightPlan.geojsonAsLineString) as LngLatBoundsLike, {
+      padding: 105,
+      duration: 500,
+    });
+  }, [map, flightPlan]);
+
   const handleContinue = () => {
     fetchFlightPreview(
       { polygon },
       {
-        onSuccess: data => {
+        onSuccess: (data) => {
           setGrid(data.tasks);
           setSelectedTaskId(null);
+          setFlightPlan(null);
           setStep(2);
         },
       },
     );
   };
 
-  const selectedTask = grid.find(t => t.id === selectedTaskId) ?? null;
+  const selectedTask = grid.find((t) => t.id === selectedTaskId) ?? null;
+
+  const handleFlyTask = () => {
+    if (!selectedTask) return;
+    fetchFlightPlan(
+      { geometry: selectedTask.geometry, altitude, droneModel },
+      {
+        onSuccess: (data) => {
+          setFlightPlan({
+            geojsonListOfPoints: data,
+            geojsonAsLineString: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: {},
+                  geometry: {
+                    type: "LineString",
+                    coordinates: coordAll(data),
+                  },
+                },
+              ],
+            },
+          });
+        },
+      },
+    );
+  };
 
   return (
     <div className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-overflow-hidden">
@@ -103,7 +145,7 @@ const FlyMyDronePage = () => {
             <button
               type="button"
               className="naxatw-text-primary-400 naxatw-text-sm hover:naxatw-underline"
-              onClick={() => navigate('/', { state: { from: '/try-drone' } })}
+              onClick={() => navigate("/", { state: { from: "/try-drone" } })}
             >
               Log in to save your work
             </button>
@@ -113,12 +155,12 @@ const FlyMyDronePage = () => {
 
       <div className="naxatw-relative naxatw-flex naxatw-flex-1 naxatw-overflow-hidden">
         {/* Map fills the left side */}
-        <div className="naxatw-flex-1" style={{ height: '100%' }}>
+        <div className="naxatw-flex-1" style={{ height: "100%" }}>
           <MapContainer
             ref={mapContainerRef}
             map={map}
             isMapLoaded={isMapLoaded}
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: "100%", height: "100%" }}
           >
             <BaseLayerSwitcherUI />
             <LocateUser />
@@ -133,40 +175,43 @@ const FlyMyDronePage = () => {
             )}
 
             {step === 2 &&
-              grid.map(task => (
+              grid.map((task) => (
                 <VectorLayer
                   key={task.id}
                   map={map as Map}
                   id={`task-${task.id}`}
                   visibleOnMap
                   geojson={{
-                    type: 'Feature',
+                    type: "Feature",
                     geometry: task.geometry,
                     properties: { id: task.id, area_m2: task.area_m2 },
                   }}
-                  interactions={['feature']}
-                  onFeatureSelect={props => setSelectedTaskId(props.id)}
+                  interactions={["feature"]}
+                  onFeatureSelect={(props) => {
+                    setSelectedTaskId(props.id);
+                    setFlightPlan(null);
+                  }}
                   layerOptions={{
-                    type: 'fill',
-                    paint: { 'fill-color': taskFillColor, 'fill-opacity': 0.2 },
+                    type: "fill",
+                    paint: { "fill-color": taskFillColor, "fill-opacity": 0.2 },
                   }}
                 />
               ))}
             {step === 2 &&
-              grid.map(task => (
+              grid.map((task) => (
                 <VectorLayer
                   key={`outline-${task.id}`}
                   map={map as Map}
                   id={`task-outline-${task.id}`}
                   visibleOnMap
                   geojson={{
-                    type: 'Feature',
+                    type: "Feature",
                     geometry: task.geometry,
                     properties: {},
                   }}
                   layerOptions={{
-                    type: 'line',
-                    paint: { 'line-color': taskOutlineColor, 'line-width': 1 },
+                    type: "line",
+                    paint: { "line-color": taskOutlineColor, "line-width": 1 },
                   }}
                 />
               ))}
@@ -178,14 +223,21 @@ const FlyMyDronePage = () => {
                 id="task-selected-highlight"
                 visibleOnMap
                 geojson={{
-                  type: 'Feature',
+                  type: "Feature",
                   geometry: selectedTask.geometry,
                   properties: {},
                 }}
                 layerOptions={{
-                  type: 'fill',
-                  paint: { 'fill-color': brandRed, 'fill-opacity': 0.45 },
+                  type: "fill",
+                  paint: { "fill-color": brandRed, "fill-opacity": 0.45 },
                 }}
+              />
+            )}
+
+            {step === 2 && flightPlan && (
+              <FlightPlanLayers
+                geojsonListOfPoints={flightPlan.geojsonListOfPoints}
+                geojsonAsLineString={flightPlan.geojsonAsLineString}
               />
             )}
           </MapContainer>
@@ -207,6 +259,9 @@ const FlyMyDronePage = () => {
               droneModel={droneModel}
               setDroneModel={setDroneModel}
               altitude={altitude}
+              onFlyTask={handleFlyTask}
+              flightPlanLoading={flightPlanLoading}
+              hasFlightPlan={!!flightPlan}
             />
           )}
         </TryDroneSidePanel>

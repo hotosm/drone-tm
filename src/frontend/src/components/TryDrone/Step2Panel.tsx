@@ -1,8 +1,8 @@
-import { Polygon } from 'geojson';
-import { Button } from '@Components/RadixComponents/Button';
-import Select from '@Components/common/FormUI/Select';
-import { droneModelOptions } from '@Constants/taskDescription';
-import { postWaypointKmz } from '@Services/tryDrone';
+import { Polygon } from "geojson";
+import { Button } from "@Components/RadixComponents/Button";
+import Select from "@Components/common/FormUI/Select";
+import { droneModelOptions } from "@Constants/taskDescription";
+import { postWaypointKmz } from "@Services/tryDrone";
 
 const SUPPORTED_DRONES = droneModelOptions;
 
@@ -17,6 +17,9 @@ interface Step2PanelProps {
   droneModel: string;
   setDroneModel: (v: string) => void;
   altitude: number;
+  onFlyTask: () => void;
+  flightPlanLoading: boolean;
+  hasFlightPlan: boolean;
 }
 
 export default function Step2Panel({
@@ -24,12 +27,15 @@ export default function Step2Panel({
   droneModel,
   setDroneModel,
   altitude,
+  onFlyTask,
+  flightPlanLoading,
+  hasFlightPlan,
 }: Step2PanelProps) {
-  const handleFlyTask = () => {
+  const handleDownloadKmz = () => {
     if (!selectedTask) return;
-    postWaypointKmz(selectedTask.geometry, altitude, droneModel).then(blob => {
+    postWaypointKmz(selectedTask.geometry, altitude, droneModel).then((blob) => {
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `flightplan-${selectedTask.id}.kmz`;
       a.click();
@@ -39,9 +45,7 @@ export default function Step2Panel({
 
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
-      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">
-        Select a task
-      </h2>
+      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">Select a task</h2>
 
       {selectedTask ? (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
@@ -61,18 +65,30 @@ export default function Step2Panel({
             <Select
               options={SUPPORTED_DRONES}
               selectedOption={droneModel}
-              onChange={opt => setDroneModel(opt.value)}
+              onChange={(opt) => setDroneModel(opt.value)}
               direction="top"
             />
           </div>
 
           <Button
             variant="outline"
-            onClick={handleFlyTask}
+            withLoader
+            isLoading={flightPlanLoading}
+            onClick={onFlyTask}
             className="naxatw-w-full !naxatw-border-landing-red !naxatw-bg-landing-red !naxatw-text-white"
           >
             Fly this task &rsaquo;
           </Button>
+
+          {hasFlightPlan && (
+            <button
+              type="button"
+              onClick={handleDownloadKmz}
+              className="naxatw-text-sm naxatw-text-landing-red hover:naxatw-underline"
+            >
+              Download .kmz
+            </button>
+          )}
         </div>
       ) : (
         <div className="naxatw-rounded-md naxatw-border naxatw-border-dashed naxatw-border-grey-400 naxatw-p-6 naxatw-text-center naxatw-text-sm naxatw-text-grey-500">
