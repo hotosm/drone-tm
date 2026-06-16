@@ -47,11 +47,12 @@ export async function postFlightPreview(
   return res.json();
 }
 
-export function postWaypointKmz(
+export async function postWaypointKmz(
   geometry: Polygon,
   altitude: number,
   droneModel: string,
-): Promise<Blob> {
+  taskId: string,
+): Promise<{ blob: Blob; filename: string }> {
   const formData = new FormData();
   const blob = new Blob([JSON.stringify({ type: "Feature", geometry, properties: {} })], {
     type: "application/json",
@@ -62,8 +63,10 @@ export function postWaypointKmz(
   formData.append("drone_type", droneModel);
   formData.append("download", "true");
   formData.append("take_off_point", JSON.stringify({ longitude: lng, latitude: lat }));
-  return fetch(`${API_URL}/waypoint/`, { method: "POST", body: formData }).then((res) => {
-    if (!res.ok) throw new Error(`Waypoint request failed (${res.status})`);
-    return res.blob();
-  });
+  const res = await fetch(`${API_URL}/waypoint/`, { method: "POST", body: formData });
+  if (!res.ok) throw new Error(`Waypoint request failed (${res.status})`);
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="?([^";\n]+)"?/);
+  const filename = match?.[1] ?? `flightplan-${taskId}.kmz`;
+  return { blob: await res.blob(), filename };
 }

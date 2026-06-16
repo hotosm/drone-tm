@@ -33,11 +33,11 @@ export default function Step2Panel({
 }: Step2PanelProps) {
   const handleDownloadKmz = () => {
     if (!selectedTask) return;
-    postWaypointKmz(selectedTask.geometry, altitude, droneModel).then((blob) => {
+    postWaypointKmz(selectedTask.geometry, altitude, droneModel, selectedTask.id).then(({ blob, filename }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `flightplan-${selectedTask.id}.kmz`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
     });
