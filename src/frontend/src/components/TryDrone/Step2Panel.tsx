@@ -1,51 +1,26 @@
-import { Polygon } from "geojson";
-import { Button } from "@Components/RadixComponents/Button";
-import Select from "@Components/common/FormUI/Select";
-import { droneModelOptions } from "@Constants/taskDescription";
-import { postWaypointKmz } from "@Services/tryDrone";
-
-const SUPPORTED_DRONES = droneModelOptions;
+import { Button } from '@Components/RadixComponents/Button';
 
 interface Task {
   id: string;
-  geometry: Polygon;
   area_m2: number;
 }
 
 interface Step2PanelProps {
   selectedTask: Task | null;
-  droneModel: string;
-  setDroneModel: (v: string) => void;
-  altitude: number;
-  onFlyTask: () => void;
-  flightPlanLoading: boolean;
-  hasFlightPlan: boolean;
+  onSelectTask: () => void;
+  onBack: () => void;
 }
 
 export default function Step2Panel({
   selectedTask,
-  droneModel,
-  setDroneModel,
-  altitude,
-  onFlyTask,
-  flightPlanLoading,
-  hasFlightPlan,
+  onSelectTask,
+  onBack,
 }: Step2PanelProps) {
-  const handleDownloadKmz = () => {
-    if (!selectedTask) return;
-    postWaypointKmz(selectedTask.geometry, altitude, droneModel, selectedTask.id).then(({ blob, filename }) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  };
-
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
-      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">Select a task</h2>
+      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">
+        Select a task
+      </h2>
 
       {selectedTask ? (
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
@@ -57,38 +32,24 @@ export default function Step2Panel({
               {selectedTask.area_m2.toLocaleString()} m²
             </p>
           </div>
-
-          <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
-            <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
-              Drone model
-            </label>
-            <Select
-              options={SUPPORTED_DRONES}
-              selectedOption={droneModel}
-              onChange={(opt) => setDroneModel(opt.value)}
-              direction="top"
-            />
-          </div>
-
-          <Button
-            variant="outline"
-            withLoader
-            isLoading={flightPlanLoading}
-            onClick={onFlyTask}
-            className="naxatw-w-full !naxatw-border-landing-red !naxatw-bg-landing-red !naxatw-text-white"
-          >
-            Fly this task &rsaquo;
-          </Button>
-
-          {hasFlightPlan && (
-            <button
-              type="button"
-              onClick={handleDownloadKmz}
-              className="naxatw-text-sm naxatw-text-landing-red hover:naxatw-underline"
+          <div className="naxatw-flex naxatw-flex-col">
+            <Button
+              variant="outline"
+              rightIcon="chevron_right"
+              onClick={onSelectTask}
+              className="naxatw-w-full !naxatw-border-landing-red !naxatw-bg-landing-red !naxatw-text-white"
             >
-              Download .kmz
-            </button>
-          )}
+              Select task
+            </Button>
+            <Button
+              variant="ghost"
+              leftIcon="chevron_left"
+              className="!naxatw-text-red"
+              onClick={onBack}
+            >
+              Back
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="naxatw-rounded-md naxatw-border naxatw-border-dashed naxatw-border-grey-400 naxatw-p-6 naxatw-text-center naxatw-text-sm naxatw-text-grey-500">

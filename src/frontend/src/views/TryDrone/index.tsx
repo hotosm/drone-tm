@@ -14,10 +14,11 @@ import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { buildSquareKm2 } from "@Utils/geometry";
 import Step1Panel from "@Components/TryDrone/Step1Panel";
 import Step2Panel from "@Components/TryDrone/Step2Panel";
+import Step3Panel from "@Components/TryDrone/Step3Panel";
 import TryDroneSidePanel from "@Components/TryDrone/SidePanel";
 import { DraggablePolygon } from "@Components/TryDrone/DraggablePolygon";
 import { useFlightPreviewMutation, useFlightPlanMutation } from "@Api/tryDrone";
-import { FlightPreviewTask } from "@Services/tryDrone";
+import { FlightPreviewTask, postWaypointKmz } from "@Services/tryDrone";
 import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
 import SectionHeader from "@/components/common/SectionHeader";
 import { brandRed, taskFillColor, taskOutlineColor } from "@Constants/map";
@@ -33,7 +34,7 @@ const INITIAL_MAP_ZOOM = 13;
 const FlyMyDronePage = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [altitude, setAltitude] = useState(70);
   const [areaKm2, setAreaKm2] = useState(0.2);
   const [mapCenter, setMapCenter] = useState<[number, number]>(INITIAL_MAP_CENTER);
@@ -109,10 +110,10 @@ const FlyMyDronePage = () => {
 
   const selectedTask = grid.find((t) => t.id === selectedTaskId) ?? null;
 
-  const handleFlyTask = () => {
+  const generateFlightPlan = (model: string) => {
     if (!selectedTask) return;
     fetchFlightPlan(
-      { geometry: selectedTask.geometry, altitude, droneModel },
+      { geometry: selectedTask.geometry, altitude, droneModel: model },
       {
         onSuccess: (data) => {
           setFlightPlan({
@@ -134,6 +135,35 @@ const FlyMyDronePage = () => {
         },
       },
     );
+  };
+
+  const handleSelectTask = () => {
+    setFlightPlan(null);
+    setStep(3);
+    generateFlightPlan(droneModel);
+  };
+
+  const handleDroneModelChange = (model: string) => {
+    setDroneModel(model);
+    setFlightPlan(null);
+    generateFlightPlan(model);
+  };
+
+  const handleBackToStep2 = () => {
+    setFlightPlan(null);
+    setStep(2);
+  };
+
+  const handleDownloadKmz = () => {
+    if (!selectedTask) return;
+    postWaypointKmz(selectedTask.geometry, altitude, droneModel, selectedTask.id).then(({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   };
 
   return (
@@ -234,7 +264,43 @@ const FlyMyDronePage = () => {
               />
             )}
 
-            {step === 2 && flightPlan && (
+            {/* Step 3: only the selected task */}
+            {step === 3 && selectedTask && (
+              <>
+                <VectorLayer
+                  key={`step3-fill-${selectedTaskId}`}
+                  map={map as Map}
+                  id="step3-task-fill"
+                  visibleOnMap
+                  geojson={{
+                    type: "Feature",
+                    geometry: selectedTask.geometry,
+                    properties: {},
+                  }}
+                  layerOptions={{
+                    type: "fill",
+                    paint: { "fill-color": brandRed, "fill-opacity": 0.2 },
+                  }}
+                />
+                <VectorLayer
+                  key={`step3-outline-${selectedTaskId}`}
+                  map={map as Map}
+                  id="step3-task-outline"
+                  visibleOnMap
+                  geojson={{
+                    type: "Feature",
+                    geometry: selectedTask.geometry,
+                    properties: {},
+                  }}
+                  layerOptions={{
+                    type: "line",
+                    paint: { "line-color": brandRed, "line-width": 2 },
+                  }}
+                />
+              </>
+            )}
+
+            {step === 3 && flightPlan && (
               <FlightPlanLayers
                 geojsonListOfPoints={flightPlan.geojsonListOfPoints}
                 geojsonAsLineString={flightPlan.geojsonAsLineString}
@@ -244,7 +310,7 @@ const FlyMyDronePage = () => {
         </div>
 
         <TryDroneSidePanel>
-          {step === 1 ? (
+          {step === 1 && (
             <Step1Panel
               altitude={altitude}
               setAltitude={setAltitude}
@@ -253,15 +319,23 @@ const FlyMyDronePage = () => {
               onContinue={handleContinue}
               loading={loading}
             />
-          ) : (
+          )}
+          {step === 2 && (
             <Step2Panel
               selectedTask={selectedTask}
+              onSelectTask={handleSelectTask}
+              onBack={() => setStep(1)}
+            />
+          )}
+          {step === 3 && selectedTask && (
+            <Step3Panel
+              selectedTask={selectedTask}
               droneModel={droneModel}
-              setDroneModel={setDroneModel}
-              altitude={altitude}
-              onFlyTask={handleFlyTask}
+              onDroneModelChange={handleDroneModelChange}
               flightPlanLoading={flightPlanLoading}
               hasFlightPlan={!!flightPlan}
+              onBack={handleBackToStep2}
+              onDownload={handleDownloadKmz}
             />
           )}
         </TryDroneSidePanel>
