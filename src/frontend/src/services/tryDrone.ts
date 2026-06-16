@@ -32,7 +32,7 @@ export async function postFlightPlan(
 
 export async function postFlightPreview(
   polygon: Polygon,
-  cellSizeMeters = 100,
+  cellSizeMeters = 300,
 ): Promise<{ tasks: FlightPreviewTask[] }> {
   const res = await fetch(`${API_URL}/public/flight-preview/`, {
     method: "POST",

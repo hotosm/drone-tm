@@ -32,8 +32,8 @@ export default function Step1Panel({
           type="number"
           value={altitude}
           onChange={e => setAltitude(Number(e.target.value))}
-          min={20}
-          max={500}
+          min={70}
+          max={120}
           className="naxatw-w-full"
         />
       </div>
@@ -49,16 +49,16 @@ export default function Step1Panel({
         </div>
         <input
           type="range"
-          min={0.05}
-          max={1}
-          step={0.05}
+          min={0.09}
+          max={1.44}
+          step={0.09}
           value={areaKm2}
           onChange={e => setAreaKm2(Number(e.target.value))}
           className="naxatw-accent-primary-400 naxatw-w-full"
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
-          <span>0.05 km²</span>
-          <span>1 km²</span>
+          <span>0.09 km²</span>
+          <span>1.44 km²</span>
         </div>
       </div>
 
