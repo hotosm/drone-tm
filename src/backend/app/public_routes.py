@@ -13,6 +13,10 @@ from app.projects.flight_preview import (
     assign_grid_ids,
 )
 from app.s3 import maybe_presign_s3_key
+from app.tasks.task_splitter import (
+    GeometryTopologyError,
+    GeometryValidationError,
+)
 
 router = APIRouter(tags=["Public"])
 

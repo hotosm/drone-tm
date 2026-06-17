@@ -48,7 +48,7 @@ export default function Step3Panel({
         <Select
           options={droneModelOptions}
           selectedOption={droneModel}
-          onChange={opt => onDroneModelChange(opt.value)}
+          onChange={value => onDroneModelChange(value)}
           direction="top"
         />
       </div>
