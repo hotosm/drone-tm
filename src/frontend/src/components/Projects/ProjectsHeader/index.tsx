@@ -1,31 +1,31 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTypedDispatch, useTypedSelector } from '@Store/hooks';
-import { FlexRow } from '@Components/common/Layouts';
-import Switch from '@Components/RadixComponents/Switch';
-import { setCommonState } from '@Store/actions/common';
-import { Button } from '@Components/RadixComponents/Button';
-import { Select } from '@Components/common/FormUI';
-import { setCreateProjectState } from '@Store/actions/createproject';
-import SearchInput from '@Components/common/FormUI/SearchInput';
-import useDebounceListener from '@Hooks/useDebouncedListener';
-import useAuth from '@Hooks/useAuth';
-import { m } from '@/paraglide/messages';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
+import { FlexRow } from "@Components/common/Layouts";
+import Switch from "@Components/RadixComponents/Switch";
+import { setCommonState } from "@Store/actions/common";
+import { Button } from "@Components/RadixComponents/Button";
+import { Select } from "@Components/common/FormUI";
+import { setCreateProjectState } from "@Store/actions/createproject";
+import SearchInput from "@Components/common/FormUI/SearchInput";
+import useDebounceListener from "@Hooks/useDebouncedListener";
+import useAuth from "@Hooks/useAuth";
+import { m } from "@/paraglide/messages";
 
 export default function ProjectsHeader() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const signedInAs = localStorage.getItem('signedInAs') || 'PROJECT_CREATOR';
-  const showMap = useTypedSelector(state => state.common.showMap);
+  const signedInAs = localStorage.getItem("signedInAs") || "PROJECT_CREATOR";
+  const showMap = useTypedSelector((state) => state.common.showMap);
   const projectsFilterByOwner = useTypedSelector(
-    state => state.createproject.ProjectsFilterByOwner,
+    (state) => state.createproject.ProjectsFilterByOwner,
   );
   const selectedProjectStatus = useTypedSelector(
-    state => state.createproject.selectedProjectStatus,
+    (state) => state.createproject.selectedProjectStatus,
   );
-  const [searchValue, setSearchValue] = useState('');
-  const debouncedValue = useDebounceListener(searchValue || '', 300);
+  const [searchValue, setSearchValue] = useState("");
+  const debouncedValue = useDebounceListener(searchValue || "", 300);
 
   useEffect(() => {
     dispatch(setCommonState({ projectSearchKey: debouncedValue as string }));
@@ -45,39 +45,35 @@ export default function ProjectsHeader() {
               options={[
                 {
                   label: m.projects_filter_all_projects(),
-                  value: 'no',
+                  value: "no",
                 },
-                { label: m.projects_filter_my_projects(), value: 'yes' },
+                { label: m.projects_filter_my_projects(), value: "yes" },
               ]}
               labelKey="label"
               valueKey="value"
               className="naxatw-pr-6"
               selectedOption={projectsFilterByOwner}
-              onChange={value =>
-                dispatch(
-                  setCreateProjectState({ ProjectsFilterByOwner: value }),
-                )
+              onChange={(value) =>
+                dispatch(setCreateProjectState({ ProjectsFilterByOwner: value }))
               }
             />
             <Select
               placeholder={m.projects_filter_by_status_placeholder()}
               options={[
-                { label: m.projects_status_all_projects(), value: '' },
+                { label: m.projects_status_all_projects(), value: "" },
                 {
                   label: m.projects_status_not_started(),
-                  value: 'not-started',
+                  value: "not-started",
                 },
-                { label: m.projects_status_ongoing(), value: 'ongoing' },
-                { label: m.projects_status_completed(), value: 'completed' },
+                { label: m.projects_status_ongoing(), value: "ongoing" },
+                { label: m.projects_status_completed(), value: "completed" },
               ]}
               labelKey="label"
               valueKey="value"
               className="naxatw-pr-6"
               selectedOption={selectedProjectStatus}
-              onChange={value =>
-                dispatch(
-                  setCreateProjectState({ selectedProjectStatus: value }),
-                )
+              onChange={(value) =>
+                dispatch(setCreateProjectState({ selectedProjectStatus: value }))
               }
             />
           </div>
@@ -86,7 +82,7 @@ export default function ProjectsHeader() {
               inputValue={searchValue}
               placeholder={m.projects_search_placeholder()}
               onChange={(e: any) => setSearchValue(e.target.value)}
-              onClear={() => setSearchValue('')}
+              onClear={() => setSearchValue("")}
             />
           </div>
         </FlexRow>
@@ -105,11 +101,11 @@ export default function ProjectsHeader() {
           />
         </FlexRow>
 
-        {isAuthenticated() && signedInAs === 'PROJECT_CREATOR' && (
+        {isAuthenticated() && signedInAs === "PROJECT_CREATOR" && (
           <Button
             variant="secondary"
             className="!naxatw-bg-red naxatw-text-white"
-            onClick={() => navigate('/create-project')}
+            onClick={() => navigate("/create-project")}
           >
             {m.projects_add_project()}
           </Button>
