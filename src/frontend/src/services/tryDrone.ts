@@ -14,6 +14,7 @@ export async function postFlightPlan(
   geometry: Polygon,
   altitude: number,
   droneModel: string,
+  mode: "waylines" | "waypoints" = "waylines",
 ): Promise<FeatureCollection> {
   const res = await fetch(`${API_URL}/public/flight-plan/`, {
     method: "POST",
@@ -22,7 +23,7 @@ export async function postFlightPlan(
       polygon: { type: "Feature", geometry },
       altitude,
       drone_type: droneModel,
-      mode: "waylines",
+      mode,
     }),
   });
 

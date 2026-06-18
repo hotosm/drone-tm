@@ -17,6 +17,7 @@ import Step2Panel from "@Components/TryDrone/Step2Panel";
 import Step3Panel from "@Components/TryDrone/Step3Panel";
 import TryDroneSidePanel from "@Components/TryDrone/SidePanel";
 import { DraggablePolygon } from "@Components/TryDrone/DraggablePolygon";
+import DroneFlightAnimation from "@Components/TryDrone/DroneFlightAnimation";
 import { useFlightPreviewMutation, useFlightPlanMutation } from "@Api/tryDrone";
 import { FlightPreviewTask, postWaypointKmz } from "@Services/tryDrone";
 import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
@@ -327,6 +328,14 @@ const FlyMyDronePage = () => {
               <FlightPlanLayers
                 geojsonListOfPoints={flightPlan.geojsonListOfPoints}
                 geojsonAsLineString={flightPlan.geojsonAsLineString}
+              />
+            )}
+
+            {step === 3 && flightPlan && selectedTask && (
+              <DroneFlightAnimation
+                map={map as Map}
+                waypoints={flightPlan.geojsonListOfPoints}
+                geometry={selectedTask.geometry}
               />
             )}
           </MapContainer>
