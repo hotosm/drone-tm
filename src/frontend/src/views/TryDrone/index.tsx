@@ -166,6 +166,29 @@ const FlyMyDronePage = () => {
     });
   };
 
+  // GeoJSON of the flight plan — handy to preview in any map viewer
+  // (geojson.io, QGIS, Google Earth) without loading it onto a drone.
+  // Includes both the flight path (LineString) and the waypoints (Points).
+  const handleDownloadGeojson = () => {
+    if (!flightPlan || !selectedTask) return;
+    const featureCollection = {
+      type: "FeatureCollection" as const,
+      features: [
+        ...flightPlan.geojsonAsLineString.features,
+        ...flightPlan.geojsonListOfPoints.features,
+      ],
+    };
+    const blob = new Blob([JSON.stringify(featureCollection)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `flightplan-${selectedTask.id}.geojson`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-overflow-hidden">
       <SectionHeader>
@@ -336,6 +359,7 @@ const FlyMyDronePage = () => {
               hasFlightPlan={!!flightPlan}
               onBack={handleBackToStep2}
               onDownload={handleDownloadKmz}
+              onDownloadGeojson={handleDownloadGeojson}
             />
           )}
         </TryDroneSidePanel>

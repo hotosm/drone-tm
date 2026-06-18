@@ -2,6 +2,17 @@ import { Button } from '@Components/RadixComponents/Button';
 import Select from '@Components/common/FormUI/Select';
 import { droneModelOptions } from '@Constants/taskDescription';
 
+// Output file format the backend produces for each drone (see flightplan_output.py).
+const droneFileLabel: Record<string, string> = {
+  DJI_MINI_4_PRO: 'KMZ (DJI)',
+  DJI_MINI_5_PRO: 'KMZ (DJI)',
+  DJI_AIR_3: 'KMZ (DJI)',
+  POTENSIC_ATOM_1: 'Potensic (.db)',
+  POTENSIC_ATOM_2: 'Potensic (.zip)',
+  LITCHI: 'Litchi (.csv)',
+  QGROUNDCONTROL: 'QGC (.plan)',
+};
+
 interface Task {
   id: string;
   area_m2: number;
@@ -15,6 +26,7 @@ interface Step3PanelProps {
   hasFlightPlan: boolean;
   onBack: () => void;
   onDownload: () => void;
+  onDownloadGeojson: () => void;
 }
 
 export default function Step3Panel({
@@ -25,6 +37,7 @@ export default function Step3Panel({
   hasFlightPlan,
   onBack,
   onDownload,
+  onDownloadGeojson,
 }: Step3PanelProps) {
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
@@ -60,14 +73,24 @@ export default function Step3Panel({
       )}
       <div className="naxatw-flex naxatw-flex-col">
         {hasFlightPlan && (
-          <Button
-            variant="outline"
-            leftIcon="download"
-            onClick={onDownload}
-            className="naxatw-w-full !naxatw-border-landing-red !naxatw-bg-landing-red !naxatw-text-white"
-          >
-            Fly this task
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              leftIcon="download"
+              onClick={onDownload}
+              className="naxatw-w-full !naxatw-border-landing-red !naxatw-bg-landing-red !naxatw-text-white"
+            >
+              Download {droneFileLabel[droneModel] ?? 'flight file'}
+            </Button>
+            <Button
+              variant="ghost"
+              leftIcon="download"
+              onClick={onDownloadGeojson}
+              className="naxatw-w-full !naxatw-text-landing-red"
+            >
+              Download GeoJSON
+            </Button>
+          </>
         )}
 
         <Button
