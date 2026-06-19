@@ -18,6 +18,7 @@ import Step3Panel from "@Components/TryDrone/Step3Panel";
 import TryDroneSidePanel from "@Components/TryDrone/SidePanel";
 import { DraggablePolygon } from "@Components/TryDrone/DraggablePolygon";
 import DroneFlightAnimation from "@Components/TryDrone/DroneFlightAnimation";
+import TutorialTour from "@Components/TryDrone/TutorialTour";
 import { useFlightPreviewMutation, useFlightPlanMutation } from "@Api/tryDrone";
 import { FlightPreviewTask, postWaypointKmz } from "@Services/tryDrone";
 import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
@@ -44,6 +45,9 @@ const FlyMyDronePage = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [droneModel, setDroneModel] = useState("DJI_MINI_4_PRO");
   const [flightPlan, setFlightPlan] = useState<FlightPlanData | null>(null);
+  const [tourOn, setTourOn] = useState(
+    () => typeof localStorage !== "undefined" && !localStorage.getItem("tryDroneTourSeen"),
+  );
   const { mutate: fetchFlightPreview, isPending: loading } = useFlightPreviewMutation();
   const { mutate: fetchFlightPlan, isPending: flightPlanLoading } = useFlightPlanMutation();
 
@@ -194,7 +198,17 @@ const FlyMyDronePage = () => {
     <div className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-overflow-hidden">
       <SectionHeader>
         <span className="naxatw-flex naxatw-h-12 naxatw-items-center naxatw-justify-between">
-          <h3>Fly My Drone</h3>
+          <span className="naxatw-flex naxatw-items-center naxatw-gap-2">
+            <h3>Fly My Drone</h3>
+            <button
+              type="button"
+              title="Tutorial"
+              className="naxatw-flex naxatw-h-6 naxatw-w-6 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-border naxatw-border-grey-400 naxatw-text-xs naxatw-font-bold naxatw-text-grey-600 hover:naxatw-border-landing-red hover:naxatw-text-landing-red"
+              onClick={() => setTourOn(true)}
+            >
+              ?
+            </button>
+          </span>
           {!isAuthenticated() && (
             <button
               type="button"
@@ -209,7 +223,7 @@ const FlyMyDronePage = () => {
 
       <div className="naxatw-relative naxatw-flex naxatw-flex-1 naxatw-overflow-hidden">
         {/* Map fills the left side */}
-        <div className="naxatw-flex-1" style={{ height: "100%" }}>
+        <div data-tour="map" className="naxatw-flex-1" style={{ height: "100%" }}>
           <MapContainer
             ref={mapContainerRef}
             map={map}
@@ -341,7 +355,7 @@ const FlyMyDronePage = () => {
           </MapContainer>
         </div>
 
-        <TryDroneSidePanel>
+        <TryDroneSidePanel collapseSignal={step}>
           {step === 1 && (
             <Step1Panel
               altitude={altitude}
@@ -373,6 +387,33 @@ const FlyMyDronePage = () => {
           )}
         </TryDroneSidePanel>
       </div>
+
+      {tourOn && (
+        <TutorialTour
+          step={step}
+          hasSelection={step === 2 && !!selectedTask}
+          map={map}
+          bbox={(() => {
+            try {
+              if (step === 1) return getBbox({ type: "Feature", geometry: polygon, properties: {} });
+              if (step === 2 && grid.length)
+                return getBbox({
+                  type: "FeatureCollection",
+                  features: grid.map((t) => ({ type: "Feature", geometry: t.geometry, properties: {} })),
+                });
+              if (step === 3 && selectedTask)
+                return getBbox({ type: "Feature", geometry: selectedTask.geometry, properties: {} });
+            } catch {
+              /* noop */
+            }
+            return null;
+          })()}
+          onClose={() => {
+            setTourOn(false);
+            if (typeof localStorage !== "undefined") localStorage.setItem("tryDroneTourSeen", "1");
+          }}
+        />
+      )}
     </div>
   );
 };
