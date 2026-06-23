@@ -11,5 +11,6 @@ export interface IRoute {
   name: string;
   component: ComponentType | LazyExoticComponent<ComponentType>;
   authenticated?: boolean;
+  publicOnly?: boolean;
   children?: IRoute[];
 }

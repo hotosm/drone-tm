@@ -116,7 +116,7 @@ const appRoutes: IRoute[] = [
     path: "/try-drone",
     name: "Fly My Drone",
     component: FlyMyDronePage,
-    authenticated: false,
+    publicOnly: true,
   },
 ];
 
