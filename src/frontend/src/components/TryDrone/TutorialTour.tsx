@@ -111,10 +111,10 @@ export default function TutorialTour({ step, hasSelection, onClose, map, bbox }:
     }
   } else if (mark.highlight === "panel" && panelR) {
     // mobile: panel is a full-width bottom sheet → point down at it; desktop:
-    // panel is on the right → point right from its left edge.
+    // panel is on the left → point left from its right edge.
     pointer = bottomSheet
       ? { left: panelR.left + panelR.width / 2, top: panelR.top - 18, rotate: 0 }
-      : { left: panelR.left - 30, top: panelR.top + panelR.height / 2, rotate: -90 };
+      : { left: panelR.left + panelR.width + 30, top: panelR.top + panelR.height / 2, rotate: 90 };
   }
 
   // card anchored to the top-center of the map area

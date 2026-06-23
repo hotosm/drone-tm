@@ -23,7 +23,7 @@ export default function TryDroneSidePanel({ children, collapseSignal }: Props) {
     return (
       <div
         data-tour="panel"
-        className="naxatw-absolute naxatw-right-4 naxatw-top-4 naxatw-z-10 naxatw-w-72 naxatw-overflow-y-auto naxatw-rounded-lg naxatw-bg-white naxatw-shadow-lg"
+        className="naxatw-absolute naxatw-left-4 naxatw-top-4 naxatw-z-10 naxatw-w-72 naxatw-overflow-y-auto naxatw-rounded-lg naxatw-bg-white naxatw-shadow-lg"
         style={{ maxHeight: 'calc(100% - 2rem)' }}
       >
         {children}
