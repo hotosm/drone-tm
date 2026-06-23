@@ -56,13 +56,13 @@ export default function SignInOverlay() {
               localStorage.setItem("signedInAs", "PROJECT_CREATOR");
 
               if (AUTH_PROVIDER === "hanko") {
-                // Clear any existing Hanko session to force fresh login
-                // This prevents account confusion when switching users
                 document.cookie = "hanko=; path=/; max-age=0; domain=" + window.location.hostname;
-                document.cookie = "hanko=; path=/; max-age=0"; // Also clear without domain
+                document.cookie = "hanko=; path=/; max-age=0";
 
-                // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
-                // Return to /hanko-auth callback which validates with backend and sets up user profile
+                const from = location.state?.from;
+                const postLoginDest = from && from !== "/try-drone" ? from : "/projects";
+                localStorage.setItem("loginRedirectTo", postLoginDest);
+
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${"PROJECT_CREATOR"}`;
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
@@ -91,13 +91,13 @@ export default function SignInOverlay() {
               localStorage.setItem("signedInAs", "DRONE_PILOT");
 
               if (AUTH_PROVIDER === "hanko") {
-                // Clear any existing Hanko session to force fresh login
-                // This prevents account confusion when switching users
                 document.cookie = "hanko=; path=/; max-age=0; domain=" + window.location.hostname;
-                document.cookie = "hanko=; path=/; max-age=0"; // Also clear without domain
+                document.cookie = "hanko=; path=/; max-age=0";
 
-                // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
-                // Return to /hanko-auth callback which validates with backend and sets up user profile
+                const from = location.state?.from;
+                const postLoginDest = from && from !== "/try-drone" ? from : "/projects";
+                localStorage.setItem("loginRedirectTo", postLoginDest);
+
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${"DRONE_PILOT"}`;
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;

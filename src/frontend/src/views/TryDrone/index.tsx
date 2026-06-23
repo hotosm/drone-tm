@@ -36,6 +36,13 @@ const INITIAL_MAP_ZOOM = 13;
 const FlyMyDronePage = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleAuth = () => navigate("/", { replace: true });
+    document.addEventListener("hanko-login", handleAuth);
+    return () => document.removeEventListener("hanko-login", handleAuth);
+  }, [navigate]);
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [altitude, setAltitude] = useState(70);
   const [areaKm2, setAreaKm2] = useState(0.2);
@@ -161,14 +168,16 @@ const FlyMyDronePage = () => {
 
   const handleDownloadKmz = () => {
     if (!selectedTask) return;
-    postWaypointKmz(selectedTask.geometry, altitude, droneModel, selectedTask.id).then(({ blob, filename }) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+    postWaypointKmz(selectedTask.geometry, altitude, droneModel, selectedTask.id).then(
+      ({ blob, filename }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+    );
   };
 
   // GeoJSON of the flight plan — handy to preview in any map viewer
@@ -249,7 +258,10 @@ const FlyMyDronePage = () => {
             style={{ width: "100%", height: "100%" }}
           >
             <LocateUser />
-            <MapZoomControls map={isMapLoaded ? map : null} onFitToBounds={isMapLoaded ? handleFitToBounds : null} />
+            <MapZoomControls
+              map={isMapLoaded ? map : null}
+              onFitToBounds={isMapLoaded ? handleFitToBounds : null}
+            />
 
             {step === 1 && isMapLoaded && (
               <DraggablePolygon
@@ -413,14 +425,23 @@ const FlyMyDronePage = () => {
           map={map}
           bbox={(() => {
             try {
-              if (step === 1) return getBbox({ type: "Feature", geometry: polygon, properties: {} });
+              if (step === 1)
+                return getBbox({ type: "Feature", geometry: polygon, properties: {} });
               if (step === 2 && grid.length)
                 return getBbox({
                   type: "FeatureCollection",
-                  features: grid.map((t) => ({ type: "Feature", geometry: t.geometry, properties: {} })),
+                  features: grid.map((t) => ({
+                    type: "Feature",
+                    geometry: t.geometry,
+                    properties: {},
+                  })),
                 });
               if (step === 3 && selectedTask)
-                return getBbox({ type: "Feature", geometry: selectedTask.geometry, properties: {} });
+                return getBbox({
+                  type: "Feature",
+                  geometry: selectedTask.geometry,
+                  properties: {},
+                });
             } catch {
               /* noop */
             }

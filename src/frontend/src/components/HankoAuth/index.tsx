@@ -76,8 +76,11 @@ function HankoAuth() {
           Array.isArray(userDetails.role) &&
           userDetails.role.length > 0
         ) {
-          navigate("/projects");
+          const redirectTo = localStorage.getItem("loginRedirectTo") || "/projects";
+          localStorage.removeItem("loginRedirectTo");
+          navigate(redirectTo);
         } else {
+          localStorage.removeItem("loginRedirectTo");
           navigate("/complete-profile");
         }
 
@@ -88,7 +91,8 @@ function HankoAuth() {
       } catch (error) {
         console.error("[HankoAuth] Authentication error:", error);
         toast.error(error instanceof Error ? error.message : m.auth_hanko_failed_generic());
-        navigate("/login");
+        localStorage.removeItem("loginRedirectTo");
+        navigate("/");
       }
     };
 
