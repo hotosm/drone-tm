@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuth from "@Hooks/useAuth";
 import { Map, LngLatBoundsLike } from "maplibre-gl";
 import { FeatureCollection, Polygon } from "geojson";
 import getBbox from "@turf/bbox";
 import { coordAll } from "@turf/meta";
-import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
 import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
 import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
 import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
@@ -19,6 +18,7 @@ import TryDroneSidePanel from "@Components/TryDrone/SidePanel";
 import { DraggablePolygon } from "@Components/TryDrone/DraggablePolygon";
 import DroneFlightAnimation from "@Components/TryDrone/DroneFlightAnimation";
 import TutorialTour from "@Components/TryDrone/TutorialTour";
+import MapZoomControls from "@Components/TryDrone/MapZoomControls";
 import { useFlightPreviewMutation, useFlightPlanMutation } from "@Api/tryDrone";
 import { FlightPreviewTask, postWaypointKmz } from "@Services/tryDrone";
 import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
@@ -194,6 +194,24 @@ const FlyMyDronePage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleFitToBounds = useCallback(() => {
+    if (!map) return;
+    let bbox: ReturnType<typeof getBbox> | null = null;
+    if (step === 1) {
+      bbox = getBbox({ type: "Feature", geometry: polygon, properties: {} });
+    } else if (step === 2 && grid.length) {
+      bbox = getBbox({
+        type: "FeatureCollection",
+        features: grid.map((t) => ({ type: "Feature", geometry: t.geometry, properties: {} })),
+      });
+    } else if (step === 3 && flightPlan) {
+      bbox = getBbox(flightPlan.geojsonAsLineString);
+    } else if (step === 3 && selectedTask) {
+      bbox = getBbox({ type: "Feature", geometry: selectedTask.geometry, properties: {} });
+    }
+    if (bbox) map.fitBounds(bbox as LngLatBoundsLike, { padding: 40, duration: 500 });
+  }, [map, step, polygon, grid, flightPlan, selectedTask]);
+
   return (
     <div className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-overflow-hidden">
       <SectionHeader>
@@ -230,8 +248,8 @@ const FlyMyDronePage = () => {
             isMapLoaded={isMapLoaded}
             style={{ width: "100%", height: "100%" }}
           >
-            <BaseLayerSwitcherUI />
             <LocateUser />
+            <MapZoomControls map={isMapLoaded ? map : null} onFitToBounds={isMapLoaded ? handleFitToBounds : null} />
 
             {step === 1 && isMapLoaded && (
               <DraggablePolygon
