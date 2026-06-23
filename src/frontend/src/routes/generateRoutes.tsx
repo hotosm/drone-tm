@@ -4,6 +4,7 @@ import { ReactNode, Suspense } from "react";
 import Fallback from "@Components/common/Fallback";
 import useAuth from "@Hooks/useAuth";
 import ProtectedRoute from "./ProtectedRoute";
+import PublicOnlyRoute from "./PublicOnlyRoute";
 import { IRoute } from "./types";
 
 interface IGenerateRouteParams {
@@ -32,6 +33,16 @@ export default function generateRoutes({ routes, fallback = <Fallback /> }: IGen
                 ) : (
                   <Route key={route.name} path={route.path} element={<route.component />} />
                 )}
+              </Route>
+            );
+          }
+          if (route.publicOnly) {
+            return (
+              <Route
+                key={route.name}
+                element={<PublicOnlyRoute isAuthenticated={isAuthenticated()} />}
+              >
+                <Route path={route.path} element={<route.component />} />
               </Route>
             );
           }

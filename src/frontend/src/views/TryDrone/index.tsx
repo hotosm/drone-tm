@@ -38,7 +38,7 @@ const FlyMyDronePage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleAuth = () => navigate("/", { replace: true });
+    const handleAuth = () => navigate("/projects", { replace: true });
     document.addEventListener("hanko-login", handleAuth);
     return () => document.removeEventListener("hanko-login", handleAuth);
   }, [navigate]);
