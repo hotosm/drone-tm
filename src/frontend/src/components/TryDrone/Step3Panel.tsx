@@ -1,16 +1,16 @@
-import { Button } from '@Components/RadixComponents/Button';
-import Select from '@Components/common/FormUI/Select';
-import { droneModelOptions } from '@Constants/taskDescription';
+import { Button } from "@Components/RadixComponents/Button";
+import Select from "@Components/common/FormUI/Select";
+import { droneModelOptions } from "@Constants/taskDescription";
 
 // Output file format the backend produces for each drone (see flightplan_output.py).
 const droneFileLabel: Record<string, string> = {
-  DJI_MINI_4_PRO: 'KMZ (DJI)',
-  DJI_MINI_5_PRO: 'KMZ (DJI)',
-  DJI_AIR_3: 'KMZ (DJI)',
-  POTENSIC_ATOM_1: 'Potensic (.db)',
-  POTENSIC_ATOM_2: 'Potensic (.zip)',
-  LITCHI: 'Litchi (.csv)',
-  QGROUNDCONTROL: 'QGC (.plan)',
+  DJI_MINI_4_PRO: "KMZ (DJI)",
+  DJI_MINI_5_PRO: "KMZ (DJI)",
+  DJI_AIR_3: "KMZ (DJI)",
+  POTENSIC_ATOM_1: "Potensic (.db)",
+  POTENSIC_ATOM_2: "Potensic (.zip)",
+  LITCHI: "Litchi (.csv)",
+  QGROUNDCONTROL: "QGC (.plan)",
 };
 
 interface Task {
@@ -27,6 +27,7 @@ interface Step3PanelProps {
   onBack: () => void;
   onDownload: () => void;
   onDownloadGeojson: () => void;
+  onDownloadAll: () => void;
 }
 
 export default function Step3Panel({
@@ -38,12 +39,11 @@ export default function Step3Panel({
   onBack,
   onDownload,
   onDownloadGeojson,
+  onDownloadAll,
 }: Step3PanelProps) {
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
-      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">
-        Flight plan
-      </h2>
+      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">Flight plan</h2>
 
       <div className="naxatw-rounded-md naxatw-border naxatw-border-grey-300 naxatw-p-3">
         <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-grey-800">
@@ -61,15 +61,13 @@ export default function Step3Panel({
         <Select
           options={droneModelOptions}
           selectedOption={droneModel}
-          onChange={value => onDroneModelChange(value)}
+          onChange={(value) => onDroneModelChange(value)}
           direction="top"
         />
       </div>
 
       {flightPlanLoading && (
-        <p className="naxatw-text-sm naxatw-text-grey-500">
-          Generating flight plan…
-        </p>
+        <p className="naxatw-text-sm naxatw-text-grey-500">Generating flight plan…</p>
       )}
       <div className="naxatw-flex naxatw-flex-col">
         {hasFlightPlan && (
@@ -80,7 +78,7 @@ export default function Step3Panel({
               onClick={onDownload}
               className="naxatw-w-full !naxatw-border-landing-red !naxatw-bg-landing-red !naxatw-text-white"
             >
-              Download {droneFileLabel[droneModel] ?? 'flight file'}
+              Download {droneFileLabel[droneModel] ?? "flight file"}
             </Button>
             <Button
               variant="ghost"
@@ -89,6 +87,14 @@ export default function Step3Panel({
               className="naxatw-w-full !naxatw-text-landing-red"
             >
               Download GeoJSON
+            </Button>
+            <Button
+              variant="ghost"
+              leftIcon="download"
+              onClick={onDownloadAll}
+              className="naxatw-w-full !naxatw-text-landing-red"
+            >
+              Download all tasks
             </Button>
           </>
         )}
