@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -39,6 +40,57 @@ class AllTaskFilesRequest(FlightPlanRequest):
 def _extract_geometry(polygon: dict) -> dict | None:
     """Accept a GeoJSON Feature or bare geometry and return the geometry."""
     return polygon.get("geometry") if polygon.get("type") == "Feature" else polygon
+
+
+def _generate_guide_html(tasks: list, drone_type: str, suffix: str) -> str:
+    template_path = Path(__file__).parent / "templates" / "dronetm-guide.html"
+    html = template_path.read_text(encoding="utf-8")
+
+    file_list = ", ".join(f"task-{t.id}{suffix}" for t in tasks)
+    drone_display = drone_type.replace("_", " ").title()
+    total_km2 = sum(t.area_m2 for t in tasks) / 1_000_000
+
+    html = html.replace(
+        '<span class="placeholder">[PLACEHOLDER: list actual files once package is finalized]</span>',
+        file_list,
+    )
+    html = html.replace(
+        '<span class="placeholder">[PLACEHOLDER: confirm drone model(s) for this package]</span>',
+        drone_display,
+    )
+    html = html.replace(
+        '<span class="placeholder">[PLACEHOLDER: total km&sup2; and location name]</span>',
+        f"{total_km2:.2f} km²",
+    )
+
+    cards = []
+    for task in tasks:
+        area_km2 = task.area_m2 / 1_000_000
+        centroid = shape(task.geometry).centroid
+        lat, lon = round(centroid.y, 6), round(centroid.x, 6)
+        osm_url = f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}&zoom=15"
+        nav_links = f'<a href="{osm_url}" target="_blank" rel="noopener" style="color:var(--blue);">{lat}, {lon}</a>'
+        cards.append(
+            f'    <div class="task-card">\n'
+            f'      <div class="task-card-header">Task {task.id}</div>\n'
+            f'      <div class="prose" style="margin-bottom:1rem;">\n'
+            f"        <p>Grid cell {task.id} covering {area_km2:.3f} km².</p>\n"
+            f"      </div>\n"
+            f'      <div class="task-card-fields">\n'
+            f'        <div class="task-field">\n'
+            f'          <span class="task-field-label">Task ID</span>\n'
+            f"          <span>{task.id}</span>\n"
+            f"        </div>\n"
+            f'        <div class="task-field">\n'
+            f'          <span class="task-field-label">Takeoff point</span>\n'
+            f"          <span>{nav_links}</span>\n"
+            f"        </div>\n"
+            f"      </div>\n"
+            f"    </div>"
+        )
+
+    html = html.replace("<!-- TASK_CARDS_PLACEHOLDER -->", "\n".join(cards))
+    return html
 
 
 @router.get("/public/presigned-url")
@@ -225,6 +277,14 @@ async def all_task_files(body: AllTaskFilesRequest) -> StreamingResponse:
                 log.warning(
                     "GeoJSON generation failed for task %s", task.id, exc_info=True
                 )
+
+        try:
+            guide_html = _generate_guide_html(tasks, body.drone_type, flightplan_config["suffix"])
+            guide_path = os.path.join(tmpdir, "dronetm-guide.html")
+            with open(guide_path, "w", encoding="utf-8") as f:
+                f.write(guide_html)
+        except Exception:
+            log.warning("Guide HTML generation failed", exc_info=True)
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:

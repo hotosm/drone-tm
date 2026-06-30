@@ -1,0 +1,997 @@
+<title>DroneTM Try-Drone Guide</title>
+<meta name="description" content="Field guide for pilots flying pre-made DroneTM task packages — find your file, confirm your cell, and fly.">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #D73F3F;
+    --red-light: #FFEDED;
+    --blue: #0B83CF;
+    --dark: #2C3038;
+    --grey-mid: #68707F;
+    --grey-light: #E1E0E0;
+    --grey-pale: #F5F5F5;
+    --tan: #F0EFEF;
+    --white: #ffffff;
+    --shadow-light: 0px 2px 20px 4px rgba(0,0,0,0.12);
+    --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Archivo", ui-sans-serif, system-ui, sans-serif;
+    --radius: 4px;
+  }
+
+  html { scroll-behavior: smooth; font-size: 16px; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--grey-pale);
+    color: var(--dark);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── NAV ── */
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--dark);
+    border-bottom: 3px solid var(--red);
+    box-shadow: var(--shadow-light);
+  }
+
+  .nav-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    height: 57px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav-inner::-webkit-scrollbar { display: none; }
+
+  .nav-logo {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    margin-right: 0.5rem;
+  }
+  .nav-logo svg { height: 28px; width: auto; }
+
+  .nav-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255,255,255,0.2);
+    flex-shrink: 0;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 0;
+    list-style: none;
+    flex-shrink: 0;
+  }
+
+  .nav-links a {
+    display: block;
+    padding: 0 0.875rem;
+    height: 57px;
+    line-height: 57px;
+    color: rgba(255,255,255,0.72);
+    text-decoration: none;
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-links a:hover {
+    color: var(--white);
+    background: rgba(255,255,255,0.06);
+  }
+
+  /* ── HEADER ── */
+  .site-header {
+    background: var(--dark);
+    padding: 3.5rem 1.25rem 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .site-header::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -55deg,
+      transparent,
+      transparent 18px,
+      rgba(255,255,255,0.018) 18px,
+      rgba(255,255,255,0.018) 36px
+    );
+    pointer-events: none;
+  }
+
+  .header-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header-eyebrow {
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 1rem;
+  }
+
+  .header-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--white);
+    margin-bottom: 1rem;
+  }
+
+  .header-sub {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.6);
+    max-width: 560px;
+    line-height: 1.6;
+  }
+
+  /* ── LAYOUT ── */
+  .page-body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 5rem;
+  }
+
+  /* ── SECTIONS ── */
+  .guide-section {
+    margin-bottom: 4rem;
+  }
+
+  .section-heading {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3.5vw, 2.1rem);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--dark);
+    line-height: 1.1;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--grey-light);
+    margin-bottom: 1.75rem;
+  }
+
+  .section-number {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--red);
+    background: var(--red-light);
+    border: 1px solid var(--red);
+    border-radius: 2px;
+    padding: 0.15em 0.5em;
+    vertical-align: middle;
+    margin-right: 0.6rem;
+  }
+
+  /* ── PROSE ── */
+  .prose p { margin-bottom: 1rem; font-size: 0.95rem; color: var(--dark); }
+  .prose p:last-child { margin-bottom: 0; }
+
+  .prose ul, .prose ol {
+    margin: 0.75rem 0 1rem 1.4rem;
+    font-size: 0.95rem;
+  }
+  .prose li { margin-bottom: 0.35rem; }
+
+  .prose strong { font-weight: 700; color: var(--dark); }
+
+  .prose a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
+  .prose a:hover { color: var(--red); }
+
+  /* ── PLACEHOLDER / TODO ── */
+  .placeholder {
+    display: inline;
+    background: #FFE600;
+    color: #3A2E00;
+    font-weight: 600;
+    padding: 0.05em 0.35em;
+    border-radius: 2px;
+    font-size: 0.92em;
+  }
+
+  .placeholder-block {
+    position: relative;
+    border-left: 4px solid #FFE600;
+    background: #FFFBE6;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(255,230,0,0.18) 8px,
+      rgba(255,230,0,0.18) 16px
+    );
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 0.92rem;
+    color: #3A2E00;
+    font-weight: 600;
+  }
+  .placeholder-block .ph-label {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7A6400;
+    background: #FFE600;
+    padding: 0.1em 0.45em;
+    border-radius: 2px;
+    margin-bottom: 0.4rem;
+  }
+
+  /* ── WHAT'S IN THIS PACKAGE BOX ── */
+  .package-box {
+    background: var(--white);
+    border: 1px solid var(--grey-light);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin: 1.25rem 0;
+    box-shadow: var(--shadow-light);
+  }
+  .package-box h3 {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--grey-mid);
+    margin-bottom: 0.75rem;
+  }
+  .package-box ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.92rem;
+  }
+  .package-box li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .package-box li::before {
+    content: "—";
+    color: var(--red);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── TASK GRID EXPLANATION ── */
+  .grid-explain {
+    background: var(--white);
+    border: 1px solid var(--grey-light);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin: 1.25rem 0;
+    box-shadow: var(--shadow-light);
+  }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 1.25rem 0;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-light);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--white);
+    font-size: 0.88rem;
+    min-width: 520px;
+  }
+
+  thead {
+    background: var(--dark);
+    color: var(--white);
+  }
+
+  thead th {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    white-space: nowrap;
+    border-right: 1px solid rgba(255,255,255,0.1);
+  }
+  thead th:last-child { border-right: none; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--grey-light);
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--grey-pale); }
+
+  tbody td {
+    padding: 0.7rem 1rem;
+    border-right: 1px solid var(--grey-light);
+    vertical-align: top;
+    color: var(--dark);
+    line-height: 1.45;
+  }
+  tbody td:last-child { border-right: none; }
+
+  .td-model { font-weight: 600; }
+  .td-ext {
+    font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+    font-size: 0.82rem;
+    background: var(--grey-pale);
+    color: var(--red);
+    padding: 0.1em 0.35em;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  .row-geojson td { background: var(--tan); font-style: italic; }
+  .row-geojson td:first-child { font-style: normal; font-weight: 600; }
+
+  /* ── STEPS ── */
+  .steps-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step-item {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 0 1.25rem;
+    position: relative;
+  }
+
+  /* connector line */
+  .step-item:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 23px;
+    top: 48px;
+    bottom: 0;
+    width: 2px;
+    background: var(--grey-light);
+  }
+
+  .step-marker {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background: var(--red);
+    color: var(--white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 0 0 4px var(--grey-pale);
+    margin-top: 0.15rem;
+  }
+
+  .step-body {
+    padding-bottom: 2.25rem;
+  }
+
+  .step-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+    padding-top: 0.6rem;
+    line-height: 1.2;
+  }
+
+  .step-body .prose { margin-top: 0; }
+
+  /* ── TASK CARD ── */
+  .task-card {
+    background: var(--white);
+    border: 1px solid var(--grey-light);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: var(--shadow-light);
+  }
+
+  .task-card-header {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--dark);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .task-card-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+  }
+
+  .task-field {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    align-items: baseline;
+  }
+
+  .task-field-label {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--grey-mid);
+    padding-top: 0.05rem;
+  }
+
+  /* ── NOTE BLOCKQUOTE ── */
+  .note-block {
+    background: #EDF5FB;
+    border-left: 4px solid var(--blue);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+    color: #1B3A52;
+    line-height: 1.6;
+  }
+  .note-block strong { color: var(--blue); }
+
+  /* ── NAMING TABLE (simple) ── */
+  .naming-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--white);
+    font-size: 0.88rem;
+    border: 1px solid var(--grey-light);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 1rem 0;
+    min-width: 300px;
+  }
+  .naming-table th {
+    background: var(--grey-pale);
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--grey-mid);
+    padding: 0.6rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--grey-light);
+    border-right: 1px solid var(--grey-light);
+  }
+  .naming-table th:last-child { border-right: none; }
+  .naming-table td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--grey-light);
+    border-right: 1px solid var(--grey-light);
+    vertical-align: middle;
+  }
+  .naming-table td:last-child { border-right: none; }
+  .naming-table tr:last-child td { border-bottom: none; }
+  .naming-table code {
+    font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+    font-size: 0.85em;
+    background: var(--grey-pale);
+    color: var(--red);
+    padding: 0.1em 0.3em;
+    border-radius: 2px;
+  }
+
+  /* ── DOCS LINK LIST ── */
+  .docs-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .docs-item {
+    background: var(--white);
+    border: 1px solid var(--grey-light);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem 1rem;
+    align-items: start;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .docs-item:hover {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(11,131,207,0.1);
+  }
+
+  .docs-item-title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--dark);
+    margin-bottom: 0.2rem;
+  }
+
+  .docs-item-desc {
+    font-size: 0.85rem;
+    color: var(--grey-mid);
+    line-height: 1.5;
+  }
+
+  .docs-item-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    text-decoration: none;
+    white-space: nowrap;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--blue);
+    border-radius: 2px;
+    transition: background 0.12s, color 0.12s;
+    align-self: center;
+  }
+  .docs-item-link:hover {
+    background: var(--blue);
+    color: var(--white);
+  }
+
+  /* ── FAQ ── */
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .faq-item {
+    background: var(--white);
+    border: 1px solid var(--grey-light);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+  }
+
+  .faq-q {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--dark);
+    margin-bottom: 0.65rem;
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+  }
+
+  .faq-q::before {
+    content: "Q";
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--white);
+    background: var(--red);
+    padding: 0.1em 0.4em;
+    border-radius: 2px;
+  }
+
+  .faq-a {
+    font-size: 0.9rem;
+    color: var(--dark);
+    line-height: 1.65;
+  }
+
+  /* ── FOOTER ── */
+  .site-footer {
+    background: var(--dark);
+    color: rgba(255,255,255,0.45);
+    text-align: center;
+    font-size: 0.78rem;
+    padding: 1.75rem 1.25rem;
+    font-family: var(--font-display);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .site-footer a { color: rgba(255,255,255,0.6); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .step-item { grid-template-columns: 38px 1fr; }
+    .step-marker { width: 38px; height: 38px; font-size: 1rem; }
+    .step-item:not(:last-child)::after { left: 18px; top: 40px; }
+    .task-field { grid-template-columns: 1fr; gap: 0.15rem; }
+    .docs-item { grid-template-columns: 1fr; }
+    .docs-item-link { width: fit-content; }
+    .nav-links a { padding: 0 0.6rem; font-size: 0.8rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+</style>
+
+<!-- ── STICKY NAV ── -->
+<nav class="site-nav" aria-label="Page navigation">
+  <div class="nav-inner">
+    <div class="nav-logo" aria-label="DroneTM">
+      <!-- DTM-logo-white.svg inlined -->
+      <svg width="200" height="45" viewBox="0 0 200 45" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <g clip-path="url(#clip0_7409_2647)">
+          <path d="M28.1325 0.09375C23.3556 0.09375 19.4932 3.69774 19.4932 8.15374C19.4932 9.53115 19.9419 11.0534 20.6349 12.5899C20.9302 13.2487 21.271 13.9105 21.6402 14.5608C22.4695 16.0178 23.4408 17.4264 24.378 18.6675C26.3348 21.2633 28.1325 23.1207 28.1325 23.1207C28.1325 23.1207 30.1773 21.0077 32.279 18.1421C32.8583 17.3526 33.4405 16.5063 33.9858 15.6287C34.409 14.9528 34.8094 14.257 35.1673 13.5555C36.1158 11.7009 36.7719 9.818 36.7719 8.15374C36.7719 3.69774 32.9094 0.09375 28.1325 0.09375ZM28.1325 5.27396C29.8365 5.27396 31.2168 6.56333 31.2168 8.15374C31.2168 9.74132 29.8365 11.0307 28.1325 11.0307C26.4285 11.0307 25.0454 9.74132 25.0454 8.15374C25.0454 6.56333 26.4285 5.27396 28.1325 5.27396Z" fill="#F4F7F9"/>
+          <path d="M48.3401 26.3472C48.2748 25.9922 47.8544 25.4526 47.5647 25.4299C46.2669 25.3305 44.9576 25.3845 43.6938 25.3845C42.9383 29.9569 42.8929 30.0961 41.7711 31.2321C40.3113 30.221 38.8033 29.2526 37.3833 28.1677C36.0058 27.1169 34.9579 25.7906 34.583 24.0354C34.1229 21.8799 35.5514 19.3352 38.2693 18.2986C39.766 17.7249 40.3113 19.5652 41.2429 20.3633C41.6603 20.7183 41.8875 21.292 42.2511 21.7208C42.4413 21.948 42.7395 22.2178 43.0008 22.2292C44.2448 22.2832 45.4887 22.2519 46.815 22.2519C45.0826 18.2844 40.0444 15.0382 35.168 13.5558C34.8102 14.2572 34.4097 14.953 33.9866 15.629C33.4413 16.5065 32.8591 17.3529 32.2797 18.1424C30.1781 21.008 28.1333 23.121 28.1333 23.121C28.1333 23.121 26.3356 21.2636 24.3788 18.6678C23.4416 17.4267 22.4703 16.0181 21.641 14.5611C21.2718 13.9108 20.931 13.249 20.6356 12.5901C17.9717 12.5703 15.3077 12.5561 12.6438 12.5532C12.3768 12.5532 11.9537 12.7719 11.8656 12.9934C10.7069 15.8619 9.59361 18.7445 8.3866 21.8287C8.35252 21.9168 8.31843 22.0077 8.28151 22.0986C8.25879 22.1582 8.23891 22.215 8.21335 22.2746C6.14865 27.6451 2.42538 37.1422 0.437364 42.2826C0.278322 42.6916 0.176082 43.1233 0 43.7083C1.69266 43.7083 3.15243 43.7083 4.6122 43.7111C10.6217 43.7111 24.0465 43.2596 30.5899 43.1857C30.8285 43.1829 31.0585 43.1829 31.2772 43.1801H31.2999C37.4344 42.9642 44.5998 38.8973 47.1785 33.7569C48.3543 31.4167 48.8172 28.943 48.3401 26.3472ZM9.12784 33.9926C9.95997 31.1838 11.9451 24.6659 12.8369 21.664C12.8369 21.6612 12.8398 21.6555 12.8398 21.6527C12.9079 21.5163 12.9619 21.3601 13.0073 21.1784C13.4106 19.6022 13.9246 18.0515 14.4699 16.2339C16.333 17.6937 18.0484 18.9291 19.6303 20.3179C20.8287 21.3715 21.1838 22.8796 20.6243 24.3393C20.1869 25.4924 19.5593 26.7704 18.6277 27.5031C15.6429 29.8547 12.4762 31.9762 9.3806 34.1885C9.29824 34.1232 9.21304 34.0579 9.12784 33.9926ZM35.0828 36.452C33.0835 37.128 30.9847 37.4631 28.8745 37.5454L18.5965 37.9487H12.2604C12.7489 37.5085 12.996 37.2558 13.2743 37.0456C15.5321 35.3331 17.7842 33.6177 20.0591 31.9279C26.6991 26.9948 33.4725 29.3889 38.6073 34.7225C37.5253 35.4921 36.3296 36.0346 35.0828 36.452Z" fill="#D73F3F"/>
+        </g>
+        <path d="M66.1647 19.9023C66.0313 19.9023 65.9647 19.8357 65.9647 19.7023V6.10234C65.9647 5.96901 66.0313 5.90234 66.1647 5.90234H69.2447C70.2713 5.90234 71.0913 6.24234 71.7047 6.92234C72.318 7.58901 72.6247 8.48901 72.6247 9.62234V16.1823C72.6247 17.3157 72.318 18.2223 71.7047 18.9023C71.0913 19.569 70.2713 19.9023 69.2447 19.9023H66.1647ZM67.3847 18.5823C67.3847 18.6357 67.4113 18.6623 67.4647 18.6623L69.2247 18.6423C69.8113 18.6423 70.278 18.4157 70.6247 17.9623C70.9847 17.509 71.1713 16.8957 71.1847 16.1223V9.68234C71.1847 8.89568 71.0113 8.27568 70.6647 7.82234C70.318 7.36901 69.838 7.14234 69.2247 7.14234H67.4647C67.4113 7.14234 67.3847 7.16901 67.3847 7.22234V18.5823Z" fill="#FBF8F3"/>
+        <defs>
+          <clipPath id="clip0_7409_2647">
+            <rect width="48.5247" height="43.6171" fill="white" transform="translate(0 0.09375)"/>
+          </clipPath>
+        </defs>
+      </svg>
+    </div>
+    <div class="nav-divider" aria-hidden="true"></div>
+    <ul class="nav-links">
+      <li><a href="#intro">Introduction</a></li>
+      <li><a href="#tasks">Tasks</a></li>
+      <li><a href="#flying">Flying the Plan</a></li>
+      <li><a href="#docs">Docs</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── HEADER ── -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-eyebrow">Humanitarian OpenStreetMap</div>
+    <h1 class="header-title">Try Drone Guide</h1>
+    <p class="header-sub">Everything you need to identify your task cell, load the correct flight file, and fly a pre-planned autonomous mission safely.</p>
+  </div>
+</header>
+
+<!-- ── BODY ── -->
+<main class="page-body">
+
+  <!-- 1. INTRODUCTION -->
+  <section class="guide-section" id="intro">
+    <h2 class="section-heading">
+      <span class="section-number">1</span>Introduction
+    </h2>
+    <div class="prose">
+      <p>DroneTM coordinates drone mapping missions across teams of operators — dividing a large area of interest into manageable task cells, generating flight plans for each cell, and collecting the resulting imagery for processing into orthomosaics and point clouds.</p>
+      <p>This guide is for pilots who have downloaded a <strong>try-drone ZIP package</strong> containing pre-made flight plan tasks. You do not need a DroneTM account to fly these tasks — everything required is already in the folder.</p>
+    </div>
+
+    <div class="package-box">
+      <h3>What's in this package</h3>
+      <ul>
+        <li>The ZIP contains one flight file per task cell, named by task ID (for example <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">A1.kmz</code>, <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">B3.plan</code>).</li>
+        <!-- TODO: fill in before publishing -->
+        <li>Flight files: <span class="placeholder">[PLACEHOLDER: list actual files once package is finalized]</span></li>
+        <!-- TODO: fill in before publishing -->
+        <li>Target drone(s): <span class="placeholder">[PLACEHOLDER: confirm drone model(s) for this package]</span></li>
+        <!-- TODO: fill in before publishing -->
+        <li>Coverage area: <span class="placeholder">[PLACEHOLDER: total km&sup2; and location name]</span></li>
+      </ul>
+    </div>
+
+    <div class="prose">
+      <p>By the end of this guide you will know which file to load for your drone, how to confirm the task grid position before takeoff, and where to find the full DroneTM documentation if you want to go further.</p>
+    </div>
+  </section>
+
+  <!-- 2. TASKS -->
+  <section class="guide-section" id="tasks">
+    <h2 class="section-heading">
+      <span class="section-number">2</span>The Tasks
+    </h2>
+
+    <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:0.02em;color:var(--dark);margin-bottom:0.85rem;">Task Grid Naming Convention</h3>
+
+    <div class="prose">
+      <p>DroneTM divides the project area into a grid. Each cell is a self-contained task with its own flight plan. Task IDs encode a cell's position in the grid so you can immediately locate it on a map.</p>
+      <p><strong>Rows</strong> run north to south. The northernmost strip is row <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">A</code>; the next strip south is row <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">B</code>; and so on. For grids with more than 26 rows, the prefix doubles: row 27 becomes <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">AA</code>, row 28 becomes <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">AB</code>, and so on.</p>
+      <p><strong>Columns</strong> run west to east, numbered from <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">1</code>. Column 1 is the westernmost column in each row. The combined ID is <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">{row letter}{column number}</code>.</p>
+    </div>
+
+    <div class="table-wrap" style="margin:1.25rem 0;">
+      <table class="naming-table" style="min-width:340px;">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Position</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>A1</code></td><td>Top-left (northernmost row, westernmost column)</td></tr>
+          <tr><td><code>A2</code></td><td>Top row, second from the left</td></tr>
+          <tr><td><code>B1</code></td><td>Second row from the top, leftmost column</td></tr>
+          <tr><td><code>B3</code></td><td>Second row, third from the left</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>When you download all tasks, the ZIP contains one file per cell named after its ID — for example <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">A1.kmz</code> or <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">B3.plan</code>. Match the file name to the cell label on your map before takeoff.</p>
+    </div>
+
+    <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:0.02em;color:var(--dark);margin:2rem 0 0.85rem;">Pre-Made Tasks in This Package</h3>
+    <div class="prose">
+      <p>Each task below corresponds to one cell in the grid. They are independent missions and can be flown in any order.</p>
+    </div>
+
+    <!-- TASK_CARDS_PLACEHOLDER -->
+  </section>
+
+  <!-- 3. FLYING THE PLAN -->
+  <section class="guide-section" id="flying">
+    <h2 class="section-heading">
+      <span class="section-number">3</span>Flying the Plan
+    </h2>
+
+    <div class="prose" style="margin-bottom:1.75rem;">
+      <p>Follow these steps for each task cell you intend to fly. Always complete the pre-flight checklist before takeoff — see the Docs section for the full 12-phase reference.</p>
+    </div>
+
+    <ol class="steps-list" aria-label="Flight steps">
+      <li class="step-item">
+        <div class="step-marker" aria-hidden="true">1</div>
+        <div class="step-body">
+          <div class="step-title">Identify your drone model and the correct file</div>
+          <div class="prose">
+            <p>Find your drone in the table below. Note the file extension in the <em>Extension</em> column. In the task ZIP, pick the file whose name matches your task ID and has that extension. A DJI Mini 4 Pro pilot flying task B2 would load <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">B2.kmz</code>.</p>
+          </div>
+        </div>
+      </li>
+      <li class="step-item">
+        <div class="step-marker" aria-hidden="true">2</div>
+        <div class="step-body">
+          <div class="step-title">Transfer the file to your device</div>
+          <div class="prose">
+            <p>Copy the flight file to the phone or tablet that runs your GCS app. For DJI models, you can also transfer via the DJI RC controller's internal storage. For QGroundControl, copy the <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">.plan</code> file to the device running QGC.</p>
+          </div>
+        </div>
+      </li>
+      <li class="step-item">
+        <div class="step-marker" aria-hidden="true">3</div>
+        <div class="step-body">
+          <div class="step-title">Import the flight plan into your GCS app</div>
+          <div class="prose">
+            <p>Open the GCS app listed for your drone model. Use its import or "open waypoints" function to load the file. Before proceeding, verify that the displayed flight path matches the task cell on your map — the lawnmower pattern should cover the correct area.</p>
+          </div>
+        </div>
+      </li>
+      <li class="step-item">
+        <div class="step-marker" aria-hidden="true">4</div>
+        <div class="step-body">
+          <div class="step-title">Complete the pre-flight checklist</div>
+          <div class="prose">
+            <p>Check airframe, propellers, and batteries, and confirm airspace clearance. Review imagery conditions. Do not skip this step. The DroneTM flight checklist covers 12 sequential phases from environment assessment through post-flight image inspection — link in the Docs section.</p>
+          </div>
+        </div>
+      </li>
+      <li class="step-item">
+        <div class="step-marker" aria-hidden="true">5</div>
+        <div class="step-body">
+          <div class="step-title">Fly in autonomous mode</div>
+          <div class="prose">
+            <p>Arm the drone and initiate the autonomous mission from your GCS app. Do not fly manually. The pre-planned route ensures consistent image overlap and altitude, which is required for the resulting imagery to stitch correctly into a usable orthomosaic. Stay within visual line of sight throughout.</p>
+          </div>
+        </div>
+      </li>
+      <li class="step-item">
+        <div class="step-marker" aria-hidden="true">6</div>
+        <div class="step-body" style="padding-bottom:0;">
+          <div class="step-title">Inspect imagery and mark the task done</div>
+          <div class="prose">
+            <p>After landing, review the captured images for blur, gaps, or exposure problems before leaving the site. Once satisfied, complete the task according to the package-specific instructions in the task card above.</p>
+          </div>
+        </div>
+      </li>
+    </ol>
+
+    <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;letter-spacing:0.02em;color:var(--dark);margin:2.5rem 0 0.85rem;">Supported Drone Models and File Formats</h3>
+    <div class="prose" style="margin-bottom:1rem;">
+      <p>All models also support a <strong>GeoJSON</strong> download (<code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">.geojson</code>) as a universal preview format for use in QGIS, Google Earth, or geojson.io — this is not loaded directly to the drone.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Drone Model</th>
+            <th>File Format</th>
+            <th>Extension</th>
+            <th>GCS App</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-model">DJI Mini 4 Pro</td>
+            <td>KMZ (DJI)</td>
+            <td><span class="td-ext">.kmz</span></td>
+            <td>DJI Fly / DJI RC</td>
+          </tr>
+          <tr>
+            <td class="td-model">DJI Mini 5 Pro</td>
+            <td>KMZ (DJI)</td>
+            <td><span class="td-ext">.kmz</span></td>
+            <td>DJI Fly / DJI RC</td>
+          </tr>
+          <tr>
+            <td class="td-model">DJI Air 3</td>
+            <td>KMZ (DJI)</td>
+            <td><span class="td-ext">.kmz</span></td>
+            <td>DJI Fly / DJI RC</td>
+          </tr>
+          <tr>
+            <td class="td-model">Potensic Atom 1</td>
+            <td>Potensic</td>
+            <td><span class="td-ext">.db</span></td>
+            <td>Potensic app</td>
+          </tr>
+          <tr>
+            <td class="td-model">Potensic Atom 2</td>
+            <td>Potensic</td>
+            <td><span class="td-ext">.zip</span></td>
+            <td>Potensic app</td>
+          </tr>
+          <tr>
+            <td class="td-model">Litchi</td>
+            <td>Litchi</td>
+            <td><span class="td-ext">.csv</span></td>
+            <td>Litchi app</td>
+          </tr>
+          <tr>
+            <td class="td-model">QGroundControl</td>
+            <td>QGC plan</td>
+            <td><span class="td-ext">.plan</span></td>
+            <td>QGroundControl</td>
+          </tr>
+          <tr class="row-geojson">
+            <td class="td-model">All models (preview)</td>
+            <td>GeoJSON</td>
+            <td><span class="td-ext">.geojson</span></td>
+            <td>QGIS / Google Earth / geojson.io</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4. DOCS -->
+  <section class="guide-section" id="docs">
+    <h2 class="section-heading">
+      <span class="section-number">4</span>DroneTM Docs
+    </h2>
+    <div class="prose" style="margin-bottom:1.25rem;">
+      <p>Use these links when you need more detail than this guide covers, or when you are moving from the try-drone package to a full platform workflow.</p>
+    </div>
+
+    <ul class="docs-list">
+      <li class="docs-item">
+        <div>
+          <div class="docs-item-title">Installation &amp; Deployment</div>
+          <div class="docs-item-desc">Use this if you are self-hosting DroneTM — it covers the four-step Docker Compose setup, configuration wizard, and containerized microservices architecture.</div>
+        </div>
+        <a class="docs-item-link" href="https://docs.drone.hotosm.org/INSTALL/" target="_blank" rel="noopener">Open &rarr;</a>
+      </li>
+      <li class="docs-item">
+        <div>
+          <div class="docs-item-title">Creating Projects</div>
+          <div class="docs-item-desc">Use this if you are a project manager setting up a new mapping area — it walks through the eight steps from naming the project to generating a task grid.</div>
+        </div>
+        <a class="docs-item-link" href="https://docs.drone.hotosm.org/manuals/creating-projects/" target="_blank" rel="noopener">Open &rarr;</a>
+      </li>
+      <li class="docs-item">
+        <div>
+          <div class="docs-item-title">Drone Operators Guide</div>
+          <div class="docs-item-desc">Use this if you are registering a DroneTM account, claiming tasks through the platform, or uploading imagery after a mission for automatic orthomosaic processing.</div>
+        </div>
+        <a class="docs-item-link" href="https://docs.drone.hotosm.org/manuals/dronetm-operators/" target="_blank" rel="noopener">Open &rarr;</a>
+      </li>
+      <li class="docs-item">
+        <div>
+          <div class="docs-item-title">Flight Checklists</div>
+          <div class="docs-item-desc">Use this before, during, and after every mission — 12 sequential phases covering equipment verification, airspace assessment, in-flight monitoring, and post-flight image inspection.</div>
+        </div>
+        <a class="docs-item-link" href="https://docs.drone.hotosm.org/manuals/flight-checklists/" target="_blank" rel="noopener">Open &rarr;</a>
+      </li>
+      <li class="docs-item">
+        <div>
+          <div class="docs-item-title">Manual Flight Plan Generation</div>
+          <div class="docs-item-desc">Use this if you need to generate a WMPL-format flight plan from the command line — for example to incorporate Digital Elevation Model data for terrain-following missions.</div>
+        </div>
+        <a class="docs-item-link" href="https://docs.drone.hotosm.org/manuals/generate-flightplans/" target="_blank" rel="noopener">Open &rarr;</a>
+      </li>
+      <li class="docs-item">
+        <div>
+          <div class="docs-item-title">FAQ &amp; Troubleshooting</div>
+          <div class="docs-item-desc">Use this for questions about supported drone models, output formats, account requirements, and connectivity-limited upload workflows using RClone or S3 mounting.</div>
+        </div>
+        <a class="docs-item-link" href="https://docs.drone.hotosm.org/about/faq/" target="_blank" rel="noopener">Open &rarr;</a>
+      </li>
+    </ul>
+  </section>
+
+  <!-- FAQ -->
+  <section class="guide-section" id="faq">
+    <h2 class="section-heading">FAQ</h2>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q">My drone model is not in the table. Can I still use these files?</div>
+        <div class="faq-a">The GeoJSON download works as a universal preview in any GIS tool, but it cannot be loaded directly to a drone. If your drone supports the QGroundControl <code style="font-family:'SF Mono','Fira Mono',monospace;font-size:0.85em;background:var(--grey-pale);color:var(--red);padding:0.1em 0.3em;border-radius:2px;">.plan</code> format (many ArduPilot and PX4-based drones do), try that option. For other models, check the DroneTM FAQ for current hardware support, or contact the package coordinator.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What altitude do these flight plans use, and can I change it?</div>
+        <div class="faq-a">The altitude was set when the flight plan was generated — typically between 70&thinsp;m and 120&thinsp;m above the takeoff point. It is baked into the file and cannot be changed without regenerating the plan. Higher altitude means faster coverage but lower ground resolution; lower altitude gives more detail but takes longer to fly. Use the DroneTM platform or the manual generation tool to produce a new file at a different altitude if needed.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Do I need a DroneTM account to use this package?</div>
+        <div class="faq-a">No. The flight files in this ZIP are self-contained and can be imported directly into your GCS app without logging into DroneTM. An account is only required if you want to claim tasks through the platform, upload imagery for automated processing, or create new projects. See the Drone Operators Guide for those workflows.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  DroneTM &mdash; Humanitarian OpenStreetMap Team &mdash; <a href="https://drone.hotosm.org" target="_blank" rel="noopener">drone.hotosm.org</a>
+</footer>
