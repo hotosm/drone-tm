@@ -1,11 +1,15 @@
 import geojson
 import io
 import logging
+import math
 import os
 import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+
+import requests
+from PIL import Image, ImageDraw, ImageFont
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -91,6 +95,116 @@ def _generate_guide_html(tasks: list, drone_type: str, suffix: str) -> str:
 
     html = html.replace("<!-- TASK_CARDS_PLACEHOLDER -->", "\n".join(cards))
     return html
+
+
+def _lon_to_tile_x(lon: float, zoom: int) -> float:
+    return (lon + 180) / 360 * (2**zoom)
+
+
+def _lat_to_tile_y(lat: float, zoom: int) -> float:
+    lat_r = math.radians(lat)
+    return (
+        (1 - math.log(math.tan(lat_r) + 1 / math.cos(lat_r)) / math.pi) / 2 * (2**zoom)
+    )
+
+
+def _choose_zoom(min_lon: float, min_lat: float, max_lon: float, max_lat: float) -> int:
+    """Return the highest zoom where the bounding box fits within 5×5 tiles."""
+    for zoom in range(17, 10, -1):
+        tiles_wide = _lon_to_tile_x(max_lon, zoom) - _lon_to_tile_x(min_lon, zoom)
+        tiles_tall = _lat_to_tile_y(min_lat, zoom) - _lat_to_tile_y(max_lat, zoom)
+        if tiles_wide <= 5 and tiles_tall <= 5:
+            return zoom
+    return 12
+
+
+def _generate_tasks_pdf(tasks: list, out_path: str) -> None:
+    """Stitch OSM tiles for the tasks bounding box, draw task polygons, save as PDF."""
+    all_lons: list[float] = []
+    all_lats: list[float] = []
+    for task in tasks:
+        ring = (
+            task.geometry["coordinates"][0]
+            if task.geometry["type"] == "Polygon"
+            else task.geometry["coordinates"][0][0]
+        )
+        for lon, lat in ring:
+            all_lons.append(lon)
+            all_lats.append(lat)
+
+    min_lon, max_lon = min(all_lons), max(all_lons)
+    min_lat, max_lat = min(all_lats), max(all_lats)
+    zoom = _choose_zoom(min_lon, min_lat, max_lon, max_lat)
+
+    x_min = int(_lon_to_tile_x(min_lon, zoom))
+    x_max = int(_lon_to_tile_x(max_lon, zoom))
+    y_min = int(_lat_to_tile_y(max_lat, zoom))
+    y_max = int(_lat_to_tile_y(min_lat, zoom))
+
+    TILE_PX = 256
+    img_w = (x_max - x_min + 1) * TILE_PX
+    img_h = (y_max - y_min + 1) * TILE_PX
+
+    canvas = Image.new("RGB", (img_w, img_h), (200, 200, 200))
+    session = requests.Session()
+    session.headers["User-Agent"] = "drone-tm/1.0 (https://github.com/hotosm/drone-tm)"
+    for tx in range(x_min, x_max + 1):
+        for ty in range(y_min, y_max + 1):
+            try:
+                resp = session.get(
+                    f"https://tile.openstreetmap.org/{zoom}/{tx}/{ty}.png",
+                    timeout=8,
+                )
+                resp.raise_for_status()
+                tile = Image.open(io.BytesIO(resp.content)).convert("RGB")
+                canvas.paste(tile, ((tx - x_min) * TILE_PX, (ty - y_min) * TILE_PX))
+            except Exception:
+                pass  # grey placeholder for failed tiles
+
+    def lonlat_to_px(lon: float, lat: float) -> tuple[int, int]:
+        fx = (_lon_to_tile_x(lon, zoom) - x_min) * TILE_PX
+        fy = (_lat_to_tile_y(lat, zoom) - y_min) * TILE_PX
+        return int(fx), int(fy)
+
+    overlay = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    font_label = ImageFont.load_default(size=12)
+
+    FILLS = [
+        (231, 76, 60, 50),
+        (230, 126, 34, 50),
+        (52, 152, 219, 50),
+        (155, 89, 182, 50),
+        (46, 204, 113, 50),
+    ]
+    OUTLINES = [
+        (192, 57, 43, 220),
+        (211, 84, 0, 220),
+        (41, 128, 185, 220),
+        (142, 68, 173, 220),
+        (39, 174, 96, 220),
+    ]
+
+    for i, task in enumerate(tasks):
+        rings = (
+            [task.geometry["coordinates"][0]]
+            if task.geometry["type"] == "Polygon"
+            else [poly[0] for poly in task.geometry["coordinates"]]
+        )
+        fill = FILLS[i % len(FILLS)]
+        outline = OUTLINES[i % len(OUTLINES)]
+        for ring in rings:
+            pixels = [lonlat_to_px(lon, lat) for lon, lat in ring]
+            draw.polygon(pixels, fill=fill, outline=outline)
+            cx = sum(p[0] for p in pixels) // len(pixels)
+            cy = sum(p[1] for p in pixels) // len(pixels)
+            draw.text(
+                (cx, cy), task.id, fill=(0, 0, 0, 230), font=font_label, anchor="mm"
+            )
+
+    Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB").save(
+        out_path, format="PDF", resolution=150
+    )
 
 
 @router.get("/public/presigned-url")
@@ -279,12 +393,19 @@ async def all_task_files(body: AllTaskFilesRequest) -> StreamingResponse:
                 )
 
         try:
-            guide_html = _generate_guide_html(tasks, body.drone_type, flightplan_config["suffix"])
+            guide_html = _generate_guide_html(
+                tasks, body.drone_type, flightplan_config["suffix"]
+            )
             guide_path = os.path.join(tmpdir, "dronetm-guide.html")
             with open(guide_path, "w", encoding="utf-8") as f:
                 f.write(guide_html)
         except Exception:
             log.warning("Guide HTML generation failed", exc_info=True)
+
+        try:
+            _generate_tasks_pdf(tasks, os.path.join(tmpdir, "tasks_map.pdf"))
+        except Exception:
+            log.warning("PDF map generation failed", exc_info=True)
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
