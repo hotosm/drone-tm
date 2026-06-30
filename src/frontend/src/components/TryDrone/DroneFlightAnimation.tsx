@@ -117,7 +117,12 @@ export default function DroneFlightAnimation({ map, waypoints, geometry }: Props
     const dLat = maxLat - minLat;
     const midLat = (minLat + maxLat) / 2;
     const widthM = dLng * mLng(midLat);
-    const squareCorners: [number, number][] = [
+    const squareCorners: [
+      [number, number],
+      [number, number],
+      [number, number],
+      [number, number],
+    ] = [
       [minLng, maxLat],
       [maxLng, maxLat],
       [maxLng, minLat],
