@@ -48,6 +48,29 @@ export async function postFlightPreview(
   return res.json();
 }
 
+export async function postAllTaskFiles(
+  polygon: Polygon,
+  altitude: number,
+  droneModel: string,
+  cellSizeMeters = 300,
+): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_URL}/public/all-task-files/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      polygon: { type: "Feature", geometry: polygon },
+      altitude,
+      drone_type: droneModel,
+      cell_size_meters: cellSizeMeters,
+    }),
+  });
+  if (!res.ok) throw new Error(`All task files failed (${res.status})`);
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="?([^";\n]+)"?/);
+  const filename = match?.[1] ?? "all-task-files.zip";
+  return { blob: await res.blob(), filename };
+}
+
 export async function postWaypointKmz(
   geometry: Polygon,
   altitude: number,

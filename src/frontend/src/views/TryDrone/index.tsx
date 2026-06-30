@@ -20,7 +20,7 @@ import DroneFlightAnimation from "@Components/TryDrone/DroneFlightAnimation";
 import TutorialTour from "@Components/TryDrone/TutorialTour";
 import MapZoomControls from "@Components/TryDrone/MapZoomControls";
 import { useFlightPreviewMutation, useFlightPlanMutation } from "@Api/tryDrone";
-import { FlightPreviewTask, postWaypointKmz } from "@Services/tryDrone";
+import { FlightPreviewTask, postAllTaskFiles, postWaypointKmz } from "@Services/tryDrone";
 import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
 import SectionHeader from "@/components/common/SectionHeader";
 import { brandRed, taskFillColor, taskOutlineColor } from "@Constants/map";
@@ -164,6 +164,17 @@ const FlyMyDronePage = () => {
   const handleBackToStep2 = () => {
     setFlightPlan(null);
     setStep(2);
+  };
+
+  const handleDownloadAllTasks = () => {
+    postAllTaskFiles(polygon, altitude, droneModel).then(({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   };
 
   const handleDownloadKmz = () => {
@@ -413,6 +424,7 @@ const FlyMyDronePage = () => {
               onBack={handleBackToStep2}
               onDownload={handleDownloadKmz}
               onDownloadGeojson={handleDownloadGeojson}
+              onDownloadAll={handleDownloadAllTasks}
             />
           )}
         </TryDroneSidePanel>
