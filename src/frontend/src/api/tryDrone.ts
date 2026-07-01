@@ -1,6 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { FeatureCollection, Polygon } from "geojson";
-import { postFlightPreview, postFlightPlan, FlightPreviewTask } from "@Services/tryDrone";
+import { Polygon } from "geojson";
+import {
+  postFlightPreview,
+  postFlightPlan,
+  FlightPreviewTask,
+  FlightPlanResponse,
+} from "@Services/tryDrone";
 
 export const useFlightPreviewMutation = () =>
   useMutation<{ tasks: FlightPreviewTask[] }, Error, { polygon: Polygon; cellSizeMeters?: number }>(
@@ -11,7 +16,7 @@ export const useFlightPreviewMutation = () =>
 
 export const useFlightPlanMutation = () =>
   useMutation<
-    FeatureCollection,
+    FlightPlanResponse,
     Error,
     { geometry: Polygon; altitude: number; droneModel: string }
   >({

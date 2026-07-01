@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from shapely.geometry import shape
 
 from drone_flightplan import create_flightplan, create_waypoint
+from drone_flightplan.drone_type import CAMERA_MODEL_ALIASES, DRONE_PARAMS, DRONE_SPECS
 
 from app.models.enums import HTTPStatus
 from app.projects import project_logic
@@ -41,16 +42,39 @@ class AllTaskFilesRequest(FlightPlanRequest):
     cell_size_meters: int = 100
 
 
+def _build_drone_metadata(drone_type) -> dict:
+    params = DRONE_PARAMS.get(drone_type, {})
+    specs = DRONE_SPECS.get(drone_type, {})
+    camera_code = next(
+        (k for k, v in CAMERA_MODEL_ALIASES.items() if v == drone_type), None
+    )
+    return {
+        "drone_type": str(drone_type),
+        "camera_model_code": camera_code,
+        "output_format": params.get("OUTPUT_FORMAT"),
+        "vertical_fov_rad": params.get("VERTICAL_FOV"),
+        "horizontal_fov_rad": params.get("HORIZONTAL_FOV"),
+        "gsd_to_agl_const": params.get("GSD_TO_AGL_CONST"),
+        "sensor_width_mm": specs.get("sensor_width_mm"),
+        "sensor_height_mm": specs.get("sensor_height_mm"),
+        "equiv_focal_length_mm": specs.get("equiv_focal_length_mm"),
+        "image_width_px": specs.get("image_width_px"),
+    }
+
+
 def _extract_geometry(polygon: dict) -> dict | None:
     """Accept a GeoJSON Feature or bare geometry and return the geometry."""
     return polygon.get("geometry") if polygon.get("type") == "Feature" else polygon
 
 
-def _generate_guide_html(tasks: list, drone_type: str, suffix: str) -> str:
+def _generate_guide_html(
+    tasks: list, drone_type: str, suffix: str, drone_slug: str = ""
+) -> str:
     template_path = Path(__file__).parent / "templates" / "dronetm-guide.html"
     html = template_path.read_text(encoding="utf-8")
 
-    file_list = ", ".join(f"task-{t.id}{suffix}" for t in tasks)
+    stem_suffix = f"-{drone_slug}" if drone_slug else ""
+    file_list = ", ".join(f"task-{t.id}{stem_suffix}{suffix}" for t in tasks)
     drone_display = drone_type.replace("_", " ").title()
     total_km2 = sum(t.area_m2 for t in tasks) / 1_000_000
 
@@ -303,7 +327,9 @@ async def flight_plan(body: FlightPlanRequest) -> dict:
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e)
         ) from e
 
-    return geojson.loads(result["geojson"])
+    data = geojson.loads(result["geojson"])
+    data["drone_metadata"] = _build_drone_metadata(body.drone_type)
+    return data
 
 
 @router.post("/public/all-task-files/")
@@ -344,6 +370,7 @@ async def all_task_files(body: AllTaskFilesRequest) -> StreamingResponse:
         )
 
     flightplan_config = get_flightplan_output_config(body.drone_type)
+    drone_slug = str(body.drone_type).lower()
     tmpdir = tempfile.mkdtemp(prefix="all-task-files-")
     try:
         for task in tasks:
@@ -366,9 +393,9 @@ async def all_task_files(body: AllTaskFilesRequest) -> StreamingResponse:
                     drone_type=body.drone_type,
                 )
                 final_kmz = os.path.join(
-                    tmpdir, f"task-{task.id}{flightplan_config['suffix']}"
+                    tmpdir, f"task-{task.id}-{drone_slug}{flightplan_config['suffix']}"
                 )
-                if kmz_path != final_kmz and os.path.exists(kmz_path):
+                if os.path.exists(kmz_path):
                     os.rename(kmz_path, final_kmz)
             except Exception:
                 log.warning("KMZ generation failed for task %s", task.id, exc_info=True)
@@ -384,9 +411,13 @@ async def all_task_files(body: AllTaskFilesRequest) -> StreamingResponse:
                     take_off_point=take_off_point,
                     drone_type=body.drone_type,
                 )
-                geojson_path = os.path.join(tmpdir, f"task-{task.id}.geojson")
+                geojson_data = geojson.loads(waypoints["geojson"])
+                geojson_data["drone_metadata"] = _build_drone_metadata(body.drone_type)
+                geojson_path = os.path.join(
+                    tmpdir, f"task-{task.id}-{drone_slug}.geojson"
+                )
                 with open(geojson_path, "w") as f:
-                    f.write(waypoints["geojson"])
+                    f.write(geojson.dumps(geojson_data))
             except Exception:
                 log.warning(
                     "GeoJSON generation failed for task %s", task.id, exc_info=True
@@ -394,7 +425,7 @@ async def all_task_files(body: AllTaskFilesRequest) -> StreamingResponse:
 
         try:
             guide_html = _generate_guide_html(
-                tasks, body.drone_type, flightplan_config["suffix"]
+                tasks, body.drone_type, flightplan_config["suffix"], drone_slug
             )
             guide_path = os.path.join(tmpdir, "dronetm-guide.html")
             with open(guide_path, "w", encoding="utf-8") as f:

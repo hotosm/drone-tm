@@ -20,7 +20,12 @@ import DroneFlightAnimation from "@Components/TryDrone/DroneFlightAnimation";
 import TutorialTour from "@Components/TryDrone/TutorialTour";
 import MapZoomControls from "@Components/TryDrone/MapZoomControls";
 import { useFlightPreviewMutation, useFlightPlanMutation } from "@Api/tryDrone";
-import { FlightPreviewTask, postAllTaskFiles, postWaypointKmz } from "@Services/tryDrone";
+import {
+  DroneMetadata,
+  FlightPreviewTask,
+  postAllTaskFiles,
+  postWaypointKmz,
+} from "@Services/tryDrone";
 import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
 import SectionHeader from "@/components/common/SectionHeader";
 import { brandRed, taskFillColor, taskOutlineColor } from "@Constants/map";
@@ -28,6 +33,7 @@ import { brandRed, taskFillColor, taskOutlineColor } from "@Constants/map";
 interface FlightPlanData {
   geojsonListOfPoints: FeatureCollection;
   geojsonAsLineString: FeatureCollection;
+  droneMetadata?: DroneMetadata;
 }
 
 const INITIAL_MAP_CENTER: [number, number] = [-13.2317, 8.4657];
@@ -129,6 +135,7 @@ const FlyMyDronePage = () => {
       {
         onSuccess: (data) => {
           setFlightPlan({
+            droneMetadata: data.drone_metadata,
             geojsonListOfPoints: data,
             geojsonAsLineString: {
               type: "FeatureCollection",
@@ -198,6 +205,7 @@ const FlyMyDronePage = () => {
     if (!flightPlan || !selectedTask) return;
     const featureCollection = {
       type: "FeatureCollection" as const,
+      ...(flightPlan.droneMetadata ? { drone_metadata: flightPlan.droneMetadata } : {}),
       features: [
         ...flightPlan.geojsonAsLineString.features,
         ...flightPlan.geojsonListOfPoints.features,
@@ -209,7 +217,7 @@ const FlyMyDronePage = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `flightplan-${selectedTask.id}.geojson`;
+    a.download = `flightplan-${selectedTask.id}-${droneModel}.geojson`;
     a.click();
     URL.revokeObjectURL(url);
   };

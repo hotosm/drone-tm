@@ -4,6 +4,23 @@ import { polygonCentroid } from "../utils/geometry";
 
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
+export interface DroneMetadata {
+  drone_type: string;
+  camera_model_code: string | null;
+  output_format: string;
+  vertical_fov_rad: number;
+  horizontal_fov_rad: number;
+  gsd_to_agl_const: number;
+  sensor_width_mm: number | null;
+  sensor_height_mm: number | null;
+  equiv_focal_length_mm: number | null;
+  image_width_px: number | null;
+}
+
+export interface FlightPlanResponse extends FeatureCollection {
+  drone_metadata?: DroneMetadata;
+}
+
 export interface FlightPreviewTask {
   id: string;
   geometry: Polygon;
@@ -15,7 +32,7 @@ export async function postFlightPlan(
   altitude: number,
   droneModel: string,
   mode: "waylines" | "waypoints" = "waylines",
-): Promise<FeatureCollection> {
+): Promise<FlightPlanResponse> {
   const res = await fetch(`${API_URL}/public/flight-plan/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -91,6 +108,8 @@ export async function postWaypointKmz(
   if (!res.ok) throw new Error(`Waypoint request failed (${res.status})`);
   const disposition = res.headers.get("Content-Disposition") ?? "";
   const match = disposition.match(/filename="?([^";\n]+)"?/);
-  const filename = match?.[1] ?? `flightplan-${taskId}.kmz`;
+  const serverFilename = match?.[1] ?? "";
+  const ext = serverFilename.includes(".") ? serverFilename.split(".").pop() : "kmz";
+  const filename = `flightplan-${taskId}-${droneModel}.${ext}`;
   return { blob: await res.blob(), filename };
 }
