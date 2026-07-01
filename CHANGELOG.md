@@ -1,3 +1,9 @@
+## 2026.6.9 (2026-07-01)
+
+### Fix
+
+- **backend**: ensure task are correctly picked up when entire project processing triggered
+
 ## 2026.6.8 (2026-06-10)
 
 ## 2026.6.7 (2026-06-09)
