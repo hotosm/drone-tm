@@ -833,7 +833,10 @@ async def get_processable_tasks_with_pending_transfer_count(
     """Return task ids eligible for project-wide processing.
 
     Returns a tuple of:
-      - ready_task_ids: tasks in READY_FOR_PROCESSING state
+      - ready_task_ids: tasks whose imagery has been classified/verified
+        (READY_FOR_PROCESSING, IMAGE_PROCESSING_FINISHED, or
+        IMAGE_PROCESSING_FAILED). Finished/failed tasks are re-eligible
+        because a project-wide run consolidates all per-task imagery.
       - has_imagery_task_ids: tasks in HAS_IMAGERY state (not yet marked ready)
       - pending_transfer_count: how many of the eligible tasks still have
         imagery being transferred
@@ -855,7 +858,11 @@ async def get_processable_tasks_with_pending_transfer_count(
                 FROM tasks t
                 JOIN latest_task_state lts ON lts.task_id = t.id
                 WHERE t.project_id = %(project_id)s
-                  AND lts.state::text = 'READY_FOR_PROCESSING'
+                  AND lts.state::text IN (
+                      'READY_FOR_PROCESSING',
+                      'IMAGE_PROCESSING_FINISHED',
+                      'IMAGE_PROCESSING_FAILED'
+                  )
             ),
             has_imagery_tasks AS (
                 SELECT t.id, t.project_task_index
@@ -911,9 +918,7 @@ async def get_processable_tasks_with_pending_transfer_count(
 
 
 async def get_all_tasks_for_project(project_id, db):
-    """Get all unique tasks associated with the project ID
-    that are in state READY_FOR_PROCESSING.
-    """
+    """Get task ids whose imagery is verified (ready or already processed)."""
     ready_task_ids, _, _ = await get_processable_tasks_with_pending_transfer_count(
         project_id, db
     )
