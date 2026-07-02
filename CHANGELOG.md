@@ -1,3 +1,9 @@
+## 2026.6.10 (2026-07-02)
+
+### Fix
+
+- processing status reconciliation logic for ScaleODM jobs
+
 ## 2026.6.9 (2026-07-01)
 
 ### Fix
