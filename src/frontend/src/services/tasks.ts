@@ -51,6 +51,9 @@ export const postProcessImagery = (projectId: string, taskId: string, odmUrl?: s
     `/projects/process_imagery/${projectId}/${taskId}/${odmUrl ? `?odm_url=${encodeURIComponent(odmUrl)}` : ""}`,
   );
 
+export const postReconcileProcessing = (projectId: string) =>
+  authenticated(api).post(`/projects/assets/${projectId}/reconcile`);
+
 export const postRotatedTaskWayPoint = (payload: Record<string, any>) => {
   const { taskId, data } = payload;
   return authenticated(api).post(`/waypoint/${taskId}/generate-kmz/`, data, {

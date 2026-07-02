@@ -8,8 +8,10 @@ import pytest
 from fastapi import BackgroundTasks, HTTPException
 from httpx import ASGITransport, AsyncClient
 from loguru import logger as log
+from minio.error import S3Error
 
 from app.arq.tasks import get_redis_pool
+from app.models.enums import State
 from app.projects import project_deps
 from app.projects import project_routes
 from app.projects import project_schemas
@@ -652,6 +654,134 @@ async def _insert_classification_test_image(
 
     await db.commit()
     return image_id
+
+
+async def _insert_task_state(
+    db,
+    *,
+    project_id: str,
+    task_id: str,
+    user_id: str,
+    state: State,
+    comment: str = "Test state",
+) -> None:
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id, project_id, task_id, user_id, state, comment, updated_at, created_at
+            )
+            VALUES (
+                gen_random_uuid(), %s, %s, %s, %s, %s, NOW(), NOW()
+            )
+            """,
+            (project_id, task_id, user_id, state.name, comment),
+        )
+    await db.commit()
+
+
+async def _get_latest_task_state(db, *, project_id: str, task_id: str) -> str | None:
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT state::text
+            FROM task_events
+            WHERE project_id = %s AND task_id = %s
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (project_id, task_id),
+        )
+        row = await cur.fetchone()
+    return row[0] if row else None
+
+
+@pytest.mark.asyncio
+async def test_reconcile_assets_finishes_started_task_when_ortho_exists(
+    client, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    await _insert_task_state(
+        db,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=auth_user.id,
+        state=State.IMAGE_PROCESSING_STARTED,
+    )
+
+    seen_keys = []
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        seen_keys.append((bucket_name, object_name))
+        return {"ok": True}
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+
+    response = await client.post(f"/api/projects/assets/{project_id}/reconcile")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["checked"] == 1
+    assert body["reconciled"] == 1
+    assert body["task_ids"] == [task_id]
+    # Endpoint also returns the refreshed assets_info payload so the
+    # client doesn't have to fire a follow-up GET.
+    assert isinstance(body["assets"], list)
+    assert seen_keys[0][1] == (
+        f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+    )
+    assert (
+        await _get_latest_task_state(db, project_id=project_id, task_id=task_id)
+        == State.IMAGE_PROCESSING_FINISHED.name
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute("SELECT assets_url FROM tasks WHERE id = %s", (task_id,))
+        row = await cur.fetchone()
+    assert row[0] == f"projects/{project_id}/{task_id}/odm/"
+
+
+@pytest.mark.asyncio
+async def test_reconcile_assets_leaves_started_task_when_ortho_missing(
+    client, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    await _insert_task_state(
+        db,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=auth_user.id,
+        state=State.IMAGE_PROCESSING_STARTED,
+    )
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        raise S3Error(
+            "NoSuchKey",
+            "Object does not exist",
+            object_name,
+            "request-id",
+            "host-id",
+            None,
+            bucket_name=bucket_name,
+            object_name=object_name,
+        )
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+
+    response = await client.post(f"/api/projects/assets/{project_id}/reconcile")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["checked"] == 1
+    assert body["reconciled"] == 0
+    assert body["task_ids"] == []
+    assert isinstance(body["assets"], list)
+    assert (
+        await _get_latest_task_state(db, project_id=project_id, task_id=task_id)
+        == State.IMAGE_PROCESSING_STARTED.name
+    )
 
 
 @pytest.mark.asyncio

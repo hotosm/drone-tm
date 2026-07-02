@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGetProjectsDetailQuery } from "@Api/projects";
 import { useGetAllTaskAssetsInfo } from "@Api/tasks";
-import { postProcessImagery } from "@Services/tasks";
+import { postProcessImagery, postReconcileProcessing } from "@Services/tasks";
 import { processAllImagery, saveGcpFile } from "@Services/project";
 import {
   getProjectTaskImagerySummary,
@@ -327,13 +327,53 @@ const ProcessingStatusDialog = () => {
   const handleRefreshProcessingStatus = useCallback(async () => {
     if (!projectId) return;
 
+    // Reconcile returns the fresh assets_info payload plus the ids of any
+    // tasks we just finalised, so we seed the all-task-assets cache and
+    // clear those ids from the optimistic processingTasks set in one shot.
+    // Coverage doesn't change from processing-state transitions, so it's
+    // omitted; readiness (taskSummary) can be affected by other actions
+    // in this dialog so we still refresh it in parallel.
+    let seededFromReconcile = false;
+    let projectFinalised = false;
+    try {
+      const response = await postReconcileProcessing(projectId);
+      const data = response?.data;
+      const finalisedTaskIds: string[] = Array.isArray(data?.task_ids) ? data.task_ids : [];
+      if (finalisedTaskIds.length > 0) {
+        setProcessingTasks((prev) => {
+          if (prev.size === 0) return prev;
+          const next = new Set(prev);
+          finalisedTaskIds.forEach((id) => next.delete(id));
+          return next.size === prev.size ? prev : next;
+        });
+      }
+      const assets = data?.assets;
+      if (Array.isArray(assets)) {
+        // useGetAllTaskAssetsInfo has `select: res => res.data`, so the
+        // cache holds the raw axios-shaped response, not the payload.
+        queryClient.setQueryData(["all-task-assets-info", projectId], {
+          data: assets,
+        });
+        seededFromReconcile = true;
+      }
+      projectFinalised = data?.project_finalised === true;
+    } catch {
+      // Reconcile failure is non-fatal; the fallback refetch below covers it.
+    }
+    if (!seededFromReconcile) {
+      await refetchAllTaskAssets();
+    }
+
     await Promise.allSettled([
       refetchTaskSummary(),
-      refetchCoverage(),
-      refetchAllTaskAssets(),
-      queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] }),
+      // If the reconcile flipped the project to SUCCESS, force an immediate
+      // refetch so the final results section (ortho/DSM/DTM download buttons)
+      // appears without waiting for another user action.
+      projectFinalised
+        ? queryClient.refetchQueries({ queryKey: ["project-detail", projectId] })
+        : queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] }),
     ]);
-  }, [projectId, queryClient, refetchAllTaskAssets, refetchCoverage, refetchTaskSummary]);
+  }, [projectId, queryClient, refetchAllTaskAssets, refetchTaskSummary]);
 
   const totalTaskCount = useMemo(() => {
     if (typeof projectDetail?.total_task_count === "number") {

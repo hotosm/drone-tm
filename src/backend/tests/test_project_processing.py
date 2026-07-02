@@ -1,7 +1,10 @@
 import json
 import uuid
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
+from minio.error import S3Error
 
 from app import utils as app_utils
 from app.images import image_processing
@@ -13,8 +16,9 @@ from app.arq import tasks as arq_tasks
 class _FakeCursor:
     """Minimal async context-manager cursor; fetchone() returns None by default."""
 
-    def __init__(self, fetchone_result=None):
+    def __init__(self, fetchone_result=None, fetchall_result=None):
         self._fetchone_result = fetchone_result
+        self._fetchall_result = fetchall_result or []
         self.executed = []
 
     async def execute(self, query, params=None):
@@ -22,6 +26,9 @@ class _FakeCursor:
 
     async def fetchone(self):
         return self._fetchone_result
+
+    async def fetchall(self):
+        return self._fetchall_result
 
     async def __aenter__(self):
         return self
@@ -31,11 +38,12 @@ class _FakeCursor:
 
 
 class _FakeConn:
-    def __init__(self, cursor_fetchone=None):
+    def __init__(self, cursor_fetchone=None, cursor_fetchall=None):
         self.commit_calls = 0
         self.rollback_calls = 0
         self.executed = []
         self._cursor_fetchone = cursor_fetchone
+        self._cursor_fetchall = cursor_fetchall
 
     async def execute(self, query, params=None):
         self.executed.append({"query": query, "params": params})
@@ -47,7 +55,7 @@ class _FakeConn:
         self.rollback_calls += 1
 
     def cursor(self, **kwargs):
-        return _FakeCursor(self._cursor_fetchone)
+        return _FakeCursor(self._cursor_fetchone, self._cursor_fetchall)
 
 
 class _FakePoolConnection:
@@ -443,6 +451,201 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
     assert submitted["read_s3_path"].endswith(f"/projects/{project_id}/")
     assert submitted["write_s3_path"].endswith(f"/projects/{project_id}/odm/")
     assert submitted["name"] == f"DTM-Project-{project_id}"
+
+
+# ── task-level ODM output reconciliation ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_reconcile_finished_task_odm_outputs_marks_found_ortho(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn(cursor_fetchall=[{"id": task_id}])
+    state_calls = []
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        assert object_name == (
+            f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+        )
+        return {"ok": True}
+
+    async def fake_update_task_state_system(*args, **kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+    monkeypatch.setattr(
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    result = await project_logic.reconcile_finished_task_odm_outputs(conn, project_id)
+
+    assert result == {
+        "checked": 1,
+        "reconciled": 1,
+        "task_ids": [str(task_id)],
+    }
+    assert state_calls[0]["initial_state"] == State.IMAGE_PROCESSING_STARTED
+    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FINISHED
+    assert conn.commit_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_reconcile_finished_task_odm_outputs_skips_missing_ortho(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    conn = _FakeConn(cursor_fetchall=[{"id": task_id}])
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        raise S3Error(
+            "NoSuchKey",
+            "Object does not exist",
+            object_name,
+            "request-id",
+            "host-id",
+            None,
+            bucket_name=bucket_name,
+            object_name=object_name,
+        )
+
+    async def fake_update_task_state_system(*args, **kwargs):
+        raise AssertionError("state should not change when the ortho is missing")
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+    monkeypatch.setattr(
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
+    )
+
+    result = await project_logic.reconcile_finished_task_odm_outputs(conn, project_id)
+
+    assert result == {"checked": 1, "reconciled": 0, "task_ids": []}
+    assert conn.commit_calls == 0
+
+
+# ── project-level ODM output reconciliation ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_reconcile_finished_project_odm_output_marks_success(monkeypatch):
+    """Ortho present, project in PROCESSING, mtime post-dates last_updated → SUCCESS."""
+    project_id = uuid.uuid4()
+    started_at = datetime(2026, 1, 1, 12, 0, 0)
+    ortho_mtime = started_at + timedelta(minutes=30)
+    conn = _FakeConn(
+        cursor_fetchone={
+            "image_processing_status": ImageProcessingStatus.PROCESSING.name,
+            "last_updated": started_at,
+        }
+    )
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        assert object_name == (
+            f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+        )
+        return SimpleNamespace(last_modified=ortho_mtime.replace(tzinfo=timezone.utc))
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+
+    result = await project_logic.reconcile_finished_project_odm_output(conn, project_id)
+
+    assert result is True
+    # Two commits: one from update_processing_status, one after the URL UPDATE.
+    assert conn.commit_calls == 2
+    # First UPDATE flips status to SUCCESS and clears odm_task_uuid/odm_endpoint_used
+    # (via update_processing_status); second sets output_odm_assets_url.
+    assert any(
+        "image_processing_status" in q["query"] and "odm_task_uuid = NULL" in q["query"]
+        for q in conn.executed
+    )
+    assert any("output_odm_assets_url" in q["query"] for q in conn.executed)
+
+
+@pytest.mark.asyncio
+async def test_reconcile_finished_project_odm_output_skips_missing_ortho(monkeypatch):
+    """Ortho missing → no state change, no commits."""
+    project_id = uuid.uuid4()
+    conn = _FakeConn(
+        cursor_fetchone={
+            "image_processing_status": ImageProcessingStatus.PROCESSING.name,
+            "last_updated": datetime(2026, 1, 1, 12, 0, 0),
+        }
+    )
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        raise S3Error(
+            "NoSuchKey",
+            "Object does not exist",
+            object_name,
+            "request-id",
+            "host-id",
+            None,
+            bucket_name=bucket_name,
+            object_name=object_name,
+        )
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+
+    result = await project_logic.reconcile_finished_project_odm_output(conn, project_id)
+
+    assert result is False
+    assert conn.commit_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_reconcile_finished_project_odm_output_bails_when_not_processing(
+    monkeypatch,
+):
+    """Project not in PROCESSING → no S3 probe, no state change."""
+    project_id = uuid.uuid4()
+    conn = _FakeConn(
+        cursor_fetchone={
+            "image_processing_status": ImageProcessingStatus.SUCCESS.name,
+            "last_updated": datetime(2026, 1, 1, 12, 0, 0),
+        }
+    )
+    probe_calls = []
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        probe_calls.append(object_name)
+        return SimpleNamespace(
+            last_modified=datetime(2026, 1, 1, 13, 0, 0, tzinfo=timezone.utc)
+        )
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+
+    result = await project_logic.reconcile_finished_project_odm_output(conn, project_id)
+
+    assert result is False
+    assert probe_calls == []
+    assert conn.commit_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_reconcile_finished_project_odm_output_ignores_stale_ortho(monkeypatch):
+    """Rerun-race guard: ortho.last_modified predates last_updated → skip."""
+    project_id = uuid.uuid4()
+    started_at = datetime(2026, 3, 1, 12, 0, 0)
+    stale_mtime = started_at - timedelta(hours=1)
+    conn = _FakeConn(
+        cursor_fetchone={
+            "image_processing_status": ImageProcessingStatus.PROCESSING.name,
+            "last_updated": started_at,
+        }
+    )
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        return SimpleNamespace(last_modified=stale_mtime.replace(tzinfo=timezone.utc))
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+
+    result = await project_logic.reconcile_finished_project_odm_output(conn, project_id)
+
+    assert result is False
+    assert conn.commit_calls == 0
 
 
 # ── finalize_scaleodm_task ────────────────────────────────────────────────────

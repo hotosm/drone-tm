@@ -782,6 +782,198 @@ async def get_assets_info_bulk(
     return results
 
 
+async def reconcile_finished_task_odm_outputs(
+    db: Connection,
+    project_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Mark STARTED task-level ODM runs as finished when their S3 output exists.
+
+    Reruns land in the same S3 prefix as the previous run (see
+    ``process_drone_images``: FINISHED → STARTED is allowed and does not
+    clear the old output). To avoid finalising a rerun with the previous
+    run's orthophoto, we compare the ortho's S3 ``last_modified`` against
+    the task's STARTED event ``created_at`` and only finalise when the
+    ortho is newer.
+
+    Returns ``{"checked": N, "reconciled": M, "task_ids": [...]}``.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            WITH latest_state AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id,
+                    te.state,
+                    te.created_at
+                FROM task_events te
+                JOIN tasks t ON t.id = te.task_id
+                WHERE t.project_id = %(project_id)s
+                ORDER BY te.task_id, te.created_at DESC
+            )
+            SELECT t.id, ls.created_at AS started_at
+            FROM tasks t
+            JOIN latest_state ls ON ls.task_id = t.id
+            WHERE t.project_id = %(project_id)s
+              AND ls.state = 'IMAGE_PROCESSING_STARTED'
+            ORDER BY t.project_task_index;
+            """,
+            {"project_id": project_id},
+        )
+        rows = await cur.fetchall()
+
+    reconciled_task_ids: list[str] = []
+
+    for row in rows:
+        task_id = row["id"]
+        started_at = row.get("started_at")
+        task_ortho_key = (
+            f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+        )
+
+        try:
+            stat = await run_in_threadpool(
+                get_object_metadata,
+                settings.S3_BUCKET_NAME,
+                task_ortho_key,
+            )
+        except S3Error as e:
+            if e.code != "NoSuchKey":
+                log.warning(f"Task ortho reconcile lookup failed for {task_id}: {e}")
+            continue
+
+        # Guard against rerun races: the ortho may be from the previous
+        # run because ScaleODM writes to the same prefix and we don't
+        # clear it before a rerun. Only skip when we can DEFINITIVELY
+        # prove the ortho pre-dates the current STARTED transition; if
+        # either timestamp is missing (edge case / test stub), fall
+        # through and finalise as before.
+        ortho_mtime = getattr(stat, "last_modified", None)
+        if ortho_mtime is not None and started_at is not None:
+            # task_events.created_at is a naive datetime (UTC) from the
+            # DB; minio's last_modified is tz-aware UTC. Normalise both
+            # to naive UTC for a valid comparison.
+            ortho_naive = (
+                ortho_mtime.replace(tzinfo=None)
+                if getattr(ortho_mtime, "tzinfo", None) is not None
+                else ortho_mtime
+            )
+            started_naive = (
+                started_at.replace(tzinfo=None)
+                if getattr(started_at, "tzinfo", None) is not None
+                else started_at
+            )
+            if ortho_naive < started_naive:
+                continue
+
+        result = await task_logic.update_task_state_system(
+            db=db,
+            project_id=project_id,
+            task_id=task_id,
+            comment="ODM processing completed; reconciled from S3 output.",
+            initial_state=State.IMAGE_PROCESSING_STARTED,
+            final_state=State.IMAGE_PROCESSING_FINISHED,
+            updated_at=timestamp(),
+        )
+        if result is None:
+            continue
+
+        await update_task_field(
+            db,
+            project_id,
+            task_id,
+            "assets_url",
+            f"projects/{project_id}/{task_id}/odm/",
+        )
+        reconciled_task_ids.append(str(task_id))
+
+    if reconciled_task_ids:
+        await db.commit()
+
+    return {
+        "checked": len(rows),
+        "reconciled": len(reconciled_task_ids),
+        "task_ids": reconciled_task_ids,
+    }
+
+
+async def reconcile_finished_project_odm_output(
+    db: Connection, project_id: uuid.UUID
+) -> bool:
+    """Flip project image_processing_status to SUCCESS when the project-wide
+    ODM orthophoto has landed in S3.
+
+    Mirrors :func:`reconcile_finished_task_odm_outputs` but for whole-project
+    (``process_all_imagery``) runs. The state transition side-effects match
+    what ``finalize_scaleodm_task`` used to do:
+      * ``image_processing_status = SUCCESS``
+      * ``odm_task_uuid`` / ``odm_endpoint_used`` cleared
+      * ``output_odm_assets_url`` populated
+
+    Rerun-race guard: compares the ortho's ``last_modified`` against
+    ``projects.last_updated``. That column is bumped in the three places
+    that transition a project to PROCESSING or FAILED, so it's a reliable
+    "when did this run start" signal.
+
+    Returns True if a transition happened, False otherwise.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            SELECT image_processing_status, last_updated
+            FROM projects
+            WHERE id = %(project_id)s;
+            """,
+            {"project_id": project_id},
+        )
+        row = await cur.fetchone()
+
+    if (
+        not row
+        or row.get("image_processing_status") != ImageProcessingStatus.PROCESSING.name
+    ):
+        return False
+
+    project_ortho_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+    try:
+        stat = await run_in_threadpool(
+            get_object_metadata, settings.S3_BUCKET_NAME, project_ortho_key
+        )
+    except S3Error as e:
+        if e.code != "NoSuchKey":
+            log.warning(f"Project ortho reconcile lookup failed for {project_id}: {e}")
+        return False
+
+    processing_started_at = row.get("last_updated")
+    ortho_mtime = getattr(stat, "last_modified", None)
+    if ortho_mtime is not None and processing_started_at is not None:
+        ortho_naive = (
+            ortho_mtime.replace(tzinfo=None)
+            if getattr(ortho_mtime, "tzinfo", None) is not None
+            else ortho_mtime
+        )
+        started_naive = (
+            processing_started_at.replace(tzinfo=None)
+            if getattr(processing_started_at, "tzinfo", None) is not None
+            else processing_started_at
+        )
+        if ortho_naive < started_naive:
+            return False
+
+    # Reuse update_processing_status so the SUCCESS-side-effects (clearing
+    # odm_task_uuid/odm_endpoint_used) stay in one place. Follow up with the
+    # output URL UPDATE, same pattern as finalize_scaleodm_task's project-
+    # level branch (see arq/tasks.py).
+    await update_processing_status(db, project_id, ImageProcessingStatus.SUCCESS)
+    odm_assets_url = f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
+    await db.execute(
+        "UPDATE projects SET output_odm_assets_url = %(url)s WHERE id = %(pid)s",
+        {"url": odm_assets_url, "pid": project_id},
+    )
+    await db.commit()
+    log.info(f"Reconciled project {project_id} to SUCCESS from S3 output.")
+    return True
+
+
 async def check_regulator_project(db: Connection, project_id: str, email: str):
     sql = """
     SELECT id FROM projects WHERE

@@ -27,7 +27,7 @@ export type ImageStatus = "assigned" | "rejected" | "invalid_exif" | "duplicate"
 
 export type StatusCounts = Record<ImageStatus, number>;
 
-// Server response for /imagery/review/ — summary only, no per-image list.
+// Server response for /imagery/review/ - summary only, no per-image list.
 // The per-image data is reconstructed client-side from /imagery/map-data/.
 export interface TaskGroupSummary {
   task_id: string | null;
