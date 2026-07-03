@@ -4,6 +4,8 @@ import Input from "@Components/common/FormUI/Input";
 interface Step1PanelProps {
   altitude: number;
   setAltitude: (v: number) => void;
+  gridDimension: number;
+  setGridDimension: (v: number) => void;
   areaKm2: number;
   setAreaKm2: (v: number) => void;
   onContinue: () => void;
@@ -13,6 +15,8 @@ interface Step1PanelProps {
 export default function Step1Panel({
   altitude,
   setAltitude,
+  gridDimension,
+  setGridDimension,
   areaKm2,
   setAreaKm2,
   onContinue,
@@ -38,6 +42,25 @@ export default function Step1Panel({
           max={120}
           className="naxatw-w-full"
         />
+      </div>
+
+      <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+        <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
+          Dimension of squares (M)
+        </label>
+        <Input
+          type="number"
+          value={gridDimension}
+          onChange={(e) => setGridDimension(Number(e.target.value))}
+          onBlur={(e) => {
+            const value = Number(e.target.value);
+            setGridDimension(Math.min(1000, Math.max(50, value)));
+          }}
+          min={50}
+          max={1000}
+          className="naxatw-w-full"
+        />
+        <p className="naxatw-text-xs naxatw-text-grey-500">Recommended: 50-1000</p>
       </div>
 
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">

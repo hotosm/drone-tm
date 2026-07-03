@@ -51,6 +51,7 @@ const FlyMyDronePage = () => {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [altitude, setAltitude] = useState(70);
+  const [gridDimension, setGridDimension] = useState(50);
   const [areaKm2, setAreaKm2] = useState(0.2);
   const [mapCenter, setMapCenter] = useState<[number, number]>(INITIAL_MAP_CENTER);
   const [polygon, setPolygon] = useState<Polygon>(() => buildSquareKm2(INITIAL_MAP_CENTER, 0.2));
@@ -114,7 +115,7 @@ const FlyMyDronePage = () => {
 
   const handleContinue = () => {
     fetchFlightPreview(
-      { polygon },
+      { polygon, cellSizeMeters: gridDimension },
       {
         onSuccess: (data) => {
           setGrid(data.tasks);
@@ -174,7 +175,7 @@ const FlyMyDronePage = () => {
   };
 
   const handleDownloadAllTasks = () => {
-    postAllTaskFiles(polygon, altitude, droneModel).then(({ blob, filename }) => {
+    postAllTaskFiles(polygon, altitude, droneModel, gridDimension).then(({ blob, filename }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -409,6 +410,8 @@ const FlyMyDronePage = () => {
             <Step1Panel
               altitude={altitude}
               setAltitude={setAltitude}
+              gridDimension={gridDimension}
+              setGridDimension={setGridDimension}
               areaKm2={areaKm2}
               setAreaKm2={setAreaKm2}
               onContinue={handleContinue}
