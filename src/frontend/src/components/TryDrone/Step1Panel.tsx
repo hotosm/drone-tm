@@ -1,5 +1,5 @@
-import { Button } from '@Components/RadixComponents/Button';
-import Input from '@Components/common/FormUI/Input';
+import { Button } from "@Components/RadixComponents/Button";
+import Input from "@Components/common/FormUI/Input";
 
 interface Step1PanelProps {
   altitude: number;
@@ -20,9 +20,7 @@ export default function Step1Panel({
 }: Step1PanelProps) {
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
-      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">
-        Instructions
-      </h2>
+      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">Instructions</h2>
 
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
         <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
@@ -31,7 +29,11 @@ export default function Step1Panel({
         <Input
           type="number"
           value={altitude}
-          onChange={e => setAltitude(Number(e.target.value))}
+          onChange={(e) => setAltitude(Number(e.target.value))}
+          onBlur={(e) => {
+            const value = Number(e.target.value);
+            setAltitude(Math.min(120, Math.max(70, value)));
+          }}
           min={70}
           max={120}
           className="naxatw-w-full"
@@ -53,7 +55,7 @@ export default function Step1Panel({
           max={1.44}
           step={0.09}
           value={areaKm2}
-          onChange={e => setAreaKm2(Number(e.target.value))}
+          onChange={(e) => setAreaKm2(Number(e.target.value))}
           className="naxatw-accent-primary-400 naxatw-w-full"
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
@@ -68,7 +70,7 @@ export default function Step1Panel({
         disabled={loading}
         className="naxatw-w-full !naxatw-bg-grey-900"
       >
-        {loading ? 'Loading…' : 'Continue'}
+        {loading ? "Loading…" : "Continue"}
       </Button>
     </div>
   );
