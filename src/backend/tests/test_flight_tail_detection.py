@@ -50,30 +50,58 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
     base_lat = 27.0
 
     # Build a simple path:
-    # - takeoff transit: moving north (azimuth ~0)
-    # - mission: moving east (azimuth ~90)
-    # - landing transit: moving south (azimuth ~180)
+    # - takeoff transit: moving north (yaw ~0)
+    # - mission: moving east (yaw ~90)
+    # - landing transit: moving south (yaw ~180)
 
     # To pass the 25% safety fraction and the search_limit,
     # we need a longer mission (Total ~52 images)
     points: list[tuple[float, float]] = []
+    exif_data = []
 
     # Use ~11m steps so distance-based filtering (MIN_DISTANCE_METERS) doesn't discard points.
     # NOTE: tail detection requires >= 20 images per segment.
 
     # We need at least 5 images for baseline, turn happens at index 6
     for i in range(6):
-        points.append((base_lon, base_lat + i * 0.0001))
+        points.append((base_lon, base_lat + i * 0.0002))
+        exif_data.append(
+            json.dumps(
+                {
+                    "FlightYawDegree": 0.0,
+                    "GimbalPitchDegree": 0.0,
+                    "AbsoluteAltitude": 250.0,
+                }
+            )
+        )
 
     # 40 points east
     east_start_lon, east_start_lat = points[-1]
     for i in range(1, 41):
-        points.append((east_start_lon + i * 0.0001, east_start_lat))
+        points.append((east_start_lon + i * 0.0002, east_start_lat))
+        exif_data.append(
+            json.dumps(
+                {
+                    "FlightYawDegree": 90.0,
+                    "GimbalPitchDegree": -90.0,
+                    "AbsoluteAltitude": 250.0,
+                }
+            )
+        )
 
     # 6 points south
     south_start_lon, south_start_lat = points[-1]
     for i in range(1, 7):
-        points.append((south_start_lon, south_start_lat - i * 0.0001))
+        points.append((south_start_lon, south_start_lat - i * 0.0002))
+        exif_data.append(
+            json.dumps(
+                {
+                    "FlightYawDegree": 180.0,
+                    "GimbalPitchDegree": -90.0,
+                    "AbsoluteAltitude": 250.0,
+                }
+            )
+        )
 
     now = datetime.now(timezone.utc)
     inserted_ids: list[uuid.UUID] = []
@@ -97,7 +125,8 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
                     location,
                     uploaded_by,
                     status,
-                    uploaded_at
+                    uploaded_at,
+                    exif
                 )
                 VALUES (
                     %(project_id)s,
@@ -109,7 +138,8 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
                     ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), 4326),
                     %(uploaded_by)s,
                     'assigned',
-                    %(uploaded_at)s
+                    %(uploaded_at)s,
+                    %(exif)s
                 )
                 RETURNING id
                 """,
@@ -124,6 +154,7 @@ async def test_flight_tail_images_marked_rejected(db, create_test_project, auth_
                     "lat": lat,
                     "uploaded_by": auth_user.id,
                     "uploaded_at": uploaded_at,
+                    "exif": exif_data[i],
                 },
             )
             row = await cur.fetchone()
@@ -192,14 +223,22 @@ async def test_flight_tail_does_not_override_existing_rejection_reason(
     base_lat = 27.0
 
     points: list[tuple[float, float]] = []
+    exif_data = []
     for i in range(8):
         points.append((base_lon, base_lat + i * 0.0001))
+        exif_data.append(json.dumps({"FlightYawDegree": 0.0, "GimbalPitchDegree": 0.0}))
     east_start_lon, east_start_lat = points[-1]
     for i in range(1, 11):
         points.append((east_start_lon + i * 0.0001, east_start_lat))
+        exif_data.append(
+            json.dumps({"FlightYawDegree": 90.0, "GimbalPitchDegree": -90.0})
+        )
     south_start_lon, south_start_lat = points[-1]
     for i in range(1, 9):
         points.append((south_start_lon, south_start_lat - i * 0.0001))
+        exif_data.append(
+            json.dumps({"FlightYawDegree": 180.0, "GimbalPitchDegree": 0.0})
+        )
 
     now = datetime.now(timezone.utc)
 
@@ -227,7 +266,8 @@ async def test_flight_tail_does_not_override_existing_rejection_reason(
                     uploaded_by,
                     status,
                     rejection_reason,
-                    uploaded_at
+                    uploaded_at,
+                    exif
                 )
                 VALUES (
                     %(project_id)s,
@@ -240,7 +280,8 @@ async def test_flight_tail_does_not_override_existing_rejection_reason(
                     %(uploaded_by)s,
                     'assigned',
                     %(rejection_reason)s,
-                    %(uploaded_at)s
+                    %(uploaded_at)s,
+                    %(exif)s
                 )
                 """,
                 {
@@ -259,6 +300,7 @@ async def test_flight_tail_does_not_override_existing_rejection_reason(
                         if i in pre_rejected_idx
                         else None
                     ),
+                    "exif": exif_data[i],
                 },
             )
 
@@ -488,6 +530,8 @@ async def test_vertical_takeoff_tail(db, create_test_project, auth_user):
 
             exif_data = json.dumps(
                 {
+                    "FlightYawDegree": 90.0,
+                    "GimbalPitchDegree": -90.0,
                     "AbsoluteAltitude": str(alt),
                     "DateTimeOriginal": ts.strftime("%Y:%m:%d %H:%M:%S"),
                 }
@@ -612,6 +656,8 @@ async def test_multi_batch_rejections(db, create_test_project, auth_user):
 
                 exif_data = json.dumps(
                     {
+                        "FlightYawDegree": 90.0,
+                        "GimbalPitchDegree": -90.0,
                         "DateTimeOriginal": ts.strftime("%Y:%m:%d %H:%M:%S"),
                         "AbsoluteAltitude": str(alt),
                     }
