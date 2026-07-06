@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Map } from "maplibre-gl";
+import { m } from "@/paraglide/messages";
 
 type Highlight = "map" | "panel";
 
@@ -22,11 +23,11 @@ function getMarks(step: number, hasSelection: boolean): Mark[] {
   if (step === 1)
     return [
       {
-        text: "Este es tu área a mapear. Arrastrá el recuadro sobre la zona y cambiá su tamaño con el control de Área.",
+        text: m.trydrone_tour_area(),
         highlight: "map",
       },
       {
-        text: "La altitud define a qué altura vuela el dron: más alto cubre más rápido, más bajo da más detalle. Cuando estés listo, tocá Continue.",
+        text: m.trydrone_tour_altitude(),
         highlight: "panel",
       },
     ];
@@ -34,23 +35,23 @@ function getMarks(step: number, hasSelection: boolean): Mark[] {
     return hasSelection
       ? [
           {
-            text: "¡Listo! Tocá “Select task” para generar el plan de vuelo de esa tarea.",
+            text: m.trydrone_tour_select_task(),
             highlight: "panel",
           },
         ]
       : [
           {
-            text: "Dividimos tu área en tareas más chicas. Cada una es un vuelo que un dron cubre con una batería. Tocá una en el mapa.",
+            text: m.trydrone_tour_tasks(),
             highlight: "map",
           },
         ];
   return [
     {
-      text: "Este es el recorrido que haría el dron: líneas paralelas con superposición para que las fotos cubran todo.",
+      text: m.trydrone_tour_flight_path(),
       highlight: "map",
     },
     {
-      text: "Elegí tu modelo de dron y simulá el vuelo, o descargá el plan (KMZ para tu dron, o GeoJSON para previsualizar).",
+      text: m.trydrone_tour_download(),
       highlight: "panel",
     },
   ];
@@ -172,7 +173,7 @@ export default function TutorialTour({ step, hasSelection, onClose, map, bbox }:
               className="naxatw-text-sm naxatw-text-grey-500 hover:naxatw-underline"
               onClick={onClose}
             >
-              Saltar
+              {m.trydrone_tour_skip()}
             </button>
             {idx > 0 && (
               <button
@@ -180,7 +181,7 @@ export default function TutorialTour({ step, hasSelection, onClose, map, bbox }:
                 className="naxatw-rounded-md naxatw-px-3 naxatw-py-1.5 naxatw-text-sm naxatw-font-medium naxatw-text-landing-red"
                 onClick={() => setIdx((i) => i - 1)}
               >
-                Atrás
+                {m.trydrone_tour_back()}
               </button>
             )}
             <button
@@ -188,7 +189,7 @@ export default function TutorialTour({ step, hasSelection, onClose, map, bbox }:
               className="naxatw-rounded-md naxatw-bg-landing-red naxatw-px-4 naxatw-py-2 naxatw-text-sm naxatw-font-semibold naxatw-text-white"
               onClick={() => (isLast ? setHidden(true) : setIdx((i) => i + 1))}
             >
-              {isLast ? "Entendido" : "Siguiente"}
+              {isLast ? m.trydrone_tour_got_it() : m.trydrone_tour_next()}
             </button>
           </div>
         </div>

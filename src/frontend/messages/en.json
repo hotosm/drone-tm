@@ -944,5 +944,15 @@
   "individual_project_oam_upload_button": "Upload",
   "individual_project_oam_token_required_prefix": "Note: You need to have an OAM token to upload, please update it on your",
   "individual_project_oam_token_required_link": "profile.",
-  "individual_project_oam_token_link_title": "Go to edit profile"
+  "individual_project_oam_token_link_title": "Go to edit profile",
+  "trydrone_tour_area": "Drag the selection box over the area you want to map, then resize it with the coverage area control.",
+  "trydrone_tour_altitude": "Select the altitude at which the drone should fly during the mission, in meters.",
+  "trydrone_tour_select_task": "Tap \"Select task\" to generate the flight plan for that task.",
+  "trydrone_tour_tasks": "We've split your area into smaller tasks — each is one flight a drone can cover on a single battery. You can download them all, or select one on the map to work with it.",
+  "trydrone_tour_flight_path": "This is the route the drone would fly: overlapping parallel lines so the photos cover every spot.",
+  "trydrone_tour_download": "Pick your drone model and simulate the flight, or download the plan (KMZ for your drone, or GeoJSON to preview).",
+  "trydrone_tour_skip": "Skip",
+  "trydrone_tour_back": "Back",
+  "trydrone_tour_got_it": "Got it",
+  "trydrone_tour_next": "Next"
 }

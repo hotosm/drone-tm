@@ -944,5 +944,15 @@
   "individual_project_oam_upload_button": "Subir",
   "individual_project_oam_token_required_prefix": "Nota: necesitas un token de OAM para subir archivos; actualízalo en tu",
   "individual_project_oam_token_required_link": "perfil.",
-  "individual_project_oam_token_link_title": "Ir a editar perfil"
+  "individual_project_oam_token_link_title": "Ir a editar perfil",
+  "trydrone_tour_area": "Arrastrá el recuadro de selección sobre el área que querés mapear y ajustá su tamaño con el control de área de cobertura.",
+  "trydrone_tour_altitude": "Seleccioná la altitud a la que debe volar el dron durante la misión, en metros.",
+  "trydrone_tour_select_task": "Tocá \"Select task\" para generar el plan de vuelo de esa tarea.",
+  "trydrone_tour_tasks": "Dividimos tu área en tareas más chicas: cada una es un vuelo que un dron puede cubrir con una batería. Podés descargarlas todas o seleccionar una en el mapa para trabajar con ella.",
+  "trydrone_tour_flight_path": "Este es el recorrido que haría el dron: líneas paralelas con superposición para que las fotos cubran todo.",
+  "trydrone_tour_download": "Elegí tu modelo de dron y simulá el vuelo, o descargá el plan (KMZ para tu dron, o GeoJSON para previsualizar).",
+  "trydrone_tour_skip": "Saltar",
+  "trydrone_tour_back": "Atrás",
+  "trydrone_tour_got_it": "Entendido",
+  "trydrone_tour_next": "Siguiente"
 }

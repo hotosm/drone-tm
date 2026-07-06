@@ -944,5 +944,15 @@
   "individual_project_oam_upload_button": "Unggah",
   "individual_project_oam_token_required_prefix": "Catatan: Anda memerlukan token OAM untuk mengunggah; perbarui token tersebut di",
   "individual_project_oam_token_required_link": "profil Anda.",
-  "individual_project_oam_token_link_title": "Buka edit profil"
+  "individual_project_oam_token_link_title": "Buka edit profil",
+  "trydrone_tour_area": "Seret kotak seleksi ke area yang ingin Anda petakan, lalu ubah ukurannya dengan kontrol area cakupan.",
+  "trydrone_tour_altitude": "Pilih ketinggian terbang drone selama misi, dalam meter.",
+  "trydrone_tour_select_task": "Ketuk \"Select task\" untuk membuat rencana terbang tugas tersebut.",
+  "trydrone_tour_tasks": "Kami membagi area Anda menjadi tugas-tugas kecil — setiap tugas adalah satu penerbangan yang bisa dicakup drone dengan satu baterai. Anda bisa mengunduh semuanya, atau memilih salah satu di peta untuk dikerjakan.",
+  "trydrone_tour_flight_path": "Ini adalah jalur yang akan diterbangkan drone: garis-garis paralel yang saling tumpang tindih agar foto mencakup seluruh area.",
+  "trydrone_tour_download": "Pilih model drone Anda dan simulasikan penerbangannya, atau unduh rencananya (KMZ untuk drone Anda, atau GeoJSON untuk pratinjau).",
+  "trydrone_tour_skip": "Lewati",
+  "trydrone_tour_back": "Kembali",
+  "trydrone_tour_got_it": "Mengerti",
+  "trydrone_tour_next": "Berikutnya"
 }
