@@ -87,11 +87,20 @@ def healthcheck_log_filter(record):
 def get_logger():
     """Override FastAPI logger with custom loguru."""
 
-    SILENCED_LOGGERS = {"psycopg.pool", "psycopg_pool"}
-    SKIPPED_LOGGERS = {"sqlalchemy", "urllib3"}
+    # Pinned to WARNING and detached from root so they don't leak through
+    # the root InterceptHandler when the app is running at DEBUG.
+    # - psycopg.pool / psycopg_pool: very noisy INFO connection lifecycle
+    # - urllib3(.connectionpool): DEBUG request/response lines from Sentry OTLP
+    #   trace exports, hammering every ~10s
+    SILENCED_LOGGERS = {
+        "psycopg.pool",
+        "psycopg_pool",
+        "urllib3",
+        "urllib3.connectionpool",
+    }
+    SKIPPED_LOGGERS = {"sqlalchemy"}
     FRAMEWORK_LOGGERS = {"uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"}
 
-    # Silence psycopg pool loggers - otherwise very noisy INFO logs
     for logger_name in SILENCED_LOGGERS:
         silenced = logging.getLogger(logger_name)
         silenced.handlers = []
