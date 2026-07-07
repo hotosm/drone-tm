@@ -49,11 +49,13 @@ spec:
           env:
             - name: DRAGONFLY_DSN
               value: "redis://{{ include "drone-tm.dragonfly.serviceFQDN" . }}:6379/0"
+            - name: LOG_LEVEL
+              value: {{ (.Values.env).LOG_LEVEL | default "INFO" | quote }}
             {{- if and .Values.qgis.enabled (not (hasKey (.Values.env | default dict) "QGIS_URL")) }}
             - name: QGIS_URL
               value: "http://{{ include "drone-tm.qgis.fullname" . }}:{{ .Values.qgis.service.port }}"
             {{- end }}
-            {{- include "drone-tm.renderEnvOmit" (dict "env" (.Values.env | default dict) "omit" (dict "DRAGONFLY_DSN" true)) | nindent 12 }}
+            {{- include "drone-tm.renderEnvOmit" (dict "env" (.Values.env | default dict) "omit" (dict "DRAGONFLY_DSN" true "LOG_LEVEL" true)) | nindent 12 }}
           livenessProbe:
             {{- toYaml .Values.worker.livenessProbe | nindent 12 }}
           readinessProbe:
