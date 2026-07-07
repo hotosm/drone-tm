@@ -235,12 +235,14 @@ class DbUserProfile(BaseUserProfile):
         model_data.pop("certificate_file", None)
         model_data.pop("registration_file", None)
 
-        # Prepare the SQL query for inserting the new profile
         columns = ", ".join(model_data.keys())
         value_placeholders = ", ".join(f"%({key})s" for key in model_data.keys())
         sql = f"""
             INSERT INTO user_profile (user_id, {columns})
             VALUES (%(user_id)s, {value_placeholders})
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                {", ".join(f"{key} = EXCLUDED.{key}" for key in model_data.keys())}
             RETURNING *;
         """
 
