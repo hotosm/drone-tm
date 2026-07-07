@@ -954,5 +954,7 @@
   "trydrone_tour_skip": "Lewati",
   "trydrone_tour_back": "Kembali",
   "trydrone_tour_got_it": "Mengerti",
-  "trydrone_tour_next": "Berikutnya"
+  "trydrone_tour_next": "Berikutnya",
+  "trydrone_bring_box_here": "Bawa kotak ke sini",
+  "trydrone_bring_box_aria": "Bawa kotak seleksi ke tampilan saat ini"
 }

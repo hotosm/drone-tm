@@ -155,17 +155,8 @@ export default function TutorialTour({ step, hasSelection, onClose, map, bbox }:
       >
         <p className="naxatw-text-base naxatw-leading-relaxed naxatw-text-grey-800">{mark.text}</p>
 
-        <div className="naxatw-mt-5 naxatw-flex naxatw-items-center naxatw-justify-between">
-          <div className="naxatw-flex naxatw-gap-2">
-            {[1, 2, 3].map((s) => (
-              <span
-                key={s}
-                className={`naxatw-h-2 naxatw-w-2 naxatw-rounded-full ${
-                  s === step ? "naxatw-bg-landing-red" : "naxatw-bg-grey-300"
-                }`}
-              />
-            ))}
-          </div>
+        <div className="naxatw-mt-5 naxatw-flex naxatw-items-right naxatw-justify-between">
+          <div></div>
 
           <div className="naxatw-flex naxatw-items-center naxatw-gap-3">
             <button

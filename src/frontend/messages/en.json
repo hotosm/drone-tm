@@ -954,5 +954,7 @@
   "trydrone_tour_skip": "Skip",
   "trydrone_tour_back": "Back",
   "trydrone_tour_got_it": "Got it",
-  "trydrone_tour_next": "Next"
+  "trydrone_tour_next": "Next",
+  "trydrone_bring_box_here": "Bring box here",
+  "trydrone_bring_box_aria": "Bring the selection box to the current view"
 }

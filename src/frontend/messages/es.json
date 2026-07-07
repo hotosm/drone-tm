@@ -954,5 +954,7 @@
   "trydrone_tour_skip": "Saltar",
   "trydrone_tour_back": "Atrás",
   "trydrone_tour_got_it": "Entendido",
-  "trydrone_tour_next": "Siguiente"
+  "trydrone_tour_next": "Siguiente",
+  "trydrone_bring_box_here": "Traé el recuadro acá",
+  "trydrone_bring_box_aria": "Traé el recuadro de selección a la vista actual"
 }
