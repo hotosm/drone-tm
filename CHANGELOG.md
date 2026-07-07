@@ -1,3 +1,11 @@
+## 2026.6.11 (2026-07-07)
+
+### Fix
+
+- align prod/dev uvicorn, ensure log level switch works well
+- **backend**: upsert on user creation to avoid 500 error
+- **backend**: remove overly verbose logging from sentry api calls
+
 ## 2026.6.10 (2026-07-02)
 
 ### Fix
