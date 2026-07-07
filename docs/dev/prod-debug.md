@@ -1,33 +1,27 @@
 # Production Debugging
 
-## Turning on DEBUG logging
+## Toggle DEBUG logging
 
-The backend runs at `INFO` in production. To flip a running pod to `DEBUG`
-(and back) without a redeploy, send `SIGUSR1` to PID 1 in the container.
-The handler is registered in `app/main.py` and toggles the loguru sink level.
+Default is `INFO`. Send `SIGUSR1` to the app process to flip between `INFO`
+and `DEBUG` at runtime. A `WARNING` log confirms each flip. Resets to the
+`LOG_LEVEL` env var on pod restart.
 
-A `warning` log line is emitted on each flip so you can confirm it took effect.
-
-### One pod (docker compose)
+**Kubernetes** (PID 1 is the worker, `--workers 1`, no `--reload`):
 
 ```bash
-docker exec drone-tm-backend-1 kill -USR1 1
-```
-
-### All backend pods (kubernetes)
-
-```bash
+# All backend replicas
 kubectl get pods -l app.kubernetes.io/component=backend -o name \
   | xargs -I{} kubectl exec {} -- kill -USR1 1
 ```
 
-Send the same command again to flip back to `INFO`.
+**Local dev** (uvicorn `--reload` runs the worker in a `multiprocessing` child):
 
-## Notes
+```bash
+docker exec drone-tm-backend-1 pkill -USR1 -f multiprocessing-fork
+```
 
-- Only affects the loguru sink filter. Stdlib loggers stay at `DEBUG` under
-  the hood, so nothing is lost - the sink just stops dropping records.
-- Access logs are disabled at the uvicorn level (`--no-access-log` in the
-  backend `Dockerfile` CMD), so per-request lines will _not_ appear even at
-  `DEBUG`. Use OpenTelemetry / Sentry traces for request-level visibility.
-- Pod restarts reset the level to the configured `LOG_LEVEL` env var.
+## Persist across restarts
+
+Set `env.LOG_LEVEL: "DEBUG"` in your prod values file and sync (ArgoCD /
+`helm upgrade`). The chart renders it on both the backend and worker
+Deployments, which triggers a rolling restart.

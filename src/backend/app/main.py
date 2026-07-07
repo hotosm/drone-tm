@@ -1,8 +1,8 @@
+import asyncio
 import logging
 import os
 import signal
 import sys
-import threading
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -114,14 +114,12 @@ def _install_sink(level: str) -> None:
     )
 
 
-def _toggle_log_level(_signum, _frame) -> None:
-    """SIGUSR1 handler: flip loguru sink between DEBUG and the configured level.
+def _toggle_log_level() -> None:
+    """Flip loguru sink between DEBUG and the configured level.
 
-    Trigger from outside the container:
-        docker exec <container> kill -USR1 1
-    Or across k8s replicas:
-        kubectl get pods -l app.kubernetes.io/component=backend -o name \\
-          | xargs -I{} kubectl exec {} -- kill -USR1 1
+    Invoked via SIGUSR1; see prod-debug.md for how to trigger from outside
+    the container. Runs on the asyncio loop thread (registered via
+    add_signal_handler in lifespan) so loguru's internal locks are safe.
     """
     global _current_level
     _current_level = "INFO" if _current_level == "DEBUG" else "DEBUG"
@@ -172,16 +170,6 @@ def get_logger():
     logging.getLogger().setLevel(logging.DEBUG)
 
     _install_sink(_current_level)
-
-    # SIGUSR1 flips the sink level at runtime, without a redeploy.
-    # signal.signal only works on the main thread; skip silently otherwise
-    # (e.g. under pytest, where get_logger may be re-invoked off-thread).
-    if threading.current_thread() is threading.main_thread():
-        try:
-            signal.signal(signal.SIGUSR1, _toggle_log_level)
-        except (ValueError, OSError):
-            # ValueError: not main thread; OSError: signal unsupported (e.g. Windows).
-            pass
 
 
 def get_application() -> FastAPI:
@@ -258,6 +246,17 @@ def get_application() -> FastAPI:
 async def lifespan(app: FastAPI):
     """FastAPI startup/shutdown event."""
     log.debug("Starting up FastAPI server.")
+
+    # SIGUSR1 flips the loguru sink level (DEBUG <-> configured) at runtime.
+    # Registered on the running loop so the callback runs on the loop thread,
+    # not the signal-interrupt context - safe for loguru's internal locks.
+    try:
+        asyncio.get_running_loop().add_signal_handler(signal.SIGUSR1, _toggle_log_level)
+        log.debug(f"SIGUSR1 log-level toggle registered (pid={os.getpid()}).")
+    except (NotImplementedError, RuntimeError) as e:
+        # NotImplementedError: signal unsupported (e.g. Windows).
+        # RuntimeError: no running loop (shouldn't happen inside lifespan).
+        log.warning(f"SIGUSR1 log-level toggle not available: {e!r}")
 
     # Initialize authentication for Hanko SSO
     if settings.AUTH_PROVIDER == "hanko":
