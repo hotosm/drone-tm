@@ -11,11 +11,12 @@ interface MapZoomControlsProps {
   onFitToBounds: (() => void) | null;
 }
 
-const layerOptions = Object.keys(baseLayersData).map((key) => ({
-  name: "baseLayer",
-  value: key,
-  label: key,
-}));
+// Try Drone offers just two basemaps: OpenStreetMap and Esri satellite imagery
+// (`satellite` = ArcGIS World_Imagery in baseLayers).
+const layerOptions = [
+  { name: "baseLayer", value: "osm", label: "OpenStreetMap" },
+  { name: "baseLayer", value: "satellite", label: "Satellite (Esri)" },
+];
 
 const btnBase =
   "naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-items-center naxatw-justify-center naxatw-bg-white naxatw-border-0 naxatw-cursor-pointer hover:naxatw-bg-grey-50";
