@@ -113,4 +113,5 @@ nav:
       - Migrate to Kubernetes: dev/migrate-k8s.md
       - Frontend Env Injection: dev/runtime-frontend-config.md
       - Imagery Upload Workflow: dev/imagery-upload.md
+      - Production Debugging: dev/prod-debug.md
   - Timeline: timeline.md
