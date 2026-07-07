@@ -1,6 +1,8 @@
 import logging
 import os
+import signal
 import sys
+import threading
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -84,6 +86,49 @@ def healthcheck_log_filter(record):
     return True
 
 
+_LOG_FORMAT = (
+    "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} "
+    "| {name}:{function}:{line} | {message}"
+)
+_sink_id: int | None = None
+_current_level: str = settings.LOG_LEVEL
+
+
+def _install_sink(level: str) -> None:
+    """(Re)install the loguru sink at the given level.
+
+    Drops any existing sinks (including loguru's default) so we always
+    end up with exactly one sink at the requested level.
+    """
+    global _sink_id
+    log.remove()
+    _sink_id = log.add(
+        _SanitizingStream(sys.stderr),
+        level=level,
+        format=_LOG_FORMAT,
+        enqueue=True,  # Run async / non-blocking
+        colorize=True,
+        backtrace=True,  # More detailed tracebacks
+        catch=True,  # Prevent app crashes
+        filter=healthcheck_log_filter,
+    )
+
+
+def _toggle_log_level(_signum, _frame) -> None:
+    """SIGUSR1 handler: flip loguru sink between DEBUG and the configured level.
+
+    Trigger from outside the container:
+        docker exec <container> kill -USR1 1
+    Or across k8s replicas:
+        kubectl get pods -l app.kubernetes.io/component=backend -o name \\
+          | xargs -I{} kubectl exec {} -- kill -USR1 1
+    """
+    global _current_level
+    _current_level = "INFO" if _current_level == "DEBUG" else "DEBUG"
+    _install_sink(_current_level)
+    log.warning(f"Log level toggled to {_current_level} via SIGUSR1")
+
+
 def get_logger():
     """Override FastAPI logger with custom loguru."""
 
@@ -126,20 +171,17 @@ def get_logger():
     logging.getLogger().handlers = [InterceptHandler()]
     logging.getLogger().setLevel(logging.DEBUG)
 
-    log.remove()
-    log.add(
-        _SanitizingStream(sys.stderr),
-        level=settings.LOG_LEVEL,
-        format=(
-            "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} "
-            "| {name}:{function}:{line} | {message}"
-        ),
-        enqueue=True,  # Run async / non-blocking
-        colorize=True,
-        backtrace=True,  # More detailed tracebacks
-        catch=True,  # Prevent app crashes
-        filter=healthcheck_log_filter,
-    )
+    _install_sink(_current_level)
+
+    # SIGUSR1 flips the sink level at runtime, without a redeploy.
+    # signal.signal only works on the main thread; skip silently otherwise
+    # (e.g. under pytest, where get_logger may be re-invoked off-thread).
+    if threading.current_thread() is threading.main_thread():
+        try:
+            signal.signal(signal.SIGUSR1, _toggle_log_level)
+        except (ValueError, OSError):
+            # ValueError: not main thread; OSError: signal unsupported (e.g. Windows).
+            pass
 
 
 def get_application() -> FastAPI:

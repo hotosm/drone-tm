@@ -126,8 +126,15 @@ COPY qfield-plugin /project/src/qfield-plugin
 
 VOLUME /project/src/backend/frontend_html
 
+STOPSIGNAL SIGINT
+
 # Set the entrypoint for the container
 ENTRYPOINT [ "/project/src/backend/docker-entrypoint.sh" ]
 
+# Note: 1 worker (process) per container, behind load balancer
 CMD ["uvicorn", "app.main:api", "--host", "0.0.0.0", "--port", "8000", \
-    "--log-level", "info"]
+    "--workers", "1", "--log-level", "critical", "--no-access-log"]
+# Sanity check to see if build succeeded
+RUN python -V \
+    && python -Im site \
+    && python -c 'import app'
