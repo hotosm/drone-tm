@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuth from "@Hooks/useAuth";
 import { Map, LngLatBoundsLike } from "maplibre-gl";
@@ -10,7 +10,7 @@ import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLaye
 import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
 import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
-import { buildSquareKm2 } from "@Utils/geometry";
+import { assignGridLabels, buildSquareKm2, polygonBboxCenter } from "@Utils/geometry";
 import Step1Panel from "@Components/TryDrone/Step1Panel";
 import Step2Panel from "@Components/TryDrone/Step2Panel";
 import Step3Panel from "@Components/TryDrone/Step3Panel";
@@ -84,6 +84,12 @@ const FlyMyDronePage = () => {
     });
   }, [map, isMapLoaded]);
 
+  // Glyphs are required for maplibre to render text symbol layers (grid cell labels)
+  useEffect(() => {
+    if (!map || !isMapLoaded) return;
+    map.setGlyphs("https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf");
+  }, [map, isMapLoaded]);
+
   // Recompute preview polygon whenever center or area changes (step 1 only)
   useEffect(() => {
     if (step === 1) setPolygon(buildSquareKm2(mapCenter, areaKm2));
@@ -130,6 +136,23 @@ const FlyMyDronePage = () => {
   };
 
   const selectedTask = grid.find((t) => t.id === selectedTaskId) ?? null;
+
+  const gridLabels = useMemo(() => assignGridLabels(grid, gridDimension), [grid, gridDimension]);
+
+  const gridLabelPoints = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: grid.map((task) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: polygonBboxCenter(task.geometry),
+        },
+        properties: { label: gridLabels[task.id] ?? "" },
+      })),
+    }),
+    [grid, gridLabels],
+  );
 
   const generateFlightPlan = (model: string) => {
     if (!selectedTask) return;
@@ -385,6 +408,32 @@ const FlyMyDronePage = () => {
                 layerOptions={{
                   type: "fill",
                   paint: { "fill-color": brandRed, "fill-opacity": 0.45 },
+                }}
+              />
+            )}
+
+            {/* Grid cell labels — A1, A2, B1, B2, ... */}
+            {step === 2 && grid.length > 0 && (
+              <VectorLayer
+                map={map as Map}
+                id="task-grid-labels"
+                visibleOnMap
+                geojson={gridLabelPoints}
+                layerOptions={{
+                  type: "symbol",
+                  layout: {
+                    "text-field": ["get", "label"],
+                    "text-size": 12,
+                    "text-anchor": "center",
+                    "text-justify": "center",
+                    "text-offset": [0, 0],
+                    "text-allow-overlap": true,
+                  },
+                  paint: {
+                    "text-color": "#1f2937",
+                    "text-halo-color": "#ffffff",
+                    "text-halo-width": 1.5,
+                  },
                 }}
               />
             )}
