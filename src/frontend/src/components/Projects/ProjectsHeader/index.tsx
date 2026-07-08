@@ -32,8 +32,8 @@ export default function ProjectsHeader() {
   }, [debouncedValue, dispatch]);
 
   return (
-    <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-2 naxatw-py-3 md:naxatw-flex-row">
-      <FlexRow className="naxatw-flex naxatw-w-full naxatw-flex-wrap naxatw-items-center naxatw-justify-between naxatw-gap-3 md:naxatw-w-[65%] md:naxatw-flex-nowrap md:naxatw-gap-4">
+    <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-2 naxatw-py-3 lg:naxatw-flex-row">
+      <FlexRow className="naxatw-flex naxatw-w-full naxatw-flex-wrap naxatw-items-center naxatw-justify-between naxatw-gap-3 md:naxatw-flex-nowrap md:naxatw-gap-4 lg:naxatw-w-[70%]">
         <h5 className="naxatw-font-bold">{m.projects_heading()}</h5>
         <FlexRow
           gap={3}
@@ -51,7 +51,7 @@ export default function ProjectsHeader() {
               ]}
               labelKey="label"
               valueKey="value"
-              className="!naxatw-w-[100px]"
+              className="naxatw-pr-6"
               selectedOption={projectsFilterByOwner}
               onChange={(value) =>
                 dispatch(setCreateProjectState({ ProjectsFilterByOwner: value }))
@@ -70,7 +70,7 @@ export default function ProjectsHeader() {
               ]}
               labelKey="label"
               valueKey="value"
-              className="!naxatw-w-[150px] "
+              className="naxatw-pr-6"
               selectedOption={selectedProjectStatus}
               onChange={(value) =>
                 dispatch(setCreateProjectState({ selectedProjectStatus: value }))
@@ -89,7 +89,7 @@ export default function ProjectsHeader() {
       </FlexRow>
       <FlexRow
         gap={4}
-        className="naxatw-w-full naxatw-items-center naxatw-justify-end md:naxatw-w-[210px]"
+        className="naxatw-w-full naxatw-items-center naxatw-justify-end lg:naxatw-w-[220px]"
       >
         <FlexRow className="naxatw-items-center naxatw-gap-[10px]">
           <p className="naxatw-text-body-md">{m.projects_show_map()}</p>

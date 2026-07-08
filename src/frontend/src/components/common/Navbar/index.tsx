@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Image from "@Components/RadixComponents/Image";
 import { NavLink, useLocation } from "react-router-dom";
-import dtmLogo from "@Assets/images/DTM-logo-black.svg";
+import dtmLogo from "@Assets/images/drone-tasking-manager.svg";
 import UserProfile from "../UserProfile";
 import { FlexRow } from "../Layouts";
 import Icon from "../Icon";
@@ -41,12 +41,14 @@ export default function Navbar() {
   // Build return URL for Hanko SSO that goes through /hanko-auth callback
   const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
 
-  const navLinkClass = ({ isActive, forceActive }: { isActive: boolean; forceActive?: boolean }) =>
-    `${
-      isActive || forceActive
-        ? "naxatw-border-b-2 naxatw-border-red"
-        : "hover:naxatw-border-b-2 hover:naxatw-border-grey-900"
-    } -naxatw-mb-[1.4rem] naxatw-px-3 naxatw-pb-2 naxatw-text-body-btn`;
+  const navLinkClass = ({ isActive, forceActive }: { isActive: boolean; forceActive?: boolean }) => {
+    const active = isActive || forceActive;
+    return `naxatw-text-sm naxatw-text-grey-800 hover:naxatw-no-underline naxatw-px-2 naxatw-py-1 ${
+      active
+        ? "naxatw-font-bold naxatw-tracking-[0]"
+        : "naxatw-tracking-[0.04em] hover:naxatw-font-bold hover:naxatw-tracking-[0]"
+    }`;
+  };
 
   const desktopAuth =
     AUTH_PROVIDER === "hanko" ? (
@@ -56,7 +58,7 @@ export default function Navbar() {
         redirect-after-login={hankoReturnUrl}
         redirect-after-logout={FRONTEND_URL}
         button-variant="filled"
-        button-color="danger"
+        button-color="primary"
       />
     ) : (
       <UserProfile />
@@ -81,22 +83,29 @@ export default function Navbar() {
     <>
       <nav className="naxatw-min-h-[3.5rem] naxatw-border-b naxatw-border-grey-300 naxatw-pb-0 naxatw-pt-2">
         <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-px-4 md:naxatw-px-16">
-          <a
-            className="naxatw-cursor-pointer"
-            role="presentation"
-            aria-label={m.nav_home_aria_label()}
-            href="/"
-          >
-            <Image
-              src={dtmLogo}
-              alt="Drone Tasking Manager logo"
-              className="naxatw-h-8 naxatw-w-40"
-            />
-          </a>
-          {!isApprovalPage && (
-            <>
-              {/* Desktop nav */}
-              <FlexRow className="naxatw-hidden naxatw-gap-4 md:naxatw-flex">
+          {/* Left: logo + divider + nav */}
+          <FlexRow className="naxatw-items-center naxatw-gap-6">
+            <a
+              className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 hover:naxatw-no-underline"
+              role="presentation"
+              aria-label={m.nav_home_aria_label()}
+              href="/"
+            >
+              <Image
+                src={dtmLogo}
+                alt="Drone Tasking Manager logo"
+                className="naxatw-h-8 naxatw-w-8"
+              />
+              <span className="naxatw-text-hot-gray-950 naxatw-text-[20px] naxatw-font-bold naxatw-leading-tight">
+                Drone Tasking Manager
+              </span>
+            </a>
+            {!isApprovalPage && (
+              <FlexRow className="naxatw-hidden naxatw-items-center naxatw-gap-4 md:naxatw-flex">
+                <span
+                  className="naxatw-h-5 naxatw-w-px naxatw-bg-grey-300"
+                  aria-hidden="true"
+                />
                 <NavLink
                   to="/projects"
                   className={({ isActive }) =>
@@ -112,21 +121,29 @@ export default function Navbar() {
                   {m.nav_dashboard()}
                 </NavLink>
               </FlexRow>
+            )}
+          </FlexRow>
+
+          {!isApprovalPage && (
+            <>
+              {/* Right: auth + lang + tool-menu */}
               <FlexRow className="naxatw-hidden naxatw-items-center md:naxatw-flex" gap={2}>
-                <LanguageSwitcher />
                 {desktopAuth}
+                <LanguageSwitcher />
                 <hotosm-tool-menu></hotosm-tool-menu>
               </FlexRow>
 
               {/* Mobile hamburger */}
-              <button
-                type="button"
-                className="naxatw-flex naxatw-align-middle md:naxatw-hidden"
-                onClick={() => setDrawerOpen(true)}
-                aria-label={m.nav_open_menu_aria_label()}
-              >
-                <Icon name="menu" />
-              </button>
+              <span className="naxatw-flex naxatw-items-center naxatw-gap-2 md:naxatw-hidden">
+                <LanguageSwitcher />
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label={m.nav_open_menu_aria_label()}
+                >
+                  <Icon name="menu" />
+                </button>
+              </span>
             </>
           )}
         </FlexRow>
@@ -140,7 +157,7 @@ export default function Navbar() {
               <Image
                 src={dtmLogo}
                 alt="Drone Tasking Manager logo"
-                className="naxatw-h-8 naxatw-w-40"
+                className="naxatw-h-8 naxatw-w-8"
               />
             </a>
             <button
@@ -179,9 +196,6 @@ export default function Navbar() {
           </div>
           <div className="naxatw-border-t naxatw-border-grey-300 naxatw-pt-4">
             <FlexRow className="naxatw-items-center naxatw-justify-between">{mobileAuth}</FlexRow>
-            <FlexRow className="naxatw-mt-3 naxatw-items-center naxatw-justify-end">
-              <LanguageSwitcher />
-            </FlexRow>
           </div>
         </div>
       </Drawer>

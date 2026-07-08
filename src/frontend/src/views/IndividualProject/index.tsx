@@ -546,7 +546,7 @@ const IndividualProject = () => {
           </div>
         ) : (
           <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">
-            <div className="naxatw-relative naxatw-order-2 naxatw-w-full naxatw-max-w-[30rem] naxatw-pb-20">
+            <div className="naxatw-relative naxatw-order-2 naxatw-w-full naxatw-max-w-[35rem] naxatw-pb-20">
               <Tab
                 orientation="row"
                 className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"

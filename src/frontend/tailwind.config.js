@@ -28,7 +28,7 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        primary: ["Barlow Condensed", "sans-serif"],
+        primary: ["Archivo", "sans-serif"],
         secondary: ["Manrope", "sans-serif"],
       },
       height: {
