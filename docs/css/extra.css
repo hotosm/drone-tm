@@ -4,8 +4,9 @@
   --md-primary-fg-color--dark: #c22929;
 }
 
-/* Print button */
+/* Download button */
 .print-btn {
+  display: inline-block;
   padding: 8px 20px;
   background: var(--md-primary-fg-color);
   color: #fff !important;
@@ -13,22 +14,9 @@
   border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
+  text-decoration: none;
 }
 .print-btn:hover {
   background: var(--md-primary-fg-color--dark);
-}
-
-/* Print: hide chrome, full-width content */
-@media print {
-  .print-btn,
-  .md-header,
-  .md-sidebar,
-  .md-footer,
-  .md-tabs {
-    display: none !important;
-  }
-  .md-content {
-    margin: 0 !important;
-    max-width: 100% !important;
-  }
+  text-decoration: none;
 }

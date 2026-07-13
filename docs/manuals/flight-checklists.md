@@ -1,6 +1,8 @@
 # Flight Checklists
 
-<button class="print-btn" onclick="window.print()">&#128424; Print Checklist</button>
+<a class="print-btn" href="../dji-mini-4-5-pro-checklist.pdf" target="_blank" rel="noopener" download>&#11015; Download Simple Checklist</a>
+
+_Print on A6 paper and laminate to keep in your drone bag._
 
 This page contains a checklist for flight preparation, flight
 execution, emergency response, and post-flight follow-up.
