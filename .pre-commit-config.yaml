@@ -90,7 +90,7 @@ repos:
   # Lint / autoformat: Python code
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.15.20"
+    rev: "v0.15.21"
     hooks:
       # Run the linter
       - id: ruff
@@ -102,7 +102,7 @@ repos:
 
   # Deps: ensure Python uv lockfile is up to date
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.11.26
+    rev: 0.11.28
     hooks:
       - id: uv-lock
         files: src/backend/pyproject.toml
