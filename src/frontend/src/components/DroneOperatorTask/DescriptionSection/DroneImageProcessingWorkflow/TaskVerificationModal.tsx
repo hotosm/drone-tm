@@ -604,6 +604,29 @@ const TaskVerificationModal = ({
                     />
                   )}
 
+                  {/* Image footprint outlines */}
+                  {map &&
+                    isMapLoaded &&
+                    isStyleReady &&
+                    verificationData?.image_footprints &&
+                    verificationData.image_footprints.features.length > 0 && (
+                      <VectorLayer
+                        map={map}
+                        isMapLoaded={isMapLoaded}
+                        id="image-footprint-outlines"
+                        geojson={verificationData.image_footprints as GeojsonType}
+                        visibleOnMap={true}
+                        layerOptions={{
+                          type: "line",
+                          paint: {
+                            "line-color": "#f59e0b",
+                            "line-width": 1,
+                            "line-opacity": 0.35,
+                          },
+                        }}
+                      />
+                    )}
+
                   {/* Image points */}
                   {map &&
                     isMapLoaded &&

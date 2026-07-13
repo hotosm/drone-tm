@@ -22,6 +22,10 @@ from app.images.solar_position import (
     derive_utc_datetime_from_exif,
     solar_elevation_deg,
 )
+from app.images.image_footprints import (
+    coverage_percentage_from_footprints,
+    image_footprints_feature_collection,
+)
 from app.s3 import (
     get_obj_from_bucket,
     maybe_presign_s3_key,
@@ -2360,6 +2364,7 @@ class ImageClassifier:
             raise ValueError(f"Task {task_id} not found in project {project_id}")
 
         # Get ALL assigned images for this task across all batches
+        # Extra EXIF fields here feed the footprint rectangle helper.
         images_query = """
             SELECT
                 id,
@@ -2368,7 +2373,23 @@ class ImageClassifier:
                 thumbnail_url,
                 status,
                 rejection_reason,
-                ST_AsGeoJSON(location)::json as location
+                ST_AsGeoJSON(location)::json as location,
+                -- Heading rotates the footprint to match the drone/camera direction.
+                NULLIF(exif->>'FlightYawDegree', '')::double precision AS yaw_deg,
+                -- Altitude sizes the footprint when project GSD is unavailable.
+                NULLIF(regexp_replace(
+                    COALESCE(exif->>'AbsoluteAltitude',''),
+                    '[^0-9+\\-.]+', '', 'g'
+                ), '')::double precision AS altitude_m,
+                -- Image dimensions keep the footprint aspect close to the photo.
+                COALESCE(
+                    NULLIF(exif->>'ImageWidth', '')::double precision,
+                    NULLIF(exif->>'ExifImageWidth', '')::double precision
+                ) AS image_width,
+                COALESCE(
+                    NULLIF(exif->>'ImageHeight', '')::double precision,
+                    NULLIF(exif->>'ExifImageHeight', '')::double precision
+                ) AS image_height
             FROM project_images
             WHERE task_id = %(task_id)s
             AND project_id = %(project_id)s
@@ -2387,9 +2408,11 @@ class ImageClassifier:
             )
             images = await cur.fetchall()
 
-        # Determine buffer radius from GSD + image dimensions, or altitude + FOV.
-        buffer_radius = COVERAGE_BUFFER_METERS_FALLBACK
+        # Determine project-level GSD/altitude fallbacks for footprint estimation.
+        altitude = None
+        gsd = None
         try:
+            # These are defaults used only when an image row lacks its own metadata.
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
                     """
@@ -2409,125 +2432,31 @@ class ImageClassifier:
                     if proj_row and proj_row.get("gsd_cm_px")
                     else None
                 )
-
-            # Get average image dimensions from EXIF for this task
-            async with db.cursor(row_factory=dict_row) as cur:
-                await cur.execute(
-                    """
-                    SELECT
-                        AVG(COALESCE(
-                            (exif->>'ImageWidth')::double precision,
-                            (exif->>'ExifImageWidth')::double precision
-                        )) AS avg_w,
-                        AVG(COALESCE(
-                            (exif->>'ImageHeight')::double precision,
-                            (exif->>'ExifImageHeight')::double precision
-                        )) AS avg_h
-                    FROM project_images
-                    WHERE task_id = %(task_id)s
-                      AND project_id = %(project_id)s
-                      AND status = %(status)s
-                      AND location IS NOT NULL
-                    """,
-                    {
-                        "task_id": str(task_id),
-                        "project_id": str(project_id),
-                        "status": ImageStatus.ASSIGNED.value,
-                    },
-                )
-                dim_row = await cur.fetchone()
-                avg_w = (
-                    float(dim_row["avg_w"])
-                    if dim_row and dim_row.get("avg_w")
-                    else None
-                )
-                avg_h = (
-                    float(dim_row["avg_h"])
-                    if dim_row and dim_row.get("avg_h")
-                    else None
-                )
-
-            if altitude is None:
-                async with db.cursor(row_factory=dict_row) as cur:
-                    await cur.execute(
-                        """
-                        SELECT AVG(
-                            NULLIF(regexp_replace(
-                                COALESCE(exif->>'AbsoluteAltitude',''),
-                                '[^0-9+\\-.]+', '', 'g'
-                            ), '')::double precision
-                        ) AS avg_alt
-                        FROM project_images
-                        WHERE task_id = %(task_id)s
-                          AND project_id = %(project_id)s
-                          AND status = %(status)s
-                          AND location IS NOT NULL
-                        """,
-                        {
-                            "task_id": str(task_id),
-                            "project_id": str(project_id),
-                            "status": ImageStatus.ASSIGNED.value,
-                        },
-                    )
-                    alt_row = await cur.fetchone()
-                    if alt_row and alt_row.get("avg_alt"):
-                        altitude = float(alt_row["avg_alt"])
-
-            buffer_radius = _coverage_buffer_radius(gsd, altitude, avg_w, avg_h)
         except Exception as e:
-            log.warning(f"Could not determine coverage buffer radius: {e}")
+            log.warning(f"Could not determine footprint metadata: {e}")
 
-        # Calculate coverage using PostGIS with altitude-derived buffer
-        coverage_query = """
-            WITH image_points AS (
-                SELECT location
-                FROM project_images
-                WHERE task_id = %(task_id)s
-                AND project_id = %(project_id)s
-                AND status = %(status)s
-                AND location IS NOT NULL
-            ),
-            task_polygon AS (
-                SELECT outline
-                FROM tasks
-                WHERE id = %(task_id)s
-            ),
-            buffered_points AS (
-                SELECT ST_Union(
-                    ST_Buffer(location::geography, %(buffer_radius)s)::geometry
-                ) as coverage
-                FROM image_points
-            )
-            SELECT
-                CASE
-                    WHEN (SELECT COUNT(*) FROM image_points) = 0 THEN 0
-                    ELSE LEAST(100, (
-                        ST_Area(
-                            ST_Intersection(
-                                (SELECT coverage FROM buffered_points),
-                                (SELECT outline FROM task_polygon)
-                            )::geography
-                        ) /
-                        NULLIF(ST_Area((SELECT outline FROM task_polygon)::geography), 0)
-                    ) * 100)
-                END as coverage_percentage
-        """
-
-        coverage_percentage = 0
+        # Add footprint inputs to every image.
+        # This keeps the map outlines and the percentage using the same assumptions.
+        # Each image can still use its own EXIF altitude when present.
+        footprint_images = [
+            {
+                **dict(img),
+                "gsd_cm_px": gsd,
+                "altitude_m": img.get("altitude_m") or altitude,
+            }
+            for img in images
+        ]
+        # Turn rectangles into GeoJSON so the browser can draw them.
+        # This is the "hairline squares" part of the issue.
+        image_footprints = image_footprints_feature_collection(footprint_images)
+        coverage_percentage = 0.0
         try:
-            async with db.cursor(row_factory=dict_row) as cur:
-                await cur.execute(
-                    coverage_query,
-                    {
-                        "task_id": str(task_id),
-                        "project_id": str(project_id),
-                        "status": ImageStatus.ASSIGNED.value,
-                        "buffer_radius": buffer_radius,
-                    },
-                )
-                coverage_result = await cur.fetchone()
-                if coverage_result and coverage_result.get("coverage_percentage"):
-                    coverage_percentage = float(coverage_result["coverage_percentage"])
+            # Use those same rectangles to calculate the modal coverage percentage.
+            # Overlaps are unioned, so repeated coverage is counted once.
+            coverage_percentage = coverage_percentage_from_footprints(
+                task["geometry"],
+                footprint_images,
+            )
         except Exception as e:
             log.warning(f"Could not calculate coverage: {e}")
 
@@ -2563,6 +2492,7 @@ class ImageClassifier:
                 }
                 for img in images
             ],
+            # task boundary polygon
             "task_geometry": {
                 "type": "Feature",
                 "geometry": task["geometry"],
@@ -2572,6 +2502,8 @@ class ImageClassifier:
                 },
             },
             "coverage_percentage": coverage_percentage,
+            # Frontend draws these as thin footprint outlines on the verification map.
+            "image_footprints": image_footprints,
             "is_verified": is_verified,
         }
 

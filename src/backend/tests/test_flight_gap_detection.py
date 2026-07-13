@@ -223,6 +223,33 @@ async def test_gap_detection_falls_back_to_exif_drone_model(db, load_freetown_in
 
 
 @pytest.mark.asyncio
+async def test_gap_detection_maps_fc9313_camera_alias(db, load_freetown_into_db):
+    # Load a task with real-ish gap data so flight-gap generation has something to do.
+    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+
+    async with db.cursor() as cur:
+        # Remove the selected drone from the DB so the code must fall back to EXIF.
+        await cur.execute("DELETE FROM drone_flights WHERE task_id = %s", (task_id,))
+        await cur.execute(
+            """
+            UPDATE project_images
+            SET exif = exif || '{"Model":"FC9313"}'::jsonb
+            WHERE project_id = %s AND task_id = %s
+            """,
+            (project_id, task_id),
+        )
+        # Pretend every uploaded image came from a DJI camera that reports FC9313.
+    await db.commit()
+
+    result = await identify_flight_gaps(db, project_id, task_id)
+    # If the alias works, FC9313 becomes the supported DJI Mini 5 Pro enum.
+
+    assert batch_id is not None
+    assert result["drone_type"] == DroneType.DJI_MINI_5_PRO
+    assert_is_valid_flightplan(result["kmz_bytes"])
+
+
+@pytest.mark.asyncio
 async def test_gap_detection_without_drone_metadata_returns_clean_response(
     db, load_freetown_into_db
 ):

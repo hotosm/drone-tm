@@ -192,7 +192,9 @@ DRONE_PARAMS = {
 
 # Mapping and keeping track of known FC codes / camera identifiers to drone types
 CAMERA_MODEL_ALIASES = {
-    "FC8482": DroneType.DJI_MINI_4_PRO
+    "FC8482": DroneType.DJI_MINI_4_PRO,
+    # DJI Mini 5 Pro photos can report the camera model as FC9313 in EXIF.
+    "FC9313": DroneType.DJI_MINI_5_PRO,
     # Add more as we encounter them from supported drones
 }
 
