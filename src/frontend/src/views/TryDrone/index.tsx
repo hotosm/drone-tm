@@ -7,7 +7,6 @@ import getBbox from "@turf/bbox";
 import { coordAll } from "@turf/meta";
 import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
 import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
-import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
 import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { assignGridLabels, buildSquareKm2, polygonBboxCenter } from "@Utils/geometry";
@@ -333,7 +332,6 @@ const FlyMyDronePage = () => {
             isMapLoaded={isMapLoaded}
             style={{ width: "100%", height: "100%" }}
           >
-            <LocateUser />
             <MapZoomControls
               map={isMapLoaded ? map : null}
               onFitToBounds={isMapLoaded ? handleFitToBounds : null}

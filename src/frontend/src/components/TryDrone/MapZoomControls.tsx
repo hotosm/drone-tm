@@ -27,6 +27,23 @@ export default function MapZoomControls({ map, onFitToBounds }: MapZoomControlsP
   const { isMapLoaded } = useMap();
   const [selectedBaseLayer, setSelectedBaseLayer] = useState("osm");
   const [layersOpen, setLayersOpen] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const handleLocate = () => {
+    if (!map || !navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocating(false);
+        map.flyTo({
+          center: [position.coords.longitude, position.coords.latitude],
+          zoom: 15,
+        });
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true },
+    );
+  };
 
   return (
     <div className="naxatw-absolute naxatw-top-3 naxatw-right-3 naxatw-z-50 naxatw-flex naxatw-flex-col naxatw-rounded-md naxatw-border naxatw-border-grey-300 naxatw-bg-white naxatw-shadow-xl naxatw-overflow-visible">
@@ -51,6 +68,22 @@ export default function MapZoomControls({ map, onFitToBounds }: MapZoomControlsP
           aria-label="Zoom out"
         >
           <span className="naxatw-text-lg naxatw-font-bold naxatw-leading-none naxatw-text-grey-700">−</span>
+        </button>
+      </ToolTip>
+
+      <ToolTip message="My location" side="left">
+        <button
+          type="button"
+          className={`${btnBase} naxatw-border-b naxatw-border-grey-300 ${!map ? btnDisabled : ""}`}
+          onClick={handleLocate}
+          disabled={!map || locating}
+          aria-label="My location"
+        >
+          <i
+            className={`material-icons-outlined naxatw-text-base naxatw-text-grey-700 ${locating ? "naxatw-animate-spin" : ""}`}
+          >
+            {locating ? "sync" : "my_location"}
+          </i>
         </button>
       </ToolTip>
 
