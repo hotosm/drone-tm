@@ -9,7 +9,7 @@ import { useMapLibreGLMap } from "@Components/common/MapLibreComponents";
 import VectorLayer from "@Components/common/MapLibreComponents/Layers/VectorLayer";
 import MapContainer from "@Components/common/MapLibreComponents/MapContainer";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
-import { assignGridLabels, buildSquareKm2, polygonBboxCenter } from "@Utils/geometry";
+import { buildSquareKm2, polygonBboxCenter } from "@Utils/geometry";
 import Step1Panel from "@Components/TryDrone/Step1Panel";
 import Step2Panel from "@Components/TryDrone/Step2Panel";
 import Step3Panel from "@Components/TryDrone/Step3Panel";
@@ -136,8 +136,8 @@ const FlyMyDronePage = () => {
 
   const selectedTask = grid.find((t) => t.id === selectedTaskId) ?? null;
 
-  const gridLabels = useMemo(() => assignGridLabels(grid, gridDimension), [grid, gridDimension]);
-
+  // Label each cell with its backend-assigned task id (already A1-style) so the
+  // map labels match the id shown in the side panel — don't re-derive them here.
   const gridLabelPoints = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -147,10 +147,10 @@ const FlyMyDronePage = () => {
           type: "Point" as const,
           coordinates: polygonBboxCenter(task.geometry),
         },
-        properties: { label: gridLabels[task.id] ?? "" },
+        properties: { label: task.id },
       })),
     }),
-    [grid, gridLabels],
+    [grid],
   );
 
   const generateFlightPlan = (model: string) => {
