@@ -40,7 +40,7 @@ export default function Step2Panel({
               Task {selectedTask.id}
             </p>
             <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-grey-600">
-              {selectedTask.area_m2.toLocaleString()} m²
+              {Math.round(selectedTask.area_m2).toLocaleString()} m²
             </p>
           </div>
           <Button
