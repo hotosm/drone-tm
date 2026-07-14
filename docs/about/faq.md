@@ -219,7 +219,7 @@ Drone operators should always consider privacy when collecting imagery
 that may include people, especially when publishing data to public platforms.
 
 DroneTM's recommended default resolution is around 4 cm/pixel (GSD). At this
-resolution, a human face (~15–20 cm wide) typically spans only 4–5 pixels,
+resolution, a human face (~15-20 cm wide) typically spans only 4-5 pixels,
 which means faces are not reliably identifiable.
 
 However, other contextual risks may still exist depending on the environment.

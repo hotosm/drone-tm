@@ -10,7 +10,7 @@ We need to store:
 - Final imagery products after processing (orthos, point clouds, 3D products).
 
 This takes up a lot of space over time, with raw images
-being ~5–15MB each and projects commonly reaching
+being ~5-15MB each and projects commonly reaching
 hundreds of GB or more.
 
 We need to process:

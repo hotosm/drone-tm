@@ -35,13 +35,13 @@ parts and prices.
 
 | Tier         | What you get                                                                                               | Est. total USD |
 | ------------ | ---------------------------------------------------------------------------------------------------------- | -------------- |
-| **Budget**   | Usable ortho for building footprint mapping. Some limitations - see below.                                 | ~$400–500      |
-| **High-end** | DJI Mini 4 Pro equivalent image quality on a custom platform. Same workflow as any consumer mapping drone. | ~$900–1,200    |
+| **Budget**   | Usable ortho for building footprint mapping. Some limitations - see below.                                 | ~$400-500      |
+| **High-end** | DJI Mini 4 Pro equivalent image quality on a custom platform. Same workflow as any consumer mapping drone. | ~$900-1,200    |
 
 ## Georeferencing and Accuracy
 
 The onboard GPS geotags every image with a position
-accurate to roughly 2–6 metres. For building mapping, that
+accurate to roughly 2-6 metres. For building mapping, that
 is usually enough: you get a correctly stitched ortho that
 may be offset from true position by a few metres, but
 buildings are the right shape and size relative to each
@@ -67,7 +67,7 @@ A custom quadcopter requires the following categories of
 hardware. See the [Component List](#may-2026-component-list)
 below for specific parts and prices.
 
-**Airframe + propulsion**: a 450–500 mm quadcopter frame
+**Airframe + propulsion**: a 450-500 mm quadcopter frame
 with 4 brushless motors, 4 ESCs (electronic speed
 controllers), propellers, and a power distribution board
 (often integrated into the frame).
@@ -86,8 +86,8 @@ laptop.
     The cheapest Pixhawk boards (~$25 on AliExpress) are
     unbranded clones with well-known reliability problems:
     sensor failures, compass errors, and firmware issues.
-    **Spend the extra $10–20 on a branded board.** For
-    budget builds, use a Radiolink Pixhawk (~$35–50). For
+    **Spend the extra $10-20 on a branded board.** For
+    budget builds, use a Radiolink Pixhawk (~$35-50). For
     high-end, use a Holybro Pixhawk 6C Mini (~$131) or
     6C (~$166).
 
@@ -144,10 +144,10 @@ Unbalanced propellers are the single biggest source of
 vibration on a quadcopter. Cheap nylon props (1045s) are
 often significantly out of balance from the factory.
 
-Use a magnetic propeller balancer (~$5–15). Place the prop
+Use a magnetic propeller balancer (~$5-15). Place the prop
 on the balancer, see which side dips, and add small pieces
 of tape to the light blade (or carefully sand the heavy
-blade) until it sits level. This takes 2–3 minutes per
+blade) until it sits level. This takes 2-3 minutes per
 prop. Do it for every prop, every time you fit new ones.
 
 **2. Isolate the camera from the frame.**
@@ -158,7 +158,7 @@ frame using soft rubber. Two proven approaches:
 - **Rubber ball dampers** (also called "gimbal dampers") -
   small rubber balls with screw studs at each end. Mount
   4 of these between the frame and a camera plate. These
-  are widely available (~$3–5 for a set of 4, search
+  are widely available (~$3-5 for a set of 4, search
   "anti-vibration rubber ball damper drone" on AliExpress).
   This is the recommended approach.
 
@@ -233,36 +233,36 @@ flight controller and camera setup.
 
 | #   | Component                                       | Recommended                                                                | Backup                                   | Est. USD      |
 | --- | ----------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------- | ------------- |
-| 1   | Frame                                           | S500 500 mm PCB + landing gear                                             | F450 450 mm (less payload room)          | $15–30        |
-| 2   | Motors ×4                                       | A2212 920KV brushless                                                      | Any 2212/2216 800–1000KV                 | $12–25        |
-| 3   | ESCs ×4                                         | 30A SimonK or BLHeli                                                       | Any 30A brushless ESC w/ 5V BEC          | $10–22        |
-| 4   | Propellers                                      | 1045 nylon CW+CCW (buy 3+ spare sets)                                      | 9450 props                               | $3–6          |
-| 5   | GPS                                             | u-blox NEO-M8N + compass on mast                                           | BN-880 or M10 GPS/compass                | $10–22        |
-| 6   | Telemetry radio                                 | SiK V3 - 433 MHz (EU/Africa) or 915 MHz (Americas)                         | Any 3DR-compatible telemetry pair        | $15–35        |
-| 7   | Battery ×2                                      | 4S 14.8V 5200 mAh 35C+ LiPo (XT60)                                         | Any 4S 3300–5200 mAh LiPo                | $50–90        |
-| 8   | Charger                                         | IMAX B6 balance charger (or clone)                                         | Any LiPo balance charger supporting 4S   | $12–25        |
-| 9   | Storage                                         | 2× MicroSD (8 GB for Pixhawk, 32–64 GB for SBC)                            | Any Class 10 MicroSD                     | $8–15         |
-| 10  | Camera mount                                    | 3D-printed fixed bracket on **rubber ball dampers** (nadir + optional 45°) | Aluminium L-bracket on silicone grommets | $5–15         |
-| 11  | Prop balancer                                   | Magnetic propeller balancer                                                | Any prop balancer                        | $5–15         |
-| 12  | Wiring & sundries                               | XT60 connectors, zip ties, foam tape, heat shrink, battery strap           | -                                        | $10–20        |
-|     | **Airframe subtotal (excl. flight controller)** |                                                                            |                                          | **~$155–310** |
+| 1   | Frame                                           | S500 500 mm PCB + landing gear                                             | F450 450 mm (less payload room)          | $15-30        |
+| 2   | Motors ×4                                       | A2212 920KV brushless                                                      | Any 2212/2216 800-1000KV                 | $12-25        |
+| 3   | ESCs ×4                                         | 30A SimonK or BLHeli                                                       | Any 30A brushless ESC w/ 5V BEC          | $10-22        |
+| 4   | Propellers                                      | 1045 nylon CW+CCW (buy 3+ spare sets)                                      | 9450 props                               | $3-6          |
+| 5   | GPS                                             | u-blox NEO-M8N + compass on mast                                           | BN-880 or M10 GPS/compass                | $10-22        |
+| 6   | Telemetry radio                                 | SiK V3 - 433 MHz (EU/Africa) or 915 MHz (Americas)                         | Any 3DR-compatible telemetry pair        | $15-35        |
+| 7   | Battery ×2                                      | 4S 14.8V 5200 mAh 35C+ LiPo (XT60)                                         | Any 4S 3300-5200 mAh LiPo                | $50-90        |
+| 8   | Charger                                         | IMAX B6 balance charger (or clone)                                         | Any LiPo balance charger supporting 4S   | $12-25        |
+| 9   | Storage                                         | 2× MicroSD (8 GB for Pixhawk, 32-64 GB for SBC)                            | Any Class 10 MicroSD                     | $8-15         |
+| 10  | Camera mount                                    | 3D-printed fixed bracket on **rubber ball dampers** (nadir + optional 45°) | Aluminium L-bracket on silicone grommets | $5-15         |
+| 11  | Prop balancer                                   | Magnetic propeller balancer                                                | Any prop balancer                        | $5-15         |
+| 12  | Wiring & sundries                               | XT60 connectors, zip ties, foam tape, heat shrink, battery strap           | -                                        | $10-20        |
+|     | **Airframe subtotal (excl. flight controller)** |                                                                            |                                          | **~$155-310** |
 
 ### Budget Build
 
 | Component                           | Recommended                                                   | Est. USD      |
 | ----------------------------------- | ------------------------------------------------------------- | ------------- |
-| Flight controller                   | Radiolink Pixhawk 2.4.8 (branded)                             | $35–50        |
+| Flight controller                   | Radiolink Pixhawk 2.4.8 (branded)                             | $35-50        |
 | Companion computer                  | Raspberry Pi Zero 2 W                                         | $15           |
-| Camera                              | Raspberry Pi HQ Camera (IMX477) + 6 mm low-distortion CS lens | $60–80        |
-| **Budget camera + FC subtotal**     |                                                               | **~$110–145** |
-| **Budget total (airframe + above)** |                                                               | **~$400–500** |
+| Camera                              | Raspberry Pi HQ Camera (IMX477) + 6 mm low-distortion CS lens | $60-80        |
+| **Budget camera + FC subtotal**     |                                                               | **~$110-145** |
+| **Budget total (airframe + above)** |                                                               | **~$400-500** |
 
 **Why the Pi HQ Camera and not the cheaper Pi Camera
 Module 3?** The Pi Camera Module 3 (~$30) uses autofocus
 and a fixed lens with significant barrel distortion. Both
 hurt stitching accuracy. The Pi HQ Camera uses
 interchangeable lenses and manual focus - you fit a
-low-distortion 6 mm CS lens (~$10–20 on AliExpress,
+low-distortion 6 mm CS lens (~$10-20 on AliExpress,
 search "6 mm CS lens 5 MP low distortion"), lock focus to
 infinity, and get significantly better orthomosaic
 geometry. The lens is the most important part of the
@@ -313,11 +313,11 @@ To mitigate these limitations:
 
 | Component                             | Recommended                                                  | Est. USD        |
 | ------------------------------------- | ------------------------------------------------------------ | --------------- |
-| Flight controller                     | Holybro Pixhawk 6C Mini (or 6C)                              | $131–166        |
+| Flight controller                     | Holybro Pixhawk 6C Mini (or 6C)                              | $131-166        |
 | Companion computer                    | Raspberry Pi 5 1 GB (or Pi 4 2 GB)                           | $45             |
-| Camera                                | Arducam IMX586 48 MP USB3 + 6 mm low-distortion C-mount lens | $130–150        |
-| **High-end camera + FC subtotal**     |                                                              | **~$310–360**   |
-| **High-end total (airframe + above)** |                                                              | **~$900–1,200** |
+| Camera                                | Arducam IMX586 48 MP USB3 + 6 mm low-distortion C-mount lens | $130-150        |
+| **High-end camera + FC subtotal**     |                                                              | **~$310-360**   |
+| **High-end total (airframe + above)** |                                                              | **~$900-1,200** |
 
 The Arducam IMX586 uses the same 1/2.0" 48 MP quad-Bayer
 sensor technology found in consumer drones. In 12 MP
@@ -368,8 +368,8 @@ and are the same for both tiers.
 
 | Option                           | Spec                                                    | Est. USD |
 | -------------------------------- | ------------------------------------------------------- | -------- |
-| FLIR Lepton 3.5 + breakout board | 160×120, radiometric (calibrated temperature per pixel) | $200–320 |
-| FLIR Lepton FS + breakout board  | 160×120, non-radiometric (thermal image only)           | $99–160  |
+| FLIR Lepton 3.5 + breakout board | 160×120, radiometric (calibrated temperature per pixel) | $200-320 |
+| FLIR Lepton FS + breakout board  | 160×120, non-radiometric (thermal image only)           | $99-160  |
 
 The 160×120 resolution is useful for spotting heat
 anomalies (roof insulation gaps, water leaks, solar panel
@@ -423,7 +423,7 @@ Generic "Pixhawk" boards from random AliExpress sellers
 are often unreliable clones.
 
 For countries with good e-commerce (Colombia, etc.),
-AliExpress ships to most of Latin America (2–6 weeks).
+AliExpress ships to most of Latin America (2-6 weeks).
 MercadoLibre often stocks generic drone parts locally.
 
 For countries with limited e-commerce (Sierra Leone, etc.):
@@ -431,7 +431,7 @@ For countries with limited e-commerce (Sierra Leone, etc.):
 1. **Local RC / electronics importers** in the capital -
    most stock generic drone parts. Ask for "F450 drone
    kit" or "Pixhawk".
-2. **Alibaba** (wholesale, min 5–10 units) - ships
+2. **Alibaba** (wholesale, min 5-10 units) - ships
    worldwide via DHL/FedEx.
 3. **Pre-purchase and carry with staff** - buy in the
    US/UK/EU and bring in luggage. Most practical for
@@ -441,7 +441,7 @@ For countries with limited e-commerce (Sierra Leone, etc.):
 
 | Retailer              | Best for                                   | Ships globally?                     |
 | --------------------- | ------------------------------------------ | ----------------------------------- |
-| AliExpress            | Frame, motors, ESCs, props, GPS, telemetry | Most countries (2–6 wks)            |
+| AliExpress            | Frame, motors, ESCs, props, GPS, telemetry | Most countries (2-6 wks)            |
 | Alibaba               | Bulk orders (5+ kits)                      | Worldwide via DHL/FedEx             |
 | Holybro Store         | Pixhawk 6C / 6C Mini, power modules        | Worldwide                           |
 | Amazon US/UK          | Batteries, chargers, Arducam cameras       | Many countries; forwarder if needed |
