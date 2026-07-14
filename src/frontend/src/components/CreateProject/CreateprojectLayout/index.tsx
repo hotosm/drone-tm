@@ -14,7 +14,7 @@ import { FlexRow } from "@Components/common/Layouts";
 import { Button } from "@Components/RadixComponents/Button";
 import centroid from "@turf/centroid";
 import { resetUploadedAndDrawnAreas, setCreateProjectState } from "@Store/actions/createproject";
-import { postCreateProject, postTaskBoundary } from "@Services/createproject";
+import { getProjectsList, postCreateProject, postTaskBoundary } from "@Services/createproject";
 import { toast } from "react-toastify";
 import { StepComponentMap, stepDescriptionComponents } from "@Constants/createProject";
 import { convertGeojsonToFile } from "@Utils/convertLayerUtils";
@@ -62,7 +62,7 @@ const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
 
 const defaultWizardState = {
   activeStep: 1,
-  useCase: null,
+  useCase: [],
   splitGeojson: null,
   uploadedProjectArea: null,
   uploadedNoFlyZone: null,
@@ -129,9 +129,11 @@ const CreateprojectLayout = () => {
   const {
     register,
     setValue,
+    setError,
+    clearErrors,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     control,
     getValues,
     watch,
@@ -184,6 +186,8 @@ const CreateprojectLayout = () => {
   const formProps = {
     register,
     setValue,
+    setError,
+    clearErrors,
     reset,
     errors,
     control,
@@ -215,20 +219,37 @@ const CreateprojectLayout = () => {
   }, [countryResponse, dispatch]);
 
   useEffect(() => {
-    if (useCase === "DIGITAL_SURFACE_MODEL" || useCase === "DIGITAL_TERRAIN_MODEL") {
+    if (useCase.includes("DIGITAL_SURFACE_MODEL") || useCase.includes("DIGITAL_TERRAIN_MODEL")) {
       dispatch(setCreateProjectState({ isTerrainFollow: true }));
     }
   }, [useCase, dispatch]);
 
-  const onSubmit = (data: any) => {
+  const onSubmit = async (data: any) => {
     if (activeStep === 1) {
-      if (!useCase) {
+      if (!useCase.length) {
         toast.error(m.create_use_case_required());
         return;
       }
     }
 
     if (activeStep === 2) {
+      const trimmedName = typeof data?.name === "string" ? data.name.trim() : "";
+      if (trimmedName) {
+        try {
+          const response = await getProjectsList({ search: trimmedName });
+          const projects = response?.data?.results || [];
+          const exactMatch = projects.some(
+            (p: any) => p.name?.toLowerCase() === trimmedName.toLowerCase(),
+          );
+          if (exactMatch) {
+            setError("name", { type: "duplicate", message: m.create_basic_name_exists() });
+            toast.error(m.create_basic_name_exists());
+            return;
+          }
+        } catch {
+          // lookup failed; let backend enforce uniqueness on final submit
+        }
+      }
       if (requiresApprovalFromRegulator === "required" && !regulatorEmails?.length) {
         toast.error(m.create_contributions_regulator_email_required());
         return;
@@ -262,7 +283,7 @@ const CreateprojectLayout = () => {
       return;
     }
 
-    const finalOutput = useCase ? [useCase] : [];
+    const finalOutput = useCase;
     if (
       !data?.name ||
       !data?.outline ||
@@ -372,10 +393,17 @@ const CreateprojectLayout = () => {
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
               withLoader
-              isLoading={isPending || isCreatingProject || !capturedProjectMap || isFetchingCountry}
+              isLoading={
+                isPending ||
+                isCreatingProject ||
+                isSubmitting ||
+                !capturedProjectMap ||
+                isFetchingCountry
+              }
               disabled={
                 isPending ||
                 isCreatingProject ||
+                isSubmitting ||
                 !capturedProjectMap ||
                 (activeStep === 5 && !splitGeojson)
               }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { FormControl, Label, Input } from "@Components/common/FormUI";
 import ErrorMessage from "@Components/common/FormUI/ErrorMessage";
 import { UseFormPropsType } from "@Components/common/FormUI/types";
@@ -8,14 +8,13 @@ import { m } from "@/paraglide/messages";
 import AdvancedConfig from "./AdvancedConfig";
 
 export default function BasicInformation({ formProps }: { formProps: UseFormPropsType }) {
-  const { register, errors, control, watch } = formProps;
-  const [nameExistsError, setNameExistsError] = useState("");
+  const { register, errors, control, watch, setError, clearErrors } = formProps;
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const nameValue = watch("name");
 
   useEffect(() => {
-    setNameExistsError("");
+    clearErrors?.("name");
 
     if (!nameValue || nameValue.trim().length === 0) return;
 
@@ -32,7 +31,7 @@ export default function BasicInformation({ formProps }: { formProps: UseFormProp
           (p: any) => p.name?.toLowerCase() === trimmedName.toLowerCase(),
         );
         if (exactMatch) {
-          setNameExistsError(m.create_basic_name_exists());
+          setError?.("name", { type: "duplicate", message: m.create_basic_name_exists() });
         }
       } catch {
         // silently ignore lookup errors
@@ -44,7 +43,7 @@ export default function BasicInformation({ formProps }: { formProps: UseFormProp
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [nameValue]);
+  }, [nameValue, setError, clearErrors]);
 
   return (
     <div className="naxatw-h-full">
@@ -57,7 +56,7 @@ export default function BasicInformation({ formProps }: { formProps: UseFormProp
             setValueAs: (value: string) => value.trim(),
           })}
         />
-        <ErrorMessage message={(errors?.name?.message as string) || nameExistsError} />
+        <ErrorMessage message={errors?.name?.message as string} />
       </FormControl>
       <FormControl className="naxatw-mt-5 naxatw-gap-1">
         <Label>{m.create_basic_description_label()}</Label>

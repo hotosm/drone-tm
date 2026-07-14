@@ -10,6 +10,11 @@ const UseCase = () => {
   const dispatch = useTypedDispatch();
   const useCase = useTypedSelector((state) => state.createproject.useCase);
 
+  const toggleUseCase = (value: UseCaseValue) => {
+    const next = useCase.includes(value) ? useCase.filter((v) => v !== value) : [...useCase, value];
+    dispatch(setCreateProjectState({ useCase: next }));
+  };
+
   return (
     <div className="naxatw-flex naxatw-h-full naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-center naxatw-py-6">
       <div className="naxatw-mb-8 naxatw-max-w-2xl naxatw-text-center">
@@ -20,7 +25,8 @@ const UseCase = () => {
       </div>
       <div className="naxatw-grid naxatw-w-full naxatw-max-w-5xl naxatw-grid-cols-1 naxatw-gap-6 md:naxatw-grid-cols-3">
         {useCaseOptions().map((option) => {
-          const isSelected = option.value === useCase;
+          const value = option.value as UseCaseValue;
+          const isSelected = useCase.includes(value);
           return (
             <label
               key={option.value}
@@ -34,13 +40,11 @@ const UseCase = () => {
               <p className="naxatw-mb-2 naxatw-text-body-btn">{option.label}</p>
               <p className="naxatw-text-body-md naxatw-text-[#555]">{option.description}</p>
               <input
-                type="radio"
+                type="checkbox"
                 name="useCase"
                 value={option.value}
                 checked={isSelected}
-                onChange={() =>
-                  dispatch(setCreateProjectState({ useCase: option.value as UseCaseValue }))
-                }
+                onChange={() => toggleUseCase(value)}
                 className="naxatw-sr-only"
               />
               {isSelected && (

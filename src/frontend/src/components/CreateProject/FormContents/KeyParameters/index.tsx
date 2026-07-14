@@ -83,7 +83,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
 
   // Terrain/elevation outputs need higher overlap for triangulation
   const isTerrainOutput =
-    useCase === "DIGITAL_SURFACE_MODEL" || useCase === "DIGITAL_TERRAIN_MODEL";
+    useCase.includes("DIGITAL_SURFACE_MODEL") || useCase.includes("DIGITAL_TERRAIN_MODEL");
   const frontOverlapRecommendation = isTerrainOutput ? "85%" : "75%";
   const sideOverlapRecommendation = isTerrainOutput ? "85%" : "65%";
 

@@ -82,7 +82,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
             placeholder={m.create_generate_dimension_placeholder()}
             type="number"
             className="naxatw-mt-1"
-            value={dimension ?? ""}
+            value={Number.isFinite(dimension) ? dimension : ""}
             min={50}
             max={1000}
             {...register("task_split_dimension", {

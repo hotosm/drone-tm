@@ -3,12 +3,12 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { CaseReducer, PayloadAction } from "@reduxjs/toolkit";
 import persist from "@Store/persist";
 
-export type UseCase = "ORTHOPHOTO_2D" | "DIGITAL_SURFACE_MODEL" | "DIGITAL_TERRAIN_MODEL" | null;
+export type UseCase = "ORTHOPHOTO_2D" | "DIGITAL_SURFACE_MODEL" | "DIGITAL_TERRAIN_MODEL";
 
 export interface CreateProjectState {
   projectId: number | null;
   activeStep: number;
-  useCase: UseCase;
+  useCase: UseCase[];
   keyParamOption: "basic" | "advanced";
   measurementType: "gsd" | "altitude";
   contributionsOption: "public" | "invite_with_email";
@@ -38,7 +38,7 @@ export interface CreateProjectState {
 const initialState: CreateProjectState = {
   projectId: null,
   activeStep: 1,
-  useCase: null,
+  useCase: [],
   keyParamOption: "basic",
   measurementType: "gsd",
   contributionsOption: "public",
