@@ -1,4 +1,5 @@
 import { FlexColumn } from "@Components/common/Layouts";
+import { m } from "@/paraglide/messages";
 // import Image from '@Components/RadixComponents/Image';
 // import { motion } from 'framer-motion';
 // import forestImage from '@Assets/images/LandingPage/ForestImage.png';
@@ -10,17 +11,14 @@ export default function OpenSource() {
         <FlexColumn className="naxatw-items-center naxatw-gap-10 naxatw-text-center">
           <div>
             <p className="naxatw-text-[2rem] naxatw-leading-[2.688rem] naxatw-text-landing-red md:naxatw-text-[4.375rem] md:naxatw-leading-[5rem]">
-              Open Source
+              {m.landing_open_source_heading_part_one()}
             </p>
             <p className="naxatw-text-[2rem] naxatw-leading-[2.688rem] naxatw-text-landing-red md:naxatw-text-[4.375rem] md:naxatw-leading-[5rem]">
-              Drone Tasking Manager
+              {m.landing_brand_name()}
             </p>
           </div>
           <p className="naxatw-w-full naxatw-text-base naxatw-leading-[1.625rem] naxatw-text-landing-grey md:naxatw-w-2/3 md:naxatw-text-xl md:naxatw-leading-7">
-            An open-source drone tasking platform to coordinate aerial survey activities for target
-            project areas among multiple pilots, incorporating tools and processes to ensure
-            coordinated flight plans for imagery acquisition, and a seamless pipeline for processing
-            and dissemination.
+            {m.landing_open_source_description()}
           </p>
           {/* <motion.div
             initial={{ translateX: -200, opacity: 0 }}

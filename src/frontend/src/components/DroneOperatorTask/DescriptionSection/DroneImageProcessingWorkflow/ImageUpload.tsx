@@ -1,4 +1,5 @@
 import UppyFileUploader from "../UppyFileUploader";
+import { m } from "@/paraglide/messages";
 
 const IMAGE_FILE_TYPES = [
   "image/jpeg",
@@ -33,7 +34,7 @@ const ImageUpload = ({ projectId, onUploadStart, onUploadComplete }: ImageUpload
         />
       ) : (
         <div className="naxatw-flex naxatw-flex-1 naxatw-min-h-[400px] naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-border-2 naxatw-border-dashed naxatw-border-gray-300 naxatw-bg-gray-50">
-          <p className="naxatw-text-gray-500">Project ID not found</p>
+          <p className="naxatw-text-gray-500">{m.drone_task_project_id_not_found()}</p>
         </div>
       )}
     </div>

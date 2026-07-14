@@ -4,6 +4,7 @@ import Dashboard from "@uppy/react/dashboard";
 import { UppyContext } from "@uppy/react";
 import { toast } from "react-toastify";
 import { authenticated, api } from "@Services/index";
+import { m } from "@/paraglide/messages";
 
 import "@uppy/core/css/style.min.css";
 import "@uppy/dashboard/css/style.min.css";
@@ -74,7 +75,7 @@ const UppyFileUploader = ({
       id: pluginId,
       // Limit files uploaded simultaneously.
       // Note this is a limit for the number of files, not connections.
-      // ~5–15 MB files, part size 5MB, gives 1-3 parts per file.
+      // ~5-15 MB files, part size 5MB, gives 1-3 parts per file.
       // 2 files × 2 parts = 4 concurrent PUTs, which is enough
       // to saturate the bandwidth in many places
       limit: 2,
@@ -262,9 +263,7 @@ const UppyFileUploader = ({
     // classify / scan-for-images flow.
     const handleCancelAll = () => {
       if (staging && batchIdRef.current) {
-        toast.warning(
-          "Upload cancelled. Already-uploaded images remain staged and can be recovered.",
-        );
+        toast.warning(m.drone_task_upload_cancelled_recoverable());
         batchIdRef.current = null;
         notificationShownRef.current = false;
       }

@@ -42,7 +42,7 @@ const TaskLogsTable = ({ data: taskList }: ITaskLogsTableProps) => {
           {taskList?.map((task) => (
             <tr key={task.task_id}>
               <td className="naxatw-line-clamp-1 naxatw-px-2 naxatw-py-1">
-                Task# {task?.project_task_index}
+                {m.dashboard_task_table_task_label({ index: task?.project_task_index })}
               </td>
               <td className="naxatw-px-2 naxatw-py-1">{task?.project_name}</td>
               <td className="naxatw-px-2 naxatw-py-1">

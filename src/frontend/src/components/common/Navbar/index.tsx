@@ -87,11 +87,7 @@ export default function Navbar() {
             aria-label={m.nav_home_aria_label()}
             href="/"
           >
-            <Image
-              src={dtmLogo}
-              alt="Drone Tasking Manager logo"
-              className="naxatw-h-8 naxatw-w-40"
-            />
+            <Image src={dtmLogo} alt={m.common_dtm_logo_alt()} className="naxatw-h-8 naxatw-w-40" />
           </a>
           {!isApprovalPage && (
             <>
@@ -139,7 +135,7 @@ export default function Navbar() {
             <a href="/" aria-label={m.nav_home_aria_label()}>
               <Image
                 src={dtmLogo}
-                alt="Drone Tasking Manager logo"
+                alt={m.common_dtm_logo_alt()}
                 className="naxatw-h-8 naxatw-w-40"
               />
             </a>

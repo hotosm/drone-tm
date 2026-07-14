@@ -6,6 +6,7 @@ import TileLayer from "ol/layer/WebGLTile";
 import GeoTIFF from "ol/source/GeoTIFF";
 import Zoom from "ol/control/Zoom";
 import "ol/ol.css";
+import { m } from "@/paraglide/messages";
 
 interface TaskOrthoCogViewerProps {
   signedUrl: string;
@@ -142,16 +143,16 @@ const TaskOrthoCogViewer = ({ signedUrl, title, onClose }: TaskOrthoCogViewerPro
       }}
       role="dialog"
       aria-modal="true"
-      aria-label={title || "Orthophoto preview"}
+      aria-label={title || m.viewer_orthophoto_preview()}
     >
       <div className="naxatw-relative naxatw-flex naxatw-h-[90vh] naxatw-w-[92vw] naxatw-flex-col naxatw-rounded-lg naxatw-bg-white naxatw-shadow-xl md:naxatw-w-[80vw]">
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-border-b naxatw-px-4 naxatw-py-2">
           <span className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
-            {title || "Orthophoto preview"}
+            {title || m.viewer_orthophoto_preview()}
           </span>
           <button
             type="button"
-            aria-label="Close orthophoto preview"
+            aria-label={m.viewer_close_orthophoto_preview()}
             className="material-icons naxatw-cursor-pointer naxatw-text-gray-600 hover:naxatw-text-gray-900"
             onClick={onClose}
           >

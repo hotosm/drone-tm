@@ -11,6 +11,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import "@Assets/css/index.css";
 import "@Assets/css/tailwind.css";
 import { getLocale } from "@/paraglide/runtime";
+import { m } from "@/paraglide/messages";
 import { store, persistor } from "./store";
 import App from "./App";
 import { getRuntimeConfig } from "./runtimeConfig";
@@ -35,7 +36,7 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <QueryClientProvider client={queryClient}>
     <Provider store={store}>
-      <PersistGate loading={<h1>hello</h1>} persistor={persistor}>
+      <PersistGate loading={<h1>{m.common_loading()}</h1>} persistor={persistor}>
         <BrowserRouter>
           <App />
         </BrowserRouter>

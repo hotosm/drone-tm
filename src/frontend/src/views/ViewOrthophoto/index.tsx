@@ -6,6 +6,7 @@ import { cogProtocol, getCogMetadata } from "@geomatico/maplibre-cog-protocol";
 import bbox from "@turf/bbox";
 import { useGetProjectsDetailQuery } from "@Api/projects";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { m } from "@/paraglide/messages";
 
 // Register the cog:// protocol exactly once per page load. addProtocol on
 // MapLibre is process-global; calling it on every viewer mount would leak.
@@ -165,14 +166,16 @@ const ViewOrthophoto = () => {
       <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-border-b naxatw-bg-white naxatw-px-6 naxatw-py-3">
         <button
           type="button"
-          aria-label="Back to project"
+          aria-label={m.viewer_back_to_project()}
           className="material-icons naxatw-cursor-pointer naxatw-text-[#D73F3F] hover:naxatw-opacity-75"
           onClick={() => navigate(`/projects/${id}`)}
         >
           arrow_back
         </button>
         <span className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-800">
-          {projectName ? `${projectName} - Orthophoto` : "Orthophoto Viewer"}
+          {projectName
+            ? m.viewer_orthophoto_title({ projectName })
+            : m.viewer_orthophoto_fallback_title()}
         </span>
       </div>
 
@@ -182,8 +185,8 @@ const ViewOrthophoto = () => {
         {viewState === "loaded" && (
           <button
             type="button"
-            aria-label="Zoom to layer extent"
-            title="Zoom to layer extent"
+            aria-label={m.viewer_orthophoto_zoom_extent()}
+            title={m.viewer_orthophoto_zoom_extent()}
             className="naxatw-absolute naxatw-right-4 naxatw-top-4 naxatw-z-10 naxatw-flex naxatw-h-10 naxatw-w-10 naxatw-cursor-pointer naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-white naxatw-shadow-lg hover:naxatw-bg-gray-50"
             onClick={handleZoomToExtent}
           >
@@ -193,13 +196,15 @@ const ViewOrthophoto = () => {
 
         {isFetching && (
           <div className="naxatw-absolute naxatw-inset-0 naxatw-flex naxatw-items-center naxatw-justify-center naxatw-bg-white/70">
-            <span className="naxatw-text-sm naxatw-text-gray-600">Loading project…</span>
+            <span className="naxatw-text-sm naxatw-text-gray-600">
+              {m.viewer_loading_project()}
+            </span>
           </div>
         )}
 
         {!isFetching && viewState === "loading" && (
           <div className="naxatw-pointer-events-none naxatw-absolute naxatw-bottom-8 naxatw-left-1/2 naxatw-z-10 -naxatw-translate-x-1/2 naxatw-rounded naxatw-bg-white/90 naxatw-px-4 naxatw-py-2 naxatw-text-sm naxatw-text-gray-700 naxatw-shadow">
-            Loading orthophoto…
+            {m.viewer_orthophoto_loading()}
           </div>
         )}
 
@@ -210,10 +215,10 @@ const ViewOrthophoto = () => {
                 image
               </span>
               <p className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-700">
-                Orthophoto not yet generated
+                {m.viewer_orthophoto_unavailable_title()}
               </p>
               <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-gray-500">
-                The orthophoto will be available once final processing completes.
+                {m.viewer_orthophoto_unavailable_description()}
               </p>
             </div>
           </div>
@@ -226,11 +231,10 @@ const ViewOrthophoto = () => {
                 error_outline
               </span>
               <p className="naxatw-text-base naxatw-font-semibold naxatw-text-gray-700">
-                Failed to load orthophoto
+                {m.viewer_orthophoto_load_failed()}
               </p>
               <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-gray-500">
-                Try refreshing the page. If the problem persists, check the project&apos;s COG in
-                S3.
+                {m.viewer_orthophoto_retry_refresh()}
               </p>
             </div>
           </div>

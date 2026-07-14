@@ -1,6 +1,7 @@
 import { useState } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { getLocale, setLocale, locales, getLocaleDisplayName } from "@/i18n";
+import { m } from "@/paraglide/messages";
 
 interface LanguageSwitcherProps {
   className?: string;
@@ -15,7 +16,7 @@ export default function LanguageSwitcher({ className = "" }: LanguageSwitcherPro
       <PopoverPrimitive.Trigger asChild>
         <button
           type="button"
-          aria-label="Select language"
+          aria-label={m.common_select_language()}
           style={{ border: 0, padding: 0, background: "transparent", lineHeight: 1 }}
           className={`naxatw-group naxatw-inline-flex naxatw-h-8 naxatw-items-center naxatw-gap-1 naxatw-text-inherit focus:naxatw-outline-none ${className}`}
         >

@@ -1,9 +1,21 @@
 import useOutsideClick from "@Hooks/useOutsideClick";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import RadioButton from "@Components/common/RadioButton";
+import { m } from "@/paraglide/messages";
 import BaseLayerSwitcher from "../MapLibreComponents/BaseLayerSwitcher";
 import baseLayersData from "../MapLibreComponents/BaseLayerSwitcher/baseLayers";
 import { useMap } from "../MapLibreComponents/MapContext";
+
+const getBaseLayerLabel = (key: string) => {
+  const labels: Record<string, string> = {
+    osm: m.common_basemap_osm(),
+    "osm-light": m.common_basemap_osm_light(),
+    satellite: m.common_basemap_satellite(),
+    topo: m.common_basemap_topo(),
+    hybrid: m.common_basemap_hybrid(),
+  };
+  return labels[key] || key;
+};
 
 const BaseLayerSwitcherUI = () => {
   const { map, isMapLoaded } = useMap();
@@ -12,15 +24,11 @@ const BaseLayerSwitcherUI = () => {
   const [_, toggle, handleToggle]: any = useOutsideClick("single");
   const baseLayerList = baseLayersData;
 
-  const layerOptions = useMemo(
-    () =>
-      Object.keys(baseLayerList).map((key) => ({
-        name: "baseLayer",
-        value: key,
-        label: key,
-      })),
-    [baseLayerList],
-  );
+  const layerOptions = Object.keys(baseLayerList).map((key) => ({
+    name: "baseLayer",
+    value: key,
+    label: getBaseLayerLabel(key),
+  }));
 
   return (
     <>
@@ -30,7 +38,7 @@ const BaseLayerSwitcherUI = () => {
           handleToggle();
         }}
         role="presentation"
-        title="Layer Switcher"
+        title={m.common_map_layer_switcher()}
       >
         <i className="material-icons-outlined naxatw-text-xl naxatw-font-black">layers</i>
       </div>

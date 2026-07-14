@@ -8,6 +8,7 @@ import {
 } from "@Store/actions/droneOperatorTask";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { point } from "@turf/helpers";
+import { m } from "@/paraglide/messages";
 
 const ChooseTakeOffPointOptions = () => {
   const dispatch = useTypedDispatch();
@@ -31,9 +32,7 @@ const ChooseTakeOffPointOptions = () => {
   };
   return (
     <div>
-      <p className="naxatw-text-sm naxatw-text-[#7A7676]">
-        Please select the take-off point for your drone.
-      </p>
+      <p className="naxatw-text-sm naxatw-text-[#7A7676]">{m.task_takeoff_select_prompt()}</p>
       <div className="naxatw-py-1 naxatw-text-gray-700">
         <RadioButton
           className="!naxatw-text-black"
@@ -45,7 +44,7 @@ const ChooseTakeOffPointOptions = () => {
       </div>
       <div className="naxatw naxatw-flex naxatw-justify-center naxatw-pt-3">
         <Button withLoader className="naxatw-bg-red" onClick={() => handleNextClick()}>
-          Next
+          {m.create_button_next()}
         </Button>
       </div>
     </div>

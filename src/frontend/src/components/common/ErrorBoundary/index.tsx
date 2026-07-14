@@ -1,5 +1,6 @@
 import Icon from "@Components/common/Icon";
 import { Component, ReactNode } from "react";
+import { m } from "@/paraglide/messages";
 
 interface ErrorBoundaryProps {
   showError?: boolean;
@@ -44,8 +45,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           <div className="title naxatw-flex naxatw-flex-col naxatw-items-center naxatw-justify-center">
             <Icon name="running_with_errors" className="naxatw-text-red-600 naxatw-text-4xl" />
             <p className="naxatw-text-lg naxatw-font-bold naxatw-text-gray-800">
-              {" "}
-              An Error Occurred !
+              {m.common_error_occurred()}
             </p>
           </div>
           {errorLocation ? (

@@ -21,9 +21,9 @@ const MultipleEmailInput = ({ emails, onEmailAdd }: IMultipleEmailInput) => {
   };
 
   const addInputEmailOnList = () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/?.test(inputEmail)) return setError("Email is invalid");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/?.test(inputEmail)) return setError(m.common_email_invalid());
     if (emailList?.find((email) => email === inputEmail))
-      return setError("Email already exists on list");
+      return setError(m.common_email_duplicate());
     setInputEmail("");
     const newEmailList = [...emailList, inputEmail];
 
@@ -54,7 +54,7 @@ const MultipleEmailInput = ({ emails, onEmailAdd }: IMultipleEmailInput) => {
   return (
     <FormControl className="naxatw-relative">
       <Input
-        placeholder="Enter email and press enter or click  '+'  icon to add"
+        placeholder={m.common_email_input_placeholder()}
         onChange={handleChange}
         value={inputEmail}
         onKeyDown={handleKeyDown}

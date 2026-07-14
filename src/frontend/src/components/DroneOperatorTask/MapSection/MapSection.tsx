@@ -506,7 +506,7 @@ const MapSection = ({ className }: { className?: string }) => {
               id="copy-coords-btn"
               data-coords={`${lat}, ${lng}`}
               className="naxatw-cursor-pointer naxatw-rounded naxatw-p-0.5 hover:naxatw-bg-grey-200"
-              title="Copy coordinates"
+              title={m.drone_task_popup_copy_coordinates()}
             >
               <i className="material-symbols-outlined" style={{ fontSize: "16px" }}>
                 content_copy
@@ -515,15 +515,28 @@ const MapSection = ({ className }: { className?: string }) => {
           </div>
         </center>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
-          <p className="naxatw-text-base">Speed: {popupData?.speed} m/s</p>
+          <p className="naxatw-text-base">
+            {m.drone_task_popup_speed_label()} {popupData?.speed} m/s
+          </p>
           {popupData?.elevation && (
-            <p className="naxatw-text-base">Elevation (Sea Level): {popupData?.elevation} meter </p>
+            <p className="naxatw-text-base">
+              {m.drone_task_popup_elevation_label()} {popupData?.elevation} meter
+            </p>
           )}
-          <p className="naxatw-text-base">Take Photo: {popupData?.take_photo ? "True" : "False"}</p>
-          <p className="naxatw-text-base">Gimble angle: {popupData?.gimbal_angle} degree</p>
-          <p className="naxatw-text-base">Heading: {popupData?.heading}</p>
+          <p className="naxatw-text-base">
+            {m.drone_task_popup_take_photo_label()}{" "}
+            {popupData?.take_photo ? m.common_yes() : m.common_no()}
+          </p>
+          <p className="naxatw-text-base">
+            {m.drone_task_gimbal_angle_label()}: {popupData?.gimbal_angle} degree
+          </p>
+          <p className="naxatw-text-base">
+            {m.drone_task_popup_heading_label()} {popupData?.heading}
+          </p>
           {popupData?.altitude && (
-            <p className="naxatw-text-base">Altitude: {popupData?.altitude} meter</p>
+            <p className="naxatw-text-base">
+              {m.drone_task_altitude_label()}: {popupData?.altitude} meter
+            </p>
           )}
           {isTakeOffPoint && (
             <a
@@ -535,7 +548,7 @@ const MapSection = ({ className }: { className?: string }) => {
               <i className="material-symbols-outlined" style={{ fontSize: "16px" }}>
                 map
               </i>
-              Open in Google Maps
+              {m.drone_task_popup_open_google_maps()}
             </a>
           )}
         </div>
@@ -551,7 +564,7 @@ const MapSection = ({ className }: { className?: string }) => {
       const coords = btn.getAttribute("data-coords");
       if (coords) {
         navigator.clipboard.writeText(coords);
-        toast.success("Coordinates copied to clipboard");
+        toast.success(m.drone_task_popup_coordinates_copied());
       }
     }
     document.addEventListener("click", handleCopyCoords);
@@ -846,7 +859,7 @@ const MapSection = ({ className }: { className?: string }) => {
             }}
             isLoading={isUpdatingTakeOffPoint}
           >
-            {newTakeOffPoint ? "Save Take off Point" : "Change Take off Point"}
+            {newTakeOffPoint ? m.task_takeoff_save() : m.task_takeoff_change()}
           </Button>
         </div>
         {newTakeOffPoint && (
@@ -873,8 +886,8 @@ const MapSection = ({ className }: { className?: string }) => {
 
         {newTakeOffPoint === "place_on_map" && (
           <ShowInfo
-            heading="Choose starting point"
-            message="Click on map to update starting point and press save starting point button."
+            heading={m.task_takeoff_choose_starting_point()}
+            message={m.task_takeoff_choose_on_map_help()}
           />
         )}
         {/* Update take off end */}
@@ -902,7 +915,7 @@ const MapSection = ({ className }: { className?: string }) => {
               }}
               isLoading={isUpdatingTakeOffPoint}
             >
-              Save Rotation
+              {m.drone_task_save_rotation()}
             </Button>
           </div>
         )}
@@ -932,7 +945,7 @@ const MapSection = ({ className }: { className?: string }) => {
               dispatch(setDroneModel(value));
             }}
             className="naxatw-w-40 naxatw-bg-[#F4F7FE]"
-            placeholder="Select model"
+            placeholder={m.flight_gap_select_model_placeholder()}
           />
 
           <SwitchTab
@@ -960,7 +973,7 @@ const MapSection = ({ className }: { className?: string }) => {
 
         {/* additional controls */}
         <div className="naxatw-absolute naxatw-left-[0.575rem] naxatw-top-[5.75rem] naxatw-z-30 naxatw-flex naxatw-h-fit naxatw-w-fit naxatw-flex-col naxatw-gap-3">
-          <ToolTip message="Enable Rotation" className="naxatw-mt-[-4px]">
+          <ToolTip message={m.drone_task_enable_rotation()} className="naxatw-mt-[-4px]">
             <Button
               className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${isRotationEnabled ? "naxatw-border-red naxatw-bg-[#ffe0e0]" : "naxatw-border-gray-400 naxatw-bg-[#F5F5F5]"}`}
               onClick={() => handleRotationToggle()}
@@ -972,7 +985,7 @@ const MapSection = ({ className }: { className?: string }) => {
               />
             </Button>
           </ToolTip>
-          <ToolTip message="Show Flight Plan" className="naxatw-mt-[-4px]">
+          <ToolTip message={m.drone_task_show_flight_plan()} className="naxatw-mt-[-4px]">
             <Button
               className={`naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border !naxatw-p-[0.315rem] ${showFlightPlan ? "naxatw-border-red naxatw-bg-[#ffe0e0]" : "naxatw-border-gray-400 naxatw-bg-[#F5F5F5]"}`}
               onClick={() => handleToggleFlightPlan()}
@@ -989,14 +1002,14 @@ const MapSection = ({ className }: { className?: string }) => {
             variant="ghost"
             className={`naxatw-flex naxatw-h-[1.85rem] naxatw-w-[] naxatw-items-center naxatw-justify-center naxatw-border !naxatw-px-[0.315rem] ${showTaskArea ? "naxatw-border-red naxatw-bg-[#ffe0e0]" : "naxatw-border-gray-400 naxatw-bg-[#F5F5F5]"}`}
             onClick={() => handleToggleTaskArea()}
-            title="Task area"
+            title={m.map_button_task_area()}
           >
             <div className="naxatw-h-4 naxatw-w-4">
               <img src={areaIcon} alt="area-icon" />
             </div>
           </Button>
 
-          <ToolTip message="Zoom to task area" className="naxatw-mt-[-4px]">
+          <ToolTip message={m.drone_task_zoom_to_task_area()} className="naxatw-mt-[-4px]">
             <Button
               className="naxatw-grid naxatw-h-[1.85rem] naxatw-place-items-center naxatw-border naxatw-border-gray-400 naxatw-bg-[#F5F5F5] !naxatw-p-[0.315rem]"
               onClick={() => zoomToExtent()}

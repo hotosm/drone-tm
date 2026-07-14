@@ -456,7 +456,7 @@ const IndividualProject = () => {
                       }}
                     >
                       <span className="material-icons naxatw-text-base">image</span>
-                      Orthophoto
+                      {m.proj_desc_output_orthophoto()}
                     </div>
                   )}
                   {projectData?.dsm_url && (

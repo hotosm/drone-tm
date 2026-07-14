@@ -437,7 +437,7 @@ const TaskVerificationModal = ({
   const deleteMutation = useMutation({
     mutationFn: (imageId: string) => deleteTaskImage(projectId, imageId),
     onSuccess: () => {
-      toast.success("Image deleted");
+      toast.success(m.drone_task_image_deleted());
       refetch();
       setSelectedImageId(null);
     },

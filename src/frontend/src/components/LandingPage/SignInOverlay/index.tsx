@@ -12,6 +12,7 @@ import { setCommonState } from "@Store/actions/common";
 import { motion } from "framer-motion";
 import { slideVariants } from "@Constants/animations";
 import { getRuntimeConfig } from "@/runtimeConfig";
+import { m } from "@/paraglide/messages";
 
 const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
 const HANKO_URL = getRuntimeConfig("VITE_HANKO_URL", "https://dev.login.hotosm.org");
@@ -47,7 +48,7 @@ export default function SignInOverlay() {
           gap={5}
           className="naxatw-flex-1 naxatw-items-center naxatw-rounded-lg naxatw-border naxatw-border-grey-200 naxatw-px-10 naxatw-py-8 naxatw-text-landing-red lg:naxatw-px-16 lg:naxatw-py-14 xl:naxatw-px-24 xl:naxatw-py-20"
         >
-          <h5>Project Creator</h5>
+          <h5>{m.landing_signin_overlay_project_creator()}</h5>
           <Image src={projectCreator} />
           <Button
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
@@ -75,14 +76,14 @@ export default function SignInOverlay() {
               }
             }}
           >
-            I&apos;m a Project Creator
+            {m.landing_signin_overlay_im_project_creator()}
           </Button>
         </FlexColumn>
         <FlexColumn
           gap={5}
           className="naxatw-flex-1 naxatw-items-center naxatw-rounded-lg naxatw-border naxatw-border-grey-200 naxatw-px-10 naxatw-py-8 naxatw-text-landing-red lg:naxatw-px-16 lg:naxatw-py-14 xl:naxatw-px-24 xl:naxatw-py-20"
         >
-          <h5>Drone Operator</h5>
+          <h5>{m.landing_signin_overlay_drone_operator()}</h5>
           <Image src={droneOperator} />
           <Button
             className="naxatw-whitespace-nowrap !naxatw-bg-landing-red"
@@ -110,7 +111,7 @@ export default function SignInOverlay() {
               }
             }}
           >
-            I&apos;m a Drone Operator
+            {m.landing_signin_overlay_im_drone_operator()}
           </Button>
         </FlexColumn>
       </FlexRow>

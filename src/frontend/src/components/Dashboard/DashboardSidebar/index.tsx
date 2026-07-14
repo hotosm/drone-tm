@@ -15,7 +15,7 @@ const DashboardSidebar = () => {
       <Flex className="naxatw-h-20 naxatw-w-20 naxatw-items-center naxatw-justify-center naxatw-overflow-hidden naxatw-rounded-full naxatw-bg-grey-600">
         <img
           src={userDetails?.profile_img}
-          alt="Profile picture"
+          alt={m.common_profile_picture_alt()}
           className="naxatw-h-full naxatw-w-full"
           onError={(e) => {
             e.currentTarget.onerror = null; // prevents looping

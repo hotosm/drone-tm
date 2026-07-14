@@ -61,7 +61,7 @@ const ExportSection = ({ projectData }: IExportSectionProps) => {
         </div>
       </div>
       <div className="naxatw-flex naxatw-items-end naxatw-justify-center naxatw-py-5">
-        <Image src={dtmLogo} alt="DTM logo" className="naxatw-h-8 naxatw-w-40" />
+        <Image src={dtmLogo} alt={m.common_dtm_logo_alt()} className="naxatw-h-8 naxatw-w-40" />
       </div>
     </section>
   );

@@ -39,7 +39,7 @@ export default function ProjectCard({
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt="Project boundary"
+            alt={m.projects_project_boundary_alt()}
             className="naxatw-h-full naxatw-w-full naxatw-object-cover"
           />
         ) : (
@@ -48,7 +48,7 @@ export default function ProjectCard({
       </p>
       <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-2">
         <p className="naxatw-mt-2 naxatw-line-clamp-1 naxatw-flex-grow naxatw-text-body-sm">
-          ID:#{id}
+          {m.projects_project_id({ id })}
         </p>
         <div className="naxatw-flex naxatw-w-20 naxatw-items-center naxatw-justify-end">
           {status === "not-started" ? (

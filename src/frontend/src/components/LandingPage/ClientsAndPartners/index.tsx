@@ -29,8 +29,8 @@ export default function ClientAndPartners() {
             viewport={{ once: true }}
           >
             <FlexRow className="naxatw-flex naxatw-items-center naxatw-justify-center" gap={10}>
-              <Image src={worldBankLogo} alt="World Bank logo" />
-              <Image src={gfdrrLogo} alt="GFDRR logo" width={260} />
+              <Image src={worldBankLogo} alt={m.landing_world_bank_logo_alt()} />
+              <Image src={gfdrrLogo} alt={m.landing_gfdrr_logo_alt()} width={260} />
             </FlexRow>
           </motion.div>
         </div>
