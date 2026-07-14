@@ -1,3 +1,14 @@
+## 2026.6.12 (2026-07-14)
+
+### Fix
+
+- **frontend**: remaining issues with new project creation layout
+
+### Refactor
+
+- **frontend**: re-order the project creation to be more user friendly / logical (#849)
+- **frontend**: additional translation placeholders + translations
+
 ## 2026.6.11 (2026-07-07)
 
 ### Fix
