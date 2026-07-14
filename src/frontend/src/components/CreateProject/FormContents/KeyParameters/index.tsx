@@ -13,7 +13,6 @@ import Switch from "@Components/RadixComponents/Switch";
 import FileUpload from "@Components/common/UploadArea";
 import {
   demFileOptions,
-  FinalOutputOptions,
   imageMergeTypeOptions,
   measurementTypeOptions,
 } from "@Constants/createProject";
@@ -31,13 +30,32 @@ import { Controller } from "react-hook-form";
 import RadioButton from "@Components/common/RadioButton";
 import { m } from "@/paraglide/messages";
 
-import OutputOptions from "./OutputOptions";
+const renderStrongMessage = (message: string) => {
+  const [beforeStrong, rest = ""] = message.split("<strong>");
+  const [strongText, afterStrong = ""] = rest.split("</strong>");
+
+  if (!strongText) return message;
+
+  return (
+    <>
+      {beforeStrong}
+      <strong>{strongText}</strong>
+      {afterStrong}
+    </>
+  );
+};
+
+const sectionHeadingClass = "naxatw-mb-3 naxatw-text-body-btn naxatw-text-black";
+const helperTextClass = "naxatw-text-body-sm naxatw-text-[#68707F]";
+const infoCalloutClass =
+  "naxatw-rounded-md naxatw-border-l-4 naxatw-border-l-red naxatw-bg-[#F5F5F5] naxatw-p-4";
+const warningCalloutClass =
+  "naxatw-rounded-md naxatw-border-l-4 naxatw-border-l-[#F59E0B] naxatw-bg-[#FFFBEB] naxatw-p-4";
 
 const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
 
   const { register, errors, watch, control, setValue } = formProps;
-  const final_output = watch("final_output");
   const gsdInputValue = watch("gsd_cm_px");
   const altitudeInputValue = watch("altitude_from_ground");
   const frontOverlapInputValue = watch("front_overlap");
@@ -45,6 +63,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const forwardSpacingInputValue = watch("forward_spacing");
   const sideSpacingInputValue = watch("side_spacing");
 
+  const useCase = useTypedSelector((state) => state.createproject.useCase);
   const keyParamOption = useTypedSelector((state) => state.createproject.keyParamOption);
   const measurementType = useTypedSelector((state) => state.createproject.measurementType);
   const isTerrainFollow = useTypedSelector((state) => state.createproject.isTerrainFollow);
@@ -62,8 +81,9 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   // get altitude
   const agl = measurementType === "gsd" ? gsdToAltitude(gsdInputValue) : altitudeInputValue;
 
-  // Terrain/elevation outputs (DTM index 1, DSM index 2) need higher overlap for triangulation
-  const isTerrainOutput = final_output?.[1] || final_output?.[2];
+  // Terrain/elevation outputs need higher overlap for triangulation
+  const isTerrainOutput =
+    useCase === "DIGITAL_SURFACE_MODEL" || useCase === "DIGITAL_TERRAIN_MODEL";
   const frontOverlapRecommendation = isTerrainOutput ? "85%" : "75%";
   const sideOverlapRecommendation = isTerrainOutput ? "85%" : "65%";
 
@@ -78,368 +98,325 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
         value={keyParamOption}
       /> */}
       {keyParamOption === "basic" ? (
-        <>
-          <FormControl>
-            <Label>{m.create_params_measurement_label()}</Label>
-            <SwitchTab
-              options={measurementTypeOptions()}
-              valueKey="value"
-              selectedValue={measurementType}
-              activeClassName="naxatw-bg-red naxatw-text-white"
-              onChange={(selected: any) => {
-                setValue("gsd_cm_px", "");
-                setValue("altitude_from_ground", "");
-                dispatch(setCreateProjectState({ measurementType: selected.value }));
-              }}
-            />
-          </FormControl>
-
-          {measurementType === "gsd" ? (
-            <FormControl className="naxatw-mt-2 naxatw-gap-1">
-              <Label required>{m.create_params_gsd_label()}</Label>
-              <Input
-                placeholder={m.create_params_gsd_placeholder()}
-                type="number"
-                max={10}
-                min={0}
-                {...register("gsd_cm_px", {
-                  required: m.create_params_gsd_required(),
-                  valueAsNumber: true,
-                  max: {
-                    value: 10,
-                    message: m.create_params_gsd_too_high(),
-                  },
-                  min: {
-                    value: 0,
-                    message: m.create_params_gsd_negative(),
-                  },
-                })}
-              />
-              {gsdInputValue ? (
-                <InfoMessage
-                  message={m.create_params_gsd_equivalent_altitude({
-                    altitude: gsdToAltitude(Number(gsdInputValue))
-                      ?.toFixed(2)
-                      ?.replace(/\.00$/, ""),
-                  })}
+        <div className="naxatw-space-y-8">
+          <section>
+            <p className={sectionHeadingClass}>{m.create_params_section_resolution()}</p>
+            <div className="naxatw-space-y-4">
+              <FormControl>
+                <Label>{m.create_params_measurement_label()}</Label>
+                <SwitchTab
+                  options={measurementTypeOptions()}
+                  valueKey="value"
+                  selectedValue={measurementType}
+                  activeClassName="naxatw-bg-red naxatw-text-white"
+                  onChange={(selected: any) => {
+                    setValue("gsd_cm_px", "");
+                    setValue("altitude_from_ground", "");
+                    dispatch(setCreateProjectState({ measurementType: selected.value }));
+                  }}
                 />
-              ) : (
-                <></>
-              )}
-              {errors?.gsd_cm_px?.message && (
-                <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
-              )}
-            </FormControl>
-          ) : (
-            <FormControl className="naxatw-mt-4 naxatw-gap-1">
-              <Label required>{m.create_params_altitude_label()}</Label>
-              <Input
-                placeholder={m.create_params_altitude_placeholder()}
-                type="number"
-                max={300}
-                min={0}
-                {...register("altitude_from_ground", {
-                  required: m.create_params_altitude_required(),
-                  valueAsNumber: true,
-                  max: {
-                    value: 300,
-                    message: m.create_params_altitude_too_high(),
-                  },
-                  min: {
-                    value: 0,
-                    message: m.create_params_altitude_negative(),
-                  },
-                })}
-              />
-              {altitudeInputValue ? (
-                <InfoMessage
-                  message={m.create_params_altitude_equivalent_gsd({
-                    gsd: altitudeToGsd(Number(altitudeInputValue))
-                      ?.toFixed(2)
-                      ?.replace(/\.00$/, ""),
-                  })}
-                />
-              ) : (
-                <></>
-              )}
+              </FormControl>
 
-              {errors?.altitude_from_ground?.message && (
-                <ErrorMessage message={errors?.altitude_from_ground?.message as string} />
-              )}
-            </FormControl>
-          )}
-
-          {droneAltitude?.country &&
-            droneAltitude?.max_altitude_ft &&
-            (altitudeInputValue > droneAltitude?.max_altitude_m ||
-              gsdToAltitude(Number(gsdInputValue)) > droneAltitude?.max_altitude_m) && (
-              <InfoMessage
-                className="naxatw-text-[#FFA500]"
-                message={m.create_params_country_max_altitude({
-                  country: droneAltitude?.country,
-                  altitude: droneAltitude?.max_altitude_m,
-                })}
-              />
-            )}
-
-          <FormControl className="naxatw-mt-5">
-            <Label>{m.create_params_merge_type_label()}</Label>
-
-            <SwitchTab
-              options={imageMergeTypeOptions()}
-              valueKey="value"
-              selectedValue={imageMergeType}
-              activeClassName="naxatw-bg-red naxatw-text-white"
-              onChange={(selected: any) => {
-                setValue("front_overlap", "");
-                setValue("side_overlap", "");
-                setValue("forward_spacing", "");
-                setValue("side_spacing", "");
-                dispatch(setCreateProjectState({ imageMergeType: selected.value }));
-              }}
-            />
-          </FormControl>
-          {imageMergeType === "overlap" ? (
-            <>
-              <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
-                <FormControl className="naxatw-mt-2 naxatw-gap-1">
-                  <Label required>{m.create_params_front_overlap_label()}</Label>
+              {measurementType === "gsd" ? (
+                <FormControl className="naxatw-gap-1">
+                  <Label required>{m.create_params_gsd_label()}</Label>
                   <Input
-                    placeholder={m.create_params_front_overlap_placeholder()}
+                    placeholder={m.create_params_gsd_placeholder()}
                     type="number"
-                    max={100}
+                    max={10}
                     min={0}
-                    {...register("front_overlap", {
-                      required: m.create_params_front_overlap_required(),
+                    {...register("gsd_cm_px", {
+                      required: m.create_params_gsd_required(),
                       valueAsNumber: true,
-                      max: {
-                        value: 100,
-                        message: m.create_params_front_overlap_too_high(),
-                      },
-                      min: {
-                        value: 0,
-                        message: m.create_params_front_overlap_negative(),
-                      },
+                      max: { value: 10, message: m.create_params_gsd_too_high() },
+                      min: { value: 0, message: m.create_params_gsd_negative() },
                     })}
                   />
-                  {frontOverlapInputValue && agl ? (
+                  {gsdInputValue ? (
                     <InfoMessage
-                      message={m.create_params_front_overlap_equivalent_spacing({
-                        spacing: getForwardSpacing(agl, frontOverlapInputValue)?.replace(
-                          /\.00$/,
-                          "",
-                        ),
+                      message={m.create_params_gsd_equivalent_altitude({
+                        altitude: gsdToAltitude(Number(gsdInputValue))
+                          ?.toFixed(2)
+                          ?.replace(/\.00$/, ""),
                       })}
                     />
-                  ) : (
-                    <></>
+                  ) : null}
+                  {errors?.gsd_cm_px?.message && (
+                    <ErrorMessage message={errors?.gsd_cm_px?.message as string} />
                   )}
-                  <ErrorMessage message={errors?.forward_overlap_percent?.message as string} />
-                  <p className="naxatw-text-[#68707F]">
-                    {m.create_params_recommended({
-                      value: frontOverlapRecommendation,
-                    })}
-                  </p>
+                  <p className={helperTextClass}>{m.create_params_gsd_recommended()}</p>
                 </FormControl>
-                <FormControl className="naxatw-mt-2 naxatw-gap-1">
-                  <Label required>{m.create_params_side_overlap_label()}</Label>
+              ) : (
+                <FormControl className="naxatw-gap-1">
+                  <Label required>{m.create_params_altitude_label()}</Label>
                   <Input
-                    placeholder={m.create_params_front_overlap_placeholder()}
+                    placeholder={m.create_params_altitude_placeholder()}
                     type="number"
-                    max={100}
+                    max={300}
                     min={0}
-                    {...register("side_overlap", {
-                      required: m.create_params_side_overlap_required(),
+                    {...register("altitude_from_ground", {
+                      required: m.create_params_altitude_required(),
                       valueAsNumber: true,
-                      max: {
-                        value: 100,
-                        message: m.create_params_side_overlap_too_high(),
-                      },
-                      min: {
-                        value: 0,
-                        message: m.create_params_side_overlap_negative(),
-                      },
+                      max: { value: 300, message: m.create_params_altitude_too_high() },
+                      min: { value: 0, message: m.create_params_altitude_negative() },
                     })}
                   />
-                  {sideOverlapInputValue && agl ? (
+                  {altitudeInputValue ? (
                     <InfoMessage
-                      message={m.create_params_side_overlap_equivalent_spacing({
-                        spacing: getSideSpacing(agl, sideOverlapInputValue)?.replace(/\.00$/, ""),
+                      message={m.create_params_altitude_equivalent_gsd({
+                        gsd: altitudeToGsd(Number(altitudeInputValue))
+                          ?.toFixed(2)
+                          ?.replace(/\.00$/, ""),
                       })}
                     />
-                  ) : (
-                    <></>
+                  ) : null}
+                  {errors?.altitude_from_ground?.message && (
+                    <ErrorMessage message={errors?.altitude_from_ground?.message as string} />
                   )}
-                  <ErrorMessage message={errors?.side_overlap_percent?.message as string} />
-                  <p className="naxatw-text-[#68707F]">
-                    {m.create_params_recommended({
-                      value: sideOverlapRecommendation,
-                    })}
-                  </p>
                 </FormControl>
-              </FlexRow>
-              <div className="naxatw-mt-3 naxatw-rounded-md naxatw-border naxatw-border-[#17A2B8] naxatw-bg-[#e6f7fb] naxatw-p-3">
-                <p className="naxatw-mb-1 naxatw-text-sm naxatw-font-semibold naxatw-text-[#17A2B8]">
-                  {m.create_params_overlap_guidance_title()}
-                </p>
-                <ul className="naxatw-ml-4 naxatw-list-disc naxatw-space-y-1 naxatw-text-sm naxatw-text-[#4A5568]">
-                  {isTerrainOutput ? (
-                    <li>
-                      Terrain and elevation models need <strong>85% or higher on both axes</strong>{" "}
-                      for accurate triangulation. Side overlap below 70% is not recommended.
-                    </li>
-                  ) : (
-                    <li>For orthophotos, 75% front and 65% side is a reliable minimum.</li>
-                  )}
-                  <li>
-                    Low-texture areas (sand, water, bare ground, dense vegetation) and mountainous
-                    terrain benefit from higher overlaps to ensure sufficient matching points
-                    between images.
-                  </li>
-                  <li>Never go below 72% front overlap as a practical floor.</li>
-                </ul>
-              </div>
-            </>
-          ) : (
-            <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
-              <FormControl className="naxatw-mt-4 naxatw-gap-1">
-                <Label required>{m.create_params_forward_spacing_label()}</Label>
-                <Input
-                  placeholder={m.create_params_forward_spacing_placeholder()}
-                  type="number"
-                  max={100}
-                  min={0}
-                  {...register("forward_spacing", {
-                    required: m.create_params_forward_spacing_required(),
-                    valueAsNumber: true,
-                    max: {
-                      value: 100,
-                      message: m.create_params_forward_spacing_too_high(),
-                    },
-                    min: {
-                      value: 0,
-                      message: m.create_params_forward_spacing_negative(),
-                    },
-                  })}
-                />
-                {forwardSpacingInputValue && agl ? (
-                  <InfoMessage
-                    message={m.create_params_forward_spacing_equivalent_overlap({
-                      overlap: getFrontOverlap(agl, forwardSpacingInputValue)?.replace(/\.00$/, ""),
-                    })}
-                  />
-                ) : (
-                  <></>
+              )}
+
+              {droneAltitude?.country &&
+                droneAltitude?.max_altitude_ft &&
+                (altitudeInputValue > droneAltitude?.max_altitude_m ||
+                  gsdToAltitude(Number(gsdInputValue)) > droneAltitude?.max_altitude_m) && (
+                  <div className={warningCalloutClass}>
+                    <p className="naxatw-text-body-md naxatw-text-[#B45309]">
+                      {m.create_params_country_max_altitude({
+                        country: droneAltitude?.country,
+                        altitude: droneAltitude?.max_altitude_m,
+                      })}
+                    </p>
+                  </div>
                 )}
-                <ErrorMessage message={errors?.forward_spacing?.message as string} />
-              </FormControl>
-              <FormControl className="naxatw-mt-4 naxatw-gap-1">
-                <Label required>{m.create_params_side_spacing_label()}</Label>
-                <Input
-                  placeholder={m.create_params_forward_spacing_placeholder()}
-                  type="number"
-                  max={100}
-                  min={0}
-                  {...register("side_spacing", {
-                    required: m.create_params_side_spacing_required(),
-                    valueAsNumber: true,
-                    max: {
-                      value: 100,
-                      message: m.create_params_side_spacing_too_high(),
-                    },
-                    min: {
-                      value: 0,
-                      message: m.create_params_side_spacing_negative(),
-                    },
-                  })}
-                />
-                {sideSpacingInputValue && agl ? (
-                  <InfoMessage
-                    message={m.create_params_side_spacing_equivalent_overlap({
-                      overlap: getSideOverlap(agl, sideSpacingInputValue)?.replace(/\.00$/, ""),
-                    })}
-                  />
-                ) : (
-                  <></>
-                )}
-                <ErrorMessage message={errors?.side_spacing?.message as string} />
-              </FormControl>
-            </FlexRow>
-          )}
-          <FormControl className="naxatw-mt-4 naxatw-gap-1">
-            <Label>{m.create_params_final_output_label()}</Label>
-            <div className="naxatw-col-span-1 naxatw-my-4 naxatw-grid naxatw-gap-3 sm:naxatw-grid-cols-2 md:naxatw-grid-cols-4">
-              {FinalOutputOptions().map((option, index) => (
-                <OutputOptions
-                  key={option.label}
-                  icon={option.icon}
-                  name={`final_output.${index}`}
-                  checked={final_output?.[index]}
-                  label={option.label}
-                  value={option.value}
-                  register={register}
-                />
-              ))}
             </div>
-          </FormControl>
+          </section>
 
-          <FormControl className="naxatw-mt-4">
-            <FlexRow className="naxatw-mb-4 naxatw-items-center naxatw-gap-[10px]">
-              <p className="naxatw-text-body-md">{m.create_params_follow_terrain()}</p>
-              <Switch
-                checked={isTerrainFollow}
-                onClick={() => {
-                  dispatch(
-                    setCreateProjectState({
-                      isTerrainFollow: !isTerrainFollow,
-                    }),
-                  );
-                }}
-              />
-            </FlexRow>
-          </FormControl>
-          {isTerrainFollow && (
-            <FormControl className="naxatw-mt-2">
-              <RadioButton
-                required
-                options={demFileOptions()}
-                direction="column"
-                onChangeData={(value) => {
-                  dispatch(setDemType(value));
-                }}
-                value={demType}
-                // name="requireApprovalFromManagerForLocking"
-              />
-              <ErrorMessage message={errors?.dem?.message as string} />
-            </FormControl>
-          )}
+          <section>
+            <p className={sectionHeadingClass}>{m.create_params_section_overlap()}</p>
+            <div className="naxatw-space-y-4">
+              <FormControl>
+                <Label>{m.create_params_merge_type_label()}</Label>
+                <SwitchTab
+                  options={imageMergeTypeOptions()}
+                  valueKey="value"
+                  selectedValue={imageMergeType}
+                  activeClassName="naxatw-bg-red naxatw-text-white"
+                  onChange={(selected: any) => {
+                    setValue("front_overlap", "");
+                    setValue("side_overlap", "");
+                    setValue("forward_spacing", "");
+                    setValue("side_spacing", "");
+                    dispatch(setCreateProjectState({ imageMergeType: selected.value }));
+                  }}
+                />
+              </FormControl>
 
-          {demType === "manual" && isTerrainFollow && (
-            <FormControl className="naxatw-mt-2">
-              <Controller
-                control={control}
-                name="dem"
-                rules={{
-                  validate: (value: any) =>
-                    (Array.isArray(value) && value.length > 0 && !!value[0]?.file) ||
-                    m.create_params_dem_required(),
-                }}
-                render={({ field: { value } }) => {
-                  return (
-                    <FileUpload
-                      name="dem"
-                      data={value}
-                      fileAccept=".tif, .tiff"
-                      placeholder={m.create_params_dem_upload_placeholder()}
-                      {...formProps}
+              {imageMergeType === "overlap" ? (
+                <>
+                  <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
+                    <FormControl className="naxatw-gap-1">
+                      <Label required>{m.create_params_front_overlap_label()}</Label>
+                      <Input
+                        placeholder={m.create_params_front_overlap_placeholder()}
+                        type="number"
+                        max={100}
+                        min={0}
+                        {...register("front_overlap", {
+                          required: m.create_params_front_overlap_required(),
+                          valueAsNumber: true,
+                          max: { value: 100, message: m.create_params_front_overlap_too_high() },
+                          min: { value: 0, message: m.create_params_front_overlap_negative() },
+                        })}
+                      />
+                      {frontOverlapInputValue && agl ? (
+                        <InfoMessage
+                          message={m.create_params_front_overlap_equivalent_spacing({
+                            spacing: getForwardSpacing(agl, frontOverlapInputValue)?.replace(
+                              /\.00$/,
+                              "",
+                            ),
+                          })}
+                        />
+                      ) : null}
+                      <ErrorMessage message={errors?.forward_overlap_percent?.message as string} />
+                      <p className={helperTextClass}>
+                        {m.create_params_recommended({ value: frontOverlapRecommendation })}
+                      </p>
+                    </FormControl>
+                    <FormControl className="naxatw-gap-1">
+                      <Label required>{m.create_params_side_overlap_label()}</Label>
+                      <Input
+                        placeholder={m.create_params_front_overlap_placeholder()}
+                        type="number"
+                        max={100}
+                        min={0}
+                        {...register("side_overlap", {
+                          required: m.create_params_side_overlap_required(),
+                          valueAsNumber: true,
+                          max: { value: 100, message: m.create_params_side_overlap_too_high() },
+                          min: { value: 0, message: m.create_params_side_overlap_negative() },
+                        })}
+                      />
+                      {sideOverlapInputValue && agl ? (
+                        <InfoMessage
+                          message={m.create_params_side_overlap_equivalent_spacing({
+                            spacing: getSideSpacing(agl, sideOverlapInputValue)?.replace(
+                              /\.00$/,
+                              "",
+                            ),
+                          })}
+                        />
+                      ) : null}
+                      <ErrorMessage message={errors?.side_overlap_percent?.message as string} />
+                      <p className={helperTextClass}>
+                        {m.create_params_recommended({ value: sideOverlapRecommendation })}
+                      </p>
+                    </FormControl>
+                  </FlexRow>
+
+                  <div className={infoCalloutClass}>
+                    <p className="naxatw-mb-2 naxatw-text-body-btn naxatw-text-black">
+                      {m.create_params_overlap_guidance_title()}
+                    </p>
+                    <ul className="naxatw-ml-4 naxatw-list-disc naxatw-space-y-1 naxatw-text-body-sm naxatw-text-[#4A5568]">
+                      {isTerrainOutput ? (
+                        <li>{renderStrongMessage(m.create_params_overlap_guidance_terrain())}</li>
+                      ) : (
+                        <li>{m.create_params_overlap_guidance_orthophoto()}</li>
+                      )}
+                      <li>{m.create_params_overlap_guidance_low_texture()}</li>
+                      <li>{m.create_params_overlap_guidance_floor()}</li>
+                    </ul>
+                  </div>
+                </>
+              ) : (
+                <FlexRow className="naxatw-grid naxatw-grid-cols-2 naxatw-gap-3">
+                  <FormControl className="naxatw-gap-1">
+                    <Label required>{m.create_params_forward_spacing_label()}</Label>
+                    <Input
+                      placeholder={m.create_params_forward_spacing_placeholder()}
+                      type="number"
+                      max={100}
+                      min={0}
+                      {...register("forward_spacing", {
+                        required: m.create_params_forward_spacing_required(),
+                        valueAsNumber: true,
+                        max: { value: 100, message: m.create_params_forward_spacing_too_high() },
+                        min: { value: 0, message: m.create_params_forward_spacing_negative() },
+                      })}
                     />
-                  );
-                }}
-              />
-              <ErrorMessage message={errors?.dem?.message as string} />
-            </FormControl>
-          )}
-        </>
+                    {forwardSpacingInputValue && agl ? (
+                      <InfoMessage
+                        message={m.create_params_forward_spacing_equivalent_overlap({
+                          overlap: getFrontOverlap(agl, forwardSpacingInputValue)?.replace(
+                            /\.00$/,
+                            "",
+                          ),
+                        })}
+                      />
+                    ) : null}
+                    <ErrorMessage message={errors?.forward_spacing?.message as string} />
+                  </FormControl>
+                  <FormControl className="naxatw-gap-1">
+                    <Label required>{m.create_params_side_spacing_label()}</Label>
+                    <Input
+                      placeholder={m.create_params_forward_spacing_placeholder()}
+                      type="number"
+                      max={100}
+                      min={0}
+                      {...register("side_spacing", {
+                        required: m.create_params_side_spacing_required(),
+                        valueAsNumber: true,
+                        max: { value: 100, message: m.create_params_side_spacing_too_high() },
+                        min: { value: 0, message: m.create_params_side_spacing_negative() },
+                      })}
+                    />
+                    {sideSpacingInputValue && agl ? (
+                      <InfoMessage
+                        message={m.create_params_side_spacing_equivalent_overlap({
+                          overlap: getSideOverlap(agl, sideSpacingInputValue)?.replace(/\.00$/, ""),
+                        })}
+                      />
+                    ) : null}
+                    <ErrorMessage message={errors?.side_spacing?.message as string} />
+                  </FormControl>
+                </FlexRow>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <p className={sectionHeadingClass}>{m.create_params_section_terrain()}</p>
+            <div className="naxatw-space-y-4">
+              <div className="naxatw-rounded-md naxatw-border naxatw-border-[#E0E0E0] naxatw-bg-white naxatw-p-4">
+                <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-gap-3">
+                  <p className="naxatw-text-body-btn">{m.create_params_follow_terrain()}</p>
+                  <Switch
+                    checked={isTerrainFollow}
+                    onClick={() => {
+                      dispatch(
+                        setCreateProjectState({
+                          isTerrainFollow: !isTerrainFollow,
+                        }),
+                      );
+                    }}
+                  />
+                </FlexRow>
+                <p className="naxatw-mt-2 naxatw-text-body-md naxatw-text-[#4A5568]">
+                  {m.create_params_follow_terrain_desc()}
+                </p>
+              </div>
+
+              <div className={warningCalloutClass}>
+                <p className="naxatw-text-body-md naxatw-text-[#B45309]">
+                  {m.create_params_follow_terrain_warning()}
+                </p>
+              </div>
+
+              {isTerrainFollow && (
+                <FormControl>
+                  <RadioButton
+                    required
+                    options={demFileOptions()}
+                    direction="column"
+                    onChangeData={(value) => {
+                      dispatch(setDemType(value));
+                    }}
+                    value={demType}
+                  />
+                  <ErrorMessage message={errors?.dem?.message as string} />
+                </FormControl>
+              )}
+
+              {demType === "manual" && isTerrainFollow && (
+                <FormControl>
+                  <Controller
+                    control={control}
+                    name="dem"
+                    rules={{
+                      validate: (value: any) =>
+                        (Array.isArray(value) && value.length > 0 && !!value[0]?.file) ||
+                        m.create_params_dem_required(),
+                    }}
+                    render={({ field: { value } }) => {
+                      return (
+                        <FileUpload
+                          name="dem"
+                          data={value}
+                          fileAccept=".tif, .tiff"
+                          placeholder={m.create_params_dem_upload_placeholder()}
+                          {...formProps}
+                        />
+                      );
+                    }}
+                  />
+                  <ErrorMessage message={errors?.dem?.message as string} />
+                </FormControl>
+              )}
+            </div>
+          </section>
+        </div>
       ) : (
         <>
           <FormControl className="naxatw-mt-4 naxatw-gap-1">

@@ -36,7 +36,7 @@ function useValidateSession(isAuthenticated: boolean) {
         if (res.ok) {
           setStatus("valid");
         } else {
-          // Session expired – clean up stale localStorage
+          // Session expired - clean up stale localStorage
           localStorage.removeItem("userprofile");
           localStorage.removeItem("signedInAs");
           setStatus("invalid");
@@ -63,7 +63,7 @@ export default function ProtectedRoute({
   const sessionStatus = useValidateSession(isAuthenticated);
 
   if (sessionStatus === "checking") {
-    // Show nothing while validating – avoids the empty-page flash
+    // Show nothing while validating - avoids the empty-page flash
     return <></>;
   }
 

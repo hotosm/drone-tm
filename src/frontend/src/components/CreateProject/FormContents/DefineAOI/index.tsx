@@ -19,6 +19,7 @@ import SwitchTab from "@Components/common/SwitchTab";
 import { uploadOrDrawAreaOptions } from "@Constants/createProject";
 import prepareFormData from "@Utils/prepareFormData";
 import { postNormalizeAoi } from "@Services/createproject";
+import { m } from "@/paraglide/messages";
 import MapSection from "./MapSection";
 
 function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
@@ -42,7 +43,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       setValue("outline", response.data);
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail || err?.message || "Failed to normalize AOI");
+      toast.error(err?.response?.data?.detail || err?.message || m.create_aoi_normalize_failed());
     },
   });
 
@@ -61,7 +62,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
         );
       }
     } catch (err: any) {
-      toast.error(err?.message || "Invalid geojson");
+      toast.error(err?.message || m.create_aoi_invalid_geojson());
     }
   };
 
@@ -74,7 +75,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
         const convertedGeojson = flatten(geojson);
         const uploadedArea: any = convertedGeojson && area(convertedGeojson as FeatureCollection);
         if (uploadedArea && uploadedArea > 100000000) {
-          toast.error("Drawn Area should not exceed 100km²");
+          toast.error(m.create_aoi_drawn_area_exceed());
           return false;
         }
         return true;
@@ -133,7 +134,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       <div className="naxatw-grid naxatw-h-full naxatw-grid-cols-3 naxatw-gap-5">
         <div className="naxatw-col-span-3 naxatw-overflow-y-auto naxatw-py-5 md:naxatw-col-span-1">
           <FormControl className="naxatw-flex naxatw-flex-col naxatw-gap-1">
-            <Label>Draw/Upload Area</Label>
+            <Label>{m.create_aoi_draw_upload_label()}</Label>
             <SwitchTab
               options={uploadOrDrawAreaOptions()}
               valueKey="value"
@@ -149,7 +150,9 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
             <>
               {totalProjectArea > 0 && (
                 <p className="naxatw-mt-2 naxatw-text-body-md">
-                  Total Project Area: {m2ToKm2(Math.trunc(totalProjectArea as number))}
+                  {m.create_aoi_total_project_area({
+                    area: m2ToKm2(Math.trunc(totalProjectArea as number)),
+                  })}
                 </p>
               )}
               {!projectArea && (
@@ -158,7 +161,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                     control={control}
                     name="outline"
                     rules={{
-                      required: "Project Area is Required",
+                      required: m.create_aoi_project_area_required(),
                     }}
                     render={({ field: { value } }) => {
                       return (
@@ -167,7 +170,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                           data={value}
                           onChange={handleProjectAreaFileChange}
                           fileAccept=".geojson"
-                          placeholder="Upload project area (.geojson file)"
+                          placeholder={m.create_aoi_upload_project_placeholder()}
                           isValid={validateAreaOfFileUpload}
                           disabled={isNormalizingAoi}
                           {...formProps}
@@ -183,7 +186,9 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
             <>
               {totalNoFlyZoneArea > 0 && (
                 <p className="naxatw-mt-2 naxatw-text-body-md">
-                  Total Project Area: {m2ToKm2(Math.trunc(totalNoFlyZoneArea as number))}
+                  {m.create_aoi_total_no_fly_zone_area({
+                    area: m2ToKm2(Math.trunc(totalNoFlyZoneArea as number)),
+                  })}
                 </p>
               )}
               {!noFlyZoneArea && (
@@ -198,7 +203,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                         onChange={handleNoFlyZoneFileChange}
                         isValid={validateAreaOfFileUpload}
                         fileAccept=".geojson, .kml"
-                        placeholder="Upload no fly zone area (.geojson)"
+                        placeholder={m.create_aoi_upload_nfz_placeholder()}
                         {...formProps}
                       />
                     )}

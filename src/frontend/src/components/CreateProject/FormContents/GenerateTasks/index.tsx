@@ -124,25 +124,29 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
             return mutate(payload);
           }}
         >
-          Generate Tasks
+          {m.create_generate_button()}
         </Button>
         {!projectWaypointCountIsLoading && projectWayPoints && (
           <div className="naxatw-mt-4">
             <p className="naxatw-text-sm naxatw-font-semibold">
-              The average number of waypoints is:
+              {m.create_generate_waypoints_avg()}
             </p>
             <ul className="naxatw-ml-4 naxatw-list-disc">
               {projectWayPoints?.data?.waypoints && (
                 <li>
                   <span className="naxatw-text-blue-500">
-                    In waypoints mode: {projectWayPoints?.data?.waypoints}
+                    {m.create_generate_waypoints_mode({
+                      count: projectWayPoints?.data?.waypoints,
+                    })}
                   </span>
                 </li>
               )}
               {projectWayPoints?.data?.waylines && (
                 <li>
                   <span className="naxatw-text-green-500">
-                    In waylines mode: {projectWayPoints.data.waylines}
+                    {m.create_generate_waylines_mode({
+                      count: projectWayPoints.data.waylines,
+                    })}
                   </span>
                 </li>
               )}
