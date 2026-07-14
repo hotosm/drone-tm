@@ -4,10 +4,10 @@ import straightenFlightPlan from "@Assets/images/straigh-flight.svg";
 import generateAllPoints from "@Assets/images/generate-all-points.svg";
 import imageOverlap from "@Assets/images/image-overlap.svg";
 import {
+  UseCase,
   BasicInformation,
   DefineAOI,
   KeyParameters,
-  Contributions,
   GenerateTasks,
 } from "@Components/CreateProject/DescriptionContents";
 import orthoPhotoIcon from "@Assets/images/ortho-photo-icon.svg";
@@ -20,11 +20,11 @@ export type StepComponentMap = {
 };
 
 export const stepDescriptionComponents: StepComponentMap = {
-  1: BasicInformation,
-  2: DefineAOI,
-  3: KeyParameters,
-  4: GenerateTasks,
-  5: Contributions,
+  1: UseCase,
+  2: BasicInformation,
+  3: DefineAOI,
+  4: KeyParameters,
+  5: GenerateTasks,
 };
 
 export const stepSwitcherData = () => [
@@ -32,31 +32,52 @@ export const stepSwitcherData = () => [
     url: "/",
     step: 1,
     label: "01",
-    name: m.create_step_basic_info(),
+    name: m.create_step_use_case(),
   },
   {
     url: "/",
     step: 2,
     label: "02",
-    name: m.create_step_aoi(),
+    name: m.create_step_basic_info(),
   },
   {
     url: "/",
     step: 3,
     label: "03",
-    name: m.create_step_key_parameters(),
+    name: m.create_step_aoi(),
   },
   {
     url: "/",
     step: 4,
     label: "04",
-    name: m.create_step_generate_task(),
+    name: m.create_step_key_parameters(),
   },
   {
     url: "/",
     step: 5,
     label: "05",
-    name: m.create_step_conditions(),
+    name: m.create_step_generate_task(),
+  },
+];
+
+export const useCaseOptions = () => [
+  {
+    value: "ORTHOPHOTO_2D",
+    label: m.create_use_case_2d_label(),
+    description: m.create_use_case_2d_desc(),
+    icon: orthoPhotoIcon,
+  },
+  {
+    value: "DIGITAL_SURFACE_MODEL",
+    label: m.create_use_case_dsm_label(),
+    description: m.create_use_case_dsm_desc(),
+    icon: DSMIcon,
+  },
+  {
+    value: "DIGITAL_TERRAIN_MODEL",
+    label: m.create_use_case_dtm_label(),
+    description: m.create_use_case_dtm_desc(),
+    icon: DTMIcon,
   },
 ];
 
@@ -171,20 +192,6 @@ export const regulatorApprovalOptions = () => [
     name: "regulator approval not Required",
     label: m.create_contributions_approval_not_required(),
     value: "not_required",
-  },
-];
-
-export const FinalOutputOptions = () => [
-  { label: m.create_params_output_orthophoto_2d(), value: "ORTHOPHOTO_2D", icon: orthoPhotoIcon },
-  {
-    label: m.create_params_output_dtm(),
-    value: "DIGITAL_TERRAIN_MODEL",
-    icon: DTMIcon,
-  },
-  {
-    label: m.create_params_output_dsm(),
-    value: "DIGITAL_SURFACE_MODEL",
-    icon: DSMIcon,
   },
 ];
 

@@ -3,10 +3,10 @@ import { useTypedSelector, useTypedDispatch } from "@Store/hooks";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { FieldValues, useForm } from "react-hook-form";
 import {
+  UseCaseForm,
   BasicInformationForm,
   DefineAOIForm,
   KeyParametersForm,
-  ContributionsForm,
   GenerateTaskForm,
 } from "@Components/CreateProject/FormContents";
 import { UseFormPropsType } from "@Components/common/FormUI/types";
@@ -46,15 +46,15 @@ const getActiveStepDescription = (
 const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
   switch (activeStep) {
     case 1:
-      return <BasicInformationForm formProps={formProps} />;
+      return <UseCaseForm />;
     case 2:
-      return <DefineAOIForm formProps={formProps} />;
+      return <BasicInformationForm formProps={formProps} />;
     case 3:
-      return <KeyParametersForm formProps={formProps} />;
+      return <DefineAOIForm formProps={formProps} />;
     case 4:
-      return <GenerateTaskForm formProps={formProps} />;
+      return <KeyParametersForm formProps={formProps} />;
     case 5:
-      return <ContributionsForm formProps={formProps} />;
+      return <GenerateTaskForm formProps={formProps} />;
     default:
       return <></>;
   }
@@ -62,6 +62,7 @@ const getActiveStepForm = (activeStep: number, formProps: UseFormPropsType) => {
 
 const defaultWizardState = {
   activeStep: 1,
+  useCase: null,
   splitGeojson: null,
   uploadedProjectArea: null,
   uploadedNoFlyZone: null,
@@ -87,6 +88,7 @@ const CreateprojectLayout = () => {
   const [projectCentroid, setProjectCentroid] = useState<number[] | null>(null);
 
   const activeStep = useTypedSelector((state) => state.createproject.activeStep);
+  const useCase = useTypedSelector((state) => state.createproject.useCase);
   const totalProjectArea = useTypedSelector((state) => state.createproject.totalProjectArea);
   const splitGeojson = useTypedSelector((state) => state.createproject.splitGeojson);
   const isTerrainFollow = useTypedSelector((state) => state.createproject.isTerrainFollow);
@@ -212,8 +214,28 @@ const CreateprojectLayout = () => {
     );
   }, [countryResponse, dispatch]);
 
+  useEffect(() => {
+    if (useCase === "DIGITAL_SURFACE_MODEL" || useCase === "DIGITAL_TERRAIN_MODEL") {
+      dispatch(setCreateProjectState({ isTerrainFollow: true }));
+    }
+  }, [useCase, dispatch]);
+
   const onSubmit = (data: any) => {
+    if (activeStep === 1) {
+      if (!useCase) {
+        toast.error(m.create_use_case_required());
+        return;
+      }
+    }
+
     if (activeStep === 2) {
+      if (requiresApprovalFromRegulator === "required" && !regulatorEmails?.length) {
+        toast.error(m.create_contributions_regulator_email_required());
+        return;
+      }
+    }
+
+    if (activeStep === 3) {
       if (!data?.outline || (Array.isArray(data?.outline) && data?.outline?.length === 0)) {
         toast.error(m.create_aoi_upload_or_draw_save_project());
         return;
@@ -233,39 +255,18 @@ const CreateprojectLayout = () => {
       setProjectCentroid(newCentroid);
     }
 
-    if (activeStep === 3) {
-      const finalOutput = data?.final_output?.filter((output: string | boolean) => output);
-      if (!finalOutput?.length) {
-        toast.error(m.create_params_select_final_output());
-        return;
-      }
-      setValue("final_output", finalOutput);
-    }
-
-    if (activeStep === 4 && !splitGeojson) return;
-
-    if (activeStep === 5) {
-      if (requiresApprovalFromRegulator === "required") {
-        if (regulatorEmails?.length) {
-          setValue("requires_approval_from_regulator", true);
-          setValue("regulator_emails", regulatorEmails);
-        } else {
-          toast.error(m.create_contributions_regulator_email_required());
-          return;
-        }
-      }
-    }
+    if (activeStep === 5 && !splitGeojson) return;
 
     if (activeStep !== 5) {
       dispatch(setCreateProjectState({ activeStep: activeStep + 1 }));
       return;
     }
 
-    const finalOutput = data?.final_output?.filter((output: string | boolean) => output);
+    const finalOutput = useCase ? [useCase] : [];
     if (
       !data?.name ||
       !data?.outline ||
-      !finalOutput?.length ||
+      !finalOutput.length ||
       isBlank(data?.task_split_dimension)
     ) {
       toast.error(m.create_project_setup_incomplete());
@@ -275,13 +276,13 @@ const CreateprojectLayout = () => {
 
     if (measurementType === "gsd" && isBlank(data?.gsd_cm_px)) {
       toast.error(m.create_project_enter_gsd());
-      dispatch(setCreateProjectState({ activeStep: 3 }));
+      dispatch(setCreateProjectState({ activeStep: 4 }));
       return;
     }
 
     if (measurementType === "altitude" && isBlank(data?.altitude_from_ground)) {
-      toast.error("Please enter the flight altitude before creating the project.");
-      dispatch(setCreateProjectState({ activeStep: 3 }));
+      toast.error(m.create_project_enter_altitude());
+      dispatch(setCreateProjectState({ activeStep: 4 }));
       return;
     }
 
@@ -357,7 +358,7 @@ const CreateprojectLayout = () => {
           <FlexRow className="naxatw-absolute naxatw-bottom-5 naxatw-h-9 naxatw-w-full naxatw-justify-between naxatw-px-8">
             {activeStep !== 1 ? (
               <Button onClick={onPrevBtnClick} className="!naxatw-text-red" leftIcon="chevron_left">
-                Previous
+                {m.create_button_previous()}
               </Button>
             ) : (
               <div />
@@ -376,10 +377,10 @@ const CreateprojectLayout = () => {
                 isPending ||
                 isCreatingProject ||
                 !capturedProjectMap ||
-                (activeStep === 4 && !splitGeojson)
+                (activeStep === 5 && !splitGeojson)
               }
             >
-              {activeStep === 5 ? "Create" : "Next"}
+              {activeStep === 5 ? m.create_button_create() : m.create_button_next()}
             </Button>
           </FlexRow>
         </div>
