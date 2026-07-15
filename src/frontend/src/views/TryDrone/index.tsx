@@ -38,7 +38,7 @@ interface FlightPlanData {
 }
 
 const INITIAL_MAP_CENTER: [number, number] = [-13.2317, 8.4657];
-const INITIAL_MAP_ZOOM = 13;
+const INITIAL_MAP_ZOOM = 15;
 
 const FlyMyDronePage = () => {
   const { isAuthenticated } = useAuth();
@@ -52,10 +52,10 @@ const FlyMyDronePage = () => {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [altitude, setAltitude] = useState(70);
-  const [gridDimension, setGridDimension] = useState(50);
-  const [areaKm2, setAreaKm2] = useState(0.2);
+  const [gridDimension, setGridDimension] = useState(200);
+  const [areaKm2, setAreaKm2] = useState(0.16);
   const [mapCenter, setMapCenter] = useState<[number, number]>(INITIAL_MAP_CENTER);
-  const [polygon, setPolygon] = useState<Polygon>(() => buildSquareKm2(INITIAL_MAP_CENTER, 0.2));
+  const [polygon, setPolygon] = useState<Polygon>(() => buildSquareKm2(INITIAL_MAP_CENTER, 0.16));
   const [grid, setGrid] = useState<FlightPreviewTask[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [droneModel, setDroneModel] = useState("DJI_MINI_4_PRO");
@@ -93,6 +93,20 @@ const FlyMyDronePage = () => {
   useEffect(() => {
     if (step === 1) setPolygon(buildSquareKm2(mapCenter, areaKm2));
   }, [mapCenter, areaKm2, step]);
+
+  // Live grid preview in step 1: refetch the task grid whenever the AOI or grid
+  // size changes, so the map shows how the area splits before continuing.
+  // Debounced because dragging / sliding updates the polygon on every frame.
+  useEffect(() => {
+    if (step !== 1) return;
+    const timer = setTimeout(() => {
+      fetchFlightPreview(
+        { polygon, cellSizeMeters: gridDimension },
+        { onSuccess: (data) => setGrid(data.tasks) },
+      );
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [step, polygon, gridDimension, fetchFlightPreview]);
 
   // Zoom to grid extent when entering step 2
   useEffect(() => {
@@ -135,6 +149,20 @@ const FlyMyDronePage = () => {
   };
 
   const selectedTask = grid.find((t) => t.id === selectedTaskId) ?? null;
+
+  // All grid cells as one FeatureCollection — used for the non-interactive
+  // step-1 preview so the whole grid renders from a single source.
+  const gridFeatureCollection = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: grid.map((task) => ({
+        type: "Feature" as const,
+        geometry: task.geometry,
+        properties: { id: task.id },
+      })),
+    }),
+    [grid],
+  );
 
   // Label each cell with its backend-assigned task id (already A1-style) so the
   // map labels match the id shown in the side panel — don't re-derive them here.
@@ -350,6 +378,38 @@ const FlyMyDronePage = () => {
               <GridOffScreenNudge visibility={boxVisibility} onBringToView={handleBringBoxToView} />
             )}
 
+            {/* Step 1: non-interactive preview of how the AOI splits into tasks.
+                While a fresh grid is being fetched (box resized/moved) the grid
+                is hidden entirely, then shown again when the API responds. */}
+            {step === 1 && grid.length > 0 && (
+              <>
+                <VectorLayer
+                  map={map as Map}
+                  id="preview-grid-fill"
+                  visibleOnMap
+                  geojson={gridFeatureCollection}
+                  layerOptions={{
+                    type: "fill",
+                    paint: { "fill-color": taskFillColor, "fill-opacity": loading ? 0.0 : 0.15 },
+                  }}
+                />
+                <VectorLayer
+                  map={map as Map}
+                  id="preview-grid-outline"
+                  visibleOnMap
+                  geojson={gridFeatureCollection}
+                  layerOptions={{
+                    type: "line",
+                    paint: {
+                      "line-color": taskOutlineColor,
+                      "line-width": 1,
+                      "line-opacity": loading ? 0 : 1,
+                    },
+                  }}
+                />
+              </>
+            )}
+
             {step === 2 &&
               grid.map((task) => (
                 <VectorLayer
@@ -411,7 +471,7 @@ const FlyMyDronePage = () => {
             )}
 
             {/* Grid cell labels — A1, A2, B1, B2, ... */}
-            {step === 2 && grid.length > 0 && (
+            {(step === 1 || step === 2) && grid.length > 0 && (
               <VectorLayer
                 map={map as Map}
                 id="task-grid-labels"
@@ -431,6 +491,7 @@ const FlyMyDronePage = () => {
                     "text-color": "#1f2937",
                     "text-halo-color": "#ffffff",
                     "text-halo-width": 1.5,
+                    "text-opacity": step === 1 && loading ? 0 : 1,
                   },
                 }}
               />
