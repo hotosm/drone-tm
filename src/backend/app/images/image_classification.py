@@ -2378,7 +2378,7 @@ class ImageClassifier:
                 NULLIF(exif->>'FlightYawDegree', '')::double precision AS yaw_deg,
                 -- Altitude sizes the footprint when project GSD is unavailable.
                 NULLIF(regexp_replace(
-                    COALESCE(exif->>'AbsoluteAltitude',''),
+                    COALESCE(exif->>'RelativeAltitude',''),
                     '[^0-9+\\-.]+', '', 'g'
                 ), '')::double precision AS altitude_m,
                 -- Image dimensions keep the footprint aspect close to the photo.
@@ -2437,12 +2437,13 @@ class ImageClassifier:
 
         # Add footprint inputs to every image.
         # This keeps the map outlines and the percentage using the same assumptions.
-        # Each image can still use its own EXIF altitude when present.
+        # Prefer the planned project altitude: GPS absolute altitude can be sea-level height.
+        # If the project has no value, fall back to the image's relative altitude.
         footprint_images = [
             {
                 **dict(img),
                 "gsd_cm_px": gsd,
-                "altitude_m": img.get("altitude_m") or altitude,
+                "altitude_m": altitude or img.get("altitude_m"),
             }
             for img in images
         ]

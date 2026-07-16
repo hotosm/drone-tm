@@ -1,3 +1,9 @@
 packages:
   - "frontend"
   - "gcp-editor"
+allowBuilds:
+  canvas: false
+  core-js: false
+  core-js-pure: false
+  esbuild: true
+  exifreader: false
