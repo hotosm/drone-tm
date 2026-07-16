@@ -55,8 +55,8 @@ def _footprint_size_meters(
     if altitude_m and altitude_m > 0:
         # Keep the rectangle shaped like the image, usually 4:3.
         aspect_ratio = image_width / image_height
-        diagonal_m = 2 * altitude_m * math.tan(
-            math.radians(DEFAULT_DIAGONAL_FOV_DEG) / 2
+        diagonal_m = (
+            2 * altitude_m * math.tan(math.radians(DEFAULT_DIAGONAL_FOV_DEG) / 2)
         )
         # Convert the estimated diagonal into width and height.
         height_m = diagonal_m / math.sqrt(1 + aspect_ratio**2)
@@ -86,7 +86,7 @@ def image_footprint_polygon(image: dict) -> Polygon | None:
     # Build in meters first, then convert back to lon/lat only for display.
     width_m, height_m = footprint_size
     # Convert image GPS point into meter coordinates
-    center = transform(projector.transform, shape(image["location"])) 
+    center = transform(projector.transform, shape(image["location"]))
     x, y = center.x, center.y
     half_width = width_m / 2
     half_height = height_m / 2
