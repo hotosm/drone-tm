@@ -17,11 +17,6 @@ const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
 const HANKO_URL = getRuntimeConfig("VITE_HANKO_URL", "https://dev.login.hotosm.org");
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
 
-function saveLoginRedirectTo(from: string | undefined) {
-  const dest = from && from !== "/try-drone" ? from : "/projects";
-  localStorage.setItem("loginRedirectTo", dest);
-}
-
 export default function SignInOverlay() {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
@@ -62,10 +57,9 @@ export default function SignInOverlay() {
 
               if (AUTH_PROVIDER === "hanko") {
                 document.cookie = "hanko=; path=/; max-age=0; domain=" + window.location.hostname;
-                document.cookie = "hanko=; path=/; max-age=0";
 
-                saveLoginRedirectTo(location.state?.from);
-
+                // Use FRONTEND_URL to ensure consistent domain (127.0.0.1) for cookies
+                // Return to /hanko-auth callback which validates with backend and sets up user profile
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${"PROJECT_CREATOR"}`;
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;
                 return;
@@ -96,8 +90,6 @@ export default function SignInOverlay() {
               if (AUTH_PROVIDER === "hanko") {
                 document.cookie = "hanko=; path=/; max-age=0; domain=" + window.location.hostname;
                 document.cookie = "hanko=; path=/; max-age=0";
-
-                saveLoginRedirectTo(location.state?.from);
 
                 const returnUrl = `${FRONTEND_URL}/hanko-auth?role=${"DRONE_PILOT"}`;
                 window.location.href = `${HANKO_URL}/app?return_to=${encodeURIComponent(returnUrl)}`;

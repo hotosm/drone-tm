@@ -76,8 +76,6 @@ function HankoAuth() {
           Array.isArray(userDetails.role) &&
           userDetails.role.length > 0
         ) {
-          const redirectTo = localStorage.getItem("loginRedirectTo") || "/projects";
-          navigate(redirectTo);
         } else {
           navigate("/complete-profile");
         }
@@ -90,8 +88,6 @@ function HankoAuth() {
         console.error("[HankoAuth] Authentication error:", error);
         toast.error(error instanceof Error ? error.message : m.auth_hanko_failed_generic());
         navigate("/");
-      } finally {
-        localStorage.removeItem("loginRedirectTo");
       }
     };
 

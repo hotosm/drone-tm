@@ -44,12 +44,6 @@ const FlyMyDronePage = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const handleAuth = () => navigate("/projects", { replace: true });
-    document.addEventListener("hanko-login", handleAuth);
-    return () => document.removeEventListener("hanko-login", handleAuth);
-  }, [navigate]);
-
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [altitude, setAltitude] = useState(70);
   const [gridDimension, setGridDimension] = useState(200);
