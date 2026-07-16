@@ -345,6 +345,8 @@ export interface TaskVerificationData {
   image_count: number;
   images: TaskImageData[];
   task_geometry: GeoJSON.Feature;
+  // Backend sends these so the map can draw what each photo roughly covers.
+  image_footprints?: GeoJSON.FeatureCollection;
   coverage_percentage?: number;
   is_verified: boolean;
 }

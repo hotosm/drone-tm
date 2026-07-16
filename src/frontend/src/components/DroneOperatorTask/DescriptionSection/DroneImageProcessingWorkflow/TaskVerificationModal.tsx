@@ -343,6 +343,22 @@ const TaskVerificationModal = ({
     };
   }, [verificationData]);
 
+  // Draw a stronger outline for the footprint belonging to the selected image.
+  const selectedFootprintGeoJson = useMemo(() => {
+    if (!selectedImageId || !verificationData?.image_footprints?.features) return null;
+
+    const selectedFootprint = verificationData.image_footprints.features.find(
+      (feature) => feature.properties?.image_id === selectedImageId,
+    );
+
+    if (!selectedFootprint) return null;
+
+    return {
+      type: "FeatureCollection" as const,
+      features: [selectedFootprint],
+    };
+  }, [selectedImageId, verificationData?.image_footprints]);
+
   // Mark as verified mutation
   const verifyMutation = useMutation({
     mutationFn: () => markTaskAsVerified(projectId, taskId),
@@ -599,6 +615,48 @@ const TaskVerificationModal = ({
                         paint: {
                           "line-color": "#484848",
                           "line-width": 2,
+                        },
+                      }}
+                    />
+                  )}
+
+                  {/* Image footprint outlines */}
+                  {map &&
+                    isMapLoaded &&
+                    isStyleReady &&
+                    verificationData?.image_footprints &&
+                    verificationData.image_footprints.features.length > 0 && (
+                      <VectorLayer
+                        map={map}
+                        isMapLoaded={isMapLoaded}
+                        id="image-footprint-outlines"
+                        geojson={verificationData.image_footprints as GeojsonType}
+                        visibleOnMap={true}
+                        layerOptions={{
+                          type: "line",
+                          paint: {
+                            "line-color": "#f97316",
+                            "line-width": 2,
+                            "line-opacity": 0.9,
+                          },
+                        }}
+                      />
+                    )}
+
+                  {/* Selected image footprint */}
+                  {map && isMapLoaded && isStyleReady && selectedFootprintGeoJson && (
+                    <VectorLayer
+                      map={map}
+                      isMapLoaded={isMapLoaded}
+                      id="selected-image-footprint-outline"
+                      geojson={selectedFootprintGeoJson as GeojsonType}
+                      visibleOnMap={true}
+                      layerOptions={{
+                        type: "line",
+                        paint: {
+                          "line-color": "#2563eb",
+                          "line-width": 4,
+                          "line-opacity": 1,
                         },
                       }}
                     />
