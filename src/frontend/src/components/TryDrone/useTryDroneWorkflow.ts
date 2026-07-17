@@ -26,6 +26,7 @@ type PersistedState = {
   areaKm2: number;
   droneModel: string;
   selectedTaskId: string | null;
+  center: [number, number];
 };
 
 // Bump when the persisted shape changes so stale blobs are discarded on read.
@@ -38,6 +39,7 @@ const DEFAULT_STATE: PersistedState = {
   areaKm2: DEFAULT_AREA_KM2,
   droneModel: DEFAULT_DRONE_MODEL,
   selectedTaskId: null,
+  center: INITIAL_MAP_CENTER,
 };
 
 // Read the persisted slice, falling back to defaults on a missing/corrupt/
@@ -58,6 +60,10 @@ function readPersistedState(): PersistedState {
       areaKm2: parsed.areaKm2 ?? DEFAULT_STATE.areaKm2,
       droneModel: parsed.droneModel ?? DEFAULT_STATE.droneModel,
       selectedTaskId: parsed.selectedTaskId ?? null,
+      center:
+        Array.isArray(parsed.center) && parsed.center.length === 2
+          ? (parsed.center as [number, number])
+          : DEFAULT_STATE.center,
     };
   } catch {
     return DEFAULT_STATE;
@@ -116,9 +122,9 @@ export const useTryDroneWorkflow = () => {
   );
   const [areaKm2, setAreaKm2] = useState(initialState.areaKm2);
   const [mapCenter, setMapCenter] =
-    useState<[number, number]>(INITIAL_MAP_CENTER);
+    useState<[number, number]>(initialState.center);
   const [polygon, setPolygon] = useState<Polygon>(() =>
-    buildSquareKm2(INITIAL_MAP_CENTER, initialState.areaKm2),
+    buildSquareKm2(initialState.center, initialState.areaKm2),
   );
   const [grid, setGrid] = useState<FlightPreviewTask[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
@@ -136,8 +142,17 @@ export const useTryDroneWorkflow = () => {
       areaKm2,
       droneModel,
       selectedTaskId,
+      center: mapCenter,
     });
-  }, [step, altitude, gridDimension, areaKm2, droneModel, selectedTaskId]);
+  }, [
+    step,
+    altitude,
+    gridDimension,
+    areaKm2,
+    droneModel,
+    selectedTaskId,
+    mapCenter,
+  ]);
 
   const { mutate: fetchFlightPreview, isPending: loading } =
     useFlightPreviewMutation();

@@ -2,14 +2,13 @@ import { useCallback, useEffect } from 'react';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { Polygon } from 'geojson';
 import getBbox from '@turf/bbox';
-import { featureBbox, geometriesBbox } from '@Utils/geometry';
+import { featureBbox, geometriesBbox, polygonBboxCenter } from '@Utils/geometry';
 import { FlightPlanData, FlightPreviewTask } from '@Services/tryDrone';
 import {
   FIT_DURATION,
   FIT_PADDING_FLIGHT,
   FIT_PADDING_GRID,
   GLYPHS_URL,
-  INITIAL_MAP_CENTER,
   INITIAL_MAP_ZOOM,
 } from '@Constants/tryDrone';
 
@@ -42,10 +41,14 @@ export const useTryDroneMapCamera = ({
   useEffect(() => {
     if (!map || !isMapLoaded) return;
     map.flyTo({
-      center: INITIAL_MAP_CENTER,
+      // Center on the (possibly restored) box so a reload lands where the user
+      // left it, not back at the default location.
+      center: polygonBboxCenter(polygon),
       zoom: INITIAL_MAP_ZOOM,
       essential: true,
     });
+    // Load-only: intentionally ignores later `polygon` changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isMapLoaded]);
 
   // Glyphs are required for maplibre to render text symbol layers (grid cell labels)
