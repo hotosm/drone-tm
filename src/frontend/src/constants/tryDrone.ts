@@ -20,6 +20,10 @@ export const TOUR_SEEN_KEY = 'tryDroneTourSeen';
 // Preview refetch is debounced because dragging / sliding updates the polygon every frame.
 export const PREVIEW_DEBOUNCE_MS = 300;
 
+// localStorage key holding the user's place in the flow (current step + input
+// values) as one JSON blob, so a reload resumes where they left off.
+export const STORAGE_KEY = 'tryDrone.workflow';
+
 // Camera fit
 export const FIT_PADDING_GRID = 40;
 export const FIT_PADDING_FLIGHT = 105;

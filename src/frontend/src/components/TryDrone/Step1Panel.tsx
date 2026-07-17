@@ -1,6 +1,6 @@
-import { Button } from "@Components/RadixComponents/Button";
-import Icon from "@Components/common/Icon";
-import { m } from "@/paraglide/messages";
+import { Button } from '@Components/RadixComponents/Button';
+import Icon from '@Components/common/Icon';
+import { m } from '@/paraglide/messages';
 
 const ALTITUDE_OPTIONS = [70, 100, 120];
 const GRID_DIMENSION_OPTIONS = [200, 300, 550, 1000];
@@ -41,13 +41,13 @@ export default function Step1Panel({
 
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
-      {/* TODO no translation because needs confirmation */}
-      <h2 className="naxatw-text-xl naxatw-font-bold">Set parameters</h2>
+      <h2 className="naxatw-text-xl naxatw-font-bold">
+        {m.trydrone_options()}
+      </h2>
 
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
           <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
-            
             {m.proj_desc_label_flight_altitude()} (m)
           </label>
           <span className="naxatw-text-primary-400 naxatw-text-sm naxatw-font-semibold">
@@ -60,17 +60,17 @@ export default function Step1Panel({
           max={ALTITUDE_OPTIONS.length - 1}
           step={1}
           value={altitudeIndex}
-          onChange={(e) => setAltitude(ALTITUDE_OPTIONS[Number(e.target.value)])}
+          onChange={e => setAltitude(ALTITUDE_OPTIONS[Number(e.target.value)])}
           className="hot-range naxatw-w-full"
-          style={{ "--range-fill": `${altitudeFill}%` } as React.CSSProperties}
+          style={{ '--range-fill': `${altitudeFill}%` } as React.CSSProperties}
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
-          {ALTITUDE_OPTIONS.map((option) => (
+          {ALTITUDE_OPTIONS.map(option => (
             <span key={option}>{option} m</span>
           ))}
         </div>
       </div>
-      
+
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
           <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
@@ -82,13 +82,13 @@ export default function Step1Panel({
         </div>
         <input
           type="range"
-          min={0.10}
-          max={1.50}
+          min={0.1}
+          max={1.5}
           step={0.01}
           value={areaKm2}
-          onChange={(e) => setAreaKm2(Number(e.target.value))}
+          onChange={e => setAreaKm2(Number(e.target.value))}
           className="hot-range naxatw-w-full"
-          style={{ "--range-fill": `${areaFill}%` } as React.CSSProperties}
+          style={{ '--range-fill': `${areaFill}%` } as React.CSSProperties}
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
           <span>0.10 km²</span>
@@ -111,23 +111,25 @@ export default function Step1Panel({
           max={GRID_DIMENSION_OPTIONS.length - 1}
           step={1}
           value={gridIndex}
-          onChange={(e) =>
+          onChange={e =>
             setGridDimension(GRID_DIMENSION_OPTIONS[Number(e.target.value)])
           }
           className="hot-range naxatw-w-full"
-          style={{ "--range-fill": `${gridFill}%` } as React.CSSProperties}
+          style={{ '--range-fill': `${gridFill}%` } as React.CSSProperties}
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
-          {GRID_DIMENSION_OPTIONS.map((option) => (
+          {GRID_DIMENSION_OPTIONS.map(option => (
             <span key={option}>{option}</span>
           ))}
         </div>
-        <div className="naxatw-mt-1 naxatw-flex naxatw-items-start naxatw-gap-2 naxatw-rounded-md naxatw-text-xs naxatw-text-grey-700 naxatw-min-h-14">
+        <div className="naxatw-mt-1 naxatw-flex naxatw-min-h-14 naxatw-items-start naxatw-gap-2 naxatw-rounded-md naxatw-text-xs naxatw-text-grey-700">
           <Icon
             name="info"
             className="naxatw-text-primary-400 naxatw-text-xs"
           />
-          <span className="naxatw-text-xs">{GRID_DIMENSION_LEGENDS[gridDimension]?.()}</span>
+          <span className="naxatw-text-xs">
+            {GRID_DIMENSION_LEGENDS[gridDimension]?.()}
+          </span>
         </div>
       </div>
 
@@ -136,7 +138,7 @@ export default function Step1Panel({
         onClick={onContinue}
         disabled={loading}
         rightIcon="chevron_right"
-        className="naxatw-text-white !naxatw-bg-black hover:!naxatw-bg-grey-900 hover:!naxatw-no-underline"
+        className="!naxatw-bg-black naxatw-text-white hover:!naxatw-bg-grey-900 hover:!naxatw-no-underline"
       >
         {loading ? m.common_loading() : m.common_continue()}
       </Button>

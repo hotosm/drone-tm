@@ -358,13 +358,14 @@ const FlyMyDronePage = () => {
               />
             )}
 
+            {/* TODO consider if this needs to be removed
             {step === 3 && flightPlan && selectedTask && (
               <DroneFlightAnimation
                 map={map as Map}
                 waypoints={flightPlan.geojsonListOfPoints}
                 geometry={selectedTask.geometry}
               />
-            )}
+            )} */}
           </MapContainer>
         </div>
 
