@@ -176,8 +176,9 @@ const FlyMyDronePage = () => {
             )}
 
             {/* Step 1: non-interactive preview of how the AOI splits into tasks.
-                While a fresh grid is being fetched (box resized/moved) the grid
-                is hidden entirely, then shown again when the API responds. */}
+                The grid is cleared the instant the AOI / grid size changes (see
+                useTryDroneWorkflow) so it never lingers misaligned, then redraws
+                when the refetch resolves. */}
             {step === 1 && grid.length > 0 && (
               <>
                 <VectorLayer
@@ -189,9 +190,7 @@ const FlyMyDronePage = () => {
                     type: 'fill',
                     paint: {
                       'fill-color': brandRed,
-                      'fill-opacity': loading
-                        ? 0.0
-                        : TRY_DRONE_MAP_STYLE.gridPreview.fillOpacity,
+                      'fill-opacity': TRY_DRONE_MAP_STYLE.gridPreview.fillOpacity,
                     },
                   }}
                 />
@@ -205,7 +204,7 @@ const FlyMyDronePage = () => {
                     paint: {
                       'line-color': brandRed,
                       'line-width': TRY_DRONE_MAP_STYLE.gridPreview.lineWidth,
-                      'line-opacity': loading ? 0 : 1,
+                      'line-opacity': 1,
                     },
                   }}
                 />
@@ -303,7 +302,7 @@ const FlyMyDronePage = () => {
                     'text-color': TRY_DRONE_MAP_STYLE.label.textColor,
                     'text-halo-color': TRY_DRONE_MAP_STYLE.label.haloColor,
                     'text-halo-width': TRY_DRONE_MAP_STYLE.label.haloWidth,
-                    'text-opacity': step === 1 && loading ? 0 : 1,
+                    'text-opacity': 1,
                   },
                 }}
               />

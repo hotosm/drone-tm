@@ -151,9 +151,13 @@ export const useTryDroneWorkflow = () => {
 
   // Live grid preview in step 1: refetch the task grid whenever the AOI or grid
   // size changes, so the map shows how the area splits before continuing.
-  // Debounced because dragging / sliding updates the polygon on every frame.
+  // Clear the old grid immediately so it never lingers misaligned over the
+  // resized AOI while the (debounced) refetch is in flight; it redraws on
+  // success. Debounced because dragging / sliding updates the polygon on every
+  // frame.
   useEffect(() => {
     if (step !== 1) return undefined;
+    setGrid([]);
     const timer = setTimeout(() => {
       fetchFlightPreview(
         { polygon, cellSizeMeters: gridDimension },
