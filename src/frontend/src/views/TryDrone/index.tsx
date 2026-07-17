@@ -28,7 +28,7 @@ import {
   postWaypointKmz,
 } from "@Services/tryDrone";
 import FlightPlanLayers from "@Components/common/MapLibreComponents/Layers/FlightPlanLayers";
-import { brandRed, taskFillColor, taskOutlineColor } from "@Constants/map";
+import { brandRed } from "@Constants/map";
 import SectionHeader from "@/components/common/SectionHeader";
 
 interface FlightPlanData {
@@ -54,6 +54,7 @@ const FlyMyDronePage = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [droneModel, setDroneModel] = useState("DJI_MINI_4_PRO");
   const [flightPlan, setFlightPlan] = useState<FlightPlanData | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const [tourOn, setTourOn] = useState(
     () => typeof localStorage !== "undefined" && !localStorage.getItem("tryDroneTourSeen"),
   );
@@ -221,14 +222,18 @@ const FlyMyDronePage = () => {
   };
 
   const handleDownloadAllTasks = () => {
-    postAllTaskFiles(polygon, altitude, droneModel, gridDimension).then(({ blob, filename }) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+    if (downloadingAll) return;
+    setDownloadingAll(true);
+    postAllTaskFiles(polygon, altitude, droneModel, gridDimension)
+      .then(({ blob, filename }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      })
+      .finally(() => setDownloadingAll(false));
   };
 
   const handleDownloadKmz = () => {
@@ -384,7 +389,7 @@ const FlyMyDronePage = () => {
                   geojson={gridFeatureCollection}
                   layerOptions={{
                     type: "fill",
-                    paint: { "fill-color": taskFillColor, "fill-opacity": loading ? 0.0 : 0.15 },
+                    paint: { "fill-color": brandRed, "fill-opacity": loading ? 0.0 : 0.15 },
                   }}
                 />
                 <VectorLayer
@@ -395,7 +400,7 @@ const FlyMyDronePage = () => {
                   layerOptions={{
                     type: "line",
                     paint: {
-                      "line-color": taskOutlineColor,
+                      "line-color": brandRed,
                       "line-width": 1,
                       "line-opacity": loading ? 0 : 1,
                     },
@@ -423,7 +428,7 @@ const FlyMyDronePage = () => {
                   }}
                   layerOptions={{
                     type: "fill",
-                    paint: { "fill-color": taskFillColor, "fill-opacity": 0.2 },
+                    paint: { "fill-color": brandRed, "fill-opacity": 0.2 },
                   }}
                 />
               ))}
@@ -441,7 +446,7 @@ const FlyMyDronePage = () => {
                   }}
                   layerOptions={{
                     type: "line",
-                    paint: { "line-color": taskOutlineColor, "line-width": 1 },
+                    paint: { "line-color": brandRed, "line-width": 1 },
                   }}
                 />
               ))}
@@ -561,8 +566,10 @@ const FlyMyDronePage = () => {
             <Step2Panel
               selectedTask={selectedTask}
               droneModel={droneModel}
+              onDroneModelChange={setDroneModel}
               onSelectTask={handleSelectTask}
               onDownloadAll={handleDownloadAllTasks}
+              downloadingAll={downloadingAll}
               onBack={() => setStep(1)}
             />
           )}
@@ -577,6 +584,7 @@ const FlyMyDronePage = () => {
               onDownload={handleDownloadKmz}
               onDownloadGeojson={handleDownloadGeojson}
               onDownloadAll={handleDownloadAllTasks}
+              downloadingAll={downloadingAll}
             />
           )}
         </TryDroneSidePanel>

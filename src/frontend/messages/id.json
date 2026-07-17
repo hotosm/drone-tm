@@ -960,5 +960,11 @@
   "trydrone_tour_got_it": "Mengerti",
   "trydrone_tour_next": "Berikutnya",
   "trydrone_bring_box_here": "Bawa kotak ke sini",
-  "trydrone_bring_box_aria": "Bawa kotak seleksi ke tampilan saat ini"
+  "trydrone_bring_box_aria": "Bawa kotak seleksi ke tampilan saat ini",
+  "trydrone_coverage_area": "Area cakupan",
+  "trydrone_step2_select_task_title": "Pilih tugas",
+  "trydrone_step2_task_hint": "Klik sel pada peta untuk melihat detail tugas",
+  "trydrone_step2_download_all": "Unduh semua tugas",
+  "trydrone_step2_downloading": "Mengunduh…",
+  "trydrone_step3_download_geojson": "Unduh GeoJSON"
 }

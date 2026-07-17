@@ -33,13 +33,20 @@ export default function Step1Panel({
   onContinue,
   loading,
 }: Step1PanelProps) {
+  const altitudeIndex = Math.max(0, ALTITUDE_OPTIONS.indexOf(altitude));
+  const gridIndex = Math.max(0, GRID_DIMENSION_OPTIONS.indexOf(gridDimension));
+  const altitudeFill = (altitudeIndex / (ALTITUDE_OPTIONS.length - 1)) * 100;
+  const areaFill = ((areaKm2 - 0.1) / (1.5 - 0.1)) * 100;
+  const gridFill = (gridIndex / (GRID_DIMENSION_OPTIONS.length - 1)) * 100;
+
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
-      <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">Instructions</h2>
+      {/* TODO no translation because needs confirmation */}
+      <h2 className="naxatw-text-xl naxatw-font-bold">Set parameters</h2>
 
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
-          <label className="naxatw-text-base naxatw-font-medium naxatw-text-grey-800">
+          <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
             
             {m.proj_desc_label_flight_altitude()} (m)
           </label>
@@ -52,9 +59,10 @@ export default function Step1Panel({
           min={0}
           max={ALTITUDE_OPTIONS.length - 1}
           step={1}
-          value={Math.max(0, ALTITUDE_OPTIONS.indexOf(altitude))}
+          value={altitudeIndex}
           onChange={(e) => setAltitude(ALTITUDE_OPTIONS[Number(e.target.value)])}
-          className="naxatw-accent-primary-400 naxatw-w-full"
+          className="hot-range naxatw-w-full"
+          style={{ "--range-fill": `${altitudeFill}%` } as React.CSSProperties}
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
           {ALTITUDE_OPTIONS.map((option) => (
@@ -65,8 +73,8 @@ export default function Step1Panel({
       
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
-          <label className="naxatw-text-base naxatw-font-medium naxatw-text-grey-800">
-            Coverage area
+          <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
+            {m.trydrone_coverage_area()}
           </label>
           <span className="naxatw-text-primary-400 naxatw-text-sm naxatw-font-semibold">
             {areaKm2.toFixed(2)} km²
@@ -79,7 +87,8 @@ export default function Step1Panel({
           step={0.01}
           value={areaKm2}
           onChange={(e) => setAreaKm2(Number(e.target.value))}
-          className="naxatw-accent-primary-400 naxatw-w-full"
+          className="hot-range naxatw-w-full"
+          style={{ "--range-fill": `${areaFill}%` } as React.CSSProperties}
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
           <span>0.10 km²</span>
@@ -89,7 +98,7 @@ export default function Step1Panel({
 
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
         <div className="naxatw-flex naxatw-items-center naxatw-justify-between">
-          <label className="naxatw-text-base naxatw-font-medium naxatw-text-grey-800">
+          <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
             {m.create_generate_dimension_label()}
           </label>
           <span className="naxatw-text-primary-400 naxatw-text-sm naxatw-font-semibold">
@@ -101,18 +110,19 @@ export default function Step1Panel({
           min={0}
           max={GRID_DIMENSION_OPTIONS.length - 1}
           step={1}
-          value={Math.max(0, GRID_DIMENSION_OPTIONS.indexOf(gridDimension))}
+          value={gridIndex}
           onChange={(e) =>
             setGridDimension(GRID_DIMENSION_OPTIONS[Number(e.target.value)])
           }
-          className="naxatw-accent-primary-400 naxatw-w-full"
+          className="hot-range naxatw-w-full"
+          style={{ "--range-fill": `${gridFill}%` } as React.CSSProperties}
         />
         <div className="naxatw-flex naxatw-justify-between naxatw-text-xs naxatw-text-grey-500">
           {GRID_DIMENSION_OPTIONS.map((option) => (
             <span key={option}>{option}</span>
           ))}
         </div>
-        <div className="naxatw-mt-1 naxatw-flex naxatw-items-start naxatw-gap-2 naxatw-rounded-md naxatw-text-xs naxatw-text-grey-700">
+        <div className="naxatw-mt-1 naxatw-flex naxatw-items-start naxatw-gap-2 naxatw-rounded-md naxatw-text-xs naxatw-text-grey-700 naxatw-min-h-14">
           <Icon
             name="info"
             className="naxatw-text-primary-400 naxatw-text-xs"
@@ -125,9 +135,10 @@ export default function Step1Panel({
         variant="default"
         onClick={onContinue}
         disabled={loading}
-        className="naxatw-w-full !naxatw-bg-grey-900"
+        rightIcon="chevron_right"
+        className="naxatw-text-white !naxatw-bg-black hover:!naxatw-bg-grey-900 hover:!naxatw-no-underline"
       >
-        {loading ? "Loading…" : "Continue"}
+        {loading ? m.common_loading() : m.common_continue()}
       </Button>
     </div>
   );

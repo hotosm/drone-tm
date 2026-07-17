@@ -1,6 +1,7 @@
 import { Button } from "@Components/RadixComponents/Button";
 import Select from "@Components/common/FormUI/Select";
 import { droneModelOptions } from "@Constants/taskDescription";
+import { m } from "@/paraglide/messages";
 
 // Output file format the backend produces for each drone (see flightplan_output.py).
 const droneFileLabel: Record<string, string> = {
@@ -28,6 +29,7 @@ interface Step3PanelProps {
   onDownload: () => void;
   onDownloadGeojson: () => void;
   onDownloadAll: () => void;
+  downloadingAll: boolean;
 }
 
 export default function Step3Panel({
@@ -40,6 +42,7 @@ export default function Step3Panel({
   onDownload,
   onDownloadGeojson,
   onDownloadAll,
+  downloadingAll,
 }: Step3PanelProps) {
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
@@ -47,7 +50,7 @@ export default function Step3Panel({
 
       <div className="naxatw-rounded-md naxatw-border naxatw-border-grey-300 naxatw-p-3">
         <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-grey-800">
-          Task {selectedTask.id}
+          {m.processing_dialog_table_task()} {selectedTask.id}
         </p>
         <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-grey-600">
           {selectedTask.area_m2.toLocaleString()} m²
@@ -56,7 +59,7 @@ export default function Step3Panel({
 
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
         <label className="naxatw-text-sm naxatw-font-medium naxatw-text-grey-800">
-          Drone model
+          {m.flight_gap_drone_model_label()}
         </label>
         <Select
           options={droneModelOptions}
@@ -66,46 +69,56 @@ export default function Step3Panel({
         />
       </div>
 
-      {flightPlanLoading && (
-        <p className="naxatw-text-sm naxatw-text-grey-500">Generating flight plan…</p>
-      )}
-      <div className="naxatw-flex naxatw-flex-col">
+      {/* actions */}
+      <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
         {hasFlightPlan && (
           <>
             <Button
-              variant="outline"
+              variant="default"
               leftIcon="download"
               onClick={onDownload}
-              className="naxatw-w-full !naxatw-border-landing-red !naxatw-bg-landing-red !naxatw-text-white"
+              className="naxatw-w-full naxatw-bg-red !naxatw-text-landing-white"
             >
-              Download {droneFileLabel[droneModel] ?? "flight file"}
+              {m.drone_task_download()} {droneFileLabel[droneModel] ?? "flight file"}
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               leftIcon="download"
               onClick={onDownloadGeojson}
-              className="naxatw-w-full !naxatw-text-landing-red"
+              className="naxatw-w-full naxatw-border-red !naxatw-text-landing-red"
             >
-              Download GeoJSON
+              {m.trydrone_step3_download_geojson()}
             </Button>
-            <Button
-              variant="ghost"
-              leftIcon="download"
-              onClick={onDownloadAll}
-              className="naxatw-w-full !naxatw-text-landing-red"
-            >
-              Download all tasks
-            </Button>
+            <div className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-py-1">
+          <span className="naxatw-h-px naxatw-flex-1 naxatw-bg-grey-300" />
+          <span className="naxatw-text-xs naxatw-uppercase naxatw-text-grey-500">
+            {m.auth_or()}
+          </span>
+          <span className="naxatw-h-px naxatw-flex-1 naxatw-bg-grey-300" />
+        </div>
+          
+        <Button
+          variant="outline"
+          leftIcon="download"
+          onClick={onDownloadAll}
+          disabled={downloadingAll}
+          isLoading={downloadingAll}
+          className="naxatw-w-full naxatw-border-red !naxatw-text-landing-red"
+        >
+          {downloadingAll
+            ? m.trydrone_step2_downloading()
+            : m.trydrone_step2_download_all()}
+        </Button>
           </>
         )}
 
         <Button
           variant="ghost"
           leftIcon="chevron_left"
-          className="!naxatw-text-red"
           onClick={onBack}
+          className="naxatw-text-gray-700"
         >
-          Back
+           {m.trydrone_tour_back()}
         </Button>
       </div>
     </div>
