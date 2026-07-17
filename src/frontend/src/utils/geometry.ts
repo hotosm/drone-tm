@@ -1,4 +1,23 @@
-import { Polygon } from "geojson";
+import { BBox, Polygon } from 'geojson';
+import getBbox from '@turf/bbox';
+
+// Bounding box of a single polygon geometry — wraps it as a Feature so it can
+// be handed to @turf/bbox without the caller repeating the boilerplate.
+export function featureBbox(geometry: Polygon): BBox {
+  return getBbox({ type: 'Feature', geometry, properties: {} });
+}
+
+// Bounding box covering several polygon geometries (e.g. every grid cell).
+export function geometriesBbox(geometries: Polygon[]): BBox {
+  return getBbox({
+    type: 'FeatureCollection',
+    features: geometries.map(geometry => ({
+      type: 'Feature',
+      geometry,
+      properties: {},
+    })),
+  });
+}
 
 export function polygonCentroid(polygon: Polygon): [number, number] {
   const coords = polygon.coordinates[0];
@@ -37,7 +56,7 @@ export function buildSquareKm2(center: [number, number], km2: number): Polygon {
   const halfLng = halfSideMeters / (111000 * Math.cos((lat * Math.PI) / 180));
 
   return {
-    type: "Polygon",
+    type: 'Polygon',
     coordinates: [
       [
         [lng - halfLng, lat - halfLat],
