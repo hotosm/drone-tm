@@ -514,11 +514,11 @@ const MapSection = ({ className }: { className?: string }) => {
             </span>
             {isTakeOffPoint && (
               <span
-               id="download-gpx-btn"
-               data-lat={lat}
-               data-lng={lng}
-               className="naxatw-cursor-pointer naxatw-rounded naxatw-p-0.5 hover:naxatw-bg-grey-200"
-               title={m.drone_task_popup_download_coordinates()}
+                id="download-gpx-btn"
+                data-lat={lat}
+                data-lng={lng}
+                className="naxatw-cursor-pointer naxatw-rounded naxatw-p-0.5 hover:naxatw-bg-grey-200"
+                title={m.drone_task_popup_download_coordinates()}
               >
                 <i className="material-symbols-outlined" style={{ fontSize: "16px" }}>
                   download
@@ -607,10 +607,10 @@ const MapSection = ({ className }: { className?: string }) => {
     }
     document.addEventListener("click", handleCopyCoords);
     document.addEventListener("click", handleDownloadGpx);
-    return () =>{
+    return () => {
       document.removeEventListener("click", handleCopyCoords);
       document.removeEventListener("click", handleDownloadGpx);
-    }
+    };
   }, []);
 
   // toggle layers
