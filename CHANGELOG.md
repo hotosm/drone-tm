@@ -1,3 +1,14 @@
+## 2026.7.0 (2026-07-21)
+
+### Feat
+
+- **backend**: improve scaleodm processing reconciliation (1) webhook (2) refresh btn (3) bg cron (#854)
+- add GPX download for takeoff point in waypoint popup (#851)
+
+### Fix
+
+- **backend**: align db models with current db state, migrate for extra scaleodm fields
+
 ## 2026.6.12 (2026-07-14)
 
 ### Fix
