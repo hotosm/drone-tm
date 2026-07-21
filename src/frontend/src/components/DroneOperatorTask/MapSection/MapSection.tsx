@@ -512,6 +512,19 @@ const MapSection = ({ className }: { className?: string }) => {
                 content_copy
               </i>
             </span>
+            {isTakeOffPoint && (
+              <span
+                id="download-gpx-btn"
+                data-lat={lat}
+                data-lng={lng}
+                className="naxatw-cursor-pointer naxatw-rounded naxatw-p-0.5 hover:naxatw-bg-grey-200"
+                title={m.drone_task_popup_download_coordinates()}
+              >
+                <i className="material-symbols-outlined" style={{ fontSize: "16px" }}>
+                  download
+                </i>
+              </span>
+            )}
           </div>
         </center>
         <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
@@ -557,6 +570,7 @@ const MapSection = ({ className }: { className?: string }) => {
   }, [popupData]);
 
   // attach click handler for copy-coords button in popup (rendered via renderToString)
+  // sibling button to download coordinates as a gpx file
   useEffect(() => {
     function handleCopyCoords(e: MouseEvent) {
       const btn = (e.target as HTMLElement).closest("#copy-coords-btn");
@@ -567,8 +581,36 @@ const MapSection = ({ className }: { className?: string }) => {
         toast.success(m.drone_task_popup_coordinates_copied());
       }
     }
+    function handleDownloadGpx(e: MouseEvent) {
+      const btn = (e.target as HTMLElement).closest("#download-gpx-btn");
+      if (!btn) return;
+      const lat = btn.getAttribute("data-lat");
+      const lng = btn.getAttribute("data-lng");
+      if (!lat || !lng) return;
+      const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+      <gpx version="1.1" creator="DroneTM" xmlns="http://www.topografix.com/GPX/1/1">
+        <wpt lat="${lat}" lon="${lng}">
+          <name>Takeoff Point</name>
+        </wpt>
+      </gpx>`;
+
+      const blob = new Blob([gpx], { type: "application/gpx+xml" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "takeoff-point.gpx";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success(m.drone_task_popup_coordinates_downloaded());
+    }
     document.addEventListener("click", handleCopyCoords);
-    return () => document.removeEventListener("click", handleCopyCoords);
+    document.addEventListener("click", handleDownloadGpx);
+    return () => {
+      document.removeEventListener("click", handleCopyCoords);
+      document.removeEventListener("click", handleDownloadGpx);
+    };
   }, []);
 
   // toggle layers
