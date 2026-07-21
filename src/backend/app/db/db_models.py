@@ -17,6 +17,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import (
@@ -92,6 +93,19 @@ class DbTask(Base):
     assets_url = cast(
         str, Column(String, nullable=True)
     )  # download link for assets of images(orthophoto)
+    # ScaleODM task id while processing; cleared on terminal, so in-flight
+    # means odm_task_uuid IS NOT NULL.
+    odm_task_uuid = cast(str, Column(String, nullable=True))
+    # Endpoint this run was submitted to (per-task custom server via Ctrl+click).
+    odm_endpoint_used = cast(str, Column(String, nullable=True))
+
+    __table_args__ = (
+        Index(
+            "ix_tasks_odm_inflight",
+            "project_id",
+            postgresql_where=text("odm_task_uuid IS NOT NULL"),
+        ),
+    )
 
 
 class DbProject(Base):
@@ -170,7 +184,11 @@ class DbProject(Base):
     )  # status of image processing
     oam_upload_status = cast(
         OAMUploadStatus,
-        Column(Enum(OAMUploadStatus), default=OAMUploadStatus.NOT_STARTED),
+        Column(
+            Enum(OAMUploadStatus),
+            nullable=False,
+            server_default=OAMUploadStatus.NOT_STARTED.value,
+        ),
     )  # status of oam upload
 
     # Cloud-native derivative readiness (set by post-processing arq jobs).
@@ -260,13 +278,28 @@ class DbProjectImage(Base):
     uploaded_by = cast(
         str, Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     )
-    uploaded_at = cast(datetime, Column(DateTime, default=timestamp, nullable=False))
-    classified_at = cast(datetime, Column(DateTime, nullable=True))
+    uploaded_at = cast(
+        datetime,
+        Column(DateTime(timezone=True), default=timestamp, nullable=False),
+    )
+    classified_at = cast(datetime, Column(DateTime(timezone=True), nullable=True))
     status = cast(
         ImageStatus,
-        Column(Enum(ImageStatus), default=ImageStatus.UPLOADED, nullable=False),
+        # DB enum image_status uses lowercase values; values_callable emits the
+        # values rather than the uppercase member names.
+        Column(
+            Enum(
+                ImageStatus,
+                name="image_status",
+                values_callable=lambda enum: [m.value for m in enum],
+                create_type=False,
+            ),
+            server_default=ImageStatus.STAGED.value,
+            nullable=False,
+        ),
     )
     rejection_reason = cast(str, Column(Text, nullable=True))
+    thumbnail_url = cast(str, Column(Text, nullable=True))
     sharpness_score = cast(float, Column(Float, nullable=True))
     duplicate_of = cast(
         str,
@@ -293,6 +326,11 @@ class DbProjectImage(Base):
         Index("idx_project_images_uploaded_by", "uploaded_by"),
         Index("idx_project_images_location", location, postgresql_using="gist"),
         Index("idx_project_images_batch_status", "batch_id", "status"),
+        Index(
+            "idx_project_images_thumbnail_url",
+            "thumbnail_url",
+            postgresql_where=text("thumbnail_url IS NOT NULL"),
+        ),
         {},
     )
 
