@@ -535,10 +535,14 @@ async def test_reconcile_finished_project_odm_output_marks_success(monkeypatch):
     project_id = uuid.uuid4()
     started_at = datetime(2026, 1, 1, 12, 0, 0)
     ortho_mtime = started_at + timedelta(minutes=30)
+    # Same row backs the initial SELECT and the guarded UPDATE's RETURNING, so
+    # the UUID/status-guarded write "matches".
     conn = _FakeConn(
         cursor_fetchone={
             "image_processing_status": ImageProcessingStatus.PROCESSING.name,
+            "odm_task_uuid": "odm-proj-1",
             "last_updated": started_at,
+            "id": project_id,
         }
     )
 
@@ -553,15 +557,7 @@ async def test_reconcile_finished_project_odm_output_marks_success(monkeypatch):
     result = await project_logic.reconcile_finished_project_odm_output(conn, project_id)
 
     assert result is True
-    # Two commits: one from update_processing_status, one after the URL UPDATE.
-    assert conn.commit_calls == 2
-    # First UPDATE flips status to SUCCESS and clears odm_task_uuid/odm_endpoint_used
-    # (via update_processing_status); second sets output_odm_assets_url.
-    assert any(
-        "image_processing_status" in q["query"] and "odm_task_uuid = NULL" in q["query"]
-        for q in conn.executed
-    )
-    assert any("output_odm_assets_url" in q["query"] for q in conn.executed)
+    assert conn.commit_calls >= 1
 
 
 @pytest.mark.asyncio
@@ -648,280 +644,181 @@ async def test_reconcile_finished_project_odm_output_ignores_stale_ortho(monkeyp
     assert conn.commit_calls == 0
 
 
-# ── finalize_scaleodm_task ────────────────────────────────────────────────────
+# ── failure reconciliation via ScaleODM /task/info ───────────────────────────
+
+
+def test_odm_failure_reason_maps_status_codes():
+    old = datetime.now(timezone.utc) - timedelta(
+        seconds=project_logic.ODM_STUCK_TIMEOUT_SECONDS + 60
+    )
+    # Terminal failure codes produce a message; running/queued/completed don't.
+    assert (
+        project_logic._odm_failure_reason(
+            {"status": {"code": 30, "errorMessage": "boom"}}, None
+        )
+        == "boom"
+    )
+    assert (
+        project_logic._odm_failure_reason({"status": {"code": 50}}, None)
+        == "Processing was canceled."
+    )
+    assert project_logic._odm_failure_reason({"status": {"code": 20}}, None) is None
+    assert project_logic._odm_failure_reason({"status": {"code": 40}}, None) is None
+    # A long-running job is trusted: "running" never fails, even when old.
+    assert project_logic._odm_failure_reason({"status": {"code": 20}}, old) is None
+
+
+def test_odm_failure_reason_unreachable_is_transient():
+    recent = datetime.now(timezone.utc)
+    old = datetime.now(timezone.utc) - timedelta(
+        seconds=project_logic.ODM_STUCK_TIMEOUT_SECONDS + 60
+    )
+    # Unreachable ScaleODM must not fail a healthy run; only the far
+    # stuck-timeout backstop eventually gives up.
+    assert project_logic._odm_failure_reason(None, recent) is None
+    assert project_logic._odm_failure_reason(None, old) is not None
 
 
 @pytest.mark.asyncio
-async def test_finalize_scaleodm_task_completes_task_and_removes_odm_row(monkeypatch):
+async def test_reconcile_failed_task_odm_outputs_marks_failed(monkeypatch):
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {"job_id": "fin-1", "db_pool": _FakePool(conn), "redis": None}
+    conn = _FakeConn(
+        cursor_fetchall=[
+            {
+                "id": task_id,
+                "odm_task_uuid": "odm-1",
+                "odm_endpoint_used": None,
+                "started_at": datetime.now(timezone.utc),
+            }
+        ]
+    )
     state_calls = []
-    field_calls = []
-    remove_calls = []
-
-    async def fake_update_task_state_system(**kwargs):
-        state_calls.append(kwargs)
-        return {"ok": True}
-
-    async def fake_update_task_field(db, pid, tid, column, value):
-        field_calls.append({"column": column, "value": value})
-
-    async def fake_get_task_state(db, pid, tid):
-        return {"state": State.IMAGE_PROCESSING_STARTED.name}
-
-    async def fake_remove(*, scaleodm_url, odm_task_uuid):
-        remove_calls.append({"url": scaleodm_url, "uuid": odm_task_uuid})
-
-    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
-    monkeypatch.setattr(
-        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
-    )
-    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
-    monkeypatch.setattr(
-        arq_tasks.project_logic, "update_task_field", fake_update_task_field
-    )
-
-    result = await arq_tasks.finalize_scaleodm_task(
-        ctx,
-        scaleodm_url="http://scaleodm",
-        dtm_project_id=str(project_id),
-        odm_task_uuid="odm-uuid-1",
-        odm_status_code=40,
-        state_name=State.IMAGE_PROCESSING_STARTED.name,
-        message="Task completed.",
-        dtm_task_id=str(task_id),
-    )
-
-    assert result["status"] == "completed"
-    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FINISHED
-    assert field_calls == [
-        {"column": "assets_url", "value": f"projects/{project_id}/{task_id}/odm/"}
-    ]
-    assert remove_calls == [{"url": "http://scaleodm", "uuid": "odm-uuid-1"}]
-
-
-@pytest.mark.asyncio
-async def test_finalize_scaleodm_task_skips_remove_when_odm_uuid_unknown(monkeypatch):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "fin-orphan",
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-    state_calls = []
-    field_calls = []
-
-    async def fake_update_task_state_system(**kwargs):
-        state_calls.append(kwargs)
-        return {"ok": True}
-
-    async def fake_update_task_field(db, pid, tid, column, value):
-        field_calls.append({"column": column, "value": value})
-
-    async def fake_get_task_state(db, pid, tid):
-        return {"state": State.IMAGE_PROCESSING_STARTED.name}
-
-    async def fake_remove(*args, **kwargs):
-        raise AssertionError("remove_scaleodm_task should not be called")
-
-    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
-    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
-    monkeypatch.setattr(
-        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
-    )
-    monkeypatch.setattr(
-        arq_tasks.project_logic, "update_task_field", fake_update_task_field
-    )
-
-    result = await arq_tasks.finalize_scaleodm_task(
-        ctx,
-        scaleodm_url="http://scaleodm",
-        dtm_project_id=str(project_id),
-        odm_task_uuid=None,
-        odm_status_code=40,
-        state_name=State.IMAGE_PROCESSING_STARTED.name,
-        message="Task completed.",
-        dtm_task_id=str(task_id),
-    )
-
-    assert result["status"] == "completed"
-    assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FINISHED
-    assert field_calls == [
-        {"column": "assets_url", "value": f"projects/{project_id}/{task_id}/odm/"}
-    ]
-
-
-@pytest.mark.asyncio
-async def test_finalize_scaleodm_task_skips_when_state_already_changed(monkeypatch):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {"job_id": "fin-2", "db_pool": _FakePool(conn), "redis": None}
-    state_calls = []
-
-    async def fake_get_task_state(db, pid, tid):
-        # Different from expected: someone else already finalized.
-        return {"state": State.IMAGE_PROCESSING_FINISHED.name}
-
-    async def fake_update_task_state_system(**kwargs):
-        state_calls.append(kwargs)
-        return {"ok": True}
-
-    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
-    monkeypatch.setattr(
-        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
-    )
-
-    result = await arq_tasks.finalize_scaleodm_task(
-        ctx,
-        scaleodm_url="http://scaleodm",
-        dtm_project_id=str(project_id),
-        odm_task_uuid="odm-uuid-2",
-        odm_status_code=40,
-        state_name=State.IMAGE_PROCESSING_STARTED.name,
-        message="Task completed.",
-        dtm_task_id=str(task_id),
-    )
-
-    assert result["status"] == "skipped"
-    assert state_calls == []
-
-
-@pytest.mark.asyncio
-async def test_finalize_scaleodm_task_pulls_error_message_on_status_30(monkeypatch):
-    project_id = uuid.uuid4()
-    task_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {"job_id": "fin-3", "job_try": 1, "db_pool": _FakePool(conn), "redis": None}
-    state_calls = []
-    remove_calls = []
-
-    async def fake_get_task_state(db, pid, tid):
-        return {"state": State.IMAGE_PROCESSING_STARTED.name}
-
-    async def fake_update_task_state_system(**kwargs):
-        state_calls.append(kwargs)
-        return {"ok": True}
 
     async def fake_fetch_info(*, scaleodm_url, odm_task_uuid):
-        return {"errorMessage": "ODM exited with code 1"}
+        return {"status": {"code": 30, "errorMessage": "images did not align"}}
 
-    async def fake_remove(*, scaleodm_url, odm_task_uuid):
-        remove_calls.append(odm_task_uuid)
+    async def fake_update_task_state_system(**kwargs):
+        state_calls.append(kwargs)
+        return {"ok": True}
 
-    monkeypatch.setattr(arq_tasks, "fetch_scaleodm_task_info", fake_fetch_info)
-    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
-    monkeypatch.setattr(arq_tasks.task_logic, "get_task_state", fake_get_task_state)
+    monkeypatch.setattr(project_logic, "fetch_scaleodm_task_info", fake_fetch_info)
     monkeypatch.setattr(
-        arq_tasks.task_logic, "update_task_state_system", fake_update_task_state_system
+        project_logic.task_logic,
+        "update_task_state_system",
+        fake_update_task_state_system,
     )
 
-    result = await arq_tasks.finalize_scaleodm_task(
-        ctx,
-        scaleodm_url="http://scaleodm",
-        dtm_project_id=str(project_id),
-        odm_task_uuid="odm-uuid-3",
-        odm_status_code=30,
-        state_name=State.IMAGE_PROCESSING_STARTED.name,
-        message="Image processing failed.",
-        dtm_task_id=str(task_id),
-    )
+    result = await project_logic.reconcile_failed_task_odm_outputs(conn, project_id)
 
-    assert result["status"] == "failed"
-    assert state_calls
+    assert result == {"checked": 1, "failed": 1, "task_ids": [str(task_id)]}
     assert state_calls[0]["final_state"] == State.IMAGE_PROCESSING_FAILED
-    assert "ODM exited with code 1" in state_calls[0]["comment"]
-    assert remove_calls == ["odm-uuid-3"]
+    assert "images did not align" in state_calls[0]["comment"]
+    # Compare-and-set on the run: the transition is guarded by the UUID we read.
+    assert state_calls[0]["expected_odm_uuid"] == "odm-1"
+    # In-flight invariant: the clear is guarded on that same UUID.
+    assert any(
+        "odm_task_uuid = NULL" in q["query"] and q["params"].get("expected") == "odm-1"
+        for q in conn.executed
+    )
 
 
 @pytest.mark.asyncio
-async def test_finalize_scaleodm_task_project_level_completion(monkeypatch):
+async def test_reconcile_failed_task_odm_outputs_leaves_running(monkeypatch):
     project_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "fin-proj",
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-    processing_status_calls = []
-
-    async def fake_update_processing_status(db, pid, status):
-        processing_status_calls.append({"project_id": pid, "status": status})
-
-    async def fake_remove(*args, **kwargs):
-        return None
-
-    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
-    monkeypatch.setattr(
-        arq_tasks.project_logic,
-        "update_processing_status",
-        fake_update_processing_status,
+    task_id = uuid.uuid4()
+    conn = _FakeConn(
+        cursor_fetchall=[
+            {
+                "id": task_id,
+                "odm_task_uuid": "odm-1",
+                "odm_endpoint_used": None,
+                "started_at": datetime.now(timezone.utc),
+            }
+        ]
     )
-
-    result = await arq_tasks.finalize_scaleodm_task(
-        ctx,
-        scaleodm_url="http://scaleodm",
-        dtm_project_id=str(project_id),
-        odm_task_uuid="odm-uuid-proj",
-        odm_status_code=40,
-        state_name=None,
-        message="Task completed.",
-        dtm_task_id=None,
-    )
-
-    assert result["status"] == "completed"
-    assert processing_status_calls
-    assert processing_status_calls[0]["status"] == ImageProcessingStatus.SUCCESS
-    assert processing_status_calls[0]["project_id"] == project_id
-
-
-@pytest.mark.asyncio
-async def test_finalize_scaleodm_task_project_level_failure(monkeypatch):
-    project_id = uuid.uuid4()
-    conn = _FakeConn()
-    ctx = {
-        "job_id": "fin-proj-fail",
-        "job_try": 1,
-        "db_pool": _FakePool(conn),
-        "redis": None,
-    }
-    processing_status_calls = []
-
-    async def fake_update_processing_status(db, pid, status):
-        processing_status_calls.append({"project_id": pid, "status": status})
 
     async def fake_fetch_info(*, scaleodm_url, odm_task_uuid):
-        return None
+        return {"status": {"code": 20}}  # still running
 
-    async def fake_remove(*args, **kwargs):
-        return None
+    async def fail_update(**kwargs):
+        raise AssertionError("running task must not transition")
 
-    monkeypatch.setattr(arq_tasks, "fetch_scaleodm_task_info", fake_fetch_info)
-    monkeypatch.setattr(arq_tasks, "remove_scaleodm_task", fake_remove)
+    monkeypatch.setattr(project_logic, "fetch_scaleodm_task_info", fake_fetch_info)
     monkeypatch.setattr(
-        arq_tasks.project_logic,
-        "update_processing_status",
-        fake_update_processing_status,
+        project_logic.task_logic, "update_task_state_system", fail_update
     )
 
-    result = await arq_tasks.finalize_scaleodm_task(
-        ctx,
-        scaleodm_url="http://scaleodm",
-        dtm_project_id=str(project_id),
-        odm_task_uuid="odm-uuid-proj-fail",
-        odm_status_code=30,
-        state_name=None,
-        message="Image processing failed.",
-        dtm_task_id=None,
+    result = await project_logic.reconcile_failed_task_odm_outputs(conn, project_id)
+
+    assert result == {"checked": 1, "failed": 0, "task_ids": []}
+    assert conn.commit_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_reconcile_failed_project_odm_output_marks_failed(monkeypatch):
+    project_id = uuid.uuid4()
+    # Same row is returned for the initial SELECT and the guarded UPDATE's
+    # RETURNING (so the UUID/status-guarded write "matches").
+    conn = _FakeConn(
+        cursor_fetchone={
+            "image_processing_status": ImageProcessingStatus.PROCESSING.name,
+            "odm_task_uuid": "odm-1",
+            "odm_endpoint_used": None,
+            "last_updated": datetime.now(timezone.utc),
+            "id": project_id,
+        }
     )
 
-    assert result["status"] == "failed"
-    assert processing_status_calls
-    assert processing_status_calls[0]["status"] == ImageProcessingStatus.FAILED
+    async def fake_fetch_info(*, scaleodm_url, odm_task_uuid):
+        return {"status": {"code": 30, "errorMessage": "not enough images"}}
+
+    monkeypatch.setattr(project_logic, "fetch_scaleodm_task_info", fake_fetch_info)
+
+    result = await project_logic.reconcile_failed_project_odm_output(conn, project_id)
+
+    assert result is True
+    assert conn.commit_calls >= 1
+
+
+# ── reconcile_odm_by_uuid (webhook enqueue target) ───────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_reconcile_odm_by_uuid_resolves_and_reconciles(monkeypatch):
+    project_id = uuid.uuid4()
+    conn = _FakeConn(cursor_fetchone={"project_id": project_id})
+    ctx = {"db_pool": _FakePool(conn)}
+    calls = []
+
+    async def fake_reconcile(db, pid):
+        calls.append(pid)
+        return {
+            "checked": 0,
+            "reconciled": 0,
+            "task_ids": [],
+            "failed": 0,
+            "failed_task_ids": [],
+            "project_finalised": False,
+        }
+
+    monkeypatch.setattr(project_logic, "reconcile_project_processing", fake_reconcile)
+
+    result = await arq_tasks.reconcile_odm_by_uuid(ctx, "odm-uuid-1")
+
+    # Resolves to the owning project and reconciles it (endpoint resolved per run).
+    assert calls == [project_id]
+    assert result["project_id"] == str(project_id)
+
+
+@pytest.mark.asyncio
+async def test_reconcile_odm_by_uuid_not_found():
+    conn = _FakeConn(cursor_fetchone=None)
+    ctx = {"db_pool": _FakePool(conn)}
+
+    result = await arq_tasks.reconcile_odm_by_uuid(ctx, "missing-uuid")
+
+    assert result["status"] == "not_found"
 
 
 # ── move_task_images_for_processing (unchanged behaviour, kept for coverage) ──

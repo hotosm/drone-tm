@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
 
 import aiohttp
-from arq import ArqRedis, create_pool
+from arq import ArqRedis, create_pool, cron
 from arq.connections import RedisSettings, log_redis_info
 from fastapi import HTTPException
 from loguru import logger as log
@@ -54,8 +54,6 @@ from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import download_and_upload_dem
 from app.images.image_processing import (
     extract_and_upload_odm_assets,
-    fetch_scaleodm_task_info,
-    remove_scaleodm_task,
 )
 from app.arq.cloudnative import (
     generate_3d_tiles,
@@ -1321,227 +1319,6 @@ async def process_imported_odm_assets(
             shutil.rmtree(temp_dir)
 
 
-async def _persist_odm_failure(
-    ctx: Dict[Any, Any],
-    project_uuid: UUID,
-    task_uuid: Optional[UUID],
-    state: Optional[State],
-    error_message: str,
-) -> None:
-    """Persist failure state for either task-level or project-level ODM processing."""
-    try:
-        db_pool = ctx.get("db_pool")
-        if not db_pool:
-            return
-        async with db_pool.connection() as conn:
-            if task_uuid and state:
-                await task_logic.update_task_state_system(
-                    db=conn,
-                    project_id=project_uuid,
-                    task_id=task_uuid,
-                    comment=f"Image processing failed: {error_message}",
-                    initial_state=state,
-                    final_state=State.IMAGE_PROCESSING_FAILED,
-                    updated_at=timestamp(),
-                )
-            elif task_uuid and not state:
-                log.warning(
-                    f"Cannot persist task-level failure for {task_uuid} "
-                    "(no initial state provided)",
-                )
-            else:
-                # Project-level processing: mark the project as FAILED.
-                await project_logic.update_processing_status(
-                    conn, project_uuid, ImageProcessingStatus.FAILED
-                )
-            await conn.commit()
-    except Exception as state_err:
-        target = task_uuid or project_uuid
-        log.error(f"Failed to persist ODM failure state for {target}: {state_err}")
-
-
-async def finalize_scaleodm_task(
-    ctx: Dict[Any, Any],
-    *,
-    scaleodm_url: str,
-    dtm_project_id: str,
-    odm_task_uuid: Optional[str],
-    odm_status_code: int,
-    state_name: Optional[str] = None,
-    message: Optional[str] = None,
-    dtm_task_id: Optional[str] = None,
-    **_kwargs: Any,
-) -> Dict[str, Any]:
-    """Finalize a ScaleODM task after a webhook (or reconciler) reports terminal status.
-
-    On task status 40 (completed), pulls odm_orthophoto.tif from the ScaleODM
-    output prefix, reprojects it to EPSG:3857 COG for map display, overwrites
-    the task-level key, sets ``assets_url`` and transitions to
-    IMAGE_PROCESSING_FINISHED. Project-level status 40 leaves the native ODM
-    orthophoto untouched and marks processing successful. On 30 (failed)
-    records an error message and marks the task/project failed. When a
-    ScaleODM UUID is known, best-effort POST /task/remove cleans up the
-    ScaleODM row.
-    """
-    job_id = ctx.get("job_id", "unknown")
-    log.info(
-        "Starting finalize_scaleodm_task (Job ID: {}): project={} odm_task={} code={}",
-        job_id,
-        dtm_project_id,
-        odm_task_uuid,
-        odm_status_code,
-    )
-
-    # Distributed lock: belt-and-suspenders alongside arq's _job_id dedup.
-    # Lock key is intentionally identical to the legacy one so a webhook
-    # and a reconciliation pass can never race even across deploy boundaries.
-    lock_target = dtm_task_id or dtm_project_id
-    lock_key = f"lock:odm-assets:{lock_target}"
-    redis = ctx.get("redis")
-    lock_acquired = False
-    if redis:
-        lock_acquired = await redis.set(
-            lock_key,
-            job_id,
-            nx=True,
-            ex=21600,  # 6 hours - must exceed worst-case reprojection
-        )
-        if not lock_acquired:
-            log.warning(
-                "Skipping finalize_scaleodm_task for {}: "
-                "another job already holds the lock",
-                lock_target,
-            )
-            return {"status": "skipped", "reason": "concurrent_lock"}
-
-    project_uuid = UUID(dtm_project_id)
-    task_uuid = UUID(dtm_task_id) if dtm_task_id else None
-    state = State[state_name] if state_name else None
-    db_pool = ctx.get("db_pool")
-
-    try:
-        # Pre-flight: skip if the task is no longer in the expected state
-        # (a previous webhook + reconciler may have already finalized).
-        if task_uuid and state and db_pool:
-            try:
-                async with db_pool.connection() as conn:
-                    current = await task_logic.get_task_state(
-                        conn, project_uuid, task_uuid
-                    )
-                    current_state = current.get("state") if current else None
-                    if current_state and current_state != state.name:
-                        log.warning(
-                            "Skipping finalize for task {}: expected state {} "
-                            "but found {} (already handled)",
-                            task_uuid,
-                            state.name,
-                            current_state,
-                        )
-                        return {"status": "skipped", "reason": "state_mismatch"}
-            except Exception as e:
-                log.warning(
-                    "Could not verify task state before finalizing (continuing): {}",
-                    e,
-                )
-
-        if int(odm_status_code) == 40:
-            # ScaleODM is submitted with the ``cog`` option so the task
-            # orthophoto is already a Cloud-Optimized GeoTIFF with internal
-            # overviews. No backend reproject step is needed - the in-app
-            # viewer reads the file directly via HTTP range requests.
-            task_segment = f"{task_uuid}/" if task_uuid else ""
-            assets_prefix = f"projects/{dtm_project_id}/{task_segment}odm/"
-
-            if db_pool:
-                async with db_pool.connection() as conn:
-                    if task_uuid and state:
-                        await task_logic.update_task_state_system(
-                            db=conn,
-                            project_id=project_uuid,
-                            task_id=task_uuid,
-                            comment=message,
-                            initial_state=state,
-                            final_state=State.IMAGE_PROCESSING_FINISHED,
-                            updated_at=timestamp(),
-                        )
-                        await project_logic.update_task_field(
-                            conn,
-                            project_uuid,
-                            task_uuid,
-                            "assets_url",
-                            assets_prefix,
-                        )
-                        log.info(
-                            f"Task {task_uuid} state updated to IMAGE_PROCESSING_FINISHED."
-                        )
-                    elif not task_uuid:
-                        await project_logic.update_processing_status(
-                            conn, project_uuid, ImageProcessingStatus.SUCCESS
-                        )
-                        # Persist the streaming download URL so future requests
-                        # don't need to re-probe S3 to determine availability.
-                        odm_assets_url = f"{settings.API_PREFIX}/projects/odm/export/{dtm_project_id}/"
-                        await conn.execute(
-                            "UPDATE projects SET output_odm_assets_url = %(url)s"
-                            " WHERE id = %(pid)s",
-                            {"url": odm_assets_url, "pid": project_uuid},
-                        )
-                        log.info(f"Project {project_uuid} status updated to SUCCESS.")
-                    await conn.commit()
-
-            # Cloudnative derivatives are user-triggered now: the project UI
-            # exposes "Convert 2D / 3D to View" buttons that hit the trigger
-            # endpoints in project_routes.py. We deliberately do NOT enqueue
-            # here - many projects never need the web-optimized assets, and
-            # running the jobs for every successful project wasted compute
-            # for users on slow workers.
-
-            # drone-tm DB is now committed - safe to remove the ScaleODM record
-            # when we know its UUID. The call is best-effort; a 404 is ignored.
-            if odm_task_uuid:
-                await remove_scaleodm_task(
-                    scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
-                )
-            return {"status": "completed", "project_id": dtm_project_id}
-
-        if int(odm_status_code) == 30:
-            error_detail = message or "ODM processing failed"
-            if odm_task_uuid:
-                info = await fetch_scaleodm_task_info(
-                    scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
-                )
-                if info and isinstance(info, dict):
-                    err = info.get("errorMessage") or info.get("error")
-                    if err:
-                        error_detail = str(err)
-
-            # _persist_odm_failure commits the failure state in drone-tm DB.
-            await _persist_odm_failure(
-                ctx, project_uuid, task_uuid, state, error_detail
-            )
-
-            # DB committed - remove the ScaleODM record when we know its UUID.
-            if odm_task_uuid:
-                await remove_scaleodm_task(
-                    scaleodm_url=scaleodm_url, odm_task_uuid=odm_task_uuid
-                )
-            return {
-                "status": "failed",
-                "reason": "odm_status_30",
-                "project_id": dtm_project_id,
-            }
-
-        log.warning(
-            "finalize_scaleodm_task called with unexpected status code {} "
-            "(expected 30 or 40); skipping",
-            odm_status_code,
-        )
-        return {"status": "skipped", "reason": "unexpected_status_code"}
-    finally:
-        if redis and lock_acquired:
-            await redis.delete(lock_key)
-
-
 def _normalize_s3_endpoint(endpoint: str) -> str:
     """Return a base URL (scheme + host) for the S3-compatible endpoint."""
     endpoint = endpoint.strip().rstrip("/")
@@ -1929,6 +1706,96 @@ async def create_project_from_imagery_exif(
     }
 
 
+async def reconcile_inflight_odm_tasks(ctx: Dict[Any, Any]) -> Dict[str, Any]:
+    """Cron backstop for anything the webhook and page-open paths miss.
+
+    Reconciles only in-flight runs (non-null odm_task_uuid, set on submit and
+    cleared on terminal), so it never scans processing history.
+    """
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        log.warning("reconcile_inflight_odm_tasks: no db_pool; skipping")
+        return {"status": "skipped", "reason": "no_db_pool"}
+
+    async with db_pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT p.id
+                FROM projects p
+                WHERE (
+                        p.image_processing_status = %(processing)s
+                        AND p.odm_task_uuid IS NOT NULL
+                      )
+                   OR EXISTS (
+                        SELECT 1 FROM tasks t
+                        WHERE t.project_id = p.id
+                          AND t.odm_task_uuid IS NOT NULL
+                      );
+                """,
+                {"processing": ImageProcessingStatus.PROCESSING.name},
+            )
+            projects = await cur.fetchall()
+
+    reconciled = 0
+    for proj in projects:
+        project_id = proj["id"]
+        try:
+            async with db_pool.connection() as conn:
+                await project_logic.reconcile_project_processing(conn, project_id)
+            reconciled += 1
+        except Exception as e:
+            log.warning(
+                f"reconcile_inflight_odm_tasks: project {project_id} failed: {e}"
+            )
+
+    log.info(
+        f"reconcile_inflight_odm_tasks: swept {len(projects)} in-flight project(s)"
+    )
+    return {"in_flight": len(projects), "reconciled": reconciled}
+
+
+async def reconcile_odm_by_uuid(
+    ctx: Dict[Any, Any], odm_task_uuid: str
+) -> Dict[str, Any]:
+    """Reconcile the project owning an ODM task UUID (enqueued by the webhook).
+
+    The webhook is an untrusted trigger: its payload status is ignored and the
+    truth is re-derived by reconcile_project_processing.
+    """
+    db_pool = ctx.get("db_pool")
+    if not db_pool or not odm_task_uuid:
+        return {"status": "skipped"}
+
+    async with db_pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT p.id AS project_id
+                FROM projects p
+                WHERE p.odm_task_uuid = %(uuid)s
+                UNION
+                SELECT t.project_id AS project_id
+                FROM tasks t
+                WHERE t.odm_task_uuid = %(uuid)s
+                LIMIT 1;
+                """,
+                {"uuid": odm_task_uuid},
+            )
+            row = await cur.fetchone()
+
+    if not row:
+        log.info(f"reconcile_odm_by_uuid: no project for odm uuid {odm_task_uuid}")
+        return {"status": "not_found", "odm_task_uuid": odm_task_uuid}
+
+    # Reconcile the whole owning project, not just this task.
+    project_id = row["project_id"]
+    async with db_pool.connection() as conn:
+        summary = await project_logic.reconcile_project_processing(conn, project_id)
+    log.info(f"reconcile_odm_by_uuid: reconciled project {project_id}")
+    return {"project_id": str(project_id), **summary}
+
+
 class WorkerSettings:
     """ARQ worker configuration"""
 
@@ -1947,10 +1814,16 @@ class WorkerSettings:
         download_and_upload_dem,
         generate_qfield_project,
         process_imported_odm_assets,
-        finalize_scaleodm_task,
         create_project_from_imagery_exif,
         generate_orthophoto_cog,
         generate_3d_tiles,
+        reconcile_inflight_odm_tasks,
+        reconcile_odm_by_uuid,
+    ]
+
+    # Backstop reconcile every 30 min (webhook and page-open do the fast path).
+    cron_jobs = [
+        cron(reconcile_inflight_odm_tasks, minute={0, 30}, run_at_startup=False),
     ]
 
     queue_name = "default_queue"

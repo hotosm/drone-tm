@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import uuid
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Dict, Optional
 
@@ -35,6 +36,7 @@ from app.models.enums import FinalOutput, ImageProcessingStatus, OAMUploadStatus
 from app.projects import project_schemas
 from app.images.image_processing import (
     ScaleOdmSubmitError,
+    fetch_scaleodm_task_info,
     submit_scaleodm_task,
 )
 from app.s3 import (
@@ -458,10 +460,16 @@ async def process_drone_images(
                 use_default_excludes=True,
                 exclude_paths=["*/thumbs/*"],
                 s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
+                webhook=settings.SCALEODM_WEBHOOK_URL,
             )
 
             await update_task_field(
                 conn, project_id, task_id, "odm_task_uuid", odm_uuid
+            )
+            # Store the endpoint so reconcile queries the same server (per-task
+            # custom URLs).
+            await update_task_field(
+                conn, project_id, task_id, "odm_endpoint_used", scaleodm_endpoint
             )
             await conn.commit()
             log.info(f"Stored ScaleODM task UUID {odm_uuid} for task {task_id}")
@@ -517,13 +525,13 @@ async def process_drone_images(
 async def update_processing_status(
     db: Connection, project_id: uuid.UUID, status: ImageProcessingStatus
 ):
-    """Update the processing status in the database.
+    """Update the processing status.
 
-    On SUCCESS, clears odm_task_uuid and odm_endpoint_used so stale
-    metadata doesn't interfere with future reconciliation.
+    On a terminal status (SUCCESS or FAILED) also clears odm_task_uuid and
+    odm_endpoint_used, so the project leaves the in-flight set the cron sweeps.
     """
     log.debug(f"status = {status.name}")
-    if status == ImageProcessingStatus.SUCCESS:
+    if status in (ImageProcessingStatus.SUCCESS, ImageProcessingStatus.FAILED):
         await db.execute(
             """
             UPDATE projects
@@ -610,6 +618,7 @@ async def process_all_drone_images(
                 ],
                 s3_endpoint=settings.SCALEODM_S3_ENDPOINT,
                 capacity_type=capacity_type,
+                webhook=settings.SCALEODM_WEBHOOK_URL,
             )
 
             # Persist ODM metadata for reconciliation/recovery, then mark PROCESSING.
@@ -782,6 +791,25 @@ async def get_assets_info_bulk(
     return results
 
 
+async def _clear_task_odm_run(
+    db: Connection,
+    project_id: uuid.UUID,
+    task_id: uuid.UUID,
+    expected_odm_uuid: Optional[str],
+) -> None:
+    """Clear a task's odm metadata, but only if it still holds expected_odm_uuid
+    (so a rerun that reused the row is never cleared)."""
+    await db.execute(
+        """
+        UPDATE tasks
+        SET odm_task_uuid = NULL, odm_endpoint_used = NULL
+        WHERE id = %(tid)s AND project_id = %(pid)s
+          AND odm_task_uuid IS NOT DISTINCT FROM %(expected)s;
+        """,
+        {"tid": str(task_id), "pid": str(project_id), "expected": expected_odm_uuid},
+    )
+
+
 async def reconcile_finished_task_odm_outputs(
     db: Connection,
     project_id: uuid.UUID,
@@ -810,7 +838,7 @@ async def reconcile_finished_task_odm_outputs(
                 WHERE t.project_id = %(project_id)s
                 ORDER BY te.task_id, te.created_at DESC
             )
-            SELECT t.id, ls.created_at AS started_at
+            SELECT t.id, t.odm_task_uuid, ls.created_at AS started_at
             FROM tasks t
             JOIN latest_state ls ON ls.task_id = t.id
             WHERE t.project_id = %(project_id)s
@@ -865,6 +893,7 @@ async def reconcile_finished_task_odm_outputs(
             if ortho_naive < started_naive:
                 continue
 
+        # Only finalise if the run's UUID is unchanged (skip if a rerun replaced it).
         result = await task_logic.update_task_state_system(
             db=db,
             project_id=project_id,
@@ -873,6 +902,7 @@ async def reconcile_finished_task_odm_outputs(
             initial_state=State.IMAGE_PROCESSING_STARTED,
             final_state=State.IMAGE_PROCESSING_FINISHED,
             updated_at=timestamp(),
+            expected_odm_uuid=row.get("odm_task_uuid"),
         )
         if result is None:
             continue
@@ -884,6 +914,8 @@ async def reconcile_finished_task_odm_outputs(
             "assets_url",
             f"projects/{project_id}/{task_id}/odm/",
         )
+        # Clear (guarded on the run) so the task leaves the current run
+        await _clear_task_odm_run(db, project_id, task_id, row.get("odm_task_uuid"))
         reconciled_task_ids.append(str(task_id))
 
     if reconciled_task_ids:
@@ -903,8 +935,7 @@ async def reconcile_finished_project_odm_output(
     ODM orthophoto has landed in S3.
 
     Mirrors :func:`reconcile_finished_task_odm_outputs` but for whole-project
-    (``process_all_imagery``) runs. The state transition side-effects match
-    what ``finalize_scaleodm_task`` used to do:
+    (``process_all_imagery``) runs. The state transition side-effects are:
       * ``image_processing_status = SUCCESS``
       * ``odm_task_uuid`` / ``odm_endpoint_used`` cleared
       * ``output_odm_assets_url`` populated
@@ -919,7 +950,7 @@ async def reconcile_finished_project_odm_output(
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """
-            SELECT image_processing_status, last_updated
+            SELECT image_processing_status, odm_task_uuid, last_updated
             FROM projects
             WHERE id = %(project_id)s;
             """,
@@ -959,19 +990,236 @@ async def reconcile_finished_project_odm_output(
         if ortho_naive < started_naive:
             return False
 
-    # Reuse update_processing_status so the SUCCESS-side-effects (clearing
-    # odm_task_uuid/odm_endpoint_used) stay in one place. Follow up with the
-    # output URL UPDATE, same pattern as finalize_scaleodm_task's project-
-    # level branch (see arq/tasks.py).
-    await update_processing_status(db, project_id, ImageProcessingStatus.SUCCESS)
+    # Finalise only if the run's UUID/status is unchanged (skip a concurrent rerun).
     odm_assets_url = f"{settings.API_PREFIX}/projects/odm/export/{project_id}/"
-    await db.execute(
-        "UPDATE projects SET output_odm_assets_url = %(url)s WHERE id = %(pid)s",
-        {"url": odm_assets_url, "pid": project_id},
-    )
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            UPDATE projects
+            SET image_processing_status = %(success)s,
+                odm_task_uuid = NULL,
+                odm_endpoint_used = NULL,
+                output_odm_assets_url = %(url)s
+            WHERE id = %(pid)s
+              AND image_processing_status = %(processing)s
+              AND odm_task_uuid IS NOT DISTINCT FROM %(expected)s
+            RETURNING id;
+            """,
+            {
+                "success": ImageProcessingStatus.SUCCESS.name,
+                "processing": ImageProcessingStatus.PROCESSING.name,
+                "expected": row.get("odm_task_uuid"),
+                "url": odm_assets_url,
+                "pid": project_id,
+            },
+        )
+        changed = await cur.fetchone()
     await db.commit()
+
+    if not changed:
+        return False
     log.info(f"Reconciled project {project_id} to SUCCESS from S3 output.")
     return True
+
+
+# Fail a run only after this long with no status from ScaleODM at all. Long
+# enough that no real job or transient outage reaches it.
+ODM_STUCK_TIMEOUT_SECONDS = 7 * 24 * 3600
+
+
+def _aware_utc(dt: datetime) -> datetime:
+    """Return dt as tz-aware UTC, treating a naive value (DB timestamps) as UTC."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+def _odm_failure_reason(
+    info: Optional[dict[str, Any]],
+    started_at: Optional[datetime],
+) -> Optional[str]:
+    """Return a failure message if a STARTED run should be failed, else None.
+
+    Fails only on an explicit terminal status; an unreachable ScaleODM (info is
+    None) is transient, not a failure (ScaleODM reports code 30 for a workflow
+    it can't find). /task/info nests status: {"status": {"code": 30, ...}}
+    (10 queued, 20 running, 30 failed, 40 completed, 50 canceled).
+    """
+    if info is not None:
+        status = info.get("status") or {}
+        code = int(status.get("code") or 0)
+        if code == 30:
+            return str(status.get("errorMessage") or "ODM processing failed.")
+        if code == 50:
+            return "Processing was canceled."
+        return None
+
+    # Unreachable/unknown: keep waiting until past the stuck timeout.
+    if started_at is not None:
+        age = (datetime.now(timezone.utc) - _aware_utc(started_at)).total_seconds()
+        if age >= ODM_STUCK_TIMEOUT_SECONDS:
+            return "Processing timed out; no status from ScaleODM."
+    return None
+
+
+async def reconcile_failed_task_odm_outputs(
+    db: Connection,
+    project_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Fail STARTED tasks that ScaleODM reports as terminally failed.
+
+    Complements the S3 success check, which can't see failures (no output is
+    written). Each task is queried on its own stored endpoint. Clears the odm
+    metadata on failure so the task leaves the in-flight set.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            WITH latest_state AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id, te.state, te.created_at
+                FROM task_events te
+                JOIN tasks t ON t.id = te.task_id
+                WHERE t.project_id = %(project_id)s
+                ORDER BY te.task_id, te.created_at DESC
+            )
+            SELECT t.id, t.odm_task_uuid, t.odm_endpoint_used,
+                   ls.created_at AS started_at
+            FROM tasks t
+            JOIN latest_state ls ON ls.task_id = t.id
+            WHERE t.project_id = %(project_id)s
+              AND ls.state = 'IMAGE_PROCESSING_STARTED'
+              AND t.odm_task_uuid IS NOT NULL
+            ORDER BY t.project_task_index;
+            """,
+            {"project_id": project_id},
+        )
+        rows = await cur.fetchall()
+
+    failed_task_ids: list[str] = []
+    for row in rows:
+        task_id = row["id"]
+        info = await fetch_scaleodm_task_info(
+            scaleodm_url=resolve_scaleodm_url(row.get("odm_endpoint_used")),
+            odm_task_uuid=row["odm_task_uuid"],
+        )
+        reason = _odm_failure_reason(info, row.get("started_at"))
+        if reason is None:
+            continue
+
+        # Only fail if the run's UUID is unchanged (skip if a rerun replaced it).
+        result = await task_logic.update_task_state_system(
+            db=db,
+            project_id=project_id,
+            task_id=task_id,
+            comment=f"Image processing failed: {reason}",
+            initial_state=State.IMAGE_PROCESSING_STARTED,
+            final_state=State.IMAGE_PROCESSING_FAILED,
+            updated_at=timestamp(),
+            expected_odm_uuid=row["odm_task_uuid"],
+        )
+        if result is None:
+            continue
+        await _clear_task_odm_run(db, project_id, task_id, row["odm_task_uuid"])
+        failed_task_ids.append(str(task_id))
+
+    if failed_task_ids:
+        await db.commit()
+
+    return {
+        "checked": len(rows),
+        "failed": len(failed_task_ids),
+        "task_ids": failed_task_ids,
+    }
+
+
+async def reconcile_failed_project_odm_output(
+    db: Connection,
+    project_id: uuid.UUID,
+) -> bool:
+    """Project-level mirror of reconcile_failed_task_odm_outputs.
+
+    Returns True if the project was transitioned to FAILED.
+    """
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            SELECT image_processing_status, odm_task_uuid, odm_endpoint_used,
+                   last_updated
+            FROM projects
+            WHERE id = %(project_id)s;
+            """,
+            {"project_id": project_id},
+        )
+        row = await cur.fetchone()
+
+    if (
+        not row
+        or row.get("image_processing_status") != ImageProcessingStatus.PROCESSING.name
+        or not row.get("odm_task_uuid")
+    ):
+        return False
+
+    info = await fetch_scaleodm_task_info(
+        scaleodm_url=resolve_scaleodm_url(row.get("odm_endpoint_used")),
+        odm_task_uuid=row["odm_task_uuid"],
+    )
+    reason = _odm_failure_reason(info, row.get("last_updated"))
+    if reason is None:
+        return False
+
+    # Only fail if the run's UUID/status is unchanged (a rerun matches nothing).
+    async with db.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            """
+            UPDATE projects
+            SET image_processing_status = %(failed)s,
+                odm_task_uuid = NULL,
+                odm_endpoint_used = NULL
+            WHERE id = %(project_id)s
+              AND odm_task_uuid = %(expected)s
+              AND image_processing_status = %(processing)s
+            RETURNING id;
+            """,
+            {
+                "failed": ImageProcessingStatus.FAILED.name,
+                "processing": ImageProcessingStatus.PROCESSING.name,
+                "expected": row["odm_task_uuid"],
+                "project_id": project_id,
+            },
+        )
+        changed = await cur.fetchone()
+    await db.commit()
+
+    if not changed:
+        return False
+    log.info(f"Reconciled project {project_id} to FAILED: {reason}")
+    return True
+
+
+def resolve_scaleodm_url(odm_endpoint_used: Optional[str]) -> str:
+    """Use the endpoint a run was submitted to, else the configured default."""
+    return odm_endpoint_used or settings.ODM_ENDPOINT
+
+
+async def reconcile_project_processing(
+    db: Connection,
+    project_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Reconcile one project's ODM status: S3 output (success) first, then a
+    ScaleODM /task/info call (failure vs still running). Single entry point for
+    the /reconcile endpoint, page open, and the cron; idempotent.
+    """
+    task_success = await reconcile_finished_task_odm_outputs(db, project_id)
+    project_success = await reconcile_finished_project_odm_output(db, project_id)
+    task_failed = await reconcile_failed_task_odm_outputs(db, project_id)
+    project_failed = await reconcile_failed_project_odm_output(db, project_id)
+    return {
+        "checked": task_success["checked"],
+        "reconciled": task_success["reconciled"],
+        "task_ids": task_success["task_ids"],
+        "failed": task_failed["failed"],
+        "failed_task_ids": task_failed["task_ids"],
+        "project_finalised": project_success or project_failed,
+    }
 
 
 async def check_regulator_project(db: Connection, project_id: str, email: str):

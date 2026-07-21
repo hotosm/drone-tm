@@ -948,6 +948,7 @@
   "processing_dialog_no_imagery_available": "No tasks have imagery available for processing. Upload imagery first.",
   "processing_dialog_final_submitting": "Final processing is being submitted...",
   "processing_dialog_final_in_progress": "Final processing is in progress. Check the queue for details.",
+  "processing_dialog_final_failed": "Final processing failed. Review the imagery in the Verify step and try again.",
   "processing_dialog_start_final_processing": "Start Final Processing",
   "processing_dialog_final_started_success": "Final processing started - this may take a long time.",
   "processing_dialog_final_start_failed": "Failed to start final processing",

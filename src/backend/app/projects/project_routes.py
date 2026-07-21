@@ -758,20 +758,13 @@ async def reconcile_assets_info(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
 ):
-    """Reconcile task-level ODM completion from deterministic S3 outputs.
-
-    Returns both the reconciliation summary AND the refreshed assets_info
-    payload so the client can seed its cache from a single call rather
-    than firing a follow-up GET /assets/{project_id}/.
-    """
-    summary = await project_logic.reconcile_finished_task_odm_outputs(db, project.id)
-    project_finalised = await project_logic.reconcile_finished_project_odm_output(
-        db, project.id
-    )
+    """Reconcile ODM status, then return the summary plus refreshed assets so
+    the client seeds its cache from one call (no follow-up GET /assets)."""
+    summary = await project_logic.reconcile_project_processing(db, project.id)
     tasks = await project_deps.get_tasks_by_project_id(project.id, db)
     task_ids = [t.get("id") for t in tasks]
     assets = await project_logic.get_assets_info_bulk(db, project.id, task_ids)
-    return {**summary, "project_finalised": project_finalised, "assets": assets}
+    return {**summary, "assets": assets}
 
 
 @router.post("/{project_id}/upload-to-oam", tags=["OAM"])
