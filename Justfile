@@ -49,6 +49,11 @@ chart *args:
 migrate:
   docker compose run --rm migrations alembic upgrade head
 
+# Autogenerate a migration by diffing the SQLAlchemy models against the DB.
+db-revision message:
+  just migrate
+  docker compose run --rm migrations alembic revision --autogenerate -m "{{message}}"
+
 # Run pre-commit hooks
 lint:
   #!/usr/bin/env sh
