@@ -14,3 +14,4 @@ from the projects inception.
 - [0003 - Storage And Processing Options](./0003-aws-storage-processing.md)
 - [0004 - QField Mobile Plugin For Flightplans](./0004-mobile-qfield-plugin.md)
 - [0005 - Simple Mobile Flightplan Copy](./0005-flightplan-copy.md)
+- [0006 - Reconciling Processing Status From ScaleODM](./0006-processing-status-reconciliation.md)

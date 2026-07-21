@@ -464,6 +464,14 @@ const ProcessingStatusDialog = () => {
     });
   }, [taskList]);
 
+  // Reconcile once on open so status is current without polling.
+  const reconciledForProject = useRef<string | null>(null);
+  useEffect(() => {
+    if (!projectId || reconciledForProject.current === projectId) return;
+    reconciledForProject.current = projectId;
+    handleRefreshProcessingStatus().catch(() => {});
+  }, [projectId, handleRefreshProcessingStatus]);
+
   const toggleSelectAll = useCallback(() => {
     if (selectedTasks.size === processableTasks.length) {
       setSelectedTasks(new Set());
@@ -910,6 +918,12 @@ const ProcessingStatusDialog = () => {
                   ? m.processing_dialog_final_submitting()
                   : m.processing_dialog_final_in_progress()}
               </span>
+            </div>
+          )}
+          {!isFinalProcessingRunning && projectDetail?.image_processing_status === "FAILED" && (
+            <div className="naxatw-flex naxatw-items-start naxatw-gap-2 naxatw-text-sm naxatw-text-red-700">
+              <Icon name="error" className="!naxatw-text-base" />
+              <span>{m.processing_dialog_final_failed()}</span>
             </div>
           )}
           <Button

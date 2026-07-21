@@ -379,6 +379,7 @@ async def update_task_state_system(
     initial_state: State,
     final_state: State,
     updated_at: datetime,
+    expected_odm_uuid: str | None = None,
 ):
     """Update task state without user ownership check.
 
@@ -387,6 +388,10 @@ async def update_task_state_system(
 
     The comment is sanitized to redact sensitive values (e.g. tokens
     embedded in NodeODM URLs) before persisting to the database.
+
+    When expected_odm_uuid is given, the transition also requires the task to
+    still hold that odm_task_uuid (so a rerun that reused the row is not
+    affected).
     """
     comment = sanitize_sensitive_text(comment)
     async with db.cursor(row_factory=dict_row) as cur:
@@ -400,9 +405,14 @@ async def update_task_state_system(
                 LIMIT 1
             ),
             can_modify AS (
-                SELECT *
+                SELECT last.*
                 FROM last
-                WHERE state = %(initial_state)s
+                JOIN tasks t ON t.id = %(task_id)s AND t.project_id = %(project_id)s
+                WHERE last.state = %(initial_state)s
+                  AND (
+                      %(expected_odm_uuid)s::text IS NULL
+                      OR t.odm_task_uuid = %(expected_odm_uuid)s
+                  )
             )
             INSERT INTO task_events(event_id, project_id, task_id, user_id, state, comment, updated_at, created_at)
             SELECT gen_random_uuid(), project_id, task_id, user_id, %(final_state)s, %(comment)s, %(updated_at)s, now()
@@ -416,6 +426,7 @@ async def update_task_state_system(
                 "initial_state": initial_state.name,
                 "final_state": final_state.name,
                 "updated_at": updated_at,
+                "expected_odm_uuid": expected_odm_uuid,
             },
         )
         result = await cur.fetchone()

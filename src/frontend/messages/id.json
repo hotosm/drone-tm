@@ -946,6 +946,7 @@
   "processing_dialog_no_imagery_available": "Tidak ada tugas dengan citra yang tersedia untuk diproses. Unggah citra terlebih dahulu.",
   "processing_dialog_final_submitting": "Pemrosesan akhir sedang dikirim...",
   "processing_dialog_final_in_progress": "Pemrosesan akhir sedang berlangsung. Periksa antrean untuk detailnya.",
+  "processing_dialog_final_failed": "Pemrosesan akhir gagal. Periksa citra di langkah Verifikasi dan coba lagi.",
   "processing_dialog_start_final_processing": "Mulai Pemrosesan Akhir",
   "processing_dialog_final_started_success": "Pemrosesan akhir dimulai - ini mungkin memerlukan waktu lama.",
   "processing_dialog_final_start_failed": "Gagal memulai pemrosesan akhir",

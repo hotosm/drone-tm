@@ -4,6 +4,7 @@ import base64
 import secrets
 from functools import lru_cache
 from typing import Annotated, Optional, Union
+from urllib.parse import quote
 
 import bcrypt
 from loguru import logger as log
@@ -203,6 +204,20 @@ class Settings(BaseSettings):
 
     # Internal backend URL for Docker-internal services (webhooks from ODM, etc.)
     BACKEND_URL_INTERNAL: str = "http://backend:8000"
+    # Optional shared secret for the ScaleODM webhook, checked against the
+    # ?token= query param.
+    SCALEODM_WEBHOOK_SECRET: Optional[str] = None
+
+    @computed_field
+    @property
+    def SCALEODM_WEBHOOK_URL(self) -> str:
+        """Callback URL passed to ScaleODM on submit. The secret rides as a
+        ?token= param because ScaleODM POSTs the stored URL verbatim."""
+        base = f"{self.BACKEND_URL_INTERNAL}{self.API_PREFIX}/integrations/scaleodm/webhook"
+        if self.SCALEODM_WEBHOOK_SECRET:
+            return f"{base}?token={quote(self.SCALEODM_WEBHOOK_SECRET, safe='')}"
+        return base
+
     # ODM (ScaleODM) API endpoint
     ODM_ENDPOINT: Optional[str] = "http://host.docker.internal:31100"
     # In-cluster S3 endpoint passed to ScaleODM workflow pods.

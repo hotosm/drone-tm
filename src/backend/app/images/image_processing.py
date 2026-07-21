@@ -42,12 +42,12 @@ async def submit_scaleodm_task(
     exclude_paths: Optional[list[str]] = None,
     s3_endpoint: Optional[str] = None,
     capacity_type: Optional[str] = None,
+    webhook: Optional[str] = None,
 ) -> str:
-    """Create a ScaleODM task via POST /task/new.
+    """Create a ScaleODM task via POST /task/new, returning the task UUID.
 
-    Returns the ScaleODM task UUID. Raises :class:`ScaleOdmSubmitError`
-    on a non-2xx response (with the server's ``error``/``errorMessage``
-    string when present).
+    Raises :class:`ScaleOdmSubmitError` on a non-2xx response. When ``webhook``
+    is set, ScaleODM calls it on terminal status.
     """
     body: dict[str, Any] = {
         "name": name,
@@ -65,6 +65,8 @@ async def submit_scaleodm_task(
         body["s3Endpoint"] = s3_endpoint
     if capacity_type:
         body["capacityType"] = capacity_type
+    if webhook:
+        body["webhook"] = webhook
 
     base = scaleodm_url.rstrip("/")
     url = f"{base}/task/new"
@@ -104,38 +106,19 @@ async def submit_scaleodm_task(
             return str(uuid_value)
 
 
-async def remove_scaleodm_task(*, scaleodm_url: str, odm_task_uuid: str) -> None:
-    """Best-effort POST /task/remove. Logs and swallows failures."""
-    base = scaleodm_url.rstrip("/")
-    url = f"{base}/task/remove"
-    try:
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=SCALEODM_SUBMIT_TIMEOUT_SEC)
-        ) as session:
-            async with session.post(url, json={"uuid": odm_task_uuid}) as resp:
-                if resp.status >= 400:
-                    body = await resp.text()
-                    log.warning(
-                        "ScaleODM /task/remove returned HTTP {} for {}: {}",
-                        resp.status,
-                        odm_task_uuid,
-                        body[:200],
-                    )
-                    return
-        log.info(f"Removed ScaleODM task {odm_task_uuid}")
-    except Exception as e:
-        log.warning(f"Failed to remove ScaleODM task {odm_task_uuid}: {e}")
-
-
 async def fetch_scaleodm_task_info(
     *, scaleodm_url: str, odm_task_uuid: str
 ) -> Optional[dict[str, Any]]:
-    """Fetch /task/{uuid}/info from ScaleODM. Returns ``None`` on failure."""
+    """Fetch /task/{uuid}/info from ScaleODM. Returns ``None`` on failure.
+
+    Short timeout: reconcile calls these sequentially, so a slow one would stall
+    the loop.
+    """
     base = scaleodm_url.rstrip("/")
     url = f"{base}/task/{odm_task_uuid}/info"
     try:
         async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=15)
+            timeout=aiohttp.ClientTimeout(total=5)
         ) as session:
             async with session.get(url) as resp:
                 if resp.status != 200:

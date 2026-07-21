@@ -946,6 +946,7 @@
   "processing_dialog_no_imagery_available": "Ninguna tarea tiene imágenes disponibles para procesar. Sube imágenes primero.",
   "processing_dialog_final_submitting": "Se está enviando el procesamiento final...",
   "processing_dialog_final_in_progress": "El procesamiento final está en curso. Consulta la cola para más detalles.",
+  "processing_dialog_final_failed": "El procesamiento final falló. Revisa las imágenes en el paso de Verificación e inténtalo de nuevo.",
   "processing_dialog_start_final_processing": "Iniciar procesamiento final",
   "processing_dialog_final_started_success": "Procesamiento final iniciado: esto puede tardar bastante.",
   "processing_dialog_final_start_failed": "No se pudo iniciar el procesamiento final",
