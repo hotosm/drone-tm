@@ -7,13 +7,8 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 from app.models.enums import ImageStatus
-from app.utils import (
-    calculate_angular_difference,
-    circular_mean_pair,
-    circular_mean_list,
-)
 
-
+'''
 def _confirm_stable_heading(project_list: list, image_index: int, steps: int) -> bool:
     """
     Confirms if a suspected change in the flight trajectory is sustained.
@@ -65,6 +60,43 @@ def _confirm_stable_heading(project_list: list, image_index: int, steps: int) ->
             if azimuth_difference > 10:
                 return False
         return True
+'''
+
+
+def _find_main_axis(flight_segment_images, field="yaw_deg"):
+    """
+    Follows same logic from 'find_axis' suggested flight tail removal focused on 'FlightYawDegree' to find
+    main axis/baseline for flight segment.
+    """
+    # Count up flight headings, treating 180-degree rotations as equivalent
+    photos_by_heading = [[] for h in range(180)]
+    for image in flight_segment_images:
+        # Check if yaw_deg exists
+        if image[field] is None:
+            continue
+        heading = int(image[field] % 180)
+        photos_by_heading[heading].append(image)
+
+    # Find the 10-degree sector where most flight headings fall
+    best_h, max_count = None, 0
+    for h in range(180):
+        count_in_sector = sum(len(photos_by_heading[i % 180]) for i in range(h, h + 10))
+        if count_in_sector > max_count:
+            best_h, max_count = h, count_in_sector
+
+    # Collect all the photos with headings within that 10-degree sector
+    aligned_photos = []
+    for i in range(best_h, best_h + 10):
+        aligned_photos += photos_by_heading[i % 180]
+
+    # These headings are all between best_h and best_h + 10, so subtracting
+    # best_h makes them safe to average (all positive, no discontinuity).
+    aligned_headings = [(p[field] - best_h) % 180 for p in aligned_photos]
+
+    assert all(0 <= h <= 10 for h in aligned_headings)
+    average_heading = sum(aligned_headings) / len(aligned_headings)
+
+    return (best_h + average_heading) % 180
 
 
 async def _flag_flight_tail_images(
@@ -107,7 +139,7 @@ async def mark_and_remove_flight_tail_imagery(
     """
     Identifies and flags flight tail imagery taken during takeoff and landing to prevent photogrammetric distortion.
 
-    This function inspects the transit phases of a flight trajectory by analyzing azimuthal shifts between consecutive
+    This function inspects the transit phases of a flight trajectory by analyzing FlightYawDegree between consecutive
     images to identify potential flightplan tails.
 
     Args:
@@ -144,6 +176,7 @@ async def mark_and_remove_flight_tail_imagery(
                     uploaded_at
                 ) AS sort_ts,
                 NULLIF(exif->>'FlightYawDegree', '')::double precision AS yaw_deg,
+                NULLIF(exif->>'GimbalPitchDegree', '')::double precision AS gimbal_pitch_deg,
                 NULLIF(regexp_replace(COALESCE(exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m
             FROM project_images
             WHERE project_id = %(project_id)s
@@ -160,6 +193,7 @@ async def mark_and_remove_flight_tail_imagery(
                 uploaded_at,
                 sort_ts,
                 yaw_deg,
+                gimbal_pitch_deg,
                 altitude_m,
                 LAG(sort_ts, 1, sort_ts) OVER (ORDER BY sort_ts ASC) AS prev_sort_ts,
                 LAG(location, 1, location) OVER (ORDER BY sort_ts ASC) AS prev_location,
@@ -174,6 +208,7 @@ async def mark_and_remove_flight_tail_imagery(
                 uploaded_at,
                 sort_ts,
                 yaw_deg,
+                gimbal_pitch_deg,
                 altitude_m,
                 prev_sort_ts,
                 prev_location,
@@ -201,6 +236,7 @@ async def mark_and_remove_flight_tail_imagery(
                 sort_ts,
                 segment_id,
                 yaw_deg,
+                gimbal_pitch_deg,
                 altitude_m,
                 LAG(sort_ts, 1, sort_ts) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_sort_ts,
                 LAG(location, 1, location) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_location,
@@ -219,17 +255,11 @@ async def mark_and_remove_flight_tail_imagery(
             row_num,
             CASE
                 WHEN row_num = 1 THEN NULL
-                ELSE mod(
-                    (degrees(ST_Azimuth(previous_location::geometry, location::geometry)) + 360.0)::numeric,
-                    360::numeric
-                )::double precision
-            END AS azimuth,
-            CASE
-                WHEN row_num = 1 THEN NULL
                 ELSE ST_Distance(previous_location::geography, location::geography)
             END AS distance_moved,
             yaw_deg,
             previous_yaw_deg,
+            gimbal_pitch_deg
             altitude_m,
             previous_altitude_m
         FROM trajectory_data
@@ -257,20 +287,11 @@ async def mark_and_remove_flight_tail_imagery(
         f"Split into {len(segments)} time-contiguous segments"
     )
 
-    MIN_DISTANCE_METERS = 5.0
-    BASELINE_SAMPLE_COUNT = 5  # Increased from 3 for more stable baseline
     ALT_RATE_THRESHOLD_MPS = 2.0
     LOW_LATERAL_FOR_VERTICAL_METERS = 10.0
     MAX_TAIL_FRACTION = 0.25
-    # We require a minimum segment size so the baseline heading estimate is stable.
     MIN_SEGMENT_SIZE = 10
     MIN_SEARCH_IMAGES = 30  # Minimum images to search for tails
-    MIN_TAIL_LENGTH = (
-        5  # Minimum images to constitute a tail (avoids waypoint turn false positives)
-    )
-    MAX_BASELINE_SPREAD_DEG = (
-        30.0  # Max angular spread among baseline samples (transit tails are straight)
-    )
 
     for idx, segment in enumerate(segments):
         log.debug(
@@ -286,6 +307,9 @@ async def mark_and_remove_flight_tail_imagery(
                 f"(minimum required: {MIN_SEGMENT_SIZE})"
             )
             continue
+
+        # Find global mission axis for the flight segment based on yaw_deg
+        global_mission_axis = _find_main_axis(segment, "yaw_deg")
 
         # Mark vertical candidates
         for i, row in enumerate(segment):
@@ -323,168 +347,76 @@ async def mark_and_remove_flight_tail_imagery(
         takeoff_tails_indices = []
         landing_tails_indices = []
 
-        # TAKEOFF DETECTION
-        takeoff_baseline = None
-        takeoff_baseline_samples: list[float] = []
-
-        # Find first valid baseline
-        baseline_start_idx = None
+        takeoff_aligned_with_mission_counter = 0
         for i in range(search_limit):
-            if i == 0:  # Skip first image (no azimuth)
-                continue
-            if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
-                continue
-            if segment[i].get("vertical_candidate"):
-                continue
-            if segment[i].get("azimuth") is None:
+            image_yaw_to = segment[i].get("yaw_deg")
+            image_gimbal_to = segment[i].get("gimbal_pitch_deg")
+            image_vertical_to = segment[i].get("vertical_candidate")
+
+            # Skip none values
+            if image_yaw_to is None:
                 continue
 
-            takeoff_baseline_samples.append(segment[i]["azimuth"])
-            if len(takeoff_baseline_samples) == 1:
-                baseline_start_idx = i
+            # Check gimbal pitch and if vertical candidate
+            if (image_gimbal_to == 0) or (image_vertical_to is True):
+                takeoff_aligned_with_mission_counter = 0
+                takeoff_tails_indices.append(i)
+                continue
 
-            if len(takeoff_baseline_samples) >= BASELINE_SAMPLE_COUNT:
-                takeoff_baseline = circular_mean_list(takeoff_baseline_samples)
+            # Compare if current yaw degree is aligned with mission axis within 5 degrees
+            yaw_diff_to = abs((image_yaw_to % 180) - global_mission_axis)
+            yaw_aligned_to = min(yaw_diff_to, 180 - yaw_diff_to) < 5
+
+            # Check yaw alignment
+            if yaw_aligned_to:
+                takeoff_aligned_with_mission_counter += 1
+            else:
+                takeoff_aligned_with_mission_counter = 0
+                takeoff_tails_indices.append(i)
+
+            # Check at least 3 photos are within the mission-axis dimensions
+            if takeoff_aligned_with_mission_counter >= 3:
                 break
 
-        # Only proceed if we have a valid, straight baseline (transit tails are straight lines)
-        takeoff_baseline_straight = False
-        if (
-            takeoff_baseline is not None
-            and len(takeoff_baseline_samples) >= BASELINE_SAMPLE_COUNT
-        ):
-            max_spread = max(
-                calculate_angular_difference(
-                    takeoff_baseline_samples[a], takeoff_baseline_samples[b]
-                )
-                for a in range(len(takeoff_baseline_samples))
-                for b in range(a + 1, len(takeoff_baseline_samples))
-            )
-            takeoff_baseline_straight = max_spread <= MAX_BASELINE_SPREAD_DEG
-
-        if (
-            takeoff_baseline is not None
-            and baseline_start_idx is not None
-            and not takeoff_baseline_straight
-        ):
-            log.debug(
-                f"Segment {idx}: Takeoff baseline not straight enough "
-                f"(spread {max_spread:.1f}° > {MAX_BASELINE_SPREAD_DEG}°), skipping takeoff tail detection"
-            )
-
-        if (
-            takeoff_baseline is not None
-            and baseline_start_idx is not None
-            and takeoff_baseline_straight
-        ):
-            for i in range(baseline_start_idx + BASELINE_SAMPLE_COUNT, search_limit):
-                if i == 0 or segment[i].get("azimuth") is None:
-                    continue
-                if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
-                    continue
-                if segment[i].get("vertical_candidate"):
-                    continue
-
-                current_azimuth = segment[i]["azimuth"]
-                azimuth_difference = calculate_angular_difference(
-                    takeoff_baseline, current_azimuth
-                )
-
-                if azimuth_difference < 45:
-                    # Still in baseline trajectory
-                    takeoff_baseline = circular_mean_pair(
-                        takeoff_baseline, current_azimuth
-                    )
-                elif azimuth_difference > 60:  # Increased threshold from 45 to 60
-                    # Potential turn detected - confirm it and enforce minimum tail length
-                    if i >= MIN_TAIL_LENGTH and _confirm_stable_heading(segment, i, 1):
-                        takeoff_tails_indices = list(range(i))
-                        break
-
         # LANDING DETECTION (similar logic, working backwards)
-        landing_baseline = None
-        landing_baseline_samples: list[float] = []
-        landing_start_idx = None
-
         landing_search_start = segment_length - 1
         landing_search_end = max(segment_length - search_limit, 0)
 
+        landing_aligned_with_mission_counter = 0
         for i in range(landing_search_start, landing_search_end, -1):
-            if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
-                continue
-            if segment[i].get("vertical_candidate"):
-                continue
-            if segment[i].get("azimuth") is None:
+            image_yaw_land = segment[i].get("yaw_deg")
+            image_gimbal_land = segment[i].get("gimbal_pitch_deg")
+            image_vertical_land = segment[i].get("vertical_candidate")
+
+            # Skip none values
+            if image_yaw_land is None:
                 continue
 
-            landing_baseline_samples.append(segment[i]["azimuth"])
-            if len(landing_baseline_samples) == 1:
-                landing_start_idx = i
+            # Check gimbal pitch and if vertical candidate
+            if (image_gimbal_land == 0) or (image_vertical_land is True):
+                landing_aligned_with_mission_counter = 0
+                landing_tails_indices.append(i)
+                continue
 
-            if len(landing_baseline_samples) >= BASELINE_SAMPLE_COUNT:
-                landing_baseline = circular_mean_list(landing_baseline_samples)
+            # Compare if current yaw degree is aligned with mission axis within 5 degrees
+            yaw_diff_land = abs((image_yaw_land % 180) - global_mission_axis)
+            yaw_aligned_land = min(yaw_diff_land, 180 - yaw_diff_land) < 5
+
+            # Check yaw alignment
+            if yaw_aligned_land:
+                landing_aligned_with_mission_counter += 1
+            else:
+                landing_aligned_with_mission_counter = 0
+                landing_tails_indices.append(i)
+
+            # Check at least 3 photos are within the mission-axis dimensions
+            if landing_aligned_with_mission_counter >= 3:
                 break
-
-        # Only proceed if baseline is straight (transit tails are straight lines)
-        landing_baseline_straight = False
-        if (
-            landing_baseline is not None
-            and len(landing_baseline_samples) >= BASELINE_SAMPLE_COUNT
-        ):
-            max_spread = max(
-                calculate_angular_difference(
-                    landing_baseline_samples[a], landing_baseline_samples[b]
-                )
-                for a in range(len(landing_baseline_samples))
-                for b in range(a + 1, len(landing_baseline_samples))
-            )
-            landing_baseline_straight = max_spread <= MAX_BASELINE_SPREAD_DEG
-
-        if (
-            landing_baseline is not None
-            and landing_start_idx is not None
-            and not landing_baseline_straight
-        ):
-            log.debug(
-                f"Segment {idx}: Landing baseline not straight enough "
-                f"(spread {max_spread:.1f}° > {MAX_BASELINE_SPREAD_DEG}°), skipping landing tail detection"
-            )
-
-        if (
-            landing_baseline is not None
-            and landing_start_idx is not None
-            and landing_baseline_straight
-        ):
-            for i in range(
-                landing_start_idx - BASELINE_SAMPLE_COUNT, landing_search_end, -1
-            ):
-                if segment[i].get("azimuth") is None:
-                    continue
-                if segment[i].get("distance_moved", 0) < MIN_DISTANCE_METERS:
-                    continue
-                if segment[i].get("vertical_candidate"):
-                    continue
-
-                current_azimuth = segment[i]["azimuth"]
-                azimuth_difference = calculate_angular_difference(
-                    landing_baseline, current_azimuth
-                )
-
-                if azimuth_difference < 45:
-                    landing_baseline = circular_mean_pair(
-                        landing_baseline, current_azimuth
-                    )
-                elif azimuth_difference > 60:  # Increased threshold
-                    # Enforce minimum tail length
-                    tail_length = segment_length - (i + 1)
-                    if tail_length >= MIN_TAIL_LENGTH and _confirm_stable_heading(
-                        segment, i, -1
-                    ):
-                        landing_tails_indices = list(range(i + 1, segment_length))
-                        break
 
         # Apply safety checks
         all_tail_indices = takeoff_tails_indices + landing_tails_indices
+        print(f"Mission Axis: {global_mission_axis}")
+        print(f"Total tails found: {len(all_tail_indices)}")
         if all_tail_indices:
             tail_fraction = len(all_tail_indices) / segment_length
             if tail_fraction <= MAX_TAIL_FRACTION:
