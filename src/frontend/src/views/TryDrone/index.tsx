@@ -17,7 +17,6 @@ import { useGeometryVisibility } from '@Components/TryDrone/useGeometryVisibilit
 import { useTryDroneWorkflow } from '@Components/TryDrone/useTryDroneWorkflow';
 import { useTryDroneDownloads } from '@Components/TryDrone/useTryDroneDownloads';
 import { useTryDroneMapCamera } from '@Components/TryDrone/useTryDroneMapCamera';
-import DroneFlightAnimation from '@Components/TryDrone/DroneFlightAnimation';
 import TutorialTour from '@Components/TryDrone/TutorialTour';
 import MapZoomControls from '@Components/TryDrone/MapZoomControls';
 import FlightPlanLayers from '@Components/common/MapLibreComponents/Layers/FlightPlanLayers';
@@ -358,15 +357,6 @@ const FlyMyDronePage = () => {
                 geojsonAsLineString={flightPlan.geojsonAsLineString}
               />
             )}
-
-            {/* TODO consider if this needs to be removed
-            {step === 3 && flightPlan && selectedTask && (
-              <DroneFlightAnimation
-                map={map as Map}
-                waypoints={flightPlan.geojsonListOfPoints}
-                geometry={selectedTask.geometry}
-              />
-            )} */}
           </MapContainer>
         </div>
 
