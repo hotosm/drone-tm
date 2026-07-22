@@ -964,7 +964,6 @@
   "trydrone_coverage_area": "Área de cobertura",
   "trydrone_options": "Opciones",
   "trydrone_step2_select_task_title": "Seleccioná una tarea",
-  "trydrone_step2_task_hint": "Hacé clic en una celda del mapa para ver los detalles de la tarea",
   "trydrone_step2_download_all": "Descargar todas las tareas",
   "trydrone_step2_downloading": "Descargando…",
   "trydrone_step3_download_geojson": "Descargar GeoJSON"

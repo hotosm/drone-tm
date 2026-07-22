@@ -46,6 +46,7 @@ const FlyMyDronePage = () => {
     areaKm2,
     setAreaKm2,
     setMapCenter,
+    initialCameraCenter,
     polygon,
     grid,
     selectedTaskId,
@@ -69,6 +70,7 @@ const FlyMyDronePage = () => {
     map,
     isMapLoaded,
     step,
+    initialCameraCenter,
     polygon,
     grid,
     flightPlan,
@@ -381,7 +383,7 @@ const FlyMyDronePage = () => {
               loading={loading}
             />
           )}
-          {step === 2 && (
+          {step === 2 && selectedTask && (
             <Step2Panel
               selectedTask={selectedTask}
               droneModel={droneModel}

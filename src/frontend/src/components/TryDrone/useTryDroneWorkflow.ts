@@ -3,6 +3,7 @@ import { Polygon } from 'geojson';
 import { coordAll } from '@turf/meta';
 import { buildSquareKm2, polygonBboxCenter } from '@Utils/geometry';
 import { useFlightPreviewMutation, useFlightPlanMutation } from '@Api/tryDrone';
+import { useUserLocation } from '@Components/TryDrone/useUserLocation';
 import {
   FlightPlanData,
   FlightPlanResponse,
@@ -44,29 +45,36 @@ const DEFAULT_STATE: PersistedState = {
 
 // Read the persisted slice, falling back to defaults on a missing/corrupt/
 // version-mismatched value. Clamps `step` in case it's out of range.
-function readPersistedState(): PersistedState {
-  if (typeof localStorage === 'undefined') return DEFAULT_STATE;
+// `hydrated` reports whether a valid persisted blob was found, so the workflow
+// can tell a resumed session (keep its saved center) apart from a fresh start
+// (center on the user's geolocation instead).
+function readPersistedState(): { state: PersistedState; hydrated: boolean } {
+  const fresh = { state: DEFAULT_STATE, hydrated: false };
+  if (typeof localStorage === 'undefined') return fresh;
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return DEFAULT_STATE;
+  if (!raw) return fresh;
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedState> & {
       version?: number;
     };
-    if (parsed.version !== STATE_VERSION) return DEFAULT_STATE;
+    if (parsed.version !== STATE_VERSION) return fresh;
     return {
-      step: parsed.step === 2 || parsed.step === 3 ? parsed.step : 1,
-      altitude: parsed.altitude ?? DEFAULT_STATE.altitude,
-      gridDimension: parsed.gridDimension ?? DEFAULT_STATE.gridDimension,
-      areaKm2: parsed.areaKm2 ?? DEFAULT_STATE.areaKm2,
-      droneModel: parsed.droneModel ?? DEFAULT_STATE.droneModel,
-      selectedTaskId: parsed.selectedTaskId ?? null,
-      center:
-        Array.isArray(parsed.center) && parsed.center.length === 2
-          ? (parsed.center as [number, number])
-          : DEFAULT_STATE.center,
+      hydrated: true,
+      state: {
+        step: parsed.step === 2 || parsed.step === 3 ? parsed.step : 1,
+        altitude: parsed.altitude ?? DEFAULT_STATE.altitude,
+        gridDimension: parsed.gridDimension ?? DEFAULT_STATE.gridDimension,
+        areaKm2: parsed.areaKm2 ?? DEFAULT_STATE.areaKm2,
+        droneModel: parsed.droneModel ?? DEFAULT_STATE.droneModel,
+        selectedTaskId: parsed.selectedTaskId ?? null,
+        center:
+          Array.isArray(parsed.center) && parsed.center.length === 2
+            ? (parsed.center as [number, number])
+            : DEFAULT_STATE.center,
+      },
     };
   } catch {
-    return DEFAULT_STATE;
+    return fresh;
   }
 }
 
@@ -100,6 +108,12 @@ function toFlightPlanData(data: FlightPlanResponse): FlightPlanData {
   };
 }
 
+// The task selected by default when none is restored: the first grid cell,
+// which the backend labels "A1" (row A, column 1 — the northmost, westmost
+// cell). Falls back to the first task in case the A1 label is ever absent.
+const defaultTaskId = (tasks: FlightPreviewTask[]): string | null =>
+  (tasks.find(t => t.id === 'A1') ?? tasks[0])?.id ?? null;
+
 /**
  * Owns the "Fly My Drone" step state machine and all the form state it drives.
  *
@@ -113,7 +127,8 @@ function toFlightPlanData(data: FlightPlanResponse): FlightPlanData {
  */
 export const useTryDroneWorkflow = () => {
   // Read the persisted slice once; each field seeds its own state below.
-  const [initialState] = useState(readPersistedState);
+  // `hydrated` distinguishes a resumed session from a fresh start.
+  const [{ state: initialState, hydrated }] = useState(readPersistedState);
 
   const [step, setStep] = useState<1 | 2 | 3>(initialState.step);
   const [altitude, setAltitude] = useState(initialState.altitude);
@@ -153,6 +168,32 @@ export const useTryDroneWorkflow = () => {
     selectedTaskId,
     mapCenter,
   ]);
+
+  // On a fresh start, center the initial AOI on the user's geolocation; a
+  // resumed session keeps its saved center, so we skip the request entirely.
+  const { location: userLocation, status: locationStatus } =
+    useUserLocation(!hydrated);
+
+  // Apply the resolved location once to the (default) center so the step-1
+  // polygon effect rebuilds the AOI there.
+  const locationAppliedRef = useRef(false);
+  useEffect(() => {
+    if (hydrated || locationAppliedRef.current || !userLocation) return;
+    locationAppliedRef.current = true;
+    setMapCenter(userLocation);
+  }, [hydrated, userLocation]);
+
+  // The one-shot center the camera should fly to on load. A resumed session
+  // knows it immediately (its saved center); a fresh start holds at `null`
+  // while geolocation is pending, then resolves to the user location on success
+  // or the [0,0] fallback on error/unavailable — so the camera never jumps to
+  // the fallback and back.
+  const initialCameraCenter = useMemo<[number, number] | null>(() => {
+    if (hydrated) return initialState.center;
+    if (locationStatus === 'success' && userLocation) return userLocation;
+    if (locationStatus === 'error') return INITIAL_MAP_CENTER;
+    return null;
+  }, [hydrated, locationStatus, userLocation, initialState.center]);
 
   const { mutate: fetchFlightPreview, isPending: loading } =
     useFlightPreviewMutation();
@@ -198,15 +239,25 @@ export const useTryDroneWorkflow = () => {
       {
         onSuccess: data => {
           setGrid(data.tasks);
-          if (step !== 3) return;
-          const task = data.tasks.find(t => t.id === selectedTaskId);
-          if (!task) {
+          // Keep the restored selection if it's still in the rebuilt grid,
+          // otherwise default to A1 — step 2+ always has a task selected.
+          const restored = selectedTaskId
+            ? data.tasks.find(t => t.id === selectedTaskId)
+            : null;
+
+          if (step !== 3) {
+            if (!restored) setSelectedTaskId(defaultTaskId(data.tasks));
+            return;
+          }
+
+          if (!restored) {
+            // Restored task is gone — drop to step 2 with the default selection.
             setStep(2);
-            setSelectedTaskId(null);
+            setSelectedTaskId(defaultTaskId(data.tasks));
             return;
           }
           fetchFlightPlan(
-            { geometry: task.geometry, altitude, droneModel },
+            { geometry: restored.geometry, altitude, droneModel },
             { onSuccess: fp => setFlightPlan(toFlightPlanData(fp)) },
           );
         },
@@ -265,7 +316,7 @@ export const useTryDroneWorkflow = () => {
       {
         onSuccess: data => {
           setGrid(data.tasks);
-          setSelectedTaskId(null);
+          setSelectedTaskId(defaultTaskId(data.tasks));
           setFlightPlan(null);
           setStep(2);
         },
@@ -301,6 +352,7 @@ export const useTryDroneWorkflow = () => {
     setAreaKm2,
     mapCenter,
     setMapCenter,
+    initialCameraCenter,
     polygon,
     grid,
     selectedTaskId,

@@ -1,5 +1,6 @@
 import { Button } from "@Components/RadixComponents/Button";
 import { droneModelOptions } from "@Constants/taskDescription";
+import { formatAreaKm2 } from "@Constants/tryDrone";
 import { Select } from "../common/FormUI";
 import { m } from "@/paraglide/messages";
 
@@ -9,7 +10,7 @@ interface Task {
 }
 
 interface Step2PanelProps {
-  selectedTask: Task | null;
+  selectedTask: Task;
   droneModel: string;
   onDroneModelChange: (model: string) => void;
   onSelectTask: () => void;
@@ -32,22 +33,14 @@ export default function Step2Panel({
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-5 naxatw-p-5">
       <h2 className="naxatw-text-xl naxatw-font-bold naxatw-text-grey-800">{m.trydrone_step2_select_task_title()}</h2>
 
-      {selectedTask ? (
-          <div className="naxatw-rounded-md naxatw-border naxatw-border-grey-300 naxatw-p-3 naxatw-h-18">
-            <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-grey-800">
-              Task {selectedTask.id}
-            </p>
-            <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-grey-600">
-              {Math.round(selectedTask.area_m2).toLocaleString()} m²
-            </p>
-          </div>
-      ) : (
-        <div className="naxatw-rounded-md naxatw-border naxatw-border-grey-300 naxatw-p-3 naxatw-h-18">
-          <span className="naxatw-text-grey-500">
-            {m.trydrone_step2_task_hint()}
-          </span>
-        </div>
-      )}
+      <div className="naxatw-rounded-md naxatw-border naxatw-border-grey-300 naxatw-p-3 naxatw-h-18">
+        <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-grey-800">
+          Task {selectedTask.id}
+        </p>
+        <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-grey-600">
+          {formatAreaKm2(selectedTask.area_m2)}
+        </p>
+      </div>
       
       {/* As download all button was added, we need to be able to select drone in this step */}
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">

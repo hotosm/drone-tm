@@ -1,8 +1,8 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { LngLatBoundsLike, Map } from 'maplibre-gl';
 import { Polygon } from 'geojson';
 import getBbox from '@turf/bbox';
-import { featureBbox, geometriesBbox, polygonBboxCenter } from '@Utils/geometry';
+import { featureBbox, geometriesBbox } from '@Utils/geometry';
 import { FlightPlanData, FlightPreviewTask } from '@Services/tryDrone';
 import {
   FIT_DURATION,
@@ -17,6 +17,9 @@ type Params = {
   // Wrapper Boolean to match useMapLibreGLMap's return type.
   isMapLoaded: Boolean;
   step: 1 | 2 | 3;
+  // Center to fly to on load: the resumed session's saved center, or (fresh
+  // start) the user's geolocation once resolved. `null` while still pending.
+  initialCameraCenter: [number, number] | null;
   polygon: Polygon;
   grid: FlightPreviewTask[];
   flightPlan: FlightPlanData | null;
@@ -32,24 +35,27 @@ export const useTryDroneMapCamera = ({
   map,
   isMapLoaded,
   step,
+  initialCameraCenter,
   polygon,
   grid,
   flightPlan,
   selectedTask,
 }: Params) => {
-  // Zoom-in animation on page load
+  // Zoom-in animation on page load. Fires once, when both the map is loaded and
+  // the initial center is known — for a fresh start that means waiting for the
+  // geolocation lookup to resolve (or fail), so we fly straight to the user's
+  // location instead of hopping via the [0,0] fallback.
+  const flownInRef = useRef(false);
   useEffect(() => {
-    if (!map || !isMapLoaded) return;
+    if (!map || !isMapLoaded || !initialCameraCenter || flownInRef.current)
+      return;
+    flownInRef.current = true;
     map.flyTo({
-      // Center on the (possibly restored) box so a reload lands where the user
-      // left it, not back at the default location.
-      center: polygonBboxCenter(polygon),
+      center: initialCameraCenter,
       zoom: INITIAL_MAP_ZOOM,
       essential: true,
     });
-    // Load-only: intentionally ignores later `polygon` changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isMapLoaded]);
+  }, [map, isMapLoaded, initialCameraCenter]);
 
   // Glyphs are required for maplibre to render text symbol layers (grid cell labels)
   useEffect(() => {

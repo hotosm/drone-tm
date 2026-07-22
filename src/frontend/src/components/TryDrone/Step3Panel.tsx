@@ -1,6 +1,7 @@
 import { Button } from "@Components/RadixComponents/Button";
 import Select from "@Components/common/FormUI/Select";
 import { droneModelOptions } from "@Constants/taskDescription";
+import { formatAreaKm2 } from "@Constants/tryDrone";
 import { m } from "@/paraglide/messages";
 
 // Output file format the backend produces for each drone (see flightplan_output.py).
@@ -23,7 +24,6 @@ interface Step3PanelProps {
   selectedTask: Task;
   droneModel: string;
   onDroneModelChange: (model: string) => void;
-  flightPlanLoading: boolean;
   hasFlightPlan: boolean;
   onBack: () => void;
   onDownload: () => void;
@@ -36,7 +36,6 @@ export default function Step3Panel({
   selectedTask,
   droneModel,
   onDroneModelChange,
-  flightPlanLoading,
   hasFlightPlan,
   onBack,
   onDownload,
@@ -53,7 +52,7 @@ export default function Step3Panel({
           {m.processing_dialog_table_task()} {selectedTask.id}
         </p>
         <p className="naxatw-mt-1 naxatw-text-sm naxatw-text-grey-600">
-          {selectedTask.area_m2.toLocaleString()} m²
+          {formatAreaKm2(selectedTask.area_m2)}
         </p>
       </div>
 

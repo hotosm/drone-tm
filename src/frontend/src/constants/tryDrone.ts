@@ -1,7 +1,9 @@
 // Constants for the public "Fly My Drone" flow (views/TryDrone).
 
 // Camera / defaults
-export const INITIAL_MAP_CENTER: [number, number] = [-13.2317, 8.4657];
+// Fallback map center [lng, lat] for a fresh start when the user's geolocation
+// is denied or unavailable; on success the flow centers on the user instead.
+export const INITIAL_MAP_CENTER: [number, number] = [0, 0];
 export const INITIAL_MAP_ZOOM = 15;
 
 export const DEFAULT_ALTITUDE = 70;
@@ -11,6 +13,10 @@ export const DEFAULT_DRONE_MODEL = 'DJI_MINI_4_PRO';
 
 export const AREA_MIN_KM2 = 0.1;
 export const AREA_MAX_KM2 = 1.5;
+
+// Format a backend area (square meters) as a km² display string. The API returns
+// per-task areas in m²; the UI shows them in km² to match the AOI size control.
+export const formatAreaKm2 = (m2: number) => `${(m2 / 1_000_000).toFixed(2)} km²`;
 
 // Integrations
 // Glyphs are required for maplibre to render text symbol layers (grid cell labels).
