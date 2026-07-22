@@ -423,15 +423,16 @@ async def all_task_files(body: AllTaskFilesRequest) -> StreamingResponse:
                     "GeoJSON generation failed for task %s", task.id, exc_info=True
                 )
 
-        try:
-            guide_html = _generate_guide_html(
-                tasks, body.drone_type, flightplan_config["suffix"], drone_slug
-            )
-            guide_path = os.path.join(tmpdir, "dronetm-guide.html")
-            with open(guide_path, "w", encoding="utf-8") as f:
-                f.write(guide_html)
-        except Exception:
-            log.warning("Guide HTML generation failed", exc_info=True)
+        # Temporarily disabled: guide HTML excluded from the zip while we rework it.
+        # try:
+        #     guide_html = _generate_guide_html(
+        #         tasks, body.drone_type, flightplan_config["suffix"], drone_slug
+        #     )
+        #     guide_path = os.path.join(tmpdir, "dronetm-guide.html")
+        #     with open(guide_path, "w", encoding="utf-8") as f:
+        #         f.write(guide_html)
+        # except Exception:
+        #     log.warning("Guide HTML generation failed", exc_info=True)
 
         try:
             _generate_tasks_pdf(tasks, os.path.join(tmpdir, "tasks_map.pdf"))
