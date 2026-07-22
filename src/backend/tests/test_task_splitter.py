@@ -1,5 +1,6 @@
 """Unit tests for TaskSplitter geometry handling."""
 
+from unittest.mock import patch
 import pytest
 from geojson import Feature, FeatureCollection, LineString, Polygon
 
@@ -81,8 +82,12 @@ def test_split_by_square_repairs_self_intersection():
             }
         ],
     }
+    mock_result = FeatureCollection([Feature(geometry=SQUARE_A)])
 
-    result = split_by_square(bow_tie, meters=100)
+    with patch(
+        "app.tasks.task_splitter._area_split_by_square", return_value=mock_result
+    ):
+        result = split_by_square(bow_tie, db="postgresq1://mock", meters=100)
 
     assert result["type"] == "FeatureCollection"
     assert len(result["features"]) > 0
@@ -95,4 +100,4 @@ def test_split_by_square_rejects_non_polygonal_geometry():
     )
 
     with pytest.raises(GeometryValidationError, match="polygonal"):
-        split_by_square(linestring_fc, meters=100)
+        split_by_square(linestring_fc, db="postgresq1://mock", meters=100)

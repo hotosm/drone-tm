@@ -42,6 +42,7 @@ dependencies = [
   "stream-zip==0.0.84",
   "hotosm-auth[fastapi]==0.2.10",
   "geojson-aoi-parser>=0.3.5",
+  "area-splitter>=3.0.1",
   "drone-flightplan",
 ]
 requires-python = ">=3.11"
