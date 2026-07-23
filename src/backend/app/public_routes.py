@@ -194,36 +194,24 @@ def _generate_tasks_pdf(tasks: list, out_path: str) -> None:
     draw = ImageDraw.Draw(overlay)
     font_label = ImageFont.load_default(size=12)
 
-    FILLS = [
-        (231, 76, 60, 50),
-        (230, 126, 34, 50),
-        (52, 152, 219, 50),
-        (155, 89, 182, 50),
-        (46, 204, 113, 50),
-    ]
-    OUTLINES = [
-        (192, 57, 43, 220),
-        (211, 84, 0, 220),
-        (41, 128, 185, 220),
-        (142, 68, 173, 220),
-        (39, 174, 96, 220),
-    ]
+    # Match the frontend grid colors
+    FILL = (215, 63, 63, 51)
+    OUTLINE = (215, 63, 63, 255)
+    LABEL_COLOR = (31, 41, 55, 230)
 
-    for i, task in enumerate(tasks):
+    for task in tasks:
         rings = (
             [task.geometry["coordinates"][0]]
             if task.geometry["type"] == "Polygon"
             else [poly[0] for poly in task.geometry["coordinates"]]
         )
-        fill = FILLS[i % len(FILLS)]
-        outline = OUTLINES[i % len(OUTLINES)]
         for ring in rings:
             pixels = [lonlat_to_px(lon, lat) for lon, lat in ring]
-            draw.polygon(pixels, fill=fill, outline=outline)
+            draw.polygon(pixels, fill=FILL, outline=OUTLINE)
             cx = sum(p[0] for p in pixels) // len(pixels)
             cy = sum(p[1] for p in pixels) // len(pixels)
             draw.text(
-                (cx, cy), task.id, fill=(0, 0, 0, 230), font=font_label, anchor="mm"
+                (cx, cy), task.id, fill=LABEL_COLOR, font=font_label, anchor="mm"
             )
 
     Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB").save(
