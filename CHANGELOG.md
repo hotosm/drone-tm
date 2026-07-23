@@ -1,3 +1,9 @@
+## 2026.7.1 (2026-07-23)
+
+### Feat
+
+- **backend**: add stationary photo identification when photo cature is left on
+
 ## 2026.7.0 (2026-07-21)
 
 ### Feat
