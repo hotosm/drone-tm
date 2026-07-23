@@ -24,6 +24,7 @@ interface Step3PanelProps {
   selectedTask: Task;
   droneModel: string;
   onDroneModelChange: (model: string) => void;
+  flightPlanLoading: boolean;
   hasFlightPlan: boolean;
   onBack: () => void;
   onDownload: () => void;
@@ -36,6 +37,7 @@ export default function Step3Panel({
   selectedTask,
   droneModel,
   onDroneModelChange,
+  flightPlanLoading,
   hasFlightPlan,
   onBack,
   onDownload,
@@ -70,6 +72,11 @@ export default function Step3Panel({
 
       {/* actions */}
       <div className="naxatw-flex naxatw-flex-col naxatw-gap-2">
+        {flightPlanLoading && !hasFlightPlan && (
+          <p className="naxatw-py-2 naxatw-text-center naxatw-text-sm naxatw-text-grey-600">
+            Generating flight plan…
+          </p>
+        )}
         {hasFlightPlan && (
           <>
             <Button
