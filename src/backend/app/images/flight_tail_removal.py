@@ -1,5 +1,4 @@
 from uuid import UUID
-from datetime import datetime, timezone
 
 
 from loguru import logger as log
@@ -7,6 +6,7 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 from app.models.enums import ImageStatus
+from app.images.image_logic import reject_assigned_images
 from app.utils import (
     calculate_angular_difference,
     circular_mean_pair,
@@ -78,27 +78,11 @@ async def _flag_flight_tail_images(
 
     flight_tails_ids = [project_list[i]["id"] for i in flight_tail_list]
 
-    params = {
-        "status": ImageStatus.REJECTED.value,
-        "reason": "Flight tail detection: Image identified as flightplan transit (takeoff/landing tail).",
-        "time": datetime.now(timezone.utc),
-        "ids": flight_tails_ids,
-    }
-
-    # Tail detection is intentionally low precedence: it should never overwrite an earlier
-    # quality/metadata rejection reason. Only touch rows that are still "clean".
-    sql = """
-    UPDATE project_images
-    SET status = %(status)s,
-        rejection_reason = %(reason)s,
-        classified_at = %(time)s
-    WHERE id = ANY(%(ids)s)
-      AND status = 'assigned'
-      AND rejection_reason IS NULL
-    """
-
-    async with db.cursor() as cur:
-        await cur.execute(sql, params)
+    await reject_assigned_images(
+        db,
+        flight_tails_ids,
+        "Flight tail detection: Image identified as flightplan transit (takeoff/landing tail).",
+    )
 
 
 async def mark_and_remove_flight_tail_imagery(

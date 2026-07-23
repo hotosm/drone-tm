@@ -33,6 +33,7 @@ from app.images.image_logic import (
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
+from app.images.flight_stationary_removal import mark_and_remove_stationary_imagery
 from app.models.enums import HTTPStatus, ImageStatus
 from app.projects import project_schemas
 from app.projects.s3_paths import public_qfield_zip_key
@@ -724,17 +725,12 @@ async def classify_project_images(
             for img in result.get("images", [])
             if img.get("status") == ImageStatus.ASSIGNED
         ]
-        if disable_flight_tail_detection:
-            log.info(
-                f"Skipping flight tail detection for project {project_id} "
-                f"(disabled by user request)"
-            )
-        if classified_image_ids and not disable_flight_tail_detection:
+        if classified_image_ids:
             try:
                 async with db_pool.connection() as conn:
                     async with conn.cursor() as cur:
                         # Include images with NULL batch_id - they are grouped
-                        # under a synthetic NULL key so tail detection still runs.
+                        # under a synthetic NULL key so the passes still run.
                         await cur.execute(
                             """
                             SELECT DISTINCT batch_id, task_id
@@ -751,27 +747,43 @@ async def classify_project_images(
                         )
                         rows = await cur.fetchall()
 
-                    # row[0] (batch_id) may be None for images uploaded without
-                    # a batch - still include them for tail detection.
+                    # row[0] (batch_id) may be None for images uploaded without a batch.
                     pairs = [(row[0], row[1]) for row in rows if row[1] is not None]
+
+                    # Stationary/hover removal runs first so redundant photos are
+                    # excluded from the flight-tail baseline
                     if pairs:
+                        log.info(
+                            f"Inspecting project {project_id} for stationary photos: "
+                            f"{len(pairs)} (batch, task) pairs"
+                        )
+                        for batch_id, task_id in pairs:
+                            await mark_and_remove_stationary_imagery(
+                                conn,
+                                UUID(project_id),
+                                UUID(str(batch_id)) if batch_id else None,
+                                UUID(str(task_id)),
+                            )
+
+                    if pairs and not disable_flight_tail_detection:
                         log.info(
                             f"Inspecting project {project_id} for flightplan tails: "
                             f"{len(pairs)} (batch, task) pairs"
                         )
-                    for batch_id, task_id in pairs:
-                        await mark_and_remove_flight_tail_imagery(
-                            conn,
-                            UUID(project_id),
-                            UUID(str(batch_id)) if batch_id else None,
-                            UUID(str(task_id)),
-                        )
+                        for batch_id, task_id in pairs:
+                            await mark_and_remove_flight_tail_imagery(
+                                conn,
+                                UUID(project_id),
+                                UUID(str(batch_id)) if batch_id else None,
+                                UUID(str(task_id)),
+                            )
+
                     if pairs:
                         await conn.commit()
-            except Exception as tail_err:
+            except Exception as post_err:
                 log.error(
-                    f"Flight tail detection failed for project {project_id} "
-                    f"(post-classification): {tail_err}",
+                    f"Post-classification passes failed for project {project_id}: "
+                    f"{post_err}",
                     exc_info=True,
                 )
 

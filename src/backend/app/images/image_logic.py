@@ -5,6 +5,7 @@ import hashlib
 import json
 import shutil
 import tempfile
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
@@ -359,6 +360,38 @@ async def check_duplicate_image(
         result = await cur.fetchone()
 
     return result["id"] if result else None
+
+
+async def reject_assigned_images(db: Connection, image_ids: list, reason: str) -> None:
+    """Mark the given images REJECTED with a reason.
+
+    Only touches rows that are still a clean 'assigned' with no existing
+    rejection_reason, so post-classification passes (flight-tail, stationary)
+    never overwrite a higher-priority quality rejection (blur, bad gimbal, etc.).
+    """
+    if not image_ids:
+        return
+
+    sql = """
+        UPDATE project_images
+        SET status = %(status)s,
+            rejection_reason = %(reason)s,
+            classified_at = %(time)s
+        WHERE id = ANY(%(ids)s)
+          AND status = 'assigned'
+          AND rejection_reason IS NULL
+    """
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            sql,
+            {
+                "status": ImageStatus.REJECTED.value,
+                "reason": reason,
+                "time": datetime.now(timezone.utc),
+                "ids": image_ids,
+            },
+        )
 
 
 async def get_images_by_project(
