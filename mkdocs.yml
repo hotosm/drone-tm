@@ -91,10 +91,15 @@ nav:
       - DroneTM Operators:
           - Drone Operators Guide: manuals/dronetm-operators.md
           - Flight Checklists: manuals/flight-checklists.md
-          - DJI Drones (General): manuals/dji.md
-          - Specific Drone Models:
-              - DJI Mini 5 Pro: manuals/specific-models/dji-mini-5-pro.md
-              - Potensic Drones: manuals/potensic.md
+          - Flying with DJI:
+              - Overview & Setup: manuals/dji/overview.md
+              - Flying with DJI Fly: manuals/dji/dji-fly.md
+              - Flying with Litchi: manuals/dji/litchi.md
+              - Models:
+                  - DJI Mini 5 Pro: manuals/dji/models/dji-mini-5-pro.md
+          - Flying with Potensic:
+              - Atom 1: manuals/potensic/atom-1.md
+              - Atom 2: manuals/potensic/atom-2.md
           - Alternative Transfer Methods: manuals/alternative-transfer.md
           - Manual Flightplan Generation: manuals/generate-flightplans.md
       - Processing Imagery:

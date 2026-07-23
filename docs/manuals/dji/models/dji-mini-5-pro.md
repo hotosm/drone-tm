@@ -2,7 +2,7 @@
 
 Guide content by Ivan Gayton.
 
-There is also a more generic [guide for DJI drones](../dji.md) that can be referred to.
+There is also a more generic [guide for DJI drones](../overview.md) that can be referred to.
 
 Buy a **DJI 5 Pro Fly More Combo with RC2 Controller**. Unless you know what you are doing, **do not buy the Fly More Combo Plus** (larger battery with longer flight time, but exceeds 250 g and is more strictly regulated than a <250 g drone in many countries).
 
@@ -21,7 +21,7 @@ You should now have:
 | Stickers and manuals  | 1 bag                     |
 | Shoulder bag          | 1                         |
 
-![dji-mini-5-kit](../../images/dji-mini-5-pro-full-kit.jpeg)
+![dji-mini-5-kit](../../../images/dji-mini-5-pro-full-kit.jpeg)
 
 Remove the battery from the drone, and put it into the charger. Plug the charger into a decently powerful (up to **50 watts**, minimum **21 watts**) USB-C power source.
 
