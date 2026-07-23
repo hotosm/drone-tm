@@ -107,16 +107,18 @@ To get started with DroneTM:
 |✅| 🖥️ improved user feedback and retry capabilities during imagery processing | [v2026.2.0][7] |
 |✅| 🖥️ identify flight gaps in the captured imagery, generating a second flightplan | [v2026.2.1][8] |
 |✅| 🖥️ Unified HOT login system, linking to other tools | [v2026.3.0][9] |
-|✅| 🖥️ scaling of ODM imagery processing to thousands of images in parallel | [v2026.5.0][10] |
-|⚙️| 📱 better method to load flightplans onto drones: direct send to drone, instead of manual copy | |
-|⚙️| 🖥️ separate workflows for processing individual images vs batch processing in ODM | |
+|✅| 🖥️ automated project creation via photo 'dump' and scan (no flight planning, EXIF --> AOI) | [v2026.4.0][10] |
+|✅| 🖥️ scaling of ODM imagery processing to thousands of images in parallel | [v2026.5.0][11] |
+|✅| 🖥️ visualise the 2D and 3D products at the end of processing | [v2026.6.0][12] |
+|✅| 🖥️ separate ODM workflows for task images vs. large project image batches | [v2026.7.0][13] |
+|⚙️| 📱 send flightplans straight to the drone, instead of copying files by hand | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
-| | 📱 allow modification and division of flightplans by user before flight | |
-| | 🖥️ add processing workflows for thermal imagery and accuracy improvements at city-scale | |
-| | 🖥️ user access management for each part of the UI | |
+| | 📱 let users edit and split flightplans before flying | |
+| | 🖥️ DroneTM Lite: a simplified interface for demos and community use | |
+| | 🖥️ thermal imagery processing, plus accuracy improvements for city-scale projects | |
+| | 🖥️ role-based access control for each part of the UI | |
 | | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
-| | 🖥️ better usage of 3D model data collected by drones | |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally | |
 <!-- prettier-ignore-end -->
 
@@ -135,28 +137,37 @@ but similar quality.
 
 For now, most other drones have a compromise of some kind.
 
+The list below is ordered best-supported first. Drones marked ✅ work
+directly in DroneTM: generate a flight plan, then upload the waypoint file
+to the drone's own app - no third-party software needed.
+
 <!-- prettier-ignore-start -->
-| Drone | <250g | Waypoint Files | SDK Available | External Tools With Support |
-|:------:|:-------:|:-------:|:-------:|:--------|
-| DJI Mini 5 Pro | ✅ | ✅ | ❌ | None |
-| DJI Mini 4 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta, DroneDeploy |
-| DJI Mini 3 Pro | ✅ | ✅ | ✅ | Litchi Pilot Beta |
-| DJI Air 3/3S | ❌ | ❔ | ❌ | None |
-| DJI Mavic 3/3P/3C | ❌ | ❔ | ❌ | None |
-| DJI Mini 3 | ✅ | ❌ | 🤔 | Litchi Pilot Beta |
-| DJI Mavic Air/Pro  | ❌ | ❔ | ✅ | Litchi, DroneDeploy |
-| DJI Mini 4k | ✅ | ❔ | ❌ | None |
-| DJI Mini SE (version 1 only) | ✅ | ❌ | ✅ | Litchi |
-| DJI Mini 2 | ✅ | ❌ | ✅ | Litchi |
-| DJI Air 2S | ❌ | ❔ | ✅ | Litchi, DroneDeploy |
-| Potensic Atom 1 | ✅ | 🤔 | ❌ | None |
-| Potensic Atom 2 | ✅ | ✅ | ❌ | None |
+| Drone | <250g | Supported | Notes |
+|:------|:-----:|:---------:|:------|
+| DJI Mini 5 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
+| DJI Mini 4 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
+| DJI Mini 3 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
+| Potensic Atom 2 | ✅ | ✅ | Waypoint files, flown in the Potensic app |
+| DJI Mini 3 (+ 3 Pro) | ✅ | ❔ | Via Litchi only |
+| DJI Mini SE (version 1 only) | ✅ | ❔ | Via Litchi only |
+| DJI Mini 2 | ✅ | ❔ | Via Litchi only |
+| Potensic Atom 1 | ✅ | ❔ | Works but has no terrain following capability |
+| DJI Mavic Air/Pro | ❌ | ❔ | Via Litchi or DroneDeploy only |
+| DJI Mavic 2 Pro | ❌ | ❔ | Via Litchi or DroneDeploy only |
+| DJI Air 2S | ❌ | ❔ | Via Litchi or DroneDeploy only |
+| DJI Air 3/3S | ❌ | ❔ | Waypoint files should work, but untested - please help confirm! |
+| DJI Mavic 3/3P/3C | ❌ | ❔ | Waypoint files should work, but untested - please help confirm! |
+| DJI Mini 4k | ✅ | ❔ | Untested - please help confirm! |
 <!-- prettier-ignore-end -->
 
 > [!Note]
-> ❔ in theory should work, but untested in the field (please help confirm these!)
+> ✅ works directly in DroneTM - upload the generated waypoint file to the
+> drone's own app.
 >
-> 🤔 works with some limitations, such as lack of terrain following
+> ❔ works, but with a caveat - see the Notes column (needs a third-party
+> app such as Litchi, is untested, or has limited features).
+>
+> ❌ not supported.
 
 ## Contribution
 
@@ -177,4 +188,7 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [7]: https://github.com/hotosm/drone-tm/releases/tag/2026.2.0
 [8]: https://github.com/hotosm/drone-tm/releases/tag/2026.2.1
 [9]: https://github.com/hotosm/drone-tm/releases/tag/2026.3.0
-[10]: https://github.com/hotosm/drone-tm/releases/tag/2026.5.0
+[10]: https://github.com/hotosm/drone-tm/releases/tag/2026.4.0
+[11]: https://github.com/hotosm/drone-tm/releases/tag/2026.5.0
+[12]: https://github.com/hotosm/drone-tm/releases/tag/2026.6.0
+[13]: https://github.com/hotosm/drone-tm/releases/tag/2026.7.0
