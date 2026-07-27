@@ -1,14 +1,11 @@
-from typing import List
-
+from app.drones.drone_schemas import DroneOut
+from app.models.enums import HTTPStatus
 from fastapi import HTTPException
 from loguru import logger as log
 from psycopg import Connection
 
-from app.drones.drone_schemas import DroneOut
-from app.models.enums import HTTPStatus
 
-
-async def read_all_drones(db: Connection) -> List[DroneOut]:
+async def read_all_drones(db: Connection) -> list[DroneOut]:
     """Retrieves all drone records from the database.
 
     Args:

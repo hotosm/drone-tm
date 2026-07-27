@@ -1,33 +1,14 @@
 import json
 import uuid
 from datetime import timedelta
-from typing import Annotated, Dict, List, Optional
+from typing import Annotated
 from uuid import UUID
 
 import geojson
-from arq import ArqRedis
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Body,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    Path,
-    Query,
-    Request,
-    Response,
-    UploadFile,
-)
-from fastapi.responses import StreamingResponse
-from geojson_pydantic import FeatureCollection
-from loguru import logger as log
-from psycopg import Connection
-from stream_zip import NO_COMPRESSION_64, stream_zip
 from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.db import database
+from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import (
     HTTPStatus,
@@ -35,10 +16,9 @@ from app.models.enums import (
     OAMUploadStatus,
     ProjectCompletionStatus,
 )
-from app.images.image_classification import ImageClassifier
 from app.projects import project_deps, project_logic, project_schemas
-from app.projects.project_deps import normalize_aoi
 from app.projects.oam import upload_to_oam
+from app.projects.project_deps import normalize_aoi
 from app.projects.s3_paths import (
     cloudnative_project_root_prefix,
     public_qfield_zip_key,
@@ -66,6 +46,26 @@ from app.utils import (
     geojson_to_kml,
     send_project_approval_email_to_regulator,
 )
+from arq import ArqRedis
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
+from fastapi.responses import StreamingResponse
+from geojson_pydantic import FeatureCollection
+from loguru import logger as log
+from psycopg import Connection
+from stream_zip import NO_COMPRESSION_64, stream_zip
 
 router = APIRouter(
     prefix="/projects",
@@ -73,7 +73,7 @@ router = APIRouter(
 )
 
 
-def _odm_assets_prefix(project_id: uuid.UUID, task_id: Optional[uuid.UUID]) -> str:
+def _odm_assets_prefix(project_id: uuid.UUID, task_id: uuid.UUID | None) -> str:
     task_segment = f"{task_id}/" if task_id else ""
     return f"projects/{project_id}/{task_segment}odm/"
 
@@ -88,7 +88,7 @@ def _odm_assets_available(prefix: str) -> bool:
     return probe is not None
 
 
-def _odm_assets_filename(project_id: uuid.UUID, task_id: Optional[uuid.UUID]) -> str:
+def _odm_assets_filename(project_id: uuid.UUID, task_id: uuid.UUID | None) -> str:
     return f"odm_assets_{task_id}.zip" if task_id else f"odm_assets_{project_id}.zip"
 
 
@@ -121,7 +121,7 @@ async def download_boundaries(
     ],
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    task_id: Optional[UUID] = Query(
+    task_id: UUID | None = Query(
         default=None,
         description="The task ID in UUID format. If not provided, all tasks will be downloaded.",
     ),
@@ -447,13 +447,13 @@ async def normalize_project_aoi(
 async def read_projects(
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
-    filter_by_owner: Optional[bool] = Query(
+    filter_by_owner: bool | None = Query(
         False, description="Filter projects by authenticated user (creator)"
     ),
-    status: Optional[ProjectCompletionStatus] = Query(
+    status: ProjectCompletionStatus | None = Query(
         None, description="Filter projects by status"
     ),
-    search: Optional[str] = Query(None, description="Search projects by name"),
+    search: str | None = Query(None, description="Search projects by name"),
     page: int = Query(1, ge=1, description="Page number"),
     results_per_page: int = Query(
         20, gt=0, le=100, description="Number of results per page"
@@ -514,7 +514,7 @@ async def process_imagery(
     user_data: Annotated[AuthUser, Depends(login_required)],
     db: Annotated[Connection, Depends(database.get_db)],
     redis_pool: ArqRedis = Depends(get_redis_pool),
-    odm_url: Optional[str] = Query(None, description="Custom ScaleODM server URL"),
+    odm_url: str | None = Query(None, description="Custom ScaleODM server URL"),
 ):
     """Start a queued task to process drone imagery."""
     pending_transfer_count = await ImageClassifier.get_task_pending_transfer_count(
@@ -550,7 +550,7 @@ async def process_all_imagery(
     user_data: Annotated[AuthUser, Depends(login_required)],
     db: Annotated[Connection, Depends(database.get_db)],
     redis_pool: ArqRedis = Depends(get_redis_pool),
-    capacity_type: Annotated[Optional[str], Body(embed=True)] = None,
+    capacity_type: Annotated[str | None, Body(embed=True)] = None,
 ):
     """API endpoint to process all tasks associated with a project.
 
@@ -692,7 +692,7 @@ async def regulator_approval(
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"An error occurred: {str(e)}",
+            detail=f"An error occurred: {e!s}",
         )
 
 
@@ -735,7 +735,7 @@ async def get_assets_info(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: Optional[uuid.UUID] = None,
+    task_id: uuid.UUID | None = None,
 ):
     """Endpoint to get the number of images and the URL to download the assets
     for a given project and task. If no task_id is provided, returns info
@@ -775,7 +775,7 @@ async def upload_imagery_to_oam(
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
     background_tasks: BackgroundTasks,
-    tags: Dict[str, List[str]] = Body(default={"tags": []}),
+    tags: dict[str, list[str]] = Body(default={"tags": []}),
 ):
     """Upload project orthophoto to OpenAerialMap."""
     if project.author_id != user_data.id:
@@ -1141,7 +1141,7 @@ async def export_odm_orthophoto(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: Optional[uuid.UUID] = None,
+    task_id: uuid.UUID | None = None,
 ):
     """Stream only the orthophoto TIF for a task (or whole project).
 
@@ -1290,7 +1290,7 @@ async def export_odm_assets(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: Optional[uuid.UUID] = None,
+    task_id: uuid.UUID | None = None,
     # Uncomment to enforce auth (see TODO in body):
     # user_data: Annotated[AuthUser, Depends(login_required)] = None,
 ):
@@ -1375,7 +1375,7 @@ async def head_odm_assets(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    task_id: Optional[uuid.UUID] = None,
+    task_id: uuid.UUID | None = None,
 ):
     """Check whether ODM assets exist without streaming the zip."""
     prefix = _odm_assets_prefix(project.id, task_id)
@@ -1571,8 +1571,8 @@ async def test(redis_pool: ArqRedis = Depends(get_redis_pool)):
         }
 
     except Exception as e:
-        log.error(f"Error enqueueing sleep_task: {str(e)}")
+        log.error(f"Error enqueueing sleep_task: {e!s}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Failed to enqueue task: {str(e)}",
+            detail=f"Failed to enqueue task: {e!s}",
         )

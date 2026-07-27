@@ -1,7 +1,10 @@
 import uuid
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
+from app.config import settings
+from app.models.enums import EventType, HTTPStatus, State
+from app.s3 import maybe_presign_s3_key
 from fastapi import HTTPException
 from loguru import logger as log
 from psycopg import Connection
@@ -9,19 +12,15 @@ from psycopg.rows import class_row, dict_row
 from pydantic import BaseModel, model_validator
 from pydantic.functional_validators import field_validator
 
-from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State
-from app.s3 import maybe_presign_s3_key
-
 
 class Geometry(BaseModel):
     type: Literal["ST_Polygon"]
-    coordinates: List[List[List[float]]]
+    coordinates: list[list[list[float]]]
 
 
 class Properties(BaseModel):
     id: uuid.UUID
-    bbox: List[float]
+    bbox: list[float]
 
 
 class Outline(BaseModel):
@@ -33,8 +32,8 @@ class Outline(BaseModel):
 
 class NewEvent(BaseModel):
     event: EventType
-    comment: Optional[str] = None
-    updated_at: Optional[datetime] = None
+    comment: str | None = None
+    updated_at: datetime | None = None
 
 
 class ManualOverrideRequest(BaseModel):
@@ -47,7 +46,7 @@ class ManualOverrideRequest(BaseModel):
     """
 
     state: State
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     @field_validator("state", mode="before")
     @classmethod
@@ -63,17 +62,17 @@ class ManualOverrideRequest(BaseModel):
 
 
 class Task(BaseModel):
-    task_id: Optional[uuid.UUID] = None
-    state: Optional[str] = None
-    project_id: Optional[uuid.UUID] = None
-    outline: Optional[str] = None
+    task_id: uuid.UUID | None = None
+    state: str | None = None
+    project_id: uuid.UUID | None = None
+    outline: str | None = None
 
     @staticmethod
     async def get_task_geometry(
         db: Connection,
         project_id: uuid.UUID,
-        task_id: Optional[uuid.UUID] = None,
-        split_area: Optional[bool] = False,
+        task_id: uuid.UUID | None = None,
+        split_area: bool | None = False,
     ) -> str:
         """Fetches the geometry of a single task or all tasks in a project.
 
@@ -218,18 +217,18 @@ class Task(BaseModel):
 
 class UserTasksOut(BaseModel):
     task_id: uuid.UUID
-    total_area_sqkm: Optional[float] = None
-    flight_time_minutes: Optional[float] = None
-    flight_distance_km: Optional[float] = None
+    total_area_sqkm: float | None = None
+    flight_time_minutes: float | None = None
+    flight_distance_km: float | None = None
     created_at: datetime
     state: str
     project_id: uuid.UUID
     project_task_index: int
     project_name: str
-    project_slug: Optional[str] = None
-    updated_at: Optional[datetime]
-    registration_certificate_url: Optional[str] = None
-    certificate_url: Optional[str] = None
+    project_slug: str | None = None
+    updated_at: datetime | None
+    registration_certificate_url: str | None = None
+    certificate_url: str | None = None
 
     @model_validator(mode="after")
     def set_urls(cls, values):
@@ -300,23 +299,23 @@ class UserTasksOut(BaseModel):
 
 
 class TaskDetailsOut(BaseModel):
-    total_area_sqkm: Optional[float] = None
-    flight_time_minutes: Optional[float] = None
-    flight_distance_km: Optional[float] = None
-    total_image_uploaded: Optional[int] = None
-    assets_url: Optional[str] = None
+    total_area_sqkm: float | None = None
+    flight_time_minutes: float | None = None
+    flight_distance_km: float | None = None
+    total_image_uploaded: int | None = None
+    assets_url: str | None = None
     outline: Outline
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     state: State
-    project_id: Optional[uuid.UUID] = None
-    project_slug: Optional[str] = None
+    project_id: uuid.UUID | None = None
+    project_slug: str | None = None
     project_name: str
     project_task_index: int
-    front_overlap: Optional[float] = None
-    side_overlap: Optional[float] = None
-    gsd_cm_px: Optional[float] = None
-    gimble_angles_degrees: Optional[int] = None
+    front_overlap: float | None = None
+    side_overlap: float | None = None
+    gsd_cm_px: float | None = None
+    gimble_angles_degrees: int | None = None
     centroid: dict
 
     @model_validator(mode="after")

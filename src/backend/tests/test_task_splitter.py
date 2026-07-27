@@ -1,14 +1,12 @@
 """Unit tests for TaskSplitter geometry handling."""
 
 import pytest
-from geojson import Feature, FeatureCollection, LineString, Polygon
-
 from app.tasks.task_splitter import (
     GeometryValidationError,
     TaskSplitter,
     split_by_square,
 )
-
+from geojson import Feature, FeatureCollection, LineString, Polygon
 
 SQUARE_A = Polygon([[(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]])
 SQUARE_B = Polygon([[(1, 0), (2, 0), (2, 1), (1, 1), (1, 0)]])

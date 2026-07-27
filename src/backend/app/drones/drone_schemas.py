@@ -1,12 +1,10 @@
 from datetime import datetime
-from typing import Optional
 
+from app.models.enums import HTTPStatus
 from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row
 from pydantic import BaseModel
-
-from app.models.enums import HTTPStatus
 
 
 class BaseDrone(BaseModel):
@@ -137,7 +135,7 @@ class DroneFlightHeight(BaseModel):
     max_altitude_ft: float
     max_altitude_m: float
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     @staticmethod
     async def all(db: Connection):

@@ -3,8 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from app.users.hanko_helpers import lookup_user_by_email, create_drone_tm_user
+from app.users.hanko_helpers import create_drone_tm_user, lookup_user_by_email
 
 
 class TestLookupUserByEmail:

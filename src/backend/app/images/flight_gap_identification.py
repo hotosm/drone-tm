@@ -1,41 +1,34 @@
 import os
 import re
+import tempfile
+from uuid import UUID
 
+import geojson
 import numpy as np
 import pyproj
-import geojson
-import tempfile
-
-from uuid import UUID
+from app.models.enums import ImageStatus
+from app.s3 import maybe_presign_s3_key
+from app.utils import (
+    calculate_angular_difference,
+    circular_mean_list,
+    circular_mean_pair,
+)
+from drone_flightplan import create_flightplan
+from drone_flightplan.drone_type import CAMERA_MODEL_ALIASES, DRONE_PARAMS, DroneType
+from drone_flightplan.enums import FlightMode
+from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import dict_row
 from shapely.geometry import (
     GeometryCollection,
     LineString,
     MultiPolygon,
     Point,
     Polygon,
-    shape,
     mapping,
+    shape,
 )
-
-from loguru import logger as log
-from psycopg import Connection
-from psycopg.rows import dict_row
-
-from app.models.enums import ImageStatus
-from app.s3 import maybe_presign_s3_key
-
-from app.utils import (
-    calculate_angular_difference,
-    circular_mean_pair,
-    circular_mean_list,
-)
-
-from drone_flightplan import create_flightplan
-from drone_flightplan.drone_type import DRONE_PARAMS, CAMERA_MODEL_ALIASES, DroneType
-from drone_flightplan.enums import FlightMode
-
 from shapely.ops import transform, unary_union
-
 
 projector = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 inverse_projector = pyproj.Transformer.from_crs(

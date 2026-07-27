@@ -6,13 +6,9 @@ from enum import Enum
 class StrEnum(str, Enum):
     """Wrapper for string enums, until Python 3.11 upgrade."""
 
-    pass
-
 
 class IntEnum(int, Enum):
     """Wrapper for string enums, until Python 3.11 upgrade."""
-
-    pass
 
 
 class FinalOutput(StrEnum):

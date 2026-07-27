@@ -1,16 +1,16 @@
-from typing import Sequence, Union
+from collections.abc import Sequence
+
+import sqlalchemy as sa
 from alembic import op
 from app.models.enums import UserRole
-import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql import text
 
-
 # revision identifiers, used by Alembic.
 revision: str = "b36a13183a83"
-down_revision: Union[str, None] = "5235ef4afa9c"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "5235ef4afa9c"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

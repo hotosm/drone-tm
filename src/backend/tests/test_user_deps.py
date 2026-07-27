@@ -1,7 +1,6 @@
 import pytest
-from fastapi import HTTPException
-
 from app.users import user_deps
+from fastapi import HTTPException
 
 
 @pytest.mark.asyncio

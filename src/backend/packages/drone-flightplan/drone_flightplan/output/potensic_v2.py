@@ -1,12 +1,11 @@
 """JSON waypoint files used in Potensic Atom 2."""
 
-import os
-import logging
-import zipfile
 import json
-import time
+import logging
+import os
 import tempfile
-from typing import Optional
+import time
+import zipfile
 from pathlib import Path
 
 import geojson
@@ -29,7 +28,7 @@ def zip_directory(directory_path: str, zip_path: str) -> None:
 
 def create_potensic_json(
     featcol: geojson.FeatureCollection,
-    outfile: Optional[str] = None,
+    outfile: str | None = None,
     default_speed: float = 11.5,
 ) -> str:
     """

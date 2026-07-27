@@ -25,7 +25,6 @@ import logging
 import os
 import xml.etree.ElementTree as ET
 import zipfile
-from typing import Optional
 from xml.etree.ElementTree import Element
 
 import geojson
@@ -194,7 +193,7 @@ def create_action_group(
     end_index: str,
     mode: str,
     trigger_type: str,
-    trigger_param: Optional[str] = None,
+    trigger_param: str | None = None,
 ) -> Element:
     """Utility to create an actionGroup with trigger and return it."""
     action_group = ET.SubElement(parent, "wpml:actionGroup")

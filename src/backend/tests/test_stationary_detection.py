@@ -4,12 +4,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import shapely.wkb as wkblib
-from shapely.geometry import box
-
 from app.images.flight_stationary_removal import (
     MIN_STATIONARY_CLUSTER,
     mark_and_remove_stationary_imagery,
 )
+from shapely.geometry import box
 
 
 async def _insert_task(db, project_id, task_id):

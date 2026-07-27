@@ -2,10 +2,8 @@ import io
 import zipfile
 
 import pytest
-
-from drone_flightplan.drone_type import DroneType
-
 from app.images.flight_gap_identification import identify_flight_gaps
+from drone_flightplan.drone_type import DroneType
 
 
 def assert_is_valid_flightplan(buffer: bytes):

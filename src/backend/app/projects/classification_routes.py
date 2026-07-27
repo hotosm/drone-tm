@@ -1,23 +1,14 @@
 import os
 import tempfile
 from datetime import datetime
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 from uuid import UUID
-
-from arq import ArqRedis
-from arq.jobs import JobStatus
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from loguru import logger as log
-from psycopg import Connection
-from pydantic import BaseModel
-
-from drone_flightplan.drone_type import DroneType
 
 from app.arq.tasks import get_redis_pool, validate_s3_access
 from app.db import database
-from app.models.enums import HTTPStatus, State
-from app.images.image_classification import ImageClassifier
 from app.images.flight_gap_identification import identify_flight_gaps
+from app.images.image_classification import ImageClassifier
+from app.models.enums import HTTPStatus, State
 from app.projects import project_schemas
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
@@ -25,7 +16,13 @@ from app.waypoints.flightplan_output import (
     build_flightplan_download_response,
     get_flightplan_output_config,
 )
-
+from arq import ArqRedis
+from arq.jobs import JobStatus
+from drone_flightplan.drone_type import DroneType
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from loguru import logger as log
+from psycopg import Connection
+from pydantic import BaseModel
 
 router = APIRouter(
     prefix="/projects",
@@ -310,10 +307,10 @@ async def get_project_images(
     project_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     user: Annotated[AuthUser, Depends(login_required)],
-    last_timestamp: Optional[str] = Query(
+    last_timestamp: str | None = Query(
         None, description="ISO 8601 timestamp to get updates since"
     ),
-    status: Optional[list[str]] = Query(
+    status: list[str] | None = Query(
         None, description="Filter by status(es), e.g. ?status=staged&status=uploaded"
     ),
 ):

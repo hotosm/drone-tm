@@ -6,11 +6,10 @@ Create Date: 2024-11-22 04:29:30.071824
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 new_userrole_enum = sa.Enum(
     "PROJECT_CREATOR", "DRONE_PILOT", "REGULATOR", name="userrole"
@@ -20,9 +19,9 @@ old_userrole_enum = sa.Enum("PROJECT_CREATOR", "DRONE_PILOT", name="userrole")
 
 # revision identifiers, used by Alembic.
 revision: str = "3cd04bfdb1e4"
-down_revision: Union[str, None] = "162edb7e3cc4"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "162edb7e3cc4"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

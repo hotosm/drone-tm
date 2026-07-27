@@ -1,13 +1,11 @@
-from uuid import UUID
 from math import cos, radians, sqrt
+from uuid import UUID
 
+from app.images.image_logic import reject_assigned_images
+from app.models.enums import ImageStatus
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
-
-from app.models.enums import ImageStatus
-from app.images.image_logic import reject_assigned_images
-
 
 # Two photos closer than this are treated as the same location. 5m covers
 # normal GPS jitter while the drone hovers on a waypoint.

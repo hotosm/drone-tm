@@ -1,8 +1,5 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from psycopg import Connection
-
 from app.db import database
 from app.drones import drone_deps, drone_schemas
 from app.models.enums import HTTPStatus
@@ -12,6 +9,8 @@ from app.users.permissions import (
 )
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
+from fastapi import APIRouter, Depends, HTTPException
+from psycopg import Connection
 
 router = APIRouter(
     prefix="/drones",

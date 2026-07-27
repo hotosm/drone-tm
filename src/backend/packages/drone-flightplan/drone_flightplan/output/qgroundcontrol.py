@@ -22,7 +22,6 @@ https://mavlink.io/en/messages/common.html#MAV_CMD
 import argparse
 import json
 import logging
-from typing import Union, Optional
 
 import geojson
 from geojson import FeatureCollection
@@ -74,7 +73,7 @@ def create_simple_item(
     param1: float = 0,
     param2: float = 0,
     param3: float = 0,
-    param4: Optional[float] = None,
+    param4: float | None = None,
     auto_continue: bool = True,
     altitude_mode: int = ALTITUDE_MODE_RELATIVE,
 ) -> dict:
@@ -157,7 +156,7 @@ def create_waypoint_item(
     hold_time: float = 0,
     acceptance_radius: float = 2.0,
     pass_radius: float = 0,
-    yaw: Optional[float] = None,
+    yaw: float | None = None,
     altitude_mode: int = ALTITUDE_MODE_RELATIVE,
 ) -> dict:
     """
@@ -351,11 +350,11 @@ def create_return_to_launch_item() -> dict:
 
 
 def create_qgroundcontrol_plan(
-    placemark_geojson: Union[str, FeatureCollection, dict],
+    placemark_geojson: str | FeatureCollection | dict,
     output_file_path: str = "/tmp/mission.plan",
     flight_mode: FlightMode = FlightMode.WAYPOINTS,
     photo_interval_time: float = 2.0,
-    photo_interval_distance: Optional[float] = None,
+    photo_interval_distance: float | None = None,
     firmware_type: int = FIRMWARE_TYPE_PX4,
     vehicle_type: int = VEHICLE_TYPE_QUADROTOR,
     cruise_speed: float = 15.0,

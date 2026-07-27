@@ -1,7 +1,7 @@
 import json
 import uuid
-import pytest
 
+import pytest
 from app.waypoints import waypoint_routes
 
 
@@ -109,7 +109,6 @@ async def test_terrain_follow_dem_present_in_s3_downloads_before_generation(
     def fake_get_file_from_bucket(_bucket, _key, file_path):
         with open(file_path, "wb") as dem_file:
             dem_file.write(b"dem-bytes")
-        return None
 
     monkeypatch.setattr(
         waypoint_routes, "get_file_from_bucket", fake_get_file_from_bucket
@@ -162,7 +161,6 @@ async def test_terrain_follow_preview_passes_dem_to_placemarks(
     def fake_get_file_from_bucket(_bucket, _key, file_path):
         with open(file_path, "wb") as dem_file:
             dem_file.write(b"dem-bytes")
-        return None
 
     monkeypatch.setattr(
         waypoint_routes, "get_file_from_bucket", fake_get_file_from_bucket

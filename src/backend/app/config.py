@@ -1,17 +1,20 @@
-from enum import Enum
-import os
 import base64
+import os
 import secrets
+from enum import Enum
 from functools import lru_cache
-from typing import Annotated, Optional, Union
+from typing import Annotated
 from urllib.parse import quote
 
 import bcrypt
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from loguru import logger as log
 from pydantic import (
     BeforeValidator,
-    Field,
     EmailStr,
+    Field,
     TypeAdapter,
     ValidationInfo,
     computed_field,
@@ -19,9 +22,6 @@ from pydantic import (
 )
 from pydantic.networks import HttpUrl, PostgresDsn
 from pydantic_settings import BaseSettings
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 HttpUrlStr = Annotated[
     str,
@@ -44,11 +44,11 @@ class OtelSettings(BaseSettings):
     These mostly set environment variables set by the OTEL SDK.
     """
 
-    LOG_LEVEL: Optional[str] = Field(default="INFO", exclude=True)
+    LOG_LEVEL: str | None = Field(default="INFO", exclude=True)
 
     @computed_field
     @property
-    def otel_log_level(self) -> Optional[str]:
+    def otel_log_level(self) -> str | None:
         """Set OpenTelemetry log level based on main app log level."""
         log_level = (self.LOG_LEVEL or "INFO").lower()
         # NOTE setting to DEBUG makes very verbose for every library
@@ -57,7 +57,7 @@ class OtelSettings(BaseSettings):
 
     @computed_field
     @property
-    def otel_service_name(self) -> Optional[HttpUrlStr]:
+    def otel_service_name(self) -> HttpUrlStr | None:
         """Set OpenTelemetry service name for traces."""
         service_name = "unknown"
         if self.DOMAIN:
@@ -69,7 +69,7 @@ class OtelSettings(BaseSettings):
 
     @computed_field
     @property
-    def otel_python_excluded_urls(self) -> Optional[str]:
+    def otel_python_excluded_urls(self) -> str | None:
         """Set excluded URLs for Python instrumentation."""
         endpoints = "__lbheartbeat__,docs,openapi.json"
         os.environ["OTEL_PYTHON_EXCLUDED_URLS"] = endpoints
@@ -78,7 +78,7 @@ class OtelSettings(BaseSettings):
 
     @computed_field
     @property
-    def otel_python_log_correlation(self) -> Optional[str]:
+    def otel_python_log_correlation(self) -> str | None:
         """Set log correlation for OpenTelemetry Python spans."""
         value = "true"
         os.environ["OTEL_PYTHON_LOG_CORRELATION"] = value
@@ -99,16 +99,16 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     API_PREFIX: str = "/api"
 
-    EXTRA_CORS_ORIGINS: Optional[Union[str, list[str]]] = []
+    EXTRA_CORS_ORIGINS: str | list[str] | None = []
     FRONTEND_WEB_APP_PORT: int = 3040
 
     @field_validator("EXTRA_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(
         cls,
-        val: Union[str, list[str]],
+        val: str | list[str],
         info: ValidationInfo,
-    ) -> Union[list[str], str]:
+    ) -> list[str] | str:
         """Build and validate CORS origins list.
 
         By default, the deployment origin derived from DOMAIN + DEBUG is included.
@@ -164,18 +164,16 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
-    POSTGRES_HOST: Optional[str] = "db"
-    POSTGRES_USER: Optional[str] = "dtm"
-    POSTGRES_PASSWORD: Optional[str] = "dtm"
-    POSTGRES_DB: Optional[str] = "dtm_db"
+    POSTGRES_HOST: str | None = "db"
+    POSTGRES_USER: str | None = "dtm"
+    POSTGRES_PASSWORD: str | None = "dtm"
+    POSTGRES_DB: str | None = "dtm_db"
 
-    DTM_DB_URL: Optional[PostgresDsn] = None
+    DTM_DB_URL: PostgresDsn | None = None
 
     @field_validator("DTM_DB_URL", mode="after")
     @classmethod
-    def assemble_db_connection(
-        cls, v: Optional[str], info: ValidationInfo
-    ) -> PostgresDsn:
+    def assemble_db_connection(cls, v: str | None, info: ValidationInfo) -> PostgresDsn:
         """Build Postgres connection from environment variables."""
         if isinstance(v, str):
             return v
@@ -189,7 +187,7 @@ class Settings(BaseSettings):
         return pg_url
 
     # DOMAIN: host[:port] (no scheme), e.g. "drone-tm.example.com" or "localhost:3040"
-    DOMAIN: Optional[str] = None
+    DOMAIN: str | None = None
 
     @computed_field
     @property
@@ -206,7 +204,7 @@ class Settings(BaseSettings):
     BACKEND_URL_INTERNAL: str = "http://backend:8000"
     # Optional shared secret for the ScaleODM webhook, checked against the
     # ?token= query param.
-    SCALEODM_WEBHOOK_SECRET: Optional[str] = None
+    SCALEODM_WEBHOOK_SECRET: str | None = None
 
     @computed_field
     @property
@@ -219,22 +217,22 @@ class Settings(BaseSettings):
         return base
 
     # ODM (ScaleODM) API endpoint
-    ODM_ENDPOINT: Optional[str] = "http://host.docker.internal:31100"
+    ODM_ENDPOINT: str | None = "http://host.docker.internal:31100"
     # In-cluster S3 endpoint passed to ScaleODM workflow pods.
     # Needed when the browser-facing S3 hostname differs from what
     # workflow pods can resolve (self-hosted MinIO/RustFS).
-    SCALEODM_S3_ENDPOINT: Optional[str] = None
-    QGIS_URL: Optional[str] = "http://qgis:8080"
+    SCALEODM_S3_ENDPOINT: str | None = None
+    QGIS_URL: str | None = "http://qgis:8080"
     DRAGONFLY_DSN: str = "redis://dragonfly:6379/0"
 
     # - S3_ENDPOINT_UPLOAD: endpoint used for presigned uploads (browser calls this; can be S3 TA).
     # - S3_ENDPOINT_DOWNLOAD: endpoint used for browser downloads/display (can be CloudFront).
-    S3_ACCESS_KEY: Optional[str] = ""
-    S3_SECRET_KEY: Optional[str] = ""
+    S3_ACCESS_KEY: str | None = ""
+    S3_SECRET_KEY: str | None = ""
     S3_BUCKET_NAME: str = "dtm-bucket"
     # Browser-facing endpoints (optional; derived from INTERNAL if unset).
-    S3_ENDPOINT_UPLOAD: Optional[str] = None
-    S3_ENDPOINT_DOWNLOAD: Optional[str] = None
+    S3_ENDPOINT_UPLOAD: str | None = None
+    S3_ENDPOINT_DOWNLOAD: str | None = None
 
     def model_post_init(self, __context) -> None:
         """Derive S3 endpoint defaults."""
@@ -252,23 +250,23 @@ class Settings(BaseSettings):
     AUTH_PROVIDER: str = "legacy"
 
     # Legacy Google OAuth (when AUTH_PROVIDER="legacy")
-    GOOGLE_CLIENT_ID: Optional[str] = None
-    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
     GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8000"
 
     # Hanko SSO (when AUTH_PROVIDER="hanko")
-    HANKO_API_URL: Optional[str] = None
-    COOKIE_DOMAIN: Optional[str] = None
+    HANKO_API_URL: str | None = None
+    COOKIE_DOMAIN: str | None = None
     # This var is perhaps poorly named, but is necessary for the underlying
     # osm_auth lib that includes all the unified HOT login endpoints.
     # The variable must match that already set in the HOT login backend deployment.
-    COOKIE_SECRET: Optional[str] = None
+    COOKIE_SECRET: str | None = None
 
-    MONITORING: Optional[MonitoringTypes] = None
+    MONITORING: MonitoringTypes | None = None
 
     @computed_field
     @property
-    def monitoring_config(self) -> Optional[SentrySettings]:
+    def monitoring_config(self) -> SentrySettings | None:
         """Get the monitoring configuration."""
         if self.MONITORING == MonitoringTypes.SENTRY:
             return SentrySettings(LOG_LEVEL=self.LOG_LEVEL)
@@ -278,11 +276,11 @@ class Settings(BaseSettings):
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
     SMTP_PORT: int = 587
-    SMTP_HOST: Optional[str] = None
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    EMAILS_FROM_EMAIL: Optional[EmailStr] = None
-    EMAILS_FROM_NAME: Optional[str] = "Drone Tasking Manager"
+    SMTP_HOST: str | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAILS_FROM_EMAIL: EmailStr | None = None
+    EMAILS_FROM_NAME: str | None = "Drone Tasking Manager"
 
     @field_validator("EMAILS_FROM_EMAIL", mode="before")
     @classmethod

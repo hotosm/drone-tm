@@ -1,5 +1,4 @@
 import pytest
-
 from app.images import image_logic
 from app.images.image_classification import ImageClassifier
 

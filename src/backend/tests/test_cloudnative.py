@@ -22,13 +22,11 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
-
 from app.arq import cloudnative
 from app.projects import project_routes
+from fastapi import HTTPException
 
 from tests.test_project_processing import _FakeConn, _FakePool
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

@@ -1,8 +1,6 @@
+from drone_flightplan.drone_type import DRONE_PARAMS, DroneType
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
-
-from drone_flightplan.drone_type import DRONE_PARAMS, DroneType
-
 
 FLIGHTPLAN_OUTPUTS = {
     "DJI_WMPL": {

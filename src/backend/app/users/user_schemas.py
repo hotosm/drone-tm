@@ -1,19 +1,17 @@
 import base64
 import uuid
-from typing import Any, List, Optional
+from typing import Any
 
 import psycopg
+from app.config import encrypt_token, get_password_hash, settings
+from app.models.enums import HTTPStatus, State, UserRole
+from app.s3 import generate_presigned_put_url, maybe_presign_s3_key
 from fastapi import HTTPException
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import class_row, dict_row
 from pydantic import BaseModel, EmailStr, Field, ValidationInfo, model_validator
 from pydantic.functional_validators import field_validator
-
-from app.config import settings, get_password_hash
-from app.models.enums import HTTPStatus, State, UserRole
-from app.config import encrypt_token
-from app.s3 import generate_presigned_put_url, maybe_presign_s3_key
 
 
 class AuthUser(BaseModel):
@@ -22,7 +20,7 @@ class AuthUser(BaseModel):
     id: str
     email: EmailStr
     name: str
-    profile_img: Optional[str] = None
+    profile_img: str | None = None
     role: str = None
     is_superuser: bool = False
 
@@ -91,22 +89,22 @@ class UserCreate(UserBase):
 
 
 class BaseUserProfile(BaseModel):
-    phone_number: Optional[str] = None
-    country: Optional[str] = None
-    city: Optional[str] = None
-    organization_name: Optional[str] = None
-    organization_address: Optional[str] = None
-    job_title: Optional[str] = None
-    notify_for_projects_within_km: Optional[int] = None
-    drone_you_own: Optional[str] = None
-    experience_years: Optional[int] = None
-    certified_drone_operator: Optional[bool] = False
-    role: Optional[List[UserRole]] = None
-    certificate_file: Optional[str] = None
-    registration_file: Optional[str] = None
-    certificate_url: Optional[str] = None
-    registration_certificate_url: Optional[str] = None
-    oam_api_token: Optional[str] = None
+    phone_number: str | None = None
+    country: str | None = None
+    city: str | None = None
+    organization_name: str | None = None
+    organization_address: str | None = None
+    job_title: str | None = None
+    notify_for_projects_within_km: int | None = None
+    drone_you_own: str | None = None
+    experience_years: int | None = None
+    certified_drone_operator: bool | None = False
+    role: list[UserRole] | None = None
+    certificate_file: str | None = None
+    registration_file: str | None = None
+    certificate_url: str | None = None
+    registration_certificate_url: str | None = None
+    oam_api_token: str | None = None
 
     @model_validator(mode="after")
     def set_urls(cls, values):
@@ -145,7 +143,7 @@ class BaseUserProfile(BaseModel):
 
 
 class UserProfileCreate(BaseUserProfile):
-    password: Optional[str] = None
+    password: str | None = None
 
     @model_validator(mode="after")
     def validate_password_required(self):
@@ -156,8 +154,8 @@ class UserProfileCreate(BaseUserProfile):
 
 
 class UserProfileUpdate(BaseUserProfile):
-    old_password: Optional[str] = None
-    password: Optional[str] = None
+    old_password: str | None = None
+    password: str | None = None
 
 
 class DbUserProfile(BaseUserProfile):
@@ -202,7 +200,7 @@ class DbUserProfile(BaseUserProfile):
         return result
 
     @staticmethod
-    async def _update_roles(db: Connection, user_id: int, new_roles: Optional[list]):
+    async def _update_roles(db: Connection, user_id: int, new_roles: list | None):
         """Update the roles of the user in the database."""
         if new_roles is not None:
             role_update_query = """
@@ -377,7 +375,7 @@ class DbUser(BaseModel):
     is_active: bool
     is_superuser: bool
     name: str
-    profile_img: Optional[str] = None
+    profile_img: str | None = None
 
     @staticmethod
     async def all(db: Connection):
