@@ -906,6 +906,8 @@
   "processing_dialog_task_processing_title": "Pemrosesan Tugas (Ortofoto Cepat)",
   "processing_dialog_task_processing_desc": "Memproses gambar untuk setiap tugas satu per satu untuk menghasilkan pratinjau cepat ortofoto.",
   "processing_dialog_view_queue": "Lihat Antrean",
+  "processing_dialog_copy_task_id_title": "Salin ID tugas ke papan klip",
+  "processing_dialog_task_id_copied": "ID tugas disalin ke papan klip",
   "processing_dialog_table_task": "Tugas",
   "processing_dialog_table_images": "Gambar",
   "processing_dialog_table_status": "Status",

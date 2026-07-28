@@ -238,6 +238,11 @@ const ProcessingStatusDialog = () => {
     [processTask, queryClient, projectId],
   );
 
+  const handleCopyTaskId = useCallback((taskId: string) => {
+    navigator.clipboard.writeText(taskId);
+    toast.success(m.processing_dialog_task_id_copied());
+  }, []);
+
   const handleDownloadAssets = useCallback((assetsUrl: string) => {
     try {
       const link = document.createElement("a");
@@ -610,9 +615,21 @@ const ProcessingStatusDialog = () => {
                       />
                     </td>
                     <td className="naxatw-px-3 naxatw-py-2 naxatw-font-medium">
-                      {m.processing_dialog_task_row_label({
-                        index: task.task_index ?? index + 1,
-                      })}
+                      <div className="naxatw-flex naxatw-items-center naxatw-gap-1">
+                        <span className="naxatw-whitespace-nowrap">
+                          {m.processing_dialog_task_row_label({
+                            index: task.task_index ?? index + 1,
+                          })}
+                        </span>
+                        <button
+                          type="button"
+                          title={m.processing_dialog_copy_task_id_title()}
+                          className="naxatw-flex naxatw-h-5 naxatw-w-5 naxatw-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded naxatw-text-gray-400 hover:naxatw-bg-gray-100 hover:naxatw-text-gray-600"
+                          onClick={() => handleCopyTaskId(task.task_id)}
+                        >
+                          <Icon name="content_copy" className="!naxatw-text-sm" />
+                        </button>
+                      </div>
                     </td>
                     <td className="naxatw-px-3 naxatw-py-2 naxatw-text-gray-600">
                       {m.processing_dialog_images_count({ count: task.image_count })}

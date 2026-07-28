@@ -44,7 +44,7 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
       };
     case "processing-status":
       return {
-        className: "naxatw-w-[92vw] naxatw-max-w-[40rem]",
+        className: "naxatw-w-[92vw] naxatw-max-w-[44rem]",
         title: "Processing Status",
         content: <ProcessingStatusDialog />,
       };

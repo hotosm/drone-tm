@@ -908,6 +908,8 @@
   "processing_dialog_task_processing_title": "Task Processing (Quick Orthophoto)",
   "processing_dialog_task_processing_desc": "Processes images for each task individually to produce a quick preview orthophoto.",
   "processing_dialog_view_queue": "View Queue",
+  "processing_dialog_copy_task_id_title": "Copy task ID to clipboard",
+  "processing_dialog_task_id_copied": "Task ID copied to clipboard",
   "processing_dialog_table_task": "Task",
   "processing_dialog_table_images": "Images",
   "processing_dialog_table_status": "Status",

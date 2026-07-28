@@ -906,6 +906,8 @@
   "processing_dialog_task_processing_title": "Procesamiento de tareas (ortofoto rápida)",
   "processing_dialog_task_processing_desc": "Procesa las imágenes de cada tarea individualmente para producir una ortofoto de vista previa rápida.",
   "processing_dialog_view_queue": "Ver cola",
+  "processing_dialog_copy_task_id_title": "Copiar ID de tarea al portapapeles",
+  "processing_dialog_task_id_copied": "ID de tarea copiado al portapapeles",
   "processing_dialog_table_task": "Tarea",
   "processing_dialog_table_images": "Imágenes",
   "processing_dialog_table_status": "Estado",
