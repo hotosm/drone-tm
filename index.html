@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Drone Mesh Explorer</title>
+  <style>
+    /* ============ instrument tokens ============ */
+    :root {
+      --surface: #FFFFFF;
+      --surface-dim: #F1F2EE;
+      --ink: #191C19;
+      --ink-soft: #6A6F67;
+      --line: #E1E3DD;
+      --confirm: #1F7A33;
+      --danger: #C0392B;
+      --radius: 16px;
+      --radius-s: 10px;
+      --shadow: 0 10px 36px rgba(18, 22, 16, 0.22);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      /* it's an instrument, not a document — no text selection, no long-press
+         callout, no blue tap flash on the controls */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation; /* no double-tap-to-zoom delay/gesture */
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      touch-action: none;
+    }
+    button { font-family: var(--font); }
+    button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    button:disabled { opacity: 0.35; cursor: default; }
+
+    /* ============ dev instrumentation stays dark ============ */
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 13px;
+    }
+    #loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    #loading-overlay.active { display: flex; }
+    .loader {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-text { color: white; margin-top: 20px; font-size: 18px; }
+    #loading-progress { color: #3498db; margin-top: 10px; font-size: 14px; }
+    /* ============ product surfaces: white instrument ============ */
+    .sheet {
+      display: none;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      /* sits above the primary tool bar */
+      bottom: calc(84px + env(safe-area-inset-bottom));
+      width: min(96vw, 600px);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px 16px calc(14px);
+      box-sizing: border-box;
+    }
+    .sheet.active { display: block; }
+
+    /* --- review: one compact card; tools hidden until you tap Adjust --- */
+    body.review-mode #review-actions {
+      bottom: calc(14px + env(safe-area-inset-bottom));
+      width: min(96vw, 600px);
+      padding: 10px 14px calc(12px);
+      z-index: 846; /* above the tool bar (840) */
+    }
+    .rv-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 30px;
+    }
+    .rv-progress, .rv-meta {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      white-space: nowrap;
+    }
+    .rv-adjust {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .rv-adjust.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+    /* the class chip is the reclass control (dark = primary) */
+    .class-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      background: var(--ink);
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+    }
+    .class-chip.full { width: 100%; margin: 10px 0; }
+    #rh-class { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip-dot { width: 13px; height: 13px; border-radius: 50%; background: var(--cls, #fff); flex: none; }
+    .chip-chev {
+      margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: rgba(255, 255, 255, 0.7);
+    }
+    /* the shared tool bar is hidden in review, revealed only while adjusting */
+    body.review-mode #toolbar { display: none; }
+    body.review-mode.adjusting #toolbar.visible {
+      display: flex;
+      bottom: calc(210px + env(safe-area-inset-bottom));
+    }
+    /* Changing class and adjusting geometry are different intents: while the
+       class picker is open the tool bar would grow into it, so hide it. */
+    body.review-mode:has(#ra-reclass.active) #toolbar.visible { display: none !important; }
+
+    /* compact commit cluster, bottom-right (out of the way of the selection) */
+    #label-panel {
+      display: none;
+      position: absolute;
+      right: 12px;
+      bottom: calc(84px + env(safe-area-inset-bottom));
+      width: max-content;
+      max-width: 94vw;
+      z-index: 845;
+    }
+    #label-panel.active { display: block; }
+    .commit-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      padding: 8px 10px;
+    }
+    /* the class pill is the primary control: shows the current surface,
+       tap to change */
+    .commit-class {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--ink);
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+    }
+    .commit-class .dot { width: 12px; height: 12px; }
+    .commit-class .caret { color: rgba(255,255,255,0.7); font-size: 11px; }
+    .commit-conf {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .commit-count { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+    /* class picker popover above the bar, right-aligned */
+    .class-pop {
+      display: none;
+      position: absolute;
+      right: 0;
+      bottom: 100%;
+      margin-bottom: 8px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 8px;
+      width: max-content;
+      max-width: 92vw;
+    }
+    .class-pop.open { display: grid; }
+
+    .lp-spacer { flex: 1; }
+    .icon-quiet {
+      width: 34px; height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink-soft);
+      border-radius: 50%;
+      font-size: 14px;
+      cursor: pointer;
+      flex: none;
+    }
+    .icon-quiet svg {
+      width: 17px; height: 17px;
+      fill: none; stroke: currentColor; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .icon-quiet.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
+
+    .option-grid {
+      display: none;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+      padding-bottom: 10px;
+    }
+    .option-grid.active { display: grid; }
+    .class-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-s);
+      padding: 11px 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .class-btn::before {
+      content: "";
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: var(--chip, var(--line));
+      flex: none;
+    }
+    .class-btn.active {
+      border-color: var(--ink);
+      box-shadow: inset 0 0 0 1px var(--ink);
+    }
+
+    .tool-row {
+      display: flex;
+      gap: 8px;
+      padding: 2px 0 10px;
+    }
+    .tool-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-s);
+      padding: 7px 4px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      cursor: pointer;
+    }
+    .tool-btn > span {
+      font-size: 19px;
+      line-height: 1.1;
+      color: var(--ink);
+      text-transform: none;
+    }
+    .tool-btn.active {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: rgba(255, 255, 255, 0.75);
+    }
+    .tool-btn.active > span { color: #fff; }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+    .btn-quiet {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-s);
+      padding: 13px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--confirm);
+      border: 1px solid var(--confirm);
+      border-radius: var(--radius-s);
+      padding: 13px 22px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      min-width: 42%;
+    }
+
+    /* confidence pills (explore panel) */
+    .conf-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .conf-btn::before {
+      content: "";
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--chip, var(--line));
+    }
+    .conf-btn.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+    .conf-row { display: flex; gap: 6px; align-items: center; }
+
+    .sheet-summary {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      padding: 2px 0 8px;
+    }
+
+    /* generic round button (info, ⋯) */
+    .round-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 700;
+      font-style: italic;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      flex: none;
+    }
+
+    /* controls help as a popover from the (i) button */
+    #info {
+      display: none;
+      position: absolute;
+      top: calc(60px + env(safe-area-inset-top));
+      left: 12px;
+      max-width: 260px;
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: var(--radius-s);
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      z-index: 860;
+    }
+    #info.active { display: block; }
+
+    /* top-left cluster */
+    #corner-tl {
+      position: absolute;
+      top: calc(12px + env(safe-area-inset-top));
+      left: 12px;
+      z-index: 850;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    #focus-group { display: none; position: relative; }
+    #focus-group.visible { display: block; }
+    #focus-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      flex-direction: column;
+      gap: 4px;
+      background: var(--surface);
+      border-radius: var(--radius-s);
+      box-shadow: var(--shadow);
+      padding: 6px;
+    }
+    #focus-group.open #focus-menu { display: flex; }
+    #focus-toggle { font-size: 18px; }
+    /* classifier inspector card (top-left, explore only) */
+    #inspect {
+      display: none;
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: var(--radius-s);
+      box-shadow: var(--shadow);
+      padding: 8px 10px;
+      font-size: 11px;
+      width: 190px;
+      box-sizing: border-box;
+    }
+    #inspect.active { display: block; }
+    .insp-title {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--ink-soft); margin-bottom: 5px;
+    }
+    .insp-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+    .insp-row span { color: var(--ink-soft); }
+    .insp-row b { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+    .insp-result {
+      display: flex; align-items: center; gap: 7px;
+      margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line);
+      font-size: 15px; font-weight: 700;
+    }
+    .insp-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    #labels-inspect.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+    .fg-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      padding: 2px 2px 0;
+    }
+    .focus-btn {
+      width: 52px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .focus-btn:active { background: var(--surface-dim); }
+
+    /* top-center mode toggle */
+    #mode-toggle {
+      position: absolute;
+      top: calc(12px + env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      background: var(--surface);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      padding: 4px;
+      z-index: 850;
+    }
+    .mode-btn {
+      border: none;
+      background: transparent;
+      border-radius: 999px;
+      padding: 8px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      cursor: pointer;
+    }
+    .mode-btn.active { background: var(--ink); color: #fff; }
+    .mode-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* primary tool bar */
+    #toolbar {
+      display: none;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(14px + env(safe-area-inset-bottom));
+      background: var(--surface);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      padding: 6px;
+      gap: 2px;
+      align-items: center;
+      z-index: 840;
+      max-width: 96vw;
+    }
+    #toolbar.visible { display: flex; }
+    .tool-ico {
+      width: 52px;
+      min-height: 50px;
+      border: none;
+      background: transparent;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .tool-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .tool-ico.active { background: var(--ink); color: #fff; }
+    .tool-ico:disabled { opacity: 0.35; }
+    /* Erase is a modifier, not a tool: when on it turns red, and the active
+       tag tool turns red too so a tap/brush/lasso clearly REMOVES. */
+    #tb-erase.active { background: var(--danger); color: #fff; }
+    #toolbar.erasing .tool-ico.active:not(#tb-erase) { background: var(--danger); color: #fff; }
+    .tool-div {
+      width: 1px;
+      align-self: stretch;
+      background: var(--line);
+      margin: 6px 3px;
+    }
+    .refine-only { display: none; }
+    #toolbar.editing .refine-only { display: flex; }
+    #toolbar.editing .tool-div.refine-only { display: block; }
+
+    /* labels menu (tucked utilities) */
+    #labels-menu { display: none; flex-direction: column; gap: 2px; margin-top: 8px; }
+    #labels-menu.open { display: flex; }
+    #labels-menu button {
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    #labels-menu button.danger-text { color: var(--danger); }
+
+    /* top-right: just a ⋯ button; its menu holds status + view + map */
+    #labels-card {
+      display: none;
+      position: absolute;
+      top: calc(12px + env(safe-area-inset-top));
+      right: 12px;
+      z-index: 850;
+    }
+    #labels-card.active { display: block; }
+    #labels-menu {
+      position: absolute;
+      top: 48px;
+      right: 0;
+      width: 244px;
+      max-width: 76vw;
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    .menu-status { font-weight: 700; margin-bottom: 4px; }
+    .menu-section {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 8px 0 5px;
+    }
+    #labels-count { color: var(--ink); }
+    .coverage { font-size: 12px; color: var(--confirm); font-weight: 700; margin-left: 4px; }
+    .view-row {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 0 0 4px;
+    }
+    .view-btn {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .view-btn.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+    .class-dot-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      cursor: pointer;
+      padding: 0;
+      flex: none;
+    }
+    .class-dot-btn.active { border-color: var(--ink); transform: scale(1.15); }
+    #labels-list { max-height: 34vh; overflow-y: auto; }
+    .label-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 0;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .label-name { flex: 1; font-weight: 600; }
+    .label-meta { color: var(--ink-soft); font-size: 12px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+    .row-del {
+      background: none;
+      border: none;
+      color: var(--ink-soft);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .row-del:hover { color: var(--danger); }
+    .auto-chip {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 0 4px;
+      vertical-align: 1px;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .option-grid.active { animation: reveal 0.15s ease-out; }
+      @keyframes reveal {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: none; }
+      }
+    }
+
+    @media (max-width: 640px) {
+      #info { font-size: 10px; padding: 6px 8px; max-width: 44vw; opacity: 0.85; }
+      #labels-card { width: auto; max-width: 58vw; font-size: 12px; }
+      .btn-primary { padding: 12px 14px; }
+      .btn-quiet { padding: 12px 10px; font-size: 13px; }
+      #toolbar { padding: 4px; gap: 0; }
+      .tool-ico { width: 44px; min-height: 46px; }
+      /* commit bar stays a slim pill; class picker pops as 2 columns */
+      .class-pop { grid-template-columns: repeat(2, 1fr); }
+      .commit-class { font-size: 14px; padding: 9px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <!-- controls help, revealed by the (i) button -->
+  <div id="info" class="popover">
+    <strong>Controls</strong><br>
+    Drag — look around · WASD — move · Shift — faster<br>
+    Pick a tool below to tag. <b>Move</b> = camera only.
+  </div>
+
+  <!-- top-left: info + focus-view -->
+  <div id="corner-tl">
+    <button id="btn-info" class="round-btn" title="Controls">i</button>
+    <div id="focus-group" title="Frame the selection">
+      <button id="focus-toggle" class="round-btn" title="Frame the selection">⛶</button>
+      <div id="focus-menu">
+        <span class="fg-label">Focus</span>
+        <button class="focus-btn" data-view3d="top">Top</button>
+        <button class="focus-btn" data-view3d="front">Front</button>
+        <button class="focus-btn" data-view3d="side">Side</button>
+        <button class="focus-btn" data-view3d="reset">¾</button>
+      </div>
+    </div>
+    <!-- classifier inspector: what auto-tag would call the tapped surface -->
+    <div id="inspect">
+      <div class="insp-title">Classifier</div>
+      <div class="insp-row"><span>geom</span><b id="insp-geom">—</b></div>
+      <div class="insp-row"><span>terrain</span><b id="insp-terrain">—</b></div>
+      <div class="insp-row"><span>colour</span><b id="insp-colour">—</b></div>
+      <div class="insp-result"><span class="insp-dot" id="insp-dot"></span><b id="insp-class">—</b></div>
+    </div>
+  </div>
+
+  <!-- top-center: mode -->
+  <div id="mode-toggle">
+    <button id="mode-explore" class="mode-btn active">Explore</button>
+    <button id="mode-review" class="mode-btn">Review</button>
+  </div>
+
+  <div id="loading-overlay">
+    <div class="loader"></div>
+    <div id="loading-text">Loading mesh...</div>
+    <div id="loading-progress"></div>
+  </div>
+
+  <!-- explore: create a label -->
+  <div id="label-panel" class="sheet">
+    <div id="lp-summary" class="sheet-summary"></div>
+    <div id="lp-classes" class="option-grid active"></div>
+    <div class="action-row">
+      <div id="lp-conf" class="conf-row"></div>
+      <span class="lp-spacer"></span>
+      <button id="lp-delete" class="icon-quiet danger" style="display:none" title="Delete this label">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/><path d="M10 11v5M14 11v5"/></svg>
+      </button>
+      <button id="lp-cancel" class="btn-quiet">Cancel</button>
+      <button id="lp-save" class="btn-primary">Save label</button>
+    </div>
+  </div>
+
+  <!-- top-right: a single ⋯ button; everything lives in its menu -->
+  <div id="labels-card">
+    <button id="labels-menu-btn" class="round-btn" title="Map & view">⋯</button>
+    <div id="labels-menu" class="menu">
+      <div class="menu-status">
+        <strong id="labels-count">0</strong>
+        <span id="labels-coverage" class="coverage"></span>
+      </div>
+      <div class="menu-section">Overlays</div>
+      <div class="view-row" id="view-modes">
+        <button class="view-btn active" data-view="hidden" title="Hide all overlays — clean mesh">Off</button>
+        <button class="view-btn" data-view="all" title="Show all tagged surfaces">Tagged</button>
+        <button class="view-btn" data-view="untagged" title="Dim labeled areas so remaining work stands out">Untagged</button>
+        <button class="view-btn" data-view="confirmed" title="Confirmed only">✓</button>
+        <button class="view-btn" data-view="proposals" title="Proposals only">⚑</button>
+      </div>
+      <div class="view-row" id="view-classes"></div>
+      <div class="menu-section">Map</div>
+      <button id="labels-export">⬇ Export JSON</button>
+      <button id="labels-auto">✨ Auto-tag map</button>
+      <button id="labels-inspect">🔍 Inspect classifier on tap</button>
+      <button id="labels-clear" class="danger-text">Clear all labels</button>
+    </div>
+  </div>
+
+  <!-- primary tool bar: shared by explore + review editing -->
+  <div id="toolbar">
+    <button class="tool-ico active" data-tool="navigate" title="Move the camera (no tagging)">
+      <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>Move</button>
+    <button class="tool-ico" data-tool="tap" title="Tap a surface to select">
+      <svg viewBox="0 0 24 24"><path d="M7 4l11 7-4.5 1 2.5 6-2 1-2.5-6L8 17z"/></svg>Tap</button>
+    <button class="tool-ico" data-tool="brush" title="Brush faces">
+      <svg viewBox="0 0 24 24"><path d="M14 4l6 6-7 7-4 1 1-4z"/><path d="M5 20c1.5 0 2.5-1 2.5-2.5"/></svg>Brush</button>
+    <button class="tool-ico" data-tool="lasso" title="Lasso faces">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="10" r="6" stroke-dasharray="3 3"/><path d="M8 15c-1.5 1.5-.5 4 1.5 4"/></svg>Lasso</button>
+    <span class="tool-div"></span>
+    <button id="tb-erase" class="tool-ico" title="Erase mode — the active tool removes instead of adds">
+      <svg viewBox="0 0 24 24"><path d="M4 15.5 13 6.5a2 2 0 0 1 3 0l2 2a2 2 0 0 1 0 3L11.5 19H6.5z"/><path d="M8 11l5 5"/><path d="M4.5 19H19"/></svg>Erase</button>
+    <span class="tool-div refine-only"></span>
+    <button id="tb-undo" class="tool-ico refine-only" title="Undo (Z)">
+      <svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h11a4 4 0 0 1 0 8h-1"/></svg>Undo</button>
+    <button id="tb-grow" class="tool-ico refine-only" title="Grow one ring">
+      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Grow</button>
+    <button id="tb-shrink" class="tool-ico refine-only" title="Shrink one ring">
+      <svg viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>Shrink</button>
+  </div>
+
+  <!-- explore: slim commit bar. Suggested class shown as a pill; the full
+       class picker is a popover you open only to change it. -->
+  <div id="label-panel">
+    <div id="lp-classgrid" class="class-pop"></div>
+    <div class="commit-bar">
+      <button id="lp-cancel" class="icon-quiet" title="Cancel">✕</button>
+      <button id="lp-delete" class="icon-quiet danger" style="display:none" title="Delete this label">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/><path d="M10 11v5M14 11v5"/></svg>
+      </button>
+      <button id="lp-class" class="commit-class">
+        <span class="dot" id="lp-class-dot"></span>
+        <span id="lp-class-name">—</span>
+        <span class="caret">▾</span>
+      </button>
+      <button id="lp-conf" class="commit-conf" title="Cycle confidence">
+        <span class="dot" id="lp-conf-dot"></span><span id="lp-conf-name">Confirmed</span>
+      </button>
+      <span class="lp-spacer"></span>
+      <span id="lp-summary" class="commit-count"></span>
+      <button id="lp-save" class="btn-primary">Save</button>
+    </div>
+  </div>
+
+  <!-- review: one compact card. The editing tools stay hidden until you tap
+       Adjust, so a straight Confirm/Skip pass keeps the screen clear. -->
+  <div id="review-actions" class="sheet">
+    <div class="rv-head">
+      <span id="rh-progress" class="rv-progress"></span>
+      <span id="rh-meta" class="rv-meta"></span>
+      <span class="lp-spacer"></span>
+      <button id="ra-adjust" class="rv-adjust" title="Adjust this selection">✎ Adjust</button>
+      <button id="ra-delete" class="icon-quiet danger" style="display:none" title="Delete this label">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/><path d="M10 11v5M14 11v5"/></svg>
+      </button>
+    </div>
+    <button id="ra-class" class="class-chip full" title="Change what this surface is">
+      <span class="chip-dot" id="ra-class-dot"></span>
+      <span id="rh-class"></span>
+      <span class="chip-chev">change</span>
+    </button>
+    <div id="ra-reclass" class="option-grid"></div>
+    <div class="action-row" id="ra-verbs">
+      <button id="ra-flag" class="btn-quiet">⚑ Flag</button>
+      <button id="ra-skip" class="btn-quiet">Skip →</button>
+      <button id="ra-discard" class="btn-quiet" style="display:none">Discard</button>
+      <span class="lp-spacer"></span>
+      <button id="ra-correct" class="btn-primary">✓ Confirm</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
