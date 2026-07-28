@@ -3,7 +3,7 @@
 ARG PYTHON_IMG_TAG=3.11
 
 # Static Obj2Tiles binary, copied into the runtime stage for OBJ -> 3D tiles conversion
-FROM ghcr.io/spwoodcock/obj2tiles:v1.4.0 AS obj2tiles
+FROM ghcr.io/spwoodcock/obj2tiles:v1.6.2 AS obj2tiles
 
 # Base build stage with dependencies required to build Python wheels
 FROM python:$PYTHON_IMG_TAG-slim-trixie AS build
