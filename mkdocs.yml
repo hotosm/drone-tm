@@ -84,6 +84,7 @@ nav:
       - General Drone Theory:
           - How Drones Work: manuals/how-drones-work.md
           - Flying Drones Manually: manuals/flying-drones-manually.md
+      - Video Guides: video-guides.md
       - DroneTM Managers:
           - Creating Projects: manuals/creating-projects.md
           - Ingesting Existing Imagery: manuals/ingest-imagery.md
