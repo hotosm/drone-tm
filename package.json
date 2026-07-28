@@ -1,0 +1,20 @@
+{
+  "name": "drone-mesh-explorer",
+  "version": "1.0.0",
+  "description": "WebGL mesh explorer for drone-captured 3D maps",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node tests/run-all.mjs"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "three-mesh-bvh": "^0.9.13"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vite": "^5.0.0"
+  }
+}

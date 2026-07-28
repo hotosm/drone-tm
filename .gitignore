@@ -94,6 +94,3 @@ src/backend/frontend_html
 .codex
 plans
 checkpoints
-
-# drone-mesh repo
-src/drone-mesh
