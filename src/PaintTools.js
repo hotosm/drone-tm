@@ -18,11 +18,12 @@ export function pointInPolygon(pt, poly) {
   let inside = false;
   const n = poly.length / 2;
   for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = poly[i * 2], yi = poly[i * 2 + 1];
-    const xj = poly[j * 2], yj = poly[j * 2 + 1];
+    const xi = poly[i * 2],
+      yi = poly[i * 2 + 1];
+    const xj = poly[j * 2],
+      yj = poly[j * 2 + 1];
     const intersect =
-      yi > pt[1] !== yj > pt[1] &&
-      pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi;
+      yi > pt[1] !== yj > pt[1] && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;
@@ -36,7 +37,18 @@ export class PaintTools {
   // canvas pixel, or null if the ray misses. Used to anchor gestures to the
   // surface under the cursor so they don't also grab faces far away along the
   // same sight line (e.g. the ground seen past a roof edge).
-  constructor({ domElement, container, camera, getCandidates, onGestureStart, onGestureEnd, onApply, onBrush, pickDepth, pickFace }) {
+  constructor({
+    domElement,
+    container,
+    camera,
+    getCandidates,
+    onGestureStart,
+    onGestureEnd,
+    onApply,
+    onBrush,
+    pickDepth,
+    pickFace,
+  }) {
     this.domElement = domElement;
     this.camera = camera;
     this.getCandidates = getCandidates;
@@ -105,12 +117,12 @@ export class PaintTools {
     this.path.setAttribute("stroke", accent);
     this.path.setAttribute(
       "fill",
-      intent === "add" ? "rgba(24,160,255,0.15)" : "rgba(192,57,43,0.15)"
+      intent === "add" ? "rgba(24,160,255,0.15)" : "rgba(192,57,43,0.15)",
     );
     this.circle.setAttribute("stroke", accent);
     this.circle.setAttribute(
       "fill",
-      intent === "add" ? "rgba(24,160,255,0.18)" : "rgba(192,57,43,0.18)"
+      intent === "add" ? "rgba(24,160,255,0.18)" : "rgba(192,57,43,0.18)",
     );
   }
 
@@ -130,21 +142,32 @@ export class PaintTools {
   // Snapshot world-space centroids of the candidate faces for fast projection.
   snapshotFaces() {
     const faces = this.getCandidates(this.intent);
-    const cx = [], cy = [], cz = [], meshRef = [], faceIdx = [];
+    const cx = [],
+      cy = [],
+      cz = [],
+      meshRef = [],
+      faceIdx = [];
     const v = new THREE.Vector3();
     if (faces) {
       for (const [mesh, set] of faces) {
         const pos = mesh.geometry.getAttribute("position");
         const index = mesh.geometry.index;
         for (const f of set) {
-          let x = 0, y = 0, z = 0;
+          let x = 0,
+            y = 0,
+            z = 0;
           for (let c = 0; c < 3; c++) {
             const vi = index ? index.getX(f * 3 + c) : f * 3 + c;
             v.fromBufferAttribute(pos, vi).applyMatrix4(mesh.matrixWorld);
-            x += v.x; y += v.y; z += v.z;
+            x += v.x;
+            y += v.y;
+            z += v.z;
           }
-          cx.push(x / 3); cy.push(y / 3); cz.push(z / 3);
-          meshRef.push(mesh); faceIdx.push(f);
+          cx.push(x / 3);
+          cy.push(y / 3);
+          cz.push(z / 3);
+          meshRef.push(mesh);
+          faceIdx.push(f);
         }
       }
     }
@@ -167,7 +190,9 @@ export class PaintTools {
     const mode =
       this.tool === "brush" || this.tool === "lasso"
         ? this.tool
-        : e.pointerType === "touch" ? "brush" : "lasso";
+        : e.pointerType === "touch"
+          ? "brush"
+          : "lasso";
 
     if (mode === "brush") {
       // Brush: host raycasts the frontmost face under the cursor and floods
@@ -264,7 +289,10 @@ export class PaintTools {
     g.removed.add(i); // "consumed this gesture", regardless of add/remove
     const mesh = g.meshRef[i];
     let s = hit.get(mesh);
-    if (!s) { s = new Set(); hit.set(mesh, s); }
+    if (!s) {
+      s = new Set();
+      hit.set(mesh, s);
+    }
     s.add(g.faceIdx[i]);
   }
 

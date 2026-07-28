@@ -22,7 +22,7 @@ function quadAt(y) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([0, y, 0, 1, y, 0, 1, y, 1, 0, y, 1], 3)
+    new THREE.Float32BufferAttribute([0, y, 0, 1, y, 0, 1, y, 1, 0, y, 1], 3),
   );
   geom.setIndex([0, 2, 1, 0, 3, 2]);
   return new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
@@ -32,14 +32,11 @@ const roof = quadAt(3);
 const mast = new THREE.Mesh(
   (() => {
     const g = new THREE.BufferGeometry();
-    g.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute([5, 0, 5, 5.1, 0, 5, 5, 10, 5], 3)
-    );
+    g.setAttribute("position", new THREE.Float32BufferAttribute([5, 0, 5, 5.1, 0, 5, 5, 10, 5], 3));
     g.setIndex([0, 1, 2]);
     return g;
   })(),
-  new THREE.MeshBasicMaterial()
+  new THREE.MeshBasicMaterial(),
 );
 
 const root = new THREE.Group();
@@ -56,15 +53,15 @@ const groundSel = new Map([[ground, new Set([0, 1])]]);
 const roofSel = new Map([[roof, new Set([0, 1])]]);
 assert(
   mgr.suggestFor({ targetClass: "roof-flat", selected: groundSel }) === "ground",
-  "low horizontal surface suggests ground"
+  "low horizontal surface suggests ground",
 );
 assert(
   mgr.suggestFor({ targetClass: "roof-flat", selected: roofSel }) === "building-roof",
-  "elevated horizontal surface suggests roof"
+  "elevated horizontal surface suggests roof",
 );
 assert(
   mgr.suggestFor({ targetClass: "wall", selected: roofSel }) === "building-wall",
-  "wall class suggests wall"
+  "wall class suggests wall",
 );
 
 const label = mgr.add({
@@ -93,7 +90,10 @@ const restored = mgr2.restore();
 assert(restored === 2, `restore() returns 2 labels (got ${restored})`);
 assert(mgr2.list[0].faceCount === 2 && mgr2.list[1].faceCount === 1, "face counts survive");
 assert(mgr2.overlays.size === 2, "overlays repainted on restore");
-assert(LABEL_CLASSES.some((c) => c.id === "building-roof"), "taxonomy exports");
+assert(
+  LABEL_CLASSES.some((c) => c.id === "building-roof"),
+  "taxonomy exports",
+);
 
 // --- click-to-edit support ---
 assert(mgr.findLabelAt(roof, 0) === label, "findLabelAt resolves owning label");
@@ -103,7 +103,7 @@ assert(mgr.findLabelAt(ground, 1)?.class === "ground", "findLabelAt on second la
 const decoded = mgr.decodeSelection(label);
 assert(
   decoded.get(roof)?.size === 2 && decoded.get(roof).has(0) && decoded.get(roof).has(1),
-  "decodeSelection reproduces the stored face set"
+  "decodeSelection reproduces the stored face set",
 );
 
 const updated = mgr.update(label.id, {
@@ -112,14 +112,14 @@ const updated = mgr.update(label.id, {
   confidence: "unsure",
 });
 assert(updated.faceCount === 1, "update rewrites geometry");
-assert(updated.class === "vegetation" && updated.confidence === "unsure", "update rewrites class/confidence");
+assert(
+  updated.class === "vegetation" && updated.confidence === "unsure",
+  "update rewrites class/confidence",
+);
 assert(mgr.overlays.has(label.id), "update repaints the overlay");
 const mgr3 = new LabelManager({ scene: new THREE.Scene(), root, mapKey: "test-map" });
 mgr3.restore();
-assert(
-  mgr3.list.find((l) => l.id === label.id)?.faceCount === 1,
-  "updated label persists"
-);
+assert(mgr3.list.find((l) => l.id === label.id)?.faceCount === 1, "updated label persists");
 
 // --- view filtering + coverage ---
 // State here: label (vegetation, unsure, 1 face on roof tile) and the
@@ -130,24 +130,24 @@ const groundLabel = mgr.list.find((l) => l.class === "ground");
 mgr.applyView({ mode: "confirmed", classId: null });
 assert(
   !mgr.overlays.get(label.id).visible && !mgr.overlays.get(groundLabel.id).visible,
-  "confirmed view hides unsure labels"
+  "confirmed view hides unsure labels",
 );
 mgr.applyView({ mode: "untagged", classId: null });
 assert(
   mgr.overlays.get(label.id).visible &&
     mgr.overlays.get(label.id).material.color.getHexString() === "191c19",
-  "untagged view dims labeled areas to ink"
+  "untagged view dims labeled areas to ink",
 );
 mgr.applyView({ mode: "all", classId: "vegetation" });
 assert(
   mgr.overlays.get(label.id).visible && !mgr.overlays.get(groundLabel.id).visible,
-  "class isolation shows only that class"
+  "class isolation shows only that class",
 );
 mgr.applyView({ mode: "all", classId: null });
 assert(
   mgr.overlays.get(groundLabel.id).visible &&
     mgr.overlays.get(label.id).material.color.getHexString() !== "191c19",
-  "all view restores visibility and class colors"
+  "all view restores visibility and class colors",
 );
 
 const cov = mgr.coverage();

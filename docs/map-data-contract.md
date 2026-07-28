@@ -133,14 +133,14 @@ the mesh. That's the whole contract.
 
 ## What each side owns
 
-| | Pipeline team | This app |
-|---|---|---|
-| Produce GLBs (as today) | ✅ | |
-| Sample/downsample DSM–DTM → artifact (A or B) | ✅ | |
-| Write `*.map.json` manifest | ✅ (or we script it) | |
-| Host GLB + artifact + manifest on CDN | ✅ | |
-| Load manifest via `?map=`, render, sample surface | | ✅ |
-| Segment + classify + review UI | | ✅ |
+|                                                   | Pipeline team        | This app |
+| ------------------------------------------------- | -------------------- | -------- |
+| Produce GLBs (as today)                           | ✅                   |          |
+| Sample/downsample DSM–DTM → artifact (A or B)     | ✅                   |          |
+| Write `*.map.json` manifest                       | ✅ (or we script it) |          |
+| Host GLB + artifact + manifest on CDN             | ✅                   |          |
+| Load manifest via `?map=`, render, sample surface |                      | ✅       |
+| Segment + classify + review UI                    |                      | ✅       |
 
 ## Why this is worth it
 

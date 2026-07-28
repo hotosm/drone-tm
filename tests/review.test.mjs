@@ -26,7 +26,7 @@ function quadAt(x, y) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([x, y, 0, x + 1, y, 0, x + 1, y, 1, x, y, 1], 3)
+    new THREE.Float32BufferAttribute([x, y, 0, x + 1, y, 0, x + 1, y, 1, x, y, 1], 3),
   );
   geom.setIndex([0, 2, 1, 0, 3, 2]);
   return new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
@@ -102,7 +102,7 @@ assert(review.enter() === true, "enter() succeeds");
 assert(review.queue[0].label.class === "building-roof", "NN ordering: near item first");
 assert(
   streamer.reviewOrbit === true && streamer.focusTiles === null,
-  "review streams by on-screen pick (orbit), not page-pinned focus"
+  "review streams by on-screen pick (orbit), not page-pinned focus",
 );
 for (const t of streamer.tiles) {
   assert(t.mesh.visible !== t.low.visible, `tile ${t.index} visible at exactly one LOD`);
@@ -112,7 +112,7 @@ review.correct();
 assert(streamer.reviewOrbit === true, "advancing keeps review orbit streaming active");
 assert(
   labels.list.find((l) => l.class === "building-roof").confidence === "confirmed",
-  "Correct persists confirmed"
+  "Correct persists confirmed",
 );
 
 review.reclass("vegetation");
@@ -138,7 +138,7 @@ const labels2 = new LabelManager({ scene: new THREE.Scene(), root, mapKey: "rv2"
 labels2.restore();
 assert(
   labels2.list.every((l) => l.confidence === "confirmed"),
-  "review verdicts survived the storage roundtrip"
+  "review verdicts survived the storage roundtrip",
 );
 
 // in-review adjustment support: refresh reframes a mutated label; removing
@@ -152,12 +152,14 @@ labels.update(review3.cur().label.id, {
 review3.refreshCurrentItem();
 assert(
   review3.cur().bbox.getSize(new THREE.Vector3()).x <= before,
-  "refreshCurrentItem recomputes framing from the edited label"
+  "refreshCurrentItem recomputes framing from the edited label",
 );
 review3.removeCurrentItem();
 assert(review3.queue.length === 1, "removeCurrentItem drops the deleted item");
-assert(review3.cur() !== undefined || review3.index === review3.queue.length,
-  "queue presents next item or completes");
+assert(
+  review3.cur() !== undefined || review3.index === review3.queue.length,
+  "queue presents next item or completes",
+);
 review3.exit();
 
 console.log("\nAll review-mode tests passed.");

@@ -1,55 +1,53 @@
-import * as THREE from 'three';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import { cachedArrayBuffer } from './modelCache.js';
+import * as THREE from "three";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
+import { cachedArrayBuffer } from "./modelCache.js";
 
 export class MeshLoader {
   constructor(scene) {
     this.scene = scene;
-    
+
     // Setup DRACO loader for compressed geometry
     const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    
+    dracoLoader.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+
     const gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(dracoLoader);
-    
+
     this.loaders = {
       obj: new OBJLoader(),
       mtl: new MTLLoader(),
       gltf: gltfLoader,
       glb: gltfLoader,
       ply: new PLYLoader(),
-      stl: new STLLoader()
+      stl: new STLLoader(),
     };
   }
 
   async loadFiles(files) {
     // Sort files by type
-    const objFile = files.find(f => f.name.endsWith('.obj'));
-    const mtlFile = files.find(f => f.name.endsWith('.mtl'));
-    const textureFiles = files.filter(f => 
-      f.name.endsWith('.png') || 
-      f.name.endsWith('.jpg') || 
-      f.name.endsWith('.jpeg')
+    const objFile = files.find((f) => f.name.endsWith(".obj"));
+    const mtlFile = files.find((f) => f.name.endsWith(".mtl"));
+    const textureFiles = files.filter(
+      (f) => f.name.endsWith(".png") || f.name.endsWith(".jpg") || f.name.endsWith(".jpeg"),
     );
 
     if (objFile) {
       // Create URLs for all files
       const objUrl = URL.createObjectURL(objFile);
       const textureUrls = {};
-      
-      textureFiles.forEach(file => {
+
+      textureFiles.forEach((file) => {
         textureUrls[file.name] = URL.createObjectURL(file);
       });
 
       try {
         let mesh;
-        
+
         if (mtlFile) {
           // Load with MTL
           const mtlUrl = URL.createObjectURL(mtlFile);
@@ -62,40 +60,40 @@ export class MeshLoader {
 
         // Clean up URLs
         URL.revokeObjectURL(objUrl);
-        Object.values(textureUrls).forEach(url => URL.revokeObjectURL(url));
-        
+        Object.values(textureUrls).forEach((url) => URL.revokeObjectURL(url));
+
         return mesh;
       } catch (error) {
         // Clean up URLs on error
         URL.revokeObjectURL(objUrl);
-        Object.values(textureUrls).forEach(url => URL.revokeObjectURL(url));
+        Object.values(textureUrls).forEach((url) => URL.revokeObjectURL(url));
         throw error;
       }
     } else if (files.length === 1) {
       return this.loadFile(files[0]);
     } else {
-      throw new Error('Please select an OBJ file with its associated files');
+      throw new Error("Please select an OBJ file with its associated files");
     }
   }
 
   async loadFromUrl(url, onProgress, onStatus) {
-    const extension = url.split('.').pop().toLowerCase().split('?')[0];
-    
+    const extension = url.split(".").pop().toLowerCase().split("?")[0];
+
     try {
       let mesh;
-      
+
       switch (extension) {
-        case 'obj':
+        case "obj":
           mesh = await this.loadOBJ(url);
           break;
-        case 'gltf':
-        case 'glb':
+        case "gltf":
+        case "glb":
           mesh = await this.loadGLTF(url, onProgress, onStatus);
           break;
-        case 'ply':
+        case "ply":
           mesh = await this.loadPLY(url);
           break;
-        case 'stl':
+        case "stl":
           mesh = await this.loadSTL(url);
           break;
         default:
@@ -110,24 +108,24 @@ export class MeshLoader {
   }
 
   async loadFile(file) {
-    const extension = file.name.split('.').pop().toLowerCase();
+    const extension = file.name.split(".").pop().toLowerCase();
     const url = URL.createObjectURL(file);
 
     try {
       let mesh;
-      
+
       switch (extension) {
-        case 'obj':
+        case "obj":
           mesh = await this.loadOBJ(url);
           break;
-        case 'gltf':
-        case 'glb':
+        case "gltf":
+        case "glb":
           mesh = await this.loadGLTF(url);
           break;
-        case 'ply':
+        case "ply":
           mesh = await this.loadPLY(url);
           break;
-        case 'stl':
+        case "stl":
           mesh = await this.loadSTL(url);
           break;
         default:
@@ -148,19 +146,19 @@ export class MeshLoader {
         mtlUrl,
         (materials) => {
           materials.preload();
-          
+
           // Replace texture URLs with our blob URLs
-          Object.keys(materials.materials).forEach(matKey => {
+          Object.keys(materials.materials).forEach((matKey) => {
             const material = materials.materials[matKey];
             if (material.map && material.map.image) {
-              const textureName = material.map.image.src.split('/').pop();
+              const textureName = material.map.image.src.split("/").pop();
               if (textureUrls[textureName]) {
                 const textureLoader = new THREE.TextureLoader();
                 material.map = textureLoader.load(textureUrls[textureName]);
               }
             }
           });
-          
+
           this.loaders.obj.setMaterials(materials);
           this.loaders.obj.load(
             objUrl,
@@ -178,15 +176,15 @@ export class MeshLoader {
               resolve(object);
             },
             (progress) => {
-              console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+              console.log("Loading progress:", (progress.loaded / progress.total) * 100 + "%");
             },
-            (error) => reject(error)
+            (error) => reject(error),
           );
         },
         (progress) => {
-          console.log('Loading MTL:', (progress.loaded / progress.total * 100) + '%');
+          console.log("Loading MTL:", (progress.loaded / progress.total) * 100 + "%");
         },
-        (error) => reject(error)
+        (error) => reject(error),
       );
     });
   }
@@ -200,7 +198,7 @@ export class MeshLoader {
             if (child instanceof THREE.Mesh) {
               child.material = new THREE.MeshPhongMaterial({
                 color: 0x888888,
-                side: THREE.DoubleSide
+                side: THREE.DoubleSide,
               });
               child.castShadow = true;
               child.receiveShadow = true;
@@ -211,15 +209,15 @@ export class MeshLoader {
           resolve(object);
         },
         (progress) => {
-          console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+          console.log("Loading progress:", (progress.loaded / progress.total) * 100 + "%");
         },
-        (error) => reject(error)
+        (error) => reject(error),
       );
     });
   }
 
   async loadGLTF(url, onProgress, onStatus) {
-    console.log('Starting GLTF load from URL:', url);
+    console.log("Starting GLTF load from URL:", url);
     // Fetch bytes through the IndexedDB cache (survives HMR reloads), then
     // parse — the GLB is self-contained (Draco decoder is set on the loader),
     // so no resource path is needed.
@@ -229,7 +227,7 @@ export class MeshLoader {
         buffer,
         "",
         (gltf) => {
-          console.log('GLTF parsed successfully:', gltf);
+          console.log("GLTF parsed successfully:", gltf);
           const object = gltf.scene;
           object.traverse((child) => {
             if (child instanceof THREE.Mesh) {
@@ -238,7 +236,7 @@ export class MeshLoader {
               if (!child.material) {
                 child.material = new THREE.MeshPhongMaterial({
                   color: 0x888888,
-                  side: THREE.DoubleSide
+                  side: THREE.DoubleSide,
                 });
               } else if (child.material) {
                 // Ensure double-sided rendering for ODM models
@@ -249,9 +247,9 @@ export class MeshLoader {
           resolve(object);
         },
         (error) => {
-          console.error('GLTF parse error:', error);
+          console.error("GLTF parse error:", error);
           reject(error);
-        }
+        },
       );
     });
   }
@@ -265,12 +263,12 @@ export class MeshLoader {
           const material = new THREE.MeshPhongMaterial({
             color: 0x888888,
             side: THREE.DoubleSide,
-            vertexColors: geometry.hasAttribute('color')
+            vertexColors: geometry.hasAttribute("color"),
           });
           const mesh = new THREE.Mesh(geometry, material);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          
+
           const object = new THREE.Group();
           object.add(mesh);
           // Don't add to scene yet - let main.js handle it after processing
@@ -278,9 +276,9 @@ export class MeshLoader {
           resolve(object);
         },
         (progress) => {
-          console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+          console.log("Loading progress:", (progress.loaded / progress.total) * 100 + "%");
         },
-        (error) => reject(error)
+        (error) => reject(error),
       );
     });
   }
@@ -293,12 +291,12 @@ export class MeshLoader {
           geometry.computeVertexNormals();
           const material = new THREE.MeshPhongMaterial({
             color: 0x888888,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
           });
           const mesh = new THREE.Mesh(geometry, material);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          
+
           const object = new THREE.Group();
           object.add(mesh);
           // Don't add to scene yet - let main.js handle it after processing
@@ -306,9 +304,9 @@ export class MeshLoader {
           resolve(object);
         },
         (progress) => {
-          console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+          console.log("Loading progress:", (progress.loaded / progress.total) * 100 + "%");
         },
-        (error) => reject(error)
+        (error) => reject(error),
       );
     });
   }

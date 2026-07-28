@@ -35,10 +35,7 @@ function makeStreamer(opts = {}) {
     mesh: { visible: false },
     low: { visible: true },
     center: new THREE.Vector3(0, 0, -i * 10),
-    samples: [
-      new THREE.Vector3(0, 0, -i * 10),
-      new THREE.Vector3(0, 0, Math.min(0, -i * 10 + 5)),
-    ],
+    samples: [new THREE.Vector3(0, 0, -i * 10), new THREE.Vector3(0, 0, Math.min(0, -i * 10 + 5))],
     bytes: {},
     mime: "image/webp",
     state: "low",
@@ -94,7 +91,7 @@ function makeStreamer(opts = {}) {
   s.update();
   assert(
     requests.some((r) => r.i === 0 && r.size === 2048),
-    "ring→native upgrade requested for tile entering the bubble"
+    "ring→native upgrade requested for tile entering the bubble",
   );
   assert(s.tiles[0].state === "high", "tile keeps current texture during upgrade");
 }
@@ -128,7 +125,7 @@ function makeStreamer(opts = {}) {
   s.computeTargets();
   assert(
     s.tiles[1].targetSize === 2048,
-    "resident page inside keep band is kept as-is (zero work, no demote)"
+    "resident page inside keep band is kept as-is (zero work, no demote)",
   );
 
   // ALTITUDE IS DISTANCE: climb high and nothing qualifies — that is the
@@ -138,7 +135,7 @@ function makeStreamer(opts = {}) {
   s.computeTargets();
   assert(
     s.tiles.every((t) => t.targetSize === 0),
-    "at altitude nothing is close → nothing loads"
+    "at altitude nothing is close → nothing loads",
   );
 }
 
@@ -147,7 +144,7 @@ function makeStreamer(opts = {}) {
   s.setFocus([7, 8], [9, 0, 1]);
   assert(
     s.tiles[7].targetSize === 2048 && s.tiles[8].targetSize === 2048,
-    "focus tiles pinned at native"
+    "focus tiles pinned at native",
   );
   assert(s.tiles[9].targetSize === 2048, "prefetch fills leftover budget");
   assert(s.tiles[0].targetSize === 0, "budget cap stops further prefetch");

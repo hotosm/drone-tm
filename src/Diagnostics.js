@@ -46,7 +46,7 @@ export class Diagnostics {
 
   install() {
     window.addEventListener("error", (e) =>
-      this.record("error", `${e.message} @ ${e.filename || "?"}:${e.lineno || 0}`)
+      this.record("error", `${e.message} @ ${e.filename || "?"}:${e.lineno || 0}`),
     );
     window.addEventListener("unhandledrejection", (e) => {
       const r = e.reason;
@@ -63,7 +63,9 @@ export class Diagnostics {
 
   noteContextLost() {
     this.record("webgl", "context lost (GPU memory pressure likely)");
-    this.toast("⚠️ Graphics memory ran out — the view was reset. If this repeats, tag in smaller sessions.");
+    this.toast(
+      "⚠️ Graphics memory ran out — the view was reset. If this repeats, tag in smaller sessions.",
+    );
   }
 
   reportRecovery() {

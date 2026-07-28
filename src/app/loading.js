@@ -43,9 +43,7 @@ export const loadingMixin = {
     obj.traverse((child) => {
       if (!child.isMesh) return;
       if (child.geometry) child.geometry.dispose();
-      const materials = Array.isArray(child.material)
-        ? child.material
-        : [child.material];
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach((material) => {
         if (!material) return;
         for (const key in material) {
@@ -65,11 +63,7 @@ export const loadingMixin = {
       const now = performance.now();
       const delta = now - lastTime;
       const total = now - startTime;
-      console.log(
-        `[TIMING] ${label}: ${delta.toFixed(0)}ms (total: ${total.toFixed(
-          0
-        )}ms)`
-      );
+      console.log(`[TIMING] ${label}: ${delta.toFixed(0)}ms (total: ${total.toFixed(0)}ms)`);
       lastTime = now;
     };
 
@@ -87,12 +81,10 @@ export const loadingMixin = {
       const filesArray = Array.from(files);
       console.log(
         "Loading files:",
-        filesArray.map((f) => f.name)
+        filesArray.map((f) => f.name),
       );
 
-      const glbFile = filesArray.find(
-        (f) => f.name.endsWith(".glb") || f.name.endsWith(".gltf")
-      );
+      const glbFile = filesArray.find((f) => f.name.endsWith(".glb") || f.name.endsWith(".gltf"));
 
       // Use setTimeout to allow UI to update before heavy processing
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -100,12 +92,9 @@ export const loadingMixin = {
 
       if (glbFile) {
         console.log("Loading GLB file:", glbFile.name);
-        this.currentMesh = await this.meshLoader.loadFile(
-          glbFile,
-          (progress) => {
-            this.updateLoadingProgress(progress);
-          }
-        );
+        this.currentMesh = await this.meshLoader.loadFile(glbFile, (progress) => {
+          this.updateLoadingProgress(progress);
+        });
       } else {
         // Handle multiple files (OBJ + MTL + textures)
         console.log("Loading multiple files");
@@ -150,9 +139,7 @@ export const loadingMixin = {
           }
         }
       });
-      console.log(
-        `Processed ${meshCount} meshes with ${materialCount} materials`
-      );
+      console.log(`Processed ${meshCount} meshes with ${materialCount} materials`);
       logTiming("Material optimization");
 
       this.camera.position.set(0, size.y * scale * 0.5, size.z * scale * 1.5);
@@ -224,14 +211,10 @@ export const loadingMixin = {
   async loadRawHighRes(url) {
     try {
       this.showLoading("Loading FULL model (ground-truth mode)…");
-      const mesh = await this.meshLoader.loadFromUrl(url, (p) =>
-        this.updateLoadingProgress(p)
-      );
+      const mesh = await this.meshLoader.loadFromUrl(url, (p) => this.updateLoadingProgress(p));
       await this.setupMesh(mesh);
       this.hideLoading();
-      console.log(
-        "[drone-mesh] RAW mode: full GLB with native textures, no streaming pipeline"
-      );
+      console.log("[drone-mesh] RAW mode: full GLB with native textures, no streaming pipeline");
 
       // Selection/labeling still work, but against the raw mesh's own face
       // indexing — keep its labels in a separate storage bucket so they can't
@@ -268,7 +251,7 @@ export const loadingMixin = {
           // cached reload, "miss → downloading" / "unavailable (blocked?)" else.
           const el = document.getElementById("loading-text");
           if (el) el.textContent = `Loading preview · cache: ${status}`;
-        }
+        },
       );
 
       await this.setupMesh(this.lowResMesh);
@@ -351,7 +334,11 @@ export const loadingMixin = {
       tex.image = canvas;
       tex.needsUpdate = true;
       if (typeof img.close === "function") {
-        try { img.close(); } catch (e) { /* ignore */ }
+        try {
+          img.close();
+        } catch (e) {
+          /* ignore */
+        }
       }
     } catch (e) {
       /* CORS-tainted or unsupported — leave as-is */
@@ -366,11 +353,7 @@ export const loadingMixin = {
       const now = performance.now();
       const delta = now - lastTime;
       const total = now - startTime;
-      console.log(
-        `[TIMING] ${label}: ${delta.toFixed(0)}ms (total: ${total.toFixed(
-          0
-        )}ms)`
-      );
+      console.log(`[TIMING] ${label}: ${delta.toFixed(0)}ms (total: ${total.toFixed(0)}ms)`);
       lastTime = now;
     };
 
@@ -425,9 +408,7 @@ export const loadingMixin = {
         }
       }
     });
-    console.log(
-      `Processed ${meshCount} meshes with ${materialCount} materials`
-    );
+    console.log(`Processed ${meshCount} meshes with ${materialCount} materials`);
     logTiming("Material optimization");
 
     // Set camera position only for first mesh - up and back from origin

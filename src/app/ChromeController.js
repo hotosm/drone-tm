@@ -75,11 +75,12 @@ export class ChromeController {
     const radius = Math.max(box.getBoundingSphere(new THREE.Sphere()).radius, 1);
     const fov = THREE.MathUtils.degToRad(app.camera.fov);
     const dist = (radius / Math.tan(fov / 2)) * 1.5;
-    const axis = {
-      top: new THREE.Vector3(0.001, 1, 0.001),
-      front: new THREE.Vector3(0, 0.15, 1),
-      side: new THREE.Vector3(1, 0.15, 0),
-    }[dir] || new THREE.Vector3(0.3, 0.6, 1);
+    const axis =
+      {
+        top: new THREE.Vector3(0.001, 1, 0.001),
+        front: new THREE.Vector3(0, 0.15, 1),
+        side: new THREE.Vector3(1, 0.15, 0),
+      }[dir] || new THREE.Vector3(0.3, 0.6, 1);
     axis.normalize();
     app.camera.position.copy(center).addScaledVector(axis, dist);
     app.camera.lookAt(center);
@@ -120,9 +121,9 @@ export class ChromeController {
   syncToolbar() {
     const bar = document.getElementById("toolbar");
     if (!bar) return;
-    bar.querySelectorAll("[data-tool]").forEach((b) =>
-      b.classList.toggle("active", b.dataset.tool === this.editTool)
-    );
+    bar
+      .querySelectorAll("[data-tool]")
+      .forEach((b) => b.classList.toggle("active", b.dataset.tool === this.editTool));
     // Erase = the remove intent, shown as an on/off modifier (not a tool).
     const erasing = this.editIntent === "remove";
     bar.classList.toggle("erasing", erasing);
@@ -136,35 +137,45 @@ export class ChromeController {
     const app = this.app;
     const bar = document.getElementById("toolbar");
     if (!bar) return;
-    bar.querySelectorAll("[data-tool]").forEach((b) =>
-      b.addEventListener("click", () => this.setTool(b.dataset.tool))
-    );
-    document.getElementById("tb-erase").addEventListener("click", () =>
-      this.setIntent(this.editIntent === "add" ? "remove" : "add")
-    );
-    document.getElementById("tb-undo").addEventListener("click", () => app.selectionCtl.undoPending());
-    document.getElementById("tb-grow").addEventListener("click", () => app.selectionCtl.growPending());
-    document.getElementById("tb-shrink").addEventListener("click", () => app.selectionCtl.shrinkPending());
+    bar
+      .querySelectorAll("[data-tool]")
+      .forEach((b) => b.addEventListener("click", () => this.setTool(b.dataset.tool)));
+    document
+      .getElementById("tb-erase")
+      .addEventListener("click", () =>
+        this.setIntent(this.editIntent === "add" ? "remove" : "add"),
+      );
+    document
+      .getElementById("tb-undo")
+      .addEventListener("click", () => app.selectionCtl.undoPending());
+    document
+      .getElementById("tb-grow")
+      .addEventListener("click", () => app.selectionCtl.growPending());
+    document
+      .getElementById("tb-shrink")
+      .addEventListener("click", () => app.selectionCtl.shrinkPending());
 
     // top-left: focus-view cluster (single icon → expandable menu) + info
     const focusGroup = document.getElementById("focus-group");
-    document.getElementById("focus-toggle").addEventListener("click", () =>
-      focusGroup.classList.toggle("open")
-    );
+    document
+      .getElementById("focus-toggle")
+      .addEventListener("click", () => focusGroup.classList.toggle("open"));
     document.querySelectorAll("#focus-group [data-view3d]").forEach((b) =>
       b.addEventListener("click", () => {
         this.focusSelection(b.dataset.view3d);
         focusGroup.classList.remove("open"); // collapse after picking an angle
-      })
+      }),
     );
-    document.getElementById("btn-info").addEventListener("click", () =>
-      document.getElementById("info").classList.toggle("active")
-    );
+    document
+      .getElementById("btn-info")
+      .addEventListener("click", () => document.getElementById("info").classList.toggle("active"));
 
     // review: reveal/hide the editing tools for the current item
-    document.getElementById("ra-adjust").addEventListener("click", () =>
-      app.reviewCtl.setReviewAdjusting(!app.reviewCtl.reviewAdjusting)
-    );
+    document
+      .getElementById("ra-adjust")
+      .addEventListener("click", () =>
+        app.reviewCtl.setReviewAdjusting(!app.reviewCtl.reviewAdjusting),
+      );
 
     // top-center: Explore / Review
     document.getElementById("mode-explore").addEventListener("click", () => {
@@ -176,9 +187,9 @@ export class ChromeController {
 
     // top-right: tucked utilities menu
     const menu = document.getElementById("labels-menu");
-    document.getElementById("labels-menu-btn").addEventListener("click", () =>
-      menu.classList.toggle("open")
-    );
+    document
+      .getElementById("labels-menu-btn")
+      .addEventListener("click", () => menu.classList.toggle("open"));
 
     // Explore classifier inspector toggle: shows what auto-tag would call the
     // tapped surface (app/inspect.js). Reflects + flips app.inspectMode.

@@ -45,10 +45,18 @@ const PLATFORM_H = 5;
 function platform(cx, cz, half, groundY) {
   const y = groundY + PLATFORM_H;
   const p = [
-    cx - half, y, cz - half,
-    cx + half, y, cz - half,
-    cx + half, y, cz + half,
-    cx - half, y, cz + half,
+    cx - half,
+    y,
+    cz - half,
+    cx + half,
+    y,
+    cz - half,
+    cx + half,
+    y,
+    cz + half,
+    cx - half,
+    y,
+    cz + half,
   ];
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
@@ -70,24 +78,27 @@ const terrain = Terrain.build(root, { grid: 40, smoothPasses: 6 });
 const hUnderPlatform = terrain.heightAt(20, 20);
 assert(
   Math.abs(hUnderPlatform - groundYAt20) < 1.5,
-  `terrain under platform tracks ground ~${groundYAt20} (got ${hUnderPlatform.toFixed(2)})`
+  `terrain under platform tracks ground ~${groundYAt20} (got ${hUnderPlatform.toFixed(2)})`,
 );
 
 // The slope is followed: low-x terrain sits well below high-x terrain.
 assert(
   terrain.heightAt(4, 20) < terrain.heightAt(36, 20) - 3,
-  "terrain follows the slope (low x < high x)"
+  "terrain follows the slope (low x < high x)",
 );
 
 // Height ABOVE terrain: ~0 on open ground, ~PLATFORM_H on the platform — the
 // separation that distinguishes ground from an elevated roof.
 const aboveGround = terrain.heightAbove(6, 6 * SLOPE, 20);
-assert(Math.abs(aboveGround) < 1.0, `open ground reads ~0 above terrain (got ${aboveGround.toFixed(2)})`);
+assert(
+  Math.abs(aboveGround) < 1.0,
+  `open ground reads ~0 above terrain (got ${aboveGround.toFixed(2)})`,
+);
 
 const abovePlatform = terrain.heightAbove(20, groundYAt20 + PLATFORM_H, 20);
 assert(
   abovePlatform > PLATFORM_H * 0.6,
-  `platform reads clearly above terrain (got ${abovePlatform.toFixed(2)}, expect ~${PLATFORM_H})`
+  `platform reads clearly above terrain (got ${abovePlatform.toFixed(2)}, expect ~${PLATFORM_H})`,
 );
 
 // The key win: a flat surface high on the slope (elevation ~7) is still GROUND
@@ -95,7 +106,7 @@ assert(
 const highGround = terrain.heightAbove(35, 35 * SLOPE, 20);
 assert(
   highGround < abovePlatform,
-  `high ground stays below platform in nDSM (${highGround.toFixed(2)} < ${abovePlatform.toFixed(2)})`
+  `high ground stays below platform in nDSM (${highGround.toFixed(2)} < ${abovePlatform.toFixed(2)})`,
 );
 
 // --- morphological opening removes an occluding building bump ---
@@ -141,11 +152,17 @@ const noFilter = Terrain.build(scene2, { maxWindow: 0, smoothPasses: 8 }); // pe
 const filtered = Terrain.build(scene2); // progressive filter (defaults)
 const oH = filtered.heightAt(20, 20);
 const bH = noFilter.heightAt(20, 20);
-assert(oH < 2, `progressive filter reaches ground under a WIDE occluding roof (got ${oH.toFixed(2)})`);
-assert(oH < bH - 1, `progressive filter beats blur-only under a wide roof (${oH.toFixed(2)} < ${bH.toFixed(2)})`);
+assert(
+  oH < 2,
+  `progressive filter reaches ground under a WIDE occluding roof (got ${oH.toFixed(2)})`,
+);
+assert(
+  oH < bH - 1,
+  `progressive filter beats blur-only under a wide roof (${oH.toFixed(2)} < ${bH.toFixed(2)})`,
+);
 assert(
   filtered.heightAbove(20, ROOF_H, 20) > 3,
-  `wide roof reads clearly elevated (nDSM ${filtered.heightAbove(20, ROOF_H, 20).toFixed(2)})`
+  `wide roof reads clearly elevated (nDSM ${filtered.heightAbove(20, ROOF_H, 20).toFixed(2)})`,
 );
 
 // --- broad raised ground (plateau) must be PRESERVED, not stripped ---
@@ -182,11 +199,11 @@ scene3.updateMatrixWorld(true);
 const terr3 = Terrain.build(scene3);
 assert(
   terr3.heightAt(20, 20) > PLAT_H - 1,
-  `broad plateau preserved as terrain (got ${terr3.heightAt(20, 20).toFixed(2)}, expect ~${PLAT_H})`
+  `broad plateau preserved as terrain (got ${terr3.heightAt(20, 20).toFixed(2)}, expect ~${PLAT_H})`,
 );
 assert(
   Math.abs(terr3.heightAbove(20, PLAT_H, 20)) < 1,
-  `plateau surface reads as ground, not roof (nDSM ${terr3.heightAbove(20, PLAT_H, 20).toFixed(2)})`
+  `plateau surface reads as ground, not roof (nDSM ${terr3.heightAbove(20, PLAT_H, 20).toFixed(2)})`,
 );
 
 console.log("\nAll terrain tests passed.");

@@ -89,9 +89,15 @@ export class SurfaceSelector {
       const e1 = edgeKey(b, c);
       const e2 = edgeKey(c, a);
       let l;
-      l = edgeToFaces.get(e0); if (l) l.push(f); else edgeToFaces.set(e0, [f]);
-      l = edgeToFaces.get(e1); if (l) l.push(f); else edgeToFaces.set(e1, [f]);
-      l = edgeToFaces.get(e2); if (l) l.push(f); else edgeToFaces.set(e2, [f]);
+      l = edgeToFaces.get(e0);
+      if (l) l.push(f);
+      else edgeToFaces.set(e0, [f]);
+      l = edgeToFaces.get(e1);
+      if (l) l.push(f);
+      else edgeToFaces.set(e1, [f]);
+      l = edgeToFaces.get(e2);
+      if (l) l.push(f);
+      else edgeToFaces.set(e2, [f]);
     }
 
     const boundaryVerts = new Set();
@@ -136,7 +142,10 @@ export class SurfaceSelector {
         tmp.fromBufferAttribute(posAttr, v).applyMatrix4(child.matrixWorld);
         const key = this.posKey(tmp);
         let list = graph.get(key);
-        if (!list) { list = []; graph.set(key, list); }
+        if (!list) {
+          list = [];
+          graph.set(key, list);
+        }
         list.push({ mesh: child, vertexIdx: v });
       }
     });
@@ -266,9 +275,7 @@ export class SurfaceSelector {
       const b = colorSum[2] / colorN - c[2];
       return Math.sqrt(r * r + g * g + b * b);
     };
-    const seedColor = this.enableRidgeCrossing
-      ? this.faceColor(hitMesh, hitFaceIdx)
-      : null;
+    const seedColor = this.enableRidgeCrossing ? this.faceColor(hitMesh, hitFaceIdx) : null;
     const colorAssist = seedColor !== null;
     if (colorAssist) addColor(seedColor);
 
@@ -281,7 +288,10 @@ export class SurfaceSelector {
 
     const markSeen = (mesh, faceIdx) => {
       let s = seen.get(mesh);
-      if (!s) { s = new Set(); seen.set(mesh, s); }
+      if (!s) {
+        s = new Set();
+        seen.set(mesh, s);
+      }
       if (s.has(faceIdx)) return true;
       s.add(faceIdx);
       return false;
@@ -324,7 +334,10 @@ export class SurfaceSelector {
       if (col) addColor(col);
 
       let sel = selected.get(mesh);
-      if (!sel) { sel = new Set(); selected.set(mesh, sel); }
+      if (!sel) {
+        sel = new Set();
+        selected.set(mesh, sel);
+      }
       sel.add(faceIdx);
       totalSelected++;
 
@@ -385,7 +398,10 @@ export class SurfaceSelector {
     const meshToV2 = new Map();
     for (const { mesh: m, vertexIdx } of others2) {
       let arr = meshToV2.get(m);
-      if (!arr) { arr = []; meshToV2.set(m, arr); }
+      if (!arr) {
+        arr = [];
+        meshToV2.set(m, arr);
+      }
       arr.push(vertexIdx);
     }
 
@@ -417,7 +433,11 @@ export class SurfaceSelector {
     // outline is lifted a hair. Edges dedup by RAW position so seams merge.
     const LIFT = 0.004;
     const edges = new Map();
-    const lift = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    const lift = [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ];
     // Identify each corner by the SAME canonical identity the flood uses so
     // "interior vs boundary" agrees with the selection topology: a seam vertex
     // is its 5 mm world-position cell (shared across tiles/UV splits), an
@@ -569,7 +589,10 @@ export class SurfaceSelector {
     const add = (mesh, f, forced) => {
       if (!forced && !accept(mesh, f)) return;
       let s = result.get(mesh);
-      if (!s) { s = new Set(); result.set(mesh, s); }
+      if (!s) {
+        s = new Set();
+        result.set(mesh, s);
+      }
       if (s.has(f)) return;
       s.add(f);
       queue.push({ mesh, faceIdx: f });
@@ -613,7 +636,10 @@ export class SurfaceSelector {
       const s = allowed.get(mesh);
       if (!s || !s.has(f)) return;
       let r = result.get(mesh);
-      if (!r) { r = new Set(); result.set(mesh, r); }
+      if (!r) {
+        r = new Set();
+        result.set(mesh, r);
+      }
       if (r.has(f)) return;
       r.add(f);
       queue.push({ mesh, faceIdx: f });
@@ -727,7 +753,8 @@ export class SurfaceSelector {
           } else if (entry.boundaryVerts.has(v1) && entry.boundaryVerts.has(v2)) {
             bridge.length = 0;
             this._enqueueCrossTile(mesh, v1, v2, bridge, tmpV);
-            if (bridge.length === 0) interior = false; // true open edge
+            if (bridge.length === 0)
+              interior = false; // true open edge
             else {
               for (const q of bridge) {
                 if (!has(q.mesh, q.faceIdx)) {

@@ -20,7 +20,18 @@ const MAX_DISTANCE = 90;
 const TWEEN_MS = 450;
 
 export class ReviewMode {
-  constructor({ camera, orbit, labels, streamer, ui, onChange, onExit, onItemShown, onCorrect, onReclass }) {
+  constructor({
+    camera,
+    orbit,
+    labels,
+    streamer,
+    ui,
+    onChange,
+    onExit,
+    onItemShown,
+    onCorrect,
+    onReclass,
+  }) {
     this.camera = camera;
     this.orbit = orbit;
     this.labels = labels;
@@ -51,9 +62,7 @@ export class ReviewMode {
     });
     this.ui.flag.addEventListener("click", () => this.flag());
     this.ui.skip.addEventListener("click", () => this.skip());
-    this.ui.wrong.addEventListener("click", () =>
-      this.ui.reclass.classList.toggle("active")
-    );
+    this.ui.wrong.addEventListener("click", () => this.ui.reclass.classList.toggle("active"));
     for (const cls of LABEL_CLASSES) {
       const b = document.createElement("button");
       b.className = "class-btn";
@@ -207,7 +216,7 @@ export class ReviewMode {
     const dist = THREE.MathUtils.clamp(
       (radius / Math.tan(fov / 2)) * FRAME_MARGIN,
       MIN_DISTANCE,
-      MAX_DISTANCE
+      MAX_DISTANCE,
     );
 
     // Keep the current azimuth so consecutive items don't spin the world.
@@ -218,7 +227,7 @@ export class ReviewMode {
     const dest = new THREE.Vector3(
       center.x + dist * Math.cos(ELEVATION) * Math.cos(az),
       center.y + dist * Math.sin(ELEVATION),
-      center.z + dist * Math.cos(ELEVATION) * Math.sin(az)
+      center.z + dist * Math.cos(ELEVATION) * Math.sin(az),
     );
 
     this.tween = {

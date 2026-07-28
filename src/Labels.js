@@ -10,7 +10,12 @@ export const LABEL_CLASSES = [
   { id: "road-path", name: "Road / Path", color: "#8d99ae", osm: "highway=* / surface=*" },
   { id: "ground", name: "Ground", color: "#b08968", osm: "landuse=* / surface=*" },
   { id: "vegetation", name: "Vegetation", color: "#2a9d8f", osm: "natural=* / landuse=*" },
-  { id: "water-drainage", name: "Water / Drain", color: "#457b9d", osm: "natural=water / waterway=drain" },
+  {
+    id: "water-drainage",
+    name: "Water / Drain",
+    color: "#457b9d",
+    osm: "natural=water / waterway=drain",
+  },
   { id: "other", name: "Other", color: "#9b5de5", osm: "" },
 ];
 
@@ -104,9 +109,7 @@ function buildFacesMesh(tileMeshes, tiles, colorHex) {
     if (!mesh) continue;
     const posAttr = mesh.geometry.getAttribute("position");
     const index = mesh.geometry.index;
-    const vertIdx = index
-      ? (f, c) => index.getX(f * 3 + c)
-      : (f, c) => f * 3 + c;
+    const vertIdx = index ? (f, c) => index.getX(f * 3 + c) : (f, c) => f * 3 + c;
 
     for (const f of deltaDecode(df)) {
       va.fromBufferAttribute(posAttr, vertIdx(f, 0)).applyMatrix4(mesh.matrixWorld);
@@ -119,10 +122,21 @@ function buildFacesMesh(tileMeshes, tiles, colorHex) {
         .multiplyScalar(OUTLINE_LIFT);
       positions.push(va.x, va.y, va.z, vb.x, vb.y, vb.z, vc.x, vc.y, vc.z);
       const mk = (v) => ({ raw: [v.x, v.y, v.z], lift: [v.x + n.x, v.y + n.y, v.z + n.z] });
-      const A = mk(va), B = mk(vb), C = mk(vc);
-      addEdge({ 0: A.raw[0], 1: A.raw[1], 2: A.raw[2], lift: A.lift }, { 0: B.raw[0], 1: B.raw[1], 2: B.raw[2], lift: B.lift });
-      addEdge({ 0: B.raw[0], 1: B.raw[1], 2: B.raw[2], lift: B.lift }, { 0: C.raw[0], 1: C.raw[1], 2: C.raw[2], lift: C.lift });
-      addEdge({ 0: C.raw[0], 1: C.raw[1], 2: C.raw[2], lift: C.lift }, { 0: A.raw[0], 1: A.raw[1], 2: A.raw[2], lift: A.lift });
+      const A = mk(va),
+        B = mk(vb),
+        C = mk(vc);
+      addEdge(
+        { 0: A.raw[0], 1: A.raw[1], 2: A.raw[2], lift: A.lift },
+        { 0: B.raw[0], 1: B.raw[1], 2: B.raw[2], lift: B.lift },
+      );
+      addEdge(
+        { 0: B.raw[0], 1: B.raw[1], 2: B.raw[2], lift: B.lift },
+        { 0: C.raw[0], 1: C.raw[1], 2: C.raw[2], lift: C.lift },
+      );
+      addEdge(
+        { 0: C.raw[0], 1: C.raw[1], 2: C.raw[2], lift: C.lift },
+        { 0: A.raw[0], 1: A.raw[1], 2: A.raw[2], lift: A.lift },
+      );
     }
   }
 
@@ -174,9 +188,7 @@ function buildFacesMesh(tileMeshes, tiles, colorHex) {
 export function worldArea(mesh, faces) {
   const posAttr = mesh.geometry.getAttribute("position");
   const index = mesh.geometry.index;
-  const vertIdx = index
-    ? (f, c) => index.getX(f * 3 + c)
-    : (f, c) => f * 3 + c;
+  const vertIdx = index ? (f, c) => index.getX(f * 3 + c) : (f, c) => f * 3 + c;
   const va = new THREE.Vector3();
   const vb = new THREE.Vector3();
   const vc = new THREE.Vector3();
@@ -359,7 +371,10 @@ export class LabelManager {
         this.scene.remove(overlay);
         overlay.geometry.dispose();
         overlay.material.dispose();
-        overlay.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); });
+        overlay.children.forEach((c) => {
+          c.geometry.dispose();
+          c.material.dispose();
+        });
         this.overlays.delete(label.id);
       }
     }
@@ -374,7 +389,10 @@ export class LabelManager {
       this.scene.remove(overlay);
       overlay.geometry.dispose();
       overlay.material.dispose();
-      overlay.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); });
+      overlay.children.forEach((c) => {
+        c.geometry.dispose();
+        c.material.dispose();
+      });
       this.overlays.delete(id);
     }
     this.labels = this.labels.filter((l) => l.id !== id);
@@ -444,7 +462,10 @@ export class LabelManager {
       this.scene.remove(overlay);
       overlay.geometry.dispose();
       overlay.material.dispose();
-      overlay.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); });
+      overlay.children.forEach((c) => {
+        c.geometry.dispose();
+        c.material.dispose();
+      });
       this.overlays.delete(id);
     }
     this.paint(label);
@@ -468,7 +489,10 @@ export class LabelManager {
       this.scene.remove(overlay);
       overlay.geometry.dispose();
       overlay.material.dispose();
-      overlay.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); });
+      overlay.children.forEach((c) => {
+        c.geometry.dispose();
+        c.material.dispose();
+      });
       this.overlays.delete(id);
     }
     this.paint(label);
@@ -501,9 +525,7 @@ export class LabelManager {
         const f = faces[k];
         for (let c = 0; c < 3; c++) {
           const vi = index ? index.getX(f * 3 + c) : f * 3 + c;
-          box.expandByPoint(
-            v.fromBufferAttribute(posAttr, vi).applyMatrix4(mesh.matrixWorld)
-          );
+          box.expandByPoint(v.fromBufferAttribute(posAttr, vi).applyMatrix4(mesh.matrixWorld));
         }
       }
     }
@@ -531,7 +553,10 @@ export class LabelManager {
       this.scene.remove(overlay);
       overlay.geometry.dispose();
       overlay.material.dispose();
-      overlay.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); });
+      overlay.children.forEach((c) => {
+        c.geometry.dispose();
+        c.material.dispose();
+      });
     }
     this.overlays.clear();
     this.labels = [];
@@ -553,7 +578,11 @@ export class LabelManager {
     try {
       localStorage.setItem(
         this.storageKey(),
-        JSON.stringify({ v: STORAGE_VERSION, savedAt: new Date().toISOString(), labels: this.labels })
+        JSON.stringify({
+          v: STORAGE_VERSION,
+          savedAt: new Date().toISOString(),
+          labels: this.labels,
+        }),
       );
     } catch (err) {
       console.warn("label persist failed", err);

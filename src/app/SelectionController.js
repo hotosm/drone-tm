@@ -57,7 +57,7 @@ export class SelectionController {
         const t = event.touches[0];
         tStart = { x: t.clientX, y: t.clientY, t: performance.now() };
       },
-      { passive: true }
+      { passive: true },
     );
     canvas.addEventListener("touchend", (event) => {
       if (multiTouch || !tStart) return; // was a gesture, not a tap
@@ -83,7 +83,11 @@ export class SelectionController {
         }
         return;
       }
-      if (event.key === "z" && this.app.pending && (this.app.mode === "explore" || this.app.reviewCtl.reviewAdjust)) {
+      if (
+        event.key === "z" &&
+        this.app.pending &&
+        (this.app.mode === "explore" || this.app.reviewCtl.reviewAdjust)
+      ) {
         this.undoPending();
         return;
       }
@@ -93,16 +97,19 @@ export class SelectionController {
       if (this.app.debugLOD && this.app.streamer && (event.key === "[" || event.key === "]")) {
         const s = this.app.streamer;
         s.rangeScale =
-          event.key === "["
-            ? Math.max(0.25, s.rangeScale * 0.8)
-            : Math.min(4, s.rangeScale * 1.25);
+          event.key === "[" ? Math.max(0.25, s.rangeScale * 0.8) : Math.min(4, s.rangeScale * 1.25);
         s.update();
         this.app.updateLODDebug();
         return;
       }
       // Desktop review shortcuts (FirstPersonControls is disabled in review,
       // so no WASD conflicts).
-      if (this.app.mode === "review" && this.app.review && this.app.review.active && !this.app.reviewCtl.pendingDirty) {
+      if (
+        this.app.mode === "review" &&
+        this.app.review &&
+        this.app.review.active &&
+        !this.app.reviewCtl.pendingDirty
+      ) {
         if (event.key === "Enter") this.app.review.correct();
         else if (event.key === "s" || event.key === "S") this.app.review.skip();
         else if (event.key === "f" || event.key === "F") this.app.review.flag();
@@ -257,7 +264,7 @@ export class SelectionController {
     this.pushPendingHistory();
     this.app.pending.selected = this.app.selector.growSelection(
       this.app.pending.selected,
-      this.app.currentMesh
+      this.app.currentMesh,
     );
     this.refreshPending();
   }
@@ -267,7 +274,7 @@ export class SelectionController {
     this.pushPendingHistory();
     const shrunk = this.app.selector.shrinkSelection(
       this.app.pending.selected,
-      this.app.currentMesh
+      this.app.currentMesh,
     );
     if (!shrunk.size) return; // never shrink to nothing — undo is for that
     this.app.pending.selected = shrunk;
@@ -306,7 +313,9 @@ export class SelectionController {
       }
       this.app.pending = { selected: sel, targetClass, clicks: 1 };
       this.app.pending.faceCount = 0;
-      this.app.pending.suggested = this.app.labels ? this.app.labels.suggestFor(this.app.pending) : "other";
+      this.app.pending.suggested = this.app.labels
+        ? this.app.labels.suggestFor(this.app.pending)
+        : "other";
       this.app.labelingCtl.pickClass(this.app.pending.suggested);
       this.app.labelingCtl.pickConfidence("confirmed");
       this.app.pending.clicks = 2; // suggestion applied; don't re-pick as it grows
@@ -317,7 +326,10 @@ export class SelectionController {
     if (intent === "add") {
       for (const [mesh, faces] of map) {
         let set = this.app.pending.selected.get(mesh);
-        if (!set) { set = new Set(); this.app.pending.selected.set(mesh, set); }
+        if (!set) {
+          set = new Set();
+          this.app.pending.selected.set(mesh, set);
+        }
         for (const f of faces) set.add(f);
       }
     } else {
@@ -334,7 +346,6 @@ export class SelectionController {
     }
     this.refreshPending();
   }
-
 
   // Brush: raycast the frontmost face under the cursor (occlusion-correct
   // seed), then flood the connected surface from it, keeping faces that are
@@ -355,7 +366,7 @@ export class SelectionController {
           const s = this.app.pending.selected.get(m);
           return s ? s.has(f) : false;
         }),
-        this.app.currentMesh
+        this.app.currentMesh,
       );
       if (rm.size && this.app.pending.selected.has(hit.mesh)) this.applyPaint("remove", rm);
       return;
@@ -366,7 +377,7 @@ export class SelectionController {
       hit.mesh,
       hit.face,
       this.brushAccept(px, py, radiusPx, hit.dist),
-      this.app.currentMesh
+      this.app.currentMesh,
     );
     if (added.size) this.applyPaint("add", added);
   }
@@ -396,7 +407,8 @@ export class SelectionController {
       if (c.z < -1 || c.z > 1) return false;
       const sx = (c.x * 0.5 + 0.5) * w;
       const sy = (-c.y * 0.5 + 0.5) * h;
-      const dx = sx - px, dy = sy - py;
+      const dx = sx - px,
+        dy = sy - py;
       return dx * dx + dy * dy <= r2;
     };
   }
@@ -436,12 +448,17 @@ export class SelectionController {
     this.app.camera.updateMatrixWorld();
     const pv = new THREE.Matrix4().multiplyMatrices(
       this.app.camera.projectionMatrix,
-      this.app.camera.matrixWorldInverse
+      this.app.camera.matrixWorldInverse,
     );
     const frustum = new THREE.Frustum().setFromProjectionMatrix(pv);
     const out = new Map();
-    const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3();
-    const c = new THREE.Vector3(), n = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+    const va = new THREE.Vector3(),
+      vb = new THREE.Vector3(),
+      vc = new THREE.Vector3();
+    const c = new THREE.Vector3(),
+      n = new THREE.Vector3(),
+      e1 = new THREE.Vector3(),
+      e2 = new THREE.Vector3();
     let budget = 60000; // bound per-move projection cost
     this.app.currentMesh.traverse((mesh) => {
       if (!mesh.isMesh || budget <= 0) return;
@@ -456,12 +473,18 @@ export class SelectionController {
         va.fromBufferAttribute(pos, vi(f, 0)).applyMatrix4(mesh.matrixWorld);
         vb.fromBufferAttribute(pos, vi(f, 1)).applyMatrix4(mesh.matrixWorld);
         vc.fromBufferAttribute(pos, vi(f, 2)).applyMatrix4(mesh.matrixWorld);
-        c.copy(va).add(vb).add(vc).multiplyScalar(1 / 3);
+        c.copy(va)
+          .add(vb)
+          .add(vc)
+          .multiplyScalar(1 / 3);
         if (!frustum.containsPoint(c)) continue;
         n.crossVectors(e1.subVectors(vb, va), e2.subVectors(vc, va));
         if (n.dot(e1.subVectors(c, cam)) >= 0) continue; // back-facing → skip
         let s = out.get(mesh);
-        if (!s) { s = new Set(); out.set(mesh, s); }
+        if (!s) {
+          s = new Set();
+          out.set(mesh, s);
+        }
         s.add(f);
         budget--;
       }

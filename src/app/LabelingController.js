@@ -75,9 +75,7 @@ export class LabelingController {
       });
       this.ui.classGrid.appendChild(b);
     }
-    this.ui.classPill.addEventListener("click", () =>
-      this.ui.classGrid.classList.toggle("open")
-    );
+    this.ui.classPill.addEventListener("click", () => this.ui.classGrid.classList.toggle("open"));
     // confidence is a single pill that cycles confirmed → unsure → flagged
     this.ui.confBtn.addEventListener("click", () => {
       const order = CONFIDENCE_LEVELS.map((c) => c.id);
@@ -175,10 +173,7 @@ export class LabelingController {
 
   syncViewUI() {
     for (const b of document.getElementById("view-modes").children) {
-      b.classList.toggle(
-        "active",
-        !this.isolatedClass && b.dataset.view === this.viewMode
-      );
+      b.classList.toggle("active", !this.isolatedClass && b.dataset.view === this.viewMode);
     }
     for (const b of document.getElementById("view-classes").children) {
       b.classList.toggle("active", b.dataset.cls === this.isolatedClass);

@@ -291,7 +291,7 @@ export class FirstPersonControls {
       this.camera.getWorldDirection(forward);
       const right = new THREE.Vector3().crossVectors(forward, this.camera.up).normalize();
       this.moveBy(
-        forward.clone().multiplyScalar(-this.velocity.z).addScaledVector(right, -this.velocity.x)
+        forward.clone().multiplyScalar(-this.velocity.z).addScaledVector(right, -this.velocity.x),
       );
       this.prevTime = time;
       return;
@@ -314,7 +314,7 @@ export class FirstPersonControls {
     right.normalize();
 
     this.moveBy(
-      forward.clone().multiplyScalar(-this.velocity.z).addScaledVector(right, -this.velocity.x)
+      forward.clone().multiplyScalar(-this.velocity.z).addScaledVector(right, -this.velocity.x),
     );
 
     this.prevTime = time;

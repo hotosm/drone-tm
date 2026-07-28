@@ -40,7 +40,7 @@ function makeQuad() {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1], 3)
+    new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1], 3),
   );
   geom.setIndex([0, 2, 1, 0, 3, 2]);
   return new THREE.Mesh(geom, new THREE.MeshBasicMaterial());

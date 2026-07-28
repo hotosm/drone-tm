@@ -9,7 +9,7 @@ function makeWall(z) {
   const g = new THREE.BufferGeometry();
   g.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([-3, -3, z, 3, -3, z, 3, 3, z, -3, 3, z], 3)
+    new THREE.Float32BufferAttribute([-3, -3, z, 3, -3, z, 3, 3, z, -3, 3, z], 3),
   );
   g.setIndex([0, 2, 1, 0, 3, 2]);
   return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
@@ -32,7 +32,7 @@ function makeControls() {
   const stop = -5 + fpc.collideMargin; // ≈ -4.6
   assert(
     Math.abs(camera.position.z - stop) < 0.15,
-    `forward move clamps a margin off the wall (z=${camera.position.z.toFixed(2)}, expect ~${stop})`
+    `forward move clamps a margin off the wall (z=${camera.position.z.toFixed(2)}, expect ~${stop})`,
   );
 
   const zBlocked = camera.position.z;

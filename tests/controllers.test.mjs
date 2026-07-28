@@ -12,7 +12,7 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   assert(app.pending && app.pending.faceCount === 2, "applyPaint(add) starts a pending selection");
   assert(
     document.getElementById("label-panel").classList.contains("active"),
-    "commit panel opens on a fresh selection"
+    "commit panel opens on a fresh selection",
   );
 
   app.labelingCtl.pickClass("building-roof");
@@ -26,7 +26,7 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   assert(app.pending === null, "pending clears after save");
   assert(
     document.getElementById("labels-count").textContent.startsWith("1 label"),
-    "status card count updates"
+    "status card count updates",
   );
 }
 
@@ -48,7 +48,7 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   assert(app.pending === null, "cancel clears the pending selection");
   assert(
     !document.getElementById("label-panel").classList.contains("active"),
-    "cancel hides the commit panel"
+    "cancel hides the commit panel",
   );
 }
 
@@ -60,7 +60,7 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   assert(app.chrome.editIntent === "remove", "setIntent updates intent");
   assert(
     document.getElementById("toolbar").classList.contains("erasing"),
-    "erase modifier reflected on the tool bar"
+    "erase modifier reflected on the tool bar",
   );
 
   app.chrome.setTool("brush");
@@ -68,7 +68,7 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   assert(app.controls.paintMode === true, "brush locks the camera controller into paint mode");
   assert(
     document.querySelector('[data-tool="brush"]').classList.contains("active"),
-    "brush button shows active in the tool bar"
+    "brush button shows active in the tool bar",
   );
 }
 
@@ -86,11 +86,17 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   app.reviewCtl.enterReviewMode();
   assert(app.mode === "review", "enterReviewMode switches mode");
   assert(document.body.classList.contains("review-mode"), "review-mode body class set");
-  assert(app.pending && app.pending.selected.size, "first queue item armed as a live pending selection");
+  assert(
+    app.pending && app.pending.selected.size,
+    "first queue item armed as a live pending selection",
+  );
   assert(app.reviewCtl.reviewAdjust === true, "review item is armed for editing");
 
   app.reviewCtl.setReviewAdjusting(true);
-  assert(document.body.classList.contains("adjusting"), "Adjust reveals the editing tools (body.adjusting)");
+  assert(
+    document.body.classList.contains("adjusting"),
+    "Adjust reveals the editing tools (body.adjusting)",
+  );
   app.reviewCtl.setReviewAdjusting(false);
   assert(!document.body.classList.contains("adjusting"), "leaving Adjust clears body.adjusting");
 
@@ -149,7 +155,10 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   app.chrome.editIntent = "add";
 
   app.selectionCtl.onBrush(400, 300, 40); // canvas centre → NDC (0,0) → ray hits the quad
-  assert(app.pending && app.pending.faceCount >= 1, "brush at a surface starts a pending selection");
+  assert(
+    app.pending && app.pending.faceCount >= 1,
+    "brush at a surface starts a pending selection",
+  );
 }
 
 // --- labeling: view-filter wiring ------------------------------------------
@@ -171,8 +180,20 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
 // --- review: skipping through the queue completes and disarms --------------
 {
   const { app, mesh, labels } = makeApp();
-  labels.add({ selected: new Map([[mesh, new Set([0])]]), classId: "ground", confidence: "unsure", suggested: "ground", targetClass: "roof-flat" });
-  labels.add({ selected: new Map([[mesh, new Set([1])]]), classId: "ground", confidence: "unsure", suggested: "ground", targetClass: "roof-flat" });
+  labels.add({
+    selected: new Map([[mesh, new Set([0])]]),
+    classId: "ground",
+    confidence: "unsure",
+    suggested: "ground",
+    targetClass: "roof-flat",
+  });
+  labels.add({
+    selected: new Map([[mesh, new Set([1])]]),
+    classId: "ground",
+    confidence: "unsure",
+    suggested: "ground",
+    targetClass: "roof-flat",
+  });
 
   app.reviewCtl.enterReviewMode();
   assert(app.review.active, "review active with a queue");
@@ -185,7 +206,7 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
   assert(app.reviewCtl.reviewAdjust === false, "completion disarms editing");
   assert(
     document.getElementById("ra-adjust").style.display === "none",
-    "Adjust button is hidden at completion"
+    "Adjust button is hidden at completion",
   );
 }
 

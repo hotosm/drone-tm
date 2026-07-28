@@ -51,8 +51,7 @@ export const hudMixin = {
   // = streamer idle; flashing orange while flying = churn.
   updateVizTint() {
     const s = this.streamer;
-    const matOf = (m) =>
-      m && (Array.isArray(m.material) ? m.material[0] : m.material);
+    const matOf = (m) => m && (Array.isArray(m.material) ? m.material[0] : m.material);
     for (const t of s.tiles) {
       for (const m of [t.mesh, t.low]) {
         const mat = matOf(m);
@@ -64,12 +63,7 @@ export const hudMixin = {
       // Tint ONLY the enhanced overlay (renders where clusters reveal —
       // strictly local). Never tint the base mesh: it is the whole-map
       // scatter, and tinting it flashed every decode across the entire map.
-      const tint =
-        t.state === "high"
-          ? t.size >= s.nativeSize
-            ? 0x55ff55
-            : 0xffee44
-          : null;
+      const tint = t.state === "high" ? (t.size >= s.nativeSize ? 0x55ff55 : 0xffee44) : null;
       const hiMat = matOf(t.mesh);
       if (hiMat && hiMat.color) {
         hiMat.color.setHex(tint !== null ? tint : hiMat.userData._origColor);

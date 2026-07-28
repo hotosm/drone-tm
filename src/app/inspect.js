@@ -26,7 +26,12 @@ export const inspectMixin = {
   updateInspector() {
     const el = document.getElementById("inspect");
     if (!el) return;
-    if (!this.inspectMode || this.mode !== "explore" || !this.pending || !this.pending.selected.size) {
+    if (
+      !this.inspectMode ||
+      this.mode !== "explore" ||
+      !this.pending ||
+      !this.pending.selected.size
+    ) {
       el.classList.remove("active");
       return;
     }
@@ -47,7 +52,9 @@ export const inspectMixin = {
       h == null
         ? "n/a"
         : `${h >= 0 ? "+" : ""}${h.toFixed(2)}u / ${clearance.toFixed(2)} → ${h < clearance ? "near ground" : "elevated"}`;
-    document.getElementById("insp-colour").textContent = info.greenish ? "green → veg" : "not green";
+    document.getElementById("insp-colour").textContent = info.greenish
+      ? "green → veg"
+      : "not green";
     document.getElementById("insp-dot").style.background = cls ? cls.color : "#888";
     document.getElementById("insp-class").textContent = cls ? cls.name : info.classId;
     el.classList.add("active");

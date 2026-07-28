@@ -25,7 +25,7 @@ function quadAt(y) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([0, y, 0, 1, y, 0, 1, y, 1, 0, y, 1], 3)
+    new THREE.Float32BufferAttribute([0, y, 0, 1, y, 0, 1, y, 1, 0, y, 1], 3),
   );
   geom.setIndex([0, 2, 1, 0, 3, 2]);
   return new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
@@ -37,14 +37,11 @@ const canopy = quadAt(4);
 const mast = new THREE.Mesh(
   (() => {
     const g = new THREE.BufferGeometry();
-    g.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute([5, 0, 5, 5.1, 0, 5, 5, 10, 5], 3)
-    );
+    g.setAttribute("position", new THREE.Float32BufferAttribute([5, 0, 5, 5.1, 0, 5, 5, 10, 5], 3));
     g.setIndex([0, 1, 2]);
     return g;
   })(),
-  new THREE.MeshBasicMaterial()
+  new THREE.MeshBasicMaterial(),
 );
 const root = new THREE.Group();
 root.add(ground, roof, canopy, mast);
@@ -71,10 +68,19 @@ const auto = labels.list.filter((l) => l.source === "auto");
 const human = labels.list.filter((l) => l.source === "human");
 
 assert(human.length === 1 && human[0].confidence === "confirmed", "human label untouched");
-assert(auto.every((l) => l.confidence === "flagged"), "proposals arrive red/flagged");
+assert(
+  auto.every((l) => l.confidence === "flagged"),
+  "proposals arrive red/flagged",
+);
 assert(!auto.some((l) => l.tiles.some((t) => t.t === 0)), "labeled ground NOT re-proposed");
-assert(auto.some((l) => l.class === "building-roof"), "elevated grey quad proposed as roof");
-assert(auto.some((l) => l.class === "vegetation"), "elevated GREEN quad becomes vegetation");
+assert(
+  auto.some((l) => l.class === "building-roof"),
+  "elevated grey quad proposed as roof",
+);
+assert(
+  auto.some((l) => l.class === "vegetation"),
+  "elevated GREEN quad becomes vegetation",
+);
 assert(res.created === auto.length, "created count matches");
 
 const labels2 = new LabelManager({ scene: new THREE.Scene(), root, mapKey: "auto-test" });
@@ -82,7 +88,7 @@ labels2.restore();
 assert(labels2.list.length === labels.list.length, "all labels persisted in one shot");
 assert(
   labels2.list.filter((l) => l.source === "auto").length === auto.length,
-  "provenance survives storage"
+  "provenance survives storage",
 );
 
 const removed = labels.removeAuto();

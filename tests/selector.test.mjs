@@ -22,10 +22,32 @@ function makeMesh(positions, indices) {
 // meshA: two flat quads with a duplicated-vertex seam along z=1
 const meshA = makeMesh(
   [
-    0, 0, 0,  1, 0, 0,  1, 0, 1,  0, 0, 1,   // island 1: [0..1]x[0..1]
-    0, 0, 1,  1, 0, 1,  1, 0, 2,  0, 0, 2,   // island 2: duplicated verts on z=1
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    1,
+    0,
+    0,
+    1, // island 1: [0..1]x[0..1]
+    0,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    0,
+    2,
+    0,
+    0,
+    2, // island 2: duplicated verts on z=1
   ],
-  [0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6]
+  [0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6],
 );
 // meshB: quad [1..2]x[0..1], boundary x=1 shared with meshA
 const meshB = makeMesh([1, 0, 0, 2, 0, 0, 2, 0, 1, 1, 0, 1], [0, 2, 1, 0, 3, 2]);

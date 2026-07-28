@@ -141,7 +141,7 @@ class MeshExplorer {
       const gl = this.renderer.getContext();
       const info = gl.getExtension("WEBGL_debug_renderer_info");
       gpu = String(
-        info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
+        info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
       );
     } catch (e) {
       /* no evidence → stay lite */
@@ -154,7 +154,7 @@ class MeshExplorer {
     console.log(
       `[drone-mesh] coverage: ${rich ? "RICH (validated hardware)" : "LITE (default)"} · ` +
         `gpu="${gpu}" · deviceMemory=${navigator.deviceMemory ?? "n/a"} · ` +
-        `same strategy + native quality either way`
+        `same strategy + native quality either way`,
     );
     // Uniform (atlas) maps hold ALL pages at ringSize, so ringSize IS the
     // close-up quality. Desktop = native 2048 unconditionally (~2.9 GB
@@ -167,7 +167,7 @@ class MeshExplorer {
       totalCap: parseInt(params.get("tiles"), 10) || base.totalCap,
     };
     console.log(
-      `[drone-mesh] stream caps: ${this.streamProfile.nativeCap} native @ ${this.streamProfile.nativeSize}px, total ${this.streamProfile.totalCap}`
+      `[drone-mesh] stream caps: ${this.streamProfile.nativeCap} native @ ${this.streamProfile.nativeSize}px, total ${this.streamProfile.totalCap}`,
     );
     this.startLoading(params);
   }
@@ -185,11 +185,14 @@ class MeshExplorer {
       75,
       window.innerWidth / window.innerHeight,
       0.3,
-      1200
+      1200,
     );
     this.camera.position.set(0, 5, 10);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: "high-performance",
+    });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     // Cap pixel ratio hard on touch: the framebuffer costs scale with DPR²,
     // and a 3× retina phone framebuffer is a big chunk of the memory that
@@ -213,7 +216,7 @@ class MeshExplorer {
         this.contextLost = true;
         if (this.diag) this.diag.noteContextLost();
       },
-      false
+      false,
     );
     canvas.addEventListener(
       "webglcontextrestored",
@@ -221,13 +224,10 @@ class MeshExplorer {
         this.contextLost = false;
         console.warn("WebGL context restored");
       },
-      false
+      false,
     );
 
-    this.controls = new FirstPersonControls(
-      this.camera,
-      this.renderer.domElement
-    );
+    this.controls = new FirstPersonControls(this.camera, this.renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambientLight);
@@ -290,7 +290,7 @@ class MeshExplorer {
     // Kill iOS OS-level zoom that the viewport meta alone doesn't stop:
     // pinch (gesture* events) and double-tap-to-zoom.
     ["gesturestart", "gesturechange", "gestureend"].forEach((ev) =>
-      document.addEventListener(ev, (e) => e.preventDefault(), { passive: false })
+      document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }),
     );
     let lastTouchEnd = 0;
     document.addEventListener(
@@ -300,7 +300,7 @@ class MeshExplorer {
         if (now - lastTouchEnd < 320) e.preventDefault(); // second tap of a double-tap
         lastTouchEnd = now;
       },
-      { passive: false }
+      { passive: false },
     );
 
     this.updateControlsInfo();
@@ -341,8 +341,9 @@ class MeshExplorer {
       });
       console.log(
         `auto-tag: ${res.created} proposals from ${res.regions} regions in ${(
-          (performance.now() - t0) / 1000
-        ).toFixed(1)}s`
+          (performance.now() - t0) /
+          1000
+        ).toFixed(1)}s`,
       );
     } catch (err) {
       console.error("auto-tag failed", err);
@@ -363,9 +364,7 @@ class MeshExplorer {
   updateControlsInfo() {
     const infoDiv = document.getElementById("info");
     const isTouchDevice =
-      "ontouchstart" in window ||
-      navigator.maxTouchPoints > 0 ||
-      navigator.msMaxTouchPoints > 0;
+      "ontouchstart" in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
 
     if (isTouchDevice) {
       infoDiv.innerHTML = `
@@ -459,7 +458,7 @@ class MeshExplorer {
             ? `lastUpload=tile ${s.lastUploadTile ?? "none"}@${s.lastUploadSize ?? "-"} ` +
               `${s.lastUploadAt ? Math.round(performance.now() - s.lastUploadAt) + "ms ago" : ""} · ` +
               `decoding=${s.decoding} queued=${s.uploadQueue.length}`
-            : "no streamer")
+            : "no streamer"),
       );
       this._frameWorstNow = 0;
     }
@@ -471,11 +470,6 @@ class MeshExplorer {
 // Compose topical method groups onto the prototype. Each mixin's methods run
 // with the app instance as `this`; grouping keeps main.js navigable while the
 // single runtime context is preserved (see ./app/*).
-Object.assign(
-  MeshExplorer.prototype,
-  hudMixin,
-  loadingMixin,
-  inspectMixin,
-);
+Object.assign(MeshExplorer.prototype, hudMixin, loadingMixin, inspectMixin);
 
 new MeshExplorer();

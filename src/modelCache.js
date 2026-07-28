@@ -20,7 +20,7 @@ function requestPersist() {
   try {
     navigator.storage?.persist?.().then(
       (granted) => console.log(`[cache] persistent storage: ${granted ? "granted" : "denied"}`),
-      () => {}
+      () => {},
     );
   } catch (e) {
     /* no-op */

@@ -75,7 +75,18 @@ const MOTION_HI = 3.5;
 const MOTION_LO = 1.2;
 
 export class HighResStreamer {
-  constructor({ scene, camera, renderer, gltfLoader, nativeSize, ringSize, nativeCap, totalCap, keepDist, maxAnisotropy }) {
+  constructor({
+    scene,
+    camera,
+    renderer,
+    gltfLoader,
+    nativeSize,
+    ringSize,
+    nativeCap,
+    totalCap,
+    keepDist,
+    maxAnisotropy,
+  }) {
     this.scene = scene;
     this.camera = camera;
     this.renderer = renderer; // for the GPU visible-page pick pass
@@ -127,11 +138,7 @@ export class HighResStreamer {
     // slot from the start. Swapping in the real texture then never triggers a
     // shader recompile — those first-time null→map recompiles were a second,
     // subtler source of fly-through hitching (one per page, ever).
-    this.placeholderTex = new THREE.DataTexture(
-      new Uint8Array([200, 200, 200, 255]),
-      1,
-      1
-    );
+    this.placeholderTex = new THREE.DataTexture(new Uint8Array([200, 200, 200, 255]), 1, 1);
     this.placeholderTex.needsUpdate = true;
 
     // Review-mode overrides. focusTiles/prefetchTiles (arrays of tile indices)
@@ -272,10 +279,10 @@ export class HighResStreamer {
     this.mapBox = mapBox;
     this.spatialTiling = medianDiag < mapDiag * 0.5;
     console.log(
-      `[streamer] tile extent ${(medianDiag / mapDiag * 100).toFixed(0)}% of map → ` +
+      `[streamer] tile extent ${((medianDiag / mapDiag) * 100).toFixed(0)}% of map → ` +
         (this.spatialTiling
           ? "spatial tiling: gaze-bubble streaming"
-          : "atlas pages: face-level spatial index (deferred-until-needed)")
+          : "atlas pages: face-level spatial index (deferred-until-needed)"),
     );
     if (!this.spatialTiling) {
       this.buildSpatialIndex();
@@ -331,7 +338,7 @@ export class HighResStreamer {
     const mid = cells[Math.floor(cells.length / 2)];
     console.log(
       `[streamer] spatial index built in ${(performance.now() - t0).toFixed(0)}ms · ` +
-        `${n}x${n} cells · centre cell touches ${mid ? mid.size : 0} pages`
+        `${n}x${n} cells · centre cell touches ${mid ? mid.size : 0} pages`,
     );
   }
 
@@ -394,7 +401,7 @@ export class HighResStreamer {
           centroid: new THREE.Vector3(
             b.sx / b.faces.length,
             b.sy / b.faces.length,
-            b.sz / b.faces.length
+            b.sz / b.faces.length,
           ),
           on: false,
         });
@@ -423,10 +430,7 @@ export class HighResStreamer {
     this._frustum = this._frustum || new THREE.Frustum();
     this._projView = this._projView || new THREE.Matrix4();
     this.camera.updateMatrixWorld();
-    this._projView.multiplyMatrices(
-      this.camera.projectionMatrix,
-      this.camera.matrixWorldInverse
-    );
+    this._projView.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
     this._frustum.setFromProjectionMatrix(this._projView);
     return this._frustum;
   }
@@ -583,8 +587,12 @@ export class HighResStreamer {
     if (totalLeft > 0) {
       for (const t of this.tiles) {
         if (totalLeft <= 0) break;
-        if (t.size > 0 && t.targetSize === 0 && this._recentVisible &&
-            this._recentVisible.has(t.index)) {
+        if (
+          t.size > 0 &&
+          t.targetSize === 0 &&
+          this._recentVisible &&
+          this._recentVisible.has(t.index)
+        ) {
           t.targetSize = t.size;
           totalLeft--;
         }
@@ -764,9 +772,7 @@ export class HighResStreamer {
       // with what the user is looking at. Resident tiles above their target
       // (native drifting into the ring) are left alone: no downgrade churn;
       // they demote fully when they leave the ring.
-      const wantUp = this.tiles.filter(
-        (t) => t.bytes && !t.decoding && t.targetSize > t.size
-      );
+      const wantUp = this.tiles.filter((t) => t.bytes && !t.decoding && t.targetSize > t.size);
       wantUp.sort((a, b) => (a._score || 0) - (b._score || 0));
       for (const t of wantUp) this.promote(t);
     }
@@ -956,9 +962,7 @@ export class HighResStreamer {
       const type = dv.getUint32(off + 4, true);
       const start = off + 8;
       if (type === CHUNK_JSON) {
-        json = JSON.parse(
-          new TextDecoder().decode(new Uint8Array(buffer, start, len))
-        );
+        json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, start, len)));
       } else if (type === CHUNK_BIN) {
         bin = new Uint8Array(buffer, start, len);
       }
@@ -1008,8 +1012,7 @@ export class HighResStreamer {
     delete j.images;
     delete j.textures;
     delete j.samplers;
-    const dropWebp = (arr) =>
-      Array.isArray(arr) ? arr.filter((e) => e !== WEBP_EXT) : arr;
+    const dropWebp = (arr) => (Array.isArray(arr) ? arr.filter((e) => e !== WEBP_EXT) : arr);
     j.extensionsUsed = dropWebp(j.extensionsUsed);
     j.extensionsRequired = dropWebp(j.extensionsRequired);
     return j;
@@ -1019,8 +1022,7 @@ export class HighResStreamer {
     const jsonBytes = new TextEncoder().encode(JSON.stringify(json));
     const jsonPad = (4 - (jsonBytes.length % 4)) % 4;
     const binPad = (4 - (bin.length % 4)) % 4;
-    const total =
-      12 + 8 + jsonBytes.length + jsonPad + 8 + bin.length + binPad;
+    const total = 12 + 8 + jsonBytes.length + jsonPad + 8 + bin.length + binPad;
 
     const out = new ArrayBuffer(total);
     const dv = new DataView(out);

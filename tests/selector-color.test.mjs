@@ -19,8 +19,8 @@ function buildRoof() {
     "position",
     new THREE.Float32BufferAttribute(
       [0, 1, 0, 2, 1, 0, 2, 0, 1, 0, 0, 1, 2, 0, -1, 0, 0, -1, 2, 0, 0],
-      3
-    )
+      3,
+    ),
   );
   geom.setIndex([0, 2, 1, 0, 3, 2, 0, 1, 4, 0, 4, 5, 1, 2, 6]);
   const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
@@ -54,7 +54,10 @@ function selectorWithColors(colorByFace) {
   const { mesh, root } = buildRoof();
   const s = selectorWithColors(() => RUST);
   const r = s.select({ object: mesh, faceIndex: 0 }, root);
-  assert(r.totalSelected === 4, `same-colour ridge crossing selects both slopes (got ${r.totalSelected})`);
+  assert(
+    r.totalSelected === 4,
+    `same-colour ridge crossing selects both slopes (got ${r.totalSelected})`,
+  );
   assert(!r.selected.get(mesh).has(4), "same-coloured WALL excluded by family gate");
 }
 
@@ -70,7 +73,10 @@ function selectorWithColors(colorByFace) {
   const s = new SurfaceSelector(null); // no texture, no DOM -> colour unavailable
   s.enableRidgeCrossing = true;
   const r = s.select({ object: mesh, faceIndex: 0 }, root);
-  assert(r.totalSelected === 2, `colour-less fallback selects seed slope only (got ${r.totalSelected})`);
+  assert(
+    r.totalSelected === 2,
+    `colour-less fallback selects seed slope only (got ${r.totalSelected})`,
+  );
 }
 
 {
@@ -86,7 +92,10 @@ function selectorWithColors(colorByFace) {
   s.faceColor = () => RUST; // colour available but crossing disabled
   const r = s.select({ object: mesh, faceIndex: 0 }, root);
   assert(s.enableRidgeCrossing === false, "ridge crossing is off by default");
-  assert(r.totalSelected === 2, `default selection stays on the seed slope (got ${r.totalSelected})`);
+  assert(
+    r.totalSelected === 2,
+    `default selection stays on the seed slope (got ${r.totalSelected})`,
+  );
 }
 
 console.log("\nAll colour-crossing tests passed.");
