@@ -4,13 +4,12 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
+from app import utils as app_utils
 from app.arq import tasks as arq_tasks
 from app.images import image_processing
 from app.models.enums import ImageProcessingStatus, State
 from app.projects import project_logic
 from minio.error import S3Error
-
-from app import utils as app_utils
 
 
 class _FakeCursor:
@@ -985,6 +984,7 @@ async def test_move_lock_blocks_second_and_is_owner_safe(
 async def test_move_acquires_and_releases_own_lock(
     arq_test_ctx, arq_test_redis, monkeypatch
 ):
+    project_id = uuid.uuid4()
     task_id = uuid.uuid4()
     lock_key = f"lock:move-task:{task_id}"
 
@@ -998,7 +998,7 @@ async def test_move_acquires_and_releases_own_lock(
     )
 
     result = await arq_tasks.move_task_images_for_processing(
-        arq_test_ctx, "proj", str(task_id)
+        arq_test_ctx, str(project_id), str(task_id)
     )
 
     assert result["moved_count"] == 0
@@ -1044,7 +1044,7 @@ async def test_retry_transfer_endpoint_reports_enqueued_then_already_running(
         )
     await db.commit()
 
-    url = f"/projects/retry_transfer/{project_id}/{task_id}/"
+    url = f"/api/projects/retry_transfer/{project_id}/{task_id}/"
     first = await client.post(url)
     assert first.status_code == 200
     assert first.json()["enqueued"] is True

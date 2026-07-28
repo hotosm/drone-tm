@@ -11,6 +11,7 @@ from io import BytesIO
 
 import pytest
 import pytest_asyncio
+from app.arq import tasks as arq_tasks
 from app.arq.tasks import (
     get_redis_pool,
 )
@@ -832,7 +833,7 @@ async def test_mark_task_verified_enqueues_background_move_job(
 
 @pytest.mark.asyncio
 async def test_mark_task_verified_reports_already_queued_job(
-    client, app, db, create_test_project
+    client, app, db, create_test_project, monkeypatch
 ):
     project_id = create_test_project
     task_id = await _insert_task(db, project_id=project_id)
@@ -847,10 +848,11 @@ async def test_mark_task_verified_reports_already_queued_job(
         async def enqueue_job(self, *args, **kwargs):
             return None
 
-        async def job(self, job_id):
-            if job_id == f"move-task-images:{task_id}":
-                return FakeExistingJob()
-            return None
+    monkeypatch.setattr(
+        arq_tasks,
+        "Job",
+        lambda *_args, **_kwargs: FakeExistingJob(),
+    )
 
     app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
 
@@ -868,7 +870,7 @@ async def test_mark_task_verified_reports_already_queued_job(
 
 @pytest.mark.asyncio
 async def test_mark_task_verified_requeues_when_existing_job_is_complete(
-    client, app, db, create_test_project
+    client, app, db, create_test_project, monkeypatch
 ):
     project_id = create_test_project
     task_id = await _insert_task(db, project_id=project_id)
@@ -890,8 +892,11 @@ async def test_mark_task_verified_requeues_when_existing_job_is_complete(
                 return None
             return FakeNewJob()
 
-        async def job(self, _job_id):
-            return FakeExistingJob()
+    monkeypatch.setattr(
+        arq_tasks,
+        "Job",
+        lambda *_args, **_kwargs: FakeExistingJob(),
+    )
 
     fake_redis = FakeRedis()
     app.dependency_overrides[get_redis_pool] = lambda: fake_redis
@@ -908,7 +913,7 @@ async def test_mark_task_verified_requeues_when_existing_job_is_complete(
 
 @pytest.mark.asyncio
 async def test_mark_task_verified_rolls_back_ready_event_if_enqueue_returns_none_without_job(
-    client, app, db, create_test_project
+    client, app, db, create_test_project, monkeypatch
 ):
     project_id = create_test_project
     task_id = await _insert_task(db, project_id=project_id)
@@ -917,8 +922,15 @@ async def test_mark_task_verified_rolls_back_ready_event_if_enqueue_returns_none
         async def enqueue_job(self, *args, **kwargs):
             return None
 
-        async def job(self, _job_id):
-            return None
+    class FakeMissingJob:
+        async def status(self):
+            return JobStatus.not_found
+
+    monkeypatch.setattr(
+        arq_tasks,
+        "Job",
+        lambda *_args, **_kwargs: FakeMissingJob(),
+    )
 
     app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
 
@@ -950,7 +962,7 @@ async def test_mark_task_verified_rolls_back_ready_event_if_enqueue_returns_none
 
 @pytest.mark.asyncio
 async def test_mark_task_verified_rolls_back_ready_event_if_retry_enqueue_raises(
-    client, app, db, create_test_project
+    client, app, db, create_test_project, monkeypatch
 ):
     project_id = create_test_project
     task_id = await _insert_task(db, project_id=project_id)
@@ -969,8 +981,11 @@ async def test_mark_task_verified_rolls_back_ready_event_if_retry_enqueue_raises
                 return
             raise RuntimeError("redis unavailable on retry")
 
-        async def job(self, _job_id):
-            return FakeExistingJob()
+    monkeypatch.setattr(
+        arq_tasks,
+        "Job",
+        lambda *_args, **_kwargs: FakeExistingJob(),
+    )
 
     app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
 
