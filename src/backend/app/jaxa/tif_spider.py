@@ -2,6 +2,7 @@ import io
 import os
 import zipfile
 from pathlib import Path
+from typing import ClassVar
 
 import scrapy
 from osgeo import gdal
@@ -11,10 +12,10 @@ base_dir = Path(__file__).resolve().parent
 
 class TifSpider(scrapy.Spider):
     name = "tif_spider"
-    allowed_domains = ["www.eorc.jaxa.jp", "eorc.jaxa.jp"]
+    allowed_domains: ClassVar[list[str]] = ["www.eorc.jaxa.jp", "eorc.jaxa.jp"]
     # Disable dupe filter so CrawlerRunner reuse across jobs doesn't silently
     # drop URLs that were crawled in a previous job in the same process.
-    custom_settings = {
+    custom_settings: ClassVar[dict] = {
         "DUPEFILTER_CLASS": "scrapy.dupefilters.BaseDupeFilter",
     }
 
@@ -27,7 +28,7 @@ class TifSpider(scrapy.Spider):
         self.temp_dir = Path(output_path).parent / "tiles"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
 
-    headers = {
+    headers: ClassVar[dict] = {
         "authority": "www.eorc.jaxa.jp",
         "path": "/ALOS/en/aw3d30/data/html_v2404/xml/{caption}_5_5.xml",
         "method": "GET",
@@ -130,10 +131,8 @@ class TifSpider(scrapy.Spider):
                 f"Response from {response.url} is not a valid ZIP file: {e}. "
                 f"First 200 bytes: {response.body[:200]}"
             )
-        except Exception as e:
-            self.logger.error(
-                f"Error parsing response from {response.url}: {e}", exc_info=True
-            )
+        except Exception:
+            self.logger.exception(f"Error parsing response from {response.url}")
 
     def closed(self, reason):
         self.logger.info(
@@ -179,6 +178,6 @@ class TifSpider(scrapy.Spider):
 
             self.logger.info(f"Successfully merged tiles to {self.output_path}")
 
-        except Exception as e:
-            self.logger.error(f"Error merging tiles: {e}", exc_info=True)
+        except Exception:
+            self.logger.exception("Error merging tiles")
             raise

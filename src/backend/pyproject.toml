@@ -128,7 +128,6 @@ extend-immutable-calls = [
 
 [tool.ruff.lint.per-file-ignores]
 # These are retained compatibility modules; renaming them would break imports.
-"app/jaxa/tif_spider.py" = ["G201", "RUF012"]
 "**/flightPlanWaypointGenerator.py" = ["N999"]
 "**/sampleRasterAtPoints.py" = ["N999"]
 # These fixtures model naive PostgreSQL timestamp values returned by psycopg.
