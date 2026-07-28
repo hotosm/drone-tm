@@ -17,11 +17,9 @@ wheels/
 .installed.cfg
 *.egg
 venv/
-src/backend/osm-fieldwork
 
 __pycache__
 credentials.txt
-odk2odm_venv/
 
 # PyCharm
 .idea/
@@ -96,3 +94,6 @@ src/backend/frontend_html
 .codex
 plans
 checkpoints
+
+# drone-mesh repo
+src/drone-mesh

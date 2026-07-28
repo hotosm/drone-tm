@@ -40,6 +40,7 @@ from app.s3 import (
     check_file_exists,
     get_dsm_url_for_project,
     get_dtm_url_for_project,
+    get_mesh_glb_url_for_project,
     get_orthophoto_url_for_project,
     get_pointcloud_url_for_project,
     maybe_presign_s3_key,
@@ -765,6 +766,9 @@ class ProjectInfo(BaseModel):
     cloud_mesh_generating: bool = False
     cloud_ortho_cog_url: Optional[str] = None
     cloud_mesh_tileset_url: Optional[str] = None
+    # Presigned URL to the ODM GLB, loaded by the drone-mesh viewer. Null if
+    # the project predates ODM --gltf.
+    mesh_glb_url: Optional[str] = None
     mesh_source_available: bool = False
     odm_task_uuid: Optional[str] = None
     assets_url: Optional[str] = None
@@ -915,6 +919,21 @@ class ProjectInfo(BaseModel):
         values.pointcloud_url = safe_url(
             lambda: get_pointcloud_url_for_project(project_id),
             label="pointcloud_url",
+        )
+
+        return values
+
+    @model_validator(mode="after")
+    def set_mesh_glb_url(cls, values):
+        """Presigned URL to the ODM GLB for the drone-mesh viewer."""
+        project_id = values.id
+        if not project_id or values.image_processing_status != "SUCCESS":
+            values.mesh_glb_url = None
+            return values
+
+        values.mesh_glb_url = safe_url(
+            lambda: get_mesh_glb_url_for_project(project_id),
+            label="mesh_glb_url",
         )
 
         return values

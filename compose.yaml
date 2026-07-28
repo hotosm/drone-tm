@@ -90,6 +90,8 @@ services:
         condition: service_completed_successfully
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}/api}
+      # Local dev-only var to serve drone-mesh under /mesh
+      MESH_DIST_DIR: /app/mesh-dist
     networks:
       - dtm-network
     volumes:

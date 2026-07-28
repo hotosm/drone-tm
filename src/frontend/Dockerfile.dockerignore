@@ -3,5 +3,13 @@
 !frontend/**
 !gcp-editor
 !gcp-editor/**
+!drone-mesh
+!drone-mesh/**
 !pnpm-workspace.yaml
 !pnpm-lock.yaml
+# Do not include node_modules & dists
+**/**/node_modules
+**/**/dist
+# Keep .git out so commits don't bust the drone-mesh COPY layer cache
+**/.git
+**/.git/**

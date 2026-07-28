@@ -100,6 +100,8 @@ const appRoutes: IRoute[] = [
     authenticated: true,
   },
   {
+    // In-app 3D-Tiles city-scale viewer
+    // (not the standalone drone-mesh viewer)
     path: "/projects/:id/3d-model",
     name: "3D Model Viewer",
     component: View3DModel,

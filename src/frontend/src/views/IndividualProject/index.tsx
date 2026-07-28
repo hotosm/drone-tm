@@ -121,6 +121,28 @@ const IndividualProject = () => {
     }
   }, [projectData, dispatch]);
 
+  // Hold Ctrl/Cmd to reveal the 3D Tiles controls in place of the GLB viewer.
+  const [showTilesControls, setShowTilesControls] = useState(false);
+  useEffect(() => {
+    const isModifier = (e: KeyboardEvent) => e.key === "Control" || e.key === "Meta";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isModifier(e)) setShowTilesControls(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (isModifier(e)) setShowTilesControls(false);
+    };
+    // keyup can be missed if the window loses focus mid-hold.
+    const reset = () => setShowTilesControls(false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", reset);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", reset);
+    };
+  }, []);
+
   const { mutate, isPending } = useMutation({
     mutationFn: (projectId: string) => deleteProject(projectId),
     onSuccess: () => {
@@ -339,37 +361,68 @@ const IndividualProject = () => {
                 every run regardless of what the user picked at create time. */}
             {projectData?.image_processing_status === "SUCCESS" &&
               projectData?.mesh_source_available &&
-              (projectData?.cloud_mesh_ready ? (
-                <Button
-                  variant="ghost"
-                  className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
-                  leftIcon="view_in_ar"
-                  iconClassname="naxatw-text-[1.125rem]"
-                  onClick={() => navigate(`/projects/${projectData?.id || id}/3d-model`)}
-                >
-                  {m.individual_project_button_view_3d()}
-                </Button>
-              ) : projectData?.cloud_mesh_generating || isMeshTriggering ? (
-                <Button
-                  variant="ghost"
-                  disabled
-                  className="naxatw-border naxatw-border-[#D73F3F]/40 naxatw-text-[0.875rem] naxatw-text-[#D73F3F]/60"
-                  leftIcon="hourglass_empty"
-                  iconClassname="naxatw-text-[1.125rem]"
-                >
-                  {m.individual_project_button_converting_3d()}
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
-                  leftIcon="view_in_ar"
-                  iconClassname="naxatw-text-[1.125rem]"
-                  onClick={() => convertMesh(projectData?.id || (id as string))}
-                >
-                  {m.individual_project_button_convert_3d()}
-                </Button>
-              ))}
+              (() => {
+                const projId = projectData?.id || id;
+                // Open the GLB in the drone-mesh viewer. Available as soon as
+                // ODM produces the GLB - no conversion step needed.
+                const meshViewerButton = projectData?.mesh_glb_url ? (
+                  <Button
+                    variant="ghost"
+                    className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                    leftIcon="view_in_ar"
+                    iconClassname="naxatw-text-[1.125rem]"
+                    onClick={() => {
+                      const viewerBase = getRuntimeConfig("VITE_DRONE_MESH_URL", "/mesh");
+                      window.open(
+                        `${viewerBase}/index.html?glb=${encodeURIComponent(
+                          projectData.mesh_glb_url,
+                        )}`,
+                        "_blank",
+                        "noopener",
+                      );
+                    }}
+                  >
+                    {m.individual_project_button_view_3d()}
+                  </Button>
+                ) : null;
+
+                // 3D Tiles controls (Convert / Converting / View). Shown on
+                // Ctrl/Cmd, or as fallback when there's no GLB yet.
+                const tilesButton = projectData?.cloud_mesh_ready ? (
+                  <Button
+                    variant="ghost"
+                    className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                    leftIcon="view_in_ar"
+                    iconClassname="naxatw-text-[1.125rem]"
+                    onClick={() => navigate(`/projects/${projId}/3d-model`)}
+                  >
+                    {m.individual_project_button_view_3d()}
+                  </Button>
+                ) : projectData?.cloud_mesh_generating || isMeshTriggering ? (
+                  <Button
+                    variant="ghost"
+                    disabled
+                    className="naxatw-border naxatw-border-[#D73F3F]/40 naxatw-text-[0.875rem] naxatw-text-[#D73F3F]/60"
+                    leftIcon="hourglass_empty"
+                    iconClassname="naxatw-text-[1.125rem]"
+                  >
+                    {m.individual_project_button_converting_3d()}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+                    leftIcon="view_in_ar"
+                    iconClassname="naxatw-text-[1.125rem]"
+                    onClick={() => convertMesh(projId as string)}
+                  >
+                    {m.individual_project_button_convert_3d()}
+                  </Button>
+                );
+
+                if (showTilesControls) return tilesButton;
+                return meshViewerButton ?? tilesButton;
+              })()}
             <div className="naxatw-relative">
               <Button
                 variant="ghost"

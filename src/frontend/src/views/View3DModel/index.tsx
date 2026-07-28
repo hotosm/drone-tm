@@ -1,3 +1,6 @@
+// In-app 3D Tiles viewer for the obj2tiles output (cloud_mesh_tileset_url).
+// Opened via the Ctrl/Cmd path on the project page; a normal click uses the
+// drone-mesh GLB viewer instead.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import maplibregl, { type CustomLayerInterface, type CustomRenderMethodInput } from "maplibre-gl";

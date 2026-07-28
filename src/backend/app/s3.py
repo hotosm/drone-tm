@@ -546,6 +546,18 @@ def get_pointcloud_url_for_project(project_id: str):
     return None
 
 
+def get_mesh_glb_url_for_project(project_id: str):
+    """Presigned URL for the ODM textured-mesh GLB (drone-mesh viewer source).
+
+    Written by ODM ``--gltf``. Private path, so presigned. None if absent
+    (project processed before ``--gltf``).
+    """
+    glb_path = f"projects/{project_id}/odm/odm_texturing/odm_textured_model_geo.glb"
+    if check_file_exists(settings.S3_BUCKET_NAME, glb_path):
+        return maybe_presign_s3_key(glb_path, expires_hours=12)
+    return None
+
+
 def mesh_source_available_for_project(project_id: str) -> bool:
     """Return True if the textured-mesh source OBJ exists in S3.
 

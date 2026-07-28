@@ -585,6 +585,9 @@ async def process_all_drone_images(
                 # affect the project-level reproject job that the in-app
                 # viewer relies on.
                 {"name": "cog", "value": True},
+                # GLB export for the drone-mesh viewer (mesh_glb_url). The OBJ
+                # still feeds the obj2tiles 3D Tiles pipeline as before.
+                {"name": "gltf", "value": True},
             ]
             if FinalOutput.DIGITAL_SURFACE_MODEL in requested_outputs:
                 options.append({"name": "dsm", "value": True})

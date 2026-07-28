@@ -9,12 +9,13 @@ declare global {
       VITE_API_URL?: string;
       VITE_AUTH_PROVIDER?: string;
       VITE_HANKO_URL?: string;
+      VITE_DRONE_MESH_URL?: string;
     };
   }
 }
 
 export function getRuntimeConfig(
-  key: "VITE_API_URL" | "VITE_AUTH_PROVIDER" | "VITE_HANKO_URL",
+  key: "VITE_API_URL" | "VITE_AUTH_PROVIDER" | "VITE_HANKO_URL" | "VITE_DRONE_MESH_URL",
   fallback: string,
 ): string {
   // Check runtime config first (injected by docker-entrypoint.sh)
