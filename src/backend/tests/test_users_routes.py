@@ -1,7 +1,6 @@
 import pytest
-from loguru import logger as log
-
 from app.users.user_deps import create_reset_password_token
+from loguru import logger as log
 
 
 @pytest.mark.asyncio

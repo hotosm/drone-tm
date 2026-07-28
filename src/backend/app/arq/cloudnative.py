@@ -27,11 +27,7 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict
-
-from loguru import logger as log
-from rio_cogeo.cogeo import cog_translate
-from rio_cogeo.profiles import cog_profiles
+from typing import Any
 
 from app.config import settings
 from app.projects.s3_paths import (
@@ -46,6 +42,9 @@ from app.s3 import (
     list_objects_from_bucket,
     s3_object_exists,
 )
+from loguru import logger as log
+from rio_cogeo.cogeo import cog_translate
+from rio_cogeo.profiles import cog_profiles
 
 # Cache headers for cloudnative outputs. Paths are reused on re-conversion
 # so we can't go full "immutable"; a moderate max-age balances revalidation
@@ -246,12 +245,12 @@ def _upload_tree_to_prefix(local_dir: Path, prefix: str) -> int:
 
 
 async def generate_orthophoto_cog(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     *,
     project_id: str,
     force: bool = False,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Produce a web-mercator COG from the project-level orthophoto.
 
     Writes to a stable per-project key; re-conversion overwrites the prior
@@ -313,12 +312,12 @@ async def generate_orthophoto_cog(
 
 
 async def generate_3d_tiles(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     *,
     project_id: str,
     force: bool = False,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Produce a 3D Tiles tree from the project-level textured OBJ output.
 
     Writes to a stable per-project prefix; the prior tree is wiped before

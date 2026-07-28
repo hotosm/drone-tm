@@ -4,15 +4,7 @@ import uuid
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordRequestForm
-from loguru import logger as log
-from psycopg import Connection
-from psycopg.rows import class_row
-from pydantic import EmailStr
-
-from app.config import settings, get_password_hash, verify_password
+from app.config import get_password_hash, settings, verify_password
 from app.db import database
 from app.models.enums import HTTPStatus
 from app.users import user_deps, user_logic, user_schemas
@@ -27,6 +19,13 @@ from app.users.user_schemas import (
     UserProfileUpdate,
 )
 from app.utils import send_reset_password_email
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import class_row
+from pydantic import EmailStr
 
 if settings.DEBUG:
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -272,19 +271,18 @@ async def reset_password(
             )
 
         # Update password within a transaction
-        async with db.transaction():
-            async with db.cursor() as cur:
-                await cur.execute(
-                    """
+        async with db.transaction(), db.cursor() as cur:
+            await cur.execute(
+                """
                         UPDATE users
                         SET password = %(password)s
                         WHERE id = %(user_id)s;
                     """,
-                    {
-                        "password": get_password_hash(new_password),
-                        "user_id": user.get("id"),
-                    },
-                )
+                {
+                    "password": get_password_hash(new_password),
+                    "user_id": user.get("id"),
+                },
+            )
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Token expired")
@@ -293,7 +291,7 @@ async def reset_password(
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred: {str(e)}",
+            detail=f"An error occurred: {e!s}",
         )
 
     return JSONResponse(
@@ -385,5 +383,5 @@ async def regulator_create(
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"An error occurred: {str(e)}",
+            detail=f"An error occurred: {e!s}",
         )

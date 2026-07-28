@@ -1,12 +1,12 @@
 import argparse
+import json
 import logging
 import math
-import json
 
 from drone_flightplan.drone_type import (
-    DroneType,
     DRONE_PARAMS,
     DRONE_SPECS,
+    DroneType,
     drone_type_arg,
 )
 
@@ -38,8 +38,8 @@ def print_drone_calcs():
             stats["image_width_px"],
         )
 
-        print("")
-        print("")
+        print()
+        print()
 
 
 def _calculate_constants(

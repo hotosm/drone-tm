@@ -6,10 +6,10 @@ Create Date: 2024-08-08 08:10:11.056119
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # Define the new enum type
 new_state_enum = sa.Enum(
@@ -35,9 +35,9 @@ old_state_enum = sa.Enum(
 
 # revision identifiers, used by Alembic.
 revision: str = "2b92f8a9bbec"
-down_revision: Union[str, None] = "5d38e368b3d2"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "5d38e368b3d2"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

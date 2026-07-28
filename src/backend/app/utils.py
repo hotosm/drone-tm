@@ -1,20 +1,21 @@
 import base64
 import json
 import logging
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import geojson
-import math
 import requests
 import shapely
 from aiosmtplib import send as send_email
+from app.config import settings
 from fastapi import HTTPException
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape, to_shape
@@ -26,8 +27,6 @@ from shapely import wkb
 from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
 from shapely.geometry import Point, mapping, shape
 from shapely.ops import transform, unary_union
-
-from app.config import settings
 
 log = logging.getLogger(__name__)
 
@@ -94,8 +93,8 @@ def timestamp():
 
 
 def str_to_geojson(
-    result: str, properties: Optional[dict] = None, id: Optional[str] = None
-) -> Union[Feature, dict]:
+    result: str, properties: dict | None = None, id: str | None = None
+) -> Feature | dict:
     """Convert SQLAlchemy geometry to GeoJSON."""
     if result:
         wkb_data = bytes.fromhex(result)
@@ -111,8 +110,8 @@ def str_to_geojson(
 
 
 def geometry_to_geojson(
-    geometry: WKBElement, properties: Optional[dict] = None, id: Optional[int] = None
-) -> Union[Feature, dict]:
+    geometry: WKBElement, properties: dict | None = None, id: int | None = None
+) -> Feature | dict:
     """Convert SQLAlchemy geometry to GeoJSON."""
     if geometry:
         shape = to_shape(geometry)
@@ -128,8 +127,8 @@ def geometry_to_geojson(
 
 
 def geojson_to_geometry(
-    geojson: Union[FeatCol, Feature, MultiPolygon, Polygon],
-) -> Optional[WKBElement]:
+    geojson: FeatCol | Feature | MultiPolygon | Polygon,
+) -> WKBElement | None:
     """Convert GeoJSON to SQLAlchemy geometry."""
     parsed_geojson = geojson
     if isinstance(geojson, (FeatCol, Feature, MultiPolygon, Polygon)):
@@ -157,8 +156,8 @@ def geojson_to_geometry(
 
 
 def parse_and_filter_geojson(
-    geojson_raw: Union[str, bytes], filter: bool = True
-) -> Optional[geojson.FeatureCollection]:
+    geojson_raw: str | bytes, filter: bool = True
+) -> geojson.FeatureCollection | None:
     """Parse geojson string and filter out incompatible geometries."""
     geojson_parsed = geojson.loads(geojson_raw)
 
@@ -224,7 +223,7 @@ def write_wkb(shape):
     return from_shape(shape)
 
 
-def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon]):
+def merge_multipolygon(features: Feature | FeatCol | MultiPolygon | Polygon):
     """Merge multiple Polygons or MultiPolygons into a single Polygon.
 
     Args:
@@ -270,11 +269,11 @@ def merge_multipolygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon])
     except Exception as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Couldn't merge the multipolygon to polygon: {str(e)}",
+            detail=f"Couldn't merge the multipolygon to polygon: {e!s}",
         ) from e
 
 
-def parse_featcol(features: Union[Feature, FeatCol, MultiPolygon, Polygon]):
+def parse_featcol(features: Feature | FeatCol | MultiPolygon | Polygon):
     """Parse a feature collection or feature into a GeoJSON FeatureCollection.
 
     Args:
@@ -334,7 +333,7 @@ def get_address_from_lat_lon(latitude, longitude):
     return address_str
 
 
-def multipolygon_to_polygon(features: Union[Feature, FeatCol, MultiPolygon, Polygon]):
+def multipolygon_to_polygon(features: Feature | FeatCol | MultiPolygon | Polygon):
     """Converts a GeoJSON FeatureCollection of MultiPolygons to Polygons.
 
     Args:
@@ -570,7 +569,7 @@ def geojson_to_kml(geojson_data: dict) -> str:
         kml_output.append("<Placemark>")
 
         # Add properties as name or description if available
-        if "properties" in feature and feature["properties"]:
+        if feature.get("properties"):
             if "name" in feature["properties"]:
                 kml_output.append(f"<name>{feature['properties']['name']}</name>")
             if "description" in feature["properties"]:
@@ -627,7 +626,7 @@ async def send_project_approval_email_to_regulator(
         )
 
 
-def calculate_flight_time_from_placemarks(placemarks: Dict) -> Dict:
+def calculate_flight_time_from_placemarks(placemarks: dict) -> dict:
     """Calculate the total and average flight time and total flight distance based on placemarks.
 
     Args:

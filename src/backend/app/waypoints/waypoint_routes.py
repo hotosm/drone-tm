@@ -1,26 +1,11 @@
+import logging
 import os
 import shutil
 import tempfile
 import uuid
-import logging
 from typing import Annotated
 
 import geojson
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
-from psycopg import Connection
-from shapely.geometry import shape
-
-from drone_flightplan import (
-    build_placemarks,
-    create_flightplan,
-    create_waypoint,
-    write_flightplan_file,
-)
-from drone_flightplan.drone_type import DroneType
-from drone_flightplan.enums import GimbalAngle, FlightMode
-from drone_flightplan.output.dji import create_wpml
-
 from app.config import settings
 from app.db import database
 from app.models.enums import HTTPStatus
@@ -31,12 +16,25 @@ from app.tasks.task_logic import (
     get_task_geojson,
     update_take_off_point_in_db,
 )
-from app.utils import merge_multipolygon, calculate_flight_time_from_placemarks
+from app.utils import calculate_flight_time_from_placemarks, merge_multipolygon
 from app.waypoints import waypoint_schemas
 from app.waypoints.flightplan_output import build_flightplan_download_response
 from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
+from drone_flightplan import (
+    build_placemarks,
+    create_flightplan,
+    create_waypoint,
+    write_flightplan_file,
+)
+from drone_flightplan.drone_type import DroneType
+from drone_flightplan.enums import FlightMode, GimbalAngle
+from drone_flightplan.output.dji import create_wpml
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from psycopg import Connection
+from shapely.geometry import shape
 
 log = logging.getLogger(__name__)
 
@@ -342,4 +340,4 @@ async def generate_kmz_with_placemarks(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating KMZ: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating KMZ: {e!s}")

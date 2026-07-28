@@ -5,8 +5,8 @@ Test data is derived from real agung-1 project images.
 """
 
 import math
-import pytest
 
+import pytest
 from app.gcp.gcp_crud import _image_footprint_radius_meters, _point_in_image_footprint
 
 # Typical drone-tm defaults

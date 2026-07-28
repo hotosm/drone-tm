@@ -3,7 +3,6 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-
 ALEMBIC_VERSION_NUM_MAX_LENGTH = 32
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 

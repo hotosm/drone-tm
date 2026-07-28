@@ -16,7 +16,7 @@ of well-lit imagery from a misread timezone would be much worse.
 import math
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 
 def solar_elevation_deg(lat_deg: float, lon_deg: float, utc_dt: datetime) -> float:
@@ -83,7 +83,7 @@ _DATETIME_FORMATS = (
 )
 
 
-def _parse_naive_datetime(value: Any) -> Optional[datetime]:
+def _parse_naive_datetime(value: Any) -> datetime | None:
     if not isinstance(value, str):
         return None
     s = value.strip()
@@ -100,7 +100,7 @@ def _parse_naive_datetime(value: Any) -> Optional[datetime]:
     return None
 
 
-def _parse_offset(value: Any) -> Optional[timedelta]:
+def _parse_offset(value: Any) -> timedelta | None:
     """Parse "+HH:MM" / "-HHMM" / "Z" / "+05:30" style offsets."""
     if not isinstance(value, str):
         return None
@@ -118,7 +118,7 @@ def _parse_offset(value: Any) -> Optional[timedelta]:
     return sign * timedelta(hours=hours, minutes=minutes)
 
 
-def _split_gps_datetime(value: Any) -> Optional[datetime]:
+def _split_gps_datetime(value: Any) -> datetime | None:
     """Parse a combined GPSDateTime like "2024:06:15 14:30:22Z" (always UTC)."""
     naive = _parse_naive_datetime(value)
     if naive is None:
@@ -126,7 +126,7 @@ def _split_gps_datetime(value: Any) -> Optional[datetime]:
     return naive.replace(tzinfo=timezone.utc)
 
 
-def _combine_gps_date_time(date_value: Any, time_value: Any) -> Optional[datetime]:
+def _combine_gps_date_time(date_value: Any, time_value: Any) -> datetime | None:
     """Combine separate GPSDateStamp ("2024:06:15") and GPSTimeStamp
     ("14:30:22" or "14:30:22.123") fields. GPS timestamps are always UTC."""
     if not isinstance(date_value, str) or not isinstance(time_value, str):
@@ -138,7 +138,7 @@ def _combine_gps_date_time(date_value: Any, time_value: Any) -> Optional[datetim
     return naive.replace(tzinfo=timezone.utc)
 
 
-def derive_utc_datetime_from_exif(exif: dict) -> Optional[datetime]:
+def derive_utc_datetime_from_exif(exif: dict) -> datetime | None:
     """Return a confidence-checked UTC datetime for the capture, or None.
 
     Tries, in order:

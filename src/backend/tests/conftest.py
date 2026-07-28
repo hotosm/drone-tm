@@ -1,27 +1,25 @@
-from typing import Any, AsyncGenerator
-
-import os
 import csv
-import json
 import hashlib
+import json
+import os
+import uuid
+from collections.abc import AsyncGenerator
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
 import pytest
 import pytest_asyncio
-import uuid
-from asgi_lifespan import LifespanManager
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
-from psycopg import AsyncConnection
-
 from app.config import settings
 from app.db.database import get_db
 from app.main import get_application
 from app.models.enums import UserRole
 from app.projects.project_schemas import DbProject, ProjectIn
-from app.users.user_deps import login_required, login_dependency
+from app.users.user_deps import login_dependency, login_required
 from app.users.user_schemas import AuthUser, DbUser
-
-from datetime import datetime, timedelta, timezone
-
+from asgi_lifespan import LifespanManager
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+from psycopg import AsyncConnection
 
 FREETOWN_DATASET_DIR = os.path.join(os.path.dirname(__file__), "freetown_dataset")
 
@@ -101,7 +99,7 @@ async def project_info():
     try:
         return project_metadata
     except Exception as e:
-        pytest.fail(f"Fixture setup failed with exception: {str(e)}")
+        pytest.fail(f"Fixture setup failed with exception: {e!s}")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -155,13 +153,15 @@ async def client(app: FastAPI, db: AsyncConnection, auth_user: AuthUser):
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[login_required] = lambda: auth_user
     app.dependency_overrides[login_dependency] = lambda: auth_user
-    async with LifespanManager(app) as manager:
-        async with AsyncClient(
+    async with (
+        LifespanManager(app) as manager,
+        AsyncClient(
             transport=ASGITransport(app=manager.app),
             base_url="http://test",
             follow_redirects=True,
-        ) as ac:
-            yield ac
+        ) as ac,
+    ):
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")

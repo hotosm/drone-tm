@@ -1,11 +1,24 @@
 from datetime import datetime
 from typing import cast
 
+from app.models.enums import (
+    FinalOutput,
+    ImageProcessingStatus,
+    ImageStatus,
+    OAMUploadStatus,
+    ProjectStatus,
+    ProjectVisibility,
+    RegulatorApprovalStatus,
+    State,
+    TaskSplitType,
+    UserRole,
+)
+from app.utils import timestamp
 from geoalchemy2 import Geometry, WKBElement
 from sqlalchemy import (
     ARRAY,
-    Boolean,
     CHAR,
+    Boolean,
     Column,
     DateTime,
     Enum,
@@ -24,20 +37,6 @@ from sqlalchemy.orm import (
     declarative_base,
     relationship,
 )
-
-from app.models.enums import (
-    FinalOutput,
-    ImageProcessingStatus,
-    ImageStatus,
-    OAMUploadStatus,
-    ProjectStatus,
-    ProjectVisibility,
-    RegulatorApprovalStatus,
-    State,
-    TaskSplitType,
-    UserRole,
-)
-from app.utils import timestamp
 
 Base = declarative_base()
 

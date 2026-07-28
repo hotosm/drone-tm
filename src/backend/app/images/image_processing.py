@@ -2,18 +2,16 @@ import json
 import os
 import uuid
 import zipfile
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import aiohttp
-from loguru import logger as log
-from osgeo import gdal
-
 from app.config import settings
 from app.s3 import (
     add_file_to_bucket,
     delete_objects_by_prefix,
 )
-
+from loguru import logger as log
+from osgeo import gdal
 
 SCALEODM_SUBMIT_TIMEOUT_SEC = 30
 
@@ -24,7 +22,7 @@ ProcessingMode = Literal["standard", "merge-existing", "thermal", "city-scale"]
 class ScaleOdmSubmitError(RuntimeError):
     """Raised when POST /task/new is rejected by ScaleODM."""
 
-    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+    def __init__(self, message: str, *, status: int | None = None) -> None:
         super().__init__(message)
         self.status = status
 
@@ -39,10 +37,10 @@ async def submit_scaleodm_task(
     processing_mode: ProcessingMode = "standard",
     s3_scan_depth: int = 1,
     use_default_excludes: bool = True,
-    exclude_paths: Optional[list[str]] = None,
-    s3_endpoint: Optional[str] = None,
-    capacity_type: Optional[str] = None,
-    webhook: Optional[str] = None,
+    exclude_paths: list[str] | None = None,
+    s3_endpoint: str | None = None,
+    capacity_type: str | None = None,
+    webhook: str | None = None,
 ) -> str:
     """Create a ScaleODM task via POST /task/new, returning the task UUID.
 
@@ -75,7 +73,7 @@ async def submit_scaleodm_task(
     async with aiohttp.ClientSession(timeout=timeout) as session:
         async with session.post(url, json=body) as resp:
             text = await resp.text()
-            payload: Optional[dict[str, Any]] = None
+            payload: dict[str, Any] | None = None
             try:
                 payload = json.loads(text) if text else None
             except json.JSONDecodeError:
@@ -108,7 +106,7 @@ async def submit_scaleodm_task(
 
 async def fetch_scaleodm_task_info(
     *, scaleodm_url: str, odm_task_uuid: str
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Fetch /task/{uuid}/info from ScaleODM. Returns ``None`` on failure.
 
     Short timeout: reconcile calls these sequentially, so a slow one would stall
@@ -117,18 +115,18 @@ async def fetch_scaleodm_task_info(
     base = scaleodm_url.rstrip("/")
     url = f"{base}/task/{odm_task_uuid}/info"
     try:
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=5)
-        ) as session:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    log.warning(
-                        "ScaleODM /task/{}/info returned HTTP {}",
-                        odm_task_uuid,
-                        resp.status,
-                    )
-                    return None
-                return await resp.json()
+        async with (
+            aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session,
+            session.get(url) as resp,
+        ):
+            if resp.status != 200:
+                log.warning(
+                    "ScaleODM /task/{}/info returned HTTP {}",
+                    odm_task_uuid,
+                    resp.status,
+                )
+                return None
+            return await resp.json()
     except Exception as e:
         log.warning(f"Failed to fetch ScaleODM task info for {odm_task_uuid}: {e}")
         return None
@@ -179,7 +177,7 @@ def extract_and_upload_odm_assets(
     zip_path: str,
     temp_dir: str,
     project_id: uuid.UUID,
-    task_id: Optional[uuid.UUID],
+    task_id: uuid.UUID | None,
 ) -> bool:
     """Extract files from an ODM zip one-by-one and upload each to S3.
 

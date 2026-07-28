@@ -1,9 +1,9 @@
 """SQLite waypoint files used in Potensic Atom 1."""
 
-import os
 import logging
+import os
 import sqlite3
-from typing import Iterable
+from collections.abc import Iterable
 from itertools import islice
 
 import geojson

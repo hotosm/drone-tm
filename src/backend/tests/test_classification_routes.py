@@ -11,16 +11,17 @@ from io import BytesIO
 
 import pytest
 import pytest_asyncio
-from arq.jobs import JobStatus
-
-from app.images import image_classification
 from app.arq.tasks import (
     get_redis_pool,
+)
+from app.arq.tasks import (
     ingest_existing_uploads as ingest_existing_uploads_task,
 )
 from app.config import settings
 from app.db.database import get_db_connection_pool
+from app.images import image_classification
 from app.s3 import add_obj_to_bucket, delete_objects_by_prefix
+from arq.jobs import JobStatus
 
 # ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -150,7 +151,6 @@ async def test_start_project_classification_returns_no_job_when_no_staged_images
 
         async def enqueue_job(self, *args, **kwargs):
             self.jobs.append((args, kwargs))
-            return None
 
     fake_redis = FakeRedis()
     app.dependency_overrides[get_redis_pool] = lambda: fake_redis
@@ -966,7 +966,7 @@ async def test_mark_task_verified_rolls_back_ready_event_if_retry_enqueue_raises
         async def enqueue_job(self, *args, **kwargs):
             self.calls += 1
             if self.calls == 1:
-                return None
+                return
             raise RuntimeError("redis unavailable on retry")
 
         async def job(self, _job_id):

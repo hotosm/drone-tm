@@ -25,10 +25,9 @@ import asyncio
 import sys
 import uuid
 
+from app.config import settings
 from arq import create_pool
 from arq.connections import RedisSettings
-
-from app.config import settings
 
 
 async def _enqueue(project_id: str, *, cog: bool, tiles: bool, force: bool) -> None:

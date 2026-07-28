@@ -1,10 +1,6 @@
 import tempfile
 import uuid
-from typing import Annotated, List
-
-from fastapi import APIRouter, Depends, File, UploadFile
-from loguru import logger as log
-from psycopg import Connection
+from typing import Annotated
 
 from app.config import settings
 from app.db import database
@@ -14,6 +10,9 @@ from app.s3 import add_file_to_bucket
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.waypoints import waypoint_schemas
+from fastapi import APIRouter, Depends, File, UploadFile
+from loguru import logger as log
+from psycopg import Connection
 
 router = APIRouter(
     prefix="/gcp",
@@ -27,7 +26,7 @@ async def find_images_for_a_project(
     project_id: uuid.UUID,
     db: Annotated[Connection, Depends(database.get_db)],
     point: waypoint_schemas.PointField = None,
-) -> List[str]:
+) -> list[str]:
     """Find images whose footprint contains a GCP point.
 
     Uses PostGIS spatial query on the project_images table to find images

@@ -1,8 +1,7 @@
 import argparse
-import logging
 import json
-from math import sqrt, degrees, atan2
-from typing import Optional
+import logging
+from math import atan2, degrees, sqrt
 
 import geojson
 import pyproj
@@ -12,8 +11,8 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
 from drone_flightplan.calculate_parameters import calculate_parameters
-from drone_flightplan.enums import GimbalAngle, FlightMode
-from drone_flightplan.drone_type import DroneType, DRONE_SPECS
+from drone_flightplan.drone_type import DRONE_SPECS, DroneType
+from drone_flightplan.enums import FlightMode, GimbalAngle
 
 log = logging.getLogger(__name__)
 
@@ -271,7 +270,7 @@ def create_path(
     rotation_angle: float = 0.0,
     generate_3d: bool = False,
     take_off_point: list[float] = None,
-    polygon: Optional[Polygon] = None,
+    polygon: Polygon | None = None,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ) -> list[dict]:
     """Create a continuous path of waypoints from a grid of points.
@@ -638,8 +637,7 @@ def create_waypoint(
             )
             # Only tighten N-S if the user's requested side_spacing is
             # looser than what the effective E-W overlap now demands.
-            if matched_side_spacing < side_spacing:
-                side_spacing = matched_side_spacing
+            side_spacing = min(side_spacing, matched_side_spacing)
             forward_spacing = actual_forward_spacing
 
     # Handle FeatureCollection, Feature, Polygon

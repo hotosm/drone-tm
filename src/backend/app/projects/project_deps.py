@@ -5,17 +5,16 @@ from typing import Annotated
 from uuid import UUID
 
 import geojson as geojson_lib
+from app.db import database
+from app.models.enums import HTTPStatus
+from app.projects.project_schemas import DbProject
+from app.utils import multipolygon_to_polygon
 from fastapi import Depends, File, HTTPException, Path, UploadFile
 from geojson import FeatureCollection
 from geojson_aoi import parse_aoi_async
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
-
-from app.db import database
-from app.models.enums import HTTPStatus
-from app.projects.project_schemas import DbProject
-from app.utils import multipolygon_to_polygon
 
 
 async def get_tasks_by_project_id(project_id: UUID, db: Connection):

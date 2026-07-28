@@ -38,11 +38,10 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-from loguru import logger as log
-from psycopg.rows import dict_row
-
 from app.db.database import get_db_connection_pool
 from app.models.enums import ImageProcessingStatus, OAMUploadStatus, State
+from loguru import logger as log
+from psycopg.rows import dict_row
 
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",

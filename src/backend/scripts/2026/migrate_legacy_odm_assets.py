@@ -40,16 +40,14 @@ import re
 import sys
 import tempfile
 import zipfile
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
-
-from loguru import logger as log
-from minio.commonconfig import CopySource
-from minio.error import S3Error
 
 from app.config import settings
 from app.s3 import s3_client
-
+from loguru import logger as log
+from minio.commonconfig import CopySource
+from minio.error import S3Error
 
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",

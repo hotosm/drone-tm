@@ -4,7 +4,6 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Optional, Union
 
 import geojson
 from geojson import Feature, FeatureCollection, GeoJSON
@@ -37,7 +36,7 @@ class TaskSplitter:
 
     def __init__(
         self,
-        aoi_obj: Optional[Union[str, FeatureCollection, dict]] = None,
+        aoi_obj: str | FeatureCollection | dict | None = None,
     ):
         """This class splits a polygon into tasks using a variety of algorithms.
 
@@ -58,7 +57,7 @@ class TaskSplitter:
 
     @staticmethod
     def input_to_geojson(
-        input_data: Union[str, FeatureCollection, dict], merge: bool = False
+        input_data: str | FeatureCollection | dict, merge: bool = False
     ) -> GeoJSON:
         """Parse input data consistently to a GeoJSON obj."""
         log.info(f"Parsing GeoJSON from type {type(input_data)}")
@@ -97,7 +96,7 @@ class TaskSplitter:
 
     @staticmethod
     def geojson_to_featcol(
-        geojson: Union[FeatureCollection, Feature, dict],
+        geojson: FeatureCollection | Feature | dict,
     ) -> FeatureCollection:
         """Standardise any geojson type to FeatureCollection."""
         # Parse and unparse geojson to extract type
@@ -114,7 +113,7 @@ class TaskSplitter:
 
     @staticmethod
     def geojson_to_shapely_polygon(
-        geojson: Union[FeatureCollection, Feature, dict],
+        geojson: FeatureCollection | Feature | dict,
     ) -> Polygon:
         """Parse GeoJSON and return shapely Polygon.
 
@@ -350,7 +349,7 @@ class TaskSplitter:
 
 
 def split_by_square(
-    aoi: Union[str, FeatureCollection],
+    aoi: str | FeatureCollection,
     meters: int = 100,
 ) -> FeatureCollection:
     """Split an AOI by square, dividing into an even grid.

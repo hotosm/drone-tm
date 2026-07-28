@@ -1,13 +1,12 @@
 import argparse
 import json
-from typing import Union
 
 import geojson
 from geojson import FeatureCollection
 
 
 def create_placemarks(
-    waypoints_geojson: Union[str, FeatureCollection, dict], parameters: dict
+    waypoints_geojson: str | FeatureCollection | dict, parameters: dict
 ):
     """Arguments:
         waypoints_geojson: The waypoint coordinates to be included in the flightplan mission

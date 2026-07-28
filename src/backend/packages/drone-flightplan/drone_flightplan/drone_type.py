@@ -5,8 +5,6 @@ from enum import Enum
 class StrEnum(str, Enum):
     """Wrapper for string enums, until Python 3.11 upgrade."""
 
-    pass
-
 
 class DroneType(StrEnum):
     DJI_MINI_4_PRO = "DJI_MINI_4_PRO"

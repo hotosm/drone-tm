@@ -1,12 +1,11 @@
 """Pydantic schemas for project images."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 from app.models.enums import ImageStatus
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ProjectImageBase(BaseModel):
@@ -15,15 +14,15 @@ class ProjectImageBase(BaseModel):
     filename: str
     s3_key: str
     hash_md5: str = Field(..., max_length=32)
-    location: Optional[dict[str, Any]] = (
+    location: dict[str, Any] | None = (
         None  # Supports both {"lat": float, "lon": float} and GeoJSON
     )
-    exif: Optional[dict[str, Any]] = None
-    thumbnail_url: Optional[str] = None  # S3 key for 200x200 thumbnail
+    exif: dict[str, Any] | None = None
+    thumbnail_url: str | None = None  # S3 key for 200x200 thumbnail
 
     @field_validator("location", mode="before")
     @classmethod
-    def convert_geojson_to_latlon(cls, value: Optional[dict]) -> Optional[dict]:
+    def convert_geojson_to_latlon(cls, value: dict | None) -> dict | None:
         """Convert GeoJSON Point format to {lat, lon} format if needed.
 
         PostGIS returns: {"type": "Point", "coordinates": [lon, lat]}
@@ -49,20 +48,20 @@ class ProjectImageCreate(ProjectImageBase):
     """Schema for creating a project image record."""
 
     project_id: UUID
-    task_id: Optional[UUID] = None
+    task_id: UUID | None = None
     uploaded_by: str  # User ID is a string (Google OAuth ID), not UUID
     status: ImageStatus = ImageStatus.STAGED
-    batch_id: Optional[UUID] = None  # For grouping uploaded images together
-    rejection_reason: Optional[str] = None
+    batch_id: UUID | None = None  # For grouping uploaded images together
+    rejection_reason: str | None = None
 
 
 class ProjectImageUpdate(BaseModel):
     """Schema for updating a project image."""
 
-    task_id: Optional[UUID] = None
-    status: Optional[ImageStatus] = None
-    classified_at: Optional[datetime] = None
-    duplicate_of: Optional[UUID] = None
+    task_id: UUID | None = None
+    status: ImageStatus | None = None
+    classified_at: datetime | None = None
+    duplicate_of: UUID | None = None
 
 
 class ProjectImageOut(ProjectImageBase):
@@ -72,11 +71,11 @@ class ProjectImageOut(ProjectImageBase):
 
     id: UUID
     project_id: UUID
-    task_id: Optional[UUID]
-    uploaded_by: Optional[str]  # User ID is a string (Google OAuth ID), not UUID
+    task_id: UUID | None
+    uploaded_by: str | None  # User ID is a string (Google OAuth ID), not UUID
     uploaded_at: datetime
-    classified_at: Optional[datetime]
+    classified_at: datetime | None
     status: ImageStatus
-    duplicate_of: Optional[UUID]
-    batch_id: Optional[UUID]
-    rejection_reason: Optional[str] = None
+    duplicate_of: UUID | None
+    batch_id: UUID | None
+    rejection_reason: str | None = None

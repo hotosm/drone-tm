@@ -1,5 +1,4 @@
 import json
-from typing import List, Optional
 
 from geojson_pydantic import Feature, FeatureCollection, Point
 from pydantic import BaseModel, model_validator
@@ -24,7 +23,7 @@ class Properties(BaseModel):
     index: int
     speed: float
     take_photo: bool
-    elevation: Optional[float] = None
+    elevation: float | None = None
 
 
 class Geometry(Point):
@@ -43,5 +42,5 @@ class CRS(BaseModel):
 
 class PlacemarksFeature(FeatureCollection):
     type: str = "FeatureCollection"
-    crs: Optional[CRS] = None
-    features: List[Feature]
+    crs: CRS | None = None
+    features: list[Feature]

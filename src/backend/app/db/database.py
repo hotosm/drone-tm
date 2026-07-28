@@ -1,12 +1,11 @@
 """Config for the DTM database connection."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
+from app.config import settings
 from fastapi import Request
 from psycopg import Connection
 from psycopg_pool import AsyncConnectionPool
-
-from app.config import settings
 
 
 async def get_db_connection_pool() -> AsyncConnectionPool:

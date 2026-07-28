@@ -5,24 +5,22 @@ support on top of AsyncioSelectorReactor, avoiding the Deferred-to-Future
 bridging that CrawlerRunner required.
 """
 
-import io
 import asyncio
+import io
 import os
 import tempfile
 from pathlib import Path
 
-from loguru import logger as log
-from scrapy.utils.project import get_project_settings
-from scrapy.crawler import AsyncCrawlerRunner
-from scrapy.utils.reactor import install_reactor, _asyncio_reactor_path
-from fastapi import UploadFile
-from arq import ArqRedis
-
 from app.db import database
 from app.jaxa.jaxa_coordinates import get_covering_tiles
-from app.projects import project_logic
 from app.jaxa.tif_spider import TifSpider
-
+from app.projects import project_logic
+from arq import ArqRedis
+from fastapi import UploadFile
+from loguru import logger as log
+from scrapy.crawler import AsyncCrawlerRunner
+from scrapy.utils.project import get_project_settings
+from scrapy.utils.reactor import _asyncio_reactor_path, install_reactor
 
 _crawler_runner: AsyncCrawlerRunner | None = None
 _crawler_loop: asyncio.AbstractEventLoop | None = None
@@ -105,10 +103,9 @@ async def upload_dem_file_s3_sync(tif_file_path: str, project_id: str):
         log.info(f"Successfully uploaded DEM file to: {dem_url}")
 
         pool = await database.get_db_connection_pool()
-        async with pool as pool_instance:
-            async with pool_instance.connection() as conn:
-                await project_logic.update_url(conn, project_id, dem_url)
-                log.info(f"DEM URL updated in database for project ({project_id})")
+        async with pool as pool_instance, pool_instance.connection() as conn:
+            await project_logic.update_url(conn, project_id, dem_url)
+            log.info(f"DEM URL updated in database for project ({project_id})")
 
         log.info(f"Removing temporary file from disk: {tif_file_path}")
         os.remove(tif_file_path)

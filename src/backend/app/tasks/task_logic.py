@@ -4,20 +4,18 @@ import re
 import uuid
 from datetime import datetime
 
-from fastapi import BackgroundTasks, HTTPException
-from psycopg import Connection
-from psycopg.rows import class_row, dict_row
-
 from app.config import settings
 from app.models.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks.task_schemas import NewEvent, TaskStats
-from app.users.user_schemas import DbUser, AuthUser
+from app.users.user_schemas import AuthUser, DbUser
 from app.utils import (
     render_email_template,
     sanitize_sensitive_text,
     send_notification_email,
 )
-
+from fastapi import BackgroundTasks, HTTPException
+from psycopg import Connection
+from psycopg.rows import class_row, dict_row
 
 log = logging.getLogger(__name__)
 
@@ -525,7 +523,7 @@ async def get_task_state(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"An error occurred while retrieving the task state: {str(e)}",
+            detail=f"An error occurred while retrieving the task state: {e!s}",
         )
 
 
