@@ -4,9 +4,9 @@ Web app for crowdsourcing surface labels (roof/wall/road/…) on drone-photogram
 
 ## Commands
 
-- `yarn dev` — Vite dev server
-- `yarn build` — production build (expect a >500 kB chunk warning; that's three.js, ignore)
-- `yarn test` — headless suites in `tests/*.test.mjs` (plain node, no framework: BufferGeometry fixtures + stubbed `localStorage`/`alert`, run by `tests/run-all.mjs`). Selector, colour-crossing, labels, review, auto-tag, tiered-LOD.
+- `pnpm dev` — Vite dev server
+- `pnpm build` — production build (expect a >500 kB chunk warning; that's three.js, ignore)
+- `pnpm test` — headless suites in `tests/*.test.mjs` (plain node, no framework: BufferGeometry fixtures + stubbed `localStorage`/`alert`, run by `tests/run-all.mjs`). Selector, colour-crossing, labels, review, auto-tag, tiered-LOD.
 
 ## Architecture (5 source files, no backend)
 

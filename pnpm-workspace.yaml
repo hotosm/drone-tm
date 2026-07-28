@@ -1,0 +1,6 @@
+# Single-package "workspace" - required so pnpm 9 (pinned in the drone-tm
+# frontend image) accepts this file; matches the lockfile's `importers: .`.
+packages:
+  - .
+allowBuilds:
+  esbuild: false

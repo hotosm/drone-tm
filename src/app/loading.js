@@ -184,6 +184,15 @@ export const loadingMixin = {
   // Pick mesh sources (local copies auto-detected, else CDN) and dispatch to
   // the requested mode. No ?local needed on dev machines with the files.
   async startLoading(params) {
+    // Remote single-GLB mode: `?glb=<url>` loads a textured mesh e.g. via presigned S3 URL.
+    // NOTE: the whole .glb must be loaded, so this only works for smaller areas.
+    const glbUrl = params.get("glb");
+    if (glbUrl) {
+      console.log("[drone-mesh] source: remote GLB via ?glb=");
+      this.loadRawHighRes(glbUrl);
+      return;
+    }
+
     let useLocal = params.has("local");
     if (!useLocal) {
       try {
