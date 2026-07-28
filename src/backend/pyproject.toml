@@ -100,7 +100,7 @@ ignored_tag_formats = ["drone-flightplan-$version"]
 
 [tool.codespell]
 skip = "*pnpm-lock.yaml,*CHANGELOG.md,src/frontend/src/assets/*,src/frontend/messages/*"
-ignore-words-list = "ProjectIn,dateA,te,ALOS,algoritmos"
+ignore-words-list = "ProjectIn,dateA,te,ALOS,algoritmos,LOD"
 write-changes = true
 
 [tool.pytest.ini_options]

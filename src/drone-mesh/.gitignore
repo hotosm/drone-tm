@@ -1,0 +1,8 @@
+# ODM raster bundle (DSM/DTM/georeferencing) — server-side inputs, multi-GB,
+# never shipped to clients or committed. See CLAUDE.md "server-side pipeline".
+resources/
+
+node_modules/
+dist/
+.DS_Store
+.vercel

@@ -41,7 +41,13 @@ export default function Navbar() {
   // Build return URL for Hanko SSO that goes through /hanko-auth callback
   const hankoReturnUrl = `${FRONTEND_URL}/hanko-auth?role=${signedInAs}`;
 
-  const navLinkClass = ({ isActive, forceActive }: { isActive: boolean; forceActive?: boolean }) => {
+  const navLinkClass = ({
+    isActive,
+    forceActive,
+  }: {
+    isActive: boolean;
+    forceActive?: boolean;
+  }) => {
     const active = isActive || forceActive;
     return `naxatw-text-sm naxatw-text-grey-800 hover:naxatw-no-underline naxatw-px-2 naxatw-py-1 ${
       active
@@ -102,10 +108,7 @@ export default function Navbar() {
             </a>
             {!isApprovalPage && (
               <FlexRow className="naxatw-hidden naxatw-items-center naxatw-gap-4 md:naxatw-flex">
-                <span
-                  className="naxatw-h-5 naxatw-w-px naxatw-bg-grey-300"
-                  aria-hidden="true"
-                />
+                <span className="naxatw-h-5 naxatw-w-px naxatw-bg-grey-300" aria-hidden="true" />
                 <NavLink
                   to="/projects"
                   className={({ isActive }) =>
