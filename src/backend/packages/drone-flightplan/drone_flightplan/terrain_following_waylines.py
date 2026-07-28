@@ -234,8 +234,7 @@ def waypoints2waylines(injson, threshold):
     features.append(inplan[0])
     for line in lines:
         wayline = trim(line, threshold)
-        for point in wayline:
-            features.append(point)
+        features.extend(wayline)
 
     sequential_features = []
     for idx, feature in enumerate(features):
@@ -306,7 +305,8 @@ if __name__ == "__main__":
 
     log.info("Let's get started.")
 
-    injson = json.load(open(a.infile))
+    with open(a.infile) as input_file:
+        injson = json.load(input_file)
 
     # writer = None
     # if a.line_output:

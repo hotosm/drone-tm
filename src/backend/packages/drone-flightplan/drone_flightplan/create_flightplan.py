@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 import tempfile
-from typing import Union
 
 import geojson
 from geojson import FeatureCollection
@@ -11,31 +10,31 @@ from shapely.geometry import shape
 from drone_flightplan.add_elevation_from_dem import add_elevation_from_dem
 from drone_flightplan.calculate_parameters import calculate_parameters
 from drone_flightplan.create_placemarks import create_placemarks
-from drone_flightplan.waypoints import create_waypoint
-from drone_flightplan.drone_type import DroneType, DRONE_PARAMS, drone_type_arg
+from drone_flightplan.drone_type import DRONE_PARAMS, DroneType, drone_type_arg
 from drone_flightplan.enums import FlightMode, GimbalAngle, flight_mode_arg
 from drone_flightplan.output.dji import create_wpml
+from drone_flightplan.output.litchi import create_litchi_csv
+from drone_flightplan.output.mavlink import create_mavlink_plan
 from drone_flightplan.output.potensic_v1 import create_potensic_sqlite
 from drone_flightplan.output.potensic_v2 import create_potensic_json
-from drone_flightplan.output.mavlink import create_mavlink_plan
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
-from drone_flightplan.output.litchi import create_litchi_csv
 from drone_flightplan.terrain_following_waylines import waypoints2waylines
+from drone_flightplan.waypoints import create_waypoint
 
 log = logging.getLogger(__name__)
 
 
 def build_placemarks(
-    aoi: Union[str, FeatureCollection, dict],
+    aoi: str | FeatureCollection | dict,
     forward_overlap: float,
     side_overlap: float,
     agl: float,
-    gsd: float = None,
+    gsd: float | None = None,
     image_interval: int = 2,
-    dem: str = None,
+    dem: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
     rotation_angle: float = 0.0,
-    take_off_point: list[float] = None,
+    take_off_point: list[float] | None = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ):
@@ -139,17 +138,17 @@ def write_flightplan_file(
 
 
 def create_flightplan(
-    aoi: Union[str, FeatureCollection, dict],
+    aoi: str | FeatureCollection | dict,
     forward_overlap: float,
     side_overlap: float,
     agl: float,
-    gsd: float = None,
+    gsd: float | None = None,
     image_interval: int = 2,
-    dem: str = None,
-    outfile: str = None,
+    dem: str | None = None,
+    outfile: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
     rotation_angle: float = 0.0,
-    take_off_point: list[float] = None,
+    take_off_point: list[float] | None = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
 ):

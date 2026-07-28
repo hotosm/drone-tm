@@ -1,13 +1,10 @@
-from typing import Optional
-
-from arq import ArqRedis
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-
 from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.models.enums import HTTPStatus
 from app.s3 import maybe_presign_s3_key
+from arq import ArqRedis
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 router = APIRouter(tags=["Public"])
 
@@ -16,14 +13,14 @@ class ScaleOdmWebhookPayload(BaseModel):
     """Body ScaleODM POSTs on a terminal status transition."""
 
     uuid: str
-    statusCode: Optional[int] = None
+    statusCode: int | None = None
 
 
 @router.post("/integrations/scaleodm/webhook", tags=["Integrations"])
 async def scaleodm_webhook(
     payload: ScaleOdmWebhookPayload,
     redis_pool: ArqRedis = Depends(get_redis_pool),
-    token: Optional[str] = Query(None),
+    token: str | None = Query(None),
 ):
     """Untrusted trigger from ScaleODM: enqueue a reconcile for one task.
 

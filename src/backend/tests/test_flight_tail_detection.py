@@ -1,16 +1,13 @@
 import hashlib
-import uuid
 import json
-import shapely.wkb as wkblib
-
-from shapely.geometry import box
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
-from psycopg.rows import dict_row
-
+import shapely.wkb as wkblib
 from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
+from psycopg.rows import dict_row
+from shapely.geometry import box
 
 
 @pytest.mark.asyncio

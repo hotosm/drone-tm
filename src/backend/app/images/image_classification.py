@@ -1,27 +1,21 @@
 import asyncio
 import json
+import math
+import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
-import math
+from datetime import UTC, datetime
 from math import cos, radians, sqrt
-from typing import Optional, Any, Literal
-import re
+from typing import Any, Literal
 
 import cv2
 import numpy as np
-from loguru import logger as log
-from fastapi.concurrency import run_in_threadpool
-from psycopg import Connection
-from psycopg.rows import dict_row
-from psycopg_pool import AsyncConnectionPool
-
 from app.config import settings
-from app.models.enums import ImageStatus
 from app.images.solar_position import (
     derive_utc_datetime_from_exif,
     solar_elevation_deg,
 )
+from app.models.enums import ImageStatus
 from app.s3 import (
     get_obj_from_bucket,
     maybe_presign_s3_key,
@@ -29,7 +23,11 @@ from app.s3 import (
     s3_client,
     s3_object_exists,
 )
-
+from fastapi.concurrency import run_in_threadpool
+from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
 # Number of concurrent workers for parallel classification.
 # Must not exceed the connection pool size (default 4) to avoid pool
@@ -139,7 +137,7 @@ Q = QualityThresholds()
 
 class ImageClassifier:
     @staticmethod
-    def _to_float(value: Any) -> Optional[float]:
+    def _to_float(value: Any) -> float | None:
         if value is None:
             return None
         if isinstance(value, (int, float)):
@@ -152,7 +150,7 @@ class ImageClassifier:
         return None
 
     @staticmethod
-    def _parse_gps(value: Any) -> Optional[float]:
+    def _parse_gps(value: Any) -> float | None:
         """Parse EXIF GPS values into decimal degrees."""
         if value is None:
             return None
@@ -453,7 +451,7 @@ class ImageClassifier:
     @staticmethod
     async def find_matching_task(
         db: Connection, project_id: uuid.UUID, latitude: float, longitude: float
-    ) -> Optional[uuid.UUID]:
+    ) -> uuid.UUID | None:
         query = """
             SELECT id
             FROM tasks
@@ -487,7 +485,7 @@ class ImageClassifier:
         latitude: float,
         longitude: float,
         buffer_meters: float = 100.0,
-    ) -> Optional[uuid.UUID]:
+    ) -> uuid.UUID | None:
         """Find the nearest peripheral (edge) task within *buffer_meters* of a point.
 
         Peripheral tasks are those whose outline touches the project boundary.
@@ -538,7 +536,7 @@ class ImageClassifier:
         db: Connection,
         image_id: uuid.UUID,
         project_id: uuid.UUID,
-        project_centroid: Optional[tuple[float, float]] = None,
+        project_centroid: tuple[float, float] | None = None,
     ) -> dict[str, Any]:
         async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
@@ -606,16 +604,19 @@ class ImageClassifier:
             longitude = ImageClassifier._parse_gps(exif_data.get("GPSLongitude"))
 
         # Validate numeric ranges
-        if latitude is not None and longitude is not None:
-            if abs(float(latitude)) > 90 or abs(float(longitude)) > 180:
-                issues.append(
-                    f"Invalid GPS coordinates (out of range): lat={latitude}, lon={longitude}"
-                )
-                log.debug(
-                    f"GPS check FAILED (out of range): image_id={image_id} lat={latitude} lon={longitude}"
-                )
-                latitude = None
-                longitude = None
+        if (
+            latitude is not None
+            and longitude is not None
+            and (abs(float(latitude)) > 90 or abs(float(longitude)) > 180)
+        ):
+            issues.append(
+                f"Invalid GPS coordinates (out of range): lat={latitude}, lon={longitude}"
+            )
+            log.debug(
+                f"GPS check FAILED (out of range): image_id={image_id} lat={latitude} lon={longitude}"
+            )
+            latitude = None
+            longitude = None
 
         if latitude is None or longitude is None:
             issues.append("Image is missing GPS location data")
@@ -874,8 +875,8 @@ class ImageClassifier:
         db: Connection,
         image_id: uuid.UUID,
         status: ImageStatus,
-        rejection_reason: Optional[str] = None,
-        sharpness_score: Optional[float] = None,
+        rejection_reason: str | None = None,
+        sharpness_score: float | None = None,
     ) -> None:
         query = """
             UPDATE project_images
@@ -894,7 +895,7 @@ class ImageClassifier:
                     "status": status.value,
                     "rejection_reason": rejection_reason,
                     "sharpness_score": sharpness_score,
-                    "classified_at": datetime.utcnow(),
+                    "classified_at": datetime.now(UTC),
                 },
             )
 
@@ -903,7 +904,7 @@ class ImageClassifier:
         db: Connection,
         image_id: uuid.UUID,
         task_id: uuid.UUID,
-        sharpness_score: Optional[float] = None,
+        sharpness_score: float | None = None,
     ) -> None:
         query = """
             UPDATE project_images
@@ -923,7 +924,7 @@ class ImageClassifier:
                     "status": ImageStatus.ASSIGNED.value,
                     "task_id": str(task_id),
                     "sharpness_score": sharpness_score,
-                    "classified_at": datetime.utcnow(),
+                    "classified_at": datetime.now(UTC),
                 },
             )
 
@@ -999,7 +1000,7 @@ class ImageClassifier:
         }
 
         # Fetch project centroid once for cheap sanity checks.
-        project_centroid: Optional[tuple[float, float]] = None
+        project_centroid: tuple[float, float] | None = None
         async with db_pool.connection() as db:
             async with db.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
@@ -1061,7 +1062,7 @@ class ImageClassifier:
                         # Commit the classification result immediately
                         await conn.commit()
 
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         # Never leave an image stuck in CLASSIFYING.
                         log.warning(
                             f"Classification timed out for image {image_id} after "
@@ -1234,8 +1235,8 @@ class ImageClassifier:
     async def get_project_images(
         db: Connection,
         project_id: uuid.UUID,
-        last_timestamp: Optional[datetime] = None,
-        status_filter: Optional[list[str]] = None,
+        last_timestamp: datetime | None = None,
+        status_filter: list[str] | None = None,
     ) -> list[dict]:
         """Get images for a project (across all batches).
 

@@ -1,12 +1,10 @@
 import math
 import uuid
-from typing import List
-
-from loguru import logger as log
-from psycopg import Connection
 
 from app.s3 import maybe_presign_s3_key
 from app.waypoints import waypoint_schemas
+from loguru import logger as log
+from psycopg import Connection
 
 
 async def _image_footprint_radius_meters(altitude: float, fov_degree: float) -> float:
@@ -29,7 +27,7 @@ async def find_images_for_point_db(
     fov_degree: float,
     altitude: float,
     max_results: int = 5,
-) -> List[str]:
+) -> list[str]:
     """Find project images whose footprint contains the given GCP point.
 
     Uses a two-step approach:
@@ -80,7 +78,7 @@ async def find_images_for_point_db(
         return []
 
     # Refine: check that the GCP point actually falls within each image's footprint
-    matching_s3_keys: List[str] = []
+    matching_s3_keys: list[str] = []
     for s3_key, img_lon, img_lat, exif in rows:
         if _point_in_image_footprint(
             point.longitude,

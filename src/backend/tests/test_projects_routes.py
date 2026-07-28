@@ -5,17 +5,13 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
+from app.arq.tasks import get_redis_pool
+from app.models.enums import State
+from app.projects import project_deps, project_logic, project_routes, project_schemas
 from fastapi import BackgroundTasks, HTTPException
 from httpx import ASGITransport, AsyncClient
 from loguru import logger as log
 from minio.error import S3Error
-
-from app.arq.tasks import get_redis_pool
-from app.models.enums import State
-from app.projects import project_deps
-from app.projects import project_routes
-from app.projects import project_schemas
-from app.projects import project_logic
 
 
 @pytest.mark.asyncio
@@ -1013,7 +1009,6 @@ async def test_process_all_imagery_blocks_when_ready_tasks_are_mixed_transfer_st
 
         async def enqueue_job(self, *args, **kwargs):
             self.jobs.append((args, kwargs))
-            return None
 
     fake_redis = FakeRedis()
     app.dependency_overrides[get_redis_pool] = lambda: fake_redis

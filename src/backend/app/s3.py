@@ -3,15 +3,14 @@ from functools import lru_cache
 from io import BytesIO
 from typing import Any
 
+from app.config import settings
 from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from minio import Minio
-from minio.deleteobjects import DeleteObject
 from minio.commonconfig import CopySource
 from minio.datatypes import Part
+from minio.deleteobjects import DeleteObject
 from minio.error import S3Error
-
-from app.config import settings
 
 
 def _normalize_object_name(object_name: str) -> str:
@@ -202,7 +201,7 @@ def maybe_presign_s3_key(value: str | None, expires_hours: int = 2) -> str | Non
         return None
 
     # Already a full URL - return as-is
-    if value.startswith("http://") or value.startswith("https://"):
+    if value.startswith(("http://", "https://")):
         return value
 
     # If download endpoint differs from upload (e.g., CloudFront vs S3),
@@ -431,7 +430,7 @@ def get_image_dir_url(bucket_name: str, image_dir: str):
         else:
             return None
     except Exception as e:
-        log.error(f"Error checking directory existence: {str(e)}")
+        log.error(f"Error checking directory existence: {e!s}")
 
 
 def list_objects_from_bucket(bucket_name: str, prefix: str):

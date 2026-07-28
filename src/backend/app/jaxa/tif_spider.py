@@ -6,7 +6,6 @@ from pathlib import Path
 import scrapy
 from osgeo import gdal
 
-
 base_dir = Path(__file__).resolve().parent
 
 

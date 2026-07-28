@@ -1,14 +1,13 @@
 import asyncio
-from io import BytesIO
 import uuid
+from io import BytesIO
 
 import pytest
-from shapely.geometry import box
-from shapely import wkb as wkblib
-
 from app.config import settings
 from app.images.image_classification import ImageClassifier
 from app.s3 import add_obj_to_bucket, check_file_exists
+from shapely import wkb as wkblib
+from shapely.geometry import box
 
 
 def _upload_test_object(object_name: str, content: bytes) -> None:

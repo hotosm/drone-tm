@@ -26,7 +26,6 @@ FIXME the click of a button (in theory).
 
 import argparse
 import logging
-from typing import Union
 
 import geojson
 from geojson import FeatureCollection
@@ -382,7 +381,7 @@ def create_return_to_launch(index: int) -> str:
 
 
 def create_mavlink_plan(
-    placemark_geojson: Union[str, FeatureCollection, dict],
+    placemark_geojson: str | FeatureCollection | dict,
     output_file_path: str = "/tmp/mission.waypoints",
     flight_mode: FlightMode = FlightMode.WAYPOINTS,
     photo_interval_time: float = 2.0,

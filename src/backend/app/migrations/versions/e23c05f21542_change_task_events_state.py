@@ -6,17 +6,16 @@ Create Date: 2024-12-06 08:00:16.223517
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e23c05f21542"
-down_revision: Union[str, None] = "8ae4e43a7011"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "8ae4e43a7011"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 old_state_enum = sa.Enum(
     "REQUEST_FOR_MAPPING",

@@ -2,13 +2,12 @@ import time
 from typing import Any
 
 import jwt
-from fastapi import HTTPException
-from psycopg import Connection
-from pydantic import EmailStr
-
 from app.config import settings, verify_password
 from app.db import db_models
 from app.users import user_schemas
+from fastapi import HTTPException
+from psycopg import Connection
+from pydantic import EmailStr
 
 
 async def create_access_token(subject: str | Any):

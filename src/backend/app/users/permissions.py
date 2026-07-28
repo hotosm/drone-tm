@@ -1,12 +1,12 @@
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, List, Optional, Union
-
-from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel
+from typing import Any
 
 from app.projects import project_schemas
 from app.users.user_deps import login_dependency
 from app.users.user_schemas import DbUser
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel
 
 
 class PermissionType(str, Enum):
@@ -23,12 +23,10 @@ class BasePermission:
 
     error_message = "Permission denied"
 
-    async def has_permission(
-        self, user: Optional[DbUser], obj: Optional[Any] = None
-    ) -> bool:
+    async def has_permission(self, user: DbUser | None, obj: Any | None = None) -> bool:
         raise NotImplementedError
 
-    async def __call__(self, user: Optional[DbUser], obj: Optional[Any] = None) -> bool:
+    async def __call__(self, user: DbUser | None, obj: Any | None = None) -> bool:
         return await self.has_permission(user, obj)
 
     def __or__(self, other: "BasePermission") -> "OrPermission":
@@ -46,7 +44,7 @@ class OrPermission(BasePermission):
         self.error_message = " or ".join(p.error_message for p in permissions)
 
     async def has_permission(
-        self, user: Optional[DbUser], obj: Optional[BaseModel] = None
+        self, user: DbUser | None, obj: BaseModel | None = None
     ) -> bool:
         # Use asyncio.gather to run permissions checks concurrently
         results = []
@@ -64,7 +62,7 @@ class AndPermission(BasePermission):
         self.error_message = " and ".join(p.error_message for p in permissions)
 
     async def has_permission(
-        self, user: Optional[DbUser], obj: Optional[BaseModel] = None
+        self, user: DbUser | None, obj: BaseModel | None = None
     ) -> bool:
         # Use asyncio.gather to run permissions checks concurrently
         results = []
@@ -77,18 +75,14 @@ class AndPermission(BasePermission):
 class IsSuperUser(BasePermission):
     error_message = "You must be a superuser"
 
-    async def has_permission(
-        self, user: Optional[DbUser], obj: Optional[Any] = None
-    ) -> bool:
+    async def has_permission(self, user: DbUser | None, obj: Any | None = None) -> bool:
         return user and user.is_superuser
 
 
 class IsAuthenticated(BasePermission):
     error_message = "You must be authenticated"
 
-    async def has_permission(
-        self, user: Optional[DbUser], obj: Optional[Any] = None
-    ) -> bool:
+    async def has_permission(self, user: DbUser | None, obj: Any | None = None) -> bool:
         return user is not None
 
 
@@ -96,7 +90,7 @@ class IsProjectCreator(BasePermission):
     """Check if user is the creator of a project"""
 
     async def has_permission(
-        self, user: Optional[DbUser], obj: Optional[project_schemas.DbProject] = None
+        self, user: DbUser | None, obj: project_schemas.DbProject | None = None
     ) -> bool:
         if not user:
             return False
@@ -108,7 +102,7 @@ class IsProjectCreator(BasePermission):
 
 
 class HasObjectPermission(BasePermission):
-    def __init__(self, permission_type: Union[PermissionType, str]):
+    def __init__(self, permission_type: PermissionType | str):
         self.permission_type = (
             permission_type.value
             if isinstance(permission_type, PermissionType)
@@ -116,9 +110,7 @@ class HasObjectPermission(BasePermission):
         )
         self.error_message = f"Missing required permission: {self.permission_type}"
 
-    async def has_permission(
-        self, user: Optional[DbUser], obj: Optional[Any] = None
-    ) -> bool:
+    async def has_permission(self, user: DbUser | None, obj: Any | None = None) -> bool:
         if not user:
             return False
 
@@ -131,17 +123,17 @@ class HasObjectPermission(BasePermission):
         permissions = await self.get_user_permissions(user.id, obj)
         return self.permission_type in permissions
 
-    async def get_user_permissions(self, user_id: int, obj: BaseModel) -> List[str]:
+    async def get_user_permissions(self, user_id: int, obj: BaseModel) -> list[str]:
         # Implement actual permission checking logic here
         return []
 
 
 def check_permissions(
-    *permissions: BasePermission, get_obj: Optional[Callable] = None
+    *permissions: BasePermission, get_obj: Callable | None = None
 ) -> Callable:
     async def dependency(
         user: DbUser = Depends(login_dependency),
-        obj: Optional[Any] = Depends(get_obj) if get_obj else None,
+        obj: Any | None = Depends(get_obj) if get_obj else None,
     ) -> Any:
         for permission in permissions:
             if not await permission.has_permission(user, obj):

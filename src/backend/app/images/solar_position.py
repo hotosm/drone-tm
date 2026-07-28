@@ -15,8 +15,8 @@ of well-lit imagery from a misread timezone would be much worse.
 
 import math
 import re
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 
 def solar_elevation_deg(lat_deg: float, lon_deg: float, utc_dt: datetime) -> float:
@@ -32,7 +32,7 @@ def solar_elevation_deg(lat_deg: float, lon_deg: float, utc_dt: datetime) -> flo
     """
     if utc_dt.tzinfo is None:
         raise ValueError("utc_dt must be timezone-aware")
-    utc_dt = utc_dt.astimezone(timezone.utc)
+    utc_dt = utc_dt.astimezone(UTC)
 
     # Fractional year in radians (Spencer 1971).  Includes the hour-of-day
     # term so the answer is continuous across midnight.
@@ -83,7 +83,7 @@ _DATETIME_FORMATS = (
 )
 
 
-def _parse_naive_datetime(value: Any) -> Optional[datetime]:
+def _parse_naive_datetime(value: Any) -> datetime | None:
     if not isinstance(value, str):
         return None
     s = value.strip()
@@ -94,13 +94,15 @@ def _parse_naive_datetime(value: Any) -> Optional[datetime]:
     s = re.split(r"[+\-]\d{2}:?\d{2}$", s)[0].strip()
     for fmt in _DATETIME_FORMATS:
         try:
-            return datetime.strptime(s, fmt)
+            # This parser intentionally returns a naive value; the caller
+            # applies the explicit EXIF offset before converting to UTC.
+            return datetime.strptime(s, fmt)  # noqa: DTZ007
         except ValueError:
             continue
     return None
 
 
-def _parse_offset(value: Any) -> Optional[timedelta]:
+def _parse_offset(value: Any) -> timedelta | None:
     """Parse "+HH:MM" / "-HHMM" / "Z" / "+05:30" style offsets."""
     if not isinstance(value, str):
         return None
@@ -118,15 +120,15 @@ def _parse_offset(value: Any) -> Optional[timedelta]:
     return sign * timedelta(hours=hours, minutes=minutes)
 
 
-def _split_gps_datetime(value: Any) -> Optional[datetime]:
+def _split_gps_datetime(value: Any) -> datetime | None:
     """Parse a combined GPSDateTime like "2024:06:15 14:30:22Z" (always UTC)."""
     naive = _parse_naive_datetime(value)
     if naive is None:
         return None
-    return naive.replace(tzinfo=timezone.utc)
+    return naive.replace(tzinfo=UTC)
 
 
-def _combine_gps_date_time(date_value: Any, time_value: Any) -> Optional[datetime]:
+def _combine_gps_date_time(date_value: Any, time_value: Any) -> datetime | None:
     """Combine separate GPSDateStamp ("2024:06:15") and GPSTimeStamp
     ("14:30:22" or "14:30:22.123") fields. GPS timestamps are always UTC."""
     if not isinstance(date_value, str) or not isinstance(time_value, str):
@@ -135,10 +137,10 @@ def _combine_gps_date_time(date_value: Any, time_value: Any) -> Optional[datetim
     naive = _parse_naive_datetime(combined)
     if naive is None:
         return None
-    return naive.replace(tzinfo=timezone.utc)
+    return naive.replace(tzinfo=UTC)
 
 
-def derive_utc_datetime_from_exif(exif: dict) -> Optional[datetime]:
+def derive_utc_datetime_from_exif(exif: dict) -> datetime | None:
     """Return a confidence-checked UTC datetime for the capture, or None.
 
     Tries, in order:
@@ -168,6 +170,6 @@ def derive_utc_datetime_from_exif(exif: dict) -> Optional[datetime]:
     local = _parse_naive_datetime(exif.get("DateTimeOriginal"))
     offset = _parse_offset(exif.get("OffsetTimeOriginal"))
     if local is not None and offset is not None:
-        return (local - offset).replace(tzinfo=timezone.utc)
+        return (local - offset).replace(tzinfo=UTC)
 
     return None

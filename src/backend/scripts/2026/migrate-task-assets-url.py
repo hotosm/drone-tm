@@ -40,14 +40,12 @@ import re
 import sys
 from dataclasses import dataclass, field
 
-from loguru import logger as log
-from minio.error import S3Error
-from psycopg.rows import dict_row
-
 from app.config import settings
 from app.db.database import get_db_connection_pool
 from app.s3 import s3_client
-
+from loguru import logger as log
+from minio.error import S3Error
+from psycopg.rows import dict_row
 
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",

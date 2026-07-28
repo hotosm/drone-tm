@@ -28,7 +28,6 @@ https://github.com/OpenGeoOne/qgis-drone-flight-planner/blob/main/algoritmos/Fun
 import argparse
 import csv
 import logging
-from typing import Union, Optional
 
 import geojson
 from geojson import FeatureCollection
@@ -70,7 +69,7 @@ def create_litchi_waypoint(
     curvesize: float = 0,
     gimbal_pitch: float = -90,
     speed: float = 8.0,
-    actions: Optional[list[tuple[int, float]]] = None,
+    actions: list[tuple[int, float]] | None = None,
     altitude_mode: int = ALTITUDE_MODE_AGL,
     poi_latitude: float = 0,
     poi_longitude: float = 0,
@@ -148,11 +147,11 @@ def create_litchi_waypoint(
 
 
 def create_litchi_csv(
-    placemark_geojson: Union[str, FeatureCollection, dict],
+    placemark_geojson: str | FeatureCollection | dict,
     output_file_path: str = "/tmp/mission.csv",
     flight_mode: FlightMode = FlightMode.WAYLINES,
     photo_interval_time: float = 2.0,
-    photo_interval_distance: Optional[float] = None,
+    photo_interval_distance: float | None = None,
     hover_time: float = 0,
     use_terrain_follow: bool = True,
     curve_size: float = 0,

@@ -106,6 +106,36 @@ write-changes = true
 [tool.pytest.ini_options]
 markers = ["integration: marks tests that exercise integrated services or workflows"]
 
+[tool.ruff]
+# Preserve the source roots Ruff inferred before this backend-local config existed.
+src = ["../..", ".."]
+
+[tool.ruff.lint]
+# Worker, API, and migration boundaries intentionally catch arbitrary failures
+# so they can log, clean up, or translate them into HTTP/task state.
+ignore = ["ASYNC230", "BLE001", "S110", "S112", "SIM117", "UP017", "UP041"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI evaluates these factories once while constructing its dependency graph.
+extend-immutable-calls = [
+  "fastapi.Body",
+  "fastapi.Depends",
+  "fastapi.File",
+  "fastapi.Form",
+  "fastapi.Query",
+  "fastapi.Security",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# These are retained compatibility modules; renaming them would break imports.
+"app/jaxa/tif_spider.py" = ["G201", "RUF012"]
+"**/flightPlanWaypointGenerator.py" = ["N999"]
+"**/sampleRasterAtPoints.py" = ["N999"]
+# These fixtures model naive PostgreSQL timestamp values returned by psycopg.
+"tests/test_project_processing.py" = ["DTZ001"]
+# This test deliberately passes a naive datetime to exercise input validation.
+"tests/test_solar_position.py" = ["DTZ001"]
+
 #[tool.ruff]
 #fix = true
 #line-length = 88

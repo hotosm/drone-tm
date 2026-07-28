@@ -1,12 +1,10 @@
 from datetime import datetime
-from typing import Optional
 
+from app.models.enums import HTTPStatus
 from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row
 from pydantic import BaseModel
-
-from app.models.enums import HTTPStatus
 
 
 class BaseDrone(BaseModel):
@@ -110,7 +108,7 @@ class DbDrone(BaseDrone):
         # If drone with the same model does not already exists, add a new one.
         model_dump = drone.model_dump()
         columns = ", ".join(model_dump.keys())
-        value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
+        value_placeholders = ", ".join(f"%({key})s" for key in model_dump)
 
         sql = f"""
                 INSERT INTO drones ({columns}, created)
@@ -137,7 +135,7 @@ class DroneFlightHeight(BaseModel):
     max_altitude_ft: float
     max_altitude_m: float
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     @staticmethod
     async def all(db: Connection):

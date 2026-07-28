@@ -6,17 +6,16 @@ import json
 import shutil
 import tempfile
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 import exiftool
+from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
+from app.models.enums import ImageStatus
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
-
-from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
-from app.models.enums import ImageStatus
 
 
 @functools.lru_cache(maxsize=1)
@@ -69,7 +68,7 @@ def _sanitize_exif_value(value: Any) -> Any:
 
 def extract_exif_data(
     image_bytes: bytes,
-) -> tuple[Optional[dict[str, Any]], Optional[dict[str, float]], Optional[str]]:
+) -> tuple[dict[str, Any] | None, dict[str, float] | None, str | None]:
     """Extract EXIF data and GPS coordinates from image bytes using exiftool.
 
     This uses pyexiftool which provides comprehensive metadata extraction,
@@ -153,7 +152,7 @@ def extract_exif_data(
 
 def _extract_gps_from_exif(
     exif_dict: dict,
-) -> tuple[Optional[dict[str, float]], Optional[str]]:
+) -> tuple[dict[str, float] | None, str | None]:
     """Extract GPS coordinates from exiftool metadata.
 
     Exiftool provides GPS coordinates in multiple formats. This function
@@ -216,7 +215,7 @@ def _extract_gps_from_exif(
         return None, None
 
 
-def _parse_gps_string(gps_str: str) -> Optional[float]:
+def _parse_gps_string(gps_str: str) -> float | None:
     """Parse GPS coordinate string to decimal degrees.
 
     Handles formats like:
@@ -337,7 +336,7 @@ async def create_project_image(
 
 async def check_duplicate_image(
     db: Connection, project_id: UUID, hash_md5: str
-) -> Optional[UUID]:
+) -> UUID | None:
     """Check if an image with the same hash already exists in the project.
 
     Args:
@@ -395,7 +394,7 @@ async def reject_assigned_images(db: Connection, image_ids: list, reason: str) -
 
 
 async def get_images_by_project(
-    db: Connection, project_id: UUID, status: Optional[ImageStatus] = None
+    db: Connection, project_id: UUID, status: ImageStatus | None = None
 ) -> list[ProjectImageOut]:
     """Get all images for a project, optionally filtered by status.
 

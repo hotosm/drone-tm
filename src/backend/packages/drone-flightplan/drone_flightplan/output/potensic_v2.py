@@ -1,12 +1,11 @@
 """JSON waypoint files used in Potensic Atom 2."""
 
-import os
-import logging
-import zipfile
 import json
-import time
+import logging
+import os
 import tempfile
-from typing import Optional
+import time
+import zipfile
 from pathlib import Path
 
 import geojson
@@ -29,7 +28,7 @@ def zip_directory(directory_path: str, zip_path: str) -> None:
 
 def create_potensic_json(
     featcol: geojson.FeatureCollection,
-    outfile: Optional[str] = None,
+    outfile: str | None = None,
     default_speed: float = 11.5,
 ) -> str:
     """
@@ -82,7 +81,7 @@ def create_potensic_json(
         # Handle both string and numeric input
         gimbal_angle = props.get("gimbal_angle", -80)
         try:
-            gimbal_pitch = int(round(float(gimbal_angle)))
+            gimbal_pitch = round(float(gimbal_angle))
         except (ValueError, TypeError):
             log.warning(
                 f"Invalid gimbal_angle value: {gimbal_angle}, using default -80"

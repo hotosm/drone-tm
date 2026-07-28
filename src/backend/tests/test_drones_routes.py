@@ -1,5 +1,4 @@
 import pytest
-
 from app.models.enums import HTTPStatus
 
 

@@ -1,17 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, Request, Security
-from fastapi.security.api_key import APIKeyHeader
-from loguru import logger as log
-from psycopg import Connection
-
 from app.config import settings
 from app.db import database
 from app.users.auth import Auth
 from app.users.user_logic import verify_token
 from app.users.user_schemas import AuthUser, DbUser
+from fastapi import Depends, HTTPException, Request, Security
+from fastapi.security.api_key import APIKeyHeader
+from loguru import logger as log
+from psycopg import Connection
 
 
 async def init_google_auth():
@@ -67,7 +66,7 @@ async def login_dependency(
 
 
 def create_reset_password_token(email: str):
-    expire = datetime.now() + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         minutes=settings.RESET_PASSWORD_TOKEN_EXPIRE_MINUTES
     )
     to_encode = {"sub": email, "exp": expire}
@@ -79,8 +78,8 @@ def create_reset_password_token(email: str):
 
 # Override login_required with Hanko SSO when AUTH_PROVIDER=hanko
 if settings.AUTH_PROVIDER == "hanko":
+    from app.users.hanko_helpers import create_drone_tm_user, lookup_user_by_email
     from hotosm_auth_fastapi import CurrentUser, get_mapped_user_id
-    from app.users.hanko_helpers import lookup_user_by_email, create_drone_tm_user
 
     log.info("Using Hanko SSO authentication")
 

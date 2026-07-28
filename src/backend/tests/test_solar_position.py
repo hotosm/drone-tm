@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 
 import pytest
-
 from app.images.solar_position import (
     derive_utc_datetime_from_exif,
     solar_elevation_deg,

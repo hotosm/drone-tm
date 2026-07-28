@@ -1,27 +1,11 @@
 import json
 import uuid
 from datetime import date, datetime
+from typing import Annotated
 from urllib.parse import urlparse
-from typing import Annotated, List, Optional, Union
 
 import geojson
-from fastapi import HTTPException
-from geojson_pydantic import Feature, FeatureCollection, MultiPolygon, Point, Polygon
-from loguru import logger as log
-from psycopg import Connection
-from psycopg.rows import class_row, dict_row
-from pydantic import (
-    BaseModel,
-    EmailStr,
-    Field,
-    computed_field,
-    field_validator,
-    model_validator,
-)
-from pydantic.functional_serializers import PlainSerializer
-from pydantic.functional_validators import AfterValidator
-from slugify import slugify
-
+from app.config import settings
 from app.models.enums import (
     FinalOutput,
     HTTPStatus,
@@ -31,7 +15,6 @@ from app.models.enums import (
     ProjectVisibility,
     RegulatorApprovalStatus,
 )
-from app.config import settings
 from app.projects.s3_paths import (
     cloudnative_3d_tileset_browser_url,
     cloudnative_orthophoto_cog_browser_url,
@@ -50,6 +33,22 @@ from app.s3 import (
 from app.utils import (
     merge_multipolygon,
 )
+from fastapi import HTTPException
+from geojson_pydantic import Feature, FeatureCollection, MultiPolygon, Point, Polygon
+from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import class_row, dict_row
+from pydantic import (
+    BaseModel,
+    EmailStr,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
+from pydantic.functional_serializers import PlainSerializer
+from pydantic.functional_validators import AfterValidator
+from slugify import slugify
 
 
 class CentroidOut(BaseModel):
@@ -83,9 +82,9 @@ class AssetsInfo(BaseModel):
     project_id: str
     task_id: str
     image_count: int
-    assets_url: Optional[str]
-    orthophoto_url: Optional[str] = None
-    state: Optional[str] = None
+    assets_url: str | None
+    orthophoto_url: str | None = None
+    state: str | None = None
 
 
 def validate_geojson(
@@ -98,7 +97,7 @@ def validate_geojson(
         return None
 
 
-def enum_to_str(value: Union[IntEnum, str]) -> str:
+def enum_to_str(value: IntEnum | str) -> str:
     """Get the string value of the enum for db insert.
     Handles both IntEnum objects and string values.
     """
@@ -138,33 +137,33 @@ class ProjectIn(BaseModel):
     """Upload new project."""
 
     name: str
-    description: Optional[str] = None
-    per_task_instructions: Optional[str] = None
-    task_split_dimension: Optional[int] = None
-    gsd_cm_px: Optional[float] = None
-    altitude_from_ground: Optional[float] = None
-    front_overlap: Optional[float] = None
-    side_overlap: Optional[float] = None
+    description: str | None = None
+    per_task_instructions: str | None = None
+    task_split_dimension: int | None = None
+    gsd_cm_px: float | None = None
+    altitude_from_ground: float | None = None
+    front_overlap: float | None = None
+    side_overlap: float | None = None
     is_terrain_follow: bool = False
     outline: Annotated[
         FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)
     ]
     no_fly_zones: Annotated[
-        Optional[FeatureCollection | Feature | Polygon],
+        FeatureCollection | Feature | Polygon | None,
         AfterValidator(validate_geojson),
     ] = None
-    output_orthophoto_url: Optional[str] = None
-    output_dem_url: Optional[str] = None
-    output_pointcloud_url: Optional[str] = None
-    output_odm_assets_url: Optional[str] = None
-    deadline_at: Optional[date] = None
+    output_orthophoto_url: str | None = None
+    output_dem_url: str | None = None
+    output_pointcloud_url: str | None = None
+    output_odm_assets_url: str | None = None
+    deadline_at: date | None = None
     visibility: Annotated[ProjectVisibility | str, PlainSerializer(enum_to_str)] = (
         ProjectVisibility.PUBLIC
     )
     status: Annotated[ProjectStatus | str, PlainSerializer(enum_to_str)] = (
         ProjectStatus.PUBLISHED
     )
-    final_output: List[FinalOutput] = Field(
+    final_output: list[FinalOutput] = Field(
         ...,
         json_schema_extra=[
             "ORTHOPHOTO_2D",
@@ -173,11 +172,9 @@ class ProjectIn(BaseModel):
             "POINT_CLOUD",
         ],
     )
-    requires_approval_from_manager_for_locking: Optional[bool] = False
-    requires_approval_from_regulator: Optional[bool] = False
-    regulator_emails: Optional[List[EmailStr]] = None
-    front_overlap: Optional[float] = None
-    side_overlap: Optional[float] = None
+    requires_approval_from_manager_for_locking: bool | None = False
+    requires_approval_from_regulator: bool | None = False
+    regulator_emails: list[EmailStr] | None = None
 
     @computed_field
     @property
@@ -211,17 +208,17 @@ class TaskOut(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     project_task_index: int
-    outline: Optional[Polygon | Feature | FeatureCollection] = None
-    state: Optional[str] = None
-    user_id: Optional[str] = None
-    name: Optional[str] = None
-    comment: Optional[str] = None
-    image_count: Optional[int] = None
-    assets_url: Optional[str] = None
-    total_area_sqkm: Optional[float] = None
-    flight_time_minutes: Optional[float] = None
-    flight_distance_km: Optional[float] = None
-    total_image_uploaded: Optional[int] = None
+    outline: Polygon | Feature | FeatureCollection | None = None
+    state: str | None = None
+    user_id: str | None = None
+    name: str | None = None
+    comment: str | None = None
+    image_count: int | None = None
+    assets_url: str | None = None
+    total_area_sqkm: float | None = None
+    flight_time_minutes: float | None = None
+    flight_distance_km: float | None = None
+    total_image_uploaded: int | None = None
 
     @model_validator(mode="after")
     def set_assets_url(cls, values):
@@ -245,22 +242,22 @@ class DbProject(BaseModel):
 
     id: uuid.UUID
     name: str
-    slug: Optional[str] = None
-    short_description: Optional[str] = None
-    description: Optional[str] = None
-    per_task_instructions: Optional[str] = None
-    organisation_id: Optional[int] = None
-    outline: Optional[Polygon | Feature | FeatureCollection]
-    centroid: Optional[Point | Feature | Polygon] = None
-    no_fly_zones: Optional[MultiPolygon | Polygon | Feature] = None
+    slug: str | None = None
+    short_description: str | None = None
+    description: str | None = None
+    per_task_instructions: str | None = None
+    organisation_id: int | None = None
+    outline: Polygon | Feature | FeatureCollection | None
+    centroid: Point | Feature | Polygon | None = None
+    no_fly_zones: MultiPolygon | Polygon | Feature | None = None
     total_task_count: int = 0
-    tasks: Optional[list[TaskOut]] = []
-    requires_approval_from_manager_for_locking: Optional[bool] = None
-    requires_approval_from_regulator: Optional[bool] = False
-    regulator_emails: Optional[List[EmailStr]] = None
-    regulator_approval_status: Optional[str] = None
-    image_processing_status: Optional[str] = None
-    oam_upload_status: Optional[str] = None
+    tasks: list[TaskOut] | None = []
+    requires_approval_from_manager_for_locking: bool | None = None
+    requires_approval_from_regulator: bool | None = False
+    regulator_emails: list[EmailStr] | None = None
+    regulator_approval_status: str | None = None
+    image_processing_status: str | None = None
+    oam_upload_status: str | None = None
     cloud_ortho_ready: bool = False
     cloud_mesh_ready: bool = False
     cloud_ortho_generating: bool = False
@@ -269,39 +266,39 @@ class DbProject(BaseModel):
     # Populated by validators only when the corresponding *_ready flag is true,
     # so the frontend can pick the right viewer without an extra round-trip
     # to find out whether the data exists.
-    cloud_ortho_cog_url: Optional[str] = None
-    cloud_mesh_tileset_url: Optional[str] = None
+    cloud_ortho_cog_url: str | None = None
+    cloud_mesh_tileset_url: str | None = None
     # True when the textured-mesh source (odm_texturing/...obj) is present
     # in S3, regardless of the final_output project selection. Drives the 3D
     # Convert button so a project that *does* have a mesh shows the option
     # even if TEXTURED_MODEL_3D wasn't ticked at create time (it's redundant
     # anyway - ODM always generates the mesh).
     mesh_source_available: bool = False
-    odm_task_uuid: Optional[str] = None
-    odm_endpoint_used: Optional[str] = None
-    assets_url: Optional[str] = None
-    orthophoto_url: Optional[str] = None
+    odm_task_uuid: str | None = None
+    odm_endpoint_used: str | None = None
+    assets_url: str | None = None
+    orthophoto_url: str | None = None
     # DEM is split: DSM = top-of-canopy surface, DTM = bare ground. Different
     # files, different products. Single "dem_url" lumped them confusingly.
-    dsm_url: Optional[str] = None
-    dtm_url: Optional[str] = None
-    pointcloud_url: Optional[str] = None
-    output_orthophoto_url: Optional[str] = None
-    output_pointcloud_url: Optional[str] = None
-    output_odm_assets_url: Optional[str] = None
-    regulator_comment: Optional[str] = None
-    commenting_regulator_id: Optional[str] = None
-    author_id: Optional[str] = None
-    author_name: Optional[str] = None
-    project_area: Optional[float] = None
-    task_split_dimension: Optional[int] = None
-    front_overlap: Optional[float] = None
-    side_overlap: Optional[float] = None
-    gsd_cm_px: Optional[float] = None
-    altitude_from_ground: Optional[float] = None
+    dsm_url: str | None = None
+    dtm_url: str | None = None
+    pointcloud_url: str | None = None
+    output_orthophoto_url: str | None = None
+    output_pointcloud_url: str | None = None
+    output_odm_assets_url: str | None = None
+    regulator_comment: str | None = None
+    commenting_regulator_id: str | None = None
+    author_id: str | None = None
+    author_name: str | None = None
+    project_area: float | None = None
+    task_split_dimension: int | None = None
+    front_overlap: float | None = None
+    side_overlap: float | None = None
+    gsd_cm_px: float | None = None
+    altitude_from_ground: float | None = None
     is_terrain_follow: bool = False
-    final_output: Optional[List[FinalOutput]] = None
-    image_url: Optional[str] = None
+    final_output: list[FinalOutput] | None = None
+    image_url: str | None = None
     created_at: datetime
 
     @field_validator("final_output", mode="before")
@@ -473,9 +470,9 @@ class DbProject(BaseModel):
 
     async def all(
         db: Connection,
-        user_id: Optional[str] = None,
-        search: Optional[str] = None,
-        status: Optional[ProjectCompletionStatus] = None,
+        user_id: str | None = None,
+        search: str | None = None,
+        status: ProjectCompletionStatus | None = None,
         skip: int = 0,
         limit: int = 100,
     ):
@@ -604,12 +601,12 @@ class DbProject(BaseModel):
             exclude_none=True, exclude=["outline", "centroid"]
         )
         # NOTE to change the approach here to pass the value
-        if "regulator_emails" in model_dump.keys():
+        if "regulator_emails" in model_dump:
             model_dump["regulator_approval_status"] = (
                 RegulatorApprovalStatus.PENDING.name
             )
         columns = ", ".join(model_dump.keys())
-        value_placeholders = ", ".join(f"%({key})s" for key in model_dump.keys())
+        value_placeholders = ", ".join(f"%({key})s" for key in model_dump)
         sql = f"""
             INSERT INTO projects (
                 id, author_id, outline, centroid, created_at, {columns}
@@ -705,8 +702,8 @@ class DbProject(BaseModel):
 class Pagination(BaseModel):
     has_next: bool
     has_prev: bool
-    next_num: Optional[int]
-    prev_num: Optional[int]
+    next_num: int | None
+    prev_num: int | None
     page: int
     per_page: int
     total: int
@@ -747,57 +744,56 @@ class ProjectInfo(BaseModel):
     """Out model for the project endpoint."""
 
     id: uuid.UUID
-    slug: Optional[str] = None
+    slug: str | None = None
     name: str
-    description: Optional[str] = None
-    per_task_instructions: Optional[str] = None
-    requires_approval_from_manager_for_locking: Optional[bool] = None
-    outline: Optional[Polygon | Feature | FeatureCollection]
-    no_fly_zones: Optional[Polygon | Feature | FeatureCollection | MultiPolygon] = None
-    requires_approval_from_manager_for_locking: bool
-    requires_approval_from_regulator: Optional[bool] = False
-    regulator_emails: Optional[List[EmailStr]] = None
-    regulator_approval_status: Optional[str] = None
-    image_processing_status: Optional[str] = None
-    oam_upload_status: Optional[str] = None
+    description: str | None = None
+    per_task_instructions: str | None = None
+    requires_approval_from_manager_for_locking: bool | None = None
+    outline: Polygon | Feature | FeatureCollection | None
+    no_fly_zones: Polygon | Feature | FeatureCollection | MultiPolygon | None = None
+    requires_approval_from_regulator: bool | None = False
+    regulator_emails: list[EmailStr] | None = None
+    regulator_approval_status: str | None = None
+    image_processing_status: str | None = None
+    oam_upload_status: str | None = None
     cloud_ortho_ready: bool = False
     cloud_mesh_ready: bool = False
     cloud_ortho_generating: bool = False
     cloud_mesh_generating: bool = False
-    cloud_ortho_cog_url: Optional[str] = None
-    cloud_mesh_tileset_url: Optional[str] = None
+    cloud_ortho_cog_url: str | None = None
+    cloud_mesh_tileset_url: str | None = None
     # Presigned URL to the ODM GLB, loaded by the drone-mesh viewer. Null if
     # the project predates ODM --gltf.
-    mesh_glb_url: Optional[str] = None
+    mesh_glb_url: str | None = None
     mesh_source_available: bool = False
-    odm_task_uuid: Optional[str] = None
-    assets_url: Optional[str] = None
-    orthophoto_url: Optional[str] = None
+    odm_task_uuid: str | None = None
+    assets_url: str | None = None
+    orthophoto_url: str | None = None
     # Split from the old single dem_url - DSM and DTM are distinct ODM
     # products and shouldn't be lumped under one button.
-    dsm_url: Optional[str] = None
-    dtm_url: Optional[str] = None
-    pointcloud_url: Optional[str] = None
-    output_orthophoto_url: Optional[str] = None
-    output_pointcloud_url: Optional[str] = None
-    output_odm_assets_url: Optional[str] = None
+    dsm_url: str | None = None
+    dtm_url: str | None = None
+    pointcloud_url: str | None = None
+    output_orthophoto_url: str | None = None
+    output_pointcloud_url: str | None = None
+    output_odm_assets_url: str | None = None
     has_gcp: bool = False
-    regulator_comment: Optional[str] = None
-    commenting_regulator_id: Optional[str] = None
-    author_name: Optional[str] = None
-    project_area: Optional[float] = None
-    task_split_dimension: Optional[int] = None
-    final_output: Optional[List[FinalOutput]] = None
-    front_overlap: Optional[float] = None
-    side_overlap: Optional[float] = None
-    gsd_cm_px: Optional[float] = None
-    altitude_from_ground: Optional[float] = None
+    regulator_comment: str | None = None
+    commenting_regulator_id: str | None = None
+    author_name: str | None = None
+    project_area: float | None = None
+    task_split_dimension: int | None = None
+    final_output: list[FinalOutput] | None = None
+    front_overlap: float | None = None
+    side_overlap: float | None = None
+    gsd_cm_px: float | None = None
+    altitude_from_ground: float | None = None
     total_task_count: int = 0
-    tasks: Optional[list[TaskOut]] = []
-    image_url: Optional[str] = None
-    ongoing_task_count: Optional[int] = 0
-    completed_task_count: Optional[int] = 0
-    status: Optional[str] = "not-started"
+    tasks: list[TaskOut] | None = []
+    image_url: str | None = None
+    ongoing_task_count: int | None = 0
+    completed_task_count: int | None = 0
+    status: str | None = "not-started"
     created_at: datetime
     author_id: str
     is_terrain_follow: bool = False
@@ -1008,13 +1004,13 @@ class ProjectInfo(BaseModel):
 class ProjectOut(BaseModel):
     """Base project model."""
 
-    results: Optional[list[ProjectInfo]] = []
-    pagination: Optional[Pagination] = {}
+    results: list[ProjectInfo] | None = []
+    pagination: Pagination | None = {}
 
 
 class MultipartUploadRequest(BaseModel):
     project_id: uuid.UUID
-    task_id: Optional[uuid.UUID] = None
+    task_id: uuid.UUID | None = None
     file_name: str
     staging: bool = False  # If True, upload to user-uploads staging directory
     purpose: str = "image"  # "image" or "odm_import"
@@ -1030,12 +1026,12 @@ class SignPartUploadRequest(BaseModel):
 class CompleteMultipartUploadRequest(BaseModel):
     upload_id: str
     file_key: str
-    parts: List[dict]  # List of {"PartNumber": int, "ETag": str}
+    parts: list[dict]  # List of {"PartNumber": int, "ETag": str}
     project_id: uuid.UUID
     filename: str
-    batch_id: Optional[uuid.UUID] = None  # Optional batch ID for grouping uploads
+    batch_id: uuid.UUID | None = None  # Optional batch ID for grouping uploads
     purpose: str = "image"  # "image" or "odm_import"
-    task_id: Optional[uuid.UUID] = None  # Required when purpose="odm_import"
+    task_id: uuid.UUID | None = None  # Required when purpose="odm_import"
 
 
 class AbortMultipartUploadRequest(BaseModel):

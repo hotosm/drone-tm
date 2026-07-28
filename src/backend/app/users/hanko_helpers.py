@@ -1,17 +1,14 @@
 """Hanko SSO user mapping helpers for Drone-TM."""
 
 import uuid
-from typing import Optional
 
+from app.users.user_schemas import AuthUser, DbUser
+from hotosm_auth.models import HankoUser
 from loguru import logger as log
 from psycopg import Connection
 
-from hotosm_auth.models import HankoUser
 
-from app.users.user_schemas import AuthUser, DbUser
-
-
-async def lookup_user_by_email(db_conn: Connection, email: str) -> Optional[str]:
+async def lookup_user_by_email(db_conn: Connection, email: str) -> str | None:
     """Find existing user by email. Returns user ID or None."""
     user = await DbUser.get_user_by_email(db_conn, email)
     if user:

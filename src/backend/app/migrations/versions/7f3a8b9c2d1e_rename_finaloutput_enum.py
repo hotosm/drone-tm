@@ -6,15 +6,14 @@ Create Date: 2026-05-07
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 revision: str = "7f3a8b9c2d1e"
-down_revision: Union[str, None] = "0c7b5d8e9f12"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0c7b5d8e9f12"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

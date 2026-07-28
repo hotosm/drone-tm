@@ -6,8 +6,8 @@ Create Date: 2025-01-08
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "add_thumbnail_url"
 down_revision = "add_image_classification"

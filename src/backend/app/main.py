@@ -6,35 +6,34 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Annotated
 
+from app.__version__ import __version__
+from app.config import MonitoringTypes, settings
+from app.db.database import get_db
+from app.drones import drone_routes
+from app.gcp import gcp_routes
+from app.models.enums import HTTPStatus
+from app.projects import classification_routes, project_routes
+from app.public_routes import router as public_router
+from app.tasks import task_routes
+from app.users import user_routes
+from app.utils import sanitize_sensitive_text
+from app.waypoints import waypoint_routes
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from loguru import logger as log
-from psycopg import Connection
-from psycopg_pool import AsyncConnectionPool
-
-from app.__version__ import __version__
-from app.config import settings, MonitoringTypes
-from app.db.database import get_db
-from app.drones import drone_routes
-from app.gcp import gcp_routes
-from app.models.enums import HTTPStatus
-from app.utils import sanitize_sensitive_text
-from app.public_routes import router as public_router
-from app.projects import classification_routes, project_routes
-from app.tasks import task_routes
-from app.users import user_routes
-from app.waypoints import waypoint_routes
 
 # Import auth initialization for Hanko SSO
 from hotosm_auth import AuthConfig
 from hotosm_auth_fastapi import (
-    init_auth,
     create_admin_mappings_router_psycopg,
+    init_auth,
     osm_router,
 )
+from loguru import logger as log
+from psycopg import Connection
+from psycopg_pool import AsyncConnectionPool
 
 root = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
@@ -81,9 +80,7 @@ class InterceptHandler(logging.Handler):
 def healthcheck_log_filter(record):
     """Logging on every healthcheck ping is too verbose. Omit."""
     msg = record["message"]
-    if "/__heartbeat__" in msg or "/__lbheartbeat__" in msg:
-        return False  # Skip this log
-    return True
+    return "/__heartbeat__" not in msg and "/__lbheartbeat__" not in msg
 
 
 _LOG_FORMAT = (
@@ -273,7 +270,7 @@ async def lifespan(app: FastAPI):
         and settings.monitoring_config.SENTRY_DSN
     ):
         try:
-            from app.monitoring import set_sentry_otel_tracer, instrument_app_otel
+            from app.monitoring import instrument_app_otel, set_sentry_otel_tracer
 
             log.info("Adding Sentry OpenTelemetry monitoring config")
             set_sentry_otel_tracer(settings.monitoring_config.SENTRY_DSN)

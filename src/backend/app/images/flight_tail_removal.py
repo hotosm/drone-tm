@@ -1,17 +1,15 @@
 from uuid import UUID
 
-
+from app.images.image_logic import reject_assigned_images
+from app.models.enums import ImageStatus
+from app.utils import (
+    calculate_angular_difference,
+    circular_mean_list,
+    circular_mean_pair,
+)
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
-
-from app.models.enums import ImageStatus
-from app.images.image_logic import reject_assigned_images
-from app.utils import (
-    calculate_angular_difference,
-    circular_mean_pair,
-    circular_mean_list,
-)
 
 
 def _confirm_stable_heading(project_list: list, image_index: int, steps: int) -> bool:
@@ -74,7 +72,7 @@ async def _flag_flight_tail_images(
     Updates the status of identified flight tail images to REJECTED with a specified comment.
     """
     if not flight_tail_list:
-        return None
+        return
 
     flight_tails_ids = [project_list[i]["id"] for i in flight_tail_list]
 
@@ -379,11 +377,14 @@ async def mark_and_remove_flight_tail_imagery(
                     takeoff_baseline = circular_mean_pair(
                         takeoff_baseline, current_azimuth
                     )
-                elif azimuth_difference > 60:  # Increased threshold from 45 to 60
+                elif (
+                    azimuth_difference > 60
+                    and i >= MIN_TAIL_LENGTH
+                    and _confirm_stable_heading(segment, i, 1)
+                ):
                     # Potential turn detected - confirm it and enforce minimum tail length
-                    if i >= MIN_TAIL_LENGTH and _confirm_stable_heading(segment, i, 1):
-                        takeoff_tails_indices = list(range(i))
-                        break
+                    takeoff_tails_indices = list(range(i))
+                    break
 
         # LANDING DETECTION (similar logic, working backwards)
         landing_baseline = None

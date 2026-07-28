@@ -2,10 +2,8 @@ import io
 import zipfile
 
 import pytest
-
-from drone_flightplan.drone_type import DroneType
-
 from app.images.flight_gap_identification import identify_flight_gaps
+from drone_flightplan.drone_type import DroneType
 
 
 def assert_is_valid_flightplan(buffer: bytes):
@@ -51,7 +49,7 @@ async def test_north_wrap_around(db, load_freetown_into_db):
             }
         )
 
-    project_id, batch_id, task_id = await load_freetown_into_db(
+    project_id, _batch_id, task_id = await load_freetown_into_db(
         manual_metadata=north_path
     )
     result = await identify_flight_gaps(db, project_id, task_id)
@@ -85,7 +83,7 @@ async def test_gap_missing_flight_leg(db, load_freetown_into_db):
                 }
             )
 
-    project_id, batch_id, task_id = await load_freetown_into_db(
+    project_id, _batch_id, task_id = await load_freetown_into_db(
         manual_metadata=side_gap_metadata
     )
     result = await identify_flight_gaps(db, project_id, task_id)
@@ -102,7 +100,7 @@ async def test_front_overlap_gap_logic(
     # Create a 15-image gap (Front overlap)
     gapped_metadata = freetown_meta[:20] + freetown_meta[35:]
 
-    project_id, batch_id, task_id = await load_freetown_into_db(
+    project_id, _batch_id, task_id = await load_freetown_into_db(
         manual_metadata=gapped_metadata
     )
     result = await identify_flight_gaps(db, project_id, task_id)
@@ -140,7 +138,7 @@ async def test_side_overlap_gap_logic(
     # Create a large gap laterally (Side overlap)
     gapped_metadata = freetown_meta[:50] + freetown_meta[110:]
 
-    project_id, batch_id, task_id = await load_freetown_into_db(
+    project_id, _batch_id, task_id = await load_freetown_into_db(
         manual_metadata=gapped_metadata
     )
     result = await identify_flight_gaps(db, project_id, task_id)
@@ -154,7 +152,7 @@ async def test_gap_outside_aoi_ignored(db, load_freetown_into_db):
     Ensures gaps found in transit (outside the Task AOI) are ignored.
     """
     # Load data with gaps
-    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+    project_id, _batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
 
     # Move AOI far from Freetown
     async with db.cursor() as cur:
@@ -179,7 +177,7 @@ async def test_gap_outside_aoi_ignored(db, load_freetown_into_db):
 @pytest.mark.asyncio
 async def test_freetown_dataset_gap_full_verification(db, load_freetown_into_db):
     """Tests the official 'images-to-delete-for-gaps.txt' gap."""
-    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+    project_id, _batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
     result = await identify_flight_gaps(db, project_id, task_id)
 
     assert_is_valid_flightplan(result["kmz_bytes"])
@@ -202,7 +200,7 @@ async def test_project_level_gap_detection_without_batch_filter(
 
 @pytest.mark.asyncio
 async def test_gap_detection_falls_back_to_exif_drone_model(db, load_freetown_into_db):
-    project_id, batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
+    project_id, _batch_id, task_id = await load_freetown_into_db(apply_gaps=True)
 
     async with db.cursor() as cur:
         await cur.execute("DELETE FROM drone_flights WHERE task_id = %s", (task_id,))

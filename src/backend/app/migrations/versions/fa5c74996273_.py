@@ -6,16 +6,16 @@ Create Date: 2024-07-05 11:51:02.146671
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "fa5c74996273"
-down_revision: Union[str, None] = "ac09917990dc"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "ac09917990dc"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 # Define the existing enum type
 existing_taskstatus_enum = sa.Enum(

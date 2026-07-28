@@ -1,13 +1,12 @@
 import argparse
 import json
-from typing import Union
 
 import geojson
 from geojson import FeatureCollection
 
 
 def create_placemarks(
-    waypoints_geojson: Union[str, FeatureCollection, dict], parameters: dict
+    waypoints_geojson: str | FeatureCollection | dict, parameters: dict
 ):
     """Arguments:
         waypoints_geojson: The waypoint coordinates to be included in the flightplan mission
@@ -76,8 +75,8 @@ def main(args_list: list[str] | None = None):
     if "ground_speed" not in args.parameters:
         raise ValueError("ground_speed is missing in the parameters")
 
-    inpointsfile = open(args.waypoints_geojson)
-    points = inpointsfile.read()
+    with open(args.waypoints_geojson) as inpointsfile:
+        points = inpointsfile.read()
 
     placemark_data = create_placemarks(
         geojson.loads(json.loads(points).get("geojson")), args.parameters

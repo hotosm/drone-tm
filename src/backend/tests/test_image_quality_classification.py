@@ -1,16 +1,14 @@
-import uuid
-import json
 import hashlib
+import json
+import uuid
+from datetime import datetime, timedelta, timezone
+
 import numpy as np
-import shapely.wkb as wkblib
-
-from shapely.geometry import box
-from datetime import datetime, timezone, timedelta
-
 import pytest
-
-from app.models.enums import ImageStatus
+import shapely.wkb as wkblib
 from app.images.image_classification import ImageClassifier, QualityThresholds
+from app.models.enums import ImageStatus
+from shapely.geometry import box
 
 
 def _encode_image(gray_array: np.ndarray) -> bytes:
@@ -34,8 +32,8 @@ def test_grid_sharpness_water_not_rejected():
     enough textured cells exist in the image."""
     h, w = 400, 400
     img = np.full((h, w), 60, dtype=np.uint8)
-    for y in range(0, h // 2):
-        for x in range(0, w // 2):
+    for y in range(h // 2):
+        for x in range(w // 2):
             img[y, x] = np.uint8((y * 7 + x * 13) % 256)
 
     result = ImageClassifier.calculate_sharpness_grid(_encode_image(img))

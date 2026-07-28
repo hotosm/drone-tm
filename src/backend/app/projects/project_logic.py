@@ -4,13 +4,47 @@ import os
 import shutil
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
-from typing import Any, Dict, Optional
+from typing import Any
 
 import geojson
 import pyproj
 import shapely.wkb as wkblib
+from app.config import settings
+from app.images.image_processing import (
+    ScaleOdmSubmitError,
+    fetch_scaleodm_task_info,
+    submit_scaleodm_task,
+)
+from app.models.enums import FinalOutput, ImageProcessingStatus, OAMUploadStatus, State
+from app.projects import project_schemas
+from app.s3 import (
+    add_obj_to_bucket,
+    get_file_from_bucket,
+    get_object_metadata,
+    maybe_presign_s3_key,
+    s3_client,
+)
+from app.tasks import task_logic
+from app.tasks.task_splitter import (
+    GeometryTopologyError,
+    GeometryValidationError,
+    split_by_square,
+)
+from app.utils import (
+    calculate_flight_time_from_placemarks,
+    merge_multipolygon,
+    timestamp,
+)
+from drone_flightplan import (
+    add_elevation_from_dem,
+    calculate_parameters,
+    create_placemarks,
+    create_waypoint,
+    terrain_following_waylines,
+)
+from drone_flightplan.enums import FlightMode
 from fastapi import HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from geojson import Feature, FeatureCollection
@@ -21,42 +55,6 @@ from psycopg.rows import dict_row
 from shapely.errors import GEOSException
 from shapely.geometry import shape
 from shapely.ops import transform
-
-from drone_flightplan import (
-    add_elevation_from_dem,
-    calculate_parameters,
-    create_placemarks,
-    terrain_following_waylines,
-    create_waypoint,
-)
-from drone_flightplan.enums import FlightMode
-
-from app.config import settings
-from app.models.enums import FinalOutput, ImageProcessingStatus, OAMUploadStatus, State
-from app.projects import project_schemas
-from app.images.image_processing import (
-    ScaleOdmSubmitError,
-    fetch_scaleodm_task_info,
-    submit_scaleodm_task,
-)
-from app.s3 import (
-    s3_client,
-    add_obj_to_bucket,
-    maybe_presign_s3_key,
-    get_file_from_bucket,
-    get_object_metadata,
-)
-from app.tasks.task_splitter import (
-    GeometryTopologyError,
-    GeometryValidationError,
-    split_by_square,
-)
-from app.tasks import task_logic
-from app.utils import (
-    calculate_flight_time_from_placemarks,
-    merge_multipolygon,
-    timestamp,
-)
 
 
 async def get_centroids(db: Connection):
@@ -90,7 +88,7 @@ async def get_centroids(db: Connection):
             return centroids
 
     except Exception as e:
-        log.error(f"Error during reading centroids: {str(e)}")
+        log.error(f"Error during reading centroids: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -187,7 +185,7 @@ async def process_task_metrics(db, tasks_data, project):
     """Process flight metrics and update tasks."""
     task_updates = []
     for task in tasks_data:
-        task_id, project_id, outline, index = task[:4]
+        task_id, _project_id, outline, _index = task[:4]
         geom = shape(wkblib.loads(outline))
 
         proj_wgs84 = pyproj.CRS("EPSG:4326")
@@ -353,13 +351,13 @@ async def preview_split_by_square(boundary: str, meters: int):
 
 
 async def process_drone_images(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: uuid.UUID,
     task_id: uuid.UUID,
     user_id: str,
-    odm_url: Optional[str] = None,
+    odm_url: str | None = None,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Submit a per-task ScaleODM run.
 
     NOTE: **_kwargs absorbs extra keys (e.g. ``_carrier``) that OpenTelemetry's
@@ -552,15 +550,14 @@ async def update_processing_status(
             {"status": status.name, "project_id": project_id},
         )
     await db.commit()
-    return
 
 
 async def process_all_drone_images(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: uuid.UUID,
     tasks: list,
     user_id: str,
-    capacity_type: Optional[str] = None,
+    capacity_type: str | None = None,
     **_kwargs: Any,
 ):
     job_id = ctx.get("job_id", "unknown")
@@ -729,7 +726,7 @@ async def get_assets_info_bulk(
 
     project_ortho_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
 
-    def _probe_project_ortho() -> Optional[str]:
+    def _probe_project_ortho() -> str | None:
         try:
             get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_key)
             return maybe_presign_s3_key(project_ortho_key, expires_hours=12)
@@ -738,7 +735,7 @@ async def get_assets_info_bulk(
                 log.warning(f"Project ortho lookup failed: {e}")
             return None
 
-    def _probe_task(task_id: uuid.UUID) -> tuple[uuid.UUID, bool, Optional[str]]:
+    def _probe_task(task_id: uuid.UUID) -> tuple[uuid.UUID, bool, str | None]:
         """Return (task_id, has_odm_output, task_level_ortho_url)."""
         try:
             odm_prefix = f"projects/{project_id}/{task_id}/odm/"
@@ -798,7 +795,7 @@ async def _clear_task_odm_run(
     db: Connection,
     project_id: uuid.UUID,
     task_id: uuid.UUID,
-    expected_odm_uuid: Optional[str],
+    expected_odm_uuid: str | None,
 ) -> None:
     """Clear a task's odm metadata, but only if it still holds expected_odm_uuid
     (so a rerun that reused the row is never cleared)."""
@@ -1032,13 +1029,13 @@ ODM_STUCK_TIMEOUT_SECONDS = 7 * 24 * 3600
 
 def _aware_utc(dt: datetime) -> datetime:
     """Return dt as tz-aware UTC, treating a naive value (DB timestamps) as UTC."""
-    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 def _odm_failure_reason(
-    info: Optional[dict[str, Any]],
-    started_at: Optional[datetime],
-) -> Optional[str]:
+    info: dict[str, Any] | None,
+    started_at: datetime | None,
+) -> str | None:
     """Return a failure message if a STARTED run should be failed, else None.
 
     Fails only on an explicit terminal status; an unreachable ScaleODM (info is
@@ -1057,7 +1054,7 @@ def _odm_failure_reason(
 
     # Unreachable/unknown: keep waiting until past the stuck timeout.
     if started_at is not None:
-        age = (datetime.now(timezone.utc) - _aware_utc(started_at)).total_seconds()
+        age = (datetime.now(UTC) - _aware_utc(started_at)).total_seconds()
         if age >= ODM_STUCK_TIMEOUT_SECONDS:
             return "Processing timed out; no status from ScaleODM."
     return None
@@ -1198,7 +1195,7 @@ async def reconcile_failed_project_odm_output(
     return True
 
 
-def resolve_scaleodm_url(odm_endpoint_used: Optional[str]) -> str:
+def resolve_scaleodm_url(odm_endpoint_used: str | None) -> str:
     """Use the endpoint a run was submitted to, else the configured default."""
     return odm_endpoint_used or settings.ODM_ENDPOINT
 

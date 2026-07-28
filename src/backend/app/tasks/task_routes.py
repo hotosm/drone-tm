@@ -1,11 +1,6 @@
 import uuid
-from typing import Annotated
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from psycopg import Connection
-from psycopg.rows import dict_row
-
 from datetime import datetime, timezone
+from typing import Annotated
 
 from app.db import database
 from app.models.enums import HTTPStatus
@@ -13,6 +8,9 @@ from app.projects import project_deps, project_schemas
 from app.tasks import task_logic, task_schemas
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from psycopg import Connection
+from psycopg.rows import dict_row
 
 router = APIRouter(
     prefix="/tasks",

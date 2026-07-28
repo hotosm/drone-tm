@@ -1,11 +1,10 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path
-from psycopg import Connection
-
 from app.db import database
 from app.drones.drone_schemas import DbDrone
 from app.models.enums import HTTPStatus
+from fastapi import Depends, HTTPException, Path
+from psycopg import Connection
 
 
 async def get_drone_by_id(

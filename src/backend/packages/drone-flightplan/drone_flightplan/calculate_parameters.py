@@ -1,12 +1,12 @@
 import argparse
+import json
 import logging
 import math
-import json
 
 from drone_flightplan.drone_type import (
-    DroneType,
     DRONE_PARAMS,
     DRONE_SPECS,
+    DroneType,
     drone_type_arg,
 )
 
@@ -38,8 +38,8 @@ def print_drone_calcs():
             stats["image_width_px"],
         )
 
-        print("")
-        print("")
+        print()
+        print()
 
 
 def _calculate_constants(
@@ -138,7 +138,7 @@ def calculate_parameters(
     forward_overlap: float,
     side_overlap: float,
     agl: float,
-    gsd: float = None,
+    gsd: float | None = None,
     image_interval: int = 2,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
 ):

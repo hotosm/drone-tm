@@ -12,59 +12,55 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, ClassVar
 from uuid import UUID
 
 import aiohttp
-from arq import ArqRedis, create_pool, cron
-from arq.connections import RedisSettings, log_redis_info
-from fastapi import HTTPException
-from loguru import logger as log
-from PIL import Image
-from psycopg.rows import dict_row
-
+from app.arq.cloudnative import (
+    generate_3d_tiles,
+    generate_orthophoto_cog,
+)
 from app.config import settings
 from app.db.database import get_db_connection_pool
+from app.images.flight_stationary_removal import mark_and_remove_stationary_imagery
+from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
+from app.images.image_classification import ImageClassifier
 from app.images.image_logic import (
     calculate_file_hash,
     check_duplicate_image,
     create_project_image,
     extract_exif_data,
 )
+from app.images.image_processing import (
+    extract_and_upload_odm_assets,
+)
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
-from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
-from app.images.flight_stationary_removal import mark_and_remove_stationary_imagery
-from app.models.enums import HTTPStatus, ImageStatus
-from app.projects import project_schemas
-from app.projects.s3_paths import public_qfield_zip_key
+from app.jaxa.upload_dem import download_and_upload_dem
+from app.models.enums import HTTPStatus, ImageProcessingStatus, ImageStatus, State
+from app.projects import project_logic, project_schemas
 from app.projects.project_logic import (
     process_all_drone_images,
     process_drone_images,
     process_task_metrics,
 )
+from app.projects.s3_paths import public_qfield_zip_key
 from app.s3 import (
     add_obj_to_bucket,
     async_get_obj_from_bucket,
-    generate_presigned_get_url,
-    s3_client,
-    get_file_from_bucket,
     delete_objects_by_prefix,
+    generate_presigned_get_url,
+    get_file_from_bucket,
+    s3_client,
     s3_object_exists,
 )
-from app.images.image_classification import ImageClassifier
-from app.jaxa.upload_dem import download_and_upload_dem
-from app.images.image_processing import (
-    extract_and_upload_odm_assets,
-)
-from app.arq.cloudnative import (
-    generate_3d_tiles,
-    generate_orthophoto_cog,
-)
-from app.models.enums import ImageProcessingStatus, State
 from app.tasks import task_logic
 from app.utils import timestamp
-from app.projects import project_logic
-
+from arq import ArqRedis, create_pool, cron
+from arq.connections import RedisSettings, log_redis_info
+from fastapi import HTTPException
+from loguru import logger as log
+from PIL import Image
+from psycopg.rows import dict_row
 
 THUMBNAIL_SIZE = (200, 200)
 
@@ -85,7 +81,7 @@ _LIST_PAGE_SIZE = 1000
 _FETCH_CONCURRENCY = 8
 
 
-async def startup(ctx: Dict[Any, Any]) -> None:
+async def startup(ctx: dict[Any, Any]) -> None:
     """Initialize ARQ resources including database pool"""
     log.info("Starting ARQ worker")
 
@@ -98,7 +94,7 @@ async def startup(ctx: Dict[Any, Any]) -> None:
     log.info("Database pool initialized")
 
 
-async def shutdown(ctx: Dict[Any, Any]) -> None:
+async def shutdown(ctx: dict[Any, Any]) -> None:
     """Cleanup ARQ resources"""
     log.info("Shutting down ARQ worker")
 
@@ -114,7 +110,7 @@ async def shutdown(ctx: Dict[Any, Any]) -> None:
 
 
 def generate_thumbnail(
-    image_bytes: bytes, size: Tuple[int, int] = THUMBNAIL_SIZE
+    image_bytes: bytes, size: tuple[int, int] = THUMBNAIL_SIZE
 ) -> bytes:
     """Generate thumbnail from image bytes.
 
@@ -158,7 +154,7 @@ def generate_thumbnail(
         raise ValueError(f"Failed to generate thumbnail: {e}") from e
 
 
-async def sleep_task(ctx: Dict[Any, Any], **_kwargs: Any) -> Dict[str, str]:
+async def sleep_task(ctx: dict[Any, Any], **_kwargs: Any) -> dict[str, str]:
     """Test task to sleep for 1 minute"""
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting sleep_task (Job ID: {job_id})")
@@ -168,30 +164,29 @@ async def sleep_task(ctx: Dict[Any, Any], **_kwargs: Any) -> Dict[str, str]:
         log.info(f"Completed sleep_task (Job ID: {job_id})")
         return {"message": "Slept for 1 minute", "job_id": job_id}
     except Exception as e:
-        log.error(f"Error in sleep_task (Job ID: {job_id}): {str(e)}")
+        log.error(f"Error in sleep_task (Job ID: {job_id}): {e!s}")
         raise
 
 
 async def count_project_tasks(
-    ctx: Dict[Any, Any], project_id: str, **_kwargs: Any
-) -> Dict[str, Any]:
+    ctx: dict[Any, Any], project_id: str, **_kwargs: Any
+) -> dict[str, Any]:
     """Example task that counts tasks for a given project"""
     job_id = ctx.get("job_id", "unknown")
     log.info(f"Starting count_project_tasks (Job ID: {job_id})")
 
     try:
         pool = ctx["db_pool"]
-        async with pool.connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    "SELECT COUNT(*) FROM tasks WHERE project_id = %s", (project_id,)
-                )
-                count = (await cur.fetchone())[0]
-                log.info(f"count = {count}")
-                return {"count": count}
+        async with pool.connection() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "SELECT COUNT(*) FROM tasks WHERE project_id = %s", (project_id,)
+            )
+            count = (await cur.fetchone())[0]
+            log.info(f"count = {count}")
+            return {"count": count}
 
     except Exception as e:
-        log.error(f"Error in count_project_tasks (Job ID: {job_id}): {str(e)}")
+        log.error(f"Error in count_project_tasks (Job ID: {job_id}): {e!s}")
         raise
 
 
@@ -202,12 +197,12 @@ async def _save_image_record(
     file_key: str,
     file_hash: str,
     uploaded_by: str,
-    exif_dict: Optional[dict] = None,
-    location: Optional[dict] = None,
+    exif_dict: dict | None = None,
+    location: dict | None = None,
     status: ImageStatus = ImageStatus.STAGED,
-    batch_id: Optional[str] = None,
-    thumbnail_url: Optional[str] = None,
-    rejection_reason: Optional[str] = None,
+    batch_id: str | None = None,
+    thumbnail_url: str | None = None,
+    rejection_reason: str | None = None,
 ) -> ProjectImageOut:
     """Save image record to database.
 
@@ -254,14 +249,14 @@ async def _save_image_record(
 
 
 async def process_uploaded_image(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: str,
     file_key: str,
     filename: str,
     uploaded_by: str,
-    batch_id: Optional[str] = None,
+    batch_id: str | None = None,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Process an uploaded image after it lands in S3 (ARQ worker).
 
     Pipeline invariants:
@@ -291,7 +286,7 @@ async def process_uploaded_image(
         # Get database connection from pool
         db_pool = ctx.get("db_pool")
         if not db_pool:
-            raise Exception("Database pool not initialized")
+            raise RuntimeError("Database pool not initialized")
 
         async with db_pool.connection() as db:
             log.info(f"Downloading file from S3: {file_key}")
@@ -461,17 +456,17 @@ async def process_uploaded_image(
             }
 
     except Exception as e:
-        log.error(f"Failed (Job: {job_id}): {str(e)}")
+        log.error(f"Failed (Job: {job_id}): {e!s}")
         raise
 
 
 async def ingest_existing_uploads(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: str,
     uploaded_by: str,
     batch_id: str,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Scan a project's user-uploads/ prefix and enqueue processing for untracked files.
 
     Runs as a background job so the HTTP request returns immediately.
@@ -517,20 +512,19 @@ async def ingest_existing_uploads(
         image_extensions = {".jpg", ".jpeg", ".tif", ".tiff", ".png", ".dng"}
 
         # Get already-tracked S3 keys
-        async with db_pool.connection() as db:
-            async with db.cursor() as cur:
-                await cur.execute(
-                    "SELECT s3_key FROM project_images WHERE project_id = %(pid)s",
-                    {"pid": project_id},
-                )
-                existing_keys = {row[0] for row in await cur.fetchall()}
+        async with db_pool.connection() as db, db.cursor() as cur:
+            await cur.execute(
+                "SELECT s3_key FROM project_images WHERE project_id = %(pid)s",
+                {"pid": project_id},
+            )
+            existing_keys = {row[0] for row in await cur.fetchall()}
 
         enqueued = 0
         for obj in list_objects_from_bucket(bucket, prefix):
             if obj.is_dir:
                 continue
             key = obj.object_name
-            relative_key = key[len(prefix) :] if key.startswith(prefix) else key
+            relative_key = key.removeprefix(prefix)
             path_parts = relative_key.split("/")
             filename = key.rsplit("/", 1)[-1]
             filename_lower = filename.lower()
@@ -695,11 +689,11 @@ async def ingest_existing_uploads(
 
 
 async def classify_project_images(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: str,
     disable_flight_tail_detection: bool = False,
     **_kwargs: Any,
-) -> Dict:
+) -> dict:
     """Classify all staged images in a project (across all batches)."""
     job_id = ctx.get("job_id", "unknown")
     log.info(
@@ -796,16 +790,16 @@ async def classify_project_images(
         return result
 
     except Exception as e:
-        log.error(f"Project classification failed: {str(e)}")
+        log.error(f"Project classification failed: {e!s}")
         raise
 
 
 async def move_task_images_for_processing(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: str,
     task_id: str,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Move assigned task images from user-uploads to the task folder."""
     job_id = ctx.get("job_id", "unknown")
     log.info(
@@ -853,7 +847,7 @@ async def move_task_images_for_processing(
         failure_message = (
             "Imagery transfer to the task folder failed. "
             "Please retry by marking this task as fully flown again. "
-            f"Details: {str(e)}"
+            f"Details: {e!s}"
         )
         conn = None
         try:
@@ -877,18 +871,16 @@ async def move_task_images_for_processing(
                 f"{state_error}"
             )
 
-        log.error(
-            f"Failed move_task_images_for_processing (Job ID: {job_id}): {str(e)}"
-        )
+        log.error(f"Failed move_task_images_for_processing (Job ID: {job_id}): {e!s}")
         raise
 
 
 async def delete_batch_images(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: str,
     batch_id: str,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Background task to delete all images in a batch from both database and S3.
 
     Args:
@@ -925,13 +917,13 @@ async def delete_batch_images(
             }
 
     except Exception as e:
-        log.error(f"Failed to delete batch (Job: {job_id}): {str(e)}")
+        log.error(f"Failed to delete batch (Job: {job_id}): {e!s}")
         raise
 
 
 async def process_project_task_metrics(
-    ctx: Dict[Any, Any], project_id: str, **_kwargs: Any
-) -> Dict[str, Any]:
+    ctx: dict[Any, Any], project_id: str, **_kwargs: Any
+) -> dict[str, Any]:
     """Process project task metrics in the ARQ worker."""
     job_id = ctx.get("job_id", "unknown")
     log.info(
@@ -972,11 +964,11 @@ async def process_project_task_metrics(
             }
 
     except Exception as e:
-        log.error(f"Failed process_project_task_metrics (Job ID: {job_id}): {str(e)}")
+        log.error(f"Failed process_project_task_metrics (Job ID: {job_id}): {e!s}")
         raise
 
 
-def _zip_plugin_dir() -> Optional[str]:
+def _zip_plugin_dir() -> str | None:
     """Zip the QField plugin directory and return base64-encoded bytes.
 
     Uses the bundled plugin directory at ``/project/src/qfield-plugin``.
@@ -1006,10 +998,10 @@ def _zip_plugin_dir() -> Optional[str]:
 
 
 async def generate_qfield_project(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: str,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generate a QField project via the QGIS container and upload to S3.
 
     Fetches task geometries and project info from the DB, sends them to
@@ -1136,16 +1128,18 @@ async def generate_qfield_project(
         qgis_url = f"{settings.QGIS_URL}/drone"
         log.info(f"Calling QGIS container at {qgis_url} for project {project_id}")
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
                 qgis_url,
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=300),
-            ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    raise RuntimeError(f"QGIS container returned {resp.status}: {body}")
-                zip_bytes = await resp.read()
+            ) as resp,
+        ):
+            if resp.status != 200:
+                body = await resp.text()
+                raise RuntimeError(f"QGIS container returned {resp.status}: {body}")
+            zip_bytes = await resp.read()
 
         log.info(f"Received {len(zip_bytes)} bytes from QGIS container")
 
@@ -1170,18 +1164,18 @@ async def generate_qfield_project(
         }
 
     except Exception as e:
-        log.error(f"Failed to generate QField project (Job: {job_id}): {str(e)}")
+        log.error(f"Failed to generate QField project (Job: {job_id}): {e!s}")
         raise
 
 
 async def process_imported_odm_assets(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     project_id: str,
     task_id: str,
     s3_zip_key: str,
     user_id: str,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Process an ODM zip uploaded by the user (import flow).
 
     Downloads the zip from S3, validates it contains an orthophoto,
@@ -1334,7 +1328,7 @@ async def process_imported_odm_assets(
 def _normalize_s3_endpoint(endpoint: str) -> str:
     """Return a base URL (scheme + host) for the S3-compatible endpoint."""
     endpoint = endpoint.strip().rstrip("/")
-    if endpoint.startswith("http://") or endpoint.startswith("https://"):
+    if endpoint.startswith(("http://", "https://")):
         return endpoint
     return f"https://{endpoint}"
 
@@ -1415,7 +1409,7 @@ async def _list_s3_jpegs(
     the user-provided prefix. Handles pagination via continuation tokens.
     """
     keys: list[str] = []
-    continuation: Optional[str] = None
+    continuation: str | None = None
     list_url = f"{base_url}/{bucket}"
     ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
 
@@ -1473,7 +1467,7 @@ async def _fetch_gps_for_key(
     bucket: str,
     key: str,
     semaphore: asyncio.Semaphore,
-) -> Optional[Tuple[float, float]]:
+) -> tuple[float, float] | None:
     """Fetch the first ~128KB of an image and extract GPS lat/lon, or None."""
     url = f"{base_url}/{bucket}/{key}"
     async with semaphore:
@@ -1512,7 +1506,7 @@ async def _fetch_gps_for_key(
 
 async def _build_buffered_hull_geojson(
     db,
-    coords: list[Tuple[float, float]],
+    coords: list[tuple[float, float]],
 ) -> dict[str, Any]:
     """Convex hull of (lat, lon) points, buffered by 100m, as a GeoJSON
     FeatureCollection containing a single Polygon feature.
@@ -1570,14 +1564,14 @@ async def _build_buffered_hull_geojson(
 
 
 async def create_project_from_imagery_exif(
-    ctx: Dict[Any, Any],
+    ctx: dict[Any, Any],
     user_id: str,
     endpoint: str,
     bucket_name: str,
     path: str,
     project_name: str,
     **_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a drone-tm project by scanning EXIF GPS from a remote S3 bucket.
 
     Steps: list .jpg/.jpeg keys (depth <=3) → fetch first ~128KB per file →
@@ -1615,7 +1609,7 @@ async def create_project_from_imagery_exif(
             )
         )
 
-    key_coords: list[Tuple[str, float, float]] = [
+    key_coords: list[tuple[str, float, float]] = [
         (keys[i], r[0], r[1]) for i, r in enumerate(results) if r is not None
     ]
     gps_ratio = len(key_coords) / len(keys)
@@ -1630,7 +1624,7 @@ async def create_project_from_imagery_exif(
     if len(key_coords) >= 3:
         median_lat = statistics.median(lat for _, lat, _ in key_coords)
         median_lon = statistics.median(lon for _, _, lon in key_coords)
-        filtered: list[Tuple[str, float, float]] = []
+        filtered: list[tuple[str, float, float]] = []
         for key, lat, lon in key_coords:
             if (
                 abs(lat - median_lat) > _OUTLIER_THRESHOLD_DEG
@@ -1650,7 +1644,7 @@ async def create_project_from_imagery_exif(
             )
         key_coords = filtered
 
-    coords: list[Tuple[float, float]] = [(lat, lon) for _, lat, lon in key_coords]
+    coords: list[tuple[float, float]] = [(lat, lon) for _, lat, lon in key_coords]
 
     if gps_ratio < _MIN_GPS_RATIO:
         raise RuntimeError(
@@ -1718,7 +1712,7 @@ async def create_project_from_imagery_exif(
     }
 
 
-async def reconcile_inflight_odm_tasks(ctx: Dict[Any, Any]) -> Dict[str, Any]:
+async def reconcile_inflight_odm_tasks(ctx: dict[Any, Any]) -> dict[str, Any]:
     """Cron backstop for anything the webhook and page-open paths miss.
 
     Reconciles only in-flight runs (non-null odm_task_uuid, set on submit and
@@ -1768,8 +1762,8 @@ async def reconcile_inflight_odm_tasks(ctx: Dict[Any, Any]) -> Dict[str, Any]:
 
 
 async def reconcile_odm_by_uuid(
-    ctx: Dict[Any, Any], odm_task_uuid: str
-) -> Dict[str, Any]:
+    ctx: dict[Any, Any], odm_task_uuid: str
+) -> dict[str, Any]:
     """Reconcile the project owning an ODM task UUID (enqueued by the webhook).
 
     The webhook is an untrusted trigger: its payload status is ignored and the
@@ -1812,7 +1806,7 @@ class WorkerSettings:
     """ARQ worker configuration"""
 
     redis_settings = RedisSettings.from_dsn(settings.DRAGONFLY_DSN)
-    functions = [
+    functions: ClassVar[list] = [
         sleep_task,
         count_project_tasks,
         process_drone_images,
@@ -1834,7 +1828,7 @@ class WorkerSettings:
     ]
 
     # Backstop reconcile every 30 min (webhook and page-open do the fast path).
-    cron_jobs = [
+    cron_jobs: ClassVar[list] = [
         cron(reconcile_inflight_odm_tasks, minute={0, 30}, run_at_startup=False),
     ]
 
@@ -1852,7 +1846,7 @@ async def get_redis_pool() -> ArqRedis:
     try:
         return await create_pool(RedisSettings.from_dsn(settings.DRAGONFLY_DSN))
     except Exception as e:
-        log.error(f"Redis connection failed: {str(e)}")
+        log.error(f"Redis connection failed: {e!s}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="Background worker unavailable",
